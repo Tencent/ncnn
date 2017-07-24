@@ -428,6 +428,7 @@ int set_cpu_powersave(int powersave)
     return -1;
 #else
     // TODO
+    (void) powersave;  // Avoid unused parameter warning.
     return -1;
 #endif
 }

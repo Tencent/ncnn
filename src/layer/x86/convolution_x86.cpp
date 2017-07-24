@@ -81,7 +81,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
 
     Mat bottom_blob_bordered = bottom_blob;
     if (pad > 0)
