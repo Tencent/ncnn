@@ -15,7 +15,6 @@
 static void conv5x5s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
 {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int inch = bottom_blob.c;
 
     int outw = top_blob.w;

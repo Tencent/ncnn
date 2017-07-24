@@ -114,12 +114,12 @@ static int quantize_weight(float *data, size_t data_length, std::vector<unsigned
 }
 
 static bool quantize_weight(float *data, size_t data_length, int quantize_level, std::vector<float> &quantize_table, std::vector<unsigned char> &quantize_index) {
-    
+
     assert(quantize_level != 0);
     assert(data != NULL);
     assert(data_length > 0);
 
-    if (data_length < quantize_level) {
+    if (data_length < static_cast<size_t>(quantize_level)) {
         fprintf(stderr, "No need quantize,because: data_length < quantize_level");
         return false;
     }
@@ -131,7 +131,7 @@ static bool quantize_weight(float *data, size_t data_length, int quantize_level,
     float max_value = std::numeric_limits<float>::min();
     float min_value = std::numeric_limits<float>::max();
 
-    for (int i = 0; i < data_length; ++i) 
+    for (size_t i = 0; i < data_length; ++i)
     {
         if (max_value < data[i]) max_value = data[i];
         if (min_value > data[i]) min_value = data[i];
@@ -145,7 +145,7 @@ static bool quantize_weight(float *data, size_t data_length, int quantize_level,
     }
 
     // 3. Align data to the quantized value
-    for (int i = 0; i < data_length; ++i) 
+    for (size_t i = 0; i < data_length; ++i)
     {
         size_t table_index = int((data[i] - min_value) / strides);
         table_index = std::min<float>(table_index, quantize_level - 1);
@@ -218,7 +218,7 @@ int main(int argc, char** argv)
     int quantize_level = atoi(quantize_param);
 
     if (quantize_level != 0 && quantize_level != 256 && quantize_level != 65536) {
-        fprintf(stderr, "only support quantize level = 0 or level = 256", argv[0]);
+        fprintf(stderr, "%s: only support quantize level = 0, 256, or 65536", argv[0]);
         return -1;
     }
 
@@ -308,7 +308,7 @@ int main(int argc, char** argv)
             ++it;
         }
     }
-    fprintf(pp, "%d %d\n", layer_count + bottom_reference.size(), blob_names.size() + splitncnn_blob_count);
+    fprintf(pp, "%lu %lu\n", layer_count + bottom_reference.size(), blob_names.size() + splitncnn_blob_count);
 
     // populate
     blob_name_decorated.clear();
@@ -449,12 +449,12 @@ int main(int argc, char** argv)
                     quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
                     }
                 }
-                
+
                 // write quantize tag first
-                if (j == 0) 
+                if (j == 0)
                     fwrite(&quantize_tag, sizeof(int), 1, bp);
 
-                if (quantize_tag) 
+                if (quantize_tag)
                 {
                     int p0 = ftell(bp);
                     if (quantize_level == 256)
@@ -472,14 +472,14 @@ int main(int argc, char** argv)
                     int nalign = alignSize(nwrite, 4);
                     unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
                     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
-                } 
-                else 
+                }
+                else
                 {
                     // write original data
                     fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
                 }
             }
-            
+
         }
         else if (layer.type() == "Crop")
         {
@@ -570,7 +570,7 @@ int main(int argc, char** argv)
                 if (j == 0)
                     fwrite(&quantize_tag, sizeof(int), 1, bp);
 
-                if (quantize_tag) 
+                if (quantize_tag)
 				{
                     int p0 = ftell(bp);
                     if (quantize_level == 256)
@@ -589,7 +589,7 @@ int main(int argc, char** argv)
                     unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
                     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                 }
-                else 
+                else
 				{
                     // write original data
                     fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
@@ -602,7 +602,7 @@ int main(int argc, char** argv)
             const caffe::BlobShape& bs = input_param.shape(0);
             for (int j=1; j<std::min((int)bs.dim_size(), 4); j++)
             {
-                fprintf(pp, " %d", bs.dim(j));
+                fprintf(pp, " %lld", bs.dim(j));
             }
             for (int j=bs.dim_size(); j<4; j++)
             {
@@ -662,7 +662,7 @@ int main(int argc, char** argv)
             const caffe::BlobShape& bs = reshape_param.shape();
             for (int j=1; j<std::min((int)bs.dim_size(), 4); j++)
             {
-                fprintf(pp, " %d", bs.dim(j));
+                fprintf(pp, " %lld", bs.dim(j));
             }
             for (int j=bs.dim_size(); j<4; j++)
             {

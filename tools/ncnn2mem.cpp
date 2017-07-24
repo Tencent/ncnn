@@ -15,6 +15,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <cstddef>
 #include <string>
 #include <vector>
 #include "layer.h"
@@ -24,7 +25,7 @@ static std::vector<std::string> blob_names;
 
 static int find_blob_index_by_name(const char* name)
 {
-    for (int i=0; i<blob_names.size(); i++)
+    for (std::size_t i=0; i<blob_names.size(); i++)
     {
         if (blob_names[i] == name)
         {
@@ -38,7 +39,7 @@ static int find_blob_index_by_name(const char* name)
 
 static void sanitize_name(char* name)
 {
-    for (int i=0; i<strlen(name); i++)
+    for (std::size_t i=0; i<strlen(name); i++)
     {
         if (!isalnum(name[i]))
         {
