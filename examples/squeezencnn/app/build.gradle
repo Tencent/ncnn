@@ -1,0 +1,33 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 9
+    buildToolsVersion "26.0.0"
+
+    defaultConfig {
+        applicationId "com.tencent.squeezencnn"
+
+        ndk {
+            abiFilters 'armeabi-v7a'
+        }
+
+        externalNativeBuild {
+            ndkBuild {
+
+            }
+        }
+    }
+
+    externalNativeBuild {
+        ndkBuild {
+            path project.file("src/main/jni/Android.mk")
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+        }
+    }
+}
