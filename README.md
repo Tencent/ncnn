@@ -33,7 +33,7 @@ ncnn is a high-performance neural network inference computing framework optimize
 * The overall library size is less than 500K, and can be easily reduced to less than 300K
 * Extensible model design, support 8bit quantization and half-precision floating point storage, can import caffe model
 * Support direct memory zero copy reference load network model
-* Can be registered with custom layer implementation and extented
+* Can be registered with custom layer implementation and extended
 * Well, it is strong, not afraid of being stuffed with 卷   QvQ
 
 ---
