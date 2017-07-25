@@ -31,3 +31,86 @@ android {
         }
     }
 }
+
+apply plugin: NCNNPlugin
+
+class NCNNPlugin implements Plugin<Project> {
+    void apply(Project project) {
+        project.afterEvaluate {
+            if (project.plugins.hasPlugin("com.android.application")) {
+                def android = project.extensions.getByName("android")
+                android.applicationVariants.all { def variant ->
+                    def variantData = variant.variantData
+                    def scope = variantData.scope
+                    def ncnnTaskName = scope.getTaskName("ncnn")
+                    def ncnnTask = project.task(ncnnTaskName)
+                    ncnnTask.setGroup("tencent")
+
+                    //to generate libncnn.a
+                    //gradle app:ncnnDebug
+                    //gradle app:ncnnRelease
+                    //don't run this common in Gradle GUI, if you do that you will get an error because the executable can't be found.
+                    //不要使用GUI界面run，会导致环境变量不一致找不到可执行文件，请在命令行运行此Task
+
+                    ncnnTask.doLast {
+                        //generate cmake files
+                        project.exec(new Action<ExecSpec>() {
+                            @Override
+                            void execute(ExecSpec execSpec) {
+                                execSpec.workingDir project.rootProject.file("../../build-android-armv7")
+                                // work dir
+                                execSpec.executable "cmake"
+                                // get from env
+                                execSpec.args("-DCMAKE_TOOLCHAIN_FILE=${android.ndkDirectory}/build/cmake/android.toolchain.cmake")
+                                // toolchain in ndk dir
+                                execSpec.args("-DANDROID_ABI=armeabi-v7a with NEON")
+                                // armeabi-v7a with NEON
+                                execSpec.args("-DANDROID_PLATFORM=android-9")
+                                // the same as ANDROID_NATIVE_API_LEVEL
+                                execSpec.args("-DANDROID_ARM_MODE=thumb")
+                                // the same as ANDROID_FORCE_ARM_BUILD=OFF
+                                execSpec.args("-DANDROID_CPP_FEATURES=")
+                                // the same as ANDROID_STL_FORCE_FEATURES=OFF
+                                execSpec.args("-DANDROID_TOOLCHAIN=gcc")
+                                // not use clang, if you use clang, the cmake executable should use it which in sdk directory.
+                                execSpec.args("..")
+                                // CmakeLists.txt location
+                            }
+                        })
+
+                        //clean
+                        project.exec(new Action<ExecSpec>() {
+                            @Override
+                            void execute(ExecSpec execSpec) {
+                                execSpec.workingDir project.rootProject.file("../../build-android-armv7")
+                                execSpec.executable "make"
+                                execSpec.args("clean")
+                            }
+                        })
+
+                        //make
+                        project.exec(new Action<ExecSpec>() {
+                            @Override
+                            void execute(ExecSpec execSpec) {
+                                execSpec.workingDir project.rootProject.file("../../build-android-armv7")
+                                execSpec.executable "make"
+                                execSpec.args("-j4")
+                            }
+                        })
+
+                        //install
+                        project.exec(new Action<ExecSpec>() {
+                            @Override
+                            void execute(ExecSpec execSpec) {
+                                execSpec.workingDir project.rootProject.file("../../build-android-armv7")
+                                execSpec.executable "make"
+                                execSpec.args("install")
+                            }
+                        })
+                    }
+                }
+
+            }
+        }
+    }
+}
