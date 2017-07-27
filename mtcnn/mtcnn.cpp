@@ -28,7 +28,7 @@ struct orderScore
     float score;
     int oriOrder;
 };
-bool cmpScore(struct orderScore lsh, struct orderScore rsh){
+bool cmpScore(orderScore lsh, orderScore rsh){
     if(lsh.score<rsh.score)
         return true;
     else
@@ -246,9 +246,8 @@ void mtcnn::detect(cv::Mat &image){
     for(vector<struct Bbox>::iterator it=firstBbox_.begin(); it!=firstBbox_.end();it++){
         if((*it).exist){
             Rect temp((*it).y1, (*it).x1, (*it).y2-(*it).y1, (*it).x2-(*it).x1);
-            Mat secImage = image(temp);
-            imwrite("a.jpg", secImage);
-            Mat tempIm = imread("a.jpg");
+            Mat tempIm;
+            tempIm.copyTo(image(temp));
             ncnn::Mat in = ncnn::Mat::from_pixels_resize(tempIm.data, ncnn::Mat::PIXEL_BGR, tempIm.cols, tempIm.rows, 24, 24);
             in.substract_mean_normalize(mean_vals, norm_vals);
             ncnn::Extractor ex = Rnet.create_extractor();
@@ -282,9 +281,8 @@ void mtcnn::detect(cv::Mat &image){
     for(vector<struct Bbox>::iterator it=secondBbox_.begin(); it!=secondBbox_.end();it++){
         if((*it).exist){
             Rect temp((*it).y1, (*it).x1, (*it).y2-(*it).y1, (*it).x2-(*it).x1);
-            Mat thirdImage = image(temp);
-            imwrite("b.jpg", thirdImage);
-            Mat tempIm = imread("b.jpg");
+            Mat tempIm;
+            tempIm.copyTo(image(temp));
             ncnn::Mat in = ncnn::Mat::from_pixels_resize(tempIm.data, ncnn::Mat::PIXEL_BGR, tempIm.cols, tempIm.rows, 48, 48);
             in.substract_mean_normalize(mean_vals, norm_vals);
             ncnn::Extractor ex = Onet.create_extractor();
