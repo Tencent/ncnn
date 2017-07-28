@@ -37,18 +37,12 @@ bool cmpScore(orderScore lsh, orderScore rsh){
 }
 static float getElapse(struct timeval *tv1,struct timeval *tv2)
 {
-	float t = 0.0f;
-
-	if (tv1->tv_sec == tv2->tv_sec)
-	{
-		t = (tv2->tv_usec - tv1->tv_usec)/1000.0f;
-	}	
-	else
-	{
-		t = ((tv2->tv_sec - tv1->tv_sec) * 1000 * 1000 + tv2->tv_usec - tv1->tv_usec)/1000.0f;
-	}
-
-	return t;
+    float t = 0.0f;
+    if (tv1->tv_sec == tv2->tv_sec)
+        t = (tv2->tv_usec - tv1->tv_usec)/1000.0f;
+    else
+        t = ((tv2->tv_sec - tv1->tv_sec) * 1000 * 1000 + tv2->tv_usec - tv1->tv_usec)/1000.0f;
+    return t;
 }
 
 class mtcnn{
@@ -62,7 +56,7 @@ private:
 
     ncnn::Net Pnet, Rnet, Onet;
     ncnn::Mat img;
-	
+
     const float nms_threshold[3] = {0.5, 0.7, 0.7};
     const float threshold[3] = {0.8, 0.8, 0.8};
     const float mean_vals[3] = {127.5, 127.5, 127.5};
@@ -106,7 +100,7 @@ void mtcnn::generateBbox(ncnn::Mat score, ncnn::Mat location, std::vector<Bbox>&
                 bbox.area = (bbox.x2 - bbox.x1)*(bbox.y2 - bbox.y1);
                 for(int channel=0;channel<4;channel++)
                     bbox.regreCoord[channel]=location.channel(channel)[0];
-		boundingBox_.push_back(bbox);
+                boundingBox_.push_back(bbox);
                 bboxScore_.push_back(order);
                 count++;
             }
@@ -209,7 +203,7 @@ void mtcnn::refineAndSquareBbox(vector<Bbox> &vecBbox, const int &height, const 
 void mtcnn::detect(const unsigned char* image_data, std::vector<Bbox>& finalBbox_){
     img = ncnn::Mat::from_pixels(image_data, ncnn::Mat::PIXEL_RGB, img_w, img_h);
     img.substract_mean_normalize(mean_vals, norm_vals);
-	
+
     float minl = img_w<img_h?img_w:img_h;
     int MIN_DET_SIZE = 12;
     int minsize = 80;
@@ -232,8 +226,8 @@ void mtcnn::detect(const unsigned char* image_data, std::vector<Bbox>& finalBbox
         int ws = (int)ceil(img_w*scales_[i]);
         //ncnn::Mat in = ncnn::Mat::from_pixels_resize(image_data, ncnn::Mat::PIXEL_RGB, img_w, img_h, ws, hs);
         ncnn::Mat in(ws, hs, 3);
-	resize_image(img, in);
-	//in.substract_mean_normalize(mean_vals, norm_vals);
+        resize_image(img, in);
+        //in.substract_mean_normalize(mean_vals, norm_vals);
         ncnn::Extractor ex = Pnet.create_extractor();
         ex.set_light_mode(true);
         ex.input("data", in);
@@ -262,15 +256,15 @@ void mtcnn::detect(const unsigned char* image_data, std::vector<Bbox>& finalBbox
     nms(firstBbox_, firstOrderScore_, nms_threshold[0]);
     refineAndSquareBbox(firstBbox_, img_h, img_w);
     printf("firstBbox_.size()=%d\n", firstBbox_.size());
-	
+
     //second stage
     count = 0;
     for(vector<Bbox>::iterator it=firstBbox_.begin(); it!=firstBbox_.end();it++){
         if((*it).exist){
-			ncnn::Mat tempIm;
-			copy_cut_border(img, tempIm, (*it).y1, img_h-(*it).y2, (*it).x1, img_w-(*it).x2);
-			ncnn::Mat in(24, 24, 3);
-			resize_image(tempIm, in);
+            ncnn::Mat tempIm;
+            copy_cut_border(img, tempIm, (*it).y1, img_h-(*it).y2, (*it).x1, img_w-(*it).x2);
+            ncnn::Mat in(24, 24, 3);
+            resize_image(tempIm, in);
             ncnn::Extractor ex = Rnet.create_extractor();
             ex.set_light_mode(true);
             ex.input("data", in);
@@ -302,9 +296,9 @@ void mtcnn::detect(const unsigned char* image_data, std::vector<Bbox>& finalBbox
     for(vector<Bbox>::iterator it=secondBbox_.begin(); it!=secondBbox_.end();it++){
         if((*it).exist){
             ncnn::Mat tempIm;
-	    copy_cut_border(img, tempIm, (*it).y1, img_h-(*it).y2, (*it).x1, img_w-(*it).x2);
-	    ncnn::Mat in(48, 48, 3);
-	    resize_image(tempIm, in);
+            copy_cut_border(img, tempIm, (*it).y1, img_h-(*it).y2, (*it).x1, img_w-(*it).x2);
+            ncnn::Mat in(48, 48, 3);
+            resize_image(tempIm, in);
             ncnn::Extractor ex = Onet.create_extractor();
             ex.set_light_mode(true);
             ex.input("data", in);
@@ -318,7 +312,7 @@ void mtcnn::detect(const unsigned char* image_data, std::vector<Bbox>& finalBbox
                 it->area = (it->x2 - it->x1)*(it->y2 - it->y1);
                 it->score = score.channel(1)[0];
                 for(int num=0;num<5;num++){
-		    (it->ppoint)[num] = it->x1 + (it->x2 - it->x1)*keyPoint.channel(num)[0];
+                    (it->ppoint)[num] = it->x1 + (it->x2 - it->x1)*keyPoint.channel(num)[0];
                     (it->ppoint)[num+5] = it->y1 + (it->y2 - it->y1)*keyPoint.channel(num+5)[0];
                 }
 
@@ -331,13 +325,13 @@ void mtcnn::detect(const unsigned char* image_data, std::vector<Bbox>& finalBbox
                 (*it).exist=false;
             }
         }
-		
+
     printf("thirdBbox_.size()=%d\n", thirdBbox_.size());
     if(count<1)return;
     refineAndSquareBbox(thirdBbox_, img_h, img_w);
     nms(thirdBbox_, thirdBboxScore_, nms_threshold[2], "Min");
     finalBbox_ = thirdBbox_;
-	
+
     firstBbox_.clear();
     firstOrderScore_.clear();
     secondBbox_.clear();
@@ -364,10 +358,10 @@ int main(int argc, char** argv)
     mm.detect(cv_img.data, finalBbox);
     gettimeofday(&tv2,&tz2);
     printf( "%s = %g ms \n ", "Detection All time", getElapse(&tv1, &tv2) );
-	for(vector<Bbox>::iterator it=finalBbox.begin(); it!=finalBbox.end();it++){
-            if((*it).exist){
-                rectangle(cv_img, Point((*it).x1, (*it).y1), Point((*it).x2, (*it).y2), Scalar(0,0,255), 2,8,0);
-                for(int num=0;num<5;num++)circle(cv_img,Point((int)*(it->ppoint+num), (int)*(it->ppoint+num+5)),3,Scalar(0,255,255), -1);
+    for(vector<Bbox>::iterator it=finalBbox.begin(); it!=finalBbox.end();it++){
+        if((*it).exist){
+            rectangle(cv_img, Point((*it).x1, (*it).y1), Point((*it).x2, (*it).y2), Scalar(0,0,255), 2,8,0);
+            for(int num=0;num<5;num++)circle(cv_img,Point((int)*(it->ppoint+num), (int)*(it->ppoint+num+5)),3,Scalar(0,255,255), -1);
         }
     }
     imwrite("result.jpg",cv_img);
