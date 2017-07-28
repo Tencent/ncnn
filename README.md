@@ -1,3 +1,9 @@
+---
+### 日志
+1. 针对mtcnn的col-major模型添加了caffe2ncnn_mtcnn.cpp, 生成row-major模型
+2. 添加void resize_image(ncnn::Mat& srcImage, ncnn::Mat& dstImage)
+---
+
 # ncnn
 
 ---
