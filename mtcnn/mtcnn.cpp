@@ -3,6 +3,7 @@
 #include <vector>
 #include <math.h>
 #include <iostream>
+#include <sys/time.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -34,6 +35,22 @@ bool cmpScore(orderScore lsh, orderScore rsh){
     else
         return false;
 }
+static float getElapse(struct timeval *tv1,struct timeval *tv2)
+{
+	float t = 0.0f;
+
+	if (tv1->tv_sec == tv2->tv_sec)
+	{
+		t = (tv2->tv_usec - tv1->tv_usec)/1000.0f;
+	}	
+	else
+	{
+		t = ((tv2->tv_sec - tv1->tv_sec) * 1000 * 1000 + tv2->tv_usec - tv1->tv_usec)/1000.0f;
+	}
+
+	return t;
+}
+
 class mtcnn{
 public:
     mtcnn(int img_w_, int img_h_);
@@ -341,7 +358,12 @@ int main(int argc, char** argv)
     }
     std::vector<Bbox> finalBbox;
     mtcnn mm(cv_img.cols, cv_img.rows);
+    struct timeval  tv1,tv2;
+    struct timezone tz1,tz2;
+    gettimeofday(&tv1,&tz1);
     mm.detect(cv_img.data, finalBbox);
+    gettimeofday(&tv2,&tz2);
+    printf( "%s = %g ms \n ", "Detection All time", getElapse(&tv1, &tv2) );
 	for(vector<Bbox>::iterator it=finalBbox.begin(); it!=finalBbox.end();it++){
             if((*it).exist){
                 rectangle(cv_img, Point((*it).x1, (*it).y1), Point((*it).x2, (*it).y2), Scalar(0,0,255), 2,8,0);
