@@ -24,6 +24,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.provider.MediaStore;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -37,8 +38,7 @@ import java.io.InputStream;
 
 import com.tencent.squeezencnn.SqueezeNcnn;
 
-public class MainActivity extends Activity
-{
+public class MainActivity extends AppCompatActivity {
     private static final int SELECT_IMAGE = 1;
 
     private TextView infoResult;

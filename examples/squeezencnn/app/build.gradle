@@ -1,12 +1,13 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 9
-    buildToolsVersion "26.0.0"
+    compileSdkVersion 25
+    buildToolsVersion "25.0.2"
 
     defaultConfig {
         applicationId "com.tencent.squeezencnn"
-
+        minSdkVersion 14
+        targetSdkVersion 22
         ndk {
             abiFilters 'armeabi-v7a'
         }
@@ -33,6 +34,11 @@ android {
 }
 
 apply plugin: NCNNPlugin
+
+dependencies {
+    compile "com.android.support:appcompat-v7:25.3.1"
+    compile 'com.android.support.constraint:constraint-layout:1.0.2'
+}
 
 class NCNNPlugin implements Plugin<Project> {
     void apply(Project project) {
