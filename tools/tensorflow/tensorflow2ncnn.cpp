@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <limits.h>
 
+#include <iostream>
+
 #include <fstream>
 #include <set>
 #include <limits>
@@ -48,6 +50,24 @@ static bool read_proto_from_binary(const char* filepath, google::protobuf::Messa
     return success;
 }
 
+static const tensorflow::TensorProto& find_tensor_proto(const std::map<std::string, tensorflow::TensorProto>& weights, const tensorflow::NodeDef& node)
+{
+    for (int j=0; j<node.input_size(); j++)
+    {
+        const std::string& input_name = node.input(j);
+
+        const std::map<std::string, tensorflow::TensorProto>::const_iterator it = weights.find(input_name);
+        if (it != weights.end())
+        {
+            const tensorflow::TensorProto& tensor = it->second;
+            return tensor;
+        }
+    }
+
+    static tensorflow::TensorProto null_tensor = tensorflow::TensorProto();
+    return null_tensor;
+}
+
 int main(int argc, char** argv)
 {
     const char* tensorflowpb = argv[1];
@@ -74,6 +94,9 @@ int main(int argc, char** argv)
     // node reference
     std::map<std::string, int> node_reference;
 
+    // mapping for Const and Const-Identity
+    std::map<std::string, tensorflow::TensorProto> weights;
+
     // global definition line
     // [layer count] [blob count]
     std::set<std::string> blob_names;
@@ -81,11 +104,44 @@ int main(int argc, char** argv)
     {
         const tensorflow::NodeDef& node = graph.node(i);
 
+        const std::string& output_name = node.name();
+
+        if (node.op() == "Const")
+        {
+            const google::protobuf::Map<std::string, tensorflow::AttrValue>& attr = node.attr();
+
+            const google::protobuf::Map<std::string, tensorflow::AttrValue>::const_iterator it = attr.find("value");
+            if (it != attr.end())
+            {
+                const tensorflow::TensorProto& tensor = it->second.tensor();
+
+                weights[output_name] = tensor;
+            }
+
+            continue;
+        }
+        else if (node.op() == "Identity")
+        {
+            const std::string& input_name = node.input(0);
+            weights[output_name] = weights[input_name];
+            continue;
+        }
+        else if (node.op() == "NoOp")
+        {
+            weights[output_name] = tensorflow::TensorProto();
+            continue;
+        }
+
         // input
         for (int j=0; j<node.input_size(); j++)
         {
-            std::string input_name = node.input(j);
-//             fprintf(stderr, " %s", input_name.c_str());
+            const std::string& input_name = node.input(j);
+//             fprintf(stderr, "%s\n", input_name.c_str());
+
+            if (weights.find(input_name) != weights.end())
+            {
+                continue;
+            }
 
             blob_names.insert(input_name);
 
@@ -100,7 +156,7 @@ int main(int argc, char** argv)
         }
 
         // output
-        std::string output_name = node.name();
+//         fprintf(stderr, "%s\n", output_name.c_str());
         blob_names.insert(output_name);
     }
 
@@ -121,12 +177,9 @@ int main(int argc, char** argv)
         }
     }
 
-    fprintf(pp, "%lu %lu\n", node_count + node_reference.size(), blob_names.size() + splitncnn_blob_count);
+    fprintf(pp, "%lu %lu\n", node_count + node_reference.size() - weights.size(), blob_names.size() + splitncnn_blob_count);
 
     int internal_split = 0;
-
-    // mapping for Const
-    std::map<std::string, tensorflow::TensorProto> weights;
 
     for (int i=0; i<node_count; i++)
     {
@@ -146,7 +199,7 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Const")
         {
-            fprintf(pp, "%-16s", "Const");//FIXME
+            continue;
         }
         else if (node.op() == "Conv2D")
         {
@@ -154,7 +207,7 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Identity")
         {
-            fprintf(pp, "%-16s", "Identity");//FIXME
+            continue;
         }
         else if (node.op() == "MatMul")
         {
@@ -172,6 +225,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Eltwise");
         }
+        else if (node.op() == "NoOp")
+        {
+            continue;
+        }
         else if (node.op() == "Placeholder")
         {
             fprintf(pp, "%-16s", "Input");
@@ -185,11 +242,27 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", node.op().c_str());
         }
 
-        fprintf(pp, " %-16s %d 1", node.name().c_str(), node.input_size());
+        int input_size = node.input_size();
+        for (int j=0; j<node.input_size(); j++)
+        {
+            const std::string& input_name = node.input(j);
+            if (weights.find(input_name) != weights.end())
+            {
+                input_size--;
+            }
+        }
+
+        fprintf(pp, " %-16s %d 1", node.name().c_str(), input_size);
 
         for (int j=0; j<node.input_size(); j++)
         {
             std::string input_name = node.input(j);
+
+            if (weights.find(input_name) != weights.end())
+            {
+                continue;
+            }
+
             if (node_reference.find(input_name) != node_reference.end())
             {
                 int refidx = node_reference[input_name] - 1;
@@ -213,27 +286,79 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Const")
         {
-            const std::string& name = node.name();
-
-            const google::protobuf::Map<std::string, tensorflow::AttrValue>& attr = node.attr();
-
-            const google::protobuf::Map<std::string, tensorflow::AttrValue>::const_iterator it = attr.find("value");
-            if (it != attr.end())
-            {
-                const tensorflow::TensorProto& tensor = it->second.tensor();
-
-                weights[name] = tensor;
-            }
         }
         else if (node.op() == "Conv2D")
         {
+            // weights
+            const tensorflow::TensorProto& tensor = find_tensor_proto(weights, node);
+
+            fprintf(stderr, "[ ");
+            const tensorflow::TensorShapeProto& shape = tensor.tensor_shape();
+            for (int d = 0; d<shape.dim_size(); d++)
+                fprintf(stderr, "%d ", shape.dim(d).size());
+            fprintf(stderr, "]\n");
+
+            if (!tensor.tensor_content().empty())
+            {
+                switch (tensor.dtype())
+                {
+                    case 1:  // float
+                    {
+                        const float *data = reinterpret_cast<const float*>(tensor.tensor_content().c_str());
+                        int size = tensor.tensor_content().size() / sizeof(float);
+                        fprintf(stderr, "       size = %d\n", size);
+                        break;
+                    }
+                    case 3:  // int32
+                    {
+                        const int *data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                        int size = tensor.tensor_content().size() / sizeof(int);
+                        fprintf(stderr, "       size = %d\n", size);
+                        break;
+                    }
+                    default:
+                        fprintf(stderr, "Tensor type is not supported\n");
+                        break;
+                }
+            }
         }
         else if (node.op() == "Identity")
         {
-            // alias
         }
         else if (node.op() == "MatMul")
         {
+            // weights
+            const tensorflow::TensorProto& tensor = find_tensor_proto(weights, node);
+
+            fprintf(stderr, "[ ");
+            const tensorflow::TensorShapeProto& shape = tensor.tensor_shape();
+            for (int d = 0; d<shape.dim_size(); d++)
+                fprintf(stderr, "%d ", shape.dim(d).size());
+            fprintf(stderr, "]\n");
+
+            if (!tensor.tensor_content().empty())
+            {
+                switch (tensor.dtype())
+                {
+                    case 1:  // float
+                    {
+                        const float *data = reinterpret_cast<const float*>(tensor.tensor_content().c_str());
+                        int size = tensor.tensor_content().size() / sizeof(float);
+                        fprintf(stderr, "       size = %d\n", size);
+                        break;
+                    }
+                    case 3:  // int32
+                    {
+                        const int *data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                        int size = tensor.tensor_content().size() / sizeof(int);
+                        fprintf(stderr, "       size = %d\n", size);
+                        break;
+                    }
+                    default:
+                        fprintf(stderr, "Tensor type is not supported\n");
+                        break;
+                }
+            }
         }
         else if (node.op() == "Max")
         {
@@ -246,13 +371,23 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "NoOp")
         {
-            // noop
         }
         else if (node.op() == "Placeholder")
         {
         }
         else if (node.op() == "Relu")
         {
+        }
+        else
+        {
+            const google::protobuf::Map<std::string, tensorflow::AttrValue>& attr = node.attr();
+
+            google::protobuf::Map<std::string, tensorflow::AttrValue>::const_iterator it = attr.begin();
+            for (; it != attr.end(); it++)
+            {
+                std::cerr << it->first << std::endl;
+                std::cerr << it->second.type() << std::endl;
+            }
         }
 
         std::string output_name = node.name();
