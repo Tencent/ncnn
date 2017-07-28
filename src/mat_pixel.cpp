@@ -1127,6 +1127,66 @@ static Mat from_rgba2gray(const unsigned char* rgba, int w, int h)
     return m;
 }
 
+void resize_image(ncnn::Mat& srcImage, ncnn::Mat& dstImage)
+{
+	int src_width = srcImage.w;
+	int src_height = srcImage.h;
+	int src_channel = srcImage.c;
+	int dst_width = dstImage.w;
+	int dst_height = dstImage.h;
+	int dst_channel = dstImage.c;
+
+	if (src_width==dst_width && src_height==dst_height)
+	{
+		memcpy(dstImage.data, srcImage.data, src_width*src_height*src_channel*sizeof(float));
+		return;
+	}
+	float lf_x_scl = static_cast<float>(src_width) / dst_width;
+	float lf_y_Scl = static_cast<float>(src_height) / dst_height;
+	const float* src_data = srcImage.data;
+
+	float* dest_data = dstImage.data;
+	int src_area = srcImage.cstep;
+	int src_area2 = 2 * src_area;
+	int dst_area = dstImage.cstep;
+	int dst_area2 = 2 * dst_area;
+
+	for (int y = 0; y < dst_height; y++) {
+		for (int x = 0; x < dst_width; x++) {
+			float lf_x_s = lf_x_scl * x;
+			float lf_y_s = lf_y_Scl * y;
+
+			int n_x_s = static_cast<int>(lf_x_s);
+			n_x_s = (n_x_s <= (src_width - 2) ? n_x_s : (src_width - 2));
+			int n_y_s = static_cast<int>(lf_y_s);
+			n_y_s = (n_y_s <= (src_height - 2) ? n_y_s : (src_height - 2));
+
+			float lf_weight_x = lf_x_s - n_x_s;
+			float lf_weight_y = lf_y_s - n_y_s;
+
+			float dest_val_b = (1 - lf_weight_y) * ((1 - lf_weight_x) *
+				src_data[n_y_s * src_width + n_x_s] +
+				lf_weight_x * src_data[n_y_s * src_width + n_x_s + 1]) +
+				lf_weight_y * ((1 - lf_weight_x) * src_data[(n_y_s + 1) * src_width + n_x_s] +
+				lf_weight_x * src_data[(n_y_s + 1) * src_width + n_x_s + 1]);
+			float dest_val_g = (1 - lf_weight_y) * ((1 - lf_weight_x) *
+				src_data[n_y_s * src_width + n_x_s + src_area] +
+				lf_weight_x * src_data[n_y_s * src_width + n_x_s + 1 + src_area]) +
+				lf_weight_y * ((1 - lf_weight_x) * src_data[(n_y_s + 1) * src_width + n_x_s + src_area] +
+				lf_weight_x * src_data[(n_y_s + 1) * src_width + n_x_s + 1 + src_area]);
+			float dest_val_r = (1 - lf_weight_y) * ((1 - lf_weight_x) *
+				src_data[n_y_s * src_width + n_x_s + src_area2] +
+				lf_weight_x * src_data[n_y_s * src_width + n_x_s + 1 + src_area2]) +
+				lf_weight_y * ((1 - lf_weight_x) * src_data[(n_y_s + 1) * src_width + n_x_s + src_area2] +
+				lf_weight_x * src_data[(n_y_s + 1) * src_width + n_x_s + 1 + src_area2]);
+
+			dest_data[y * dst_width + x] = static_cast<float>(dest_val_b);
+			dest_data[y * dst_width + x + dst_area] = static_cast<float>(dest_val_g);
+			dest_data[y * dst_width + x + 2 * dst_area] = static_cast <float>(dest_val_r);
+		}
+	}
+} 
+   
 void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
 {
     const int INTER_RESIZE_COEF_BITS=11;
