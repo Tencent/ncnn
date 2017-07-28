@@ -47,8 +47,8 @@ static float getElapse(struct timeval *tv1,struct timeval *tv2)
 
 class mtcnn{
 public:
-    mtcnn(int img_w_, int img_h_);
-    void detect(const unsigned char* image_data, std::vector<Bbox>& finalBbox);
+    mtcnn();
+    void detect(ncnn::Mat& img_, std::vector<Bbox>& finalBbox);
 private:
     void generateBbox(ncnn::Mat score, ncnn::Mat location, vector<Bbox>& boundingBox_, vector<orderScore>& bboxScore_, float scale);
     void nms(vector<Bbox> &boundingBox_, std::vector<orderScore> &bboxScore_, const float overlap_threshold, string modelname="Union");
@@ -66,9 +66,7 @@ private:
     int img_w, img_h;
 };
 
-mtcnn::mtcnn(int img_w_, int img_h_){
-    img_w = img_w_;
-    img_h = img_h_;
+mtcnn::mtcnn(){
     Pnet.load_param("det1.param");
     Pnet.load_model("det1.bin");
     Rnet.load_param("det2.param");
@@ -200,13 +198,15 @@ void mtcnn::refineAndSquareBbox(vector<Bbox> &vecBbox, const int &height, const 
         }
     }
 }
-void mtcnn::detect(const unsigned char* image_data, std::vector<Bbox>& finalBbox_){
-    img = ncnn::Mat::from_pixels(image_data, ncnn::Mat::PIXEL_RGB, img_w, img_h);
+void mtcnn::detect(ncnn::Mat& img_, std::vector<Bbox>& finalBbox_){
+    img = img_;
+    img_w = img.w;
+    img_h = img.h;
     img.substract_mean_normalize(mean_vals, norm_vals);
 
     float minl = img_w<img_h?img_w:img_h;
     int MIN_DET_SIZE = 12;
-    int minsize = 80;
+    int minsize = 40;
     float m = (float)MIN_DET_SIZE/minsize;
     minl *= m;
     float factor = 0.709;
@@ -351,11 +351,12 @@ int main(int argc, char** argv)
         return -1;
     }
     std::vector<Bbox> finalBbox;
-    mtcnn mm(cv_img.cols, cv_img.rows);
+    mtcnn mm;
+    ncnn::Mat ncnn_img = ncnn::Mat::from_pixels(cv_img.data, ncnn::Mat::PIXEL_RGB, cv_img.cols, cv_img.rows);
     struct timeval  tv1,tv2;
     struct timezone tz1,tz2;
     gettimeofday(&tv1,&tz1);
-    mm.detect(cv_img.data, finalBbox);
+    mm.detect(ncnn_img, finalBbox);
     gettimeofday(&tv2,&tz2);
     printf( "%s = %g ms \n ", "Detection All time", getElapse(&tv1, &tv2) );
     for(vector<Bbox>::iterator it=finalBbox.begin(); it!=finalBbox.end();it++){
