@@ -251,6 +251,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Reshape");
         }
+        else if (node.op() == "Softmax")
+        {
+            fprintf(pp, "%-16s", "Softmax");
+        }
         else
         {
             fprintf(pp, "%-16s", node.op().c_str());
@@ -314,7 +318,8 @@ int main(int argc, char** argv)
             int num_input = shape.dim(2).size();
             int num_output = shape.dim(3).size();
 
-            int stride = 1;
+            int stride_h = 1;
+            int stride_w = 1;
             int dilation = 1;
             int pad = 0;
 
@@ -322,7 +327,8 @@ int main(int argc, char** argv)
             if (find_attr_value(node, "strides", value_strides))
             {
                 // batch, height, width, channels
-                stride = value_strides.list().i(1);
+                stride_h = value_strides.list().i(1);
+                stride_w = value_strides.list().i(2);
             }
 
             tensorflow::AttrValue value_padding;
@@ -391,7 +397,7 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation, stride, pad, bias_term, weight_data_size);
+            fprintf(pp, " %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation, stride_w, pad, bias_term, weight_data_size);
         }
         else if (node.op() == "Identity")
         {
@@ -455,6 +461,46 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "MaxPool")
         {
+            int pooling_type = 0;
+
+            int kernel_size_h = 1;
+            int kernel_size_w = 1;
+            int stride_h = 1;
+            int stride_w = 1;
+            int pad = 0;
+
+            int global_pooling = 0;
+
+            tensorflow::AttrValue value_ksize;
+            if (find_attr_value(node, "ksize", value_ksize))
+            {
+                // batch, height, width, channels
+                kernel_size_h = value_ksize.list().i(1);
+                kernel_size_w = value_ksize.list().i(2);
+            }
+
+            tensorflow::AttrValue value_strides;
+            if (find_attr_value(node, "strides", value_strides))
+            {
+                // batch, height, width, channels
+                stride_h = value_strides.list().i(1);
+                stride_w = value_strides.list().i(2);
+            }
+
+            tensorflow::AttrValue value_padding;
+            if (find_attr_value(node, "padding", value_padding))
+            {
+                if (value_padding.s() == "VALID")
+                {
+                    pad = 0;
+                }
+                else if (value_padding.s() == "SAME")
+                {
+                    pad = -233;
+                }
+            }
+
+            fprintf(pp, " %d %d %d %d %d", pooling_type, kernel_size_w, stride_w, pad, global_pooling);
         }
         else if (node.op() == "Mul")
         {
@@ -464,14 +510,21 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Placeholder")
         {
+            // TODO pass through
+            fprintf(pp, " 0 0 0");
         }
         else if (node.op() == "Relu")
         {
+            float slope = 0.f;
+            fprintf(pp, " %f", slope);
         }
         else if (node.op() == "Reshape")
         {
             // TODO pass through
             fprintf(pp, " 0 0 0");
+        }
+        else if (node.op() == "Softmax")
+        {
         }
         else
         {
