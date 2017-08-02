@@ -141,6 +141,20 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
+    else if (pad == -233)
+    {
+        int wtail = (w - kernel_size) % stride;
+        int htail = (h - kernel_size) % stride;
+        int wpad = wtail ? kernel_size - wtail : 0;
+        int hpad = htail ? kernel_size - htail : 0;
+
+        copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
+        if (bottom_blob_bordered.empty())
+            return -100;
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
 
     int outw = (w - kernel_size) / stride + 1;
     int outh = (h - kernel_size) / stride + 1;
