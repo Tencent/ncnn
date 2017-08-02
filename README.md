@@ -42,3 +42,9 @@ ncnn is a high-performance neural network inference computing framework optimize
 
 BSD 3 Clause
 
+---
+
+### Example project
+
+Android and iOS https://github.com/dangbo/ncnn-mobile (Thanks to dangbo)
+
