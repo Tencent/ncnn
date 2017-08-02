@@ -98,7 +98,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    FILE* pp = stderr;//fopen(ncnn_prototxt, "wb");
+    FILE* pp = fopen(ncnn_prototxt, "wb");
     FILE* bp = fopen(ncnn_modelbin, "wb");
 
     int node_count = graph.node_size();
@@ -206,7 +206,6 @@ int main(int argc, char** argv)
             if (find_tensor_proto(weights, node, tensor))
             {
                 fprintf(pp, "%-16s", "Bias");
-
             }
             else
             {
