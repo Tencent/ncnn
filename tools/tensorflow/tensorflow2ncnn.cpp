@@ -199,13 +199,23 @@ int main(int argc, char** argv)
         // [type] [name] [bottom blob count] [top blob count] [bottom blobs] [top blobs] [layer specific params]
 //         fprintf(pp, "%-16s %-16s %d %d", layer.type().c_str(), layer.name().c_str(), node.input_size(), layer.top_size());
 
-        if (node.op() == "Add")
+        if (node.op() == "Add" || node.op() == "BiasAdd")
         {
-            fprintf(pp, "%-16s", "Eltwise");
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                fprintf(pp, "%-16s", "Bias");
+
+            }
+            else
+            {
+                fprintf(pp, "%-16s", "Eltwise");
+            }
         }
-        else if (node.op() == "BiasAdd")
+        else if (node.op() == "AvgPool")
         {
-            fprintf(pp, "%-16s", "Eltwise");
+            fprintf(pp, "%-16s", "Pooling");
         }
         else if (node.op() == "Const")
         {
@@ -296,11 +306,89 @@ int main(int argc, char** argv)
 
         fprintf(pp, " %s", node.name().c_str());
 
-        if (node.op() == "Add")
+        if (node.op() == "Add" || node.op() == "BiasAdd")
         {
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                int weight_data_size = 0;
+
+                if (!tensor.tensor_content().empty())
+                {
+                    if (tensor.dtype() == 1)// float
+                    {
+                        const float* data = reinterpret_cast<const float*>(tensor.tensor_content().c_str());
+                        weight_data_size = tensor.tensor_content().size() / sizeof(float);
+
+                        fwrite(data, sizeof(float), weight_data_size, bp);
+                    }
+                    else if (tensor.dtype() == 3)// int32
+                    {
+                        const int* data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                        weight_data_size = tensor.tensor_content().size() / sizeof(int);
+
+                        float tmp;
+                        for (int i=0; i<weight_data_size; i++)
+                        {
+                            tmp = data[i];
+                            fwrite(&tmp, sizeof(float), 1, bp);
+                        }
+                    }
+                }
+
+                fprintf(pp, " %d", weight_data_size);
+            }
+            else
+            {
+                int op_type = 1;
+                int num_coeff = 0;
+
+                fprintf(pp, " %d %d", op_type, num_coeff);
+            }
         }
-        else if (node.op() == "BiasAdd")
+        else if (node.op() == "AvgPool")
         {
+            int pooling_type = 1;
+
+            int kernel_size_h = 1;
+            int kernel_size_w = 1;
+            int stride_h = 1;
+            int stride_w = 1;
+            int pad = 0;
+
+            int global_pooling = 0;
+
+            tensorflow::AttrValue value_ksize;
+            if (find_attr_value(node, "ksize", value_ksize))
+            {
+                // batch, height, width, channels
+                kernel_size_h = value_ksize.list().i(1);
+                kernel_size_w = value_ksize.list().i(2);
+            }
+
+            tensorflow::AttrValue value_strides;
+            if (find_attr_value(node, "strides", value_strides))
+            {
+                // batch, height, width, channels
+                stride_h = value_strides.list().i(1);
+                stride_w = value_strides.list().i(2);
+            }
+
+            tensorflow::AttrValue value_padding;
+            if (find_attr_value(node, "padding", value_padding))
+            {
+                if (value_padding.s() == "VALID")
+                {
+                    pad = 0;
+                }
+                else if (value_padding.s() == "SAME")
+                {
+                    pad = -233;
+                }
+            }
+
+            fprintf(pp, " %d %d %d %d %d", pooling_type, kernel_size_w, stride_w, pad, global_pooling);
         }
         else if (node.op() == "Const")
         {
@@ -458,6 +546,10 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Max")
         {
+            int op_type = 2;
+            int num_coeff = 0;
+
+            fprintf(pp, " %d %d", op_type, num_coeff);
         }
         else if (node.op() == "MaxPool")
         {
@@ -504,6 +596,10 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Mul")
         {
+            int op_type = 0;
+            int num_coeff = 0;
+
+            fprintf(pp, " %d %d", op_type, num_coeff);
         }
         else if (node.op() == "NoOp")
         {
