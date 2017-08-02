@@ -280,7 +280,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     {
         int p1 = 0;
         int p2 = 0;
-        int gap = outw * dilation - kernel_extent;
+        int gap = outw * dilation - kernel_size * dilation;;
         for (int i = 0; i < kernel_size; i++)
         {
             for (int j = 0; j < kernel_size; j++)
