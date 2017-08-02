@@ -99,7 +99,7 @@ int main(int argc, char** argv)
     }
 
     FILE* pp = stderr;//fopen(ncnn_prototxt, "wb");
-    FILE* bp = stderr;//fopen(ncnn_modelbin, "wb");
+    FILE* bp = fopen(ncnn_modelbin, "wb");
 
     int node_count = graph.node_size();
 
@@ -303,22 +303,20 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Conv2D")
         {
-//             &num_output, &kernel_size, &dilation, &stride, &pad, &bias_term, &weight_data_size
-
             // weights
             tensorflow::TensorProto tensor;
             find_tensor_proto(weights, node, tensor);
 
             const tensorflow::TensorShapeProto& shape = tensor.tensor_shape();
 
-            int kernel_size_w = shape.dim(1).size();
             int kernel_size_h = shape.dim(0).size();
+            int kernel_size_w = shape.dim(1).size();
             int num_input = shape.dim(2).size();
             int num_output = shape.dim(3).size();
 
             int stride = 1;
             int dilation = 1;
-            int pad = 1;
+            int pad = 0;
 
             tensorflow::AttrValue value_strides;
             if (find_attr_value(node, "strides", value_strides))
@@ -330,33 +328,66 @@ int main(int argc, char** argv)
             tensorflow::AttrValue value_padding;
             if (find_attr_value(node, "padding", value_padding))
             {
-//                 fprintf(stderr, " %s", value_padding.s().c_str());
+                if (value_padding.s() == "VALID")
+                {
+                    pad = 0;
+                }
+                else if (value_padding.s() == "SAME")
+                {
+                    pad = -233;
+                }
             }
 
             int bias_term = 0;
             int weight_data_size = 0;
 
+            // reorder h-w-i-o to o-i-h-w
             if (!tensor.tensor_content().empty())
             {
-                switch (tensor.dtype())
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                if (tensor.dtype() == 1)// float
                 {
-                    case 1:  // float
+                    const float* data = reinterpret_cast<const float*>(tensor.tensor_content().c_str());
+                    weight_data_size = tensor.tensor_content().size() / sizeof(float);
+
+                    float tmp;
+                    for (int p=0; p<num_output; p++)
                     {
-                        const float *data = reinterpret_cast<const float*>(tensor.tensor_content().c_str());
-                        weight_data_size = tensor.tensor_content().size() / sizeof(float);
-//                         fprintf(stderr, "       size = %d ", size);
-                        break;
+                        for (int q=0; q<num_input; q++)
+                        {
+                            for (int i=0; i<kernel_size_h; i++)
+                            {
+                                for (int j=0; j<kernel_size_w; j++)
+                                {
+                                    tmp = data[i*kernel_size_w*num_input*num_output + j*num_input*num_output + q*num_output + p];
+                                    fwrite(&tmp, sizeof(float), 1, bp);
+                                }
+                            }
+                        }
                     }
-                    case 3:  // int32
+                }
+                else if (tensor.dtype() == 3)// int32
+                {
+                    const int* data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                    weight_data_size = tensor.tensor_content().size() / sizeof(int);
+
+                    float tmp;
+                    for (int p=0; p<num_output; p++)
                     {
-                        const int *data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
-                        weight_data_size = tensor.tensor_content().size() / sizeof(int);
-//                         fprintf(stderr, "       size = %d ", size);
-                        break;
+                        for (int q=0; q<num_input; q++)
+                        {
+                            for (int i=0; i<kernel_size_h; i++)
+                            {
+                                for (int j=0; j<kernel_size_w; j++)
+                                {
+                                    tmp = data[i*kernel_size_w*num_input*num_output + j*num_input*num_output + q*num_output + p];
+                                    fwrite(&tmp, sizeof(float), 1, bp);
+                                }
+                            }
+                        }
                     }
-                    default:
-                        fprintf(stderr, "Tensor type is not supported\n");
-                        break;
                 }
             }
 
@@ -373,32 +404,47 @@ int main(int argc, char** argv)
 
             const tensorflow::TensorShapeProto& shape = tensor.tensor_shape();
 
+            int num_input = shape.dim(0).size();
             int num_output = shape.dim(1).size();
 
             int bias_term = 0;
             int weight_data_size = 0;
 
+            // reorder i-o to o-i
             if (!tensor.tensor_content().empty())
             {
-                switch (tensor.dtype())
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                if (tensor.dtype() == 1)// float
                 {
-                    case 1:  // float
+                    const float* data = reinterpret_cast<const float*>(tensor.tensor_content().c_str());
+                    weight_data_size = tensor.tensor_content().size() / sizeof(float);
+
+                    float tmp;
+                    for (int p=0; p<num_output; p++)
                     {
-                        const float *data = reinterpret_cast<const float*>(tensor.tensor_content().c_str());
-                        weight_data_size = tensor.tensor_content().size() / sizeof(float);
-//                         fprintf(stderr, "       size = %d ", size);
-                        break;
+                        for (int q=0; q<num_input; q++)
+                        {
+                            tmp = data[q*num_output + p];
+                            fwrite(&tmp, sizeof(float), 1, bp);
+                        }
                     }
-                    case 3:  // int32
+                }
+                else if (tensor.dtype() == 3)// int32
+                {
+                    const int* data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                    weight_data_size = tensor.tensor_content().size() / sizeof(int);
+
+                    float tmp;
+                    for (int p=0; p<num_output; p++)
                     {
-                        const int *data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
-                        weight_data_size = tensor.tensor_content().size() / sizeof(int);
-//                         fprintf(stderr, "       size = %d ", size);
-                        break;
+                        for (int q=0; q<num_input; q++)
+                        {
+                            tmp = data[q*num_output + p];
+                            fwrite(&tmp, sizeof(float), 1, bp);
+                        }
                     }
-                    default:
-                        fprintf(stderr, "Tensor type is not supported\n");
-                        break;
                 }
             }
 
