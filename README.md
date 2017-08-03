@@ -48,3 +48,5 @@ BSD 3 Clause
 
 Android and iOS https://github.com/dangbo/ncnn-mobile (Thanks to dangbo)
 
+### 技术交流QQ群：637093648  答案：卷卷卷卷卷
+
