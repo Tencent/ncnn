@@ -145,6 +145,9 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob) const
         top_blob = bottom_blob.reshape(_w, _h, _c);
     }
 
+    if (top_blob.empty())
+        return -100;
+
     return 0;
 }
 
