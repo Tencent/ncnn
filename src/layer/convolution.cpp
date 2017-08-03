@@ -276,10 +276,8 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
     else if (pad == -233)
     {
-        int wtail = (w - kernel_extent) % stride;
-        int htail = (h - kernel_extent) % stride;
-        int wpad = wtail ? kernel_extent - wtail : 0;
-        int hpad = htail ? kernel_extent - htail : 0;
+        int wpad = kernel_extent + (w - 1) / stride * stride - w;
+        int hpad = kernel_extent + (h - 1) / stride * stride - h;
 
         copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
         if (bottom_blob_bordered.empty())
