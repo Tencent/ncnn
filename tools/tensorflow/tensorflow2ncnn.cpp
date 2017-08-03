@@ -615,8 +615,36 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Reshape")
         {
-            // TODO pass through
-            fprintf(pp, " 0 0 0");
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                if (!tensor.tensor_content().empty() && tensor.dtype() == 3)// int32
+                {
+                    const int* data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                    int size = tensor.tensor_content().size() / sizeof(int);
+
+                    // n h w c
+                    // n h w
+                    // n w
+                    if (size == 4)
+                    {
+                        fprintf(pp, " %d %d %d", data[2], data[1], data[3]);
+                    }
+                    if (size == 3)
+                    {
+                        fprintf(pp, " %d %d -233", data[2], data[1]);
+                    }
+                    if (size == 2)
+                    {
+                        fprintf(pp, " %d -233 -233", data[1]);
+                    }
+                }
+            }
+            else
+            {
+                // pass through
+                fprintf(pp, " 0 0 0");
+            }
         }
         else if (node.op() == "Softmax")
         {
