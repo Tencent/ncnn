@@ -38,6 +38,7 @@ private:
     int w;
     int h;
     int c;
+    int permute;
     int ndim;
 };
 

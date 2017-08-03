@@ -668,6 +668,7 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, " -233");
             }
+            fprintf(pp, " 0");
         }
         else if (layer.type() == "ROIPooling")
         {

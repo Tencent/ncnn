@@ -28,9 +28,9 @@ Reshape::Reshape()
 #if NCNN_STRING
 int Reshape::load_param(FILE* paramfp)
 {
-    int nscan = fscanf(paramfp, "%d %d %d",
-                       &w, &h, &c);
-    if (nscan != 3)
+    int nscan = fscanf(paramfp, "%d %d %d %d",
+                       &w, &h, &c, &permute);
+    if (nscan != 4)
     {
         fprintf(stderr, "Reshape load_param failed %d\n", nscan);
         return -1;
@@ -55,6 +55,8 @@ int Reshape::load_param_bin(FILE* paramfp)
 
     fread(&c, sizeof(int), 1, paramfp);
 
+    fread(&permute, sizeof(int), 1, paramfp);
+
     ndim = 3;
     if (c == -233)
         ndim = 2;
@@ -78,6 +80,9 @@ int Reshape::load_param(const unsigned char*& mem)
     c = *(int*)(mem);
     mem += 4;
 
+    permute = *(int*)(mem);
+    mem += 4;
+
     ndim = 3;
     if (c == -233)
         ndim = 2;
@@ -91,7 +96,7 @@ int Reshape::load_param(const unsigned char*& mem)
 
 int Reshape::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
-    int total = bottom_blob.total();
+    int total = bottom_blob.w * bottom_blob.h * bottom_blob.c;
 
     if (ndim == 1)
     {
@@ -103,7 +108,30 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob) const
         if (_w == -1)
             _w = total;
 
-        top_blob = bottom_blob.reshape(_w);
+        if (permute == 1)
+        {
+            top_blob.create(_w);
+            if (top_blob.empty())
+                return -100;
+
+            // c-h-w to h-w-c
+            float* ptr = top_blob;
+            for (int i=0; i<bottom_blob.h; i++)
+            {
+                for (int j=0; j<bottom_blob.w; j++)
+                {
+                    for (int p=0; p<bottom_blob.c; p++)
+                    {
+                        const float* bptr = bottom_blob.channel(p);
+                        *ptr++ = bptr[i*bottom_blob.w + j];
+                    }
+                }
+            }
+        }
+        else
+        {
+            top_blob = bottom_blob.reshape(_w);
+        }
     }
     else if (ndim == 2)
     {

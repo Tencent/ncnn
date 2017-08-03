@@ -628,15 +628,15 @@ int main(int argc, char** argv)
                     // n w
                     if (size == 4)
                     {
-                        fprintf(pp, " %d %d %d", data[2], data[1], data[3]);
+                        fprintf(pp, " %d %d %d 0", data[2], data[1], data[3]);
                     }
                     if (size == 3)
                     {
-                        fprintf(pp, " %d %d -233", data[2], data[1]);
+                        fprintf(pp, " %d %d -233 1", data[2], data[1]);
                     }
                     if (size == 2)
                     {
-                        fprintf(pp, " %d -233 -233", data[1]);
+                        fprintf(pp, " %d -233 -233 1", data[1]);
                     }
                 }
             }
