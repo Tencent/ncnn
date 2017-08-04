@@ -111,6 +111,9 @@ int main(int argc, char** argv)
     // mapping for Const and Const-Identity
     std::map<std::string, tensorflow::TensorProto> weights;
 
+    // Dropout like Identity
+    std::set<std::string> dropouts;
+
     // global definition line
     // [layer count] [blob count]
     std::set<std::string> blob_names;
@@ -133,8 +136,15 @@ int main(int argc, char** argv)
         else if (node.op() == "Identity")
         {
             const std::string& input_name = node.input(0);
-            weights[output_name] = weights[input_name];
-            continue;
+            if (weights.find(input_name) != weights.end())
+            {
+                weights[output_name] = weights[input_name];
+                continue;
+            }
+            else
+            {
+                dropouts.insert(output_name);
+            }
         }
         else if (node.op() == "NoOp")
         {
@@ -226,7 +236,14 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Identity")
         {
-            continue;
+            if (dropouts.find(node.name()) != dropouts.end())
+            {
+                fprintf(pp, "%-16s", "Dropout");
+            }
+            else
+            {
+                continue;
+            }
         }
         else if (node.op() == "MatMul")
         {
