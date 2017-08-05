@@ -124,7 +124,7 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     _outp = vaddq_f32(_outp, _sum);
 
-                    vst1q_f32(outptr, _sum);
+                    vst1q_f32(outptr, _outp);
 
                     r0 += 16;
                     r1 += 16;
