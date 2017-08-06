@@ -387,7 +387,7 @@ int set_cpu_powersave(int powersave)
     }
     else if (powersave == 2)
     {
-        cpuids = std::vector<int>(sorted_cpuids.begin(), sorted_cpuids.begin() +  + little_cluster_offset);
+        cpuids = std::vector<int>(sorted_cpuids.begin(), sorted_cpuids.begin() + little_cluster_offset);
     }
     else
     {
