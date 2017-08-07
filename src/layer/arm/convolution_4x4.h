@@ -26,6 +26,8 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     int outh = top_blob.h;
     int outch = top_blob.c;
 
+    const int tailstep = w - 4*outw + w*3;
+
     const float* kernel = _kernel;
     const float* bias = _bias;
 
@@ -44,7 +46,7 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch*16  + q*16;
+            const float* kernel0 = kernel + p*inch*16 + q*16;
 
             const float* r0 = img0;
             const float* r1 = img0 + w;
@@ -257,6 +259,11 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vmlaq_f32(_sum, _r3, _k12131415);
 
                     *outptr += vaddvq_f32(_sum);
+
+                    r0 += 4;
+                    r1 += 4;
+                    r2 += 4;
+                    r3 += 4;
 #else
                     float sum = 0.f;
 
@@ -319,22 +326,22 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     sum += r3[3] * k3[3];
 
                     *outptr += sum;
-#endif // __ARM_NEON
+
                     r0 += 4;
                     r1 += 4;
                     r2 += 4;
                     r3 += 4;
+#endif // __ARM_NEON
                     outptr++;
                 }
 
-                r0 += w * 3;
-                r1 += w * 3;
-                r2 += w * 3;
-                r3 += w * 3;
+                r0 += tailstep;
+                r1 += tailstep;
+                r2 += tailstep;
+                r3 += tailstep;
             }
 
         }
     }
 
 }
-
