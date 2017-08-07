@@ -119,6 +119,8 @@ ncnn_add_layer(Threshold)
 ncnn_add_layer(Tile OFF)
 ncnn_add_layer(RNN OFF)
 ncnn_add_layer(LSTM OFF)
+ncnn_add_layer(BinaryOp)
+ncnn_add_layer(UnaryOp)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
