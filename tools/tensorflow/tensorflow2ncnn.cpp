@@ -156,7 +156,7 @@ int main(int argc, char** argv)
         for (int j=0; j<node.input_size(); j++)
         {
             const std::string& input_name = node.input(j);
-//             fprintf(stderr, "%s\n", input_name.c_str());
+//             fprintf(stderr, "input = %s\n", input_name.c_str());
 
             if (weights.find(input_name) != weights.end())
             {
@@ -176,7 +176,7 @@ int main(int argc, char** argv)
         }
 
         // output
-//         fprintf(stderr, "%s\n", output_name.c_str());
+//         fprintf(stderr, "output = %s\n", output_name.c_str());
         blob_names.insert(output_name);
     }
 
@@ -234,6 +234,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Convolution");
         }
+        else if (node.op() == "Exp")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (node.op() == "Identity")
         {
             if (dropouts.find(node.name()) != dropouts.end())
@@ -259,7 +263,20 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Mul")
         {
-            fprintf(pp, "%-16s", "BinaryOp");
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                fprintf(pp, "%-16s", "Scale");
+            }
+            else
+            {
+                fprintf(pp, "%-16s", "BinaryOp");
+            }
+        }
+        else if (node.op() == "Neg")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (node.op() == "NoOp")
         {
@@ -269,6 +286,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Input");
         }
+        else if (node.op() == "RealDiv")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (node.op() == "Relu")
         {
             fprintf(pp, "%-16s", "ReLU");
@@ -277,9 +298,17 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Reshape");
         }
+        else if (node.op() == "Rsqrt")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (node.op() == "Softmax")
         {
             fprintf(pp, "%-16s", "Softmax");
+        }
+        else if (node.op() == "Sub")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
         }
         else
         {
@@ -501,6 +530,11 @@ int main(int argc, char** argv)
 
             fprintf(pp, " %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation, stride_w, pad, bias_term, weight_data_size);
         }
+        else if (node.op() == "Exp")
+        {
+            int op_type = 7;
+            fprintf(pp, " %d", op_type);
+        }
         else if (node.op() == "Identity")
         {
         }
@@ -608,7 +642,47 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Mul")
         {
-            int op_type = 2;
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                int scale_data_size = 0;
+                int bias_term = 0;
+
+                if (!tensor.tensor_content().empty())
+                {
+                    if (tensor.dtype() == 1)// float
+                    {
+                        const float* data = reinterpret_cast<const float*>(tensor.tensor_content().c_str());
+                        scale_data_size = tensor.tensor_content().size() / sizeof(float);
+
+                        fwrite(data, sizeof(float), scale_data_size, bp);
+                    }
+                    else if (tensor.dtype() == 3)// int32
+                    {
+                        const int* data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                        scale_data_size = tensor.tensor_content().size() / sizeof(int);
+
+                        float tmp;
+                        for (int i=0; i<scale_data_size; i++)
+                        {
+                            tmp = data[i];
+                            fwrite(&tmp, sizeof(float), 1, bp);
+                        }
+                    }
+                }
+
+                fprintf(pp, " %d %d", scale_data_size, bias_term);
+            }
+            else
+            {
+                int op_type = 2;
+                fprintf(pp, " %d", op_type);
+            }
+        }
+        else if (node.op() == "Neg")
+        {
+            int op_type = 1;
             fprintf(pp, " %d", op_type);
         }
         else if (node.op() == "NoOp")
@@ -618,6 +692,11 @@ int main(int argc, char** argv)
         {
             // TODO pass through
             fprintf(pp, " 0 0 0");
+        }
+        else if (node.op() == "RealDiv")
+        {
+            int op_type = 3;
+            fprintf(pp, " %d", op_type);
         }
         else if (node.op() == "Relu")
         {
@@ -657,8 +736,18 @@ int main(int argc, char** argv)
                 fprintf(pp, " 0 0 0");
             }
         }
+        else if (node.op() == "Rsqrt")
+        {
+            int op_type = 6;
+            fprintf(pp, " %d", op_type);
+        }
         else if (node.op() == "Softmax")
         {
+        }
+        else if (node.op() == "Sub")
+        {
+            int op_type = 1;
+            fprintf(pp, " %d", op_type);
         }
         else
         {
