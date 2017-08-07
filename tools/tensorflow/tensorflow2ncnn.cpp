@@ -219,7 +219,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(pp, "%-16s", "Eltwise");
+                fprintf(pp, "%-16s", "BinaryOp");
             }
         }
         else if (node.op() == "AvgPool")
@@ -251,7 +251,7 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Max")
         {
-            fprintf(pp, "%-16s", "Eltwise");
+            fprintf(pp, "%-16s", "BinaryOp");
         }
         else if (node.op() == "MaxPool")
         {
@@ -259,7 +259,7 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Mul")
         {
-            fprintf(pp, "%-16s", "Eltwise");
+            fprintf(pp, "%-16s", "BinaryOp");
         }
         else if (node.op() == "NoOp")
         {
@@ -358,9 +358,7 @@ int main(int argc, char** argv)
             else
             {
                 int op_type = 1;
-                int num_coeff = 0;
-
-                fprintf(pp, " %d %d", op_type, num_coeff);
+                fprintf(pp, " %d", op_type);
             }
         }
         else if (node.op() == "AvgPool")
@@ -562,10 +560,8 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Max")
         {
-            int op_type = 2;
-            int num_coeff = 0;
-
-            fprintf(pp, " %d %d", op_type, num_coeff);
+            int op_type = 4;
+            fprintf(pp, " %d", op_type);
         }
         else if (node.op() == "MaxPool")
         {
@@ -612,10 +608,8 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Mul")
         {
-            int op_type = 0;
-            int num_coeff = 0;
-
-            fprintf(pp, " %d %d", op_type, num_coeff);
+            int op_type = 2;
+            fprintf(pp, " %d", op_type);
         }
         else if (node.op() == "NoOp")
         {
