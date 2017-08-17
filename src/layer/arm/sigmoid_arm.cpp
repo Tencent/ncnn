@@ -105,10 +105,10 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob) const
             _p = vnegq_f32(_p);
             _p = exp_ps(_p);
             _p = vaddq_f32(_p, _one);
-            _p = vrecpeq_f32(_p);
-            _p = vmulq_f32(vrecpsq_f32(_p, _p), _p);
-//             _p = vmulq_f32(vrecpsq_f32(_p, _p), _p);
-            vst1q_f32(ptr, _p);
+            float32x4_t _outp = vrecpeq_f32(_p);
+            _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
+//             _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
+            vst1q_f32(ptr, _outp);
 
             ptr += 4;
         }
