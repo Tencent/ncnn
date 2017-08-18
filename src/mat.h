@@ -1,4 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+ // Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -139,6 +139,7 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
 void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 
 void resize_image(ncnn::Mat& srcImage, ncnn::Mat& dstImage);
+void resize_image_gray(ncnn::Mat &srcImage, ncnn::Mat &dstImage);
 // mat process
 enum
 {
