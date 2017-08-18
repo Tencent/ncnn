@@ -323,15 +323,15 @@ int main(int argc, char** argv)
         {
             const caffe::ConvolutionParameter& convolution_param = layer.convolution_param();
             if (convolution_param.group() != 1)
-                fprintf(pp, "%-16s ", "ConvolutionDepthWise");
+                fprintf(pp, "%-16s", "ConvolutionDepthWise");
             else
-                fprintf(pp, "%-16s ", "Convolution");
+                fprintf(pp, "%-16s", "Convolution");
         }
         else
         {
             fprintf(pp, "%-16s", layer.type().c_str());
         }
-        fprintf(pp, "%-16s %d %d", layer.name().c_str(), layer.bottom_size(), layer.top_size());
+        fprintf(pp, " %-16s %d %d", layer.name().c_str(), layer.bottom_size(), layer.top_size());
 
         for (int j=0; j<layer.bottom_size(); j++)
         {
