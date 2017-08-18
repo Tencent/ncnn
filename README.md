@@ -4,7 +4,7 @@
 2. 添加void resize_image(ncnn::Mat& srcImage, ncnn::Mat& dstImage)，无arm优化
 3. 前面都是用BGR图像做的，导致很多漏检，改过来了。
 ---
-
+![image](https://github.com/ElegantGod/ncnn/blob/master/result0.jpg)
 # ncnn
 
 ---
