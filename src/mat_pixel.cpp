@@ -27,9 +27,9 @@ static Mat from_rgb(const unsigned char* rgb, int w, int h)
     if (m.empty())
         return m;
 
-    float* ptr0 = m.channel(0);
+    float* ptr0 = m.channel(2);
     float* ptr1 = m.channel(1);
-    float* ptr2 = m.channel(2);
+    float* ptr2 = m.channel(0);
 
     int size = w * h;
 
@@ -130,9 +130,9 @@ static Mat from_bgr(const unsigned char *rgb, int w, int h)
     if (m.empty())
         return m;
 
-    float *ptr0 = m.channel(2);
+    float *ptr0 = m.channel(0);
     float *ptr1 = m.channel(1);
-    float *ptr2 = m.channel(0);
+    float *ptr2 = m.channel(2);
 
     int size = w * h;
 
