@@ -132,6 +132,7 @@ enum
     LSTM        = 39,
     BinaryOp    = 40,
     UnaryOp     = 41,
+    ConvolutionDepthWise = 42,
 
     CustomBit   = (1<<8),
 };
