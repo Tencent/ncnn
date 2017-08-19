@@ -1,4 +1,3 @@
-#!/usr/bin/bash
 
 ##### android armv7
 mkdir -p build-android-armv7
