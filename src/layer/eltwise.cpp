@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "eltwise.h"
+#include <algorithm>
 
 namespace ncnn {
 
