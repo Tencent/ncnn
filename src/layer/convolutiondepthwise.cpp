@@ -144,6 +144,44 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         }
     }
 
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+        #pragma omp parallel for
+        for (int g=0; g<group; g++)
+        {
+            float* outptr = top_blob.channel(g);
+            const float* kptr = weight_data + maxk * g;
+            const Mat m = bottom_blob_bordered.channel(g);
+
+            for (int i = 0; i < outh; i++)
+            {
+                for (int j = 0; j < outw; j++)
+                {
+                    float sum = 0.f;
+
+                    if (bias_term)
+                        sum = bias_data.data[g];
+
+                    const float* sptr = m.data + m.w * i*stride + j*stride;
+
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        float val = sptr[ space_ofs[k] ];
+                        float w = kptr[k];
+                        sum += val * w;
+                    }
+
+                    outptr[j] = sum;
+                }
+
+                outptr += outw;
+            }
+        }
+
+        return 0;
+    }
+
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
 

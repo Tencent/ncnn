@@ -14,6 +14,10 @@
 
 #include "convolutiondepthwise_arm.h"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace ncnn {
 
 #include "convolution_1x1.h"
@@ -126,7 +130,30 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
 
     const int maxk = kernel_size * kernel_size;
 
-    // TODO optimize for channels == group == num_output
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+#ifdef _OPENMP
+        int nested_current = omp_get_nested();
+        omp_set_nested(0);
+#endif
+
+        #pragma omp parallel for
+        for (int g=0; g<group; g++)
+        {
+            Mat bottom_blob_bordered_g = bottom_blob_bordered.channel(g);
+            Mat top_blob_g = top_blob.channel(g);
+            Mat weight_data_g(maxk, (float*)(weight_data + maxk * g));
+            Mat bias_data_g(1, (float*)(bias_data + g));
+
+            conv(bottom_blob_bordered_g, top_blob_g, weight_data_g, bias_data_g);
+        }
+
+#ifdef _OPENMP
+        omp_set_nested(nested_current);
+#endif
+        return 0;
+    }
 
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
