@@ -144,7 +144,9 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
             Mat bottom_blob_bordered_g = bottom_blob_bordered.channel(g);
             Mat top_blob_g = top_blob.channel(g);
             Mat weight_data_g(maxk, (float*)(weight_data + maxk * g));
-            Mat bias_data_g(1, (float*)(bias_data + g));
+            Mat bias_data_g;
+            if (bias_term)
+                bias_data_g = Mat(1, (float*)(bias_data + g));
 
             conv(bottom_blob_bordered_g, top_blob_g, weight_data_g, bias_data_g);
         }
@@ -163,7 +165,9 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
         Mat bottom_blob_bordered_g(w, h, channels_g, bottom_blob_bordered.channel(channels_g * g));
         Mat top_blob_g(outw, outh, num_output_g, top_blob.channel(num_output_g * g));
         Mat weight_data_g(maxk * channels_g * num_output_g, (float*)(weight_data + maxk * channels_g * num_output_g * g));
-        Mat bias_data_g(num_output_g, (float*)(bias_data + num_output_g * g));
+        Mat bias_data_g;
+        if (bias_term)
+            bias_data_g = Mat(num_output_g, (float*)(bias_data + num_output_g * g));
 
         conv(bottom_blob_bordered_g, top_blob_g, weight_data_g, bias_data_g);
     }
