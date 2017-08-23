@@ -1,4 +1,4 @@
- // Tencent is pleased to support the open source community by making ncnn available.
+// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -138,8 +138,6 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
 void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 
-void resize_image(ncnn::Mat& srcImage, ncnn::Mat& dstImage);
-void resize_image_gray(ncnn::Mat &srcImage, ncnn::Mat &dstImage);
 // mat process
 enum
 {
@@ -148,6 +146,7 @@ enum
 };
 void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v);
 void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right);
+void resize_bilinear(const Mat& src, Mat& dst, int w, int h);
 
 // the alignment of all the allocated buffers
 #define MALLOC_ALIGN    16
@@ -340,6 +339,25 @@ inline Mat Mat::clone() const
 
 inline Mat Mat::reshape(int _w) const
 {
+    if (w * h * c != _w)
+        return Mat();
+
+    if (dims == 3 && cstep != (size_t)w * h)
+    {
+        Mat m;
+        m.create(_w);
+
+        // flatten
+        for (int i=0; i<c; i++)
+        {
+            const float* ptr = data + i * cstep;
+            float* mptr = m.data + i * w * h;
+            memcpy(mptr, ptr, w * h * sizeof(float));
+        }
+
+        return m;
+    }
+
     Mat m = *this;
 
     m.dims = 1;
@@ -355,6 +373,25 @@ inline Mat Mat::reshape(int _w) const
 
 inline Mat Mat::reshape(int _w, int _h) const
 {
+    if (w * h * c != _w * _h)
+        return Mat();
+
+    if (dims == 3 && cstep != (size_t)w * h)
+    {
+        Mat m;
+        m.create(_w, _h);
+
+        // flatten
+        for (int i=0; i<c; i++)
+        {
+            const float* ptr = data + i * cstep;
+            float* mptr = m.data + i * w * h;
+            memcpy(mptr, ptr, w * h * sizeof(float));
+        }
+
+        return m;
+    }
+
     Mat m = *this;
 
     m.dims = 2;
@@ -370,6 +407,32 @@ inline Mat Mat::reshape(int _w, int _h) const
 
 inline Mat Mat::reshape(int _w, int _h, int _c) const
 {
+    if (w * h * c != _w * _h * _c)
+        return Mat();
+
+    if (dims < 3 && (size_t)_w * _h != alignSize(_w * _h * sizeof(float), 16) >> 2)
+    {
+        Mat m;
+        m.create(_w, _h, _c);
+
+        // align channel
+        for (int i=0; i<_c; i++)
+        {
+            const float* ptr = data + i * _w * _h;
+            float* mptr = m.data + i * m.cstep;
+            memcpy(mptr, ptr, _w * _h * sizeof(float));
+        }
+
+        return m;
+    }
+
+    if (c != _c)
+    {
+        // flatten and then align
+        Mat tmp = reshape(_w * _h * _c);
+        return tmp.reshape(_w, _h, _c);
+    }
+
     Mat m = *this;
 
     m.dims = 3;
