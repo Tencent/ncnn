@@ -146,6 +146,7 @@ enum
 };
 void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v);
 void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right);
+void resize_bilinear(const Mat& src, Mat& dst, int w, int h);
 
 // the alignment of all the allocated buffers
 #define MALLOC_ALIGN    16

@@ -517,4 +517,175 @@ void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, in
     }
 }
 
+static void resize_bilinear_image(const Mat& src, Mat& dst, int w, int h)
+{
+    double scale_x = (double)src.w / w;
+    double scale_y = (double)src.h / h;
+
+    int* buf = new int[w + h + w*2 + h*2];
+
+    int* xofs = buf;//new int[w];
+    int* yofs = buf + w;//new int[h];
+
+    float* alpha = (float*)(buf + w + h);//new float[w * 2];
+    float* beta = (float*)(buf + w + h + w*2);//new float[h * 2];
+
+    float fx;
+    float fy;
+    int sx;
+    int sy;
+
+    for (int dx = 0; dx < w; dx++)
+    {
+        fx = (float)((dx + 0.5) * scale_x - 0.5);
+        sx = fx;//cvFloor(fx);
+        fx -= sx;
+
+        if( sx >= src.w-1 )
+        {
+            sx = src.w - 2;
+            fx = 1.f;
+        }
+
+        xofs[dx] = sx;
+
+        alpha[dx*2    ] = 1.f - fx;
+        alpha[dx*2 + 1] = fx;
+    }
+
+    for (int dy = 0; dy < h; dy++)
+    {
+        fy = (float)((dy + 0.5) * scale_y - 0.5);
+        sy = fy;//cvFloor(fy);
+        fy -= sy;
+
+        if (sy >= src.h - 1)
+        {
+            sy = src.h - 2;
+            fy = 1.f;
+        }
+
+        yofs[dy] = sy;
+
+        beta[dy*2    ] = 1.f - fy;
+        beta[dy*2 + 1] = fy;
+    }
+
+    // loop body
+    Mat rowsbuf0(w + 1);
+    Mat rowsbuf1(w + 1);
+    float* rows0 = rowsbuf0;
+    float* rows1 = rowsbuf1;
+
+    int prev_sy1 = -1;
+
+    for (int dy = 0; dy < h; dy++ )
+    {
+        int sy = yofs[dy];
+
+        if (sy == prev_sy1)
+        {
+            // hresize one row
+            float* rows0_old = rows0;
+            rows0 = rows1;
+            rows1 = rows0_old;
+            const float* S1 = src.row(sy+1);
+
+            const float* alphap = alpha;
+            float* rows1p = rows1;
+            for ( int dx = 0; dx < w; dx++ )
+            {
+                int sx = xofs[dx];
+                float a0 = alphap[0];
+                float a1 = alphap[1];
+
+                const float* S1p = S1 + sx;
+                rows1p[dx] = S1p[0]*a0 + S1p[1]*a1;
+
+                alphap += 2;
+            }
+        }
+        else
+        {
+            // hresize two rows
+            const float* S0 = src.row(sy);
+            const float* S1 = src.row(sy+1);
+
+            const float* alphap = alpha;
+            float* rows0p = rows0;
+            float* rows1p = rows1;
+            for ( int dx = 0; dx < w; dx++ )
+            {
+                int sx = xofs[dx];
+                float a0 = alphap[0];
+                float a1 = alphap[1];
+
+                const float* S0p = S0 + sx;
+                const float* S1p = S1 + sx;
+                rows0p[dx] = S0p[0]*a0 + S0p[1]*a1;
+                rows1p[dx] = S1p[0]*a0 + S1p[1]*a1;
+
+                alphap += 2;
+            }
+        }
+
+        prev_sy1 = sy + 1;
+
+        // vresize
+        float b0 = beta[0];
+        float b1 = beta[1];
+
+        float* rows0p = rows0;
+        float* rows1p = rows1;
+        float* Dp = dst.row(dy);
+
+#if 0//__ARM_NEON
+        int nn = w >> 3;
+#else
+        int nn = 0;
+#endif
+        int remain = w - (nn << 3);
+
+        for ( ; remain; --remain )
+        {
+//             D[x] = rows0[x]*b0 + rows1[x]*b1;
+            *Dp++ = *rows0p++ * b0 + *rows1p++ * b1;
+        }
+
+        beta += 2;
+    }
+
+    delete[] buf;
+}
+
+void resize_bilinear(const Mat& src, Mat& dst, int w, int h)
+{
+    if (src.dims == 2)
+    {
+        dst.create(w, h);
+        if (dst.empty())
+            return;
+
+        resize_bilinear_image(src, dst, w, h);
+    }
+    else if (src.dims == 3)
+    {
+        int channels = src.c;
+
+        dst.create(w, h, channels);
+        if (dst.empty())
+            return;
+
+        // unroll image channel
+        #pragma omp parallel for
+        for (int q=0; q<channels; q++)
+        {
+            const Mat m = src.channel(q);
+            Mat resizem = dst.channel(q);
+
+            resize_bilinear_image(m, resizem, w, h);
+        }
+    }
+}
+
 } // namespace ncnn
