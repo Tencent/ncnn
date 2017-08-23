@@ -58,7 +58,7 @@ private:
     ncnn::Mat img;
 
     const float nms_threshold[3] = {0.5, 0.7, 0.7};
-    const float threshold[3] = {0.8, 0.8, 0.8};
+    const float threshold[3] = {0.6, 0.6, 0.6};
     const float mean_vals[3] = {127.5, 127.5, 127.5};
     const float norm_vals[3] = {0.0078125, 0.0078125, 0.0078125};
     std::vector<Bbox> firstBbox_, secondBbox_,thirdBbox_;
@@ -226,7 +226,7 @@ void mtcnn::detect(ncnn::Mat& img_, std::vector<Bbox>& finalBbox_){
         int ws = (int)ceil(img_w*scales_[i]);
         //ncnn::Mat in = ncnn::Mat::from_pixels_resize(image_data, ncnn::Mat::PIXEL_RGB2BGR, img_w, img_h, ws, hs);
         ncnn::Mat in(ws, hs, 3);
-        resize_image(img, in);
+        resize_bilinear(tempIm, in, ws, hs);
         //in.substract_mean_normalize(mean_vals, norm_vals);
         ncnn::Extractor ex = Pnet.create_extractor();
         ex.set_light_mode(true);
@@ -264,7 +264,7 @@ void mtcnn::detect(ncnn::Mat& img_, std::vector<Bbox>& finalBbox_){
             ncnn::Mat tempIm;
             copy_cut_border(img, tempIm, (*it).y1, img_h-(*it).y2, (*it).x1, img_w-(*it).x2);
             ncnn::Mat in(24, 24, 3);
-            resize_image(tempIm, in);
+            resize_bilinear(tempIm, in, 24, 24);
             ncnn::Extractor ex = Rnet.create_extractor();
             ex.set_light_mode(true);
             ex.input("data", in);
@@ -298,7 +298,7 @@ void mtcnn::detect(ncnn::Mat& img_, std::vector<Bbox>& finalBbox_){
             ncnn::Mat tempIm;
             copy_cut_border(img, tempIm, (*it).y1, img_h-(*it).y2, (*it).x1, img_w-(*it).x2);
             ncnn::Mat in(48, 48, 3);
-            resize_image(tempIm, in);
+            resize_bilinear(tempIm, in, 48, 48);
             ncnn::Extractor ex = Onet.create_extractor();
             ex.set_light_mode(true);
             ex.input("data", in);
@@ -352,7 +352,7 @@ int main(int argc, char** argv)
     }
     std::vector<Bbox> finalBbox;
     mtcnn mm;
-    ncnn::Mat ncnn_img = ncnn::Mat::from_pixels(cv_img.data, ncnn::Mat::PIXEL_RGB, cv_img.cols, cv_img.rows);
+    ncnn::Mat ncnn_img = ncnn::Mat::from_pixels(cv_img.data, ncnn::Mat::PIXEL_BGR2RGB, cv_img.cols, cv_img.rows);
     struct timeval  tv1,tv2;
     struct timezone tz1,tz2;
     gettimeofday(&tv1,&tz1);
