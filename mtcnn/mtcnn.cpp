@@ -224,7 +224,7 @@ void mtcnn::detect(ncnn::Mat& img_, std::vector<Bbox>& finalBbox_){
     for (size_t i = 0; i < scales_.size(); i++) {
         int hs = (int)ceil(img_h*scales_[i]);
         int ws = (int)ceil(img_w*scales_[i]);
-        //ncnn::Mat in = ncnn::Mat::from_pixels_resize(image_data, ncnn::Mat::PIXEL_BGR, img_w, img_h, ws, hs);
+        //ncnn::Mat in = ncnn::Mat::from_pixels_resize(image_data, ncnn::Mat::PIXEL_RGB2BGR, img_w, img_h, ws, hs);
         ncnn::Mat in(ws, hs, 3);
         resize_image(img, in);
         //in.substract_mean_normalize(mean_vals, norm_vals);
