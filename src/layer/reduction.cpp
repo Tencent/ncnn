@@ -379,6 +379,150 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
             }
         }
     }
+    else if (operation == ReductionOp_MAX)
+    {
+        if (dim == 0)
+        {
+            Mat maxs(channels);
+            if (maxs.empty())
+                return -100;
+            float* maxs_ptr = maxs;
+            #pragma omp parallel for
+            for (int q=0; q<channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+
+                float max = ptr[0];
+                for (int i=1; i<size; i++)
+                {
+                    max = std::max(max, ptr[i]);
+                }
+
+                maxs_ptr[q] = max;
+            }
+
+            float* outptr = top_blob;
+
+            float max = maxs_ptr[0];
+            for (int i=1; i<size; i++)
+            {
+                max = std::max(max, maxs_ptr[i]);
+            }
+
+            outptr[0] = max * coeff;
+        }
+        else if (dim == 1)
+        {
+            float* outptr = top_blob;
+            #pragma omp parallel for
+            for (int q=0; q<channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+
+                float max = ptr[0];
+                for (int i=1; i<size; i++)
+                {
+                    max = std::max(max, ptr[i]);
+                }
+
+                outptr[q] = max * coeff;
+            }
+        }
+        else if (dim == 2)
+        {
+            #pragma omp parallel for
+            for (int q=0; q<channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr = top_blob.channel(q);
+
+                for (int i=0; i<h; i++)
+                {
+                    float max = ptr[0];
+                    for (int j=1; j<w; j++)
+                    {
+                        max = std::max(max, ptr[i]);
+                    }
+
+                    outptr[i] = max * coeff;
+
+                    ptr += w;
+                }
+            }
+        }
+    }
+    else if (operation == ReductionOp_MIN)
+    {
+        if (dim == 0)
+        {
+            Mat mins(channels);
+            if (mins.empty())
+                return -100;
+            float* mins_ptr = mins;
+            #pragma omp parallel for
+            for (int q=0; q<channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+
+                float min = ptr[0];
+                for (int i=1; i<size; i++)
+                {
+                    min = std::min(min, ptr[i]);
+                }
+
+                mins_ptr[q] = min;
+            }
+
+            float* outptr = top_blob;
+
+            float min = mins_ptr[0];
+            for (int i=1; i<size; i++)
+            {
+                min = std::min(min, mins_ptr[i]);
+            }
+
+            outptr[0] = min * coeff;
+        }
+        else if (dim == 1)
+        {
+            float* outptr = top_blob;
+            #pragma omp parallel for
+            for (int q=0; q<channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+
+                float min = ptr[0];
+                for (int i=1; i<size; i++)
+                {
+                    min = std::min(min, ptr[i]);
+                }
+
+                outptr[q] = min * coeff;
+            }
+        }
+        else if (dim == 2)
+        {
+            #pragma omp parallel for
+            for (int q=0; q<channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr = top_blob.channel(q);
+
+                for (int i=0; i<h; i++)
+                {
+                    float min = ptr[0];
+                    for (int j=1; j<w; j++)
+                    {
+                        min = std::min(min, ptr[i]);
+                    }
+
+                    outptr[i] = min * coeff;
+
+                    ptr += w;
+                }
+            }
+        }
+    }
 
     return 0;
 }
