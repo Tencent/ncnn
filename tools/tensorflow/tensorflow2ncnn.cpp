@@ -249,6 +249,10 @@ int main(int argc, char** argv)
                 continue;
             }
         }
+        else if (node.op() == "LRN")
+        {
+            fprintf(pp, "%-16s", "LRN");
+        }
         else if (node.op() == "MatMul")
         {
             fprintf(pp, "%-16s", "InnerProduct");
@@ -537,6 +541,41 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Identity")
         {
+        }
+        else if (node.op() == "LRN")
+        {
+            int norm_region = 0;
+            int local_size = 1;
+            float alpha = 1.f;
+            float beta = 0.5f;
+
+            tensorflow::AttrValue value_depth_radius;
+            if (find_attr_value(node, "depth_radius", value_depth_radius))
+            {
+                local_size = value_depth_radius.i() * 2 + 1;
+            }
+
+            tensorflow::AttrValue value_alpha;
+            if (find_attr_value(node, "alpha", value_alpha))
+            {
+                alpha = value_alpha.f();
+            }
+
+            tensorflow::AttrValue value_beta;
+            if (find_attr_value(node, "beta", value_beta))
+            {
+                beta = value_beta.f();
+            }
+
+            // TODO
+            float bias = 1.f;
+            tensorflow::AttrValue value_bias;
+            if (find_attr_value(node, "bias", value_bias))
+            {
+                bias = value_bias.f();
+            }
+
+            fprintf(pp, " %d %d %f %f", norm_region, local_size, alpha, beta);
         }
         else if (node.op() == "MatMul")
         {
