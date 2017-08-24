@@ -862,19 +862,19 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
         }
         else if (dim == -1)
         {
-            Mat maxs(w, 1, channels);
-            if (maxs.empty())
+            Mat mins(w, 1, channels);
+            if (mins.empty())
                 return -100;
 
             #pragma omp parallel for
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
-                float* maxs_ptr = maxs.channel(q);
+                float* mins_ptr = mins.channel(q);
 
                 for (int j=0; j<w; j++)
                 {
-                    maxs_ptr[j] = ptr[j];
+                    mins_ptr[j] = ptr[j];
                 }
                 ptr += w;
 
@@ -882,7 +882,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
                 {
                     for (int j=0; j<w; j++)
                     {
-                        maxs_ptr[j] = std::min(maxs_ptr[j], ptr[j]);
+                        mins_ptr[j] = std::min(mins_ptr[j], ptr[j]);
                     }
 
                     ptr += w;
@@ -892,17 +892,17 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
             top_blob.fill(0.f);
 
             float* outptr = top_blob;
-            const float* maxs_ptr = maxs.channel(q);
+            const float* mins_ptr = mins.channel(q);
             for (int j=0; j<w; j++)
             {
-                outptr[j] = maxs_ptr[j];
+                outptr[j] = mins_ptr[j];
             }
             for (int q=1; q<channels; q++)
             {
-                const float* maxs_ptr = maxs.channel(q);
+                const float* mins_ptr = mins.channel(q);
                 for (int j=0; j<w; j++)
                 {
-                    outptr[j] = std::min(outptr[j], maxs_ptr[j]);
+                    outptr[j] = std::min(outptr[j], mins_ptr[j]);
                 }
             }
 
