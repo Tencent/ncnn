@@ -232,6 +232,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
                 }
             }
 
+            float* outptr = top_blob;
             for (int i=0; i<size; i++)
             {
                 outptr[i] *= coeff;
@@ -366,6 +367,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
                 }
             }
 
+            float* outptr = top_blob;
             for (int i=0; i<size; i++)
             {
                 outptr[i] *= coeff;
@@ -500,6 +502,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
                 }
             }
 
+            float* outptr = top_blob;
             for (int i=0; i<size; i++)
             {
                 outptr[i] *= coeff;
@@ -616,7 +619,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
 
             for (int j=0; j<w; j++)
             {
-                outptr[j] *= coeff / h / c;
+                outptr[j] *= coeff / h / channels;
             }
         }
         else if (dim == -2)
@@ -634,9 +637,10 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
                 }
             }
 
+            float* outptr = top_blob;
             for (int i=0; i<size; i++)
             {
-                outptr[i] *= coeff / c;
+                outptr[i] *= coeff / channels;
             }
         }
     }
@@ -743,7 +747,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
             top_blob.fill(0.f);
 
             float* outptr = top_blob;
-            const float* maxs_ptr = maxs.channel(q);
+            const float* maxs_ptr = maxs.channel(0);
             for (int j=0; j<w; j++)
             {
                 outptr[j] = maxs_ptr[j];
@@ -766,6 +770,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
         {
             top_blob.fill(0.f);
 
+            float* outptr = top_blob;
             const float* ptr = bottom_blob.channel(0);
             for (int i=0; i<size; i++)
             {
@@ -892,7 +897,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
             top_blob.fill(0.f);
 
             float* outptr = top_blob;
-            const float* mins_ptr = mins.channel(q);
+            const float* mins_ptr = mins.channel(0);
             for (int j=0; j<w; j++)
             {
                 outptr[j] = mins_ptr[j];
@@ -915,6 +920,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
         {
             top_blob.fill(0.f);
 
+            float* outptr = top_blob;
             const float* ptr = bottom_blob.channel(0);
             for (int i=0; i<size; i++)
             {
