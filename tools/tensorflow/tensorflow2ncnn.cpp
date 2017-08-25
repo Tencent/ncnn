@@ -259,7 +259,16 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Max")
         {
-            fprintf(pp, "%-16s", "BinaryOp");
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                fprintf(pp, "%-16s", "Reduction");
+            }
+            else
+            {
+                fprintf(pp, "%-16s", "BinaryOp");
+            }
         }
         else if (node.op() == "MaxPool")
         {
@@ -314,9 +323,14 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
+        else if (node.op() == "Sum")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
         else
         {
             fprintf(pp, "%-16s", node.op().c_str());
+            fprintf(stderr, "%s not supported yet !\nn", node.op().c_str());
         }
 
         int input_size = node.input_size();
@@ -633,8 +647,27 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Max")
         {
-            int op_type = 4;
-            fprintf(pp, " %d", op_type);
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                int operation = 4;
+                int dim = 0;
+                float coeff = 1.f;
+
+                int axis = tensor.int_val(0);
+                if (axis == 1)
+                    dim = 0;
+                else if (axis == 3)
+                    dim = -2;
+
+                fprintf(pp, " %d %d %f", operation, dim, coeff);
+            }
+            else
+            {
+                int op_type = 4;
+                fprintf(pp, " %d", op_type);
+            }
         }
         else if (node.op() == "MaxPool")
         {
@@ -787,6 +820,25 @@ int main(int argc, char** argv)
         {
             int op_type = 1;
             fprintf(pp, " %d", op_type);
+        }
+        else if (node.op() == "Sum")
+        {
+            int operation = 0;
+            int dim = 0;
+            float coeff = 1.f;
+
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                int axis = tensor.int_val(0);
+                if (axis == 1)
+                    dim = 0;
+                else if (axis == 3)
+                    dim = -2;
+            }
+
+            fprintf(pp, " %d %d %f", operation, dim, coeff);
         }
         else
         {
