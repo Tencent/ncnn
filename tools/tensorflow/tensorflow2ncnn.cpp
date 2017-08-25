@@ -226,6 +226,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Pooling");
         }
+        else if (node.op() == "Concat" || node.op() == "ConcatV2")
+        {
+            fprintf(pp, "%-16s", "Concat");
+        }
         else if (node.op() == "Const")
         {
             continue;
@@ -450,6 +454,15 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, " %d %d %d %d %d", pooling_type, kernel_size_w, stride_w, pad, global_pooling);
+        }
+        else if (node.op() == "Concat" || node.op() == "ConcatV2")
+        {
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                // TODO
+                int axis = tensor.int_val(0);
+            }
         }
         else if (node.op() == "Const")
         {
