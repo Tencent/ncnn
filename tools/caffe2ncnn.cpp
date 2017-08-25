@@ -551,6 +551,11 @@ int main(int argc, char** argv)
                 fprintf(pp, " %f", eltwise_param.coeff(j));
             }
         }
+        else if (layer.type() == "ELU")
+        {
+            const caffe::ELUParameter& elu_param = layer.elu_param();
+            fprintf(pp, " %f", elu_param.alpha());
+        }
         else if (layer.type() == "InnerProduct")
         {
             const caffe::LayerParameter& binlayer = net.layer(netidx);
