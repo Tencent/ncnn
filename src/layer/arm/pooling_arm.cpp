@@ -54,10 +54,12 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     {
         int wpad = kernel_size + (w - 1) / stride * stride - w;
         int hpad = kernel_size + (h - 1) / stride * stride - h;
-
-        copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
-        if (bottom_blob_bordered.empty())
-            return -100;
+        if (wpad > 0 || hpad > 0)
+        {
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
+            if (bottom_blob_bordered.empty())
+                return -100;
+        }
 
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
@@ -68,7 +70,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     int wtail = (w - kernel_size) % stride;
     int htail = (h - kernel_size) % stride;
-    if (wtail != 0 || htail != 0)
+    if (pad != -233 && (wtail != 0 || htail != 0))
     {
         int wtailpad = 0;
         int htailpad = 0;
