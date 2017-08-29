@@ -3,6 +3,13 @@
 1. 针对mtcnn的col-major模型添加了caffe2ncnn_mtcnn.cpp, 生成row-major模型
 2. 添加void resize_image(ncnn::Mat& srcImage, ncnn::Mat& dstImage)，无arm优化
 3. 前面都是用BGR图像做的，导致很多漏检，改过来了。
+4. 3519编译：在CMakelist.txt的17行下面手动添加如下代码
+```
+set(CMAKE_C_COMPILER   arm-hisiv500-linux-gcc) 
+set(CMAKE_CXX_COMPILER arm-hisiv500-linux-g++)
+add_definitions(-D__ARM_NEON)
+add_definitions("-O3 -mfloat-abi=softfp -mfpu=neon-vfpv4 -ffunction-sections") 
+```
 ---
 ![image](https://github.com/ElegantGod/ncnn/blob/master/result0.jpg)
 # ncnn
