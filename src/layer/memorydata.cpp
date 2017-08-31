@@ -68,11 +68,16 @@ int MemoryData::load_model(FILE* binfp)
     }
     if (data.empty())
         return -100;
-    nread = fread(data, data.total() * sizeof(float), 1, binfp);
-    if (nread != 1)
+
+    for (int p=0; p<data.c; p++)
     {
-        fprintf(stderr, "MemoryData read data failed %d\n", nread);
-        return -1;
+        float* ptr = data.channel(p);
+        nread = fread(ptr, data.w * data.h * sizeof(float), 1, binfp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "MemoryData read data failed %d\n", nread);
+            return -1;
+        }
     }
 
     return 0;
@@ -97,17 +102,25 @@ int MemoryData::load_model(const unsigned char*& mem)
 {
     if (c != 0)
     {
-        data = Mat(w, h, c, (float*)mem);
+        data.create(w, h, c);
     }
     else if (h != 0)
     {
-        data = Mat(w, h, (float*)mem);
+        data.create(w, h);
     }
     else if (w != 0)
     {
-        data = Mat(w, (float*)mem);
+        data.create(w);
     }
-    mem += data.total() * sizeof(float);
+    if (data.empty())
+        return -100;
+
+    for (int p=0; p<data.c; p++)
+    {
+        float* ptr = data.channel(p);
+        memcpy(ptr, mem, data.w * data.h * sizeof(float));
+        mem += data.w * data.h * sizeof(float);
+    }
 
     return 0;
 }
