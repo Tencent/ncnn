@@ -401,7 +401,7 @@ int main(int argc, char** argv)
 
         if (node.op() == "Add" || node.op() == "BiasAdd")
         {
-            int op_type = 1;
+            int op_type = 0;
             fprintf(pp, " %d", op_type);
         }
         else if (node.op() == "AvgPool")
