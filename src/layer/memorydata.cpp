@@ -20,8 +20,8 @@ DEFINE_LAYER_CREATOR(MemoryData)
 
 MemoryData::MemoryData()
 {
-    one_blob_only = true;
-    support_inplace = true;
+    one_blob_only = false;
+    support_inplace = false;
 }
 
 #if NCNN_STDIO
@@ -125,19 +125,12 @@ int MemoryData::load_model(const unsigned char*& mem)
     return 0;
 }
 
-int MemoryData::forward(const Mat& /*bottom_blob*/, Mat& top_blob) const
+int MemoryData::forward(const std::vector<Mat>& /*bottom_blobs*/, std::vector<Mat>& top_blobs) const
 {
+    Mat& top_blob = top_blobs[0];
+
     top_blob = data.clone();
     if (top_blob.empty())
-        return -100;
-
-    return 0;
-}
-
-int MemoryData::forward_inplace(Mat& bottom_top_blob) const
-{
-    bottom_top_blob = data.clone();
-    if (bottom_top_blob.empty())
         return -100;
 
     return 0;
