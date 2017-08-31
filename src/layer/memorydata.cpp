@@ -29,7 +29,7 @@ MemoryData::MemoryData()
 int MemoryData::load_param(FILE* paramfp)
 {
     int nscan = fscanf(paramfp, "%d %d %d",
-                       &channels, &width, &height);
+                       &c, &h, &w);
     if (nscan != 3)
     {
         fprintf(stderr, "MemoryData load_param failed %d\n", nscan);
@@ -41,11 +41,39 @@ int MemoryData::load_param(FILE* paramfp)
 #endif // NCNN_STRING
 int MemoryData::load_param_bin(FILE* paramfp)
 {
-    fread(&channels, sizeof(int), 1, paramfp);
+    fread(&c, sizeof(int), 1, paramfp);
 
-    fread(&width, sizeof(int), 1, paramfp);
+    fread(&h, sizeof(int), 1, paramfp);
 
-    fread(&height, sizeof(int), 1, paramfp);
+    fread(&w, sizeof(int), 1, paramfp);
+
+    return 0;
+}
+
+int MemoryData::load_model(FILE* binfp)
+{
+    int nread;
+
+    if (c != 0)
+    {
+        data.create(w, h, c);
+    }
+    else if (h != 0)
+    {
+        data.create(w, h);
+    }
+    else if (w != 0)
+    {
+        data.create(w);
+    }
+    if (data.empty())
+        return -100;
+    nread = fread(data, data.total() * sizeof(float), 1, binfp);
+    if (nread != 1)
+    {
+        fprintf(stderr, "MemoryData read data failed %d\n", nread);
+        return -1;
+    }
 
     return 0;
 }
@@ -53,25 +81,52 @@ int MemoryData::load_param_bin(FILE* paramfp)
 
 int MemoryData::load_param(const unsigned char*& mem)
 {
-    channels = *(int*)(mem);
+    c = *(int*)(mem);
     mem += 4;
 
-    width = *(int*)(mem);
+    h = *(int*)(mem);
     mem += 4;
 
-    height = *(int*)(mem);
+    w = *(int*)(mem);
     mem += 4;
 
     return 0;
 }
 
-int MemoryData::forward(const Mat& /*bottom_blob*/, Mat& /*top_blob*/) const
+int MemoryData::load_model(const unsigned char*& mem)
 {
+    if (c != 0)
+    {
+        data = Mat(w, h, c, (float*)mem);
+    }
+    else if (h != 0)
+    {
+        data = Mat(w, h, (float*)mem);
+    }
+    else if (w != 0)
+    {
+        data = Mat(w, (float*)mem);
+    }
+    mem += data.total() * sizeof(float);
+
     return 0;
 }
 
-int MemoryData::forward_inplace(Mat& /*bottom_top_blob*/) const
+int MemoryData::forward(const Mat& /*bottom_blob*/, Mat& top_blob) const
 {
+    top_blob = data.clone();
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+
+int MemoryData::forward_inplace(Mat& bottom_top_blob) const
+{
+    bottom_top_blob = data.clone();
+    if (bottom_top_blob.empty())
+        return -100;
+
     return 0;
 }
 
