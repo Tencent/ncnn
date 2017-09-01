@@ -169,7 +169,7 @@ int main(int argc, char** argv)
             weights[output_name] = tensorflow::TensorProto();
             continue;
         }
-        else if (node.op() == "Add" || node.op() == "Max" || node.op() == "Mul" || node.op() == "RealDiv" || node.op() == "Sub")
+        else if (node.op() == "Add" || node.op() == "BiasAdd" || node.op() == "Max" || node.op() == "Mul" || node.op() == "RealDiv" || node.op() == "Sub")
         {
             // check weights
             for (int j=0; j<node.input_size(); j++)
@@ -182,7 +182,6 @@ int main(int argc, char** argv)
                     // binary op with const, insert MemoryData layer and const blob
                     binaryop_consts[input_name] = it->second;
                     weights.erase(it);
-                    break;
                 }
             }
         }
@@ -279,7 +278,13 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "Identity")
         {
-            if (dropouts.find(node.name()) != dropouts.end())
+            // check before binaryop
+            tensorflow::TensorProto tensor;
+            if (get_tensor_proto(binaryop_consts, node, tensor))
+            {
+                fprintf(pp, "%-16s", "MemoryData");
+            }
+            else if (dropouts.find(node.name()) != dropouts.end())
             {
                 fprintf(pp, "%-16s", "Dropout");
             }
