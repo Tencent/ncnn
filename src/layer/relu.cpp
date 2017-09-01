@@ -93,7 +93,7 @@ int ReLU::forward(const Mat& bottom_blob, Mat& top_blob) const
             for (int i=0; i<size; i++)
             {
                 if (ptr[i] < 0)
-                    outptr[i] *= slope;
+                    outptr[i] = ptr[i] * slope;
                 else
                     outptr[i] = ptr[i];
             }
