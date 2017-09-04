@@ -36,7 +36,7 @@ Net::~Net()
 int Net::register_custom_layer(const char* type, layer_creator_func creator)
 {
     int typeindex = layer_to_index(type);
-    if (typeindex != 0)
+    if (typeindex != -1)
     {
         fprintf(stderr, "can not register build-in layer type %s\n", type);
         return -1;
