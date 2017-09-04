@@ -465,7 +465,7 @@ int main(int argc, char** argv)
                 int axis = tensor.int_val(0);
             }
         }
-        else if (node.op() == "Const")
+        else if (node.op() == "Const" || node.op() == "Identity")
         {
             // check before binaryop
             tensorflow::TensorProto tensor;
@@ -551,6 +551,11 @@ int main(int argc, char** argv)
                             }
                         }
                     }
+                }
+                else
+                {
+                    float val = tensor.float_val(0);
+                    fwrite(&val, sizeof(float), 1, bp);
                 }
 
                 fprintf(pp, " %d %d %d", c, h, w);
@@ -659,9 +664,6 @@ int main(int argc, char** argv)
         {
             int op_type = 2;
             fprintf(pp, " %d", op_type);
-        }
-        else if (node.op() == "Identity")
-        {
         }
         else if (node.op() == "LRN")
         {
