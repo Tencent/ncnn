@@ -482,7 +482,7 @@ int main(int argc, char** argv)
                     h = shape.dim(0).size();
                     w = shape.dim(1).size();
                 }
-                else if (shape.dim_size() == 1)
+                else if (shape.dim_size() == 3)
                 {
                     c = shape.dim(2).size();
                     h = shape.dim(0).size();
