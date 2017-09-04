@@ -169,7 +169,9 @@ int main(int argc, char** argv)
             weights[output_name] = tensorflow::TensorProto();
             continue;
         }
-        else if (node.op() == "Add" || node.op() == "BiasAdd" || node.op() == "Max" || node.op() == "Mul" || node.op() == "RealDiv" || node.op() == "Sub")
+        else if (node.op() == "Add" || node.op() == "BiasAdd"
+            || node.op() == "Max" || node.op() == "Maximum" || node.op() == "Mul"
+            || node.op() == "RealDiv" || node.op() == "Sub")
         {
             // check weights
             for (int j=0; j<node.input_size(); j++)
@@ -305,7 +307,7 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InnerProduct");
         }
-        else if (node.op() == "Max")
+        else if (node.op() == "Max" || node.op() == "Maximum")
         {
             // check weights
             tensorflow::TensorProto tensor;
@@ -754,7 +756,7 @@ int main(int argc, char** argv)
 
             fprintf(pp, " %d %d %d", num_output, bias_term, weight_data_size);
         }
-        else if (node.op() == "Max")
+        else if (node.op() == "Max" || node.op() == "Maximum")
         {
             // check weights
             tensorflow::TensorProto tensor;
