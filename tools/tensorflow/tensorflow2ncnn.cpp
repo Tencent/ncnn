@@ -176,7 +176,7 @@ int main(int argc, char** argv)
             {
                 const std::string& input_name = node.input(j);
 
-                const std::map<std::string, tensorflow::TensorProto>::const_iterator it = weights.find(input_name);
+                std::map<std::string, tensorflow::TensorProto>::iterator it = weights.find(input_name);
                 if (it != weights.end())
                 {
                     // binary op with const, insert MemoryData layer and const blob
@@ -273,6 +273,10 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", "Convolution");
         }
         else if (node.op() == "Exp")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (node.op() == "Floor")
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
@@ -649,6 +653,11 @@ int main(int argc, char** argv)
         else if (node.op() == "Exp")
         {
             int op_type = 7;
+            fprintf(pp, " %d", op_type);
+        }
+        else if (node.op() == "Floor")
+        {
+            int op_type = 2;
             fprintf(pp, " %d", op_type);
         }
         else if (node.op() == "Identity")
