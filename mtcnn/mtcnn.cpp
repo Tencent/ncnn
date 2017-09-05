@@ -226,7 +226,7 @@ void mtcnn::detect(ncnn::Mat& img_, std::vector<Bbox>& finalBbox_){
         int ws = (int)ceil(img_w*scales_[i]);
         //ncnn::Mat in = ncnn::Mat::from_pixels_resize(image_data, ncnn::Mat::PIXEL_RGB2BGR, img_w, img_h, ws, hs);
         ncnn::Mat in;
-        resize_bilinear(tempIm, in, ws, hs);
+        resize_bilinear(img_, in, ws, hs);
         //in.substract_mean_normalize(mean_vals, norm_vals);
         ncnn::Extractor ex = Pnet.create_extractor();
         ex.set_light_mode(true);
