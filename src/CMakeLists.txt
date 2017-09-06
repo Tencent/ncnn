@@ -122,6 +122,7 @@ ncnn_add_layer(LSTM OFF)
 ncnn_add_layer(BinaryOp)
 ncnn_add_layer(UnaryOp)
 ncnn_add_layer(ConvolutionDepthWise)
+ncnn_add_layer(Padding)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 

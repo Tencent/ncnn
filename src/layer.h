@@ -133,6 +133,7 @@ enum
     BinaryOp    = 40,
     UnaryOp     = 41,
     ConvolutionDepthWise = 42,
+    Padding     = 43,
 
     CustomBit   = (1<<8),
 };
