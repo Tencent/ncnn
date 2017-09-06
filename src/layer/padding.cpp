@@ -29,7 +29,7 @@ Padding::Padding()
 int Padding::load_param(FILE* paramfp)
 {
     int nscan = fscanf(paramfp, "%d %d %d %d %d %f", &top, &bottom, &left, &right, &type, &value);
-    if (nscan != 3)
+    if (nscan != 6)
     {
         fprintf(stderr, "Padding load_param failed %d\n", nscan);
         return -1;
