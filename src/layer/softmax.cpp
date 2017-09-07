@@ -42,19 +42,14 @@ int Softmax::forward(const Mat& bottom_blob, Mat& top_blob) const
     if (top_blob.empty())
         return -100;
 
-    Mat max;
-    max.create(w, h);
-    if (max.empty())
-        return -100;
-    max.fill(-FLT_MAX);
+    float max = -FLT_MAX;
     for (int q=0; q<channels; q++)
     {
         const float* ptr = bottom_blob.channel(q);
-        float* maxptr = max;
 
         for (int i=0; i<size; i++)
         {
-            maxptr[i] = std::max(maxptr[i], ptr[i]);
+            maxptr = std::max(maxptr, ptr[i]);
         }
     }
 
@@ -67,7 +62,7 @@ int Softmax::forward(const Mat& bottom_blob, Mat& top_blob) const
 
         for (int i=0; i<size; i++)
         {
-            outptr[i] = exp(ptr[i] - maxptr[i]);
+            outptr[i] = exp(ptr[i] - max);
         }
     }
 
