@@ -336,6 +336,10 @@ int main(int argc, char** argv)
         {
             continue;
         }
+        else if (node.op() == "Pad")
+        {
+            fprintf(pp, "%-16s", "Padding");
+        }
         else if (node.op() == "Placeholder")
         {
             fprintf(pp, "%-16s", "Input");
@@ -835,6 +839,49 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "NoOp")
         {
+        }
+        else if (node.op() == "Pad")
+        {
+            int top = 0;
+            int bottom = 0;
+            int left = 0;
+            int right = 0;
+            int type = 0;
+            float value = 0.f;
+
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                if (!tensor.tensor_content().empty() && tensor.dtype() == 3)// int32
+                {
+                    const int *data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                    int size = tensor.tensor_content().size() / sizeof(int);
+
+                    if (size == 8)
+                    {
+                        // n h w c
+                        top = data[2];
+                        bottom = data[3];
+                        left = data[4];
+                        right = data[5];
+                    }
+                }
+            }
+
+            tensorflow::AttrValue value_Tpaddings;
+            if (find_attr_value(node, "Tpaddings", value_Tpaddings))
+            {
+                type = value_Tpaddings.i();
+            }
+
+            tensorflow::AttrValue value_T;
+            if (find_attr_value(node, "T", value_T))
+            {
+                value = value_T.f();
+            }
+
+            fprintf(pp, " %d %d %d %d %d %f", top, bottom, left, right, type, value);
         }
         else if (node.op() == "Placeholder")
         {
