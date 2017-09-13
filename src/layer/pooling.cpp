@@ -162,7 +162,12 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     int wtail = (w - kernel_size) % stride;
     int htail = (h - kernel_size) % stride;
-    if (pad != -233 && (wtail != 0 || htail != 0))
+    if (pad == -233 || pad == -2333)
+    {
+        wtail = 0;
+        htail = 0;
+    }
+    if (wtail != 0 || htail != 0)
     {
         int wtailpad = 0;
         int htailpad = 0;
@@ -277,7 +282,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
             }
 
             // fix tail pad
-            if (pad != -233 && wtail != 0)
+            if (wtail != 0)
             {
                 const float scale = (float)kernel_size / wtail;
 
@@ -288,7 +293,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
                     outptr += outw;
                 }
             }
-            if (pad != -233 && htail != 0)
+            if (htail != 0)
             {
                 const float scale = (float)kernel_size / htail;
 

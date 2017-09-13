@@ -817,7 +817,7 @@ int main(int argc, char** argv)
             {
                 if (value_padding.s() == "VALID")
                 {
-                    pad = 0;
+                    pad = -2333;
                 }
                 else if (value_padding.s() == "SAME")
                 {
