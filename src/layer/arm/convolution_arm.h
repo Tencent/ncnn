@@ -22,7 +22,7 @@ namespace ncnn {
 class Convolution_arm : public Convolution
 {
 public:
-    virtual int forward(const Mat& bottom_blobs, Mat& top_blobs) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
 };
 
 } // namespace ncnn
