@@ -72,11 +72,17 @@ macro(ncnn_add_layer class)
     else()
         file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h "#if NCNN_STRING\n{\"${class}\",0},\n#else\n{0},\n#endif\n")
     endif()
+
+    # generate layer_type_enum file
+    file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h "${class} = ${__LAYER_TYPE_ENUM_INDEX},\n")
+    math(EXPR __LAYER_TYPE_ENUM_INDEX "${__LAYER_TYPE_ENUM_INDEX}+1")
 endmacro()
 
 # create new
 file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
 file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
+set(__LAYER_TYPE_ENUM_INDEX 0)
 
 # layer implementation
 ncnn_add_layer(AbsVal)
@@ -134,6 +140,7 @@ install(FILES
     mat.h
     net.h
     opencv.h
+    ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
     ${CMAKE_CURRENT_BINARY_DIR}/platform.h
     DESTINATION include
 )
