@@ -26,7 +26,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
     // convolv with NxN kernel
     // value = value + bias
 
-    if (kernel_size > 5 || dilation != 1)
+    if (kernel_size > 5 || stride > 5 || dilation != 1)
     {
         return Convolution::forward(bottom_blob, top_blob);
     }
