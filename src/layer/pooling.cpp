@@ -159,9 +159,15 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     int outw = (w - kernel_size) / stride + 1;
     int outh = (h - kernel_size) / stride + 1;
+    if (w < kernel_size) outw = 0;
+    if (h < kernel_size) outh = 0;
+	
 
     int wtail = (w - kernel_size) % stride;
     int htail = (h - kernel_size) % stride;
+    if (wtail < 0) wtail += kernel_size;
+    if (htail < 0) htail += kernel_size;
+
     if (pad == -233 || pad == -2333)
     {
         wtail = 0;
