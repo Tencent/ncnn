@@ -129,7 +129,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
             float* outptr = top_blob;
 
             float sum = 0.f;
-            for (int i=0; i<size; i++)
+            for (int i=0; i<channels; i++)
             {
                 sum += sums_ptr[i];
             }
@@ -264,7 +264,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
             float* outptr = top_blob;
 
             float sum = 0.f;
-            for (int i=0; i<size; i++)
+            for (int i=0; i<channels; i++)
             {
                 sum += sums_ptr[i];
             }
@@ -399,7 +399,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
             float* outptr = top_blob;
 
             float sum = 0.f;
-            for (int i=0; i<size; i++)
+            for (int i=0; i<channels; i++)
             {
                 sum += sums_ptr[i];
             }
@@ -534,7 +534,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
             float* outptr = top_blob;
 
             float sum = 0.f;
-            for (int i=0; i<size; i++)
+            for (int i=0; i<channels; i++)
             {
                 sum += sums_ptr[i];
             }
@@ -669,7 +669,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
             float* outptr = top_blob;
 
             float max = maxs_ptr[0];
-            for (int i=1; i<size; i++)
+            for (int i=1; i<channels; i++)
             {
                 max = std::max(max, maxs_ptr[i]);
             }
@@ -819,7 +819,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
             float* outptr = top_blob;
 
             float min = mins_ptr[0];
-            for (int i=1; i<size; i++)
+            for (int i=1; i<channels; i++)
             {
                 min = std::min(min, mins_ptr[i]);
             }
