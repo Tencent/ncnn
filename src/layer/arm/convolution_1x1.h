@@ -364,7 +364,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _outpn = vmlaq_f32(_outpn, _p3n, _k3);
 
                     vst1q_f32(outptr, _outp);
-                    vst1q_f32(outptr+8, _outpn);
+                    vst1q_f32(outptr+4, _outpn);
 
                     r0 += 16;
                     r1 += 16;

@@ -70,7 +70,12 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     int wtail = (w - kernel_size) % stride;
     int htail = (h - kernel_size) % stride;
-    if (pad != -233 && (wtail != 0 || htail != 0))
+    if (pad == -233 || pad == -2333)
+    {
+        wtail = 0;
+        htail = 0;
+    }
+    if (wtail != 0 || htail != 0)
     {
         int wtailpad = 0;
         int htailpad = 0;

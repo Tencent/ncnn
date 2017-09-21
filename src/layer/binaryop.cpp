@@ -70,6 +70,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
     int w1 = b.w;
     int h1 = b.h;
     int channels1 = b.c;
+    int size1 = w1 * h1;
 
     if (a.dims == 3)
     {
@@ -122,6 +123,27 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
 
         if (b.dims == 1)
         {
+            if (b.w == 1)
+            {
+                const float b0 = b.data[0];
+                #pragma omp parallel for
+                for (int q=0; q<channels; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    float* outptr = c.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        outptr[i] = op(ptr[i], b0);
+                    }
+
+                    ptr += w;
+                    outptr += w;
+                }
+
+                return 0;
+            }
+
             #pragma omp parallel for
             for (int q=0; q<channels; q++)
             {
@@ -196,6 +218,20 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
             if (c.empty())
                 return -100;
 
+            if (b.w == 1)
+            {
+                const float* ptr = a;
+                const float b0 = b.data[0];
+                float* outptr = c;
+
+                for (int i=0; i<size; i++)
+                {
+                    outptr[i] = op(ptr[i], b0);
+                }
+
+                return 0;
+            }
+
             const float* ptr = a;
             const float* ptr1 = b;
             float* outptr = c;
@@ -217,6 +253,70 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
     }
     else if (a.dims == 1)
     {
+        if (a.w == 1)
+        {
+            if (b.dims == 3)
+            {
+                c.create(w1, h1, channels1);
+                if (c.empty())
+                    return -100;
+
+                const float a0 = a.data[0];
+                #pragma omp parallel for
+                for (int q=0; q<channels1; q++)
+                {
+                    const float* ptr1 = b.channel(q);
+                    float* outptr = c.channel(q);
+
+                    for (int i=0; i<size1; i++)
+                    {
+                        outptr[i] = op(a0, ptr1[i]);
+                    }
+
+                    ptr1 += w1;
+                    outptr += w1;
+                }
+
+                return 0;
+            }
+
+            if (b.dims == 2)
+            {
+                c.create(w1, h1);
+                if (c.empty())
+                    return -100;
+
+                const float a0 = a.data[0];
+                const float* ptr1 = b;
+                float* outptr = c;
+
+                for (int i=0; i<size1; i++)
+                {
+                    outptr[i] = op(a0, ptr1[i]);
+                }
+
+                return 0;
+            }
+
+            if (b.dims == 1)
+            {
+                c.create(w1);
+                if (c.empty())
+                    return -100;
+
+                const float a0 = a.data[0];
+                const float* ptr1 = b;
+                float* outptr = c;
+
+                for (int i=0; i<size1; i++)
+                {
+                    outptr[i] = op(a0, ptr1[i]);
+                }
+
+                return 0;
+            }
+        }
+
         if (b.dims == 3)
         {
             c.create(w1, h1, channels1);
@@ -230,7 +330,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
                 const float* ptr1 = b.channel(q);
                 float* outptr = c.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i=0; i<size1; i++)
                 {
                     outptr[i] = op(a0, ptr1[i]);
                 }
@@ -272,6 +372,20 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
             c.create(w);
             if (c.empty())
                 return -100;
+
+            if (b.w == 1)
+            {
+                const float* ptr = a;
+                const float b0 = b.data[0];
+                float* outptr = c;
+
+                for (int i=0; i<size; i++)
+                {
+                    outptr[i] = op(ptr[i], b0);
+                }
+
+                return 0;
+            }
 
             const float* ptr = a;
             const float* ptr1 = b;

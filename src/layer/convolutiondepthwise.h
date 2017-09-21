@@ -34,7 +34,7 @@ public:
 #endif // NCNN_STDIO
     virtual int load_param(const unsigned char*& mem);
 
-    virtual int forward(const Mat& bottom_blobs, Mat& top_blobs) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
 
 public:
     int group;

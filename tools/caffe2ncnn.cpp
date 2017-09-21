@@ -624,7 +624,7 @@ int main(int argc, char** argv)
             const caffe::BlobShape& bs = input_param.shape(0);
             for (int j=1; j<std::min((int)bs.dim_size(), 4); j++)
             {
-                fprintf(pp, " %lld", bs.dim(j));
+                fprintf(pp, " %ld", bs.dim(j));
             }
             for (int j=bs.dim_size(); j<4; j++)
             {
@@ -682,15 +682,23 @@ int main(int argc, char** argv)
         {
             const caffe::ReshapeParameter& reshape_param = layer.reshape_param();
             const caffe::BlobShape& bs = reshape_param.shape();
-            for (int j=1; j<std::min((int)bs.dim_size(), 4); j++)
+            if (bs.dim_size() == 1)
             {
-                fprintf(pp, " %lld", bs.dim(j));
+                fprintf(pp, " %ld -233 -233", bs.dim(0));
             }
-            for (int j=bs.dim_size(); j<4; j++)
+            else if (bs.dim_size() == 2)
             {
-                fprintf(pp, " -233");
+                fprintf(pp, " %ld %ld -233", bs.dim(1), bs.dim(0));
             }
-            fprintf(pp, " 0");
+            else if (bs.dim_size() == 3)
+            {
+                fprintf(pp, " %ld %ld %ld", bs.dim(2), bs.dim(1), bs.dim(0));
+            }
+            else // bs.dim_size() == 4
+            {
+                fprintf(pp, " %ld %ld %ld", bs.dim(3), bs.dim(2), bs.dim(1));
+            }
+            fprintf(pp, " 0");// permute
         }
         else if (layer.type() == "ROIPooling")
         {

@@ -12,47 +12,37 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_CONVOLUTION_H
-#define LAYER_CONVOLUTION_H
+#ifndef LAYER_PADDING_H
+#define LAYER_PADDING_H
 
 #include "layer.h"
 
 namespace ncnn {
 
-class Convolution : public Layer
+class Padding : public Layer
 {
 public:
-    Convolution();
-    virtual ~Convolution();
+    Padding();
 
 #if NCNN_STDIO
 #if NCNN_STRING
     virtual int load_param(FILE* paramfp);
 #endif // NCNN_STRING
     virtual int load_param_bin(FILE* paramfp);
-    virtual int load_model(FILE* binfp);
 #endif // NCNN_STDIO
     virtual int load_param(const unsigned char*& mem);
-    virtual int load_model(const unsigned char*& mem);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
 
 public:
-    // param
-    int num_output;
-    int kernel_size;
-    int dilation;
-    int stride;
-    int pad;
-    int bias_term;
-
-    int weight_data_size;
-
-    // model
-    Mat weight_data;
-    Mat bias_data;
+    int top;
+    int bottom;
+    int left;
+    int right;
+    int type;
+    float value;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_CONVOLUTION_H
+#endif // LAYER_PADDING_H

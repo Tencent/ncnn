@@ -169,14 +169,16 @@ int main(int argc, char** argv)
             weights[output_name] = tensorflow::TensorProto();
             continue;
         }
-        else if (node.op() == "Add" || node.op() == "BiasAdd" || node.op() == "Max" || node.op() == "Mul" || node.op() == "RealDiv" || node.op() == "Sub")
+        else if (node.op() == "Add" || node.op() == "BiasAdd"
+            || node.op() == "Max" || node.op() == "Maximum" || node.op() == "Mul"
+            || node.op() == "RealDiv" || node.op() == "Sub")
         {
             // check weights
             for (int j=0; j<node.input_size(); j++)
             {
                 const std::string& input_name = node.input(j);
 
-                const std::map<std::string, tensorflow::TensorProto>::const_iterator it = weights.find(input_name);
+                std::map<std::string, tensorflow::TensorProto>::iterator it = weights.find(input_name);
                 if (it != weights.end())
                 {
                     // binary op with const, insert MemoryData layer and const blob
@@ -276,6 +278,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (node.op() == "Floor")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (node.op() == "Identity")
         {
             // check before binaryop
@@ -301,7 +307,7 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InnerProduct");
         }
-        else if (node.op() == "Max")
+        else if (node.op() == "Max" || node.op() == "Maximum")
         {
             // check weights
             tensorflow::TensorProto tensor;
@@ -329,6 +335,10 @@ int main(int argc, char** argv)
         else if (node.op() == "NoOp")
         {
             continue;
+        }
+        else if (node.op() == "Pad")
+        {
+            fprintf(pp, "%-16s", "Padding");
         }
         else if (node.op() == "Placeholder")
         {
@@ -461,7 +471,7 @@ int main(int argc, char** argv)
                 int axis = tensor.int_val(0);
             }
         }
-        else if (node.op() == "Const")
+        else if (node.op() == "Const" || node.op() == "Identity")
         {
             // check before binaryop
             tensorflow::TensorProto tensor;
@@ -547,6 +557,11 @@ int main(int argc, char** argv)
                             }
                         }
                     }
+                }
+                else
+                {
+                    float val = tensor.float_val(0);
+                    fwrite(&val, sizeof(float), 1, bp);
                 }
 
                 fprintf(pp, " %d %d %d", c, h, w);
@@ -651,8 +666,10 @@ int main(int argc, char** argv)
             int op_type = 7;
             fprintf(pp, " %d", op_type);
         }
-        else if (node.op() == "Identity")
+        else if (node.op() == "Floor")
         {
+            int op_type = 2;
+            fprintf(pp, " %d", op_type);
         }
         else if (node.op() == "LRN")
         {
@@ -743,7 +760,7 @@ int main(int argc, char** argv)
 
             fprintf(pp, " %d %d %d", num_output, bias_term, weight_data_size);
         }
-        else if (node.op() == "Max")
+        else if (node.op() == "Max" || node.op() == "Maximum")
         {
             // check weights
             tensorflow::TensorProto tensor;
@@ -800,7 +817,7 @@ int main(int argc, char** argv)
             {
                 if (value_padding.s() == "VALID")
                 {
-                    pad = 0;
+                    pad = -2333;
                 }
                 else if (value_padding.s() == "SAME")
                 {
@@ -822,6 +839,49 @@ int main(int argc, char** argv)
         }
         else if (node.op() == "NoOp")
         {
+        }
+        else if (node.op() == "Pad")
+        {
+            int top = 0;
+            int bottom = 0;
+            int left = 0;
+            int right = 0;
+            int type = 0;
+            float value = 0.f;
+
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                if (!tensor.tensor_content().empty() && tensor.dtype() == 3)// int32
+                {
+                    const int *data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                    int size = tensor.tensor_content().size() / sizeof(int);
+
+                    if (size == 8)
+                    {
+                        // n h w c
+                        top = data[2];
+                        bottom = data[3];
+                        left = data[4];
+                        right = data[5];
+                    }
+                }
+            }
+
+            tensorflow::AttrValue value_Tpaddings;
+            if (find_attr_value(node, "Tpaddings", value_Tpaddings))
+            {
+                type = value_Tpaddings.i();
+            }
+
+            tensorflow::AttrValue value_T;
+            if (find_attr_value(node, "T", value_T))
+            {
+                value = value_T.f();
+            }
+
+            fprintf(pp, " %d %d %d %d %d %f", top, bottom, left, right, type, value);
         }
         else if (node.op() == "Placeholder")
         {

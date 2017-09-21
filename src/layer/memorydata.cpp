@@ -66,6 +66,10 @@ int MemoryData::load_model(FILE* binfp)
     {
         data.create(w);
     }
+    else // 0 0 0
+    {
+        data.create(1);
+    }
     if (data.empty())
         return -100;
 
@@ -111,6 +115,10 @@ int MemoryData::load_model(const unsigned char*& mem)
     else if (w != 0)
     {
         data.create(w);
+    }
+    else // 0 0 0
+    {
+        data.create(1);
     }
     if (data.empty())
         return -100;
