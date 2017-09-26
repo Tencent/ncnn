@@ -137,6 +137,7 @@ install(FILES
     blob.h
     cpu.h
     layer.h
+    layer_type.h
     mat.h
     net.h
     opencv.h
