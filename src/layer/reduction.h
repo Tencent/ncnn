@@ -41,7 +41,8 @@ public:
         ReductionOp_SUMSQ   = 2,
         ReductionOp_MEAN    = 3,
         ReductionOp_MAX     = 4,
-        ReductionOp_MIN     = 5
+        ReductionOp_MIN     = 5,
+        ReductionOp_MUL     = 6
     };
 
 public:

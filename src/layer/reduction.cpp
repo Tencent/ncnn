@@ -339,6 +339,9 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
     if (operation == ReductionOp_MIN)
         return reduction_op< reduction_op_min<float>, reduction_op_min<float> >(bottom_blob, top_blob, FLT_MAX, dim, coeff);
 
+    if (operation == ReductionOp_MUL)
+        return reduction_op< std::multiplies<float>, std::multiplies<float> >(bottom_blob, top_blob, 1.f, dim, coeff);
+
     return 0;
 }
 
