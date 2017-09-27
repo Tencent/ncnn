@@ -51,7 +51,8 @@ public:
         Operation_TAN   = 11,
         Operation_ASIN  = 12,
         Operation_ACOS  = 13,
-        Operation_ATAN  = 14
+        Operation_ATAN  = 14,
+        Operation_RECIPROCAL = 15
     };
 
 public:

@@ -190,6 +190,11 @@ struct unary_op_atan : std::unary_function<T,T> {
     T operator() (const T& x) const { return atan(x); }
 };
 
+template<typename T>
+struct unary_op_reciprocal : std::unary_function<T,T> {
+    T operator() (const T& x) const { return 1.f / x; }
+};
+
 int UnaryOp::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     if (op_type == Operation_ABS)
@@ -286,6 +291,9 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob) const
 
     if (op_type == Operation_ATAN)
         return unary_op_inplace< unary_op_atan<float> >(bottom_top_blob);
+
+    if (op_type == Operation_RECIPROCAL)
+        return unary_op_inplace< unary_op_reciprocal<float> >(bottom_top_blob);
 
     return 0;
 }
