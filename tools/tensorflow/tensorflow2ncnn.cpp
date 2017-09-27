@@ -679,7 +679,8 @@ int main(int argc, char** argv)
 
             int stride_h = 1;
             int stride_w = 1;
-            int dilation = 1;
+            int dilation_h = 1;
+            int dilation_w = 1;
             int pad = 0;
 
             tensorflow::AttrValue value_strides;
@@ -701,6 +702,14 @@ int main(int argc, char** argv)
                 {
                     pad = -233;
                 }
+            }
+
+            tensorflow::AttrValue value_rate;
+            if (find_attr_value(node, "rate", value_rate))
+            {
+                // height, width
+                dilation_h = value_rate.list().i(0);
+                dilation_w = value_rate.list().i(1);
             }
 
             int bias_term = 0;
@@ -756,7 +765,7 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation, stride_w, pad, bias_term, weight_data_size);
+            fprintf(pp, " %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation_w, stride_w, pad, bias_term, weight_data_size);
         }
         else if (node.op() == "DepthwiseConv2dNative")
         {
@@ -776,7 +785,8 @@ int main(int argc, char** argv)
 
             int stride_h = 1;
             int stride_w = 1;
-            int dilation = 1;
+            int dilation_h = 1;
+            int dilation_w = 1;
             int pad = 0;
 
             tensorflow::AttrValue value_strides;
@@ -798,6 +808,14 @@ int main(int argc, char** argv)
                 {
                     pad = -233;
                 }
+            }
+
+            tensorflow::AttrValue value_rate;
+            if (find_attr_value(node, "rate", value_rate))
+            {
+                // height, width
+                dilation_h = value_rate.list().i(0);
+                dilation_w = value_rate.list().i(1);
             }
 
             int bias_term = 0;
@@ -853,7 +871,7 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation, stride_w, pad, bias_term, weight_data_size, group);
+            fprintf(pp, " %d %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation_w, stride_w, pad, bias_term, weight_data_size, group);
         }
         else if (node.op() == "Exp")
         {
