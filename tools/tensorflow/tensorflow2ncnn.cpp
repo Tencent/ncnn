@@ -97,6 +97,45 @@ static bool find_attr_value(const tensorflow::NodeDef& node, const char* key, te
     return false;
 }
 
+static int parse_tensor_reduction_dim(const tensorflow::TensorProto& tensor)
+{
+    int dim = 0;
+
+    // dim == 0 // w h c -> X X X
+    // dim == 1 // w h c -> X X c
+    // dim == 2 // w h c -> X h c
+    // dim == -1 // w h c -> w X X
+    // dim == -2 // w h c -> w h X
+
+    if (!tensor.tensor_content().empty() && tensor.dtype() == 3)// int32
+    {
+        const int* data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+        int size = tensor.tensor_content().size() / sizeof(int);
+
+        // n h w c
+        // n h w
+        // n w
+        // TODO investigate two stage / three stage reduction
+        if (size == 2)
+        {
+            if (data[0] == 1 && data[1] == 2)
+            {
+                dim = 1;
+            }
+        }
+    }
+    else
+    {
+        int axis = tensor.int_val(0);
+        if (axis == 1)
+            dim = 0;
+        else if (axis == 3)
+            dim = -2;
+    }
+
+    return dim;
+}
+
 int main(int argc, char** argv)
 {
     const char* tensorflowpb = argv[1];
@@ -577,8 +616,16 @@ int main(int argc, char** argv)
                 }
                 else
                 {
-                    float val = tensor.float_val(0);
-                    fwrite(&val, sizeof(float), 1, bp);
+                    if (tensor.dtype() == 1)// float
+                    {
+                        float val = tensor.float_val(0);
+                        fwrite(&val, sizeof(float), 1, bp);
+                    }
+                    else if (tensor.dtype() == 3)// int32
+                    {
+                        float val = tensor.int_val(0);
+                        fwrite(&val, sizeof(float), 1, bp);
+                    }
                 }
 
                 fprintf(pp, " %d %d %d", c, h, w);
@@ -787,11 +834,7 @@ int main(int argc, char** argv)
                 int dim = 0;
                 float coeff = 1.f;
 
-                int axis = tensor.int_val(0);
-                if (axis == 1)
-                    dim = 0;
-                else if (axis == 3)
-                    dim = -2;
+                dim = parse_tensor_reduction_dim(tensor);
 
                 fprintf(pp, " %d %d %f", operation, dim, coeff);
             }
@@ -971,11 +1014,7 @@ int main(int argc, char** argv)
             tensorflow::TensorProto tensor;
             if (find_tensor_proto(weights, node, tensor))
             {
-                int axis = tensor.int_val(0);
-                if (axis == 1)
-                    dim = 0;
-                else if (axis == 3)
-                    dim = -2;
+                dim = parse_tensor_reduction_dim(tensor);
             }
 
             fprintf(pp, " %d %d %f", operation, dim, coeff);
