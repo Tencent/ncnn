@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
+#include "layer_type.h"
 
 #include <stdio.h>
 #include <string.h>

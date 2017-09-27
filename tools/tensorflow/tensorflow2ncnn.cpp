@@ -169,21 +169,38 @@ int main(int argc, char** argv)
             weights[output_name] = tensorflow::TensorProto();
             continue;
         }
-        else if (node.op() == "Add" || node.op() == "BiasAdd"
-            || node.op() == "Max" || node.op() == "Maximum" || node.op() == "Mul"
-            || node.op() == "RealDiv" || node.op() == "Sub")
+        else
         {
-            // check weights
-            for (int j=0; j<node.input_size(); j++)
+            bool isBinaryOp = false;
+            if (node.op() == "Add" || node.op() == "BiasAdd"
+                || node.op() == "Mul" || node.op() == "RealDiv" || node.op() == "Sub")
             {
-                const std::string& input_name = node.input(j);
-
-                std::map<std::string, tensorflow::TensorProto>::iterator it = weights.find(input_name);
-                if (it != weights.end())
+                isBinaryOp = true;
+            }
+            if (node.op() == "Max" || node.op() == "Maximum")
+            {
+                // check weights
+                tensorflow::TensorProto tensor;
+                if (!find_tensor_proto(weights, node, tensor))
                 {
-                    // binary op with const, insert MemoryData layer and const blob
-                    binaryop_consts[input_name] = it->second;
-                    weights.erase(it);
+                    isBinaryOp = true;
+                }
+            }
+
+            if (isBinaryOp)
+            {
+                // check weights
+                for (int j=0; j<node.input_size(); j++)
+                {
+                    const std::string& input_name = node.input(j);
+
+                    std::map<std::string, tensorflow::TensorProto>::iterator it = weights.find(input_name);
+                    if (it != weights.end())
+                    {
+                        // binary op with const, insert MemoryData layer and const blob
+                        binaryop_consts[input_name] = it->second;
+                        weights.erase(it);
+                    }
                 }
             }
         }

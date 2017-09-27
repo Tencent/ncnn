@@ -87,14 +87,6 @@ public:
     std::vector<int> tops;
 };
 
-namespace LayerType {
-enum
-{
-#include "layer_type_enum.h"
-    CustomBit = (1<<8),
-};
-} // namespace LayerType
-
 // layer factory function
 typedef Layer* (*layer_creator_func)();
 
