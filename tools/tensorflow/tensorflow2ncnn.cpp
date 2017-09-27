@@ -330,6 +330,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Convolution");
         }
+        else if (node.op() == "DepthwiseConv2dNative")
+        {
+            fprintf(pp, "%-16s", "ConvolutionDepthWise");
+        }
         else if (node.op() == "Exp")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -753,6 +757,103 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, " %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation, stride_w, pad, bias_term, weight_data_size);
+        }
+        else if (node.op() == "DepthwiseConv2dNative")
+        {
+            // weights
+            tensorflow::TensorProto tensor;
+            find_tensor_proto(weights, node, tensor);
+
+            const tensorflow::TensorShapeProto& shape = tensor.tensor_shape();
+
+            int kernel_size_h = shape.dim(0).size();
+            int kernel_size_w = shape.dim(1).size();
+            int num_input = shape.dim(2).size();
+            int channel_multiplier = shape.dim(3).size();
+
+            int num_output = num_input * channel_multiplier;
+            int group = num_input;
+
+            int stride_h = 1;
+            int stride_w = 1;
+            int dilation = 1;
+            int pad = 0;
+
+            tensorflow::AttrValue value_strides;
+            if (find_attr_value(node, "strides", value_strides))
+            {
+                // batch, height, width, channels
+                stride_h = value_strides.list().i(1);
+                stride_w = value_strides.list().i(2);
+            }
+
+            tensorflow::AttrValue value_padding;
+            if (find_attr_value(node, "padding", value_padding))
+            {
+                if (value_padding.s() == "VALID")
+                {
+                    pad = 0;
+                }
+                else if (value_padding.s() == "SAME")
+                {
+                    pad = -233;
+                }
+            }
+
+            int bias_term = 0;
+            int weight_data_size = 0;
+
+            // reorder h-w-i-cm to i-cm-h-w
+            if (!tensor.tensor_content().empty())
+            {
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                if (tensor.dtype() == 1)// float
+                {
+                    const float* data = reinterpret_cast<const float*>(tensor.tensor_content().c_str());
+                    weight_data_size = tensor.tensor_content().size() / sizeof(float);
+
+                    float tmp;
+                    for (int p=0; p<num_input; p++)
+                    {
+                        for (int q=0; q<channel_multiplier; q++)
+                        {
+                            for (int i=0; i<kernel_size_h; i++)
+                            {
+                                for (int j=0; j<kernel_size_w; j++)
+                                {
+                                    tmp = data[i*kernel_size_w*channel_multiplier*num_input + j*channel_multiplier*num_input + p*channel_multiplier + q];
+                                    fwrite(&tmp, sizeof(float), 1, bp);
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (tensor.dtype() == 3)// int32
+                {
+                    const int* data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                    weight_data_size = tensor.tensor_content().size() / sizeof(int);
+
+                    float tmp;
+                    for (int p=0; p<num_input; p++)
+                    {
+                        for (int q=0; q<channel_multiplier; q++)
+                        {
+                            for (int i=0; i<kernel_size_h; i++)
+                            {
+                                for (int j=0; j<kernel_size_w; j++)
+                                {
+                                    tmp = data[i*kernel_size_w*channel_multiplier*num_input + j*channel_multiplier*num_input + p*channel_multiplier + q];
+                                    fwrite(&tmp, sizeof(float), 1, bp);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            fprintf(pp, " %d %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation, stride_w, pad, bias_term, weight_data_size, group);
         }
         else if (node.op() == "Exp")
         {
