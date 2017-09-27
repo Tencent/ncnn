@@ -42,7 +42,7 @@ public:
         ReductionOp_MEAN    = 3,
         ReductionOp_MAX     = 4,
         ReductionOp_MIN     = 5,
-        ReductionOp_MUL     = 6
+        ReductionOp_PROD    = 6
     };
 
 public:
