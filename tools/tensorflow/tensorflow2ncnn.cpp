@@ -216,7 +216,7 @@ int main(int argc, char** argv)
             {
                 isBinaryOp = true;
             }
-            if (node.op() == "Max" || node.op() == "Maximum")
+            if (node.op() == "Max" || node.op() == "Maximum" || node.op() == "Min" || node.op() == "Minimum")
             {
                 // check weights
                 tensorflow::TensorProto tensor;
@@ -380,6 +380,19 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Pooling");
         }
+        else if (node.op() == "Min" || node.op() == "Minimum")
+        {
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                fprintf(pp, "%-16s", "Reduction");
+            }
+            else
+            {
+                fprintf(pp, "%-16s", "BinaryOp");
+            }
+        }
         else if (node.op() == "Mul")
         {
             fprintf(pp, "%-16s", "BinaryOp");
@@ -400,9 +413,17 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Input");
         }
+        else if (node.op() == "Prod")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
         else if (node.op() == "RealDiv")
         {
             fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (node.op() == "Reciprocal")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (node.op() == "Relu")
         {
@@ -416,9 +437,17 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (node.op() == "Sigmoid")
+        {
+            fprintf(pp, "%-16s", "Sigmoid");
+        }
         else if (node.op() == "Softmax")
         {
             fprintf(pp, "%-16s", "Softmax");
+        }
+        else if (node.op() == "Square")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (node.op() == "Sub")
         {
@@ -887,6 +916,26 @@ int main(int argc, char** argv)
 
             fprintf(pp, " %d %d %d %d %d", pooling_type, kernel_size_w, stride_w, pad, global_pooling);
         }
+        else if (node.op() == "Min" || node.op() == "Minimum")
+        {
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                int operation = 5;
+                int dim = 0;
+                float coeff = 1.f;
+
+                dim = parse_tensor_reduction_dim(tensor);
+
+                fprintf(pp, " %d %d %f", operation, dim, coeff);
+            }
+            else
+            {
+                int op_type = 5;
+                fprintf(pp, " %d", op_type);
+            }
+        }
         else if (node.op() == "Mul")
         {
             int op_type = 2;
@@ -948,9 +997,29 @@ int main(int argc, char** argv)
             // TODO pass through
             fprintf(pp, " 0 0 0");
         }
+        else if (node.op() == "Prod")
+        {
+            int operation = 6;
+            int dim = 0;
+            float coeff = 1.f;
+
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                dim = parse_tensor_reduction_dim(tensor);
+            }
+
+            fprintf(pp, " %d %d %f", operation, dim, coeff);
+        }
         else if (node.op() == "RealDiv")
         {
             int op_type = 3;
+            fprintf(pp, " %d", op_type);
+        }
+        else if (node.op() == "Reciprocal")
+        {
+            int op_type = 15;
             fprintf(pp, " %d", op_type);
         }
         else if (node.op() == "Relu")
@@ -996,8 +1065,16 @@ int main(int argc, char** argv)
             int op_type = 6;
             fprintf(pp, " %d", op_type);
         }
+        else if (node.op() == "Sigmoid")
+        {
+        }
         else if (node.op() == "Softmax")
         {
+        }
+        else if (node.op() == "Square")
+        {
+            int op_type = 4;
+            fprintf(pp, " %d", op_type);
         }
         else if (node.op() == "Sub")
         {
