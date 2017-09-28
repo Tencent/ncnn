@@ -576,9 +576,9 @@ int main(int argc, char** argv)
             {
                 const tensorflow::TensorShapeProto& shape = tensor.tensor_shape();
 
-                int c = 0;
-                int h = 0;
                 int w = 0;
+                int h = 0;
+                int c = 0;
 
                 if (shape.dim_size() == 1)
                 {
@@ -669,7 +669,7 @@ int main(int argc, char** argv)
                     }
                 }
 
-                fprintf(pp, " %d %d %d", c, h, w);
+                fprintf(pp, " %d %d %d", w, h, c);
             }
         }
         else if (node.op() == "Conv2D")

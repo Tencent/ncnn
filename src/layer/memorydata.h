@@ -37,9 +37,9 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
 
 public:
-    int c;
-    int h;
     int w;
+    int h;
+    int c;
 
     Mat data;
 };

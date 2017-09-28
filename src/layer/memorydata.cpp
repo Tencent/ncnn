@@ -29,7 +29,7 @@ MemoryData::MemoryData()
 int MemoryData::load_param(FILE* paramfp)
 {
     int nscan = fscanf(paramfp, "%d %d %d",
-                       &c, &h, &w);
+                       &w, &h, &c);
     if (nscan != 3)
     {
         fprintf(stderr, "MemoryData load_param failed %d\n", nscan);
@@ -41,11 +41,11 @@ int MemoryData::load_param(FILE* paramfp)
 #endif // NCNN_STRING
 int MemoryData::load_param_bin(FILE* paramfp)
 {
-    fread(&c, sizeof(int), 1, paramfp);
+    fread(&w, sizeof(int), 1, paramfp);
 
     fread(&h, sizeof(int), 1, paramfp);
 
-    fread(&w, sizeof(int), 1, paramfp);
+    fread(&c, sizeof(int), 1, paramfp);
 
     return 0;
 }
@@ -90,13 +90,13 @@ int MemoryData::load_model(FILE* binfp)
 
 int MemoryData::load_param(const unsigned char*& mem)
 {
-    c = *(int*)(mem);
+    w = *(int*)(mem);
     mem += 4;
 
     h = *(int*)(mem);
     mem += 4;
 
-    w = *(int*)(mem);
+    c = *(int*)(mem);
     mem += 4;
 
     return 0;
