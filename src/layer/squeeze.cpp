@@ -24,29 +24,70 @@ Squeeze::Squeeze()
     support_inplace = false;
 }
 
+#if NCNN_STDIO
+#if NCNN_STRING
+int Squeeze::load_param(FILE* paramfp)
+{
+    int nscan = fscanf(paramfp, "%d %d %d", &squeeze_w, &squeeze_h, &squeeze_c);
+    if (nscan != 3)
+    {
+        fprintf(stderr, "Squeeze load_param failed %d\n", nscan);
+        return -1;
+    }
+
+    return 0;
+}
+#endif // NCNN_STRING
+int Squeeze::load_param_bin(FILE* paramfp)
+{
+    fread(&squeeze_w, sizeof(int), 1, paramfp);
+
+    fread(&squeeze_h, sizeof(int), 1, paramfp);
+
+    fread(&squeeze_c, sizeof(int), 1, paramfp);
+
+    return 0;
+}
+#endif // NCNN_STDIO
+
+int Squeeze::load_param(const unsigned char*& mem)
+{
+    squeeze_w = *(int*)(mem);
+    mem += 4;
+
+    squeeze_h = *(int*)(mem);
+    mem += 4;
+
+    squeeze_c = *(int*)(mem);
+    mem += 4;
+
+    return 0;
+}
+
 int Squeeze::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
 
-    if (channels == 1)
+    if (squeeze_c && dims == 3 && channels == 1)
     {
-        if (h == 1)
+        if (squeeze_h && h == 1)
             top_blob = bottom_blob.reshape(w);
         else
             top_blob = bottom_blob.reshape(w, h);
     }
-    else if (h == 1)
+    else if (squeeze_h && dims >= 2 && h == 1)
     {
-        if (w == 1)
+        if (squeeze_w && w == 1)
             top_blob = bottom_blob.reshape(channels);
         else
             top_blob = bottom_blob.reshape(w, channels);
     }
-    else if (w == 1)
+    else if (squeeze_w && dims >= 1 && w == 1)
     {
-        if (h == 1)
+        if (squeeze_h && h == 1)
             top_blob = bottom_blob.reshape(channels);
         else
             top_blob = bottom_blob.reshape(h, channels);
