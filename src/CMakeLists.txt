@@ -130,6 +130,7 @@ ncnn_add_layer(UnaryOp)
 ncnn_add_layer(ConvolutionDepthWise)
 ncnn_add_layer(Padding)
 ncnn_add_layer(Squeeze)
+ncnn_add_layer(ExpandDims)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 

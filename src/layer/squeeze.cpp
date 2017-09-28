@@ -71,6 +71,8 @@ int Squeeze::forward(const Mat& bottom_blob, Mat& top_blob) const
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
 
+    top_blob = bottom_blob;
+
     if (squeeze_c && dims == 3 && channels == 1)
     {
         if (squeeze_h && h == 1)
@@ -92,8 +94,6 @@ int Squeeze::forward(const Mat& bottom_blob, Mat& top_blob) const
         else
             top_blob = bottom_blob.reshape(h, channels);
     }
-    else
-        top_blob = bottom_blob;
 
     if (top_blob.empty())
         return -100;
