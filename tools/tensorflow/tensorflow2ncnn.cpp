@@ -338,6 +338,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (node.op() == "ExpandDims")
+        {
+            fprintf(pp, "%-16s", "ExpandDims");
+        }
         else if (node.op() == "Floor")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -452,6 +456,10 @@ int main(int argc, char** argv)
         else if (node.op() == "Square")
         {
             fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (node.op() == "Squeeze")
+        {
+            fprintf(pp, "%-16s", "Squeeze");
         }
         else if (node.op() == "Sub")
         {
@@ -878,6 +886,26 @@ int main(int argc, char** argv)
             int op_type = 7;
             fprintf(pp, " %d", op_type);
         }
+        else if (node.op() == "ExpandDims")
+        {
+            int expand_w = 0;
+            int expand_h = 0;
+            int expand_c = 0;
+
+            tensorflow::AttrValue value_dim;
+            if (find_attr_value(node, "Tdim", value_dim))
+            {
+                int dim = value_dim.i();
+                if (dim == 0)
+                    expand_w = 1;
+                if (dim == 1)
+                    expand_h = 1;
+                if (dim == 2)
+                    expand_c = 1;
+            }
+
+            fprintf(pp, " %d %d %d", expand_w, expand_h, expand_c);
+        }
         else if (node.op() == "Floor")
         {
             int op_type = 2;
@@ -1195,6 +1223,29 @@ int main(int argc, char** argv)
             int op_type = 4;
             fprintf(pp, " %d", op_type);
         }
+        else if (node.op() == "Squeeze")
+        {
+            int squeeze_w = 0;
+            int squeeze_h = 0;
+            int squeeze_c = 0;
+
+            tensorflow::AttrValue value_squeeze_dims;
+            if (find_attr_value(node, "squeeze_dims", value_squeeze_dims))
+            {
+                for (int i = 0; i<value_squeeze_dims.list().i_size(); i++)
+                {
+                    int dim = value_squeeze_dims.list().i(i);
+                    if (dim == 0)
+                        squeeze_w = 1;
+                    if (dim == 1)
+                        squeeze_h = 1;
+                    if (dim == 2)
+                        squeeze_c = 1;
+                }
+            }
+
+            fprintf(pp, " %d %d %d", squeeze_w, squeeze_h, squeeze_c);
+        }
         else if (node.op() == "Sub")
         {
             int op_type = 1;
@@ -1222,8 +1273,7 @@ int main(int argc, char** argv)
             google::protobuf::Map<std::string, tensorflow::AttrValue>::const_iterator it = attr.begin();
             for (; it != attr.end(); it++)
             {
-                std::cerr << it->first << std::endl;
-                std::cerr << it->second.type() << std::endl;
+                std::cerr << it->first << " #" << it->second.type() << std::endl;
             }
         }
 
