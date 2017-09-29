@@ -211,7 +211,7 @@ int main(int argc, char** argv)
         else
         {
             bool isBinaryOp = false;
-            if (node.op() == "Add" || node.op() == "BiasAdd"
+            if (node.op() == "Add" || node.op() == "BiasAdd" || node.op() == "Div"
                 || node.op() == "Mul" || node.op() == "RealDiv" || node.op() == "Sub")
             {
                 isBinaryOp = true;
@@ -334,6 +334,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "ConvolutionDepthWise");
         }
+        else if (node.op() == "Div" || node.op() == "RealDiv")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (node.op() == "Exp")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -424,10 +428,6 @@ int main(int argc, char** argv)
         else if (node.op() == "Prod")
         {
             fprintf(pp, "%-16s", "Reduction");
-        }
-        else if (node.op() == "RealDiv")
-        {
-            fprintf(pp, "%-16s", "BinaryOp");
         }
         else if (node.op() == "Reciprocal")
         {
@@ -881,6 +881,11 @@ int main(int argc, char** argv)
 
             fprintf(pp, " %d %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation_w, stride_w, pad, bias_term, weight_data_size, group);
         }
+        else if (node.op() == "Div" || node.op() == "RealDiv")
+        {
+            int op_type = 3;
+            fprintf(pp, " %d", op_type);
+        }
         else if (node.op() == "Exp")
         {
             int op_type = 7;
@@ -1158,11 +1163,6 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, " %d %d %f", operation, dim, coeff);
-        }
-        else if (node.op() == "RealDiv")
-        {
-            int op_type = 3;
-            fprintf(pp, " %d", op_type);
         }
         else if (node.op() == "Reciprocal")
         {
