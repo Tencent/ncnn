@@ -485,7 +485,7 @@ int main(int argc, char** argv)
             }
         }
 
-        fprintf(pp, " %-16s %d 1", node.name().c_str(), input_size);
+        fprintf(pp, " %-32s %d 1", node.name().c_str(), input_size);
 
         for (int j=0; j<node.input_size(); j++)
         {
@@ -1287,7 +1287,7 @@ int main(int argc, char** argv)
             {
                 char splitname[256];
                 sprintf(splitname, "splitncnn_%d", internal_split);
-                fprintf(pp, "%-16s %-16s %d %d", "Split", splitname, 1, refcount);
+                fprintf(pp, "%-16s %-32s %d %d", "Split", splitname, 1, refcount);
                 fprintf(pp, " %s", output_name.c_str());
 
                 for (int j=0; j<refcount; j++)
