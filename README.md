@@ -8,6 +8,14 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ---
 
+### HowTo
+
+[how-to-use-ncnn-with-alexnet](https://github.com/Tencent/ncnn/wiki/how-to-use-ncnn-with-alexnet)
+
+[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/ncnn-%E7%BB%84%E4%BB%B6%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8C%97-alexnet)
+
+---
+
 ### Features
 
 * Supports convolution neural networks, supports multiple input and multi-branch structure, can calculate part of the branch
