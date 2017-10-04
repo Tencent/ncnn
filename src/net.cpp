@@ -123,6 +123,12 @@ int Net::load_param(FILE* fp)
             typeindex = custom_layer_to_index(layer_type);
             layer = create_custom_layer(typeindex);
         }
+        if (!layer)
+        {
+            fprintf(stderr, "layer %s not exists or registered\n", layer_type);
+            clear();
+            return -1;
+        }
 
         layer->type = std::string(layer_type);
         layer->name = std::string(layer_name);
@@ -240,6 +246,12 @@ int Net::load_param_bin(FILE* fp)
         {
             int custom_index = typeindex & ~LayerType::CustomBit;
             layer = create_custom_layer(custom_index);
+        }
+        if (!layer)
+        {
+            fprintf(stderr, "layer %d not exists or registered\n", typeindex);
+            clear();
+            return -1;
         }
 
 //         layer->type = std::string(layer_type);
@@ -379,6 +391,12 @@ int Net::load_param(const unsigned char* _mem)
             int custom_index = typeindex & ~LayerType::CustomBit;
             layer = create_custom_layer(custom_index);
         }
+        if (!layer)
+        {
+            fprintf(stderr, "layer %d not exists or registered\n", typeindex);
+            clear();
+            return 0;
+        }
 
 //         layer->type = std::string(layer_type);
 //         layer->name = std::string(layer_name);
@@ -504,12 +522,9 @@ int Net::custom_layer_to_index(const char* type)
     for (int i=0; i<custom_layer_registry_entry_count; i++)
     {
         if (strcmp(type, custom_layer_registry[i].name) == 0)
-        {
             return i;
-        }
     }
 
-    fprintf(stderr, "custom layer %s not exists\n", type);
     return -1;
 }
 #endif // NCNN_STRING
@@ -518,12 +533,12 @@ Layer* Net::create_custom_layer(int index)
 {
     const int custom_layer_registry_entry_count = custom_layer_registry.size();
     if (index < 0 || index >= custom_layer_registry_entry_count)
-    {
-        fprintf(stderr, "custom layer index %d not exists\n", index);
         return 0;
-    }
 
     layer_creator_func layer_creator = custom_layer_registry[index].creator;
+    if (!layer_creator)
+        return 0;
+
     return layer_creator();
 }
 

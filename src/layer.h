@@ -108,7 +108,7 @@ int layer_to_index(const char* type);
 Layer* create_layer(int index);
 
 #define DEFINE_LAYER_CREATOR(name) \
-    Layer* name##_layer_creator() { return new name; }
+    ::ncnn::Layer* name##_layer_creator() { return new name; }
 
 } // namespace ncnn
 
