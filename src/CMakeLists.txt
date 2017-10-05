@@ -131,6 +131,10 @@ ncnn_add_layer(ConvolutionDepthWise)
 ncnn_add_layer(Padding)
 ncnn_add_layer(Squeeze)
 ncnn_add_layer(ExpandDims)
+ncnn_add_layer(Normalize)
+ncnn_add_layer(Permute)
+ncnn_add_layer(PriorBox)
+ncnn_add_layer(ConcatV2)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
