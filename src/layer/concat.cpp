@@ -61,6 +61,43 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
+    if (dims == 2)
+    {
+        // concat image
+        int w = bottom_blobs[0].w;
+
+        // total height
+        int top_h = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const Mat& bottom_blob = bottom_blobs[b];
+            top_h += bottom_blob.h;
+        }
+
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(w, top_h);
+        if (top_blob.empty())
+            return -100;
+
+        float* outptr = top_blob;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const Mat& bottom_blob = bottom_blobs[b];
+
+            int size = w * bottom_blob.h;
+
+            const float* ptr = bottom_blob;
+            for (int i=0; i<size; i++)
+            {
+                outptr[i] = ptr[i];
+            }
+
+            outptr += size;
+        }
+
+        return 0;
+    }
+
     int w = bottom_blobs[0].w;
     int h = bottom_blobs[0].h;
 
