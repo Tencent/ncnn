@@ -336,6 +336,14 @@ int main(int argc, char** argv)
             else
                 fprintf(pp, "%-16s", "Convolution");
         }
+        else if (layer.type() == "Softmax")
+        {
+            const caffe::SoftmaxParameter& softmax_param = layer.softmax_param();
+            if (softmax_param.axis() != 1)
+                fprintf(pp, "%-16s", "SoftmaxV2");
+            else
+                fprintf(pp, "%-16s", "Softmax");
+        }
         else
         {
             fprintf(pp, "%-16s", layer.type().c_str());
@@ -912,6 +920,15 @@ int main(int argc, char** argv)
                     prev_offset = offset;
                 }
                 fprintf(pp, " -233");
+            }
+        }
+        else if (layer.type() == "Softmax")
+        {
+            const caffe::SoftmaxParameter& softmax_param = layer.softmax_param();
+            if (softmax_param.axis() != 1)
+            {
+                int dim = softmax_param.axis() >= 1 ? softmax_param.axis() - 1 : 0;
+                fprintf(pp, " %d", dim);
             }
         }
         else if (layer.type() == "Threshold")
