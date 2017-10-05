@@ -35,7 +35,7 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
 
 public:
-    int dim;
+    int axis;
 };
 
 } // namespace ncnn
