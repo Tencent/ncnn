@@ -192,7 +192,7 @@ int PriorBox::load_param(const unsigned char*& mem)
 
     return 0;
 }
-#include <stdio.h>
+
 int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
 {
     int w = bottom_blobs[0].w;

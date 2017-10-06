@@ -567,6 +567,12 @@ int main(int argc, char** argv)
                 fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
             }
         }
+        else if (layer.type() == "DetectionOutput")
+        {
+            const caffe::DetectionOutputParameter& detection_output_param = layer.detection_output_param();
+            const caffe::NonMaximumSuppressionParameter& nms_param = detection_output_param.nms_param();
+            fprintf(pp, " %d %f %d %d %f", detection_output_param.num_classes(), nms_param.nms_threshold(), nms_param.top_k(), detection_output_param.keep_top_k(), detection_output_param.confidence_threshold());
+        }
         else if (layer.type() == "Eltwise")
         {
             const caffe::EltwiseParameter& eltwise_param = layer.eltwise_param();
