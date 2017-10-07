@@ -71,17 +71,20 @@ int PriorBox::load_param(FILE* paramfp)
         }
     }
 
-    aspect_ratios.create(num_aspect_ratio);
-    if (aspect_ratios.empty())
-        return -100;
-    float* aspect_ratios_ptr = aspect_ratios;
-    for (int i=0; i<num_aspect_ratio; i++)
+    if (num_aspect_ratio > 0)
     {
-        int nscan = fscanf(paramfp, "%f", &aspect_ratios_ptr[i]);
-        if (nscan != 1)
+        aspect_ratios.create(num_aspect_ratio);
+        if (aspect_ratios.empty())
+            return -100;
+        float* aspect_ratios_ptr = aspect_ratios;
+        for (int i=0; i<num_aspect_ratio; i++)
         {
-            fprintf(stderr, "PriorBox load_param failed %d\n", nscan);
-            return -1;
+            int nscan = fscanf(paramfp, "%f", &aspect_ratios_ptr[i]);
+            if (nscan != 1)
+            {
+                fprintf(stderr, "PriorBox load_param failed %d\n", nscan);
+                return -1;
+            }
         }
     }
 
@@ -133,11 +136,14 @@ int PriorBox::load_param_bin(FILE* paramfp)
         fread(max_sizes_ptr, sizeof(float), num_max_size, paramfp);
     }
 
-    aspect_ratios.create(num_aspect_ratio);
-    if (aspect_ratios.empty())
-        return -100;
-    float* aspect_ratios_ptr = aspect_ratios;
-    fread(aspect_ratios_ptr, sizeof(float), num_aspect_ratio, paramfp);
+    if (num_aspect_ratio > 0)
+    {
+        aspect_ratios.create(num_aspect_ratio);
+        if (aspect_ratios.empty())
+            return -100;
+        float* aspect_ratios_ptr = aspect_ratios;
+        fread(aspect_ratios_ptr, sizeof(float), num_aspect_ratio, paramfp);
+    }
 
     return 0;
 }
@@ -196,8 +202,11 @@ int PriorBox::load_param(const unsigned char*& mem)
         mem += num_max_size * sizeof(float);
     }
 
-    aspect_ratios = Mat(num_aspect_ratio, (float*)mem);
-    mem += num_aspect_ratio * sizeof(float);
+    if (num_aspect_ratio > 0)
+    {
+        aspect_ratios = Mat(num_aspect_ratio, (float*)mem);
+        mem += num_aspect_ratio * sizeof(float);
+    }
 
     return 0;
 }
