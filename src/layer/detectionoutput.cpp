@@ -135,6 +135,9 @@ static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& sco
 template <typename T>
 static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores)
 {
+    if (datas.empty() || scores.empty())
+        return;
+
     qsort_descent_inplace(datas, scores, 0, scores.size() - 1);
 }
 

@@ -54,17 +54,20 @@ int PriorBox::load_param(FILE* paramfp)
         }
     }
 
-    max_sizes.create(num_max_size);
-    if (max_sizes.empty())
-        return -100;
-    float* max_sizes_ptr = max_sizes;
-    for (int i=0; i<num_max_size; i++)
+    if (num_max_size > 0)
     {
-        int nscan = fscanf(paramfp, "%f", &max_sizes_ptr[i]);
-        if (nscan != 1)
+        max_sizes.create(num_max_size);
+        if (max_sizes.empty())
+            return -100;
+        float* max_sizes_ptr = max_sizes;
+        for (int i=0; i<num_max_size; i++)
         {
-            fprintf(stderr, "PriorBox load_param failed %d\n", nscan);
-            return -1;
+            int nscan = fscanf(paramfp, "%f", &max_sizes_ptr[i]);
+            if (nscan != 1)
+            {
+                fprintf(stderr, "PriorBox load_param failed %d\n", nscan);
+                return -1;
+            }
         }
     }
 
@@ -121,11 +124,14 @@ int PriorBox::load_param_bin(FILE* paramfp)
     float* min_sizes_ptr = min_sizes;
     fread(min_sizes_ptr, sizeof(float), num_min_size, paramfp);
 
-    max_sizes.create(num_max_size);
-    if (max_sizes.empty())
-        return -100;
-    float* max_sizes_ptr = max_sizes;
-    fread(max_sizes_ptr, sizeof(float), num_max_size, paramfp);
+    if (num_max_size > 0)
+    {
+        max_sizes.create(num_max_size);
+        if (max_sizes.empty())
+            return -100;
+        float* max_sizes_ptr = max_sizes;
+        fread(max_sizes_ptr, sizeof(float), num_max_size, paramfp);
+    }
 
     aspect_ratios.create(num_aspect_ratio);
     if (aspect_ratios.empty())
@@ -184,8 +190,11 @@ int PriorBox::load_param(const unsigned char*& mem)
     min_sizes = Mat(num_min_size, (float*)mem);
     mem += num_min_size * sizeof(float);
 
-    max_sizes = Mat(num_max_size, (float*)mem);
-    mem += num_max_size * sizeof(float);
+    if (num_max_size > 0)
+    {
+        max_sizes = Mat(num_max_size, (float*)mem);
+        mem += num_max_size * sizeof(float);
+    }
 
     aspect_ratios = Mat(num_aspect_ratio, (float*)mem);
     mem += num_aspect_ratio * sizeof(float);
