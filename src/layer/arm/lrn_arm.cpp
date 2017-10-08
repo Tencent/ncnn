@@ -70,8 +70,6 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
         }
     }
 
-    float alpha_div_size = alpha / local_size;
-
     if (region_type == NormRegion_ACROSS_CHANNELS)
     {
         Mat square_sum;
@@ -79,6 +77,8 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
         if (square_sum.empty())
             return -100;
         square_sum.fill(0.f);
+
+        const float alpha_div_size = alpha / local_size;
 
         #pragma omp parallel for
         for (int q=0; q<channels; q++)
@@ -174,6 +174,8 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
         }
 
         const int maxk = local_size * local_size;
+
+        const float alpha_div_size = alpha / maxk;
 
         // norm window offsets
         std::vector<int> _space_ofs(maxk);
