@@ -28,6 +28,7 @@
 
 #include "caffe.pb.h"
 
+
 static inline size_t alignSize(size_t sz, int n)
 {
     return (sz + n-1) & -n;
@@ -662,6 +663,12 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, " -233");
             }
+        }
+        else if (layer.type() == "Interp")
+        {
+            const caffe::InterpParameter& interp_param = layer.interp_param();
+            fprintf(pp," %d %f %f %d %d",2, static_cast<float>(interp_param.zoom_factor()), \
+            static_cast<float>(interp_param.zoom_factor()),interp_param.height(),interp_param.width());
         }
         else if (layer.type() == "LRN")
         {
