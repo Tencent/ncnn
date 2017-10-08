@@ -174,13 +174,15 @@ int LRN::forward(const Mat& bottom_blob, Mat& top_blob) const
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
-            const float* sptr = square_blob_bordered.channel(q);
+            const Mat m = square_blob_bordered.channel(q);
             float* outptr = top_blob.channel(q);
 
             for (int i = 0; i < outh; i++)
             {
                 for (int j = 0; j < outw; j++)
                 {
+                    const float* sptr = m.row(i) + j;
+
                     float ss = 0.f;
 
                     for (int k = 0; k < maxk; k++)
@@ -193,7 +195,6 @@ int LRN::forward(const Mat& bottom_blob, Mat& top_blob) const
                 }
 
                 ptr += outw;
-                sptr += w;
                 outptr += outw;
             }
         }
@@ -305,12 +306,14 @@ int LRN::forward_inplace(Mat& bottom_top_blob) const
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
-            const float* sptr = square_blob_bordered.channel(q);
+            const Mat m = square_blob_bordered.channel(q);
 
             for (int i = 0; i < outh; i++)
             {
                 for (int j = 0; j < outw; j++)
                 {
+                    const float* sptr = m.row(i) + j;
+
                     float ss = 0.f;
 
                     for (int k = 0; k < maxk; k++)
@@ -323,7 +326,6 @@ int LRN::forward_inplace(Mat& bottom_top_blob) const
                 }
 
                 ptr += outw;
-                sptr += w;
             }
         }
     }

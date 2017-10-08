@@ -229,7 +229,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         #pragma omp parallel for
         for (int q=0; q<channels; q++)
         {
-            const Mat m(w, h, bottom_blob_bordered.channel(q));
+            const Mat m = bottom_blob_bordered.channel(q);
             float* outptr = top_blob.channel(q);
 
             for (int i = 0; i < outh; i++)
@@ -258,7 +258,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         #pragma omp parallel for
         for (int q=0; q<channels; q++)
         {
-            const Mat m(w, h, bottom_blob_bordered.channel(q));
+            const Mat m = bottom_blob_bordered.channel(q);
             float* outptr = top_blob.channel(q);
 
             for (int i = 0; i < outh; i++)
