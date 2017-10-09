@@ -337,6 +337,15 @@ int main(int argc, char** argv)
             else
                 fprintf(pp, "%-16s", "Convolution");
         }
+        else if (layer.type() == "Python")
+        {
+            const caffe::PythonParameter& python_param = layer.python_param();
+            std::string python_layer_name = python_param.layer();
+            if (python_layer_name == "ProposalLayer")
+                fprintf(pp, "%-16s", "Proposal");
+            else
+                fprintf(pp, "%-16s", python_layer_name.c_str());
+        }
         else if (layer.type() == "Softmax")
         {
             const caffe::SoftmaxParameter& softmax_param = layer.softmax_param();
@@ -849,19 +858,24 @@ int main(int argc, char** argv)
                 fprintf(pp, " %f", ar);
             }
         }
-        else if (layer.type() == "Proposal")
+        else if (layer.type() == "Python")
         {
             const caffe::PythonParameter& python_param = layer.python_param();
-            int feat_stride = 16;
-            sscanf(python_param.param_str().c_str(), "'feat_stride': %d", &feat_stride);
-            int base_size = 16;
-//             float ratio;
-//             float scale;
-            int pre_nms_topN = 6000;
-            int after_nms_topN = 5;
-            float nms_thresh = 0.7;
-            int min_size = 16;
-            fprintf(pp, " %d %d %d %d %f %d", feat_stride, base_size, pre_nms_topN, after_nms_topN, nms_thresh, min_size);
+            std::string python_layer_name = python_param.layer();
+            if (python_layer_name == "ProposalLayer")
+            {
+                int feat_stride = 16;
+                sscanf(python_param.param_str().c_str(), "'feat_stride': %d", &feat_stride);
+
+                int base_size = 16;
+//                 float ratio;
+//                 float scale;
+                int pre_nms_topN = 6000;
+                int after_nms_topN = 300;
+                float nms_thresh = 0.7;
+                int min_size = 16;
+                fprintf(pp, " %d %d %d %d %f %d", feat_stride, base_size, pre_nms_topN, after_nms_topN, nms_thresh, min_size);
+            }
         }
         else if (layer.type() == "ReLU")
         {
