@@ -25,13 +25,13 @@ Interp::Interp()
 
 Interp::~Interp()
 {
-};
+}
 
 #if NCNN_STDIO
 #if NCNN_STRING
 int Interp::load_param(FILE *paramfp)
 {
-    int nscan = fscanf(paramfp, " %d %f %f %d %d", &resize_type, &height_scale, &width_scale, &output_height,
+    int nscan = fscanf(paramfp, "%d %f %f %d %d", &resize_type, &height_scale, &width_scale, &output_height,
                        &output_width);
     if (nscan != 5)
     {
@@ -127,7 +127,7 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob) const
     }
     else
     {
-        fprintf(stderr, "unsupported resize type %d %d %d\n", &resize_type, oh, ow);
+        fprintf(stderr, "unsupported resize type %d %d %d\n", resize_type, oh, ow);
         return -233;
     }
 }
