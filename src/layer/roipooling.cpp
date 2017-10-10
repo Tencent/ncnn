@@ -82,10 +82,13 @@ int ROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     // For each ROI R = [x y w h]: max pool over R
     const float* roi_ptr = roi_blob;
 
-    int roi_x = round(roi_ptr[0] * spatial_scale);
-    int roi_y = round(roi_ptr[1] * spatial_scale);
-    int roi_w = round(roi_ptr[2] * spatial_scale);
-    int roi_h = round(roi_ptr[3] * spatial_scale);
+    int roi_x1 = round(roi_ptr[0] * spatial_scale);
+    int roi_y1 = round(roi_ptr[1] * spatial_scale);
+    int roi_x2 = round(roi_ptr[2] * spatial_scale);
+    int roi_y2 = round(roi_ptr[3] * spatial_scale);
+
+    int roi_w = std::max(roi_x2 - roi_x1 + 1, 1);
+    int roi_h = std::max(roi_y2 - roi_y1 + 1, 1);
 
     float bin_size_w = (float)roi_w / (float)pooled_width;
     float bin_size_h = (float)roi_h / (float)pooled_height;
@@ -103,10 +106,10 @@ int ROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 // Compute pooling region for this output unit:
                 //  start (included) = floor(ph * roi_height / pooled_height)
                 //  end (excluded) = ceil((ph + 1) * roi_height / pooled_height)
-                int hstart = roi_y + floor((float)(ph) * bin_size_h);
-                int wstart = roi_x + floor((float)(pw) * bin_size_w);
-                int hend = roi_y + ceil((float)(ph + 1) * bin_size_h);
-                int wend = roi_x + ceil((float)(pw + 1) * bin_size_w);
+                int hstart = roi_y1 + floor((float)(ph) * bin_size_h);
+                int wstart = roi_x1 + floor((float)(pw) * bin_size_w);
+                int hend = roi_y1 + ceil((float)(ph + 1) * bin_size_h);
+                int wend = roi_x1 + ceil((float)(pw + 1) * bin_size_w);
 
                 hstart = std::min(std::max(hstart, 0), h);
                 wstart = std::min(std::max(wstart, 0), w);
@@ -132,7 +135,6 @@ int ROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             outptr += pooled_width;
         }
     }
-
 
     return 0;
 }
