@@ -337,6 +337,14 @@ int main(int argc, char** argv)
             else
                 fprintf(pp, "%-16s", "Convolution");
         }
+        else if (layer.type() == "Dropout")
+        {
+            const caffe::DropoutParameter& dropout_param = layer.dropout_param();
+            if (!dropout_param.scale_train())
+                fprintf(pp, "%-16s", "DropoutV2");
+            else
+                fprintf(pp, "%-16s", "Dropout");
+        }
         else if (layer.type() == "Python")
         {
             const caffe::PythonParameter& python_param = layer.python_param();
@@ -582,6 +590,15 @@ int main(int argc, char** argv)
             const caffe::DetectionOutputParameter& detection_output_param = layer.detection_output_param();
             const caffe::NonMaximumSuppressionParameter& nms_param = detection_output_param.nms_param();
             fprintf(pp, " %d %f %d %d %f", detection_output_param.num_classes(), nms_param.nms_threshold(), nms_param.top_k(), detection_output_param.keep_top_k(), detection_output_param.confidence_threshold());
+        }
+        else if (layer.type() == "Dropout")
+        {
+            const caffe::DropoutParameter& dropout_param = layer.dropout_param();
+            if (!dropout_param.scale_train())
+            {
+                float scale = 1.f - dropout_param.dropout_ratio();
+                fprintf(pp, " %f", scale);
+            }
         }
         else if (layer.type() == "Eltwise")
         {
