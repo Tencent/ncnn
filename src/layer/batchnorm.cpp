@@ -151,9 +151,10 @@ int BatchNorm::load_model(const unsigned char*& mem)
     const float* bias_data_ptr = bias_data;
     float* a_data_ptr = a_data;
     float* b_data_ptr = b_data;
+    const int eps = 0.001;
     for (int i=0; i<channels; i++)
     {
-        float sqrt_var = sqrt(var_data_ptr[i]);
+        float sqrt_var = sqrt(var_data_ptr[i] + eps);
         a_data_ptr[i] = bias_data_ptr[i] - slope_data_ptr[i] * mean_data_ptr[i] / sqrt_var;
         b_data_ptr[i] = slope_data_ptr[i] / sqrt_var;
     }
