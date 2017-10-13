@@ -410,23 +410,25 @@ inline Mat Mat::reshape(int _w, int _h, int _c) const
     if (w * h * c != _w * _h * _c)
         return Mat();
 
-    if (dims < 3 && (size_t)_w * _h != alignSize(_w * _h * sizeof(float), 16) >> 2)
+    if (dims < 3)
     {
-        Mat m;
-        m.create(_w, _h, _c);
-
-        // align channel
-        for (int i=0; i<_c; i++)
+        if ((size_t)_w * _h != alignSize(_w * _h * sizeof(float), 16) >> 2)
         {
-            const float* ptr = data + i * _w * _h;
-            float* mptr = m.data + i * m.cstep;
-            memcpy(mptr, ptr, _w * _h * sizeof(float));
+            Mat m;
+            m.create(_w, _h, _c);
+
+            // align channel
+            for (int i=0; i<_c; i++)
+            {
+                const float* ptr = data + i * _w * _h;
+                float* mptr = m.data + i * m.cstep;
+                memcpy(mptr, ptr, _w * _h * sizeof(float));
+            }
+
+            return m;
         }
-
-        return m;
     }
-
-    if (c != _c)
+    else if (c != _c)
     {
         // flatten and then align
         Mat tmp = reshape(_w * _h * _c);
