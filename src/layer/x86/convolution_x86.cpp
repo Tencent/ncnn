@@ -26,7 +26,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
     // convolv with NxN kernel
     // value = value + bias
 
-    if (kernel_size > 5 || dilation != 1)
+    if (kernel_size > 5 || stride > 5 || dilation != 1)
     {
         return Convolution::forward(bottom_blob, top_blob);
     }
@@ -88,6 +88,20 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
         copy_make_border(bottom_blob, bottom_blob_bordered, pad, pad, pad, pad, BORDER_CONSTANT, 0.f);
         if (bottom_blob_bordered.empty())
             return -100;
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+    else if (pad == -233)
+    {
+        int wpad = kernel_size + (w - 1) / stride * stride - w;
+        int hpad = kernel_size + (h - 1) / stride * stride - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
+            if (bottom_blob_bordered.empty())
+                return -100;
+        }
 
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;

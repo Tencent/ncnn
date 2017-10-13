@@ -16,11 +16,33 @@ add_definitions("-O3 -mfloat-abi=softfp -mfpu=neon-vfpv4 -ffunction-sections")
 
 ---
 
+ncnn is a high-performance neural network inference computing framework optimized for mobile platforms. ncnn is deeply considerate about deployment and uses on mobile phones from the beginning of design. ncnn does not have third party dependencies, it is cross-platform, and runs faster than all known open source frameworks on mobile phone cpu. Developers can easily deploy deep learning algorithm models to the mobile platform by using efficient ncnn implementation, create intelligent APPs, and bring the artificial intelligence to your fingertips. ncnn is currently being used in many Tencent applications, such as QQ, Qzone, WeChat, Pitu and so on.
+
 ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架。ncnn 从设计之初深刻考虑手机端的部署和使用。无第三方依赖，跨平台，手机端 cpu 的速度快于目前所有已知的开源框架。基于 ncnn，开发者能够将深度学习算法轻松移植到手机端高效执行，开发出人工智能 APP，将 AI 带到你的指尖。ncnn 目前已在腾讯多款应用中使用，如 QQ，Qzone，微信，天天P图等。
 
-ncnn is a high-performance neural network inference computing framework optimized for the mobile platform. ncnn is deeply considered of the deployment and uses on mobile phones from the beginning of the design. ncnn does not have third party dependent, it is cross-platform, and runs faster than all known open source framework on mobile phone cpu. Developers can easily deploy deep learning algorithm models to the mobile platform by using the efficient ncnn implementation, create intelligent APP, and bring the artificial intelligence to your fingertips. ncnn is currently being used in many Tencent applications, such as QQ, Qzone, WeChat, Pitu and so on.
+---
+
+### HowTo
+
+[how-to-use-ncnn-with-alexnet](https://github.com/Tencent/ncnn/wiki/how-to-use-ncnn-with-alexnet)
+
+[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/ncnn-%E7%BB%84%E4%BB%B6%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8C%97-alexnet)
 
 ---
+
+### Features
+
+* Supports convolution neural networks, supports multiple input and multi-branch structure, can calculate part of the branch
+* No third-party library dependencies, does not rely on BLAS / NNPACK or any other computing framework
+* Pure C ++ implementation, cross-platform, supports android, ios and so on
+* ARM NEON assembly level of careful optimization, calculation speed is extremely high
+* Sophisticated memory management and data structure design, very low memory footprint
+* Supports multi-core parallel computing acceleration, ARM big.LITTLE cpu scheduling optimization
+* The overall library size is less than 500K, and can be easily reduced to less than 300K
+* Extensible model design, supports 8bit quantization and half-precision floating point storage, can import caffe models
+* Support direct memory zero copy reference load network model
+* Can be registered with custom layer implementation and extended
+* Well, it is strong, not afraid of being stuffed with 卷   QvQ
 
 ### 功能概述
 
@@ -36,23 +58,17 @@ ncnn is a high-performance neural network inference computing framework optimize
 * 可注册自定义层实现并扩展
 * 恩，很强就是了，不怕被塞卷 QvQ
 
-### Features
-
-* Support convolution neural network, support multiple input and multi-branch structure, can calculate part of the branch
-* No third-party library dependent, do not rely on BLAS / NNPACK or other computing framework
-* Pure C ++ implementation, cross-platform, support android ios and so on
-* ARM NEON assembly level of careful optimization, the calculation speed is extremely fast
-* Sophisticated memory management and data structure design, very low memory footprint
-* Support multi-core parallel computing acceleration, ARM big.LITTLE cpu scheduling optimization
-* The overall library size is less than 500K, and can be easily reduced to less than 300K
-* Extensible model design, support 8bit quantization and half-precision floating point storage, can import caffe model
-* Support direct memory zero copy reference load network model
-* Can be registered with custom layer implementation and extented
-* Well, it is strong, not afraid of being stuffed with 卷   QvQ
-
 ---
 
 ### License
 
 BSD 3 Clause
+
+---
+
+### Example project
+
+Android and iOS https://github.com/dangbo/ncnn-mobile (Thanks to dangbo)
+
+### 技术交流QQ群：637093648  答案：卷卷卷卷卷
 

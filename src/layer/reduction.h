@@ -35,7 +35,15 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
 
-    enum { ReductionOp_SUM = 0, ReductionOp_ASUM = 1, ReductionOp_SUMSQ = 2, ReductionOp_MEAN = 3 };
+    enum {
+        ReductionOp_SUM     = 0,
+        ReductionOp_ASUM    = 1,
+        ReductionOp_SUMSQ   = 2,
+        ReductionOp_MEAN    = 3,
+        ReductionOp_MAX     = 4,
+        ReductionOp_MIN     = 5,
+        ReductionOp_PROD    = 6
+    };
 
 public:
     // param

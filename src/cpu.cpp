@@ -221,13 +221,35 @@ int get_cpu_count()
 #ifdef __ANDROID__
 static int get_max_freq_khz(int cpuid)
 {
+    // first try, for all possible cpu
     char path[256];
     sprintf(path, "/sys/devices/system/cpu/cpufreq/stats/cpu%d/time_in_state", cpuid);
 
     FILE* fp = fopen(path, "rb");
 
     if (!fp)
-        return -1;
+    {
+        // second try, for online cpu
+        sprintf(path, "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", cpuid);
+        fp = fopen(path, "rb");
+
+        if (!fp)
+        {
+            // third try, for online cpu
+            sprintf(path, "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", cpuid);
+            fp = fopen(path, "rb");
+
+            if (!fp)
+                return -1;
+
+            int max_freq_khz = -1;
+            fscanf(fp, "%d", &max_freq_khz);
+
+            fclose(fp);
+
+            return max_freq_khz;
+        }
+    }
 
     int max_freq_khz = 0;
     while (!feof(fp))
@@ -387,7 +409,7 @@ int set_cpu_powersave(int powersave)
     }
     else if (powersave == 2)
     {
-        cpuids = std::vector<int>(sorted_cpuids.begin(), sorted_cpuids.begin() +  + little_cluster_offset);
+        cpuids = std::vector<int>(sorted_cpuids.begin(), sorted_cpuids.begin() + little_cluster_offset);
     }
     else
     {

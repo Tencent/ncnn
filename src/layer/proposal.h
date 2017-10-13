@@ -44,6 +44,11 @@ public:
     int after_nms_topN;
     float nms_thresh;
     int min_size;
+
+    Mat ratios;
+    Mat scales;
+
+    Mat anchors;
 };
 
 } // namespace ncnn

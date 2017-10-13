@@ -86,8 +86,8 @@ static void conv5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 #if __aarch64__
                 for (; nn>0; nn--)
                 {
-                    float32x4_t _sum = vdupq_n_f32(0.f);
-                    float32x4_t _sum2 = vdupq_n_f32(0.f);
+                    float32x4_t _sum = vld1q_f32(outptr);
+                    float32x4_t _sum2 = vld1q_f32(outptr2);
 
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r04 = vld1q_f32(r0 + 4);
@@ -418,18 +418,18 @@ static void conv5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum2 = vmlaq_f32(_sum2, _r2, _k1);
 
                     float32x4_t _r3 = vld1q_f32(r3);
-                    _sum = vmlaq_f32(_sum, _r3, _k20212223);
+                    float32x4_t _k3 = vld1q_f32(k3);
+                    _sum = vmlaq_f32(_sum, _r3, _k3);
                     _sum2 = vmlaq_f32(_sum2, _r3, _k2);
 
                     float32x4_t _r4 = vld1q_f32(r4);
-                    float32x4_t _k4 = vld1q_f32(k4);
-                    _sum = vmlaq_f32(_sum, _r4, _k4);
-                    _sum2 = vmlaq_f32(_sum2, _r4, _k20212223);
+                    _sum = vmlaq_f32(_sum, _r4, _k20212223);
+                    _sum2 = vmlaq_f32(_sum2, _r4, _k3);
 
                     float32x4_t _r0 = vld1q_f32(r0);
                     _sum = vmlaq_f32(_sum, _r0, _k0123);
                     float32x4_t _r5 = vld1q_f32(r5);
-                    _sum2 = vmlaq_f32(_sum2, _r5, _k4);
+                    _sum2 = vmlaq_f32(_sum2, _r5, _k20212223);
 
                     float32x4_t _k_t4;
                     _k_t4 = vsetq_lane_f32(k0[4], _k_t4, 0);
@@ -558,7 +558,7 @@ static void conv5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 #if __aarch64__
                 for (; nn>0; nn--)
                 {
-                    float32x4_t _sum = vdupq_n_f32(0.f);
+                    float32x4_t _sum = vld1q_f32(outptr);
 
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r04 = vld1q_f32(r0 + 4);
@@ -777,10 +777,10 @@ static void conv5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vmlaq_f32(_sum, _r2, vld1q_f32(k2));
 
                     float32x4_t _r3 = vld1q_f32(r3);
-                    _sum = vmlaq_f32(_sum, _r3, _k20212223);
+                    _sum = vmlaq_f32(_sum, _r3, vld1q_f32(k3));
 
                     float32x4_t _r4 = vld1q_f32(r4);
-                    _sum = vmlaq_f32(_sum, _r4, vld1q_f32(k4));
+                    _sum = vmlaq_f32(_sum, _r4, _k20212223);
 
                     float32x4_t _k_t4;
                     _k_t4 = vsetq_lane_f32(k0[4], _k_t4, 0);
@@ -924,7 +924,7 @@ static void conv5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 #if __aarch64__
                 for (; nn>0; nn--)
                 {
-                    float32x4_t _sum = vdupq_n_f32(0.f);
+                    float32x4_t _sum = vld1q_f32(outptr);
 
                     float32x4x2_t _r00_02461357 = vld2q_f32(r0);
                     float32x4x2_t _r00nx2 = vld2q_f32(r0 + 8);

@@ -262,6 +262,8 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
 
 //     fprintf(stderr, "Convolution input %d x %d  pad = %d  ksize=%d  stride=%d\n", w, h, pad, kernel_size, stride);
 
+    const int kernel_extent = dilation * (kernel_size - 1) + 1;
+
     Mat bottom_blob_bordered = bottom_blob;
     if (pad > 0)
     {
@@ -272,8 +274,20 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
+    else if (pad == -233)
+    {
+        int wpad = kernel_extent + (w - 1) / stride * stride - w;
+        int hpad = kernel_extent + (h - 1) / stride * stride - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
+            if (bottom_blob_bordered.empty())
+                return -100;
+        }
 
-    const int kernel_extent = dilation * (kernel_size - 1) + 1;
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
 
     int outw = (w - kernel_extent) / stride + 1;
     int outh = (h - kernel_extent) / stride + 1;
@@ -290,7 +304,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     {
         int p1 = 0;
         int p2 = 0;
-        int gap = w * dilation - kernel_extent;
+        int gap = w * dilation - kernel_size * dilation;
         for (int i = 0; i < kernel_size; i++)
         {
             for (int j = 0; j < kernel_size; j++)

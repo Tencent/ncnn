@@ -35,7 +35,7 @@ public:
     virtual int load_param(const unsigned char*& mem);
     virtual int load_model(const unsigned char*& mem);
 
-    virtual int forward(const Mat& bottom_blobs, Mat& top_blobs) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
 
 public:
     // param

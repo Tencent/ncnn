@@ -14,7 +14,6 @@
 
 #include "layer.h"
 
-#include <stdio.h>
 #include <string.h>
 
 namespace ncnn {
@@ -99,12 +98,9 @@ int layer_to_index(const char* type)
     for (int i=0; i<layer_registry_entry_count; i++)
     {
         if (strcmp(type, layer_registry[i].name) == 0)
-        {
             return i;
-        }
     }
 
-    fprintf(stderr, "layer %s not exists\n", type);
     return -1;
 }
 #endif // NCNN_STRING
@@ -112,17 +108,11 @@ int layer_to_index(const char* type)
 Layer* create_layer(int index)
 {
     if (index < 0 || index >= layer_registry_entry_count)
-    {
-        fprintf(stderr, "layer index %d not exists\n", index);
         return 0;
-    }
 
     layer_creator_func layer_creator = layer_registry[index].creator;
     if (!layer_creator)
-    {
-        fprintf(stderr, "layer index %d not enabled\n", index);
         return 0;
-    }
 
     return layer_creator();
 }
