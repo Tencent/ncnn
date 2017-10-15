@@ -25,188 +25,22 @@ PriorBox::PriorBox()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int PriorBox::load_param(FILE* paramfp)
+int PriorBox::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %d %f %f %f %f %d %d %d %d %f %f %f",
-                       &num_min_size, &num_max_size, &num_aspect_ratio,
-                       &variances[0], &variances[1], &variances[2], &variances[3],
-                       &flip, &clip, &image_width, &image_height,
-                       &step_width, &step_height, &offset);
-    if (nscan != 14)
-    {
-        fprintf(stderr, "PriorBox load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    min_sizes.create(num_min_size);
-    if (min_sizes.empty())
-        return -100;
-    float* min_sizes_ptr = min_sizes;
-    for (int i=0; i<num_min_size; i++)
-    {
-        int nscan = fscanf(paramfp, "%f", &min_sizes_ptr[i]);
-        if (nscan != 1)
-        {
-            fprintf(stderr, "PriorBox load_param failed %d\n", nscan);
-            return -1;
-        }
-    }
-
-    if (num_max_size > 0)
-    {
-        max_sizes.create(num_max_size);
-        if (max_sizes.empty())
-            return -100;
-        float* max_sizes_ptr = max_sizes;
-        for (int i=0; i<num_max_size; i++)
-        {
-            int nscan = fscanf(paramfp, "%f", &max_sizes_ptr[i]);
-            if (nscan != 1)
-            {
-                fprintf(stderr, "PriorBox load_param failed %d\n", nscan);
-                return -1;
-            }
-        }
-    }
-
-    if (num_aspect_ratio > 0)
-    {
-        aspect_ratios.create(num_aspect_ratio);
-        if (aspect_ratios.empty())
-            return -100;
-        float* aspect_ratios_ptr = aspect_ratios;
-        for (int i=0; i<num_aspect_ratio; i++)
-        {
-            int nscan = fscanf(paramfp, "%f", &aspect_ratios_ptr[i]);
-            if (nscan != 1)
-            {
-                fprintf(stderr, "PriorBox load_param failed %d\n", nscan);
-                return -1;
-            }
-        }
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int PriorBox::load_param_bin(FILE* paramfp)
-{
-    fread(&num_min_size, sizeof(int), 1, paramfp);
-
-    fread(&num_max_size, sizeof(int), 1, paramfp);
-
-    fread(&num_aspect_ratio, sizeof(int), 1, paramfp);
-
-    fread(&variances[0], sizeof(float), 1, paramfp);
-
-    fread(&variances[1], sizeof(float), 1, paramfp);
-
-    fread(&variances[2], sizeof(float), 1, paramfp);
-
-    fread(&variances[3], sizeof(float), 1, paramfp);
-
-    fread(&flip, sizeof(int), 1, paramfp);
-
-    fread(&clip, sizeof(int), 1, paramfp);
-
-    fread(&image_width, sizeof(int), 1, paramfp);
-
-    fread(&image_height, sizeof(int), 1, paramfp);
-
-    fread(&step_width, sizeof(float), 1, paramfp);
-
-    fread(&step_height, sizeof(float), 1, paramfp);
-
-    fread(&offset, sizeof(float), 1, paramfp);
-
-    min_sizes.create(num_min_size);
-    if (min_sizes.empty())
-        return -100;
-    float* min_sizes_ptr = min_sizes;
-    fread(min_sizes_ptr, sizeof(float), num_min_size, paramfp);
-
-    if (num_max_size > 0)
-    {
-        max_sizes.create(num_max_size);
-        if (max_sizes.empty())
-            return -100;
-        float* max_sizes_ptr = max_sizes;
-        fread(max_sizes_ptr, sizeof(float), num_max_size, paramfp);
-    }
-
-    if (num_aspect_ratio > 0)
-    {
-        aspect_ratios.create(num_aspect_ratio);
-        if (aspect_ratios.empty())
-            return -100;
-        float* aspect_ratios_ptr = aspect_ratios;
-        fread(aspect_ratios_ptr, sizeof(float), num_aspect_ratio, paramfp);
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int PriorBox::load_param(const unsigned char*& mem)
-{
-    num_min_size = *(int*)(mem);
-    mem += 4;
-
-    num_max_size = *(int*)(mem);
-    mem += 4;
-
-    num_aspect_ratio = *(int*)(mem);
-    mem += 4;
-
-    variances[0] = *(float*)(mem);
-    mem += 4;
-
-    variances[1] = *(float*)(mem);
-    mem += 4;
-
-    variances[2] = *(float*)(mem);
-    mem += 4;
-
-    variances[3] = *(float*)(mem);
-    mem += 4;
-
-    flip = *(int*)(mem);
-    mem += 4;
-
-    clip = *(int*)(mem);
-    mem += 4;
-
-    image_width = *(int*)(mem);
-    mem += 4;
-
-    image_height = *(int*)(mem);
-    mem += 4;
-
-    step_width = *(float*)(mem);
-    mem += 4;
-
-    step_height = *(float*)(mem);
-    mem += 4;
-
-    offset = *(float*)(mem);
-    mem += 4;
-
-    min_sizes = Mat(num_min_size, (float*)mem);
-    mem += num_min_size * sizeof(float);
-
-    if (num_max_size > 0)
-    {
-        max_sizes = Mat(num_max_size, (float*)mem);
-        mem += num_max_size * sizeof(float);
-    }
-
-    if (num_aspect_ratio > 0)
-    {
-        aspect_ratios = Mat(num_aspect_ratio, (float*)mem);
-        mem += num_aspect_ratio * sizeof(float);
-    }
+    min_sizes = pd.get(0, Mat());
+    max_sizes = pd.get(1, Mat());
+    aspect_ratios = pd.get(2, Mat());
+    variances[0] = pd.get(3, 0.f);
+    variances[1] = pd.get(4, 0.f);
+    variances[2] = pd.get(5, 0.f);
+    variances[3] = pd.get(6, 0.f);
+    flip = pd.get(7, 1);
+    clip = pd.get(8, 0);
+    image_width = pd.get(9, 0);
+    image_height = pd.get(10, 0);
+    step_width = pd.get(11, -233.f);
+    step_height = pd.get(12, -233.f);
+    offset = pd.get(13, 0.f);
 
     return 0;
 }
@@ -229,6 +63,10 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         step_w = (float)image_w / w;
     if (step_h == -233)
         step_h = (float)image_h / h;
+
+    int num_min_size = min_sizes.w;
+    int num_max_size = max_sizes.w;
+    int num_aspect_ratio = aspect_ratios.w;
 
     int num_prior = num_min_size * num_aspect_ratio + num_min_size + num_max_size;
     if (flip)

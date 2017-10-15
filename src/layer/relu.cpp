@@ -24,32 +24,9 @@ ReLU::ReLU()
     support_inplace = true;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int ReLU::load_param(FILE* paramfp)
+int ReLU::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%f", &slope);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "ReLU load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int ReLU::load_param_bin(FILE* paramfp)
-{
-    fread(&slope, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int ReLU::load_param(const unsigned char*& mem)
-{
-    slope = *(float*)(mem);
-    mem += 4;
+    slope = pd.get(0, 0.f);
 
     return 0;
 }

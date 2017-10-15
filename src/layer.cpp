@@ -28,29 +28,17 @@ Layer::~Layer()
 {
 }
 
+int Layer::load_param(const ParamDict& /*pd*/)
+{
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int Layer::load_param(FILE* /*paramfp*/)
-{
-    return 0;
-}
-#endif // NCNN_STRING
-
-int Layer::load_param_bin(FILE* /*paramfp*/)
-{
-    return 0;
-}
-
 int Layer::load_model(FILE* /*binfp*/)
 {
     return 0;
 }
 #endif // NCNN_STDIO
-
-int Layer::load_param(const unsigned char*& /*mem*/)
-{
-    return 0;
-}
 
 int Layer::load_model(const unsigned char*& /*mem*/)
 {

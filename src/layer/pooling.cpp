@@ -25,53 +25,13 @@ Pooling::Pooling()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Pooling::load_param(FILE* paramfp)
+int Pooling::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %d %d %d",
-                       &pooling_type, &kernel_size, &stride, &pad, &global_pooling);
-    if (nscan != 5)
-    {
-        fprintf(stderr, "Pooling load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Pooling::load_param_bin(FILE* paramfp)
-{
-    fread(&pooling_type, sizeof(int), 1, paramfp);
-
-    fread(&kernel_size, sizeof(int), 1, paramfp);
-
-    fread(&stride, sizeof(int), 1, paramfp);
-
-    fread(&pad, sizeof(int), 1, paramfp);
-
-    fread(&global_pooling, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Pooling::load_param(const unsigned char*& mem)
-{
-    pooling_type = *(int*)(mem);
-    mem += 4;
-
-    kernel_size = *(int*)(mem);
-    mem += 4;
-
-    stride = *(int*)(mem);
-    mem += 4;
-
-    pad = *(int*)(mem);
-    mem += 4;
-
-    global_pooling = *(int*)(mem);
-    mem += 4;
+    pooling_type = pd.get(0, 0);
+    kernel_size = pd.get(1, 0);
+    stride = pd.get(2, 1);
+    pad = pd.get(3, 0);
+    global_pooling = pd.get(4, 0);
 
     return 0;
 }

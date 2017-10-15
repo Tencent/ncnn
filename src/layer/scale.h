@@ -25,14 +25,11 @@ public:
     Scale();
     virtual ~Scale();
 
+    virtual int load_param(const ParamDict& pd);
+
 #if NCNN_STDIO
-#if NCNN_STRING
-    virtual int load_param(FILE* paramfp);
-#endif // NCNN_STRING
-    virtual int load_param_bin(FILE* paramfp);
     virtual int load_model(FILE* binfp);
 #endif // NCNN_STDIO
-    virtual int load_param(const unsigned char*& mem);
     virtual int load_model(const unsigned char*& mem);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;

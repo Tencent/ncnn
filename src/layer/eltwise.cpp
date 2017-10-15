@@ -23,66 +23,10 @@ Eltwise::Eltwise()
 {
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Eltwise::load_param(FILE* paramfp)
+int Eltwise::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d", &op_type, &num_coeff);
-    if (nscan != 2)
-    {
-        fprintf(stderr, "Eltwise load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    if (num_coeff > 0)
-    {
-        coeffs.create(num_coeff);
-        if (coeffs.empty())
-            return -100;
-        float* coeffs_ptr = coeffs;
-        for (int i=0; i<num_coeff; i++)
-        {
-            int nscan = fscanf(paramfp, "%f", &coeffs_ptr[i]);
-            if (nscan != 1)
-            {
-                fprintf(stderr, "Eltwise load_param failed %d\n", nscan);
-                return -1;
-            }
-        }
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Eltwise::load_param_bin(FILE* paramfp)
-{
-    fread(&op_type, sizeof(int), 1, paramfp);
-
-    fread(&num_coeff, sizeof(int), 1, paramfp);
-
-    if (num_coeff > 0)
-    {
-        coeffs.create(num_coeff);
-        if (coeffs.empty())
-            return -100;
-        float* coeffs_ptr = coeffs;
-        fread(coeffs_ptr, sizeof(float), num_coeff, paramfp);
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Eltwise::load_param(const unsigned char*& mem)
-{
-    op_type = *(int*)(mem);
-    mem += 4;
-
-    num_coeff = *(int*)(mem);
-    mem += 4;
-
-    coeffs = Mat(num_coeff, (float*)mem);
-    mem += num_coeff * sizeof(float);
+    op_type = pd.get(0, 0);
+    coeffs = pd.get(1, Mat());
 
     return 0;
 }
@@ -135,7 +79,7 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     }
     else if (op_type == Operation_SUM)
     {
-        if (num_coeff == 0)
+        if (coeffs.w == 0)
         {
             // first blob
             const Mat& bottom_blob1 = bottom_blobs[1];

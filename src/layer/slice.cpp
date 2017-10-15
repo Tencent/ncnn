@@ -22,55 +22,9 @@ Slice::Slice()
 {
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Slice::load_param(FILE* paramfp)
+int Slice::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d", &num_slice);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "Slice load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    slices.create(num_slice);
-    if (slices.empty())
-        return -100;
-    int* slices_ptr = (int*)slices.data;
-    for (int i=0; i<num_slice; i++)
-    {
-        int nscan = fscanf(paramfp, "%d", &slices_ptr[i]);
-        if (nscan != 1)
-        {
-            fprintf(stderr, "Slice load_param failed %d\n", nscan);
-            return -1;
-        }
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Slice::load_param_bin(FILE* paramfp)
-{
-    fread(&num_slice, sizeof(int), 1, paramfp);
-
-    slices.create(num_slice);
-    if (slices.empty())
-        return -100;
-    int* slices_ptr = (int*)slices.data;
-    fread(slices_ptr, sizeof(int), num_slice, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Slice::load_param(const unsigned char*& mem)
-{
-    num_slice = *(int*)(mem);
-    mem += 4;
-
-    slices = Mat(num_slice, (float*)mem);
-    mem += num_slice * sizeof(int);
+    slices = pd.get(0, Mat());
 
     return 0;
 }

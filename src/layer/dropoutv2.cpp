@@ -24,32 +24,9 @@ DropoutV2::DropoutV2()
     support_inplace = true;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int DropoutV2::load_param(FILE* paramfp)
+int DropoutV2::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%f", &scale);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "DropoutV2 load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int DropoutV2::load_param_bin(FILE* paramfp)
-{
-    fread(&scale, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int DropoutV2::load_param(const unsigned char*& mem)
-{
-    scale = *(float*)(mem);
-    mem += 4;
+    scale = pd.get(0, 1.f);
 
     return 0;
 }

@@ -22,37 +22,10 @@ Crop::Crop()
 {
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Crop::load_param(FILE* paramfp)
+int Crop::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d", &woffset, &hoffset);
-    if (nscan != 2)
-    {
-        fprintf(stderr, "Crop load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Crop::load_param_bin(FILE* paramfp)
-{
-    fread(&woffset, sizeof(int), 1, paramfp);
-
-    fread(&hoffset, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Crop::load_param(const unsigned char*& mem)
-{
-    woffset = *(int*)(mem);
-    mem += 4;
-
-    hoffset = *(int*)(mem);
-    mem += 4;
+    woffset = pd.get(0, 0);
+    hoffset = pd.get(1, 0);
 
     return 0;
 }

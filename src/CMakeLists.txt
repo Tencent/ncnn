@@ -15,6 +15,7 @@ set(ncnn_SRCS
     mat_pixel.cpp
     net.cpp
     opencv.cpp
+    paramdict.cpp
 )
 
 macro(ncnn_add_layer class)
@@ -151,6 +152,7 @@ install(FILES
     mat.h
     net.h
     opencv.h
+    paramdict.h
     ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
     ${CMAKE_CURRENT_BINARY_DIR}/platform.h
     DESTINATION include

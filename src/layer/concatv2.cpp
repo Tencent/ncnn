@@ -24,32 +24,9 @@ ConcatV2::ConcatV2()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int ConcatV2::load_param(FILE* paramfp)
+int ConcatV2::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d", &axis);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "ConcatV2 load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int ConcatV2::load_param_bin(FILE* paramfp)
-{
-    fread(&axis, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int ConcatV2::load_param(const unsigned char*& mem)
-{
-    axis = *(int*)(mem);
-    mem += 4;
+    axis = pd.get(0, 0);
 
     return 0;
 }

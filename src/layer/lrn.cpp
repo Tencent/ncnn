@@ -25,48 +25,12 @@ LRN::LRN()
     support_inplace = true;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int LRN::load_param(FILE* paramfp)
+int LRN::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %f %f",
-                       &region_type, &local_size, &alpha, &beta);
-    if (nscan != 4)
-    {
-        fprintf(stderr, "LRN load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int LRN::load_param_bin(FILE* paramfp)
-{
-    fread(&region_type, sizeof(int), 1, paramfp);
-
-    fread(&local_size, sizeof(int), 1, paramfp);
-
-    fread(&alpha, sizeof(float), 1, paramfp);
-
-    fread(&beta, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int LRN::load_param(const unsigned char*& mem)
-{
-    region_type = *(int*)(mem);
-    mem += 4;
-
-    local_size = *(int*)(mem);
-    mem += 4;
-
-    alpha = *(float*)(mem);
-    mem += 4;
-
-    beta = *(float*)(mem);
-    mem += 4;
+    region_type = pd.get(0, 0);
+    local_size = pd.get(1, 5);
+    alpha = pd.get(2, 1.f);
+    beta = pd.get(3, 0.75f);
 
     return 0;
 }

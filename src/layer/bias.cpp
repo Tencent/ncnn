@@ -28,27 +28,14 @@ Bias::~Bias()
 {
 }
 
+int Bias::load_param(const ParamDict& pd)
+{
+    bias_data_size = pd.get(0, 0);
+
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int Bias::load_param(FILE* paramfp)
-{
-    int nscan = fscanf(paramfp, "%d", &bias_data_size);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "Bias load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Bias::load_param_bin(FILE* paramfp)
-{
-    fread(&bias_data_size, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
 int Bias::load_model(FILE* binfp)
 {
     int nread;
@@ -66,14 +53,6 @@ int Bias::load_model(FILE* binfp)
     return 0;
 }
 #endif // NCNN_STDIO
-
-int Bias::load_param(const unsigned char*& mem)
-{
-    bias_data_size = *(int*)(mem);
-    mem += 4;
-
-    return 0;
-}
 
 int Bias::load_model(const unsigned char*& mem)
 {

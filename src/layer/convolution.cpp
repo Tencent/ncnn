@@ -28,41 +28,20 @@ Convolution::~Convolution()
 {
 }
 
+int Convolution::load_param(const ParamDict& pd)
+{
+    num_output = pd.get(0, 0);
+    kernel_size = pd.get(1, 0);
+    dilation = pd.get(2, 1);
+    stride = pd.get(3, 1);
+    pad = pd.get(4, 0);
+    bias_term = pd.get(5, 0);
+    weight_data_size = pd.get(6, 0);
+
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int Convolution::load_param(FILE* paramfp)
-{
-    int nscan = fscanf(paramfp, "%d %d %d %d %d %d %d",
-                       &num_output, &kernel_size, &dilation, &stride, &pad, &bias_term,
-                       &weight_data_size);
-    if (nscan != 7)
-    {
-        fprintf(stderr, "Convolution load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Convolution::load_param_bin(FILE* paramfp)
-{
-    fread(&num_output, sizeof(int), 1, paramfp);
-
-    fread(&kernel_size, sizeof(int), 1, paramfp);
-
-    fread(&dilation, sizeof(int), 1, paramfp);
-
-    fread(&stride, sizeof(int), 1, paramfp);
-
-    fread(&pad, sizeof(int), 1, paramfp);
-
-    fread(&bias_term, sizeof(int), 1, paramfp);
-
-    fread(&weight_data_size, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
 int Convolution::load_model(FILE* binfp)
 {
     int nread;
@@ -163,32 +142,6 @@ int Convolution::load_model(FILE* binfp)
     return 0;
 }
 #endif // NCNN_STDIO
-
-int Convolution::load_param(const unsigned char*& mem)
-{
-    num_output = *(int*)(mem);
-    mem += 4;
-
-    kernel_size = *(int*)(mem);
-    mem += 4;
-
-    dilation = *(int*)(mem);
-    mem += 4;
-
-    stride = *(int*)(mem);
-    mem += 4;
-
-    pad = *(int*)(mem);
-    mem += 4;
-
-    bias_term = *(int*)(mem);
-    mem += 4;
-
-    weight_data_size = *(int*)(mem);
-    mem += 4;
-
-    return 0;
-}
 
 int Convolution::load_model(const unsigned char*& mem)
 {

@@ -245,6 +245,9 @@ int main(int argc, char** argv)
     FILE* pp = fopen(ncnn_prototxt, "wb");
     FILE* bp = fopen(ncnn_modelbin, "wb");
 
+    // magic
+    fprintf(pp, "7767517\n");
+
     // rename mapping for identical bottom top style
     std::map<std::string, std::string> blob_name_decorated;
 
@@ -423,7 +426,7 @@ int main(int argc, char** argv)
 
             const caffe::BlobProto& mean_blob = binlayer.blobs(0);
             const caffe::BlobProto& var_blob = binlayer.blobs(1);
-            fprintf(pp, " %d", (int)mean_blob.data_size());
+            fprintf(pp, " 0=%d", (int)mean_blob.data_size());
 
             const caffe::BatchNormParameter& batch_norm_param = layer.batch_norm_param();
             float eps = batch_norm_param.eps();
@@ -467,7 +470,7 @@ int main(int argc, char** argv)
             if (concat_param.axis() != 1)
             {
                 int dim = concat_param.axis() >= 1 ? concat_param.axis() - 1 : 0;
-                fprintf(pp, " %d", dim);
+                fprintf(pp, " 0=%d", dim);
             }
         }
         else if (layer.type() == "Convolution")
@@ -476,16 +479,17 @@ int main(int argc, char** argv)
 
             const caffe::BlobProto& weight_blob = binlayer.blobs(0);
             const caffe::ConvolutionParameter& convolution_param = layer.convolution_param();
-            fprintf(pp, " %d %d %d %d %d %d %d", convolution_param.num_output(), convolution_param.kernel_size(0),
-                    convolution_param.dilation_size() != 0 ? convolution_param.dilation(0) : 1,
-                    convolution_param.stride_size() != 0 ? convolution_param.stride(0) : 1,
-                    convolution_param.pad_size() != 0 ? convolution_param.pad(0) : 0,
-                    convolution_param.bias_term(),
-                    weight_blob.data_size());
+            fprintf(pp, " 0=%d", convolution_param.num_output());
+            fprintf(pp, " 1=%d", convolution_param.kernel_size(0));
+            fprintf(pp, " 2=%d", convolution_param.dilation_size() != 0 ? convolution_param.dilation(0) : 1);
+            fprintf(pp, " 3=%d", convolution_param.stride_size() != 0 ? convolution_param.stride(0) : 1);
+            fprintf(pp, " 4=%d", convolution_param.pad_size() != 0 ? convolution_param.pad(0) : 0);
+            fprintf(pp, " 5=%d", convolution_param.bias_term());
+            fprintf(pp, " 6=%d", weight_blob.data_size());
 
             if (convolution_param.group() != 1)
             {
-                fprintf(pp, " %d", convolution_param.group());
+                fprintf(pp, " 7=%d", convolution_param.group());
             }
 
             for (int j = 0; j < binlayer.blobs_size(); j++)
@@ -548,7 +552,8 @@ int main(int argc, char** argv)
             int num_offset = crop_param.offset_size();
             int woffset = (num_offset == 2) ? crop_param.offset(0) : 0;
             int hoffset = (num_offset == 2) ? crop_param.offset(1) : 0;
-            fprintf(pp, " %d %d", woffset, hoffset);
+            fprintf(pp, " 0=%d", woffset);
+            fprintf(pp, " 1=%d", hoffset);
         }
         else if (layer.type() == "Deconvolution")
         {
@@ -556,12 +561,13 @@ int main(int argc, char** argv)
 
             const caffe::BlobProto& weight_blob = binlayer.blobs(0);
             const caffe::ConvolutionParameter& convolution_param = layer.convolution_param();
-            fprintf(pp, " %d %d %d %d %d %d %d", convolution_param.num_output(), convolution_param.kernel_size(0),
-                    convolution_param.dilation_size() != 0 ? convolution_param.dilation(0) : 1,
-                    convolution_param.stride_size() != 0 ? convolution_param.stride(0) : 1,
-                    convolution_param.pad_size() != 0 ? convolution_param.pad(0) : 0,
-                    convolution_param.bias_term(),
-                    weight_blob.data_size());
+            fprintf(pp, " 0=%d", convolution_param.num_output());
+            fprintf(pp, " 1=%d", convolution_param.kernel_size(0));
+            fprintf(pp, " 2=%d", convolution_param.dilation_size() != 0 ? convolution_param.dilation(0) : 1);
+            fprintf(pp, " 3=%d", convolution_param.stride_size() != 0 ? convolution_param.stride(0) : 1);
+            fprintf(pp, " 4=%d", convolution_param.pad_size() != 0 ? convolution_param.pad(0) : 0);
+            fprintf(pp, " 5=%d", convolution_param.bias_term());
+            fprintf(pp, " 6=%d", weight_blob.data_size());
 
             int quantized_weight = 0;
             fwrite(&quantized_weight, sizeof(int), 1, bp);
@@ -589,7 +595,11 @@ int main(int argc, char** argv)
         {
             const caffe::DetectionOutputParameter& detection_output_param = layer.detection_output_param();
             const caffe::NonMaximumSuppressionParameter& nms_param = detection_output_param.nms_param();
-            fprintf(pp, " %d %f %d %d %f", detection_output_param.num_classes(), nms_param.nms_threshold(), nms_param.top_k(), detection_output_param.keep_top_k(), detection_output_param.confidence_threshold());
+            fprintf(pp, " 0=%d", detection_output_param.num_classes());
+            fprintf(pp, " 1=%f", nms_param.nms_threshold());
+            fprintf(pp, " 2=%d", nms_param.top_k());
+            fprintf(pp, " 3=%d", detection_output_param.keep_top_k());
+            fprintf(pp, " 4=%f", detection_output_param.confidence_threshold());
         }
         else if (layer.type() == "Dropout")
         {
@@ -597,23 +607,24 @@ int main(int argc, char** argv)
             if (!dropout_param.scale_train())
             {
                 float scale = 1.f - dropout_param.dropout_ratio();
-                fprintf(pp, " %f", scale);
+                fprintf(pp, " 0=%f", scale);
             }
         }
         else if (layer.type() == "Eltwise")
         {
             const caffe::EltwiseParameter& eltwise_param = layer.eltwise_param();
             int coeff_size = eltwise_param.coeff_size();
-            fprintf(pp, " %d %d", (int)eltwise_param.operation(), coeff_size);
+            fprintf(pp, " 0=%d", (int)eltwise_param.operation());
+            fprintf(pp, " -23301=%d", coeff_size);
             for (int j=0; j<coeff_size; j++)
             {
-                fprintf(pp, " %f", eltwise_param.coeff(j));
+                fprintf(pp, ",%f", eltwise_param.coeff(j));
             }
         }
         else if (layer.type() == "ELU")
         {
             const caffe::ELUParameter& elu_param = layer.elu_param();
-            fprintf(pp, " %f", elu_param.alpha());
+            fprintf(pp, " 0=%f", elu_param.alpha());
         }
         else if (layer.type() == "InnerProduct")
         {
@@ -621,8 +632,9 @@ int main(int argc, char** argv)
 
             const caffe::BlobProto& weight_blob = binlayer.blobs(0);
             const caffe::InnerProductParameter& inner_product_param = layer.inner_product_param();
-            fprintf(pp, " %d %d %d", inner_product_param.num_output(), inner_product_param.bias_term(),
-                    weight_blob.data_size());
+            fprintf(pp, " 0=%d", inner_product_param.num_output());
+            fprintf(pp, " 1=%d", inner_product_param.bias_term());
+            fprintf(pp, " 2=%d", weight_blob.data_size());
 
             for (int j=0; j<binlayer.blobs_size(); j++)
             {
@@ -683,35 +695,46 @@ int main(int argc, char** argv)
             const caffe::BlobShape& bs = input_param.shape(0);
             for (int j=1; j<std::min((int)bs.dim_size(), 4); j++)
             {
-                fprintf(pp, " %ld", bs.dim(j));
+                fprintf(pp, " %d=%ld", j-1, bs.dim(j));
             }
             for (int j=bs.dim_size(); j<4; j++)
             {
-                fprintf(pp, " -233");
+                fprintf(pp, " %d=-233", j-1);
             }
         }
         else if (layer.type() == "Interp")
         {
             const caffe::InterpParameter& interp_param = layer.interp_param();
-            fprintf(pp," %d %f %f %d %d",2, static_cast<float>(interp_param.zoom_factor()), \
-            static_cast<float>(interp_param.zoom_factor()),interp_param.height(),interp_param.width());
+            fprintf(pp, " 0=%d", 2);
+            fprintf(pp, " 1=%f", (float)interp_param.zoom_factor());
+            fprintf(pp, " 2=%f", (float)interp_param.zoom_factor());
+            fprintf(pp, " 3=%d", interp_param.height());
+            fprintf(pp, " 4=%d", interp_param.width());
         }
         else if (layer.type() == "LRN")
         {
             const caffe::LRNParameter& lrn_param = layer.lrn_param();
-            fprintf(pp, " %d %d %.8f %.8f", lrn_param.norm_region(), lrn_param.local_size(), lrn_param.alpha(), lrn_param.beta());
+            fprintf(pp, " 0=%d", lrn_param.norm_region());
+            fprintf(pp, " 1=%d", lrn_param.local_size());
+            fprintf(pp, " 2=%f", lrn_param.alpha());
+            fprintf(pp, " 3=%f", lrn_param.beta());
         }
         else if (layer.type() == "MemoryData")
         {
             const caffe::MemoryDataParameter& memory_data_param = layer.memory_data_param();
-            fprintf(pp, " %d %d %d", memory_data_param.channels(), memory_data_param.width(), memory_data_param.height());
+            fprintf(pp, " 0=%d", memory_data_param.width());
+            fprintf(pp, " 1=%d", memory_data_param.height());
+            fprintf(pp, " 2=%d", memory_data_param.channels());
         }
         else if (layer.type() == "Normalize")
         {
             const caffe::LayerParameter& binlayer = net.layer(netidx);
             const caffe::BlobProto& scale_blob = binlayer.blobs(0);
             const caffe::NormalizeParameter& norm_param = layer.norm_param();
-            fprintf(pp, " %d %d %f %d", norm_param.across_spatial(), norm_param.channel_shared(), norm_param.eps(), scale_blob.data_size());
+            fprintf(pp, " 0=%d", norm_param.across_spatial());
+            fprintf(pp, " 1=%d", norm_param.channel_shared());
+            fprintf(pp, " 2=%f", norm_param.eps());
+            fprintf(pp, " 3=%d", scale_blob.data_size());
 
             fwrite(scale_blob.data().data(), sizeof(float), scale_blob.data_size(), bp);
         }
@@ -775,24 +798,29 @@ int main(int argc, char** argv)
                 }
                 // permute with N not supported
             }
-            fprintf(pp, " %d", order_type);
+            fprintf(pp, " 0=%d", order_type);
         }
         else if (layer.type() == "Pooling")
         {
             const caffe::PoolingParameter& pooling_param = layer.pooling_param();
-            fprintf(pp, " %d %d %d %d %d", pooling_param.pool(), pooling_param.kernel_size(), pooling_param.stride(), pooling_param.pad(),
-                    pooling_param.has_global_pooling() ? pooling_param.global_pooling() : 0);
+            fprintf(pp, " 0=%d", pooling_param.pool());
+            fprintf(pp, " 1=%d", pooling_param.kernel_size());
+            fprintf(pp, " 2=%d", pooling_param.stride());
+            fprintf(pp, " 3=%d", pooling_param.pad());
+            fprintf(pp, " 4=%d", pooling_param.has_global_pooling() ? pooling_param.global_pooling() : 0);
         }
         else if (layer.type() == "Power")
         {
             const caffe::PowerParameter& power_param = layer.power_param();
-            fprintf(pp, " %f %f %f", power_param.power(), power_param.scale(), power_param.shift());
+            fprintf(pp, " 0=%f", power_param.power());
+            fprintf(pp, " 1=%f", power_param.scale());
+            fprintf(pp, " 2=%f", power_param.shift());
         }
         else if (layer.type() == "PReLU")
         {
             const caffe::LayerParameter& binlayer = net.layer(netidx);
             const caffe::BlobProto& slope_blob = binlayer.blobs(0);
-            fprintf(pp, " %d", slope_blob.data_size());
+            fprintf(pp, " 0=%d", slope_blob.data_size());
             fwrite(slope_blob.data().data(), sizeof(float), slope_blob.data_size(), bp);
         }
         else if (layer.type() == "PriorBox")
@@ -852,28 +880,36 @@ int main(int argc, char** argv)
                 step_height = prior_box_param.step_h();
             }
 
-            fprintf(pp, " %d %d %d %f %f %f %f %d %d %d %d %f %f %f", prior_box_param.min_size_size(),
-                    prior_box_param.max_size_size(), num_aspect_ratio,
-                    variances[0], variances[1], variances[2], variances[3],
-                    flip, clip, image_width, image_height,
-                    step_width, step_height, prior_box_param.offset());
-
+            fprintf(pp, " -23300=%d", prior_box_param.min_size_size());
             for (int j=0; j<prior_box_param.min_size_size(); j++)
             {
-                fprintf(pp, " %f", prior_box_param.min_size(j));
+                fprintf(pp, ",%f", prior_box_param.min_size(j));
             }
+            fprintf(pp, " -23301=%d", prior_box_param.max_size_size());
             for (int j=0; j<prior_box_param.max_size_size(); j++)
             {
-                fprintf(pp, " %f", prior_box_param.max_size(j));
+                fprintf(pp, ",%f", prior_box_param.max_size(j));
             }
+            fprintf(pp, " -23302=%d", num_aspect_ratio);
             for (int j=0; j<prior_box_param.aspect_ratio_size(); j++)
             {
                 float ar = prior_box_param.aspect_ratio(j);
                 if (fabs(ar - 1.) < 1e-6) {
                     continue;
                 }
-                fprintf(pp, " %f", ar);
+                fprintf(pp, ",%f", ar);
             }
+            fprintf(pp, " 3=%f", variances[0]);
+            fprintf(pp, " 4=%f", variances[1]);
+            fprintf(pp, " 5=%f", variances[2]);
+            fprintf(pp, " 6=%f", variances[3]);
+            fprintf(pp, " 7=%d", flip);
+            fprintf(pp, " 8=%d", clip);
+            fprintf(pp, " 9=%d", image_width);
+            fprintf(pp, " 10=%d", image_height);
+            fprintf(pp, " 11=%f", step_width);
+            fprintf(pp, " 12=%f", step_height);
+            fprintf(pp, " 13=%f", prior_box_param.offset());
         }
         else if (layer.type() == "Python")
         {
@@ -891,13 +927,18 @@ int main(int argc, char** argv)
                 int after_nms_topN = 300;
                 float nms_thresh = 0.7;
                 int min_size = 16;
-                fprintf(pp, " %d %d %d %d %f %d", feat_stride, base_size, pre_nms_topN, after_nms_topN, nms_thresh, min_size);
+                fprintf(pp, " 0=%d", feat_stride);
+                fprintf(pp, " 1=%d", base_size);
+                fprintf(pp, " 2=%d", pre_nms_topN);
+                fprintf(pp, " 3=%d", after_nms_topN);
+                fprintf(pp, " 4=%f", nms_thresh);
+                fprintf(pp, " 5=%d", min_size);
             }
         }
         else if (layer.type() == "ReLU")
         {
             const caffe::ReLUParameter& relu_param = layer.relu_param();
-            fprintf(pp, " %f", relu_param.negative_slope());
+            fprintf(pp, " 0=%f", relu_param.negative_slope());
         }
         else if (layer.type() == "Reshape")
         {
@@ -905,26 +946,28 @@ int main(int argc, char** argv)
             const caffe::BlobShape& bs = reshape_param.shape();
             if (bs.dim_size() == 1)
             {
-                fprintf(pp, " %ld -233 -233", bs.dim(0));
+                fprintf(pp, " 0=%ld 1=-233 2=-233", bs.dim(0));
             }
             else if (bs.dim_size() == 2)
             {
-                fprintf(pp, " %ld %ld -233", bs.dim(1), bs.dim(0));
+                fprintf(pp, " 0=%ld 1=%ld 2=-233", bs.dim(1), bs.dim(0));
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " %ld %ld %ld", bs.dim(2), bs.dim(1), bs.dim(0));
+                fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(2), bs.dim(1), bs.dim(0));
             }
             else // bs.dim_size() == 4
             {
-                fprintf(pp, " %ld %ld %ld", bs.dim(3), bs.dim(2), bs.dim(1));
+                fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(3), bs.dim(2), bs.dim(1));
             }
-            fprintf(pp, " 0");// permute
+            fprintf(pp, " 3=0");// permute
         }
         else if (layer.type() == "ROIPooling")
         {
             const caffe::ROIPoolingParameter& roi_pooling_param = layer.roi_pooling_param();
-            fprintf(pp, " %d %d %.8f", roi_pooling_param.pooled_w(), roi_pooling_param.pooled_h(), roi_pooling_param.spatial_scale());
+            fprintf(pp, " 0=%d", roi_pooling_param.pooled_w());
+            fprintf(pp, " 1=%d", roi_pooling_param.pooled_h());
+            fprintf(pp, " 2=%f", roi_pooling_param.spatial_scale());
         }
         else if (layer.type() == "Scale")
         {
@@ -932,7 +975,8 @@ int main(int argc, char** argv)
 
             const caffe::BlobProto& weight_blob = binlayer.blobs(0);
             const caffe::ScaleParameter& scale_param = layer.scale_param();
-            fprintf(pp, " %d %d", (int)weight_blob.data_size(), scale_param.bias_term());
+            fprintf(pp, " 0=%d", (int)weight_blob.data_size());
+            fprintf(pp, " 1=%d", scale_param.bias_term());
 
             for (int j=0; j<binlayer.blobs_size(); j++)
             {
@@ -946,24 +990,24 @@ int main(int argc, char** argv)
             if (slice_param.has_slice_dim())
             {
                 int num_slice = layer.top_size();
-                fprintf(pp, " %d", num_slice);
+                fprintf(pp, " -23300=%d", num_slice);
                 for (int j=0; j<num_slice; j++)
                 {
-                    fprintf(pp, " -233");
+                    fprintf(pp, ",-233");
                 }
             }
             else
             {
                 int num_slice = slice_param.slice_point_size() + 1;
-                fprintf(pp, " %d", num_slice);
+                fprintf(pp, " -23300=%d", num_slice);
                 int prev_offset = 0;
                 for (int j=0; j<slice_param.slice_point_size(); j++)
                 {
                     int offset = slice_param.slice_point(j);
-                    fprintf(pp, " %d", offset - prev_offset);
+                    fprintf(pp, ",%d", offset - prev_offset);
                     prev_offset = offset;
                 }
-                fprintf(pp, " -233");
+                fprintf(pp, ",-233");
             }
         }
         else if (layer.type() == "Softmax")
@@ -972,13 +1016,13 @@ int main(int argc, char** argv)
             if (softmax_param.axis() != 1)
             {
                 int dim = softmax_param.axis() >= 1 ? softmax_param.axis() - 1 : 0;
-                fprintf(pp, " %d", dim);
+                fprintf(pp, " 0=%d", dim);
             }
         }
         else if (layer.type() == "Threshold")
         {
             const caffe::ThresholdParameter& threshold_param = layer.threshold_param();
-            fprintf(pp, " %f", threshold_param.threshold());
+            fprintf(pp, " 0=%f", threshold_param.threshold());
         }
 
         fprintf(pp, "\n");

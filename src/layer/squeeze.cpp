@@ -24,42 +24,11 @@ Squeeze::Squeeze()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Squeeze::load_param(FILE* paramfp)
+int Squeeze::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %d", &squeeze_w, &squeeze_h, &squeeze_c);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "Squeeze load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Squeeze::load_param_bin(FILE* paramfp)
-{
-    fread(&squeeze_w, sizeof(int), 1, paramfp);
-
-    fread(&squeeze_h, sizeof(int), 1, paramfp);
-
-    fread(&squeeze_c, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Squeeze::load_param(const unsigned char*& mem)
-{
-    squeeze_w = *(int*)(mem);
-    mem += 4;
-
-    squeeze_h = *(int*)(mem);
-    mem += 4;
-
-    squeeze_c = *(int*)(mem);
-    mem += 4;
+    squeeze_w = pd.get(0, 0);
+    squeeze_h = pd.get(1, 0);
+    squeeze_c = pd.get(2, 0);
 
     return 0;
 }

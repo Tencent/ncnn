@@ -24,57 +24,14 @@ Padding::Padding()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Padding::load_param(FILE* paramfp)
+int Padding::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %d %d %d %f", &top, &bottom, &left, &right, &type, &value);
-    if (nscan != 6)
-    {
-        fprintf(stderr, "Padding load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Padding::load_param_bin(FILE* paramfp)
-{
-    fread(&top, sizeof(int), 1, paramfp);
-
-    fread(&bottom, sizeof(int), 1, paramfp);
-
-    fread(&left, sizeof(int), 1, paramfp);
-
-    fread(&right, sizeof(int), 1, paramfp);
-
-    fread(&type, sizeof(int), 1, paramfp);
-
-    fread(&value, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Padding::load_param(const unsigned char*& mem)
-{
-    top = *(int*)(mem);
-    mem += 4;
-
-    bottom = *(int*)(mem);
-    mem += 4;
-
-    left = *(int*)(mem);
-    mem += 4;
-
-    right = *(int*)(mem);
-    mem += 4;
-
-    type = *(int*)(mem);
-    mem += 4;
-
-    value = *(float*)(mem);
-    mem += 4;
+    top = pd.get(0, 0);
+    bottom = pd.get(1, 0);
+    left = pd.get(2, 0);
+    right = pd.get(3, 0);
+    type = pd.get(4, 0);
+    value = pd.get(5, 0.f);
 
     return 0;
 }

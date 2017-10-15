@@ -24,43 +24,11 @@ ROIPooling::ROIPooling()
 {
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int ROIPooling::load_param(FILE* paramfp)
+int ROIPooling::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %f",
-                       &pooled_width, &pooled_height, &spatial_scale);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "ROIPooling load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int ROIPooling::load_param_bin(FILE* paramfp)
-{
-    fread(&pooled_width, sizeof(int), 1, paramfp);
-
-    fread(&pooled_height, sizeof(int), 1, paramfp);
-
-    fread(&spatial_scale, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int ROIPooling::load_param(const unsigned char*& mem)
-{
-    pooled_width = *(int*)(mem);
-    mem += 4;
-
-    pooled_height = *(int*)(mem);
-    mem += 4;
-
-    spatial_scale = *(float*)(mem);
-    mem += 4;
+    pooled_width = pd.get(0, 0);
+    pooled_height = pd.get(1, 0);
+    spatial_scale = pd.get(2, 1.f);
 
     return 0;
 }

@@ -155,6 +155,9 @@ int main(int argc, char** argv)
     FILE* pp = fopen(ncnn_prototxt, "wb");
     FILE* bp = fopen(ncnn_modelbin, "wb");
 
+    // magic
+    fprintf(pp, "7767517\n");
+
     int node_count = graph.node_size();
 
 //     fprintf(stderr, "node_count = %d\n\n", node_count);
@@ -514,7 +517,7 @@ int main(int argc, char** argv)
         if (node.op() == "Add" || node.op() == "BiasAdd")
         {
             int op_type = 0;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "AvgPool")
         {
@@ -557,7 +560,11 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d %d %d", pooling_type, kernel_size_w, stride_w, pad, global_pooling);
+            fprintf(pp, " 0=%d", pooling_type);
+            fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 2=%d", stride_w);
+            fprintf(pp, " 3=%d", pad);
+            fprintf(pp, " 4=%d", global_pooling);
         }
         else if (node.op() == "Concat" || node.op() == "ConcatV2")
         {
@@ -565,7 +572,7 @@ int main(int argc, char** argv)
             if (find_tensor_proto(weights, node, tensor))
             {
                 // TODO
-                int axis = tensor.int_val(0);
+//                 int axis = tensor.int_val(0);
             }
         }
         else if (node.op() == "Const" || node.op() == "Identity")
@@ -669,7 +676,9 @@ int main(int argc, char** argv)
                     }
                 }
 
-                fprintf(pp, " %d %d %d", w, h, c);
+                fprintf(pp, " 0=%d", w);
+                fprintf(pp, " 1=%d", h);
+                fprintf(pp, " 2=%d", c);
             }
         }
         else if (node.op() == "Conv2D")
@@ -773,7 +782,13 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation_w, stride_w, pad, bias_term, weight_data_size);
+            fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 2=%d", dilation_w);
+            fprintf(pp, " 3=%d", stride_w);
+            fprintf(pp, " 4=%d", pad);
+            fprintf(pp, " 5=%d", bias_term);
+            fprintf(pp, " 6=%d", weight_data_size);
         }
         else if (node.op() == "DepthwiseConv2dNative")
         {
@@ -879,17 +894,24 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation_w, stride_w, pad, bias_term, weight_data_size, group);
+            fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 2=%d", dilation_w);
+            fprintf(pp, " 3=%d", stride_w);
+            fprintf(pp, " 4=%d", pad);
+            fprintf(pp, " 5=%d", bias_term);
+            fprintf(pp, " 6=%d", weight_data_size);
+            fprintf(pp, " 7=%d", group);
         }
         else if (node.op() == "Div" || node.op() == "RealDiv")
         {
             int op_type = 3;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "Exp")
         {
             int op_type = 7;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "ExpandDims")
         {
@@ -909,12 +931,14 @@ int main(int argc, char** argv)
                     expand_c = 1;
             }
 
-            fprintf(pp, " %d %d %d", expand_w, expand_h, expand_c);
+            fprintf(pp, " 0=%d", expand_w);
+            fprintf(pp, " 1=%d", expand_h);
+            fprintf(pp, " 2=%d", expand_c);
         }
         else if (node.op() == "Floor")
         {
             int op_type = 2;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "LRN")
         {
@@ -949,7 +973,10 @@ int main(int argc, char** argv)
                 bias = value_bias.f();
             }
 
-            fprintf(pp, " %d %d %f %f", norm_region, local_size, alpha, beta);
+            fprintf(pp, " 0=%d", norm_region);
+            fprintf(pp, " 1=%d", local_size);
+            fprintf(pp, " 2=%f", alpha);
+            fprintf(pp, " 3=%f", beta);
         }
         else if (node.op() == "MatMul")
         {
@@ -1003,7 +1030,9 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d", num_output, bias_term, weight_data_size);
+            fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 1=%d", bias_term);
+            fprintf(pp, " 2=%d", weight_data_size);
         }
         else if (node.op() == "Max" || node.op() == "Maximum")
         {
@@ -1017,12 +1046,14 @@ int main(int argc, char** argv)
 
                 dim = parse_tensor_reduction_dim(tensor);
 
-                fprintf(pp, " %d %d %f", operation, dim, coeff);
+                fprintf(pp, " 0=%d", operation);
+                fprintf(pp, " 1=%d", dim);
+                fprintf(pp, " 2=%f", coeff);
             }
             else
             {
                 int op_type = 4;
-                fprintf(pp, " %d", op_type);
+                fprintf(pp, " 0=%d", op_type);
             }
         }
         else if (node.op() == "MaxPool")
@@ -1066,7 +1097,11 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d %d %d", pooling_type, kernel_size_w, stride_w, pad, global_pooling);
+            fprintf(pp, " 0=%d", pooling_type);
+            fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 2=%d", stride_w);
+            fprintf(pp, " 3=%d", pad);
+            fprintf(pp, " 4=%d", global_pooling);
         }
         else if (node.op() == "Min" || node.op() == "Minimum")
         {
@@ -1080,23 +1115,25 @@ int main(int argc, char** argv)
 
                 dim = parse_tensor_reduction_dim(tensor);
 
-                fprintf(pp, " %d %d %f", operation, dim, coeff);
+                fprintf(pp, " 0=%d", operation);
+                fprintf(pp, " 1=%d", dim);
+                fprintf(pp, " 2=%f", coeff);
             }
             else
             {
                 int op_type = 5;
-                fprintf(pp, " %d", op_type);
+                fprintf(pp, " 0=%d", op_type);
             }
         }
         else if (node.op() == "Mul")
         {
             int op_type = 2;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "Neg")
         {
             int op_type = 1;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "NoOp")
         {
@@ -1142,12 +1179,17 @@ int main(int argc, char** argv)
                 value = value_T.f();
             }
 
-            fprintf(pp, " %d %d %d %d %d %f", top, bottom, left, right, type, value);
+            fprintf(pp, " 0=%d", top);
+            fprintf(pp, " 1=%d", bottom);
+            fprintf(pp, " 2=%d", left);
+            fprintf(pp, " 3=%d", right);
+            fprintf(pp, " 4=%d", type);
+            fprintf(pp, " 5=%f", value);
         }
         else if (node.op() == "Placeholder")
         {
             // TODO pass through
-            fprintf(pp, " 0 0 0");
+            fprintf(pp, " 0=0 1=0 2=0");
         }
         else if (node.op() == "Prod")
         {
@@ -1162,17 +1204,19 @@ int main(int argc, char** argv)
                 dim = parse_tensor_reduction_dim(tensor);
             }
 
-            fprintf(pp, " %d %d %f", operation, dim, coeff);
+            fprintf(pp, " 0=%d", operation);
+            fprintf(pp, " 1=%d", dim);
+            fprintf(pp, " 2=%f", coeff);
         }
         else if (node.op() == "Reciprocal")
         {
             int op_type = 15;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "Relu")
         {
             float slope = 0.f;
-            fprintf(pp, " %f", slope);
+            fprintf(pp, " 0=%f", slope);
         }
         else if (node.op() == "Reshape")
         {
@@ -1189,28 +1233,28 @@ int main(int argc, char** argv)
                     // n w
                     if (size == 4)
                     {
-                        fprintf(pp, " %d %d %d 0", data[2], data[1], data[3]);
+                        fprintf(pp, " 0=%d 1=%d 2=%d 3=0", data[2], data[1], data[3]);
                     }
                     if (size == 3)
                     {
-                        fprintf(pp, " %d %d -233 1", data[2], data[1]);
+                        fprintf(pp, " 0=%d 1=%d 2=-233 3=1", data[2], data[1]);
                     }
                     if (size == 2)
                     {
-                        fprintf(pp, " %d -233 -233 1", data[1]);
+                        fprintf(pp, " 0=%d 1=-233 2=-233 3=1", data[1]);
                     }
                 }
             }
             else
             {
                 // pass through
-                fprintf(pp, " 0 0 0");
+                fprintf(pp, " 0=0 1=0 2=0 3=0");
             }
         }
         else if (node.op() == "Rsqrt")
         {
             int op_type = 6;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "Sigmoid")
         {
@@ -1221,7 +1265,7 @@ int main(int argc, char** argv)
         else if (node.op() == "Square")
         {
             int op_type = 4;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "Squeeze")
         {
@@ -1244,12 +1288,14 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d", squeeze_w, squeeze_h, squeeze_c);
+            fprintf(pp, " 0=%d", squeeze_w);
+            fprintf(pp, " 1=%d", squeeze_h);
+            fprintf(pp, " 2=%d", squeeze_c);
         }
         else if (node.op() == "Sub")
         {
             int op_type = 1;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "Sum")
         {
@@ -1264,7 +1310,9 @@ int main(int argc, char** argv)
                 dim = parse_tensor_reduction_dim(tensor);
             }
 
-            fprintf(pp, " %d %d %f", operation, dim, coeff);
+            fprintf(pp, " 0=%d", operation);
+            fprintf(pp, " 1=%d", dim);
+            fprintf(pp, " 2=%f", coeff);
         }
         else
         {

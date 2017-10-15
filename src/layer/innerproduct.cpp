@@ -28,32 +28,16 @@ InnerProduct::~InnerProduct()
 {
 }
 
+int InnerProduct::load_param(const ParamDict& pd)
+{
+    num_output = pd.get(0, 0);
+    bias_term = pd.get(1, 0);
+    weight_data_size = pd.get(2, 0);
+
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int InnerProduct::load_param(FILE* paramfp)
-{
-    int nscan = fscanf(paramfp, "%d %d %d",
-                       &num_output, &bias_term, &weight_data_size);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "InnerProduct load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int InnerProduct::load_param_bin(FILE* paramfp)
-{
-    fread(&num_output, sizeof(int), 1, paramfp);
-
-    fread(&bias_term, sizeof(int), 1, paramfp);
-
-    fread(&weight_data_size, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
 int InnerProduct::load_model(FILE* binfp)
 {
     int nread;
@@ -154,20 +138,6 @@ int InnerProduct::load_model(FILE* binfp)
     return 0;
 }
 #endif // NCNN_STDIO
-
-int InnerProduct::load_param(const unsigned char*& mem)
-{
-    num_output = *(int*)(mem);
-    mem += 4;
-
-    bias_term = *(int*)(mem);
-    mem += 4;
-
-    weight_data_size = *(int*)(mem);
-    mem += 4;
-
-    return 0;
-}
 
 int InnerProduct::load_model(const unsigned char*& mem)
 {

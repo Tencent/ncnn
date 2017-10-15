@@ -24,32 +24,9 @@ Permute::Permute()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Permute::load_param(FILE* paramfp)
+int Permute::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d", &order_type);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "Permute load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Permute::load_param_bin(FILE* paramfp)
-{
-    fread(&order_type, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Permute::load_param(const unsigned char*& mem)
-{
-    order_type = *(int*)(mem);
-    mem += 4;
+    order_type = pd.get(0, 0);
 
     return 0;
 }
