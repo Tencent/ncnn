@@ -224,6 +224,9 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
             }
         }
 
+        int EOP = -233;
+        fwrite(&EOP, sizeof(int), 1, mp);
+
         layer_names[layer_index] = std::string(layer_name);
 
         layer_index++;
