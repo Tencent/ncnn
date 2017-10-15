@@ -135,11 +135,8 @@ ncnn_add_layer(ExpandDims)
 ncnn_add_layer(Normalize)
 ncnn_add_layer(Permute)
 ncnn_add_layer(PriorBox)
-ncnn_add_layer(ConcatV2)
-ncnn_add_layer(SoftmaxV2)
 ncnn_add_layer(DetectionOutput)
 ncnn_add_layer(Interp)
-ncnn_add_layer(DropoutV2)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 

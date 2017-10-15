@@ -324,29 +324,13 @@ int main(int argc, char** argv)
 
         // layer definition line, repeated
         // [type] [name] [bottom blob count] [top blob count] [bottom blobs] [top blobs] [layer specific params]
-        if (layer.type() == "Concat")
-        {
-            const caffe::ConcatParameter& concat_param = layer.concat_param();
-            if (concat_param.axis() != 1)
-                fprintf(pp, "%-16s", "ConcatV2");
-            else
-                fprintf(pp, "%-16s", "Concat");
-        }
-        else if (layer.type() == "Convolution")
+        if (layer.type() == "Convolution")
         {
             const caffe::ConvolutionParameter& convolution_param = layer.convolution_param();
             if (convolution_param.group() != 1)
                 fprintf(pp, "%-16s", "ConvolutionDepthWise");
             else
                 fprintf(pp, "%-16s", "Convolution");
-        }
-        else if (layer.type() == "Dropout")
-        {
-            const caffe::DropoutParameter& dropout_param = layer.dropout_param();
-            if (!dropout_param.scale_train())
-                fprintf(pp, "%-16s", "DropoutV2");
-            else
-                fprintf(pp, "%-16s", "Dropout");
         }
         else if (layer.type() == "Python")
         {
@@ -356,14 +340,6 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "Proposal");
             else
                 fprintf(pp, "%-16s", python_layer_name.c_str());
-        }
-        else if (layer.type() == "Softmax")
-        {
-            const caffe::SoftmaxParameter& softmax_param = layer.softmax_param();
-            if (softmax_param.axis() != 1)
-                fprintf(pp, "%-16s", "SoftmaxV2");
-            else
-                fprintf(pp, "%-16s", "Softmax");
         }
         else
         {
@@ -467,11 +443,8 @@ int main(int argc, char** argv)
         else if (layer.type() == "Concat")
         {
             const caffe::ConcatParameter& concat_param = layer.concat_param();
-            if (concat_param.axis() != 1)
-            {
-                int dim = concat_param.axis() >= 1 ? concat_param.axis() - 1 : 0;
-                fprintf(pp, " 0=%d", dim);
-            }
+            int dim = concat_param.axis() - 1;
+            fprintf(pp, " 0=%d", dim);
         }
         else if (layer.type() == "Convolution")
         {
@@ -604,11 +577,8 @@ int main(int argc, char** argv)
         else if (layer.type() == "Dropout")
         {
             const caffe::DropoutParameter& dropout_param = layer.dropout_param();
-            if (!dropout_param.scale_train())
-            {
-                float scale = 1.f - dropout_param.dropout_ratio();
-                fprintf(pp, " 0=%f", scale);
-            }
+            float scale = 1.f - dropout_param.dropout_ratio();
+            fprintf(pp, " 0=%f", scale);
         }
         else if (layer.type() == "Eltwise")
         {
@@ -1013,11 +983,8 @@ int main(int argc, char** argv)
         else if (layer.type() == "Softmax")
         {
             const caffe::SoftmaxParameter& softmax_param = layer.softmax_param();
-            if (softmax_param.axis() != 1)
-            {
-                int dim = softmax_param.axis() >= 1 ? softmax_param.axis() - 1 : 0;
-                fprintf(pp, " 0=%d", dim);
-            }
+            int dim = softmax_param.axis() - 1;
+            fprintf(pp, " 0=%d", dim);
         }
         else if (layer.type() == "Threshold")
         {
