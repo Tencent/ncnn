@@ -41,7 +41,7 @@ int Scale::load_model(FILE* binfp)
 {
     int nread;
 
-    scale_data.create(1, scale_data_size);
+    scale_data.create(scale_data_size);
     nread = fread(scale_data, scale_data_size * sizeof(float), 1, binfp);
     if (nread != 1)
     {
@@ -68,7 +68,7 @@ int Scale::load_model(FILE* binfp)
 
 int Scale::load_model(const unsigned char*& mem)
 {
-    scale_data = Mat(1, scale_data_size, (float*)mem);
+    scale_data = Mat(scale_data_size, (float*)mem);
     mem += scale_data_size * sizeof(float);
 
     if (bias_term)
