@@ -24,11 +24,10 @@
 
 namespace ncnn {
 
+class Net;
 class ParamDict
 {
 public:
-    ParamDict();
-
     // get int
     int get(int id, int def) const
     {
@@ -46,6 +45,11 @@ public:
     {
         return params[id].loaded ? params[id].v : def;
     }
+
+protected:
+    friend class Net;
+
+    ParamDict();
 
     void clear();
 
