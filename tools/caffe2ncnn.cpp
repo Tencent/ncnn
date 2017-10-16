@@ -577,8 +577,11 @@ int main(int argc, char** argv)
         else if (layer.type() == "Dropout")
         {
             const caffe::DropoutParameter& dropout_param = layer.dropout_param();
-            float scale = 1.f - dropout_param.dropout_ratio();
-            fprintf(pp, " 0=%f", scale);
+            if (!dropout_param.scale_train())
+            {
+                float scale = 1.f - dropout_param.dropout_ratio();
+                fprintf(pp, " 0=%f", scale);
+            }
         }
         else if (layer.type() == "Eltwise")
         {
