@@ -184,20 +184,20 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
                 for (int j = 0; j < len; j++)
                 {
                     char vstr[16];
-                    fscanf(fp, ",%15[^,\n]", vstr);
+                    fscanf(fp, ",%15[^,\n ]", vstr);
 
                     bool is_float = vstr_is_float(vstr);
 
                     if (is_float)
                     {
                         float vf;
-                        sscanf(vstr, ",%f", &vf);
+                        sscanf(vstr, "%f", &vf);
                         fwrite(&vf, sizeof(float), 1, mp);
                     }
                     else
                     {
                         int v;
-                        sscanf(vstr, ",%d", &v);
+                        sscanf(vstr, "%d", &v);
                         fwrite(&v, sizeof(int), 1, mp);
                     }
                 }

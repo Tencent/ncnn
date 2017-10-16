@@ -78,7 +78,7 @@ int ParamDict::load_param(FILE* fp)
             for (int j = 0; j < len; j++)
             {
                 char vstr[16];
-                nscan = fscanf(fp, ",%15[^,\n]", vstr);
+                nscan = fscanf(fp, ",%15[^,\n ]", vstr);
                 if (nscan != 1)
                 {
                     fprintf(stderr, "ParamDict read array element fail\n");
@@ -88,9 +88,9 @@ int ParamDict::load_param(FILE* fp)
                 bool is_float = vstr_is_float(vstr);
 
                 if (is_float)
-                    nscan = sscanf(vstr, ",%f", &params[id].v.data[j]);
+                    nscan = sscanf(vstr, "%f", &params[id].v.data[j]);
                 else
-                    nscan = sscanf(vstr, ",%d", (int*)&params[id].v.data[j]);
+                    nscan = sscanf(vstr, "%d", (int*)&params[id].v.data[j]);
                 if (nscan != 1)
                 {
                     fprintf(stderr, "ParamDict parse array element fail\n");
