@@ -1,5 +1,5 @@
 
-find_package(OpenCV REQUIRED core highgui imgproc imgcodecs)
+find_package(OpenCV QUIET core highgui imgproc imgcodecs)
 if(NOT OpenCV_FOUND)
     find_package(OpenCV REQUIRED core highgui imgproc)
 endif()
