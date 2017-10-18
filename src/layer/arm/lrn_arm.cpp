@@ -84,7 +84,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
         for (int q=0; q<channels; q++)
         {
             // square sum
-            for (int p=q - local_size / 2; p<q + local_size; p++)
+            for (int p=q - local_size / 2; p<=q + local_size / 2; p++)
             {
                 if (p < 0 || p >= channels)
                     continue;
