@@ -25,6 +25,57 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Convolution_arm)
 
+int Convolution_arm::load_param(const ParamDict& pd)
+{
+    int ret = Convolution::load_param(pd);
+    if (ret != 0)
+        return ret;
+
+    use_winograd3x3 = false;
+
+    if (kernel_size == 3 && dilation == 1 && stride == 1)
+    {
+        int num_input = weight_data_size / 9 / num_output;
+        // winograd is slow on small channel count
+        if (num_input >= 16 && num_output >= 16)
+            use_winograd3x3 = true;
+    }
+
+    return 0;
+}
+
+#if NCNN_STDIO
+int Convolution_arm::load_model(FILE* binfp)
+{
+    int ret = Convolution::load_model(binfp);
+    if (ret != 0)
+        return ret;
+
+    if (use_winograd3x3)
+    {
+        int num_input = weight_data_size / 9 / num_output;
+        conv3x3s1_winograd64_transform_kernel_neon(weight_data, weight_3x3_winograd64_data, num_input, num_output);
+    }
+
+    return 0;
+}
+#endif // NCNN_STDIO
+
+int Convolution_arm::load_model(const unsigned char*& mem)
+{
+    int ret = Convolution::load_model(mem);
+    if (ret != 0)
+        return ret;
+
+    if (use_winograd3x3)
+    {
+        int num_input = weight_data_size / 9 / num_output;
+        conv3x3s1_winograd64_transform_kernel_neon(weight_data, weight_3x3_winograd64_data, num_input, num_output);
+    }
+
+    return 0;
+}
+
 int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // convolv with NxN kernel
@@ -126,7 +177,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     if (top_blob.empty())
         return -100;
 
-    conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
+    if (use_winograd3x3)
+        conv3x3s1_winograd64_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
+    else
+        conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
 
     return 0;
 }
