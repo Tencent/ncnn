@@ -10,8 +10,9 @@ set(CMAKE_CXX_COMPILER arm-hisiv500-linux-g++)
 add_definitions(-D__ARM_NEON)
 add_definitions("-O3 -mfloat-abi=softfp -mfpu=neon-vfpv4 -ffunction-sections") 
 ```
+5. 在非手机的arm环境下，需要修改CMakeLists.txt才能把arm编译进去，如CMakeLists_arm.txt
 ---
-![image](https://github.com/ElegantGod/ncnn/blob/master/result0.jpg)
+![image](https://github.com/ElegantGod/ncnn/blob/master/mtcnn/result.jpg)
 # ncnn
 
 ---
