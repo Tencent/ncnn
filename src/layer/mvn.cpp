@@ -25,43 +25,11 @@ MVN::MVN()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int MVN::load_param(FILE* paramfp)
+int MVN::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %f",
-                       &normalize_variance, &across_channels, &eps);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "MVN load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int MVN::load_param_bin(FILE* paramfp)
-{
-    fread(&normalize_variance, sizeof(int), 1, paramfp);
-
-    fread(&across_channels, sizeof(int), 1, paramfp);
-
-    fread(&eps, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int MVN::load_param(const unsigned char*& mem)
-{
-    normalize_variance = *(int*)(mem);
-    mem += 4;
-
-    across_channels = *(int*)(mem);
-    mem += 4;
-
-    eps = *(float*)(mem);
-    mem += 4;
+    normalize_variance = pd.get(0, 0);
+    across_channels = pd.get(1, 0);
+    eps = pd.get(2, 0.0001f);
 
     return 0;
 }

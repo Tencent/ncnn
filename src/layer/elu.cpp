@@ -25,32 +25,9 @@ ELU::ELU()
     support_inplace = true;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int ELU::load_param(FILE* paramfp)
+int ELU::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%f", &alpha);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "ELU load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int ELU::load_param_bin(FILE* paramfp)
-{
-    fread(&alpha, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int ELU::load_param(const unsigned char*& mem)
-{
-    alpha = *(float*)(mem);
-    mem += 4;
+    alpha = pd.get(0, 0.1f);
 
     return 0;
 }

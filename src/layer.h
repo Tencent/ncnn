@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include "mat.h"
+#include "paramdict.h"
 #include "platform.h"
 
 namespace ncnn {
@@ -31,25 +32,15 @@ public:
     // virtual destructor
     virtual ~Layer();
 
-#if NCNN_STDIO
-#if NCNN_STRING
-    // load layer specific parameter from plain param file
+    // load layer specific parameter from parsed dict
     // return 0 if success
-    virtual int load_param(FILE* paramfp);
-#endif // NCNN_STRING
-    // load layer specific parameter from binary param file
-    // return 0 if success
-    virtual int load_param_bin(FILE* paramfp);
+    virtual int load_param(const ParamDict& pd);
 
+#if NCNN_STDIO
     // load layer specific weight data from model file
     // return 0 if success
     virtual int load_model(FILE* binfp);
 #endif // NCNN_STDIO
-
-    // load layer specific parameter from memory
-    // memory pointer is 32-bit aligned
-    // return 0 if success
-    virtual int load_param(const unsigned char*& mem);
 
     // load layer specific weight data from memory
     // memory pointer is 32-bit aligned

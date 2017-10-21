@@ -14,6 +14,7 @@
 
 #include "net.h"
 #include "layer_type.h"
+#include "paramdict.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -92,6 +93,14 @@ int Net::register_custom_layer(int index, layer_creator_func creator)
 #if NCNN_STRING
 int Net::load_param(FILE* fp)
 {
+    int magic = 0;
+    fscanf(fp, "%d", &magic);
+    if (magic != 7767517)
+    {
+        fprintf(stderr, "param is too old, please regenerate\n");
+        return -1;
+    }
+
     // parse
     int layer_count = 0;
     int blob_count = 0;
@@ -99,6 +108,8 @@ int Net::load_param(FILE* fp)
 
     layers.resize(layer_count);
     blobs.resize(blob_count);
+
+    ParamDict pd;
 
     int layer_index = 0;
     int blob_index = 0;
@@ -187,7 +198,15 @@ int Net::load_param(FILE* fp)
         }
 
         // layer specific params
-        int lr = layer->load_param(fp);
+        int pdlr = pd.load_param(fp);
+        if (pdlr != 0)
+        {
+            fprintf(stderr, "ParamDict load_param failed\n");
+            continue;
+        }
+
+//         int lr = layer->load_param(fp);
+        int lr = layer->load_param(pd);
         if (lr != 0)
         {
             fprintf(stderr, "layer load_param failed\n");
@@ -221,6 +240,14 @@ int Net::load_param(const char* protopath)
 
 int Net::load_param_bin(FILE* fp)
 {
+    int magic = 0;
+    fread(&magic, sizeof(int), 1, fp);
+    if (magic != 7767517)
+    {
+        fprintf(stderr, "param is too old, please regenerate\n");
+        return -1;
+    }
+
     int layer_count = 0;
     fread(&layer_count, sizeof(int), 1, fp);
 
@@ -229,6 +256,8 @@ int Net::load_param_bin(FILE* fp)
 
     layers.resize(layer_count);
     blobs.resize(blob_count);
+
+    ParamDict pd;
 
     for (int i=0; i<layer_count; i++)
     {
@@ -288,7 +317,15 @@ int Net::load_param_bin(FILE* fp)
         }
 
         // layer specific params
-        int lr = layer->load_param_bin(fp);
+        int pdlr = pd.load_param_bin(fp);
+        if (pdlr != 0)
+        {
+            fprintf(stderr, "ParamDict load_param failed\n");
+            continue;
+        }
+
+//         int lr = layer->load_param_bin(fp);
+        int lr = layer->load_param(pd);
         if (lr != 0)
         {
             fprintf(stderr, "layer load_param failed\n");
@@ -365,6 +402,16 @@ int Net::load_param(const unsigned char* _mem)
     }
 
     const unsigned char* mem = _mem;
+
+    int magic = *(int*)(mem);
+    mem += 4;
+
+    if (magic != 7767517)
+    {
+        fprintf(stderr, "param is too old, please regenerate\n");
+        return 0;
+    }
+
     int layer_count = *(int*)(mem);
     mem += 4;
 
@@ -373,6 +420,8 @@ int Net::load_param(const unsigned char* _mem)
 
     layers.resize(layer_count);
     blobs.resize(blob_count);
+
+    ParamDict pd;
 
     for (int i=0; i<layer_count; i++)
     {
@@ -432,7 +481,15 @@ int Net::load_param(const unsigned char* _mem)
         }
 
         // layer specific params
-        int lr = layer->load_param(mem);
+        int pdlr = pd.load_param(mem);
+        if (pdlr != 0)
+        {
+            fprintf(stderr, "ParamDict load_param failed\n");
+            continue;
+        }
+
+//         int lr = layer->load_param(mem);
+        int lr = layer->load_param(pd);
         if (lr != 0)
         {
             fprintf(stderr, "layer load_param failed\n");

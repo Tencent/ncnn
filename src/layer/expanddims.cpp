@@ -24,42 +24,11 @@ ExpandDims::ExpandDims()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int ExpandDims::load_param(FILE* paramfp)
+int ExpandDims::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %d", &expand_w, &expand_h, &expand_c);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "ExpandDims load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int ExpandDims::load_param_bin(FILE* paramfp)
-{
-    fread(&expand_w, sizeof(int), 1, paramfp);
-
-    fread(&expand_h, sizeof(int), 1, paramfp);
-
-    fread(&expand_c, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int ExpandDims::load_param(const unsigned char*& mem)
-{
-    expand_w = *(int*)(mem);
-    mem += 4;
-
-    expand_h = *(int*)(mem);
-    mem += 4;
-
-    expand_c = *(int*)(mem);
-    mem += 4;
+    expand_w = pd.get(0, 0);
+    expand_h = pd.get(1, 0);
+    expand_c = pd.get(2, 0);
 
     return 0;
 }

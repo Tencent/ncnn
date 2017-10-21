@@ -24,43 +24,11 @@ Input::Input()
     support_inplace = true;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Input::load_param(FILE* paramfp)
+int Input::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %d",
-                       &size[0], &size[1], &size[2]);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "Input load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Input::load_param_bin(FILE* paramfp)
-{
-    fread(&size[0], sizeof(int), 1, paramfp);
-
-    fread(&size[1], sizeof(int), 1, paramfp);
-
-    fread(&size[2], sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Input::load_param(const unsigned char*& mem)
-{
-    size[0] = *(int*)(mem);
-    mem += 4;
-
-    size[1] = *(int*)(mem);
-    mem += 4;
-
-    size[2] = *(int*)(mem);
-    mem += 4;
+    size[0] = pd.get(0, 0);
+    size[1] = pd.get(1, 0);
+    size[2] = pd.get(2, 0);
 
     return 0;
 }

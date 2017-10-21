@@ -28,34 +28,20 @@ Scale::~Scale()
 {
 }
 
+int Scale::load_param(const ParamDict& pd)
+{
+    scale_data_size = pd.get(0, 0);
+    bias_term = pd.get(1, 0);
+
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int Scale::load_param(FILE* paramfp)
-{
-    int nscan = fscanf(paramfp, "%d %d", &scale_data_size, &bias_term);
-    if (nscan != 2)
-    {
-        fprintf(stderr, "Scale load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Scale::load_param_bin(FILE* paramfp)
-{
-    fread(&scale_data_size, sizeof(int), 1, paramfp);
-
-    fread(&bias_term, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
 int Scale::load_model(FILE* binfp)
 {
     int nread;
 
-    scale_data.create(1, scale_data_size);
+    scale_data.create(scale_data_size);
     nread = fread(scale_data, scale_data_size * sizeof(float), 1, binfp);
     if (nread != 1)
     {
@@ -80,20 +66,9 @@ int Scale::load_model(FILE* binfp)
 }
 #endif // NCNN_STDIO
 
-int Scale::load_param(const unsigned char*& mem)
-{
-    scale_data_size = *(int*)(mem);
-    mem += 4;
-
-    bias_term = *(int*)(mem);
-    mem += 4;
-
-    return 0;
-}
-
 int Scale::load_model(const unsigned char*& mem)
 {
-    scale_data = Mat(1, scale_data_size, (float*)mem);
+    scale_data = Mat(scale_data_size, (float*)mem);
     mem += scale_data_size * sizeof(float);
 
     if (bias_term)

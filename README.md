@@ -15,7 +15,9 @@ add_definitions("-O3 -mfloat-abi=softfp -mfpu=neon-vfpv4 -ffunction-sections")
 ![image](https://github.com/ElegantGod/ncnn/blob/master/mtcnn/result.jpg)
 # ncnn
 
----
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://raw.githubusercontent.com/Tencent/ncnn/master/LICENSE.txt) 
+[![Build Status](https://travis-ci.org/Tencent/ncnn.svg?branch=master)](https://travis-ci.org/Tencent/ncnn)
+
 
 ncnn is a high-performance neural network inference computing framework optimized for mobile platforms. ncnn is deeply considerate about deployment and uses on mobile phones from the beginning of design. ncnn does not have third party dependencies, it is cross-platform, and runs faster than all known open source frameworks on mobile phone cpu. Developers can easily deploy deep learning algorithm models to the mobile platform by using efficient ncnn implementation, create intelligent APPs, and bring the artificial intelligence to your fingertips. ncnn is currently being used in many Tencent applications, such as QQ, Qzone, WeChat, Pitu and so on.
 
@@ -24,6 +26,8 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 ---
 
 ### HowTo
+
+[how-to-build-ncnn-library](https://github.com/Tencent/ncnn/wiki/how-to-build)
 
 [how-to-use-ncnn-with-alexnet](https://github.com/Tencent/ncnn/wiki/how-to-use-ncnn-with-alexnet)
 
@@ -61,15 +65,15 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ---
 
-### License
-
-BSD 3 Clause
-
----
-
 ### Example project
 
 Android and iOS https://github.com/dangbo/ncnn-mobile (Thanks to dangbo)
 
 ### 技术交流QQ群：637093648  答案：卷卷卷卷卷
+
+---
+
+### License
+
+BSD 3 Clause
 

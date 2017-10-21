@@ -24,32 +24,16 @@ MemoryData::MemoryData()
     support_inplace = false;
 }
 
+int MemoryData::load_param(const ParamDict& pd)
+{
+    w = pd.get(0, 0);
+    h = pd.get(1, 0);
+    c = pd.get(2, 0);
+
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int MemoryData::load_param(FILE* paramfp)
-{
-    int nscan = fscanf(paramfp, "%d %d %d",
-                       &w, &h, &c);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "MemoryData load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int MemoryData::load_param_bin(FILE* paramfp)
-{
-    fread(&w, sizeof(int), 1, paramfp);
-
-    fread(&h, sizeof(int), 1, paramfp);
-
-    fread(&c, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
 int MemoryData::load_model(FILE* binfp)
 {
     int nread;
@@ -87,20 +71,6 @@ int MemoryData::load_model(FILE* binfp)
     return 0;
 }
 #endif // NCNN_STDIO
-
-int MemoryData::load_param(const unsigned char*& mem)
-{
-    w = *(int*)(mem);
-    mem += 4;
-
-    h = *(int*)(mem);
-    mem += 4;
-
-    c = *(int*)(mem);
-    mem += 4;
-
-    return 0;
-}
 
 int MemoryData::load_model(const unsigned char*& mem)
 {

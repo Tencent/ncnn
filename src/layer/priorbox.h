@@ -24,22 +24,15 @@ class PriorBox : public Layer
 public:
     PriorBox();
 
-#if NCNN_STDIO
-#if NCNN_STRING
-    virtual int load_param(FILE* paramfp);
-#endif // NCNN_STRING
-    virtual int load_param_bin(FILE* paramfp);
-#endif // NCNN_STDIO
-    virtual int load_param(const unsigned char*& mem);
+    virtual int load_param(const ParamDict& pd);
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
 
 public:
-    int num_min_size;
-    int num_max_size;
-    int num_aspect_ratio;
+    Mat min_sizes;
+    Mat max_sizes;
+    Mat aspect_ratios;
     float variances[4];
-
     int flip;
     int clip;
     int image_width;
@@ -47,10 +40,6 @@ public:
     float step_width;
     float step_height;
     float offset;
-
-    Mat min_sizes;
-    Mat max_sizes;
-    Mat aspect_ratios;
 };
 
 } // namespace ncnn

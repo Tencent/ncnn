@@ -75,71 +75,17 @@ static Mat generate_anchors(int base_size, const Mat& ratios, const Mat& scales)
     return anchors;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Proposal::load_param(FILE* paramfp)
+int Proposal::load_param(const ParamDict& pd)
 {
-//     float ratio;
-//     float scale;
-    int nscan = fscanf(paramfp, "%d %d %d %d %f %d",
-                       &feat_stride, &base_size, &pre_nms_topN, &after_nms_topN,
-                       &nms_thresh, &min_size);
-    if (nscan != 6)
-    {
-        fprintf(stderr, "Proposal load_param failed %d\n", nscan);
-        return -1;
-    }
+    feat_stride = pd.get(0, 16);
+    base_size = pd.get(1, 16);
+    pre_nms_topN = pd.get(2, 6000);
+    after_nms_topN = pd.get(3, 300);
+    nms_thresh = pd.get(4, 0.7f);
+    min_size = pd.get(5, 16);
 
-    anchors = generate_anchors(base_size, ratios, scales);
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Proposal::load_param_bin(FILE* paramfp)
-{
-    fread(&feat_stride, sizeof(int), 1, paramfp);
-
-    fread(&base_size, sizeof(int), 1, paramfp);
-
-//     float ratio;
-//     float scale;
-
-    fread(&pre_nms_topN, sizeof(int), 1, paramfp);
-
-    fread(&after_nms_topN, sizeof(int), 1, paramfp);
-
-    fread(&nms_thresh, sizeof(float), 1, paramfp);
-
-    fread(&min_size, sizeof(int), 1, paramfp);
-
-    anchors = generate_anchors(base_size, ratios, scales);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Proposal::load_param(const unsigned char*& mem)
-{
-    feat_stride = *(int*)(mem);
-    mem += 4;
-
-    base_size = *(int*)(mem);
-    mem += 4;
-
-//     float ratio;
-//     float scale;
-
-    pre_nms_topN = *(int*)(mem);
-    mem += 4;
-
-    after_nms_topN = *(int*)(mem);
-    mem += 4;
-
-    nms_thresh = *(float*)(mem);
-    mem += 4;
-
-    min_size = *(int*)(mem);
-    mem += 4;
+//     Mat ratio;
+//     Mat scale;
 
     anchors = generate_anchors(base_size, ratios, scales);
 

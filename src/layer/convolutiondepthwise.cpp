@@ -28,43 +28,11 @@ ConvolutionDepthWise::~ConvolutionDepthWise()
 {
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int ConvolutionDepthWise::load_param(FILE* paramfp)
+int ConvolutionDepthWise::load_param(const ParamDict& pd)
 {
-    int clpr = Convolution::load_param(paramfp);
-    if (clpr != 0)
-        return clpr;
+    Convolution::load_param(pd);
 
-    int nscan = fscanf(paramfp, "%d", &group);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "ConvolutionDepthWise load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int ConvolutionDepthWise::load_param_bin(FILE* paramfp)
-{
-    int clpbr = Convolution::load_param_bin(paramfp);
-    if (clpbr != 0)
-        return clpbr;
-
-    fread(&group, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
-#endif // NCNN_STDIO
-
-int ConvolutionDepthWise::load_param(const unsigned char*& mem)
-{
-    Convolution::load_param(mem);
-
-    group = *(int*)(mem);
-    mem += 4;
+    group = pd.get(7, 1);
 
     return 0;
 }

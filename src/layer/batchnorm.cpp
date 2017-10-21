@@ -29,27 +29,14 @@ BatchNorm::~BatchNorm()
 {
 }
 
+int BatchNorm::load_param(const ParamDict& pd)
+{
+    channels = pd.get(0, 0);
+
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int BatchNorm::load_param(FILE* paramfp)
-{
-    int nscan = fscanf(paramfp, "%d", &channels);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "BatchNorm load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int BatchNorm::load_param_bin(FILE* paramfp)
-{
-    fread(&channels, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
 int BatchNorm::load_model(FILE* binfp)
 {
     int nread;
@@ -116,14 +103,6 @@ int BatchNorm::load_model(FILE* binfp)
     return 0;
 }
 #endif // NCNN_STDIO
-
-int BatchNorm::load_param(const unsigned char*& mem)
-{
-    channels = *(int*)(mem);
-    mem += 4;
-
-    return 0;
-}
 
 int BatchNorm::load_model(const unsigned char*& mem)
 {

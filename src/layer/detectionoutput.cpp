@@ -25,53 +25,13 @@ DetectionOutput::DetectionOutput()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int DetectionOutput::load_param(FILE* paramfp)
+int DetectionOutput::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %f %d %d %f", &num_class, &nms_threshold,
-                       &nms_top_k, &keep_top_k, &confidence_threshold);
-    if (nscan != 5)
-    {
-        fprintf(stderr, "DetectionOutput load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int DetectionOutput::load_param_bin(FILE* paramfp)
-{
-    fread(&num_class, sizeof(int), 1, paramfp);
-
-    fread(&nms_threshold, sizeof(float), 1, paramfp);
-
-    fread(&nms_top_k, sizeof(int), 1, paramfp);
-
-    fread(&keep_top_k, sizeof(int), 1, paramfp);
-
-    fread(&confidence_threshold, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int DetectionOutput::load_param(const unsigned char*& mem)
-{
-    num_class = *(int*)(mem);
-    mem += 4;
-
-    nms_threshold = *(float*)(mem);
-    mem += 4;
-
-    nms_top_k = *(int*)(mem);
-    mem += 4;
-
-    keep_top_k = *(int*)(mem);
-    mem += 4;
-
-    confidence_threshold = *(float*)(mem);
-    mem += 4;
+    num_class = pd.get(0, 0);
+    nms_threshold = pd.get(1, 0.05f);
+    nms_top_k = pd.get(2, 300);
+    keep_top_k = pd.get(3, 100);
+    confidence_threshold = pd.get(4, 0.5f);
 
     return 0;
 }

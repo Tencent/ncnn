@@ -25,34 +25,17 @@ Normalize::Normalize()
     support_inplace = false;
 }
 
+int Normalize::load_param(const ParamDict& pd)
+{
+    across_spatial = pd.get(0, 0);
+    channel_shared = pd.get(1, 0);
+    eps = pd.get(2, 0.0001f);
+    scale_data_size = pd.get(3, 0);
+
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int Normalize::load_param(FILE* paramfp)
-{
-    int nscan = fscanf(paramfp, "%d %d %f %d",
-                       &across_spatial, &channel_shared, &eps, &scale_data_size);
-    if (nscan != 4)
-    {
-        fprintf(stderr, "Normalize load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Normalize::load_param_bin(FILE* paramfp)
-{
-    fread(&across_spatial, sizeof(int), 1, paramfp);
-
-    fread(&channel_shared, sizeof(int), 1, paramfp);
-
-    fread(&eps, sizeof(float), 1, paramfp);
-
-    fread(&scale_data_size, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
 int Normalize::load_model(FILE* binfp)
 {
     int nread;
@@ -68,23 +51,6 @@ int Normalize::load_model(FILE* binfp)
     return 0;
 }
 #endif // NCNN_STDIO
-
-int Normalize::load_param(const unsigned char*& mem)
-{
-    across_spatial = *(int*)(mem);
-    mem += 4;
-
-    channel_shared = *(int*)(mem);
-    mem += 4;
-
-    eps = *(float*)(mem);
-    mem += 4;
-
-    scale_data_size = *(float*)(mem);
-    mem += 4;
-
-    return 0;
-}
 
 int Normalize::load_model(const unsigned char*& mem)
 {

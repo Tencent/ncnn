@@ -33,42 +33,11 @@ Reduction::~Reduction()
 {
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Reduction::load_param(FILE* paramfp)
+int Reduction::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %f", &operation, &dim, &coeff);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "Reduction load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Reduction::load_param_bin(FILE* paramfp)
-{
-    fread(&operation, sizeof(int), 1, paramfp);
-
-    fread(&dim, sizeof(int), 1, paramfp);
-
-    fread(&coeff, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Reduction::load_param(const unsigned char*& mem)
-{
-    operation = *(int*)(mem);
-    mem += 4;
-
-    dim = *(int*)(mem);
-    mem += 4;
-
-    coeff = *(float*)(mem);
-    mem += 4;
+    operation = pd.get(0, 0);
+    dim = pd.get(1, 0);
+    coeff = pd.get(2, 1.f);
 
     return 0;
 }

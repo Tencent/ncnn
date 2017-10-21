@@ -24,32 +24,9 @@ Threshold::Threshold()
     support_inplace = true;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Threshold::load_param(FILE* paramfp)
+int Threshold::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%f", &threshold);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "Threshold load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Threshold::load_param_bin(FILE* paramfp)
-{
-    fread(&threshold, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Threshold::load_param(const unsigned char*& mem)
-{
-    threshold = *(float*)(mem);
-    mem += 4;
+    threshold = pd.get(0, 0.f);
 
     return 0;
 }

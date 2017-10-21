@@ -27,53 +27,13 @@ Interp::~Interp()
 {
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Interp::load_param(FILE *paramfp)
+int Interp::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %f %f %d %d", &resize_type, &height_scale, &width_scale, &output_height,
-                       &output_width);
-    if (nscan != 5)
-    {
-        fprintf(stderr, "Interp load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Interp::load_param_bin(FILE *paramfp)
-{
-    fread(&resize_type, sizeof(int), 1, paramfp);
-
-    fread(&height_scale, sizeof(float), 1, paramfp);
-
-    fread(&width_scale, sizeof(float), 1, paramfp);
-
-    fread(&output_height, sizeof(int), 1, paramfp);
-
-    fread(&output_width, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Interp::load_param(const unsigned char *&mem)
-{
-    resize_type = *(int *) (mem);
-    mem += 4;
-
-    height_scale = *(float *) (mem);
-    mem += 4;
-
-    width_scale = *(float *) (mem);
-    mem += 4;
-
-    output_height = *(int *) (mem);
-    mem += 4;
-
-    output_width = *(int *) (mem);
-    mem += 4;
+    resize_type = pd.get(0, 0);
+    height_scale = pd.get(1, 1.f);
+    width_scale = pd.get(2, 1.f);
+    output_height = pd.get(3, 0);
+    output_width = pd.get(4, 0);
 
     return 0;
 }
