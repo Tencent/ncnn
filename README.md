@@ -11,6 +11,8 @@ add_definitions(-D__ARM_NEON)
 add_definitions("-O3 -mfloat-abi=softfp -mfpu=neon-vfpv4 -ffunction-sections") 
 ```
 5. 在非手机的arm环境下，需要修改CMakeLists.txt才能把arm编译进去，如CMakeLists_arm.txt
+6. 如果使用opencv2，需要将examples/CmakeLists.txt里的imgcodecs去掉，否则可能编译不过去
+7. 在tx1下make时可能会出现"can't find -lopencv_dep_cudart"，重新cmake，"cmake -D CUDA_USE_STATIC_CUDA_RUNTIME=OFF .."
 ---
 ![image](https://github.com/ElegantGod/ncnn/blob/master/mtcnn/result.jpg)
 # ncnn
