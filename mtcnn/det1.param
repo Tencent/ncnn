@@ -1,0 +1,13 @@
+12 13
+Input            data             0 1 data 3 12 12
+Convolution      conv1            1 1 data conv1 10 3 1 1 0 1 270
+PReLU            PReLU1           1 1 conv1 conv1_PReLU1 10
+Pooling          pool1            1 1 conv1_PReLU1 pool1 0 2 2 0 0
+Convolution      conv2            1 1 pool1 conv2 16 3 1 1 0 1 1440
+PReLU            PReLU2           1 1 conv2 conv2_PReLU2 16
+Convolution      conv3            1 1 conv2_PReLU2 conv3 32 3 1 1 0 1 4608
+PReLU            PReLU3           1 1 conv3 conv3_PReLU3 32
+Split            splitncnn_0      1 2 conv3_PReLU3 conv3_PReLU3_splitncnn_0 conv3_PReLU3_splitncnn_1
+Convolution      conv4-1          1 1 conv3_PReLU3_splitncnn_1 conv4-1 2 1 1 1 0 1 64
+Convolution      conv4-2          1 1 conv3_PReLU3_splitncnn_0 conv4-2 4 1 1 1 0 1 128
+Softmax          prob1            1 1 conv4-1 prob1
