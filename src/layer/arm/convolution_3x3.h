@@ -771,6 +771,37 @@ static void conv3x3s1_winograd64_neon(const Mat& bottom_blob, Mat& top_blob, con
                         k1 += 4;
                         k2 += 4;
                         k3 += 4;
+
+                        float32x4_t _output0_tmn = vld1q_f32(output0_tm);
+
+                        float32x4_t _r0n = vld1q_f32(r0);
+                        float32x4_t _r1n = vld1q_f32(r1);
+                        float32x4_t _r2n = vld1q_f32(r2);
+                        float32x4_t _r3n = vld1q_f32(r3);
+
+                        float32x4_t _k0n = vld1q_f32(k0);
+                        float32x4_t _k1n = vld1q_f32(k1);
+                        float32x4_t _k2n = vld1q_f32(k2);
+                        float32x4_t _k3n = vld1q_f32(k3);
+
+                        _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k0n);
+                        _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k1n);
+                        _output0_tmn = vmlaq_f32(_output0_tmn, _r2n, _k2n);
+                        _output0_tmn = vmlaq_f32(_output0_tmn, _r3n, _k3n);
+
+                        vst1q_f32(output0_tm, _output0_tmn);
+
+                        output0_tm += 4;
+
+                        r0 += 4;
+                        r1 += 4;
+                        r2 += 4;
+                        r3 += 4;
+
+                        k0 += 4;
+                        k1 += 4;
+                        k2 += 4;
+                        k3 += 4;
                     }
 #else
                     asm volatile(
