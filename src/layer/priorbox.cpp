@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "priorbox.h"
+#include <algorithm>
 #include <math.h>
 
 namespace ncnn {
