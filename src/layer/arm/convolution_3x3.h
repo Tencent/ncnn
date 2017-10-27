@@ -1424,8 +1424,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vmla.f32   q0, q2, %e10[0]     \n"
                     "vmla.f32   q10, q3, %e10[1]    \n"
 
-                    "pld        [%2, #256]          \n"
-                    "vld2.f32   {d16-d19}, [%2]     \n"
+                    "pld        [%2, #128]          \n"
+                    "vld2.f32   {d16-d17}, [%2]     \n"
                     "vext.32    q1, q2, q8, #1      \n"
 
                     "vmla.f32   q11, q1, %f10[0]    \n"
@@ -1436,8 +1436,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vmla.f32   q0, q2, %e11[0]     \n"
                     "vmla.f32   q10, q3, %e11[1]    \n"
 
-                    "pld        [%3, #256]          \n"
-                    "vld2.f32   {d16-d19}, [%3]     \n"
+                    "pld        [%3, #128]          \n"
+                    "vld2.f32   {d16-d17}, [%3]     \n"
                     "vext.32    q1, q2, q8, #1      \n"
 
                     "vmla.f32   q11, q1, %f11[0]    \n"
@@ -1448,8 +1448,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vmla.f32   q0, q2, %e12[0]     \n"
                     "vmla.f32   q10, q3, %e12[1]    \n"
 
-                    "pld        [%4, #256]          \n"
-                    "vld2.f32   {d16-d19}, [%4]     \n"
+                    "pld        [%4, #128]          \n"
+                    "vld2.f32   {d16-d17}, [%4]     \n"
                     "vext.32    q1, q2, q8, #1      \n"
 
                     "vmla.f32   q11, q1, %f12[0]    \n"
@@ -1469,8 +1469,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     : "=r"(nn),     // %0
                       "=r"(outptr), // %1
                       "=r"(r0),     // %2
-                      "=r"(r1),
-                      "=r"(r2)
+                      "=r"(r1),     // %3
+                      "=r"(r2)      // %4
                     : "0"(nn),
                       "1"(outptr),
                       "2"(r0),
