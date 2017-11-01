@@ -40,7 +40,181 @@ int Softmax::forward(const Mat& bottom_blob, Mat& top_blob) const
     // sum all value
     // value = value / sum
 
-    if (axis == 0)
+    int dims = bottom_blob.dims;
+
+    if (dims == 1) // axis == 0
+    {
+        int w = bottom_blob.w;
+
+        top_blob.create(w);
+        if (top_blob.empty())
+            return -100;
+
+        const float* ptr = bottom_blob;
+        float* outptr = top_blob;
+
+        float max = -FLT_MAX;
+        for (int i=0; i<w; i++)
+        {
+            max = std::max(max, ptr[i]);
+        }
+
+        for (int i=0; i<w; i++)
+        {
+            outptr[i] = exp(ptr[i] - max);
+        }
+
+        float sum = 0.f;
+        for (int i=0; i<w; i++)
+        {
+            sum += outptr[i];
+        }
+
+        for (int i=0; i<w; i++)
+        {
+            outptr[i] /= sum;
+        }
+
+        return 0;
+    }
+
+    if (dims == 2 && axis == 0)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+
+        top_blob.create(w, h);
+        if (top_blob.empty())
+            return -100;
+
+        Mat max;
+        max.create(w);
+        if (max.empty())
+            return -100;
+        max.fill(-FLT_MAX);
+
+        float* maxptr = max;
+        for (int i=0; i<h; i++)
+        {
+            const float* ptr = bottom_blob.row(i);
+            for (int j=0; j<w; j++)
+            {
+                maxptr[j] = std::max(maxptr[j], ptr[j]);
+            }
+        }
+
+        for (int i=0; i<h; i++)
+        {
+            const float* ptr = bottom_blob.row(i);
+            float* outptr = top_blob.row(i);
+            for (int j=0; j<w; j++)
+            {
+                outptr[j] = exp(ptr[j] - maxptr[j]);
+            }
+        }
+
+        Mat sum;
+        sum.create(w);
+        if (sum.empty())
+            return -100;
+        sum.fill(0.f);
+
+        float* sumptr = sum;
+        for (int i=0; i<h; i++)
+        {
+            const float* outptr = top_blob.row(i);
+            for (int j=0; j<w; j++)
+            {
+                sumptr[j] += outptr[j];
+            }
+        }
+
+        for (int i=0; i<h; i++)
+        {
+            float* outptr = top_blob.row(i);
+            for (int j=0; j<w; j++)
+            {
+                outptr[j] /= sumptr[j];
+            }
+        }
+
+        return 0;
+    }
+
+    if (dims == 2 && axis == 1)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+
+        top_blob.create(w, h);
+        if (top_blob.empty())
+            return -100;
+
+        Mat max;
+        max.create(h);
+        if (max.empty())
+            return -100;
+
+        float* maxptr = max;
+        for (int i=0; i<h; i++)
+        {
+            const float* ptr = bottom_blob.row(i);
+
+            float m = -FLT_MAX;
+            for (int j=0; j<w; j++)
+            {
+                m = std::max(m, ptr[j]);
+            }
+
+            maxptr[i] = m;
+        }
+
+        for (int i=0; i<h; i++)
+        {
+            const float* ptr = bottom_blob.row(i);
+            float* outptr = top_blob.row(i);
+
+            float m = maxptr[i];
+            for (int j=0; j<w; j++)
+            {
+                outptr[j] = exp(ptr[j] - m);
+            }
+        }
+
+        Mat sum;
+        sum.create(h);
+        if (sum.empty())
+            return -100;
+
+        float* sumptr = sum;
+        for (int i=0; i<h; i++)
+        {
+            const float* outptr = top_blob.row(i);
+
+            float s = 0.f;
+            for (int j=0; j<w; j++)
+            {
+                s += outptr[j];
+            }
+
+            sumptr[i] = s;
+        }
+
+        for (int i=0; i<h; i++)
+        {
+            float* outptr = top_blob.row(i);
+
+            float s = sumptr[i];
+            for (int j=0; j<w; j++)
+            {
+                outptr[j] /= s;
+            }
+        }
+
+        return 0;
+    }
+
+    if (dims == 3 && axis == 0)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
@@ -108,13 +282,14 @@ int Softmax::forward(const Mat& bottom_blob, Mat& top_blob) const
             }
         }
 
+        return 0;
     }
-    else if (axis == 1)
+
+    if (dims == 3 && axis == 1)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
-        int size = w * h;
 
         top_blob.create(w, h, channels);
         if (top_blob.empty())
@@ -206,13 +381,14 @@ int Softmax::forward(const Mat& bottom_blob, Mat& top_blob) const
             }
         }
 
+        return 0;
     }
-    else if (axis == 2)
+
+    if (dims == 3 && axis == 2)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
-        int size = w * h;
 
         top_blob.create(w, h, channels);
         if (top_blob.empty())
@@ -298,6 +474,7 @@ int Softmax::forward(const Mat& bottom_blob, Mat& top_blob) const
             }
         }
 
+        return 0;
     }
 
     return 0;
