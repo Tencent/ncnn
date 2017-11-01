@@ -478,7 +478,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             shape.resize(ndim);
             fread(&shape[0], 1, ndim * sizeof(int64_t), fp);
         }
-        else if (magic == 0xF993FAC9)
+        else if (magic == 0xF993FAC8)
         {
             fread(&ndim, 1, sizeof(uint32_t), fp);
 
@@ -718,9 +718,17 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "BatchNorm");
         }
+        else if (n.op == "Concat")
+        {
+            fprintf(pp, "%-16s", "Concat");
+        }
         else if (n.op == "Convolution")
         {
             fprintf(pp, "%-16s", "Convolution");
+        }
+        else if (n.op == "Dropout")
+        {
+            fprintf(pp, "%-16s", "Dropout");
         }
         else if (n.op == "elemwise_add")
         {
@@ -754,6 +762,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Pooling");
         }
+        else if (n.op == "SoftmaxOutput")
+        {
+            fprintf(pp, "%-16s", "Softmax");
+        }
         else
         {
             fprintf(stderr, "%s not supported yet!\n", n.op.c_str());
@@ -770,6 +782,12 @@ int main(int argc, char** argv)
             }
         }
 
+        if (n.op == "SoftmaxOutput")
+        {
+            // drop label
+            input_size--;
+        }
+
         fprintf(pp, " %-32s %d 1", n.name.c_str(), input_size);
 
         for (int j=0; j<n.inputs.size(); j++)
@@ -778,6 +796,13 @@ int main(int argc, char** argv)
             if (nodes[input_index].is_weight())
             {
                 continue;
+            }
+
+            if (n.op == "SoftmaxOutput")
+            {
+                // drop label
+                if (nodes[input_index].op == "null")
+                    continue;
             }
 
             std::string input_name = nodes[input_index].name;
@@ -807,7 +832,7 @@ int main(int argc, char** argv)
             std::string type = n.attr("act_type");
             if (type == "relu")
             {
-                fprintf(pp, " 0=%f", 0.f);
+//                 fprintf(pp, " 0=%f", 0.f);
             }
         }
         else if (n.op == "BatchNorm")
@@ -828,6 +853,11 @@ int main(int argc, char** argv)
             fwrite(mean_data.data(), sizeof(float), mean_data.size(), bp);
             fwrite(var_data.data(), sizeof(float), var_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+        }
+        else if (n.op == "Concat")
+        {
+            int dim = n.attr("dim");
+            fprintf(pp, " 0=%d", dim-1);
         }
         else if (n.op == "Convolution")
         {
@@ -858,6 +888,11 @@ int main(int argc, char** argv)
             fwrite(&quantize_tag, sizeof(int), 1, bp);
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+        }
+        else if (n.op == "Dropout")
+        {
+//             float p = n.attr("p");
+//             fprintf(pp, " 0=%d", p);
         }
         else if (n.op == "elemwise_add")
         {
@@ -937,6 +972,9 @@ int main(int argc, char** argv)
             if (!pad.empty())
                 fprintf(pp, " 3=%d", pad[0]);
             fprintf(pp, " 4=%d", global_pool);
+        }
+        else if (n.op == "SoftmaxOutput")
+        {
         }
         else
         {
