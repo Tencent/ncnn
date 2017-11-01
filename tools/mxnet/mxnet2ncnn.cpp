@@ -147,7 +147,7 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
 
 bool MXNetNode::is_weight() const
 {
-    for (int i=0; i<(*params).size(); i++)
+    for (int i=0; i<(int)(*params).size(); i++)
     {
         const MXNetParam& p = (*params)[i];
         if (p.name == name)
@@ -159,12 +159,12 @@ bool MXNetNode::is_weight() const
 
 bool MXNetNode::has_weight(int i) const
 {
-    if (i < 0 || i >= weights.size())
+    if (i < 0 || i >= (int)weights.size())
         return false;
 
     const std::string& name = (*nodes)[ weights[i] ].name;
 
-    for (int i=0; i<(*params).size(); i++)
+    for (int i=0; i<(int)(*params).size(); i++)
     {
         const MXNetParam& p = (*params)[i];
         if (p.name == name)
@@ -176,12 +176,12 @@ bool MXNetNode::has_weight(int i) const
 
 std::vector<float> MXNetNode::weight(int i, int init_len) const
 {
-    if (i < 0 || i >= weights.size())
+    if (i < 0 || i >= (int)weights.size())
         return std::vector<float>();
 
     const std::string& name = (*nodes)[ weights[i] ].name;
 
-    for (int i=0; i<(*params).size(); i++)
+    for (int i=0; i<(int)(*params).size(); i++)
     {
         const MXNetParam& p = (*params)[i];
         if (p.name != name)
@@ -626,7 +626,7 @@ int main(int argc, char** argv)
         // distinguish weights and inputs
         std::vector<int> weights;
         std::vector<int> inputs;
-        for (int j=0; j<n.inputs.size(); j++)
+        for (int j=0; j<(int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
             if (nodes[input_index].is_weight())
@@ -641,7 +641,7 @@ int main(int argc, char** argv)
         n.weights = weights;
 
         // input
-        for (int j=0; j<n.inputs.size(); j++)
+        for (int j=0; j<(int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
 
@@ -773,7 +773,7 @@ int main(int argc, char** argv)
         }
 
         int input_size = n.inputs.size();
-        for (int j=0; j<n.inputs.size(); j++)
+        for (int j=0; j<(int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
             if (nodes[input_index].is_weight())
@@ -790,7 +790,7 @@ int main(int argc, char** argv)
 
         fprintf(pp, " %-32s %d 1", n.name.c_str(), input_size);
 
-        for (int j=0; j<n.inputs.size(); j++)
+        for (int j=0; j<(int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
             if (nodes[input_index].is_weight())
@@ -841,6 +841,11 @@ int main(int argc, char** argv)
 
             std::vector<float> mean_data = n.weight(0);
             std::vector<float> var_data = n.weight(1);
+
+            for (int j=0; j<(int)var_data.size(); j++)
+            {
+                var_data[j] += eps;
+            }
 
             int channels = mean_data.size();
 
