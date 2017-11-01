@@ -825,7 +825,7 @@ int main(int argc, char** argv)
         if (n.op == "null")
         {
             // dummy input shape
-            fprintf(pp, " 0 0 0");
+//             fprintf(pp, " 0 0 0");
         }
         else if (n.op == "Activation")
         {
