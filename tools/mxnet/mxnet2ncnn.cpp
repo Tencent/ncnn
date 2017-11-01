@@ -21,13 +21,45 @@
 #include <string>
 #include <vector>
 
+class MXNetParam;
 class MXNetNode
 {
+public:
+    bool has_attr(const char* key) const;
+
+    class AttrProxy
+    {
+        MXNetNode const* _n;
+        const char* const _key;
+    public:
+        AttrProxy( MXNetNode const* n, const char* key ) : _n(n), _key(key) {}
+        operator int() const { return _n->attr_i(_key); }
+        operator float() const { return _n->attr_f(_key); }
+        operator std::string() const { return _n->attr_s(_key); }
+        operator std::vector<int>() const { return _n->attr_ai(_key); }
+    };
+
+    AttrProxy attr(const char* key) const { return AttrProxy(this, key); }
+
+    int attr_i(const char* key) const;
+    float attr_f(const char* key) const;
+    std::string attr_s(const char* key) const;
+    std::vector<int> attr_ai(const char* key) const;
+
+public:
+    bool is_weight() const;
+    bool has_weight(int i) const;
+    std::vector<float> weight(int i, int init_len = 0) const;
+
+    std::vector<MXNetNode>* nodes;// reference
+    std::vector<MXNetParam>* params;// reference
+
 public:
     std::string op;
     std::string name;
     std::map<std::string, std::string> attrs;
     std::vector<int> inputs;
+    std::vector<int> weights;
 };
 
 class MXNetParam
@@ -35,7 +67,148 @@ class MXNetParam
 public:
     std::string name;
     std::vector<float> data;
+    std::string init;
 };
+
+bool MXNetNode::has_attr(const char* key) const
+{
+    const std::map<std::string, std::string>::const_iterator it = attrs.find(key);
+    return it != attrs.end();
+}
+
+int MXNetNode::attr_i(const char* key) const
+{
+    const std::map<std::string, std::string>::const_iterator it = attrs.find(key);
+    if (it == attrs.end())
+        return 0;
+
+    if (it->second == "False")
+        return 0;
+
+    if (it->second == "True")
+        return 1;
+
+    int i = 0;
+    int nscan = sscanf(it->second.c_str(), "%d", &i);
+    if (nscan != 1)
+        return 0;
+
+    return i;
+}
+
+float MXNetNode::attr_f(const char* key) const
+{
+    const std::map<std::string, std::string>::const_iterator it = attrs.find(key);
+    if (it == attrs.end())
+        return 0.f;
+
+    float f = 0;
+    int nscan = sscanf(it->second.c_str(), "%f", &f);
+    if (nscan != 1)
+        return 0.f;
+
+    return f;
+}
+
+std::string MXNetNode::attr_s(const char* key) const
+{
+    const std::map<std::string, std::string>::const_iterator it = attrs.find(key);
+    if (it == attrs.end())
+        return std::string();
+
+    return it->second;
+}
+
+std::vector<int> MXNetNode::attr_ai(const char* key) const
+{
+    const std::map<std::string, std::string>::const_iterator it = attrs.find(key);
+    if (it == attrs.end())
+        return std::vector<int>();
+
+    // (1,2,3)
+    std::vector<int> list;
+
+    int i = 0;
+    int c = 0;
+    int nconsumed = 0;
+    int nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+    while (nscan == 1)
+    {
+        list.push_back(i);
+//         fprintf(stderr, "%d\n", i);
+
+        i = 0;
+        c += nconsumed;
+        nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+    }
+
+    return list;
+}
+
+bool MXNetNode::is_weight() const
+{
+    for (int i=0; i<(*params).size(); i++)
+    {
+        const MXNetParam& p = (*params)[i];
+        if (p.name == name)
+            return true;
+    }
+
+    return false;
+}
+
+bool MXNetNode::has_weight(int i) const
+{
+    if (i < 0 || i >= weights.size())
+        return false;
+
+    const std::string& name = (*nodes)[ weights[i] ].name;
+
+    for (int i=0; i<(*params).size(); i++)
+    {
+        const MXNetParam& p = (*params)[i];
+        if (p.name == name)
+            return true;
+    }
+
+    return false;
+}
+
+std::vector<float> MXNetNode::weight(int i, int init_len) const
+{
+    if (i < 0 || i >= weights.size())
+        return std::vector<float>();
+
+    const std::string& name = (*nodes)[ weights[i] ].name;
+
+    for (int i=0; i<(*params).size(); i++)
+    {
+        const MXNetParam& p = (*params)[i];
+        if (p.name != name)
+            continue;
+
+        if (!p.data.empty())
+            return p.data;
+
+        std::vector<float> data;
+
+        if (!p.init.empty() && init_len != 0)
+        {
+            if (p.init == "[$zero$, {}]")
+            {
+                data.resize(init_len, 0.f);
+            }
+            else if (p.init == "[$one$, {}]")
+            {
+                data.resize(init_len, 1.f);
+            }
+        }
+
+        return data;
+    }
+
+    return std::vector<float>();
+}
 
 static void replace_backslash_doublequote_dollar(char* s)
 {
@@ -66,14 +239,14 @@ static std::vector<int> parse_input_list(const char* s)
     int id;
 
     int c = 1;// skip leading [
-    nscan = sscanf(s + c, "[%d, %*d, %*d]%n", &id, &nconsumed);
+    nscan = sscanf(s + c, "[%d, %*[^]]]%n", &id, &nconsumed);
     while (nscan == 1)
     {
         inputs.push_back(id);
 //         fprintf(stderr, "%d\n", id);
 
         c += nconsumed;
-        nscan = sscanf(s + c, "%*[^[][%d, %*d, %*d]%n", &id, &nconsumed);
+        nscan = sscanf(s + c, "%*[^[][%d, %*[^]]]%n", &id, &nconsumed);
     }
 
     return inputs;
@@ -121,7 +294,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             //        "kernel": "(7,7)",
             char key[256] = {0};
             char value[256] = {0};
-            int nscan = sscanf(line, "        \"%255[^\"]\": \"%255[^\"]\",", key, value);
+            int nscan = sscanf(line, "        \"%255[^\"]\": \"%255[^\"]\"", key, value);
             if (nscan == 2)
             {
                 n.attrs[key] = value;
@@ -184,13 +357,28 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                 continue;
             }
 
+            //      "param": {},
+            if (memcmp(line, "      \"param\": {}", 17) == 0)
+            {
+                continue;
+            }
+
             // replace \" with \$
             replace_backslash_doublequote_dollar(line);
 
             //      "attr": {"__init__": "[\"zero\", {}]"},
             char key[256] = {0};
             char value[256] = {0};
-            nscan = sscanf(line, "      \"attr\": {\"%255[^\"]\": \"%255[^\"]\"},", key, value);
+            nscan = sscanf(line, "      \"attr\": {\"%255[^\"]\": \"%255[^\"]\"}", key, value);
+            if (nscan == 2)
+            {
+                n.attrs[key] = value;
+//                 fprintf(stderr, "# %s = %s\n", key, value);
+                continue;
+            }
+
+            //      "param": {"p": "0.5"},
+            nscan = sscanf(line, "      \"param\": {\"%255[^\"]\": \"%255[^\"]\"}", key, value);
             if (nscan == 2)
             {
                 n.attrs[key] = value;
@@ -200,6 +388,13 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
 
             //      "attr": {
             if (memcmp(line, "      \"attr\": {", 15) == 0)
+            {
+                in_attr_block = true;
+                continue;
+            }
+
+            //      "param": {
+            if (memcmp(line, "      \"param\": {", 16) == 0)
             {
                 in_attr_block = true;
                 continue;
@@ -269,16 +464,42 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         uint32_t magic;// 0xF993FAC9
         fread(&magic, 1, sizeof(uint32_t), fp);
 
-        int32_t stype;
-        fread(&stype, 1, sizeof(int32_t), fp);
-
         // shape
         uint32_t ndim;
-        fread(&ndim, 1, sizeof(uint32_t), fp);
-
         std::vector<int64_t> shape;
-        shape.resize(ndim);
-        fread(&shape[0], 1, ndim * sizeof(int64_t), fp);
+
+        if (magic == 0xF993FAC9)
+        {
+            int32_t stype;
+            fread(&stype, 1, sizeof(int32_t), fp);
+
+            fread(&ndim, 1, sizeof(uint32_t), fp);
+
+            shape.resize(ndim);
+            fread(&shape[0], 1, ndim * sizeof(int64_t), fp);
+        }
+        else if (magic == 0xF993FAC9)
+        {
+            fread(&ndim, 1, sizeof(uint32_t), fp);
+
+            shape.resize(ndim);
+            fread(&shape[0], 1, ndim * sizeof(int64_t), fp);
+        }
+        else
+        {
+            ndim = magic;
+
+            shape.resize(ndim);
+
+            std::vector<uint32_t> shape32;
+            shape32.resize(ndim);
+            fread(&shape32[0], 1, ndim * sizeof(uint32_t), fp);
+
+            for (int j=0; j<ndim; j++)
+            {
+                shape[j] = shape32[j];
+            }
+        }
 
         // context
         int32_t dev_type;
@@ -322,37 +543,18 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         p.name.resize(len);
         fread((char*)p.name.data(), 1, len, fp);
 
-//         fprintf(stderr, "%s read\n", name.c_str());
+        // cut leading arg:
+        if (memcmp(p.name.c_str(), "arg:", 4) == 0)
+        {
+            p.name = std::string(p.name.c_str() + 4);
+        }
+
+//         fprintf(stderr, "%s read\n", p.name.c_str());
     }
 
     fclose(fp);
 
     return true;
-}
-
-static bool find_param(const std::vector<MXNetParam>& params, const std::string& name, MXNetParam& p)
-{
-    for (int i=0; i<params.size(); i++)
-    {
-        if (params[i].name == name)
-        {
-            p = params[i];
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static bool vector_has(const std::vector<int>& v, int id)
-{
-    for (int i=0; i<v.size(); i++)
-    {
-        if (v[i] == id)
-            return true;
-    }
-
-    return false;
 }
 
 int main(int argc, char** argv)
@@ -379,58 +581,69 @@ int main(int argc, char** argv)
     // node reference
     std::map<int, int> node_reference;
 
-    // input node
-    std::vector<int> input_nodes;
-
     // weight node
     std::vector<int> weight_nodes;
-
-    // weight init node
-    std::vector<int> weight_init_nodes;
 
     // global definition line
     // [layer count] [blob count]
     std::set<std::string> blob_names;
     for (int i=0; i<node_count; i++)
     {
-        const MXNetNode& n = nodes[i];
+        MXNetNode& n = nodes[i];
+
+        // assign global param reference
+        n.nodes = &nodes;
+        n.params = &params;
 
         const std::string& output_name = n.name;
 
         if (n.op == "null")
         {
-            MXNetParam p;
-            if (find_param(params, output_name, p))
+            if (n.is_weight())
             {
                 weight_nodes.push_back(i);
             }
             else
             {
-                if (n.attrs.find("__init__") != n.attrs.end())
+                if (n.has_attr("__init__"))
                 {
-                    weight_init_nodes.push_back(i);
+                    // init weight param
+                    MXNetParam pi;
+                    pi.name = n.name;
+                    pi.init = (std::string)n.attr("__init__");
+                    params.push_back(pi);
+
+                    weight_nodes.push_back(i);
                 }
                 else
                 {
                     // null node without data, treat it as network input
-                    input_nodes.push_back(i);
                 }
             }
             continue;
         }
 
+        // distinguish weights and inputs
+        std::vector<int> weights;
+        std::vector<int> inputs;
+        for (int j=0; j<n.inputs.size(); j++)
+        {
+            int input_index = n.inputs[j];
+            if (nodes[input_index].is_weight())
+            {
+                weights.push_back(input_index);
+                continue;
+            }
+
+            inputs.push_back(input_index);
+        }
+        n.inputs = inputs;
+        n.weights = weights;
+
         // input
         for (int j=0; j<n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
-            if (vector_has(weight_nodes, input_index))
-            {
-                continue;
-            }
-            if (vector_has(weight_init_nodes, input_index))
-            {
-                continue;
-            }
 
             const std::string& input_name = nodes[input_index].name;
 //             fprintf(stderr, "input = %s\n", input_name.c_str());
@@ -468,7 +681,7 @@ int main(int argc, char** argv)
         }
     }
 
-    fprintf(pp, "%lu %lu\n", node_count + node_reference.size() + input_nodes.size() - weight_nodes.size() - weight_init_nodes.size(), blob_names.size() + input_nodes.size() + splitncnn_blob_count);
+    fprintf(pp, "%lu %lu\n", node_count + node_reference.size() - weight_nodes.size(), blob_names.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 
@@ -478,22 +691,72 @@ int main(int argc, char** argv)
 
         if (n.op == "null")
         {
-            if (vector_has(weight_nodes, i))
-            {
-                continue;
-            }
-            if (vector_has(weight_init_nodes, i))
+            if (n.is_weight())
             {
                 continue;
             }
 
-            if (vector_has(input_nodes, i))
+            fprintf(pp, "%-16s", "Input");
+        }
+        else if (n.op == "Activation")
+        {
+            std::string type = n.attr("act_type");
+            if (type == "relu")
             {
-                fprintf(pp, "%-16s", "Input");
+                fprintf(pp, "%-16s", "ReLU");
             }
+            else if (type == "sigmoid")
+            {
+                fprintf(pp, "%-16s", "Sigmoid");
+            }
+            else if (type == "tanh")
+            {
+                fprintf(pp, "%-16s", "TanH");
+            }
+        }
+        else if (n.op == "BatchNorm")
+        {
+            fprintf(pp, "%-16s", "BatchNorm");
+        }
+        else if (n.op == "Convolution")
+        {
+            fprintf(pp, "%-16s", "Convolution");
+        }
+        else if (n.op == "elemwise_add")
+        {
+            fprintf(pp, "%-16s", "Eltwise");
+        }
+        else if (n.op == "Flatten")
+        {
+            fprintf(pp, "%-16s", "Flatten");
+        }
+        else if (n.op == "FullyConnected")
+        {
+            fprintf(pp, "%-16s", "InnerProduct");
+        }
+        else if (n.op == "LeakyReLU")
+        {
+            std::string type = n.attr("act_type");
+            if (type == "elu")
+            {
+                fprintf(pp, "%-16s", "ELU");
+            }
+            else if (type == "leaky")
+            {
+                fprintf(pp, "%-16s", "ReLU");
+            }
+            else if (type == "prelu")
+            {
+                fprintf(pp, "%-16s", "PReLU");
+            }
+        }
+        else if (n.op == "Pooling")
+        {
+            fprintf(pp, "%-16s", "Pooling");
         }
         else
         {
+            fprintf(stderr, "%s not supported yet!\n", n.op.c_str());
             fprintf(pp, "%-16s", n.op.c_str());
         }
 
@@ -501,11 +764,7 @@ int main(int argc, char** argv)
         for (int j=0; j<n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
-            if (vector_has(weight_nodes, input_index))
-            {
-                input_size--;
-            }
-            if (vector_has(weight_init_nodes, input_index))
+            if (nodes[input_index].is_weight())
             {
                 input_size--;
             }
@@ -516,11 +775,7 @@ int main(int argc, char** argv)
         for (int j=0; j<n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
-            if (vector_has(weight_nodes, input_index))
-            {
-                continue;
-            }
-            if (vector_has(weight_init_nodes, input_index))
+            if (nodes[input_index].is_weight())
             {
                 continue;
             }
@@ -542,7 +797,157 @@ int main(int argc, char** argv)
 
         fprintf(pp, " %s", n.name.c_str());
 
-        // TODO op specific params
+        if (n.op == "null")
+        {
+            // dummy input shape
+            fprintf(pp, " 0 0 0");
+        }
+        else if (n.op == "Activation")
+        {
+            std::string type = n.attr("act_type");
+            if (type == "relu")
+            {
+                fprintf(pp, " 0=%f", 0.f);
+            }
+        }
+        else if (n.op == "BatchNorm")
+        {
+            float eps = n.attr("eps");
+
+            std::vector<float> mean_data = n.weight(0);
+            std::vector<float> var_data = n.weight(1);
+
+            int channels = mean_data.size();
+
+            std::vector<float> slope_data = n.weight(2, channels);
+            std::vector<float> bias_data = n.weight(3, channels);
+
+            fprintf(pp, " 0=%d", channels);
+
+            fwrite(slope_data.data(), sizeof(float), slope_data.size(), bp);
+            fwrite(mean_data.data(), sizeof(float), mean_data.size(), bp);
+            fwrite(var_data.data(), sizeof(float), var_data.size(), bp);
+            fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+        }
+        else if (n.op == "Convolution")
+        {
+            int num_filter = n.attr("num_filter");
+            std::vector<int> kernel = n.attr("kernel");
+            std::vector<int> dilate = n.attr("dilate");
+            std::vector<int> stride = n.attr("stride");
+            std::vector<int> pad = n.attr("pad");
+            int no_bias = n.attr("no_bias");
+            int num_group = n.attr("num_group");//TODO depthwise
+
+            std::vector<float> weight_data = n.weight(0);
+            std::vector<float> bias_data = n.weight(1);
+
+            fprintf(pp, " 0=%d", num_filter);
+            if (!kernel.empty())
+                fprintf(pp, " 1=%d", kernel[0]);
+            if (!dilate.empty())
+                fprintf(pp, " 2=%d", dilate[0]);
+            if (!stride.empty())
+                fprintf(pp, " 3=%d", stride[0]);
+            if (!pad.empty())
+                fprintf(pp, " 4=%d", pad[0]);
+            fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
+            fprintf(pp, " 6=%d", weight_data.size());
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+            fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
+            fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+        }
+        else if (n.op == "elemwise_add")
+        {
+            int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "Flatten")
+        {
+        }
+        else if (n.op == "FullyConnected")
+        {
+            int num_hidden = n.attr("num_hidden");
+            int no_bias = n.attr("no_bias");
+            int flatten = n.attr("flatten");
+
+            // TODO flatten
+
+            std::vector<float> weight_data = n.weight(0);
+            std::vector<float> bias_data = n.weight(1);
+
+            fprintf(pp, " 0=%d", num_hidden);
+            fprintf(pp, " 1=%d", no_bias == 1 ? 0 : 1);
+            fprintf(pp, " 2=%d", weight_data.size());
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+            fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
+            fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+        }
+        else if (n.op == "LeakyReLU")
+        {
+            std::string type = n.attr("act_type");
+            if (type == "elu")
+            {
+            }
+            else if (type == "leaky")
+            {
+            }
+            else if (type == "prelu")
+            {
+                std::vector<float> weight_data = n.weight(0);
+
+                fprintf(pp, " 0=%d", weight_data.size());
+
+                fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
+            }
+        }
+        else if (n.op == "Pooling")
+        {
+            std::string pool_type = n.attr("pool_type");
+            std::vector<int> kernel = n.attr("kernel");
+            std::vector<int> stride = n.attr("stride");
+            std::vector<int> pad = n.attr("pad");
+            std::string pooling_convention = n.attr("pooling_convention");
+            int global_pool = n.attr("global_pool");
+
+            int pool = 0;
+            if (pool_type == "max")
+            {
+                pool = 0;
+            }
+            else if (pool_type == "avg")
+            {
+                pool = 1;
+            }
+
+            if (pooling_convention == "valid")
+            {
+                // TODO valid and full mode
+            }
+
+            fprintf(pp, " 0=%d", pool);
+            if (!kernel.empty())
+                fprintf(pp, " 1=%d", kernel[0]);
+            if (!stride.empty())
+                fprintf(pp, " 2=%d", stride[0]);
+            if (!pad.empty())
+                fprintf(pp, " 3=%d", pad[0]);
+            fprintf(pp, " 4=%d", global_pool);
+        }
+        else
+        {
+            // TODO op specific params
+            std::map<std::string, std::string>::const_iterator it = n.attrs.begin();
+            for (; it != n.attrs.end(); it++)
+            {
+                fprintf(stderr, "# %s=%s\n", it->first.c_str(), it->second.c_str());
+//                 fprintf(pp, " %s=%s", it->first.c_str(), it->second.c_str());
+            }
+        }
 
         fprintf(pp, "\n");
 
