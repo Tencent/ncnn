@@ -194,11 +194,11 @@ std::vector<float> MXNetNode::weight(int i, int init_len) const
 
         if (!p.init.empty() && init_len != 0)
         {
-            if (p.init == "[$zero$, {}]")
+            if (p.init == "[\\$zero\\$, {}]")
             {
                 data.resize(init_len, 0.f);
             }
-            else if (p.init == "[$one$, {}]")
+            else if (p.init == "[\\$one\\$, {}]")
             {
                 data.resize(init_len, 1.f);
             }
@@ -839,18 +839,18 @@ int main(int argc, char** argv)
         {
             float eps = n.attr("eps");
 
-            std::vector<float> mean_data = n.weight(0);
-            std::vector<float> var_data = n.weight(1);
+            std::vector<float> slope_data = n.weight(0);
+            std::vector<float> bias_data = n.weight(1);
+
+            int channels = slope_data.size();
+
+            std::vector<float> mean_data = n.weight(2, channels);
+            std::vector<float> var_data = n.weight(3, channels);
 
             for (int j=0; j<(int)var_data.size(); j++)
             {
                 var_data[j] += eps;
             }
-
-            int channels = mean_data.size();
-
-            std::vector<float> slope_data = n.weight(2, channels);
-            std::vector<float> bias_data = n.weight(3, channels);
 
             fprintf(pp, " 0=%d", channels);
 
