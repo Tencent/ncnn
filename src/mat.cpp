@@ -329,36 +329,43 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
 
     if (type == BORDER_CONSTANT)
     {
-        Mat tmp = Mat(w);
-        if(tmp.empty())
-            return;
-        float* bv = tmp;
-        for(int i=0; i < w; i++)
-            bv[i] = v;
-
         int y = 0;
         int right = w - src.w - left;
         // fill top
         for (; y < top; y++)
         {
-            memcpy(outptr, bv, w*sizeof(float));
+            int x = 0;
+            for (; x < w; x++)
+            {
+                outptr[x] = v;
+            }
             outptr += w;
         }
         // fill center
         for (; y < (top + src.h); y++)
         {
-            if(left > 0)
-                memcpy(outptr, bv, left*sizeof(float));
+            int x = 0;
+            for (; x < left; x++)
+            {
+                outptr[x] = v;
+            }
             memcpy(outptr+left, ptr, src.w*sizeof(float));
-            if(right > 0)
-                memcpy(outptr+left+src.w, bv, right*sizeof(float));
+            x=left+src.w;
+            for (; x < w; x++)
+            {
+                outptr[x] = v;
+            }
             ptr += src.w;
             outptr += w;
         }
         // fill bottom
         for (; y < h; y++)
         {
-            memcpy(outptr, bv, w*sizeof(float));
+            int x = 0;
+            for (; x < w; x++)
+            {
+                outptr[x] = v;
+            }
             outptr += w;
         }
     }
