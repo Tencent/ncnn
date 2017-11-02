@@ -125,6 +125,7 @@ void mtcnn::nms(std::vector<Bbox> &boundingBox_, std::vector<orderScore> &bboxSc
         order = bboxScore_.back().oriOrder;
         bboxScore_.pop_back();
         if(order<0)continue;
+        if(boundingBox_.at(order).exist == false) continue;
         heros.push_back(order);
         boundingBox_.at(order).exist = false;//delete it
 
@@ -199,6 +200,13 @@ void mtcnn::refineAndSquareBbox(vector<Bbox> &vecBbox, const int &height, const 
     }
 }
 void mtcnn::detect(ncnn::Mat& img_, std::vector<Bbox>& finalBbox_){
+    firstBbox_.clear();
+    firstOrderScore_.clear();
+    secondBbox_.clear();
+    secondBboxScore_.clear();
+    thirdBbox_.clear();
+    thirdBboxScore_.clear();
+    
     img = img_;
     img_w = img.w;
     img_h = img.h;
@@ -331,13 +339,6 @@ void mtcnn::detect(ncnn::Mat& img_, std::vector<Bbox>& finalBbox_){
     refineAndSquareBbox(thirdBbox_, img_h, img_w);
     nms(thirdBbox_, thirdBboxScore_, nms_threshold[2], "Min");
     finalBbox_ = thirdBbox_;
-
-    firstBbox_.clear();
-    firstOrderScore_.clear();
-    secondBbox_.clear();
-    secondBboxScore_.clear();
-    thirdBbox_.clear();
-    thirdBboxScore_.clear();
 }
 
 int main(int argc, char** argv)
