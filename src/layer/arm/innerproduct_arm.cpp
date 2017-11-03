@@ -33,6 +33,37 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     if (top_blob.empty())
         return -100;
 
+    if (size == 1)
+    {
+        // num_output
+        const float* weight_data_ptr = weight_data;
+        #pragma omp parallel for
+        for (int p=0; p<num_output; p++)
+        {
+            float* outptr = top_blob.channel(p);
+            float sum = 0.f;
+
+            if (bias_term)
+                sum = bias_data.data[p];
+
+            const float* w = weight_data_ptr + channels * p;
+
+            // channels
+            const float* m = bottom_blob;
+            for (int q=0; q<channels; q++)
+            {
+                sum += *m * *w;
+
+                m += 4;
+                w++;
+            }
+
+            outptr[0] = sum;
+        }
+
+        return 0;
+    }
+
     // num_output
     const float* weight_data_ptr = weight_data;
     #pragma omp parallel for
