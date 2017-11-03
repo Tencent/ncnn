@@ -27,7 +27,9 @@ DEFINE_LAYER_CREATOR(Softmax_arm)
 
 int Softmax_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
-    if (axis != 0)
+    int dims = bottom_blob.dims;
+
+    if (dims != 3 || axis != 0)
         return Softmax::forward(bottom_blob, top_blob);
 
     // value = exp( value - global max value )
@@ -159,7 +161,9 @@ int Softmax_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
 int Softmax_arm::forward_inplace(Mat& bottom_top_blob) const
 {
-    if (axis != 0)
+    int dims = bottom_top_blob.dims;
+
+    if (dims != 3 || axis != 0)
         return Softmax::forward_inplace(bottom_top_blob);
 
     // value = exp( value - global max value )
