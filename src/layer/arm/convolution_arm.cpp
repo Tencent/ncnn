@@ -14,6 +14,8 @@
 
 #include "convolution_arm.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 #include "convolution_1x1.h"
@@ -178,7 +180,25 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
         return -100;
 
     if (use_winograd3x3)
-        conv3x3s1_winograd64_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
+    {
+        if (w <= 50 && h <= 50)
+        {
+            // another path for small image
+            conv3x3s1_winograd64_neon2(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
+        }
+        else
+        {
+            int num_threads = get_omp_num_threads();
+            if (num_threads == 1 || (w <= 80 && h <= 80))
+            {
+                conv3x3s1_winograd64_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
+            }
+            else
+            {
+                conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
+            }
+        }
+    }
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
 
