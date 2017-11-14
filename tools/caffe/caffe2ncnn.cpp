@@ -346,7 +346,7 @@ int main(int argc, char** argv)
             std::string python_layer_name = python_param.layer();
             if (python_layer_name == "ProposalLayer")
                 fprintf(pp, "%-16s", "Proposal");
-        else
+            else
                 fprintf(pp, "%-16s", python_layer_name.c_str());
         }
         else
@@ -453,7 +453,7 @@ int main(int argc, char** argv)
             const caffe::ConcatParameter& concat_param = layer.concat_param();
             int dim = concat_param.axis() - 1;
             fprintf(pp, " 0=%d", dim);
-            }
+        }
         else if (layer.type() == "Convolution")
         {
             const caffe::LayerParameter& binlayer = net.layer(netidx);
@@ -687,7 +687,7 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, " %d=-233", j-1);
             }
-            }
+        }
         else if (layer.type() == "Interp")
         {
             const caffe::InterpParameter& interp_param = layer.interp_param();
@@ -903,16 +903,16 @@ int main(int argc, char** argv)
             std::string python_layer_name = python_param.layer();
             if (python_layer_name == "ProposalLayer")
             {
-            int feat_stride = 16;
-            sscanf(python_param.param_str().c_str(), "'feat_stride': %d", &feat_stride);
+                int feat_stride = 16;
+                sscanf(python_param.param_str().c_str(), "'feat_stride': %d", &feat_stride);
 
-            int base_size = 16;
+                int base_size = 16;
 //                 float ratio;
 //                 float scale;
-            int pre_nms_topN = 6000;
+                int pre_nms_topN = 6000;
                 int after_nms_topN = 300;
-            float nms_thresh = 0.7;
-            int min_size = 16;
+                float nms_thresh = 0.7;
+                int min_size = 16;
                 fprintf(pp, " 0=%d", feat_stride);
                 fprintf(pp, " 1=%d", base_size);
                 fprintf(pp, " 2=%d", pre_nms_topN);

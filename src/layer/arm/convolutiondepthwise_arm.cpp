@@ -165,7 +165,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
     for (int g=0; g<group; g++)
     {
         Mat bottom_blob_bordered_g(w, h, channels_g, bottom_blob_bordered.channel(channels_g * g));
-        Mat top_blob_g(outw, outh, num_output_g, top_blob.channel(num_output_g * g).data);
+        Mat top_blob_g(outw, outh, num_output_g, top_blob.channel(num_output_g * g));
         Mat weight_data_g(maxk * channels_g * num_output_g, (float*)(weight_data + maxk * channels_g * num_output_g * g));
         Mat bias_data_g;
         if (bias_term)
