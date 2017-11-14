@@ -16,24 +16,44 @@
 
 namespace ncnn {
 
+#include "deconvolution_4x4.h"
 #include "deconvolution_3x3.h"
 
 DEFINE_LAYER_CREATOR(Deconvolution_arm)
 
 int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
-    if (kernel_size != 3 || stride != 1 || dilation != 1)
+    // deconvolv with NxN kernel
+    // value = value + bias
+
+    if ((kernel_size != 3 && kernel_size != 4) || stride > 2 || dilation != 1)
     {
         return Deconvolution::forward(bottom_blob, top_blob);
     }
 
     typedef void (*deconv_func)(const Mat&, Mat&, const Mat&, const Mat&);
 
-    deconv_func deconv = deconv3x3s1_neon;
+    // kernel_size x stride
+    deconv_func deconv_func_table[2][2] =
+    {
+        {
+            deconv3x3s1_neon,
+            deconv3x3s2_neon
+        },  // kernel_size = 3
+        {
+            deconv4x4s1_neon,
+            deconv4x4s2_neon
+        }   // kernel_size = 4
+    };
+
+    deconv_func deconv = deconv_func_table[kernel_size-3][stride-1];
+    if (!deconv)
+    {
+        return Deconvolution::forward(bottom_blob, top_blob);
+    }
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
 
     int outw = (w - 1) * stride + kernel_size;
     int outh = (h - 1) * stride + kernel_size;

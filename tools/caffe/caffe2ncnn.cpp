@@ -332,6 +332,14 @@ int main(int argc, char** argv)
             else
                 fprintf(pp, "%-16s", "Convolution");
         }
+        else if (layer.type() == "Deconvolution")
+        {
+            const caffe::ConvolutionParameter& convolution_param = layer.convolution_param();
+            if (convolution_param.group() != 1)
+                fprintf(pp, "%-16s", "DeconvolutionDepthWise");
+            else
+                fprintf(pp, "%-16s", "Deconvolution");
+        }
         else if (layer.type() == "Python")
         {
             const caffe::PythonParameter& python_param = layer.python_param();
@@ -541,6 +549,11 @@ int main(int argc, char** argv)
             fprintf(pp, " 4=%d", convolution_param.pad_size() != 0 ? convolution_param.pad(0) : 0);
             fprintf(pp, " 5=%d", convolution_param.bias_term());
             fprintf(pp, " 6=%d", weight_blob.data_size());
+
+            if (convolution_param.group() != 1)
+            {
+                fprintf(pp, " 7=%d", convolution_param.group());
+            }
 
             int quantized_weight = 0;
             fwrite(&quantized_weight, sizeof(int), 1, bp);
