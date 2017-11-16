@@ -150,7 +150,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob) const
             "vdup.f32   q2, %4              \n"
             "0:                             \n"
             "pld        [%1, #128]          \n"
-            "vld1.f32   {d0-d1}, [%1 :128]  \n"
+            "vld1.f32   {d0-d1}, [%1 :128]! \n"
             "vcle.f32   q3, q0, q1          \n"
             "vmul.f32   q4, q0, q2          \n"
             "vbit.32    q0, q4, q3          \n"
