@@ -590,7 +590,7 @@ int main(int argc, char** argv)
         else if (layer.type() == "Dropout")
         {
             const caffe::DropoutParameter& dropout_param = layer.dropout_param();
-            if (!dropout_param.scale_train())
+            if (dropout_param.has_scale_train() && !dropout_param.scale_train())
             {
                 float scale = 1.f - dropout_param.dropout_ratio();
                 fprintf(pp, " 0=%f", scale);
