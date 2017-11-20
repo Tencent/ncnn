@@ -96,22 +96,21 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) c
 #ifdef _OPENMP
         omp_set_nested(nested_current);
 #endif
-        return 0;
-    }
+    } else {
+        const int channels_g = channels / group;
+        const int num_output_g = num_output / group;
 
-    const int channels_g = channels / group;
-    const int num_output_g = num_output / group;
+        for (int g=0; g<group; g++)
+        {
+            Mat top_blob_bordered_g(outw, outh, num_output_g, top_blob_bordered.channel(num_output_g * g));
+            Mat bottom_blob_g(w, h, channels_g, bottom_blob.channel(channels_g * g).data);
+            Mat weight_data_g(maxk * channels_g * num_output_g, (float*)(weight_data + maxk * channels_g * num_output_g * g));
+            Mat bias_data_g;
+            if (bias_term)
+                bias_data_g = Mat(num_output_g, (float*)(bias_data + num_output_g * g));
 
-    for (int g=0; g<group; g++)
-    {
-        Mat top_blob_bordered_g(outw, outh, num_output_g, top_blob_bordered.channel(num_output_g * g));
-        Mat bottom_blob_g(w, h, channels_g, bottom_blob.channel(channels_g * g).data);
-        Mat weight_data_g(maxk * channels_g * num_output_g, (float*)(weight_data + maxk * channels_g * num_output_g * g));
-        Mat bias_data_g;
-        if (bias_term)
-            bias_data_g = Mat(num_output_g, (float*)(bias_data + num_output_g * g));
-
-        deconv(bottom_blob_g, top_blob_bordered_g, weight_data_g, bias_data_g);
+            deconv(bottom_blob_g, top_blob_bordered_g, weight_data_g, bias_data_g);
+        }
     }
 
     top_blob = top_blob_bordered;
