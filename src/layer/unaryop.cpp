@@ -41,7 +41,7 @@ static int unary_op(const Mat& a, Mat& b)
     int w = a.w;
     int h = a.h;
     int channels = a.c;
-    int size = w * h * channels;
+    int size = a.total();
 
     if (a.dims == 3)
     {
