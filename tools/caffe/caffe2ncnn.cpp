@@ -932,7 +932,10 @@ int main(int argc, char** argv)
         else if (layer.type() == "ReLU")
         {
             const caffe::ReLUParameter& relu_param = layer.relu_param();
-            fprintf(pp, " 0=%f", relu_param.negative_slope());
+            if (relu_param.has_negative_slope())
+            {
+                fprintf(pp, " 0=%f", relu_param.negative_slope());
+            }
         }
         else if (layer.type() == "Reshape")
         {
