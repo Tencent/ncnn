@@ -41,7 +41,7 @@ static int unary_op(const Mat& a, Mat& b)
     int w = a.w;
     int h = a.h;
     int channels = a.c;
-    int size = w * h * channels;
+    int size = a.total();
 
     if (a.dims == 3)
     {
@@ -62,30 +62,13 @@ static int unary_op(const Mat& a, Mat& b)
             return -100;
     }
 
-    if (channels > 1)
-    {
-        #pragma omp parallel for
-        for (int i=0; i<channels; i++)
-        {
-            const float* ptr = a.channel(i);
-            float* outptr = b.channel(i);
+    const float* ptr = a;
+    float* outptr = b;
 
-            for (int j=0; j<w*h; j++)
-            {
-                outptr[j] = op(ptr[j]);
-            }
-        }
-    }
-    else
+    #pragma omp parallel for
+    for (int i=0; i<size; i++)
     {
-        const float* ptr = a;
-        float* outptr = b;
-
-        #pragma omp parallel for
-        for (int i=0; i<size; i++)
-        {
-            outptr[i] = op(ptr[i]);
-        }
+        outptr[i] = op(ptr[i]);
     }
 
     return 0;
