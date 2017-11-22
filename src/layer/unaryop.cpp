@@ -62,13 +62,30 @@ static int unary_op(const Mat& a, Mat& b)
             return -100;
     }
 
-    const float* ptr = a;
-    float* outptr = b;
-
-    #pragma omp parallel for
-    for (int i=0; i<size; i++)
+    if (channels > 1)
     {
-        outptr[i] = op(ptr[i]);
+        #pragma omp parallel for
+        for (int i=0; i<channels; i++)
+        {
+            const float* ptr = a.channel(i);
+            float* outptr = b.channel(i);
+
+            for (int j=0; j<w*h; j++)
+            {
+                outptr[j] = op(ptr[j]);
+            }
+        }
+    }
+    else
+    {
+        const float* ptr = a;
+        float* outptr = b;
+
+        #pragma omp parallel for
+        for (int i=0; i<size; i++)
+        {
+            outptr[i] = op(ptr[i]);
+        }
     }
 
     return 0;
