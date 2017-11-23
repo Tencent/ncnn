@@ -241,9 +241,9 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     "pld        [%1, #256]          \n"
                     "vld1.f32   {d24-d25}, [%1]     \n"// _sum
-                    "veor       q13, q13            \n"// _sum2 = 0;
-                    "veor       q14, q14            \n"// _sum3 = 0;
-                    "veor       q15, q15            \n"// _sum4 = 0;
+//                     "veor       q13, q13            \n"// _sum2 = 0;
+//                     "veor       q14, q14            \n"// _sum3 = 0;
+//                     "veor       q15, q15            \n"// _sum4 = 0;
 
                     "pld        [%9, #256]          \n"
                     "vld1.f32   {d8-d11}, [%9]      \n"// q4 q5 = k0123 k4567
@@ -255,12 +255,12 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     "pld        [%2, #256]          \n"
                     "vld1.f32   {d4-d7}, [%2]       \n"// q2 = 4  5  6  7  q3 = 8  9 10 11
-                    "vmla.f32   q13, q2, d10[0]     \n"
+                    "vmul.f32   q13, q2, d10[0]     \n"
 
                     "vext.32    q1, q0, q2, #1      \n"// q1 = 1  2  3  4
                     "vext.32    q10, q2, q3, #1     \n"// q10= 5  6  7  8
-                    "vmla.f32   q14, q1, d8[1]      \n"
-                    "vmla.f32   q15, q10, d10[1]    \n"
+                    "vmul.f32   q14, q1, d8[1]      \n"
+                    "vmul.f32   q15, q10, d10[1]    \n"
 
                     "vext.32    q8, q0, q2, #2      \n"// q8 = 2  3  4  5
                     "vext.32    q11, q2, q3, #2     \n"// q11= 6  7  8  9
@@ -788,8 +788,8 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     "pld        [%1, #256]          \n"
                     "vld1.f32   {d26-d27}, [%1]     \n"// _sum
-                    "veor       q14, q14            \n"// _sum2 = 0;
-                    "veor       q15, q15            \n"// _sum3 = 0;
+//                     "veor       q14, q14            \n"// _sum2 = 0;
+//                     "veor       q15, q15            \n"// _sum3 = 0;
 
                     "pld        [%9, #256]          \n"
                     "vld1.f32   {d8-d11}, [%9]      \n"// q4 q5 = k0123 k4567
@@ -798,12 +798,12 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "pld        [%2, #512]          \n"
                     "vld2.f32   {d0-d3}, [%2]!      \n"// q0 = 0  2  4  6  q1 = 1  3  5  7
                     "vmla.f32   q13, q0, d8[0]      \n"
-                    "vmla.f32   q14, q1, d8[1]      \n"
+                    "vmul.f32   q14, q1, d8[1]      \n"
 
                     "vld2.f32   {d4-d7}, [%2]       \n"// q2 = 8 10 12 14  q3 = 9 11 13 15
                     "vext.32    q8, q0, q2, #1      \n"// q8 = 2  4  6  8
                     "vext.32    q9, q1, q3, #1      \n"// q9 = 3  5  7  9
-                    "vmla.f32   q15, q8, d9[0]      \n"
+                    "vmul.f32   q15, q8, d9[0]      \n"
                     "vmla.f32   q13, q9, d9[1]      \n"
 
                     "vext.32    q10, q0, q2, #2     \n"// q10= 4  6  8 10

@@ -79,9 +79,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 for (; nn>0; nn--)
                 {
                     float32x4_t _sum1 = vld1q_f32(outptr);
-                    float32x4_t _sum2 = vdupq_n_f32(0.f);
                     float32x4_t _sum3 = vld1q_f32(outptr2);
-                    float32x4_t _sum4 = vdupq_n_f32(0.f);
 
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r00n = vld1q_f32(r0 + 4);
@@ -104,7 +102,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     float32x4_t _r32 = vextq_f32(_r30, _r30n, 2);
 
                     _sum1 = vfmaq_laneq_f32(_sum1, _r00, _k0123, 0);
-                    _sum2 = vfmaq_laneq_f32(_sum2, _r01, _k0123, 1);
+                    float32x4_t _sum2 = vmulq_laneq_f32(_r01, _k0123, 1);
                     _sum1 = vfmaq_laneq_f32(_sum1, _r02, _k0123, 2);
                     _sum2 = vfmaq_laneq_f32(_sum2, _r10, _k3456, 0);
                     _sum1 = vfmaq_laneq_f32(_sum1, _r11, _k3456, 1);
@@ -114,7 +112,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum1 = vfmaq_laneq_f32(_sum1, _r22, _k6789, 2);
 
                     _sum3 = vfmaq_laneq_f32(_sum3, _r10, _k0123, 0);
-                    _sum4 = vfmaq_laneq_f32(_sum4, _r11, _k0123, 1);
+                    float32x4_t _sum4 = vmulq_laneq_f32(_r11, _k0123, 1);
                     _sum3 = vfmaq_laneq_f32(_sum3, _r12, _k0123, 2);
                     _sum4 = vfmaq_laneq_f32(_sum4, _r20, _k3456, 0);
                     _sum3 = vfmaq_laneq_f32(_sum3, _r21, _k3456, 1);
@@ -140,15 +138,9 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 if (nn > 0)
                 {
                 asm volatile(
-                    "veor       q6, q6              \n"
-                    "veor       q15, q15            \n"
-
                     "pld        [%3, #192]          \n"
                     "vld1.f32   {d18-d20}, [%3 :64] \n"// r0
                     "add        %3, #16             \n"
-
-                    "veor       q13, q13            \n"
-                    "veor       q14, q14            \n"
 
                     "vext.32    q11, q9, q10, #1    \n"
                     "vext.32    q12, q9, q10, #2    \n"
@@ -159,8 +151,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vld1.f32   {d14-d15}, [%1 :64] \n"// _sum
 
                     "vmla.f32   q7, q9, %e14[0]     \n"
-                    "vmla.f32   q6, q11, %e14[1]    \n"
-                    "vmla.f32   q13, q12, %f14[0]   \n"
+                    "vmul.f32   q6, q11, %e14[1]    \n"
+                    "vmul.f32   q13, q12, %f14[0]   \n"
 
                     "pld        [%4, #192]          \n"
                     "vld1.f32   {d18-d20}, [%4]     \n"// r1
@@ -178,8 +170,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vld1.f32   {d16-d17}, [%2]     \n"// _sum2
 
                     "vmla.f32   q8, q9, %e14[0]     \n"
-                    "vmla.f32   q14, q11, %e14[1]   \n"
-                    "vmla.f32   q15, q12, %f14[0]   \n"
+                    "vmul.f32   q14, q11, %e14[1]   \n"
+                    "vmul.f32   q15, q12, %f14[0]   \n"
 
                     "pld        [%5, #192]          \n"
                     "vld1.f32   {d18-d20}, [%5 :64] \n"// r2
@@ -210,17 +202,13 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vmla.f32   q15, q12, %f16[0]   \n"
 
                     "vadd.f32   q7, q7, q6          \n"
-                    "veor       q6, q6              \n"
 
                     "pld        [%3, #192]          \n"
                     "vld1.f32   {d18-d20}, [%3 :64] \n"// r0
 
                     "vadd.f32   q8, q8, q14         \n"
-                    "veor       q14, q14            \n"
                     "vadd.f32   q7, q7, q13         \n"
-                    "veor       q13, q13            \n"
                     "vadd.f32   q8, q8, q15         \n"
-                    "veor       q15, q15            \n"
 
                     "vext.32    q11, q9, q10, #1    \n"
                     "vext.32    q12, q9, q10, #2    \n"
@@ -346,7 +334,6 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 for (; nn>0; nn--)
                 {
                     float32x4_t _sum1 = vld1q_f32(outptr);
-                    float32x4_t _sum2 = vdupq_n_f32(0.f);
 
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r00n = vld1q_f32(r0 + 4);
@@ -364,7 +351,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     float32x4_t _r22 = vextq_f32(_r20, _r20n, 2);
 
                     _sum1 = vfmaq_laneq_f32(_sum1, _r00, _k0123, 0);
-                    _sum2 = vfmaq_laneq_f32(_sum2, _r01, _k0123, 1);
+                    float32x4_t _sum2 = vmulq_laneq_f32(_r01, _k0123, 1);
                     _sum1 = vfmaq_laneq_f32(_sum1, _r02, _k0123, 2);
                     _sum2 = vfmaq_laneq_f32(_sum2, _r10, _k3456, 0);
                     _sum1 = vfmaq_laneq_f32(_sum1, _r11, _k3456, 1);
@@ -390,9 +377,6 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vld1.f32   {d16-d18}, [%2]     \n"// r0
                     "add        %2, #16             \n"
 
-                    "veor       q13, q13            \n"
-                    "veor       q14, q14            \n"
-
                     "vext.32    q10, q8, q9, #1     \n"
                     "vext.32    q11, q8, q9, #2     \n"
 
@@ -402,8 +386,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vld1.f32   {d14-d15}, [%1]     \n"// _sum
 
                     "vmla.f32   q7, q8, %e10[0]     \n"
-                    "vmla.f32   q13, q10, %e10[1]   \n"
-                    "vmla.f32   q14, q11, %f10[0]   \n"
+                    "vmul.f32   q13, q10, %e10[1]   \n"
+                    "vmul.f32   q14, q11, %f10[0]   \n"
 
                     "pld        [%3, #192]          \n"
                     "vld1.f32   {d16-d18}, [%3]     \n"// r1
@@ -434,9 +418,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "add        %2, #16             \n"
 
                     "vadd.f32   q7, q7, q13         \n"
-                    "veor       q13, q13            \n"
                     "vadd.f32   q7, q7, q14         \n"
-                    "veor       q14, q14            \n"
 
                     "vext.32    q10, q8, q9, #1     \n"
                     "vext.32    q11, q8, q9, #2     \n"
@@ -2364,21 +2346,18 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "pld        [%2, #256]          \n"
                     "vld2.f32   {d4-d7}, [%2]!      \n"
 
-                    "veor       q10, q10            \n"
-                    "veor       q11, q11            \n"
-
                     "0:                             \n"
                     "pld        [%1, #128]          \n"
                     "vld1.f32   {d0-d1}, [%1]       \n"
 
                     "vmla.f32   q0, q2, %e10[0]     \n"
-                    "vmla.f32   q10, q3, %e10[1]    \n"
+                    "vmul.f32   q10, q3, %e10[1]    \n"
 
                     "pld        [%2, #128]          \n"
                     "vld2.f32   {d16-d17}, [%2]     \n"
                     "vext.32    q1, q2, q8, #1      \n"
 
-                    "vmla.f32   q11, q1, %f10[0]    \n"
+                    "vmul.f32   q11, q1, %f10[0]    \n"
 
                     "pld        [%3, #256]          \n"
                     "vld2.f32   {d4-d7}, [%3]!      \n"
@@ -2408,9 +2387,7 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vld2.f32   {d4-d7}, [%2]!      \n"
 
                     "vadd.f32   q0, q0, q10         \n"
-                    "veor       q10, q10            \n"
                     "vadd.f32   q0, q0, q11         \n"
-                    "veor       q11, q11            \n"
 
                     "subs       %0, #1              \n"
                     "vst1.f32   {d0-d1}, [%1]!      \n"

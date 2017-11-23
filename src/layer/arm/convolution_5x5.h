@@ -645,19 +645,19 @@ static void conv5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "0:                             \n"
 
                     "vld1.f32   {d14-d15}, [%1]     \n"// _sum = vld1q_f32(outptr+j);
-                    "veor       q13, q13            \n"// _sum2 = 0;
-                    "veor       q14, q14            \n"// _sum3 = 0;
+//                     "veor       q13, q13            \n"// _sum2 = 0;
+//                     "veor       q14, q14            \n"// _sum3 = 0;
 
                     "vext.32    q10, q8, q9, #1     \n"// _r01
                     "vext.32    q11, q8, q9, #2     \n"// _r02
                     "vext.32    q12, q8, q9, #3     \n"// _r03
 
                     "vmla.f32   q7, q8, %e14[0]     \n"
-                    "vmla.f32   q13, q10, %e14[1]   \n"
+                    "vmul.f32   q13, q10, %e14[1]   \n"
 
                     "pld        [%3, #256]          \n"
 
-                    "vmla.f32   q14, q11, %f14[0]   \n"
+                    "vmul.f32   q14, q11, %f14[0]   \n"
                     "vmul.f32   q15, q12, %f14[1]   \n"
                     "vmla.f32   q7, q9, %e15[0]     \n"
 
@@ -1019,18 +1019,17 @@ static void conv5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 if (nn > 0)
                 {
                 asm volatile(
-                    "veor       q15, q15            \n"// _sump3 = 0;
-                    "pld        [%1, #128]          \n"
-                    "veor       q13, q13            \n"// _sump2 = 0;
-                    "pld        [%2, #256]          \n"
-                    "veor       q14, q14            \n"// _sump3 = 0;
+//                     "veor       q15, q15            \n"// _sump3 = 0;
+//                     "veor       q13, q13            \n"// _sump2 = 0;
+//                     "veor       q14, q14            \n"// _sump3 = 0;
 
+                    "pld        [%2, #256]          \n"
                     "vld2.f32   {d16-d19}, [%2]!    \n"// q8  = 0  2  4  6   q9  = 1  3  5  7
 
                     "pld        [%2, #256]          \n"
-
                     "vld2.f32   {d20-d23}, [%2]     \n"// q10 = 8 10 12 14   q11 = 9 11 13 15
 
+                    "pld        [%1, #128]          \n"
                     "0:                             \n"
 
                     "vld1.f32   {d14-d15}, [%1]     \n"// q7 = outptr
@@ -1040,12 +1039,12 @@ static void conv5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vext.32    q10, q8, q10, #2    \n"// q10 = 4 6 8 10
 
                     "vmla.f32   q7, q8, %e14[0]     \n"
-                    "vmla.f32   q13, q9, %e14[1]    \n"
+                    "vmul.f32   q13, q9, %e14[1]    \n"
 
                     "pld        [%3, #256]          \n"
 
-                    "vmla.f32   q14, q12, %f14[0]   \n"
-                    "vmla.f32   q15, q11, %f14[1]   \n"
+                    "vmul.f32   q14, q12, %f14[0]   \n"
+                    "vmul.f32   q15, q11, %f14[1]   \n"
                     "vmla.f32   q7, q10, %e15[0]    \n"
 
                     "vld2.f32   {d16-d19}, [%3]!    \n"
@@ -1123,8 +1122,8 @@ static void conv5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     "vadd.f32   q14, q14, q15       \n"
                     "vadd.f32   q7, q7, q13         \n"
-                    "veor       q15, q15            \n"// _sump3 = 0;
-                    "veor       q13, q13            \n"// _sump2 = 0;
+//                     "veor       q15, q15            \n"// _sump3 = 0;
+//                     "veor       q13, q13            \n"// _sump2 = 0;
 
                     "pld        [%2, #256]          \n"
 
@@ -1132,7 +1131,7 @@ static void conv5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     "vld2.f32   {d20-d23}, [%2]     \n"// q10 = 8 10 12 14   q11 = 9 11 13 15
 
-                    "veor       q14, q14            \n"// _sump3 = 0;
+//                     "veor       q14, q14            \n"// _sump3 = 0;
 
                     "vst1.f32   {d14-d15}, [%1]!    \n"
 
