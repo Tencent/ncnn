@@ -103,7 +103,7 @@ static int detect_mobilenet(cv::Mat& raw_img, float show_threshold)
 
 int main(int argc, char** argv)
 {
-    const char* imagepath = "test.jpg";
+    const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);
     if (m.empty())
