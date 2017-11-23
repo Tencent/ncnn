@@ -277,7 +277,7 @@ static void deconv4x4s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                     _out2.val[1] = vmlaq_lane_f32(_out2.val[1], _v, vget_low_f32(_k2), 1);
                     vst2q_f32(outptr2, _out2);
 
-                    _out2 = vld2q_f32(outptr1 + 2);
+                    _out2 = vld2q_f32(outptr2 + 2);
                     _out2.val[0] = vmlaq_lane_f32(_out2.val[0], _v, vget_high_f32(_k2), 0);
                     _out2.val[1] = vmlaq_lane_f32(_out2.val[1], _v, vget_high_f32(_k2), 1);
                     vst2q_f32(outptr2 + 2, _out2);
