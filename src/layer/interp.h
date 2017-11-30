@@ -23,7 +23,6 @@ class Interp : public Layer
 {
 public:
     Interp();
-    virtual ~Interp();
 
     virtual int load_param(const ParamDict& pd);
 

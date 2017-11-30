@@ -45,30 +45,38 @@ int Layer::load_model(const unsigned char*& /*mem*/)
     return 0;
 }
 
-int Layer::forward(const std::vector<Mat>& /*bottom_blobs*/, std::vector<Mat>& /*top_blobs*/) const
+int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+{
+    if (!support_inplace)
+        return -1;
+
+    top_blobs = bottom_blobs;
+    for (int i = 0; i < (int)top_blobs.size(); i++)
+    {
+        top_blobs[i] = bottom_blobs[i].clone();
+    }
+
+    return forward_inplace(top_blobs);
+}
+
+int Layer::forward(const Mat& bottom_blob, Mat& top_blob) const
+{
+    if (!support_inplace)
+        return -1;
+
+    top_blob = bottom_blob.clone();
+
+    return forward_inplace(top_blob);
+}
+
+int Layer::forward_inplace(std::vector<Mat>& /*bottom_top_blobs*/) const
 {
     return -1;
 }
 
-int Layer::forward(const Mat& /*bottom_blob*/, Mat& /*top_blob*/) const
+int Layer::forward_inplace(Mat& /*bottom_top_blob*/) const
 {
     return -1;
-}
-
-int Layer::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
-{
-    std::vector<Mat> top_blobs;
-    int ret = forward(bottom_top_blobs, top_blobs);
-    bottom_top_blobs = top_blobs;
-    return ret;
-}
-
-int Layer::forward_inplace(Mat& bottom_top_blob) const
-{
-    Mat top_blob;
-    int ret = forward(bottom_top_blob, top_blob);
-    bottom_top_blob = top_blob;
-    return ret;
 }
 
 #include "layer_declaration.h"

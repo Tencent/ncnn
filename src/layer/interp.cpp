@@ -24,10 +24,6 @@ Interp::Interp()
     one_blob_only = true;
 }
 
-Interp::~Interp()
-{
-}
-
 int Interp::load_param(const ParamDict& pd)
 {
     resize_type = pd.get(0, 0);

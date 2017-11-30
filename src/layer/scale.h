@@ -23,7 +23,6 @@ class Scale : public Layer
 {
 public:
     Scale();
-    virtual ~Scale();
 
     virtual int load_param(const ParamDict& pd);
 
@@ -31,8 +30,6 @@ public:
     virtual int load_model(FILE* binfp);
 #endif // NCNN_STDIO
     virtual int load_model(const unsigned char*& mem);
-
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
 
     virtual int forward_inplace(Mat& bottom_top_blob) const;
 
