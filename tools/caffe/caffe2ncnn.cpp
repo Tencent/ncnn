@@ -970,9 +970,18 @@ int main(int argc, char** argv)
         {
             const caffe::LayerParameter& binlayer = net.layer(netidx);
 
-            const caffe::BlobProto& weight_blob = binlayer.blobs(0);
             const caffe::ScaleParameter& scale_param = layer.scale_param();
-            fprintf(pp, " 0=%d", (int)weight_blob.data_size());
+            bool scale_weight = scale_param.bias_term() ? (binlayer.blobs_size() == 2) : (binlayer.blobs_size() == 1);
+            if (scale_weight)
+            {
+                const caffe::BlobProto& weight_blob = binlayer.blobs(0);
+                fprintf(pp, " 0=%d", (int)weight_blob.data_size());
+            }
+            else
+            {
+                fprintf(pp, " 0=-233");
+            }
+
             fprintf(pp, " 1=%d", scale_param.bias_term());
 
             for (int j=0; j<binlayer.blobs_size(); j++)
