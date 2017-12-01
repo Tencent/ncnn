@@ -54,6 +54,8 @@ int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
     for (int i = 0; i < (int)top_blobs.size(); i++)
     {
         top_blobs[i] = bottom_blobs[i].clone();
+        if (top_blobs[i].empty())
+            return -100;
     }
 
     return forward_inplace(top_blobs);
@@ -65,6 +67,8 @@ int Layer::forward(const Mat& bottom_blob, Mat& top_blob) const
         return -1;
 
     top_blob = bottom_blob.clone();
+    if (top_blob.empty())
+        return -100;
 
     return forward_inplace(top_blob);
 }
