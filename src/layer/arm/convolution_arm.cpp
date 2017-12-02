@@ -40,7 +40,7 @@ int Convolution_arm::load_param(const ParamDict& pd)
         int num_input = weight_data_size / 9 / num_output;
         // winograd is slow on small channel count
         if (num_input >= 16 && num_output >= 16)
-            use_winograd3x3 = false;// TODO
+            use_winograd3x3 = true;
     }
 
     return 0;
@@ -181,6 +181,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     if (use_winograd3x3)
     {
+#if __aarch64__
+        // always faster than the default
+        conv3x3s1_winograd64_neon2(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
+#else
         if (w <= 50 && h <= 50)
         {
             // another path for small image
@@ -188,6 +192,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
         }
         else
         {
+            // TODO disable multithreading on armv7
+            // conv3x3s1_winograd64_neon is memory bandwidth hungry :|
+            // TODO try to estimate runtime memory speed
             int num_threads = get_omp_num_threads();
             if (num_threads == 1 || (w <= 80 && h <= 80))
             {
@@ -198,6 +205,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
                 conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
             }
         }
+#endif // __aarch64__
     }
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
