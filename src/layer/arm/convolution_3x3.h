@@ -1571,10 +1571,10 @@ static void conv3x3s1_winograd64_neon2(const Mat& bottom_blob, Mat& top_blob, co
                     r0 += 8;
                     r1 += 8;
 
-                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k0nn);
-                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k0nnn);
-                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k1nn);
-                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k1nnn);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k0);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k0n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k1);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k1n);
 
                     vst1q_f32(output0_tm, _output0_tm);
                     vst1q_f32(output0_tm+4, _output0_tmn);
@@ -1613,10 +1613,10 @@ static void conv3x3s1_winograd64_neon2(const Mat& bottom_blob, Mat& top_blob, co
                     r0 += 8;
                     r1 += 8;
 
-                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k0nn);
-                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k0nnn);
-                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k1nn);
-                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k1nnn);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k0);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k0n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k1);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k1n);
 
                     vst1q_f32(output0_tm, _output0_tm);
                     vst1q_f32(output0_tm+4, _output0_tmn);
@@ -1655,10 +1655,10 @@ static void conv3x3s1_winograd64_neon2(const Mat& bottom_blob, Mat& top_blob, co
                     r0 += 8;
                     r1 += 8;
 
-                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k0nn);
-                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k0nnn);
-                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k1nn);
-                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k1nnn);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k0);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k0n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k1);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k1n);
 
                     vst1q_f32(output0_tm, _output0_tm);
                     vst1q_f32(output0_tm+4, _output0_tmn);
@@ -1689,7 +1689,6 @@ static void conv3x3s1_winograd64_neon2(const Mat& bottom_blob, Mat& top_blob, co
 #else
                 if (nn > 0)
                 {
-#if 1
                     asm volatile(
                         "mov        r4, %1                  \n"
 
@@ -1868,8 +1867,6 @@ static void conv3x3s1_winograd64_neon2(const Mat& bottom_blob, Mat& top_blob, co
                         : "cc", "memory", "r4", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
                     );
                 }
-#endif
-
 #endif // __aarch64__
 #endif // __ARM_NEON
                 for (; remain>0; remain--)
