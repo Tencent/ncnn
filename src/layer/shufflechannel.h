@@ -22,9 +22,15 @@ namespace ncnn {
 class ShuffleChannel : public Layer
 {
 public:
-    ShuffleChannel();
-    virtual ~ShuffleChannel();
-    virtual int load_param(const ParamDict& pd);
+    ShuffleChannel() {
+        one_blob_only = true;
+        support_inplace = false;
+    }
+    virtual ~ShuffleChannel() { }
+    virtual int load_param(const ParamDict& pd) {
+        group = pd.get(0, 1);
+        return 0;
+    }
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
 
 public:

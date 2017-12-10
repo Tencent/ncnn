@@ -18,27 +18,11 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(ShuffleChannel)
 
-ShuffleChannel::ShuffleChannel()
-{
-}
-
-ShuffleChannel::~ShuffleChannel()
-{
-}
-
-
-int ShuffleChannel::load_param(const ParamDict &pd)
-{
-    group = pd.get(0, 1);
-    return 0;
-}
-
 int ShuffleChannel::forward(const Mat &bottom_blob, Mat &top_blob) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int c = bottom_blob.c;
-    int cstep = bottom_blob.cstep;
     int chs_per_group = c / group;
 
     if (c != chs_per_group * group) {
@@ -47,21 +31,20 @@ int ShuffleChannel::forward(const Mat &bottom_blob, Mat &top_blob) const
         // reject invalid group
         return -100;
     }
-
     top_blob.create(w, h, c);
     if (top_blob.empty())
         return -100;
 
-    float *top_dat = top_blob.data;
-    float *bot_dat = bottom_blob.data;
-    int q;
+    int dst_q;
+    int src_q;
+    size_t feature_sz = w * h;
+//    int cstep = bottom_blob.cstep;
     for (int i = 0; i != group; ++i) {
         for (int j = 0; j != chs_per_group; ++j) {
-            q = chs_per_group * i + j;
-            float *dst_ch = top_dat + cstep * q;
-            q = chs_per_group * j + i;
-            float *src_ch = bot_dat + cstep * q;
-            memcpy(dst_ch, src_ch, cstep); // or w * h
+            dst_q = chs_per_group * i + j;
+            src_q = chs_per_group * j + i;
+            memcpy(top_blob.channel(dst_q), bottom_blob.channel(src_q),
+                   feature_sz); // cstep if addr aligned needed
         }
     }
     return 0;
