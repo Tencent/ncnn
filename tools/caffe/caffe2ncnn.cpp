@@ -990,6 +990,12 @@ int main(int argc, char** argv)
                 fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
             }
         }
+        else if (layer.type() == "ShuffleChannel")
+        {
+            const caffe::ShuffleChannelParameter&
+                    shuffle_channel_param = layer.shuffle_channel_param();
+            fprintf(pp, " 0=%d", shuffle_channel_param.group());
+        }
         else if (layer.type() == "Slice")
         {
             const caffe::SliceParameter& slice_param = layer.slice_param();
