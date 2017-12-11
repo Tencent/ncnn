@@ -20,9 +20,9 @@ DEFINE_LAYER_CREATOR(ShuffleChannel)
 
 int ShuffleChannel::forward(const Mat &bottom_blob, Mat &top_blob) const
 {
+    int c = bottom_blob.c;
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int c = bottom_blob.c;
     int chs_per_group = c / group;
 
     if (c != chs_per_group * group) {
@@ -37,14 +37,14 @@ int ShuffleChannel::forward(const Mat &bottom_blob, Mat &top_blob) const
 
     int dst_q;
     int src_q;
-    size_t feature_sz = w * h;
-//    int cstep = bottom_blob.cstep;
+    // cstep * sizeof(float) if addr aligned needed
+    size_t feature_sz = w * h * sizeof(float);
     for (int i = 0; i != group; ++i) {
         for (int j = 0; j != chs_per_group; ++j) {
             dst_q = chs_per_group * i + j;
             src_q = chs_per_group * j + i;
             memcpy(top_blob.channel(dst_q), bottom_blob.channel(src_q),
-                   feature_sz); // cstep if addr aligned needed
+                   feature_sz);
         }
     }
     return 0;
