@@ -37,7 +37,8 @@ int Deconvolution::load_param(const ParamDict& pd)
     dilation_h = pd.get(12, dilation_w);
     stride_w = pd.get(3, 1);
     stride_h = pd.get(13, stride_w);
-    pad = pd.get(4, 0);
+    pad_w = pd.get(4, 0);
+    pad_h = pd.get(14, pad_w);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
 
@@ -216,7 +217,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
 
-//     fprintf(stderr, "Deconvolution input %d x %d  pad = %d  ksize=%d %d  stride=%d %d\n", w, h, pad, kernel_w. kernel_h, stride_w, stride_h);
+//     fprintf(stderr, "Deconvolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -289,9 +290,9 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     top_blob = top_blob_bordered;
 
-    if (pad > 0)
+    if (pad_w > 0 || pad_h > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad, pad, pad, pad);
+        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w);
         if (top_blob.empty())
             return -100;
 

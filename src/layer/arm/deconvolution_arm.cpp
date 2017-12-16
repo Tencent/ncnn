@@ -75,9 +75,9 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     top_blob = top_blob_bordered;
 
-    if (pad > 0)
+    if (pad_w > 0 || pad_h > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad, pad, pad, pad);
+        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w);
         if (top_blob.empty())
             return -100;
 

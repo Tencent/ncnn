@@ -43,7 +43,8 @@ public:
     int dilation_h;
     int stride_w;
     int stride_h;
-    int pad;
+    int pad_w;
+    int pad_h;
     int bias_term;
 
     int weight_data_size;

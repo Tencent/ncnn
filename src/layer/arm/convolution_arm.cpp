@@ -156,16 +156,16 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     int channels = bottom_blob.c;
 
     Mat bottom_blob_bordered = bottom_blob;
-    if (pad > 0)
+    if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad, pad, pad, pad, BORDER_CONSTANT, 0.f);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f);
         if (bottom_blob_bordered.empty())
             return -100;
 
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
-    else if (pad == -233)
+    else if (pad_w == -233 && pad_h == -233)
     {
         int wpad = kernel_size + (w - 1) / stride * stride - w;
         int hpad = kernel_size + (h - 1) / stride * stride - h;
