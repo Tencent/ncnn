@@ -57,17 +57,18 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         return -100;
     }
 
-    const int kernel_extent = dilation * (kernel_size - 1) + 1;
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride + kernel_extent;
-    int outh = (h - 1) * stride + kernel_extent;
+    int outw = (w - 1) * stride_w + kernel_extent_w;
+    int outh = (h - 1) * stride_h + kernel_extent_h;
 
     Mat top_blob_bordered;
     top_blob_bordered.create(outw, outh, num_output);
     if (top_blob_bordered.empty())
         return -100;
 
-    const int maxk = kernel_size * kernel_size;
+    const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
     std::vector<int> _space_ofs(maxk);
@@ -75,14 +76,14 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     {
         int p1 = 0;
         int p2 = 0;
-        int gap = outw * dilation - kernel_size * dilation;;
-        for (int i = 0; i < kernel_size; i++)
+        int gap = outw * dilation_h - kernel_w * dilation_w;
+        for (int i = 0; i < kernel_h; i++)
         {
-            for (int j = 0; j < kernel_size; j++)
+            for (int j = 0; j < kernel_w; j++)
             {
                 space_ofs[p1] = p2;
                 p1++;
-                p2 += dilation;
+                p2 += dilation_w;
             }
             p2 += gap;
         }
@@ -106,7 +107,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
             {
                 for (int j = 0; j < w; j++)
                 {
-                    float* outptr = m.data + outw * i*stride + j*stride;
+                    float* outptr = m.row(i*stride_h) + j*stride_w;
 
                     for (int k = 0; k < maxk; k++)
                     {
@@ -140,7 +141,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
                 {
                     for (int j = 0; j < w; j++)
                     {
-                        float* outptr = out.data + out.w * i*stride + j*stride;
+                        float* outptr = out.row(i*stride_h) + j*stride_w;
 
                         const float* kptr = weight_data_ptr + maxk * channels_g * p;
 

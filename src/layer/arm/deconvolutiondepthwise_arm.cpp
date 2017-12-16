@@ -30,7 +30,15 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) c
     // convolv with NxN kernel
     // value = value + bias
 
-    if ((kernel_size != 3 && kernel_size != 4) || stride > 2 || dilation != 1)
+    if (kernel_w != kernel_h || stride_w != stride_h)
+    {
+        return DeconvolutionDepthWise::forward(bottom_blob, top_blob);
+    }
+
+    const int kernel_size = kernel_w;
+    const int stride = stride_w;
+
+    if ((kernel_size != 3 && kernel_size != 4) || stride > 2 || dilation_w != 1 || dilation_h != 1)
     {
         return DeconvolutionDepthWise::forward(bottom_blob, top_blob);
     }
@@ -60,10 +68,8 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) c
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
 
-    const int kernel_extent = dilation * (kernel_size - 1) + 1;
-
-    int outw = (w - 1) * stride + kernel_extent;
-    int outh = (h - 1) * stride + kernel_extent;
+    int outw = (w - 1) * stride + kernel_size;
+    int outh = (h - 1) * stride + kernel_size;
 
     Mat top_blob_bordered(outw, outh, num_output);
     if (top_blob_bordered.empty())

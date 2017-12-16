@@ -35,7 +35,7 @@ int Convolution_arm::load_param(const ParamDict& pd)
 
     use_winograd3x3 = false;
 
-    if (kernel_size == 3 && dilation == 1 && stride == 1)
+    if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int num_input = weight_data_size / 9 / num_output;
         // winograd is slow on small channel count
@@ -83,7 +83,15 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     // convolv with NxN kernel
     // value = value + bias
 
-    if (kernel_size > 7 || stride > 4 || dilation != 1)
+    if (kernel_w != kernel_h || stride_w != stride_h)
+    {
+        return Convolution::forward(bottom_blob, top_blob);
+    }
+
+    const int kernel_size = kernel_w;
+    const int stride = stride_w;
+
+    if (kernel_size > 7 || stride > 4 || dilation_w != 1 || dilation_h != 1)
     {
         return Convolution::forward(bottom_blob, top_blob);
     }
