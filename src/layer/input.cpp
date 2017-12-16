@@ -26,9 +26,9 @@ Input::Input()
 
 int Input::load_param(const ParamDict& pd)
 {
-    size[0] = pd.get(0, 0);
-    size[1] = pd.get(1, 0);
-    size[2] = pd.get(2, 0);
+    w = pd.get(0, 0);
+    h = pd.get(1, 0);
+    c = pd.get(2, 0);
 
     return 0;
 }

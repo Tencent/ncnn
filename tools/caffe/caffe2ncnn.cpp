@@ -344,6 +344,10 @@ int main(int argc, char** argv)
             else
                 fprintf(pp, "%-16s", "Deconvolution");
         }
+        else if (layer.type() == "MemoryData")
+        {
+            fprintf(pp, "%-16s", "Input");
+        }
         else if (layer.type() == "Python")
         {
             const caffe::PythonParameter& python_param = layer.python_param();
@@ -719,13 +723,23 @@ int main(int argc, char** argv)
         {
             const caffe::InputParameter& input_param = layer.input_param();
             const caffe::BlobShape& bs = input_param.shape(0);
-            for (int j=1; j<std::min((int)bs.dim_size(), 4); j++)
+            if (bs.dim_size() == 4)
             {
-                fprintf(pp, " %d=%ld", j-1, bs.dim(j));
+                fprintf(pp, " 0=%ld", bs.dim(3));
+                fprintf(pp, " 1=%ld", bs.dim(2));
+                fprintf(pp, " 2=%ld", bs.dim(1));
             }
-            for (int j=bs.dim_size(); j<4; j++)
+            else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " %d=-233", j-1);
+                fprintf(pp, " 0=%ld", bs.dim(2));
+                fprintf(pp, " 1=%ld", bs.dim(1));
+                fprintf(pp, " 2=-233");
+            }
+            else if (bs.dim_size() == 2)
+            {
+                fprintf(pp, " 0=%ld", bs.dim(1));
+                fprintf(pp, " 1=-233");
+                fprintf(pp, " 2=-233");
             }
         }
         else if (layer.type() == "Interp")
