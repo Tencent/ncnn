@@ -562,7 +562,9 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", pooling_type);
             fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 11=%d", kernel_size_h);
             fprintf(pp, " 2=%d", stride_w);
+            fprintf(pp, " 12=%d", stride_h);
             fprintf(pp, " 3=%d", pad);
             fprintf(pp, " 4=%d", global_pooling);
         }
@@ -784,8 +786,11 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", num_output);
             fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 11=%d", kernel_size_h);
             fprintf(pp, " 2=%d", dilation_w);
+            fprintf(pp, " 12=%d", dilation_h);
             fprintf(pp, " 3=%d", stride_w);
+            fprintf(pp, " 13=%d", stride_h);
             fprintf(pp, " 4=%d", pad);
             fprintf(pp, " 5=%d", bias_term);
             fprintf(pp, " 6=%d", weight_data_size);
@@ -896,8 +901,11 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", num_output);
             fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 11=%d", kernel_size_h);
             fprintf(pp, " 2=%d", dilation_w);
+            fprintf(pp, " 12=%d", dilation_h);
             fprintf(pp, " 3=%d", stride_w);
+            fprintf(pp, " 13=%d", stride_h);
             fprintf(pp, " 4=%d", pad);
             fprintf(pp, " 5=%d", bias_term);
             fprintf(pp, " 6=%d", weight_data_size);
@@ -1099,7 +1107,9 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", pooling_type);
             fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 11=%d", kernel_size_h);
             fprintf(pp, " 2=%d", stride_w);
+            fprintf(pp, " 12=%d", stride_h);
             fprintf(pp, " 3=%d", pad);
             fprintf(pp, " 4=%d", global_pooling);
         }
