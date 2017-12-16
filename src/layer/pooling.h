@@ -33,9 +33,12 @@ public:
 public:
     // param
     int pooling_type;
-    int kernel_size;
-    int stride;
-    int pad;
+    int kernel_w;
+    int kernel_h;
+    int stride_w;
+    int stride_h;
+    int pad_w;
+    int pad_h;
     int global_pooling;
 };
 
