@@ -19,12 +19,10 @@
 static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob)
 {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int inch = bottom_blob.c;
 
     int outw = top_blob.w;
     int outh = top_blob.h;
-    int outch = top_blob.c;
 
     #pragma omp parallel for
     for (int q=0; q<inch; q++)

@@ -23,7 +23,6 @@ static void deconv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
     int inch = bottom_blob.c;
 
     int outw = top_blob.w;
-    int outh = top_blob.h;
     int outch = top_blob.c;
 
     const float* kernel = _kernel;

@@ -19,7 +19,6 @@
 static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
 {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int inch = bottom_blob.c;
 
     int outw = top_blob.w;
@@ -41,7 +40,6 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
         for (int q=0; q<inch; q++)
         {
             float* outptr = out;
-            float* outptr2 = out + outw;
 
             const float* img0 = bottom_blob.channel(q);
 
@@ -54,7 +52,6 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             const float* r4 = img0 + w*4;
             const float* r5 = img0 + w*5;
             const float* r6 = img0 + w*6;
-            const float* r7 = img0 + w*7;
 
             const float* k0 = kernel0;
             const float* k1 = kernel0 + 7;
@@ -544,7 +541,6 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
 {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int inch = bottom_blob.c;
 
     int outw = top_blob.w;
@@ -568,7 +564,6 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
         for (int q=0; q<inch; q++)
         {
             float* outptr = out;
-            float* outptr2 = out + outw;
 
             const float* img0 = bottom_blob.channel(q);
 
