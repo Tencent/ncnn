@@ -101,9 +101,6 @@ Layer* create_layer(int index);
 #define DEFINE_LAYER_CREATOR(name) \
     ::ncnn::Layer* name##_layer_creator() { return new name; }
 
-#define NCNN_MARK_USED_VAR(var) \
-    static_cast<void>(var);
-
 } // namespace ncnn
 
 #endif // NCNN_LAYER_H

@@ -55,6 +55,10 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k0123 = vld1q_f32(kernel0);
             float32x4_t _k3456 = vld1q_f32(kernel0+3);
             float32x4_t _k6789 = vld1q_f32(kernel0+6);
+#else
+            const float* k0 = kernel0;
+            const float* k1 = kernel0 + 3;
+            const float* k2 = kernel0 + 6;
 #endif // __ARM_NEON
 
             int i = 0;
@@ -497,7 +501,6 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
 {
-    NCNN_MARK_USED_VAR(kernel_tm);
     kernel_tm.create(8*8, inch, outch);
 
     const float ktm[8][3] = {
@@ -549,7 +552,6 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
 
 static void conv3x3s1_winograd64_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
 {
-    NCNN_MARK_USED_VAR(kernel_tm);
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int inch = bottom_blob.c;
@@ -1283,7 +1285,6 @@ static void conv3x3s1_winograd64_neon(const Mat& bottom_blob, Mat& top_blob, con
 
 static void conv3x3s1_winograd64_neon2(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
 {
-    NCNN_MARK_USED_VAR(kernel_tm);
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int inch = bottom_blob.c;
