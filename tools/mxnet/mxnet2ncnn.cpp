@@ -846,9 +846,9 @@ int main(int argc, char** argv)
         }
         else if (n.op == "BatchNorm")
         {
-            float eps = n.attr("eps");
-            if (fabs(eps) < 1e-6) {
-                eps = 1e-3;
+            float eps = 1e-3;
+            if (n.has_attr("eps")) {
+                eps = n.attr("eps");
             }
 
             std::vector<float> slope_data = n.weight(0);
