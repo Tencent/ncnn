@@ -19,7 +19,6 @@
 static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
 {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int inch = bottom_blob.c;
 
     int outw = top_blob.w;
@@ -52,14 +51,14 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             const float* r2 = img0 + w*2;
             const float* r3 = img0 + w*3;
 
-            const float* k0 = kernel0;
-            const float* k1 = kernel0 + 3;
-            const float* k2 = kernel0 + 6;
-
 #if __ARM_NEON
             float32x4_t _k0123 = vld1q_f32(kernel0);
             float32x4_t _k3456 = vld1q_f32(kernel0+3);
             float32x4_t _k6789 = vld1q_f32(kernel0+6);
+#else
+            const float* k0 = kernel0;
+            const float* k1 = kernel0 + 3;
+            const float* k2 = kernel0 + 6;
 #endif // __ARM_NEON
 
             int i = 0;
@@ -1209,7 +1208,6 @@ static void conv3x3s1_winograd64_neon(const Mat& bottom_blob, Mat& top_blob, con
         // 5 = r7 + (r1 - r2) + (r3 - r4) * 32+ (r5 - r6)
 
         int w_tm = outw / 6 * 8;
-        int h_tm = outh / 6 * 8;
 
         #pragma omp parallel for
         for (int p = 0; p<outch; p++)
@@ -2235,7 +2233,6 @@ static void conv3x3s1_winograd64_neon2(const Mat& bottom_blob, Mat& top_blob, co
 static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
 {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int inch = bottom_blob.c;
 
     int outw = top_blob.w;
@@ -2261,7 +2258,6 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
         for (int q=0; q<inch; q++)
         {
             float* outptr = out;
-            float* outptr2 = outptr + outw;
 
             const float* img0 = bottom_blob.channel(q);
 

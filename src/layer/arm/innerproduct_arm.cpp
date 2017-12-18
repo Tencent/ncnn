@@ -76,7 +76,6 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
             sum = bias_data.data[p];
 
         const float* w = weight_data_ptr + size * channels * p;
-        const float* w2 = w + size;
 
 #if __ARM_NEON
         float32x4_t _sum = vdupq_n_f32(0.f);
