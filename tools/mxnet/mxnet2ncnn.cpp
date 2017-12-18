@@ -548,6 +548,10 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         {
             p.name = std::string(p.name.c_str() + 4);
         }
+        if (memcmp(p.name.c_str(), "aux:", 4) == 0)
+        {
+            p.name = std::string(p.name.c_str() + 4);
+        }
 
 //         fprintf(stderr, "%s read\n", p.name.c_str());
     }
@@ -724,7 +728,12 @@ int main(int argc, char** argv)
         }
         else if (n.op == "Convolution")
         {
-            fprintf(pp, "%-16s", "Convolution");
+            int num_group = n.attr("num_group");
+            if (num_group > 0) {
+                fprintf(pp, "%-16s", "ConvolutionDepthWise");
+            } else {
+                fprintf(pp, "%-16s", "Convolution");
+            }
         }
         else if (n.op == "Dropout")
         {
@@ -837,7 +846,10 @@ int main(int argc, char** argv)
         }
         else if (n.op == "BatchNorm")
         {
-            float eps = n.attr("eps");
+            float eps = 1e-3;
+            if (n.has_attr("eps")) {
+                eps = n.attr("eps");
+            }
 
             std::vector<float> slope_data = n.weight(0);
             std::vector<float> bias_data = n.weight(1);
@@ -888,6 +900,9 @@ int main(int argc, char** argv)
                 fprintf(pp, " 4=%d", pad[0]);
             fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
             fprintf(pp, " 6=%d", weight_data.size());
+            if (num_group > 0) {
+                fprintf(pp, " 7=%d", num_group);
+            }
 
             int quantize_tag = 0;
             fwrite(&quantize_tag, sizeof(int), 1, bp);
