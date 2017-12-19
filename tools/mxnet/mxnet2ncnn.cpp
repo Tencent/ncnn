@@ -495,7 +495,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             shape32.resize(ndim);
             fread(&shape32[0], 1, ndim * sizeof(uint32_t), fp);
 
-            for (int j=0; j<ndim; j++)
+            for (int j=0; j<(int)ndim; j++)
             {
                 shape[j] = shape32[j];
             }
@@ -899,7 +899,7 @@ int main(int argc, char** argv)
             if (!pad.empty())
                 fprintf(pp, " 4=%d", pad[0]);
             fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
-            fprintf(pp, " 6=%d", weight_data.size());
+            fprintf(pp, " 6=%d", (int)weight_data.size());
             if (num_group > 0) {
                 fprintf(pp, " 7=%d", num_group);
             }
@@ -926,7 +926,7 @@ int main(int argc, char** argv)
         {
             int num_hidden = n.attr("num_hidden");
             int no_bias = n.attr("no_bias");
-            int flatten = n.attr("flatten");
+//             int flatten = n.attr("flatten");
 
             // TODO flatten
 
@@ -935,7 +935,7 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", num_hidden);
             fprintf(pp, " 1=%d", no_bias == 1 ? 0 : 1);
-            fprintf(pp, " 2=%d", weight_data.size());
+            fprintf(pp, " 2=%d", (int)weight_data.size());
 
             int quantize_tag = 0;
             fwrite(&quantize_tag, sizeof(int), 1, bp);
@@ -955,7 +955,7 @@ int main(int argc, char** argv)
             {
                 std::vector<float> weight_data = n.weight(0);
 
-                fprintf(pp, " 0=%d", weight_data.size());
+                fprintf(pp, " 0=%d", (int)weight_data.size());
 
                 fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             }
