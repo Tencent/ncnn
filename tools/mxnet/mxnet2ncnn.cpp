@@ -890,14 +890,34 @@ int main(int argc, char** argv)
             std::vector<float> bias_data = n.weight(1);
 
             fprintf(pp, " 0=%d", num_filter);
-            if (!kernel.empty())
+            if (kernel.size() == 1) {
                 fprintf(pp, " 1=%d", kernel[0]);
-            if (!dilate.empty())
+            } else if (kernel.size() == 2) {
+                fprintf(pp, " 1=%d", kernel[1]);
+                fprintf(pp, " 11=%d", kernel[0]);
+            }
+
+            if (dilate.size() == 1) {
                 fprintf(pp, " 2=%d", dilate[0]);
-            if (!stride.empty())
+            } else if (dilate.size() == 2) {
+                fprintf(pp, " 2=%d", dilate[1]);
+                fprintf(pp, " 12=%d", dilate[0]);
+            }
+
+            if (stride.size() == 1) {
                 fprintf(pp, " 3=%d", stride[0]);
-            if (!pad.empty())
+            } else if (stride.size() == 2) {
+                fprintf(pp, " 3=%d", stride[1]);
+                fprintf(pp, " 13=%d", stride[0]);
+            }
+
+            if (pad.size() == 1) {
                 fprintf(pp, " 4=%d", pad[0]);
+            } else if (pad.size() == 2) {
+                fprintf(pp, " 4=%d", pad[1]);
+                fprintf(pp, " 14=%d", pad[0]);
+            }
+
             fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
             fprintf(pp, " 6=%d", (int)weight_data.size());
             if (num_group > 0) {
