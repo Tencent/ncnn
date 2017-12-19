@@ -33,7 +33,7 @@ if(NCNN_OPENMP)
     endif()
 endif()
 
-add_definitions(-Wall -Wextra -Werror -Wno-unused-function)
+add_definitions(-Wall -Wextra -Wno-unused-function)
 
 add_definitions(-fPIC)
 add_definitions(-Ofast)
