@@ -23,7 +23,9 @@ static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob)
 
     int outw = top_blob.w;
     int outh = top_blob.h;
-
+    
+    const int tailstep = w - 2*outw + w;
+    
     #pragma omp parallel for
     for (int q=0; q<inch; q++)
     {
@@ -103,8 +105,8 @@ static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob)
                 outptr++;
             }
 
-            r0 += w;
-            r1 += w;
+            r0 += tailstep;
+            r1 += tailstep;
         }
     }
 }
