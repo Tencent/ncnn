@@ -27,6 +27,8 @@ namespace ncnn {
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
 
+#include "convolutiondepthwise_3x3.h"
+
 DEFINE_LAYER_CREATOR(ConvolutionDepthWise_arm)
 
 int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
@@ -143,6 +145,20 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
     // depth-wise
     if (channels == group && group == num_output)
     {
+        if (kernel_size == 3)
+        {
+            if (stride == 1)
+            {
+                convdw3x3s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data);
+                return 0;
+            }
+            else if (stride == 2)
+            {
+                convdw3x3s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data);
+                return 0;
+            }
+        }
+
 #ifdef _OPENMP
         int nested_current = omp_get_nested();
         omp_set_nested(0);
