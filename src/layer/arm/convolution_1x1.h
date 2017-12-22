@@ -427,15 +427,15 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                 "vst1.f32   {d16-d19}, [%1 :128]!   \n"
 
-                "pld        [%2, #256]              \n"
-                "vld1.f32   {d24-d27}, [%2 :128]    \n"
+                "pld        [%3, #256]              \n"
+                "vld1.f32   {d24-d27}, [%3 :128]    \n"
                 "vmla.f32   q12, q2, %q14           \n"
                 "vmla.f32   q13, q3, %q14           \n"
 
                 "vst1.f32   {d20-d23}, [%2 :128]!   \n"
 
-                "pld        [%2, #256]              \n"
-                "vld1.f32   {d28-d31}, [%2 :128]    \n"
+                "pld        [%4, #256]              \n"
+                "vld1.f32   {d28-d31}, [%4 :128]    \n"
                 "vmla.f32   q14, q2, %q15           \n"
                 "vmla.f32   q15, q3, %q15           \n"
 
