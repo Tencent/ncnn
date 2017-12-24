@@ -40,6 +40,8 @@ public:
     float step_width;
     float step_height;
     float offset;
+    bool reuse_prior;
+    mutable Mat prior_box;
 };
 
 } // namespace ncnn

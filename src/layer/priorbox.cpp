@@ -42,89 +42,66 @@ int PriorBox::load_param(const ParamDict& pd)
     step_width = pd.get(11, -233.f);
     step_height = pd.get(12, -233.f);
     offset = pd.get(13, 0.f);
+    reuse_prior = pd.get(14,1);
 
     return 0;
 }
 
 int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
 {
-    int w = bottom_blobs[0].w;
-    int h = bottom_blobs[0].h;
-
-    int image_w = image_width;
-    int image_h = image_height;
-    if (image_w == -233)
-        image_w = bottom_blobs[1].w;
-    if (image_h == -233)
-        image_h = bottom_blobs[1].h;
-
-    float step_w = step_width;
-    float step_h = step_height;
-    if (step_w == -233)
-        step_w = (float)image_w / w;
-    if (step_h == -233)
-        step_h = (float)image_h / h;
-
-    int num_min_size = min_sizes.w;
-    int num_max_size = max_sizes.w;
-    int num_aspect_ratio = aspect_ratios.w;
-
-    int num_prior = num_min_size * num_aspect_ratio + num_min_size + num_max_size;
-    if (flip)
-        num_prior += num_min_size * num_aspect_ratio;
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create(4 * w * h * num_prior, 2);
-
-    #pragma omp parallel for
-    for (int i = 0; i < h; i++)
+    if(reuse_prior&&!prior_box.empty())
     {
-        float* box = top_blob.data + i * w * num_prior * 4;
+        top_blobs[0] = prior_box.clone();
+    }
+    else
+    {
+        int w = bottom_blobs[0].w;
+        int h = bottom_blobs[0].h;
 
-        float center_x = offset * step_w;
-        float center_y = offset * step_h + i * step_h;
+        int image_w = image_width;
+        int image_h = image_height;
+        if (image_w == -233)
+            image_w = bottom_blobs[1].w;
+        if (image_h == -233)
+            image_h = bottom_blobs[1].h;
 
-        for (int j = 0; j < w; j++)
+        float step_w = step_width;
+        float step_h = step_height;
+        if (step_w == -233)
+            step_w = (float) image_w / w;
+        if (step_h == -233)
+            step_h = (float) image_h / h;
+
+        int num_min_size = min_sizes.w;
+        int num_max_size = max_sizes.w;
+        int num_aspect_ratio = aspect_ratios.w;
+
+        int num_prior = num_min_size * num_aspect_ratio + num_min_size + num_max_size;
+        if (flip)
+            num_prior += num_min_size * num_aspect_ratio;
+
+        Mat &top_blob = top_blobs[0];
+        top_blob.create(4 * w * h * num_prior, 2);
+
+        #pragma omp parallel for
+        for (int i = 0; i < h; i++)
         {
-            float box_w;
-            float box_h;
+            float *box = top_blob.data + i * w * num_prior * 4;
 
-            for (int k = 0; k < num_min_size; k++)
+            float center_x = offset * step_w;
+            float center_y = offset * step_h + i * step_h;
+
+            for (int j = 0; j < w; j++)
             {
-                float min_size = min_sizes.data[k];
+                float box_w;
+                float box_h;
 
-                // min size box
-                box_w = box_h = min_size;
-
-                box[0] = (center_x - box_w * 0.5f) / image_w;
-                box[1] = (center_y - box_h * 0.5f) / image_h;
-                box[2] = (center_x + box_w * 0.5f) / image_w;
-                box[3] = (center_y + box_h * 0.5f) / image_h;
-
-                box += 4;
-
-                if (num_max_size > 0)
+                for (int k = 0; k < num_min_size; k++)
                 {
-                    float max_size = max_sizes.data[k];
+                    float min_size = min_sizes.data[k];
 
-                    // max size box
-                    box_w = box_h = sqrt(min_size * max_size);
-
-                    box[0] = (center_x - box_w * 0.5f) / image_w;
-                    box[1] = (center_y - box_h * 0.5f) / image_h;
-                    box[2] = (center_x + box_w * 0.5f) / image_w;
-                    box[3] = (center_y + box_h * 0.5f) / image_h;
-
-                    box += 4;
-                }
-
-                // all aspect_ratios
-                for (int p = 0; p < num_aspect_ratio; p++)
-                {
-                    float ar = aspect_ratios[p];
-
-                    box_w = min_size * sqrt(ar);
-                    box_h = min_size / sqrt(ar);
+                    // min size box
+                    box_w = box_h = min_size;
 
                     box[0] = (center_x - box_w * 0.5f) / image_w;
                     box[1] = (center_y - box_h * 0.5f) / image_h;
@@ -133,45 +110,77 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                     box += 4;
 
-                    if (flip)
+                    if (num_max_size > 0)
                     {
-                        box[0] = (center_x - box_h * 0.5f) / image_h;
-                        box[1] = (center_y - box_w * 0.5f) / image_w;
-                        box[2] = (center_x + box_h * 0.5f) / image_h;
-                        box[3] = (center_y + box_w * 0.5f) / image_w;
+                        float max_size = max_sizes.data[k];
+
+                        // max size box
+                        box_w = box_h = sqrt(min_size * max_size);
+
+                        box[0] = (center_x - box_w * 0.5f) / image_w;
+                        box[1] = (center_y - box_h * 0.5f) / image_h;
+                        box[2] = (center_x + box_w * 0.5f) / image_w;
+                        box[3] = (center_y + box_h * 0.5f) / image_h;
 
                         box += 4;
                     }
+
+                    // all aspect_ratios
+                    for (int p = 0; p < num_aspect_ratio; p++)
+                    {
+                        float ar = aspect_ratios[p];
+
+                        box_w = min_size * sqrt(ar);
+                        box_h = min_size / sqrt(ar);
+
+                        box[0] = (center_x - box_w * 0.5f) / image_w;
+                        box[1] = (center_y - box_h * 0.5f) / image_h;
+                        box[2] = (center_x + box_w * 0.5f) / image_w;
+                        box[3] = (center_y + box_h * 0.5f) / image_h;
+
+                        box += 4;
+
+                        if (flip)
+                        {
+                            box[0] = (center_x - box_h * 0.5f) / image_h;
+                            box[1] = (center_y - box_w * 0.5f) / image_w;
+                            box[2] = (center_x + box_h * 0.5f) / image_h;
+                            box[3] = (center_y + box_w * 0.5f) / image_w;
+
+                            box += 4;
+                        }
+                    }
                 }
+
+                center_x += step_w;
             }
 
-            center_x += step_w;
+            center_y += step_h;
         }
 
-        center_y += step_h;
-    }
-
-    if (clip)
-    {
-        float* box = top_blob;
-        for (int i = 0; i < top_blob.w; i++)
+        if (clip)
         {
-            box[i] = std::min(std::max(box[i], 0.f), 1.f);
+            float *box = top_blob;
+            for (int i = 0; i < top_blob.w; i++)
+            {
+                box[i] = std::min(std::max(box[i], 0.f), 1.f);
+            }
         }
+
+        // set variance
+        float *var = top_blob.row(1);
+        for (int i = 0; i < top_blob.w / 4; i++)
+        {
+            var[0] = variances[0];
+            var[1] = variances[1];
+            var[2] = variances[2];
+            var[3] = variances[3];
+
+            var += 4;
+        }
+        prior_box = top_blob.clone();
+
     }
-
-    // set variance
-    float* var = top_blob.row(1);
-    for (int i = 0; i < top_blob.w / 4; i++)
-    {
-        var[0] = variances[0];
-        var[1] = variances[1];
-        var[2] = variances[2];
-        var[3] = variances[3];
-
-        var += 4;
-    }
-
     return 0;
 }
 
