@@ -190,48 +190,48 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             asm volatile(
                 "pld        [%5, #256]              \n"
                 "vld1.f32   {d12-d15}, [%5 :128]!   \n"
-                "0:                                 \n"
                 "pld        [%1, #256]              \n"
                 "vld1.f32   {d16-d19}, [%1 :128]    \n"
+                "0:                                 \n"
 
                 "vmla.f32   q8, q6, %e18[0]         \n"
-                "vmla.f32   q9, q7, %e18[0]         \n"
 
                 "pld        [%2, #256]              \n"
                 "vld1.f32   {d20-d23}, [%2 :128]    \n"
+                "vmla.f32   q9, q7, %e18[0]         \n"
 
                 "vmla.f32   q10, q6, %e19[0]        \n"
-                "vmla.f32   q11, q7, %e19[0]        \n"
 
                 "pld        [%3, #256]              \n"
                 "vld1.f32   {d24-d27}, [%3 :128]    \n"
+                "vmla.f32   q11, q7, %e19[0]        \n"
 
                 "vmla.f32   q12, q6, %e20[0]        \n"
-                "vmla.f32   q13, q7, %e20[0]        \n"
 
                 "pld        [%4, #256]              \n"
                 "vld1.f32   {d28-d31}, [%4 :128]    \n"
+                "vmla.f32   q13, q7, %e20[0]        \n"
+
+                "pld        [%6, #256]              \n"
+                "vld1.f32   {d8-d11}, [%6 :128]!    \n"
 
                 "vmla.f32   q14, q6, %e21[0]        \n"
                 "vmla.f32   q15, q7, %e21[0]        \n"
 
-                "pld        [%6, #256]              \n"
-                "vld1.f32   {d12-d15}, [%6 :128]!   \n"
+                "vmla.f32   q8, q4, %e18[1]         \n"
+                "vmla.f32   q9, q5, %e18[1]         \n"
 
-                "vmla.f32   q8, q6, %e18[1]         \n"
-                "vmla.f32   q9, q7, %e18[1]         \n"
+                "vmla.f32   q10, q4, %e19[1]        \n"
+                "vmla.f32   q11, q5, %e19[1]        \n"
 
-                "vmla.f32   q10, q6, %e19[1]        \n"
-                "vmla.f32   q11, q7, %e19[1]        \n"
-
-                "vmla.f32   q12, q6, %e20[1]        \n"
-                "vmla.f32   q13, q7, %e20[1]        \n"
-
-                "vmla.f32   q14, q6, %e21[1]        \n"
-                "vmla.f32   q15, q7, %e21[1]        \n"
+                "vmla.f32   q12, q4, %e20[1]        \n"
+                "vmla.f32   q13, q5, %e20[1]        \n"
 
                 "pld        [%7, #256]              \n"
                 "vld1.f32   {d12-d15}, [%7 :128]!   \n"
+
+                "vmla.f32   q14, q4, %e21[1]        \n"
+                "vmla.f32   q15, q5, %e21[1]        \n"
 
                 "vmla.f32   q8, q6, %f18[0]         \n"
                 "vmla.f32   q9, q7, %f18[0]         \n"
@@ -242,32 +242,35 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 "vmla.f32   q12, q6, %f20[0]        \n"
                 "vmla.f32   q13, q7, %f20[0]        \n"
 
+                "pld        [%8, #256]              \n"
+                "vld1.f32   {d8-d11}, [%8 :128]!    \n"
+
                 "vmla.f32   q14, q6, %f21[0]        \n"
                 "vmla.f32   q15, q7, %f21[0]        \n"
 
-                "pld        [%8, #256]              \n"
-                "vld1.f32   {d12-d15}, [%8 :128]!   \n"
+                "vmla.f32   q8, q4, %f18[1]         \n"
+                "vmla.f32   q9, q5, %f18[1]         \n"
 
-                "vmla.f32   q8, q6, %f18[1]         \n"
-                "vmla.f32   q9, q7, %f18[1]         \n"
-
-                "vmla.f32   q10, q6, %f19[1]        \n"
-                "vmla.f32   q11, q7, %f19[1]        \n"
+                "vmla.f32   q10, q4, %f19[1]        \n"
+                "vmla.f32   q11, q5, %f19[1]        \n"
 
                 "vst1.f32   {d16-d19}, [%1 :128]!   \n"
 
-                "vmla.f32   q12, q6, %f20[1]        \n"
-                "vmla.f32   q13, q7, %f20[1]        \n"
+                "vmla.f32   q12, q4, %f20[1]        \n"
+                "vmla.f32   q13, q5, %f20[1]        \n"
 
                 "vst1.f32   {d20-d23}, [%2 :128]!   \n"
 
-                "vmla.f32   q14, q6, %f21[1]        \n"
-                "vmla.f32   q15, q7, %f21[1]        \n"
+                "pld        [%5, #256]              \n"
+                "vld1.f32   {d12-d15}, [%5 :128]!   \n"
+
+                "vmla.f32   q14, q4, %f21[1]        \n"
+                "vmla.f32   q15, q5, %f21[1]        \n"
 
                 "vst1.f32   {d24-d27}, [%3 :128]!   \n"
 
-                "pld        [%5, #256]              \n"
-                "vld1.f32   {d12-d15}, [%5 :128]!   \n"
+                "pld        [%1, #256]              \n"
+                "vld1.f32   {d16-d19}, [%1 :128]    \n"
 
                 "subs       %0, #1                  \n"
                 "vst1.f32   {d28-d31}, [%4 :128]!   \n"
@@ -296,7 +299,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                   "w"(_k1),     // %19
                   "w"(_k2),     // %20
                   "w"(_k3)      // %21
-                : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                : "cc", "memory", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
             );
             }
 #endif // __aarch64__
