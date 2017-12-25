@@ -58,38 +58,6 @@ int PReLU::load_model(const unsigned char*& mem)
     return 0;
 }
 
-int PReLU::forward(const Mat& bottom_blob, Mat& top_blob) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    int size = w * h;
-
-    top_blob.create(w, h, channels);
-    if (top_blob.empty())
-        return -100;
-
-    const float* slope_data_ptr = slope_data;
-
-    #pragma omp parallel for
-    for (int q=0; q<channels; q++)
-    {
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
-        float slope = num_slope > 1 ? slope_data_ptr[q] : slope_data_ptr[0];
-
-        for (int i=0; i<size; i++)
-        {
-            if (ptr[i] < 0)
-                outptr[i] = ptr[i] * slope;
-            else
-                outptr[i] = ptr[i];
-        }
-    }
-
-    return 0;
-}
-
 int PReLU::forward_inplace(Mat& bottom_top_blob) const
 {
     int w = bottom_top_blob.w;

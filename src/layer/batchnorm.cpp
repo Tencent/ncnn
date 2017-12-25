@@ -140,40 +140,6 @@ int BatchNorm::load_model(const unsigned char*& mem)
     return 0;
 }
 
-int BatchNorm::forward(const Mat& bottom_blob, Mat& top_blob) const
-{
-    // a = bias - slope * mean / sqrt(var)
-    // b = slope / sqrt(var)
-    // value = b * value + a
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int size = w * h;
-
-    top_blob.create(w, h, channels);
-    if (top_blob.empty())
-        return -100;
-
-    const float* a_data_ptr = a_data;
-    const float* b_data_ptr = b_data;
-    #pragma omp parallel for
-    for (int q=0; q<channels; q++)
-    {
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
-
-        float a = a_data_ptr[q];
-        float b = b_data_ptr[q];
-
-        for (int i=0; i<size; i++)
-        {
-            outptr[i] = b * ptr[i] + a;
-        }
-    }
-
-    return 0;
-}
-
 int BatchNorm::forward_inplace(Mat& bottom_top_blob) const
 {
     // a = bias - slope * mean / sqrt(var)

@@ -59,10 +59,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             int w = bottom_blob.w;
 
             const float* ptr = bottom_blob;
-            for (int i=0; i<w; i++)
-            {
-                outptr[i] = ptr[i];
-            }
+            memcpy(outptr, ptr, w * sizeof(float));
 
             outptr += w;
         }
@@ -96,10 +93,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             int size = w * bottom_blob.h;
 
             const float* ptr = bottom_blob;
-            for (int i=0; i<size; i++)
-            {
-                outptr[i] = ptr[i];
-            }
+            memcpy(outptr, ptr, size * sizeof(float));
 
             outptr += size;
         }
@@ -134,10 +128,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
                 const Mat& bottom_blob = bottom_blobs[b];
 
                 const float* ptr = bottom_blob.row(i);
-                for (int j=0; j<bottom_blob.w; j++)
-                {
-                    outptr[j] = ptr[j];
-                }
+                memcpy(outptr, ptr, bottom_blob.w * sizeof(float));
 
                 outptr += bottom_blob.w;
             }
@@ -175,10 +166,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
             const float* ptr = bottom_blob;
             float* outptr = top_blob.channel(q);
-            for (int i=0; i<size; i++)
-            {
-                outptr[i] = ptr[i];
-            }
+            memcpy(outptr, ptr, size * sizeof(float));
 
             q += channels;
         }
@@ -217,10 +205,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
                 int size = bottom_blob.w * bottom_blob.h;
 
                 const float* ptr = bottom_blob.channel(q);
-                for (int i=0; i<size; i++)
-                {
-                    outptr[i] = ptr[i];
-                }
+                memcpy(outptr, ptr, size * sizeof(float));
             }
         }
 
@@ -258,10 +243,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
                     const Mat& bottom_blob = bottom_blobs[b];
 
                     const float* ptr = bottom_blob.channel(q).row(i);
-                    for (int j=0; j<bottom_blob.w; j++)
-                    {
-                        outptr[j] = ptr[j];
-                    }
+                    memcpy(outptr, ptr, bottom_blob.w * sizeof(float));
 
                     outptr += bottom_blob.w;
                 }

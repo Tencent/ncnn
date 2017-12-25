@@ -37,10 +37,14 @@ public:
 public:
     // param
     int num_output;
-    int kernel_size;
-    int dilation;
-    int stride;
-    int pad;
+    int kernel_w;
+    int kernel_h;
+    int dilation_w;
+    int dilation_h;
+    int stride_w;
+    int stride_h;
+    int pad_w;
+    int pad_h;
     int bias_term;
 
     int weight_data_size;

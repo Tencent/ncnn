@@ -34,49 +34,6 @@ int Exp::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Exp::forward(const Mat& bottom_blob, Mat& top_blob) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    int size = w * h;
-
-    top_blob.create(w, h, channels);
-    if (top_blob.empty())
-        return -100;
-
-    if (base == -1.f)
-    {
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-
-            for (int i=0; i<size; i++)
-            {
-                outptr[i] = exp(shift + ptr[i] * scale);
-            }
-        }
-    }
-    else
-    {
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-
-            for (int i=0; i<size; i++)
-            {
-                outptr[i] = pow(base, (shift + ptr[i] * scale));
-            }
-        }
-    }
-
-    return 0;
-}
-
 int Exp::forward_inplace(Mat& bottom_top_blob) const
 {
     int w = bottom_top_blob.w;

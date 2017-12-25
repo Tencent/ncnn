@@ -137,6 +137,8 @@ ncnn_add_layer(Permute)
 ncnn_add_layer(PriorBox)
 ncnn_add_layer(DetectionOutput)
 ncnn_add_layer(Interp)
+ncnn_add_layer(DeconvolutionDepthWise)
+ncnn_add_layer(ShuffleChannel)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 

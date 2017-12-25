@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "interp.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -21,10 +22,6 @@ DEFINE_LAYER_CREATOR(Interp);
 Interp::Interp()
 {
     one_blob_only = true;
-}
-
-Interp::~Interp()
-{
 }
 
 int Interp::load_param(const ParamDict& pd)

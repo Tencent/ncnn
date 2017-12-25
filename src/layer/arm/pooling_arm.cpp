@@ -26,6 +26,14 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     // max value in NxN window
     // avg value in NxN window
 
+    if (kernel_w != kernel_h || stride_w != stride_h)
+    {
+        return Pooling::forward(bottom_blob, top_blob);
+    }
+
+    const int kernel_size = kernel_w;
+    const int stride = stride_w;
+
     if (pooling_type != PoolMethod_MAX || stride != 2 || global_pooling == 1)
     {
         return Pooling::forward(bottom_blob, top_blob);
@@ -41,19 +49,19 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     int channels = bottom_blob.c;
 
     Mat bottom_blob_bordered = bottom_blob;
-    if (pad > 0)
+    if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad, pad, pad, pad, BORDER_CONSTANT, 0.f);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f);
         if (bottom_blob_bordered.empty())
             return -100;
 
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
-    else if (pad == -233)
+    else if (pad_w == -233 && pad_h == -233)
     {
-        int wpad = kernel_size + (w - 1) / stride * stride - w;
-        int hpad = kernel_size + (h - 1) / stride * stride - h;
+        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
             copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
@@ -65,12 +73,12 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
         h = bottom_blob_bordered.h;
     }
 
-    int outw = (w - kernel_size) / stride + 1;
-    int outh = (h - kernel_size) / stride + 1;
+    int outw = (w - kernel_w) / stride_w + 1;
+    int outh = (h - kernel_h) / stride_h + 1;
 
-    int wtail = (w - kernel_size) % stride;
-    int htail = (h - kernel_size) % stride;
-    if (pad == -233 || pad == -2333)
+    int wtail = (w - kernel_w) % stride_w;
+    int htail = (h - kernel_h) % stride_h;
+    if ((pad_w == -233 && pad_h == -233) || (pad_w == -2333 && pad_h == -2333))
     {
         wtail = 0;
         htail = 0;
@@ -80,9 +88,9 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
         int wtailpad = 0;
         int htailpad = 0;
         if (wtail != 0)
-            wtailpad = kernel_size - wtail;
+            wtailpad = kernel_w - wtail;
         if (htail != 0)
-            htailpad = kernel_size - htail;
+            htailpad = kernel_h - htail;
 
         Mat bottom_blob_bordered2;
         copy_make_border(bottom_blob_bordered, bottom_blob_bordered2, 0, htailpad, 0, wtailpad, BORDER_REPLICATE, 0.f);
