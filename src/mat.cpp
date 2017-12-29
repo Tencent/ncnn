@@ -348,9 +348,17 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             {
                 outptr[x] = v;
             }
-            for (; x < (left + src.w); x++)
+            if (src.w < 12)
             {
-                outptr[x] = ptr[x - left];
+                for (; x < (left + src.w); x++)
+                {
+                    outptr[x] = ptr[x - left];
+                }
+            }
+            else
+            {
+                memcpy(outptr + left, ptr, src.w * sizeof(float));
+                x += src.w;
             }
             for (; x < w; x++)
             {
@@ -381,9 +389,17 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             {
                 outptr[x] = ptr[0];
             }
-            for (; x < (left + src.w); x++)
+            if(src.w < 12)
             {
-                outptr[x] = ptr[x - left];
+                for (; x < (left + src.w); x++)
+                {
+                    outptr[x] = ptr[x - left];
+                }
+            }
+            else
+            {
+                memcpy(outptr + left, ptr, src.w * sizeof(float));
+                x += src.w;
             }
             for (; x < w; x++)
             {
@@ -399,9 +415,17 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             {
                 outptr[x] = ptr[0];
             }
-            for (; x < (left + src.w); x++)
+            if(src.w < 12)
             {
-                outptr[x] = ptr[x - left];
+                for (; x < (left + src.w); x++)
+                {
+                    outptr[x] = ptr[x - left];
+                }
+            }
+            else
+            {
+                memcpy(outptr + left, ptr, src.w * sizeof(float));
+                x += src.w;
             }
             for (; x < w; x++)
             {
@@ -419,9 +443,17 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             {
                 outptr[x] = ptr[0];
             }
-            for (; x < (left + src.w); x++)
+            if(src.w < 12)
             {
-                outptr[x] = ptr[x - left];
+                for (; x < (left + src.w); x++)
+                {
+                    outptr[x] = ptr[x - left];
+                }
+            }
+            else
+            {
+                memcpy(outptr + left, ptr, src.w * sizeof(float));
+                x += src.w;
             }
             for (; x < w; x++)
             {
@@ -436,6 +468,12 @@ void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, i
 {
     int w = src.w + left + right;
     int h = src.h + top + bottom;
+
+    if (w == src.w && h == src.h)
+    {
+        dst = src;
+        return;
+    }
 
     if (src.dims == 2)
     {
@@ -475,9 +513,16 @@ static void copy_cut_border_image(const Mat& src, Mat& dst, int top, int left)
 
     for (int y = 0; y < h; y++)
     {
-        for (int x = 0; x < w; x++)
+        if(w < 12)
         {
-            outptr[x] = ptr[x];
+            for (int x = 0; x < w; x++)
+            {
+                outptr[x] = ptr[x];
+            }
+        }
+        else
+        {
+            memcpy(outptr, ptr, w*sizeof(float));
         }
         outptr += w;
         ptr += src.w;
@@ -488,6 +533,12 @@ void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, in
 {
     int w = src.w - left - right;
     int h = src.h - top - bottom;
+
+    if (w == src.w && h == src.h)
+    {
+        dst = src;
+        return;
+    }
 
     if (src.dims == 2)
     {
@@ -738,6 +789,12 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, int w, int h)
 
 void resize_bilinear(const Mat& src, Mat& dst, int w, int h)
 {
+    if (w == src.w && h == src.h)
+    {
+        dst = src;
+        return;
+    }
+
     if (src.dims == 2)
     {
         dst.create(w, h);

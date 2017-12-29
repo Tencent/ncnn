@@ -25,43 +25,11 @@ MVN::MVN()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int MVN::load_param(FILE* paramfp)
+int MVN::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %f",
-                       &normalize_variance, &across_channels, &eps);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "MVN load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int MVN::load_param_bin(FILE* paramfp)
-{
-    fread(&normalize_variance, sizeof(int), 1, paramfp);
-
-    fread(&across_channels, sizeof(int), 1, paramfp);
-
-    fread(&eps, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int MVN::load_param(const unsigned char*& mem)
-{
-    normalize_variance = *(int*)(mem);
-    mem += 4;
-
-    across_channels = *(int*)(mem);
-    mem += 4;
-
-    eps = *(float*)(mem);
-    mem += 4;
+    normalize_variance = pd.get(0, 0);
+    across_channels = pd.get(1, 0);
+    eps = pd.get(2, 0.0001f);
 
     return 0;
 }
@@ -107,7 +75,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob) const
         }
         mean = mean / (channels * size);
 
-        // substract mean
+        // subtract mean
         #pragma omp parallel for
         for (int q=0; q<channels; q++)
         {
@@ -122,7 +90,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
     else
     {
-        // substract mean
+        // subtract mean
         #pragma omp parallel for
         for (int q=0; q<channels; q++)
         {
@@ -177,12 +145,11 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob) const
             #pragma omp parallel for
             for (int q=0; q<channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
                 for (int i=0; i<size; i++)
                 {
-                    outptr[i] = ptr[i] * norm_var_inv;
+                    outptr[i] = outptr[i] * norm_var_inv;
                 }
             }
         }
@@ -192,7 +159,6 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob) const
             #pragma omp parallel for
             for (int q=0; q<channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
                 float sqmean = sqsum_ptr[q] / size;
                 float norm_var = sqrt(sqmean) + eps;
@@ -200,7 +166,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob) const
 
                 for (int i=0; i<size; i++)
                 {
-                    outptr[i] = ptr[i] * norm_var_inv;
+                    outptr[i] = outptr[i] * norm_var_inv;
                 }
             }
         }

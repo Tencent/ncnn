@@ -24,37 +24,10 @@ ArgMax::ArgMax()
 {
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int ArgMax::load_param(FILE* paramfp)
+int ArgMax::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d", &out_max_val, &topk);
-    if (nscan != 2)
-    {
-        fprintf(stderr, "ArgMax load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int ArgMax::load_param_bin(FILE* paramfp)
-{
-    fread(&out_max_val, sizeof(int), 1, paramfp);
-
-    fread(&topk, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int ArgMax::load_param(const unsigned char*& mem)
-{
-    out_max_val = *(int*)(mem);
-    mem += 4;
-
-    topk = *(int*)(mem);
-    mem += 4;
+    out_max_val = pd.get(0, 0);
+    topk = pd.get(1, 1);
 
     return 0;
 }

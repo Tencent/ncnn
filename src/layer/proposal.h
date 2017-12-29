@@ -24,13 +24,7 @@ class Proposal : public Layer
 public:
     Proposal();
 
-#if NCNN_STDIO
-#if NCNN_STRING
-    virtual int load_param(FILE* paramfp);
-#endif // NCNN_STRING
-    virtual int load_param_bin(FILE* paramfp);
-#endif // NCNN_STDIO
-    virtual int load_param(const unsigned char*& mem);
+    virtual int load_param(const ParamDict& pd);
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
 
@@ -38,12 +32,15 @@ public:
     // param
     int feat_stride;
     int base_size;
-//     float ratio;
-//     float scale;
     int pre_nms_topN;
     int after_nms_topN;
     float nms_thresh;
     int min_size;
+
+    Mat ratios;
+    Mat scales;
+
+    Mat anchors;
 };
 
 } // namespace ncnn

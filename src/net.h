@@ -100,7 +100,7 @@ class Extractor
 public:
     // enable light mode
     // intermediate blob will be recycled when enabled
-    // disabled by default, but recommend to enable
+    // enabled by default
     void set_light_mode(bool enable);
 
     // set thread count for this extractor

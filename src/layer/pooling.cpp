@@ -25,53 +25,16 @@ Pooling::Pooling()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Pooling::load_param(FILE* paramfp)
+int Pooling::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %d %d %d",
-                       &pooling_type, &kernel_size, &stride, &pad, &global_pooling);
-    if (nscan != 5)
-    {
-        fprintf(stderr, "Pooling load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Pooling::load_param_bin(FILE* paramfp)
-{
-    fread(&pooling_type, sizeof(int), 1, paramfp);
-
-    fread(&kernel_size, sizeof(int), 1, paramfp);
-
-    fread(&stride, sizeof(int), 1, paramfp);
-
-    fread(&pad, sizeof(int), 1, paramfp);
-
-    fread(&global_pooling, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Pooling::load_param(const unsigned char*& mem)
-{
-    pooling_type = *(int*)(mem);
-    mem += 4;
-
-    kernel_size = *(int*)(mem);
-    mem += 4;
-
-    stride = *(int*)(mem);
-    mem += 4;
-
-    pad = *(int*)(mem);
-    mem += 4;
-
-    global_pooling = *(int*)(mem);
-    mem += 4;
+    pooling_type = pd.get(0, 0);
+    kernel_w = pd.get(1, 0);
+    kernel_h = pd.get(11, kernel_w);
+    stride_w = pd.get(2, 1);
+    stride_h = pd.get(12, stride_w);
+    pad_w = pd.get(3, 0);
+    pad_h = pd.get(13, pad_w);
+    global_pooling = pd.get(4, 0);
 
     return 0;
 }
@@ -85,7 +48,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
 
-//     fprintf(stderr, "Pooling     input %d x %d  pad = %d  ksize=%d  stride=%d\n", w, h, pad, kernel_size, stride);
+//     fprintf(stderr, "Pooling     input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
     if (global_pooling)
     {
         top_blob.create(1, 1, channels);
@@ -133,19 +96,19 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
 
     Mat bottom_blob_bordered = bottom_blob;
-    if (pad > 0)
+    if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad, pad, pad, pad, BORDER_CONSTANT, 0.f);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f);
         if (bottom_blob_bordered.empty())
             return -100;
 
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
-    else if (pad == -233)
+    else if (pad_w == -233 && pad_h == -233)
     {
-        int wpad = kernel_size + (w - 1) / stride * stride - w;
-        int hpad = kernel_size + (h - 1) / stride * stride - h;
+        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
             copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
@@ -157,12 +120,12 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         h = bottom_blob_bordered.h;
     }
 
-    int outw = (w - kernel_size) / stride + 1;
-    int outh = (h - kernel_size) / stride + 1;
+    int outw = (w - kernel_w) / stride_w + 1;
+    int outh = (h - kernel_h) / stride_h + 1;
 
-    int wtail = (w - kernel_size) % stride;
-    int htail = (h - kernel_size) % stride;
-    if (pad == -233 || pad == -2333)
+    int wtail = (w - kernel_w) % stride_w;
+    int htail = (h - kernel_h) % stride_h;
+    if ((pad_w == -233 && pad_h == -233) || (pad_w == -2333 && pad_h == -2333))
     {
         wtail = 0;
         htail = 0;
@@ -172,9 +135,9 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         int wtailpad = 0;
         int htailpad = 0;
         if (wtail != 0)
-            wtailpad = kernel_size - wtail;
+            wtailpad = kernel_w - wtail;
         if (htail != 0)
-            htailpad = kernel_size - htail;
+            htailpad = kernel_h - htail;
 
         Mat bottom_blob_bordered2;
         if (pooling_type == PoolMethod_MAX)
@@ -203,7 +166,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
     if (top_blob.empty())
         return -100;
 
-    const int maxk = kernel_size * kernel_size;
+    const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
     std::vector<int> _space_ofs(maxk);
@@ -211,10 +174,10 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
     {
         int p1 = 0;
         int p2 = 0;
-        int gap = w - kernel_size;
-        for (int i = 0; i < kernel_size; i++)
+        int gap = w - kernel_w;
+        for (int i = 0; i < kernel_h; i++)
         {
-            for (int j = 0; j < kernel_size; j++)
+            for (int j = 0; j < kernel_w; j++)
             {
                 space_ofs[p1] = p2;
                 p1++;
@@ -229,14 +192,14 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         #pragma omp parallel for
         for (int q=0; q<channels; q++)
         {
-            const Mat m(w, h, bottom_blob_bordered.channel(q));
+            const Mat m = bottom_blob_bordered.channel(q);
             float* outptr = top_blob.channel(q);
 
             for (int i = 0; i < outh; i++)
             {
                 for (int j = 0; j < outw; j++)
                 {
-                    const float* sptr = m.data + m.w * i*stride + j*stride;
+                    const float* sptr = m.row(i*stride_h) + j*stride_w;
 
                     float max = sptr[0];
 
@@ -258,14 +221,14 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         #pragma omp parallel for
         for (int q=0; q<channels; q++)
         {
-            const Mat m(w, h, bottom_blob_bordered.channel(q));
+            const Mat m = bottom_blob_bordered.channel(q);
             float* outptr = top_blob.channel(q);
 
             for (int i = 0; i < outh; i++)
             {
                 for (int j = 0; j < outw; j++)
                 {
-                    const float* sptr = m.data + m.w * i*stride + j*stride;
+                    const float* sptr = m.row(i*stride_h) + j*stride_w;
 
                     float sum = 0;
 
@@ -284,7 +247,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
             // fix tail pad
             if (wtail != 0)
             {
-                const float scale = (float)kernel_size / wtail;
+                const float scale = (float)kernel_w / wtail;
 
                 outptr = top_blob.channel(q) + outw - 1;
                 for (int i = 0; i < outh; i++)
@@ -295,7 +258,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
             }
             if (htail != 0)
             {
-                const float scale = (float)kernel_size / htail;
+                const float scale = (float)kernel_h / htail;
 
                 outptr = top_blob.channel(q).row(outh - 1);
                 for (int i = 0; i < outw; i++)

@@ -29,29 +29,15 @@ RNN::~RNN()
 {
 }
 
+int RNN::load_param(const ParamDict& pd)
+{
+    num_output = pd.get(0, 0);
+    weight_data_size = pd.get(1, 0);
+
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int RNN::load_param(FILE* paramfp)
-{
-    int nscan = fscanf(paramfp, "%d %d", &num_output, &weight_data_size);
-    if (nscan != 2)
-    {
-        fprintf(stderr, "RNN load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int RNN::load_param_bin(FILE* paramfp)
-{
-    fread(&num_output, sizeof(int), 1, paramfp);
-
-    fread(&weight_data_size, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
 int RNN::load_model(FILE* binfp)
 {
     int nread;
@@ -112,17 +98,6 @@ int RNN::load_model(FILE* binfp)
     return 0;
 }
 #endif // NCNN_STDIO
-
-int RNN::load_param(const unsigned char*& mem)
-{
-    num_output = *(int*)(mem);
-    mem += 4;
-
-    weight_data_size = *(int*)(mem);
-    mem += 4;
-
-    return 0;
-}
 
 int RNN::load_model(const unsigned char*& mem)
 {

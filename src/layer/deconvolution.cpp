@@ -28,41 +28,24 @@ Deconvolution::~Deconvolution()
 {
 }
 
+int Deconvolution::load_param(const ParamDict& pd)
+{
+    num_output = pd.get(0, 0);
+    kernel_w = pd.get(1, 0);
+    kernel_h = pd.get(11, kernel_w);
+    dilation_w = pd.get(2, 1);
+    dilation_h = pd.get(12, dilation_w);
+    stride_w = pd.get(3, 1);
+    stride_h = pd.get(13, stride_w);
+    pad_w = pd.get(4, 0);
+    pad_h = pd.get(14, pad_w);
+    bias_term = pd.get(5, 0);
+    weight_data_size = pd.get(6, 0);
+
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int Deconvolution::load_param(FILE* paramfp)
-{
-    int nscan = fscanf(paramfp, "%d %d %d %d %d %d %d",
-                       &num_output, &kernel_size, &dilation, &stride, &pad, &bias_term,
-                       &weight_data_size);
-    if (nscan != 7)
-    {
-        fprintf(stderr, "Deconvolution load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Deconvolution::load_param_bin(FILE* paramfp)
-{
-    fread(&num_output, sizeof(int), 1, paramfp);
-
-    fread(&kernel_size, sizeof(int), 1, paramfp);
-
-    fread(&dilation, sizeof(int), 1, paramfp);
-
-    fread(&stride, sizeof(int), 1, paramfp);
-
-    fread(&pad, sizeof(int), 1, paramfp);
-
-    fread(&bias_term, sizeof(int), 1, paramfp);
-
-    fread(&weight_data_size, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
 int Deconvolution::load_model(FILE* binfp)
 {
     int nread;
@@ -164,32 +147,6 @@ int Deconvolution::load_model(FILE* binfp)
 }
 #endif // NCNN_STDIO
 
-int Deconvolution::load_param(const unsigned char*& mem)
-{
-    num_output = *(int*)(mem);
-    mem += 4;
-
-    kernel_size = *(int*)(mem);
-    mem += 4;
-
-    dilation = *(int*)(mem);
-    mem += 4;
-
-    stride = *(int*)(mem);
-    mem += 4;
-
-    pad = *(int*)(mem);
-    mem += 4;
-
-    bias_term = *(int*)(mem);
-    mem += 4;
-
-    weight_data_size = *(int*)(mem);
-    mem += 4;
-
-    return 0;
-}
-
 int Deconvolution::load_model(const unsigned char*& mem)
 {
     union
@@ -260,19 +217,20 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
 
-//     fprintf(stderr, "Deconvolution input %d x %d  pad = %d  ksize=%d  stride=%d\n", w, h, pad, kernel_size, stride);
+//     fprintf(stderr, "Deconvolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
-    const int kernel_extent = dilation * (kernel_size - 1) + 1;
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride + kernel_extent;
-    int outh = (h - 1) * stride + kernel_extent;
+    int outw = (w - 1) * stride_w + kernel_extent_w;
+    int outh = (h - 1) * stride_h + kernel_extent_h;
 
     Mat top_blob_bordered;
     top_blob_bordered.create(outw, outh, num_output);
     if (top_blob_bordered.empty())
         return -100;
 
-    const int maxk = kernel_size * kernel_size;
+    const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
     std::vector<int> _space_ofs(maxk);
@@ -280,14 +238,14 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     {
         int p1 = 0;
         int p2 = 0;
-        int gap = outw * dilation - kernel_size * dilation;;
-        for (int i = 0; i < kernel_size; i++)
+        int gap = outw * dilation_h - kernel_w * dilation_w;
+        for (int i = 0; i < kernel_h; i++)
         {
-            for (int j = 0; j < kernel_size; j++)
+            for (int j = 0; j < kernel_w; j++)
             {
                 space_ofs[p1] = p2;
                 p1++;
-                p2 += dilation;
+                p2 += dilation_w;
             }
             p2 += gap;
         }
@@ -308,7 +266,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
         {
             for (int j = 0; j < w; j++)
             {
-                float* outptr = out.data + out.w * i*stride + j*stride;
+                float* outptr = out.row(i*stride_h) + j*stride_w;
 
                 const float* kptr = weight_data_ptr + maxk * channels * p;
 
@@ -332,9 +290,9 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     top_blob = top_blob_bordered;
 
-    if (pad > 0)
+    if (pad_w > 0 || pad_h > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad, pad, pad, pad);
+        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w);
         if (top_blob.empty())
             return -100;
 

@@ -28,27 +28,14 @@ Bias::~Bias()
 {
 }
 
+int Bias::load_param(const ParamDict& pd)
+{
+    bias_data_size = pd.get(0, 0);
+
+    return 0;
+}
+
 #if NCNN_STDIO
-#if NCNN_STRING
-int Bias::load_param(FILE* paramfp)
-{
-    int nscan = fscanf(paramfp, "%d", &bias_data_size);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "Bias load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Bias::load_param_bin(FILE* paramfp)
-{
-    fread(&bias_data_size, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-
 int Bias::load_model(FILE* binfp)
 {
     int nread;
@@ -67,47 +54,10 @@ int Bias::load_model(FILE* binfp)
 }
 #endif // NCNN_STDIO
 
-int Bias::load_param(const unsigned char*& mem)
-{
-    bias_data_size = *(int*)(mem);
-    mem += 4;
-
-    return 0;
-}
-
 int Bias::load_model(const unsigned char*& mem)
 {
     bias_data = Mat(bias_data_size, (float*)mem);
     mem += bias_data_size * sizeof(float);
-
-    return 0;
-}
-
-int Bias::forward(const Mat& bottom_blob, Mat& top_blob) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    int size = w * h;
-
-    top_blob.create(w, h, channels);
-    if (top_blob.empty())
-        return -100;
-
-    const float* bias_ptr = bias_data;
-    #pragma omp parallel for
-    for (int q=0; q<channels; q++)
-    {
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
-
-        float bias = bias_ptr[q];
-
-        for (int i=0; i<size; i++)
-        {
-            outptr[i] = ptr[i] + bias;
-        }
-    }
 
     return 0;
 }

@@ -1,0 +1,22 @@
+sudo: required
+dist: trusty
+
+language: cpp
+
+compiler:
+  - g++
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - cmake
+    - libprotobuf-dev
+    - protobuf-compiler
+
+script:
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make

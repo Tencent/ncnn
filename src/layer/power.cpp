@@ -25,68 +25,11 @@ Power::Power()
     support_inplace = true;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Power::load_param(FILE* paramfp)
+int Power::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%f %f %f", &power, &scale, &shift);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "Power load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Power::load_param_bin(FILE* paramfp)
-{
-    fread(&power, sizeof(float), 1, paramfp);
-
-    fread(&scale, sizeof(float), 1, paramfp);
-
-    fread(&shift, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Power::load_param(const unsigned char*& mem)
-{
-    power = *(float*)(mem);
-    mem += 4;
-
-    scale = *(float*)(mem);
-    mem += 4;
-
-    shift = *(float*)(mem);
-    mem += 4;
-
-    return 0;
-}
-
-int Power::forward(const Mat& bottom_blob, Mat& top_blob) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    int size = w * h;
-
-    top_blob.create(w, h, channels);
-    if (top_blob.empty())
-        return -100;
-
-    #pragma omp parallel for
-    for (int q=0; q<channels; q++)
-    {
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
-
-        for (int i=0; i<size; i++)
-        {
-            outptr[i] = pow((shift + ptr[i] * scale), power);
-        }
-    }
+    power = pd.get(0, 1.f);
+    scale = pd.get(1, 1.f);
+    shift = pd.get(2, 0.f);
 
     return 0;
 }

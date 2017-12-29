@@ -24,64 +24,12 @@ Reshape::Reshape()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Reshape::load_param(FILE* paramfp)
+int Reshape::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d %d %d",
-                       &w, &h, &c, &permute);
-    if (nscan != 4)
-    {
-        fprintf(stderr, "Reshape load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    ndim = 3;
-    if (c == -233)
-        ndim = 2;
-    if (h == -233)
-        ndim = 1;
-    if (w == -233)
-        ndim = 0;
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Reshape::load_param_bin(FILE* paramfp)
-{
-    fread(&w, sizeof(int), 1, paramfp);
-
-    fread(&h, sizeof(int), 1, paramfp);
-
-    fread(&c, sizeof(int), 1, paramfp);
-
-    fread(&permute, sizeof(int), 1, paramfp);
-
-    ndim = 3;
-    if (c == -233)
-        ndim = 2;
-    if (h == -233)
-        ndim = 1;
-    if (w == -233)
-        ndim = 0;
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Reshape::load_param(const unsigned char*& mem)
-{
-    w = *(int*)(mem);
-    mem += 4;
-
-    h = *(int*)(mem);
-    mem += 4;
-
-    c = *(int*)(mem);
-    mem += 4;
-
-    permute = *(int*)(mem);
-    mem += 4;
+    w = pd.get(0, -233);
+    h = pd.get(1, -233);
+    c = pd.get(2, -233);
+    permute = pd.get(3, 0);
 
     ndim = 3;
     if (c == -233)

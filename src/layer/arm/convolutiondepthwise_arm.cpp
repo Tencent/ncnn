@@ -27,6 +27,8 @@ namespace ncnn {
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
 
+#include "convolutiondepthwise_3x3.h"
+
 DEFINE_LAYER_CREATOR(ConvolutionDepthWise_arm)
 
 int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
@@ -34,9 +36,17 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
     // convolv with NxN kernel
     // value = value + bias
 
-    if (kernel_size > 7 || stride > 4 || dilation != 1)
+    if (kernel_w != kernel_h || stride_w != stride_h)
     {
-        return ConvolutionDepthWise::forward(bottom_blob, top_blob);
+        return Convolution::forward(bottom_blob, top_blob);
+    }
+
+    const int kernel_size = kernel_w;
+    const int stride = stride_w;
+
+    if (kernel_size > 7 || stride > 4 || dilation_w != 1 || dilation_h != 1)
+    {
+        return Convolution::forward(bottom_blob, top_blob);
     }
 
     typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&);
@@ -99,16 +109,16 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
     int channels = bottom_blob.c;
 
     Mat bottom_blob_bordered = bottom_blob;
-    if (pad > 0)
+    if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad, pad, pad, pad, BORDER_CONSTANT, 0.f);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f);
         if (bottom_blob_bordered.empty())
             return -100;
 
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
-    else if (pad == -233)
+    else if (pad_w == -233 && pad_h == -233)
     {
         int wpad = kernel_size + (w - 1) / stride * stride - w;
         int hpad = kernel_size + (h - 1) / stride * stride - h;
@@ -135,6 +145,20 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
     // depth-wise
     if (channels == group && group == num_output)
     {
+        if (kernel_size == 3)
+        {
+            if (stride == 1)
+            {
+                convdw3x3s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data);
+                return 0;
+            }
+            else if (stride == 2)
+            {
+                convdw3x3s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data);
+                return 0;
+            }
+        }
+
 #ifdef _OPENMP
         int nested_current = omp_get_nested();
         omp_set_nested(0);

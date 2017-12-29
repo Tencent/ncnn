@@ -24,58 +24,9 @@ Threshold::Threshold()
     support_inplace = true;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Threshold::load_param(FILE* paramfp)
+int Threshold::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%f", &threshold);
-    if (nscan != 1)
-    {
-        fprintf(stderr, "Threshold load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Threshold::load_param_bin(FILE* paramfp)
-{
-    fread(&threshold, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Threshold::load_param(const unsigned char*& mem)
-{
-    threshold = *(float*)(mem);
-    mem += 4;
-
-    return 0;
-}
-
-int Threshold::forward(const Mat& bottom_blob, Mat& top_blob) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    int size = w * h;
-
-    top_blob.create(w, h, channels);
-    if (top_blob.empty())
-        return -100;
-
-    #pragma omp parallel for
-    for (int q=0; q<channels; q++)
-    {
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
-
-        for (int i=0; i<size; i++)
-        {
-            outptr[i] = ptr[i] > threshold ? 1.f : 0.f;
-        }
-    }
+    threshold = pd.get(0, 0.f);
 
     return 0;
 }

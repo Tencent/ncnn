@@ -166,7 +166,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     }
     else if (op_type == Operation_SUM)
     {
-        if (num_coeff == 0)
+        if (coeffs.w == 0)
         {
             // first blob
             const Mat& bottom_blob1 = bottom_blobs[1];

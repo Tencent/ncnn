@@ -24,37 +24,10 @@ Tile::Tile()
     support_inplace = false;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Tile::load_param(FILE* paramfp)
+int Tile::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%d %d", &dim, &tiles);
-    if (nscan != 2)
-    {
-        fprintf(stderr, "Tile load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Tile::load_param_bin(FILE* paramfp)
-{
-    fread(&dim, sizeof(int), 1, paramfp);
-
-    fread(&tiles, sizeof(int), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Tile::load_param(const unsigned char*& mem)
-{
-    dim = *(int*)(mem);
-    mem += 4;
-
-    tiles = *(int*)(mem);
-    mem += 4;
+    dim = pd.get(0, 0);
+    tiles = pd.get(1, 1);
 
     return 0;
 }

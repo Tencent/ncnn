@@ -24,14 +24,36 @@ Dropout::Dropout()
     support_inplace = true;
 }
 
-int Dropout::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Dropout::load_param(const ParamDict& pd)
 {
-    top_blob = bottom_blob;
+    scale = pd.get(0, 1.f);
+
     return 0;
 }
 
-int Dropout::forward_inplace(Mat& /*bottom_top_blob*/) const
+int Dropout::forward_inplace(Mat& bottom_top_blob) const
 {
+    if (scale == 1.f)
+    {
+        return 0;
+    }
+
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+
+    #pragma omp parallel for
+    for (int q=0; q<channels; q++)
+    {
+        float* ptr = bottom_top_blob.channel(q);
+
+        for (int i=0; i<size; i++)
+        {
+            ptr[i] = ptr[i] * scale;
+        }
+    }
+
     return 0;
 }
 

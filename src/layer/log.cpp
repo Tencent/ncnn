@@ -25,87 +25,11 @@ Log::Log()
     support_inplace = true;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Log::load_param(FILE* paramfp)
+int Log::load_param(const ParamDict& pd)
 {
-    int nscan = fscanf(paramfp, "%f %f %f", &base, &scale, &shift);
-    if (nscan != 3)
-    {
-        fprintf(stderr, "Log load_param failed %d\n", nscan);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STRING
-int Log::load_param_bin(FILE* paramfp)
-{
-    fread(&base, sizeof(float), 1, paramfp);
-
-    fread(&scale, sizeof(float), 1, paramfp);
-
-    fread(&shift, sizeof(float), 1, paramfp);
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Log::load_param(const unsigned char*& mem)
-{
-    base = *(float*)(mem);
-    mem += 4;
-
-    scale = *(float*)(mem);
-    mem += 4;
-
-    shift = *(float*)(mem);
-    mem += 4;
-
-    return 0;
-}
-
-int Log::forward(const Mat& bottom_blob, Mat& top_blob) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    int size = w * h;
-
-    top_blob.create(w, h, channels);
-    if (top_blob.empty())
-        return -100;
-
-    if (base == -1.f)
-    {
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-
-            for (int i=0; i<size; i++)
-            {
-                outptr[i] = log(shift + ptr[i] * scale);
-            }
-        }
-    }
-    else
-    {
-        float log_base_inv = 1.f / log(base);
-
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-
-            for (int i=0; i<size; i++)
-            {
-                outptr[i] = log(shift + ptr[i] * scale) * log_base_inv;
-            }
-        }
-    }
+    base = pd.get(0, -1.f);
+    scale = pd.get(1, 1.f);
+    shift = pd.get(2, 0.f);
 
     return 0;
 }

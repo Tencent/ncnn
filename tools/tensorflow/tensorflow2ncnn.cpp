@@ -97,6 +97,45 @@ static bool find_attr_value(const tensorflow::NodeDef& node, const char* key, te
     return false;
 }
 
+static int parse_tensor_reduction_dim(const tensorflow::TensorProto& tensor)
+{
+    int dim = 0;
+
+    // dim == 0 // w h c -> X X X
+    // dim == 1 // w h c -> X X c
+    // dim == 2 // w h c -> X h c
+    // dim == -1 // w h c -> w X X
+    // dim == -2 // w h c -> w h X
+
+    if (!tensor.tensor_content().empty() && tensor.dtype() == 3)// int32
+    {
+        const int* data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+        int size = tensor.tensor_content().size() / sizeof(int);
+
+        // n h w c
+        // n h w
+        // n w
+        // TODO investigate two stage / three stage reduction
+        if (size == 2)
+        {
+            if (data[0] == 1 && data[1] == 2)
+            {
+                dim = 1;
+            }
+        }
+    }
+    else
+    {
+        int axis = tensor.int_val(0);
+        if (axis == 1)
+            dim = 0;
+        else if (axis == 3)
+            dim = -2;
+    }
+
+    return dim;
+}
+
 int main(int argc, char** argv)
 {
     const char* tensorflowpb = argv[1];
@@ -115,6 +154,9 @@ int main(int argc, char** argv)
 
     FILE* pp = fopen(ncnn_prototxt, "wb");
     FILE* bp = fopen(ncnn_modelbin, "wb");
+
+    // magic
+    fprintf(pp, "7767517\n");
 
     int node_count = graph.node_size();
 
@@ -169,21 +211,38 @@ int main(int argc, char** argv)
             weights[output_name] = tensorflow::TensorProto();
             continue;
         }
-        else if (node.op() == "Add" || node.op() == "BiasAdd"
-            || node.op() == "Max" || node.op() == "Maximum" || node.op() == "Mul"
-            || node.op() == "RealDiv" || node.op() == "Sub")
+        else
         {
-            // check weights
-            for (int j=0; j<node.input_size(); j++)
+            bool isBinaryOp = false;
+            if (node.op() == "Add" || node.op() == "BiasAdd" || node.op() == "Div"
+                || node.op() == "Mul" || node.op() == "RealDiv" || node.op() == "Sub")
             {
-                const std::string& input_name = node.input(j);
-
-                std::map<std::string, tensorflow::TensorProto>::iterator it = weights.find(input_name);
-                if (it != weights.end())
+                isBinaryOp = true;
+            }
+            if (node.op() == "Max" || node.op() == "Maximum" || node.op() == "Min" || node.op() == "Minimum")
+            {
+                // check weights
+                tensorflow::TensorProto tensor;
+                if (!find_tensor_proto(weights, node, tensor))
                 {
-                    // binary op with const, insert MemoryData layer and const blob
-                    binaryop_consts[input_name] = it->second;
-                    weights.erase(it);
+                    isBinaryOp = true;
+                }
+            }
+
+            if (isBinaryOp)
+            {
+                // check weights
+                for (int j=0; j<node.input_size(); j++)
+                {
+                    const std::string& input_name = node.input(j);
+
+                    std::map<std::string, tensorflow::TensorProto>::iterator it = weights.find(input_name);
+                    if (it != weights.end())
+                    {
+                        // binary op with const, insert MemoryData layer and const blob
+                        binaryop_consts[input_name] = it->second;
+                        weights.erase(it);
+                    }
                 }
             }
         }
@@ -274,9 +333,21 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Convolution");
         }
+        else if (node.op() == "DepthwiseConv2dNative")
+        {
+            fprintf(pp, "%-16s", "ConvolutionDepthWise");
+        }
+        else if (node.op() == "Div" || node.op() == "RealDiv")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (node.op() == "Exp")
         {
             fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (node.op() == "ExpandDims")
+        {
+            fprintf(pp, "%-16s", "ExpandDims");
         }
         else if (node.op() == "Floor")
         {
@@ -324,6 +395,19 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Pooling");
         }
+        else if (node.op() == "Min" || node.op() == "Minimum")
+        {
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                fprintf(pp, "%-16s", "Reduction");
+            }
+            else
+            {
+                fprintf(pp, "%-16s", "BinaryOp");
+            }
+        }
         else if (node.op() == "Mul")
         {
             fprintf(pp, "%-16s", "BinaryOp");
@@ -344,9 +428,13 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Input");
         }
-        else if (node.op() == "RealDiv")
+        else if (node.op() == "Prod")
         {
-            fprintf(pp, "%-16s", "BinaryOp");
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (node.op() == "Reciprocal")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (node.op() == "Relu")
         {
@@ -360,9 +448,21 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (node.op() == "Sigmoid")
+        {
+            fprintf(pp, "%-16s", "Sigmoid");
+        }
         else if (node.op() == "Softmax")
         {
             fprintf(pp, "%-16s", "Softmax");
+        }
+        else if (node.op() == "Square")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (node.op() == "Squeeze")
+        {
+            fprintf(pp, "%-16s", "Squeeze");
         }
         else if (node.op() == "Sub")
         {
@@ -388,7 +488,7 @@ int main(int argc, char** argv)
             }
         }
 
-        fprintf(pp, " %-16s %d 1", node.name().c_str(), input_size);
+        fprintf(pp, " %-32s %d 1", node.name().c_str(), input_size);
 
         for (int j=0; j<node.input_size(); j++)
         {
@@ -417,7 +517,7 @@ int main(int argc, char** argv)
         if (node.op() == "Add" || node.op() == "BiasAdd")
         {
             int op_type = 0;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "AvgPool")
         {
@@ -460,7 +560,13 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d %d %d", pooling_type, kernel_size_w, stride_w, pad, global_pooling);
+            fprintf(pp, " 0=%d", pooling_type);
+            fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 11=%d", kernel_size_h);
+            fprintf(pp, " 2=%d", stride_w);
+            fprintf(pp, " 12=%d", stride_h);
+            fprintf(pp, " 3=%d", pad);
+            fprintf(pp, " 4=%d", global_pooling);
         }
         else if (node.op() == "Concat" || node.op() == "ConcatV2")
         {
@@ -468,7 +574,7 @@ int main(int argc, char** argv)
             if (find_tensor_proto(weights, node, tensor))
             {
                 // TODO
-                int axis = tensor.int_val(0);
+//                 int axis = tensor.int_val(0);
             }
         }
         else if (node.op() == "Const" || node.op() == "Identity")
@@ -479,9 +585,9 @@ int main(int argc, char** argv)
             {
                 const tensorflow::TensorShapeProto& shape = tensor.tensor_shape();
 
-                int c = 0;
-                int h = 0;
                 int w = 0;
+                int h = 0;
+                int c = 0;
 
                 if (shape.dim_size() == 1)
                 {
@@ -560,11 +666,21 @@ int main(int argc, char** argv)
                 }
                 else
                 {
-                    float val = tensor.float_val(0);
-                    fwrite(&val, sizeof(float), 1, bp);
+                    if (tensor.dtype() == 1)// float
+                    {
+                        float val = tensor.float_val(0);
+                        fwrite(&val, sizeof(float), 1, bp);
+                    }
+                    else if (tensor.dtype() == 3)// int32
+                    {
+                        float val = tensor.int_val(0);
+                        fwrite(&val, sizeof(float), 1, bp);
+                    }
                 }
 
-                fprintf(pp, " %d %d %d", c, h, w);
+                fprintf(pp, " 0=%d", w);
+                fprintf(pp, " 1=%d", h);
+                fprintf(pp, " 2=%d", c);
             }
         }
         else if (node.op() == "Conv2D")
@@ -582,7 +698,8 @@ int main(int argc, char** argv)
 
             int stride_h = 1;
             int stride_w = 1;
-            int dilation = 1;
+            int dilation_h = 1;
+            int dilation_w = 1;
             int pad = 0;
 
             tensorflow::AttrValue value_strides;
@@ -604,6 +721,14 @@ int main(int argc, char** argv)
                 {
                     pad = -233;
                 }
+            }
+
+            tensorflow::AttrValue value_rate;
+            if (find_attr_value(node, "rate", value_rate))
+            {
+                // height, width
+                dilation_h = value_rate.list().i(0);
+                dilation_w = value_rate.list().i(1);
             }
 
             int bias_term = 0;
@@ -659,17 +784,169 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d %d %d %d %d", num_output, kernel_size_w, dilation, stride_w, pad, bias_term, weight_data_size);
+            fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 11=%d", kernel_size_h);
+            fprintf(pp, " 2=%d", dilation_w);
+            fprintf(pp, " 12=%d", dilation_h);
+            fprintf(pp, " 3=%d", stride_w);
+            fprintf(pp, " 13=%d", stride_h);
+            fprintf(pp, " 4=%d", pad);
+            fprintf(pp, " 5=%d", bias_term);
+            fprintf(pp, " 6=%d", weight_data_size);
+        }
+        else if (node.op() == "DepthwiseConv2dNative")
+        {
+            // weights
+            tensorflow::TensorProto tensor;
+            find_tensor_proto(weights, node, tensor);
+
+            const tensorflow::TensorShapeProto& shape = tensor.tensor_shape();
+
+            int kernel_size_h = shape.dim(0).size();
+            int kernel_size_w = shape.dim(1).size();
+            int num_input = shape.dim(2).size();
+            int channel_multiplier = shape.dim(3).size();
+
+            int num_output = num_input * channel_multiplier;
+            int group = num_input;
+
+            int stride_h = 1;
+            int stride_w = 1;
+            int dilation_h = 1;
+            int dilation_w = 1;
+            int pad = 0;
+
+            tensorflow::AttrValue value_strides;
+            if (find_attr_value(node, "strides", value_strides))
+            {
+                // batch, height, width, channels
+                stride_h = value_strides.list().i(1);
+                stride_w = value_strides.list().i(2);
+            }
+
+            tensorflow::AttrValue value_padding;
+            if (find_attr_value(node, "padding", value_padding))
+            {
+                if (value_padding.s() == "VALID")
+                {
+                    pad = 0;
+                }
+                else if (value_padding.s() == "SAME")
+                {
+                    pad = -233;
+                }
+            }
+
+            tensorflow::AttrValue value_rate;
+            if (find_attr_value(node, "rate", value_rate))
+            {
+                // height, width
+                dilation_h = value_rate.list().i(0);
+                dilation_w = value_rate.list().i(1);
+            }
+
+            int bias_term = 0;
+            int weight_data_size = 0;
+
+            // reorder h-w-i-cm to i-cm-h-w
+            if (!tensor.tensor_content().empty())
+            {
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                if (tensor.dtype() == 1)// float
+                {
+                    const float* data = reinterpret_cast<const float*>(tensor.tensor_content().c_str());
+                    weight_data_size = tensor.tensor_content().size() / sizeof(float);
+
+                    float tmp;
+                    for (int p=0; p<num_input; p++)
+                    {
+                        for (int q=0; q<channel_multiplier; q++)
+                        {
+                            for (int i=0; i<kernel_size_h; i++)
+                            {
+                                for (int j=0; j<kernel_size_w; j++)
+                                {
+                                    tmp = data[i*kernel_size_w*channel_multiplier*num_input + j*channel_multiplier*num_input + p*channel_multiplier + q];
+                                    fwrite(&tmp, sizeof(float), 1, bp);
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (tensor.dtype() == 3)// int32
+                {
+                    const int* data = reinterpret_cast<const int*>(tensor.tensor_content().c_str());
+                    weight_data_size = tensor.tensor_content().size() / sizeof(int);
+
+                    float tmp;
+                    for (int p=0; p<num_input; p++)
+                    {
+                        for (int q=0; q<channel_multiplier; q++)
+                        {
+                            for (int i=0; i<kernel_size_h; i++)
+                            {
+                                for (int j=0; j<kernel_size_w; j++)
+                                {
+                                    tmp = data[i*kernel_size_w*channel_multiplier*num_input + j*channel_multiplier*num_input + p*channel_multiplier + q];
+                                    fwrite(&tmp, sizeof(float), 1, bp);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 11=%d", kernel_size_h);
+            fprintf(pp, " 2=%d", dilation_w);
+            fprintf(pp, " 12=%d", dilation_h);
+            fprintf(pp, " 3=%d", stride_w);
+            fprintf(pp, " 13=%d", stride_h);
+            fprintf(pp, " 4=%d", pad);
+            fprintf(pp, " 5=%d", bias_term);
+            fprintf(pp, " 6=%d", weight_data_size);
+            fprintf(pp, " 7=%d", group);
+        }
+        else if (node.op() == "Div" || node.op() == "RealDiv")
+        {
+            int op_type = 3;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "Exp")
         {
             int op_type = 7;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (node.op() == "ExpandDims")
+        {
+            int expand_w = 0;
+            int expand_h = 0;
+            int expand_c = 0;
+
+            tensorflow::AttrValue value_dim;
+            if (find_attr_value(node, "Tdim", value_dim))
+            {
+                int dim = value_dim.i();
+                if (dim == 0)
+                    expand_w = 1;
+                if (dim == 1)
+                    expand_h = 1;
+                if (dim == 2)
+                    expand_c = 1;
+            }
+
+            fprintf(pp, " 0=%d", expand_w);
+            fprintf(pp, " 1=%d", expand_h);
+            fprintf(pp, " 2=%d", expand_c);
         }
         else if (node.op() == "Floor")
         {
             int op_type = 2;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "LRN")
         {
@@ -704,7 +981,10 @@ int main(int argc, char** argv)
                 bias = value_bias.f();
             }
 
-            fprintf(pp, " %d %d %f %f", norm_region, local_size, alpha, beta);
+            fprintf(pp, " 0=%d", norm_region);
+            fprintf(pp, " 1=%d", local_size);
+            fprintf(pp, " 2=%f", alpha);
+            fprintf(pp, " 3=%f", beta);
         }
         else if (node.op() == "MatMul")
         {
@@ -758,7 +1038,9 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d", num_output, bias_term, weight_data_size);
+            fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 1=%d", bias_term);
+            fprintf(pp, " 2=%d", weight_data_size);
         }
         else if (node.op() == "Max" || node.op() == "Maximum")
         {
@@ -770,18 +1052,16 @@ int main(int argc, char** argv)
                 int dim = 0;
                 float coeff = 1.f;
 
-                int axis = tensor.int_val(0);
-                if (axis == 1)
-                    dim = 0;
-                else if (axis == 3)
-                    dim = -2;
+                dim = parse_tensor_reduction_dim(tensor);
 
-                fprintf(pp, " %d %d %f", operation, dim, coeff);
+                fprintf(pp, " 0=%d", operation);
+                fprintf(pp, " 1=%d", dim);
+                fprintf(pp, " 2=%f", coeff);
             }
             else
             {
                 int op_type = 4;
-                fprintf(pp, " %d", op_type);
+                fprintf(pp, " 0=%d", op_type);
             }
         }
         else if (node.op() == "MaxPool")
@@ -825,17 +1105,45 @@ int main(int argc, char** argv)
                 }
             }
 
-            fprintf(pp, " %d %d %d %d %d", pooling_type, kernel_size_w, stride_w, pad, global_pooling);
+            fprintf(pp, " 0=%d", pooling_type);
+            fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 11=%d", kernel_size_h);
+            fprintf(pp, " 2=%d", stride_w);
+            fprintf(pp, " 12=%d", stride_h);
+            fprintf(pp, " 3=%d", pad);
+            fprintf(pp, " 4=%d", global_pooling);
+        }
+        else if (node.op() == "Min" || node.op() == "Minimum")
+        {
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                int operation = 5;
+                int dim = 0;
+                float coeff = 1.f;
+
+                dim = parse_tensor_reduction_dim(tensor);
+
+                fprintf(pp, " 0=%d", operation);
+                fprintf(pp, " 1=%d", dim);
+                fprintf(pp, " 2=%f", coeff);
+            }
+            else
+            {
+                int op_type = 5;
+                fprintf(pp, " 0=%d", op_type);
+            }
         }
         else if (node.op() == "Mul")
         {
             int op_type = 2;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "Neg")
         {
             int op_type = 1;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "NoOp")
         {
@@ -881,22 +1189,44 @@ int main(int argc, char** argv)
                 value = value_T.f();
             }
 
-            fprintf(pp, " %d %d %d %d %d %f", top, bottom, left, right, type, value);
+            fprintf(pp, " 0=%d", top);
+            fprintf(pp, " 1=%d", bottom);
+            fprintf(pp, " 2=%d", left);
+            fprintf(pp, " 3=%d", right);
+            fprintf(pp, " 4=%d", type);
+            fprintf(pp, " 5=%f", value);
         }
         else if (node.op() == "Placeholder")
         {
             // TODO pass through
-            fprintf(pp, " 0 0 0");
+            fprintf(pp, " 0=0 1=0 2=0");
         }
-        else if (node.op() == "RealDiv")
+        else if (node.op() == "Prod")
         {
-            int op_type = 3;
-            fprintf(pp, " %d", op_type);
+            int operation = 6;
+            int dim = 0;
+            float coeff = 1.f;
+
+            // check weights
+            tensorflow::TensorProto tensor;
+            if (find_tensor_proto(weights, node, tensor))
+            {
+                dim = parse_tensor_reduction_dim(tensor);
+            }
+
+            fprintf(pp, " 0=%d", operation);
+            fprintf(pp, " 1=%d", dim);
+            fprintf(pp, " 2=%f", coeff);
+        }
+        else if (node.op() == "Reciprocal")
+        {
+            int op_type = 15;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "Relu")
         {
             float slope = 0.f;
-            fprintf(pp, " %f", slope);
+            fprintf(pp, " 0=%f", slope);
         }
         else if (node.op() == "Reshape")
         {
@@ -913,36 +1243,69 @@ int main(int argc, char** argv)
                     // n w
                     if (size == 4)
                     {
-                        fprintf(pp, " %d %d %d 0", data[2], data[1], data[3]);
+                        fprintf(pp, " 0=%d 1=%d 2=%d 3=0", data[2], data[1], data[3]);
                     }
                     if (size == 3)
                     {
-                        fprintf(pp, " %d %d -233 1", data[2], data[1]);
+                        fprintf(pp, " 0=%d 1=%d 2=-233 3=1", data[2], data[1]);
                     }
                     if (size == 2)
                     {
-                        fprintf(pp, " %d -233 -233 1", data[1]);
+                        fprintf(pp, " 0=%d 1=-233 2=-233 3=1", data[1]);
                     }
                 }
             }
             else
             {
                 // pass through
-                fprintf(pp, " 0 0 0");
+                fprintf(pp, " 0=0 1=0 2=0 3=0");
             }
         }
         else if (node.op() == "Rsqrt")
         {
             int op_type = 6;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (node.op() == "Sigmoid")
+        {
         }
         else if (node.op() == "Softmax")
         {
         }
+        else if (node.op() == "Square")
+        {
+            int op_type = 4;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (node.op() == "Squeeze")
+        {
+            int squeeze_w = 0;
+            int squeeze_h = 0;
+            int squeeze_c = 0;
+
+            tensorflow::AttrValue value_squeeze_dims;
+            if (find_attr_value(node, "squeeze_dims", value_squeeze_dims))
+            {
+                for (int i = 0; i<value_squeeze_dims.list().i_size(); i++)
+                {
+                    int dim = value_squeeze_dims.list().i(i);
+                    if (dim == 0)
+                        squeeze_w = 1;
+                    if (dim == 1)
+                        squeeze_h = 1;
+                    if (dim == 2)
+                        squeeze_c = 1;
+                }
+            }
+
+            fprintf(pp, " 0=%d", squeeze_w);
+            fprintf(pp, " 1=%d", squeeze_h);
+            fprintf(pp, " 2=%d", squeeze_c);
+        }
         else if (node.op() == "Sub")
         {
             int op_type = 1;
-            fprintf(pp, " %d", op_type);
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (node.op() == "Sum")
         {
@@ -954,14 +1317,12 @@ int main(int argc, char** argv)
             tensorflow::TensorProto tensor;
             if (find_tensor_proto(weights, node, tensor))
             {
-                int axis = tensor.int_val(0);
-                if (axis == 1)
-                    dim = 0;
-                else if (axis == 3)
-                    dim = -2;
+                dim = parse_tensor_reduction_dim(tensor);
             }
 
-            fprintf(pp, " %d %d %f", operation, dim, coeff);
+            fprintf(pp, " 0=%d", operation);
+            fprintf(pp, " 1=%d", dim);
+            fprintf(pp, " 2=%f", coeff);
         }
         else
         {
@@ -970,8 +1331,7 @@ int main(int argc, char** argv)
             google::protobuf::Map<std::string, tensorflow::AttrValue>::const_iterator it = attr.begin();
             for (; it != attr.end(); it++)
             {
-                std::cerr << it->first << std::endl;
-                std::cerr << it->second.type() << std::endl;
+                std::cerr << it->first << " #" << it->second.type() << std::endl;
             }
         }
 
@@ -985,7 +1345,7 @@ int main(int argc, char** argv)
             {
                 char splitname[256];
                 sprintf(splitname, "splitncnn_%d", internal_split);
-                fprintf(pp, "%-16s %-16s %d %d", "Split", splitname, 1, refcount);
+                fprintf(pp, "%-16s %-32s %d %d", "Split", splitname, 1, refcount);
                 fprintf(pp, " %s", output_name.c_str());
 
                 for (int j=0; j<refcount; j++)
