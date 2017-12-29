@@ -728,7 +728,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
 Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 {
     blob_mats.resize(blob_count);
-    lightmode = false;
+    lightmode = true;
     num_threads = 0;
 }
 
