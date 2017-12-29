@@ -41,8 +41,8 @@ int ShuffleChannel::forward(const Mat &bottom_blob, Mat &top_blob) const
     size_t feature_sz = w * h * sizeof(float);
     for (int i = 0; i != group; ++i) {
         for (int j = 0; j != chs_per_group; ++j) {
-            dst_q = chs_per_group * i + j;
-            src_q = chs_per_group * j + i;
+            src_q = chs_per_group * i + j;
+            dst_q = group * j + i;
             memcpy(top_blob.channel(dst_q), bottom_blob.channel(src_q),
                    feature_sz);
         }
