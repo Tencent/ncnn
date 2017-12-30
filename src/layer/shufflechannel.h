@@ -26,7 +26,6 @@ public:
         one_blob_only = true;
         support_inplace = false;
     }
-    virtual ~ShuffleChannel() { }
     virtual int load_param(const ParamDict& pd) {
         group = pd.get(0, 1);
         return 0;

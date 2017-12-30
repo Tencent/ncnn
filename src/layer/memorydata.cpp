@@ -33,22 +33,19 @@ int MemoryData::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int MemoryData::load_model(FILE* binfp)
+int MemoryData::load_model(const ModelBin& mb)
 {
-    int nread;
-
     if (c != 0)
     {
-        data.create(w, h, c);
+        data = mb.load(w, h, c, 1);
     }
     else if (h != 0)
     {
-        data.create(w, h);
+        data = mb.load(w, h, 1);
     }
     else if (w != 0)
     {
-        data.create(w);
+        data = mb.load(w, 1);
     }
     else // 0 0 0
     {
@@ -56,49 +53,6 @@ int MemoryData::load_model(FILE* binfp)
     }
     if (data.empty())
         return -100;
-
-    for (int p=0; p<data.c; p++)
-    {
-        float* ptr = data.channel(p);
-        nread = fread(ptr, data.w * data.h * sizeof(float), 1, binfp);
-        if (nread != 1)
-        {
-            fprintf(stderr, "MemoryData read data failed %d\n", nread);
-            return -1;
-        }
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int MemoryData::load_model(const unsigned char*& mem)
-{
-    if (c != 0)
-    {
-        data.create(w, h, c);
-    }
-    else if (h != 0)
-    {
-        data.create(w, h);
-    }
-    else if (w != 0)
-    {
-        data.create(w);
-    }
-    else // 0 0 0
-    {
-        data.create(1);
-    }
-    if (data.empty())
-        return -100;
-
-    for (int p=0; p<data.c; p++)
-    {
-        float* ptr = data.channel(p);
-        memcpy(ptr, mem, data.w * data.h * sizeof(float));
-        mem += data.w * data.h * sizeof(float);
-    }
 
     return 0;
 }

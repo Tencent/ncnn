@@ -29,10 +29,6 @@ Reduction::Reduction()
     support_inplace = false;
 }
 
-Reduction::~Reduction()
-{
-}
-
 int Reduction::load_param(const ParamDict& pd)
 {
     operation = pd.get(0, 0);

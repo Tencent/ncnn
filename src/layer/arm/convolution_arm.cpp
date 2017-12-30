@@ -46,26 +46,9 @@ int Convolution_arm::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int Convolution_arm::load_model(FILE* binfp)
+int Convolution_arm::load_model(const ModelBin& mb)
 {
-    int ret = Convolution::load_model(binfp);
-    if (ret != 0)
-        return ret;
-
-    if (use_winograd3x3)
-    {
-        int num_input = weight_data_size / 9 / num_output;
-        conv3x3s1_winograd64_transform_kernel_neon(weight_data, weight_3x3_winograd64_data, num_input, num_output);
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Convolution_arm::load_model(const unsigned char*& mem)
-{
-    int ret = Convolution::load_model(mem);
+    int ret = Convolution::load_model(mb);
     if (ret != 0)
         return ret;
 

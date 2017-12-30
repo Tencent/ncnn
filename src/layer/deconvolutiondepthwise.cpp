@@ -24,10 +24,6 @@ DeconvolutionDepthWise::DeconvolutionDepthWise()
     support_inplace = false;
 }
 
-DeconvolutionDepthWise::~DeconvolutionDepthWise()
-{
-}
-
 int DeconvolutionDepthWise::load_param(const ParamDict& pd)
 {
     Deconvolution::load_param(pd);

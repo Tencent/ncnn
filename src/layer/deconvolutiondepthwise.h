@@ -24,7 +24,6 @@ class DeconvolutionDepthWise : public Deconvolution
 {
 public:
     DeconvolutionDepthWise();
-    virtual ~DeconvolutionDepthWise();
 
     virtual int load_param(const ParamDict& pd);
 

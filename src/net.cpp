@@ -14,6 +14,7 @@
 
 #include "net.h"
 #include "layer_type.h"
+#include "modelbin.h"
 #include "paramdict.h"
 
 #include <stdio.h>
@@ -359,11 +360,12 @@ int Net::load_model(FILE* fp)
     // load file
     int ret = 0;
 
+    ModelBin mb(fp);
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
 
-        int lret = layer->load_model(fp);
+        int lret = layer->load_model(mb);
         if (lret != 0)
         {
             fprintf(stderr, "layer load_model %d failed\n", (int)i);
@@ -512,11 +514,12 @@ int Net::load_model(const unsigned char* _mem)
     }
 
     const unsigned char* mem = _mem;
+    ModelBin mb(mem);
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
 
-        int lret = layer->load_model(mem);
+        int lret = layer->load_model(mb);
         if (lret != 0)
         {
             fprintf(stderr, "layer load_model failed\n");

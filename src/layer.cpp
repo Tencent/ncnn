@@ -33,14 +33,7 @@ int Layer::load_param(const ParamDict& /*pd*/)
     return 0;
 }
 
-#if NCNN_STDIO
-int Layer::load_model(FILE* /*binfp*/)
-{
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Layer::load_model(const unsigned char*& /*mem*/)
+int Layer::load_model(const ModelBin& /*mb*/)
 {
     return 0;
 }

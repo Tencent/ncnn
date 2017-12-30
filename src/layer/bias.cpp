@@ -24,10 +24,6 @@ Bias::Bias()
     support_inplace = true;
 }
 
-Bias::~Bias()
-{
-}
-
 int Bias::load_param(const ParamDict& pd)
 {
     bias_data_size = pd.get(0, 0);
@@ -35,29 +31,11 @@ int Bias::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int Bias::load_model(FILE* binfp)
+int Bias::load_model(const ModelBin& mb)
 {
-    int nread;
-
-    bias_data.create(bias_data_size);
+    bias_data = mb.load(bias_data_size, 1);
     if (bias_data.empty())
         return -100;
-    nread = fread(bias_data, bias_data_size * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "Bias read bias_data failed %d\n", nread);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Bias::load_model(const unsigned char*& mem)
-{
-    bias_data = Mat(bias_data_size, (float*)mem);
-    mem += bias_data_size * sizeof(float);
 
     return 0;
 }

@@ -35,53 +35,20 @@ int Scale::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int Scale::load_model(FILE* binfp)
+int Scale::load_model(const ModelBin& mb)
 {
-    int nread;
-
     if (scale_data_size != -233)
     {
-        scale_data.create(scale_data_size);
+        scale_data = mb.load(scale_data_size, 1);
         if (scale_data.empty())
             return -100;
-        nread = fread(scale_data, scale_data_size * sizeof(float), 1, binfp);
-        if (nread != 1)
-        {
-            fprintf(stderr, "Scale read scale_data failed %d\n", nread);
-            return -1;
-        }
     }
 
     if (bias_term)
     {
-        bias_data.create(scale_data_size);
+        bias_data = mb.load(scale_data_size, 1);
         if (bias_data.empty())
             return -100;
-        nread = fread(bias_data, scale_data_size * sizeof(float), 1, binfp);
-        if (nread != 1)
-        {
-            fprintf(stderr, "Scale read bias_data failed %d\n", nread);
-            return -1;
-        }
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Scale::load_model(const unsigned char*& mem)
-{
-    if (scale_data_size != -233)
-    {
-        scale_data = Mat(scale_data_size, (float*)mem);
-        mem += scale_data_size * sizeof(float);
-    }
-
-    if (bias_term)
-    {
-        bias_data = Mat(scale_data_size, (float*)mem);
-        mem += scale_data_size * sizeof(float);
     }
 
     return 0;

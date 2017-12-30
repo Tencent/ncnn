@@ -35,27 +35,11 @@ int Normalize::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int Normalize::load_model(FILE* binfp)
+int Normalize::load_model(const ModelBin& mb)
 {
-    int nread;
-
-    scale_data.create(1, scale_data_size);
-    nread = fread(scale_data, scale_data_size * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "Normalize read scale_data failed %d\n", nread);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Normalize::load_model(const unsigned char*& mem)
-{
-    scale_data = Mat(1, scale_data_size, (float*)mem);
-    mem += scale_data_size * sizeof(float);
+    scale_data = mb.load(scale_data_size, 1);
+    if (scale_data.empty())
+        return -100;
 
     return 0;
 }

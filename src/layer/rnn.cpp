@@ -25,10 +25,6 @@ RNN::RNN()
     support_inplace = false;
 }
 
-RNN::~RNN()
-{
-}
-
 int RNN::load_param(const ParamDict& pd)
 {
     num_output = pd.get(0, 0);
@@ -37,87 +33,30 @@ int RNN::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int RNN::load_model(FILE* binfp)
+int RNN::load_model(const ModelBin& mb)
 {
-    int nread;
-
     int size = (weight_data_size - num_output * num_output) / 2 / num_output;
 
     // raw weight data
-    weight_hh_data.create(size, num_output);
+    weight_hh_data = mb.load(size, num_output, 1);
     if (weight_hh_data.empty())
         return -100;
-    nread = fread(weight_hh_data.data, size * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "RNN read weight_hh_data failed %d\n", nread);
-        return -1;
-    }
 
-    weight_xh_data.create(size, num_output);
+    weight_xh_data = mb.load(size, num_output, 1);
     if (weight_xh_data.empty())
         return -100;
-    nread = fread(weight_xh_data.data, size * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "RNN read weight_xh_data failed %d\n", nread);
-        return -1;
-    }
 
-    weight_ho_data.create(num_output, num_output);
+    weight_ho_data = mb.load(num_output, num_output, 1);
     if (weight_ho_data.empty())
         return -100;
-    nread = fread(weight_ho_data.data, num_output * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "RNN read weight_ho_data failed %d\n", nread);
-        return -1;
-    }
 
-    bias_h_data.create(num_output);
+    bias_h_data = mb.load(num_output, 1);
     if (bias_h_data.empty())
         return -100;
-    nread = fread(bias_h_data.data, num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "RNN read bias_h_data failed %d\n", nread);
-        return -1;
-    }
 
-    bias_o_data.create(num_output);
+    bias_o_data = mb.load(num_output, 1);
     if (bias_o_data.empty())
         return -100;
-    nread = fread(bias_o_data.data, num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "RNN read bias_o_data failed %d\n", nread);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int RNN::load_model(const unsigned char*& mem)
-{
-    int size = (weight_data_size - num_output * num_output) / 2 / num_output;
-
-    // raw weight data
-    weight_hh_data = Mat(size, num_output, (float*)mem);
-    mem += size * num_output * sizeof(float);
-
-    weight_xh_data = Mat(size, num_output, (float*)mem);
-    mem += size * num_output * sizeof(float);
-
-    weight_ho_data = Mat(num_output, num_output, (float*)mem);
-    mem += num_output * num_output * sizeof(float);
-
-    bias_h_data = Mat(num_output, (float*)mem);
-    mem += num_output * sizeof(float);
-
-    bias_o_data = Mat(num_output, (float*)mem);
-    mem += num_output * sizeof(float);
 
     return 0;
 }

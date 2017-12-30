@@ -24,7 +24,6 @@ class ConvolutionDepthWise : public Convolution
 {
 public:
     ConvolutionDepthWise();
-    virtual ~ConvolutionDepthWise();
 
     virtual int load_param(const ParamDict& pd);
 

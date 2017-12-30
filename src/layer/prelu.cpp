@@ -31,29 +31,11 @@ int PReLU::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int PReLU::load_model(FILE* binfp)
+int PReLU::load_model(const ModelBin& mb)
 {
-    int nread;
-
-    slope_data.create(num_slope);
+    slope_data = mb.load(num_slope, 1);
     if (slope_data.empty())
         return -100;
-    nread = fread(slope_data, num_slope * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "PReLU read slope_data failed %d\n", nread);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int PReLU::load_model(const unsigned char*& mem)
-{
-    slope_data = Mat(num_slope, (float*)mem);
-    mem += num_slope * sizeof(float);
 
     return 0;
 }

@@ -37,61 +37,22 @@ int LSTM::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int LSTM::load_model(FILE* binfp)
+int LSTM::load_model(const ModelBin& mb)
 {
-    int nread;
-
     int size = weight_data_size / 2 / num_output / 4;
 
     // raw weight data
-    weight_hc_data.create(size * 4, num_output);
+    weight_hc_data = mb.load(size * 4, num_output, 1);
     if (weight_hc_data.empty())
         return -100;
-    nread = fread(weight_hc_data.data, size * 4 * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "LSTM read weight_hc_data failed %d\n", nread);
-        return -1;
-    }
 
-    weight_xc_data.create(size * 4, num_output);
+    weight_xc_data = mb.load(size * 4, num_output, 1);
     if (weight_xc_data.empty())
         return -100;
-    nread = fread(weight_xc_data.data, size * 4 * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "LSTM read weight_xc_data failed %d\n", nread);
-        return -1;
-    }
 
-    bias_c_data.create(4, num_output);
+    bias_c_data = mb.load(4, num_output, 1);
     if (bias_c_data.empty())
         return -100;
-    nread = fread(bias_c_data.data, 4 * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "LSTM read bias_c_data failed %d\n", nread);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int LSTM::load_model(const unsigned char*& mem)
-{
-    int size = weight_data_size / 2 / num_output / 4;
-
-    // raw weight data
-    weight_hc_data = Mat(size * 4, num_output, (float*)mem);
-    mem += size * 4 * num_output * sizeof(float);
-
-    weight_xc_data = Mat(size * 4, num_output, (float*)mem);
-    mem += size * 4 * num_output * sizeof(float);
-
-    bias_c_data = Mat(4, num_output, (float*)mem);
-    mem += 4 * num_output * sizeof(float);
 
     return 0;
 }

@@ -13,6 +13,7 @@ set(ncnn_SRCS
     layer.cpp
     mat.cpp
     mat_pixel.cpp
+    modelbin.cpp
     net.cpp
     opencv.cpp
     paramdict.cpp
@@ -149,6 +150,7 @@ install(FILES
     layer.h
     layer_type.h
     mat.h
+    modelbin.h
     net.h
     opencv.h
     paramdict.h
