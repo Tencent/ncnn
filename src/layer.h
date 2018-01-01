@@ -88,6 +88,8 @@ struct layer_registry_entry
 #if NCNN_STRING
 // get layer type from type name
 int layer_to_index(const char* type);
+// create layer from type name
+Layer* create_layer(const char* type);
 #endif // NCNN_STRING
 // create layer from layer type
 Layer* create_layer(int index);

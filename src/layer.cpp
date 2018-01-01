@@ -96,6 +96,15 @@ int layer_to_index(const char* type)
 
     return -1;
 }
+
+Layer* create_layer(const char* type)
+{
+    int index = layer_to_index(type);
+    if (index == -1)
+        return 0;
+
+    return create_layer(index);
+}
 #endif // NCNN_STRING
 
 Layer* create_layer(int index)

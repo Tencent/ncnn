@@ -128,12 +128,10 @@ int Net::load_param(FILE* fp)
             continue;
         }
 
-        int typeindex = layer_to_index(layer_type);
-        Layer* layer = create_layer(typeindex);
+        Layer* layer = create_layer(layer_type);
         if (!layer)
         {
-            typeindex = custom_layer_to_index(layer_type);
-            layer = create_custom_layer(typeindex);
+            layer = create_custom_layer(layer_type);
         }
         if (!layer)
         {
@@ -583,6 +581,15 @@ int Net::custom_layer_to_index(const char* type)
     }
 
     return -1;
+}
+
+Layer* Net::create_custom_layer(const char* type)
+{
+    int index = custom_layer_to_index(type);
+    if (index == -1)
+        return 0;
+
+    return create_custom_layer(index);
 }
 #endif // NCNN_STRING
 
