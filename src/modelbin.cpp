@@ -24,21 +24,32 @@ namespace ncnn {
 #if NCNN_STDIO
 static const unsigned char* _null_mem = 0;
 
-ModelBin::ModelBin(FILE* _binfp) : binfp(_binfp), mem(_null_mem)
+ModelBin::ModelBin(const Mat* _weights) : weights(_weights), binfp(0), mem(_null_mem)
 {
 }
 
-ModelBin::ModelBin(const unsigned char*& _mem) : binfp(0), mem(_mem)
+ModelBin::ModelBin(FILE* _binfp) : weights(0), binfp(_binfp), mem(_null_mem)
+{
+}
+
+ModelBin::ModelBin(const unsigned char*& _mem) : weights(0), binfp(0), mem(_mem)
 {
 }
 #else
-ModelBin::ModelBin(const unsigned char*& _mem) : mem(_mem)
+ModelBin::ModelBin(const unsigned char*& _mem) : weights(0), mem(_mem)
 {
 }
 #endif // NCNN_STDIO
 
 Mat ModelBin::load(int w, int type) const
 {
+    if (weights)
+    {
+        Mat m = weights[0];
+        weights++;
+        return m;
+    }
+
 #if NCNN_STDIO
     if (binfp)
     {

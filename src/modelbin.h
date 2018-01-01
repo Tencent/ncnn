@@ -37,7 +37,12 @@ public:
     // load dim
     Mat load(int w, int h, int c, int type) const;
 
+    // construct from weight blob array
+    ModelBin(const Mat* weights);
+
 protected:
+    mutable const Mat* weights;
+
     friend class Net;
 
 #if NCNN_STDIO

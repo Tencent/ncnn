@@ -22,6 +22,39 @@ ParamDict::ParamDict()
     clear();
 }
 
+int ParamDict::get(int id, int def) const
+{
+    return params[id].loaded ? params[id].i : def;
+}
+
+float ParamDict::get(int id, float def) const
+{
+    return params[id].loaded ? params[id].f : def;
+}
+
+Mat ParamDict::get(int id, const Mat& def) const
+{
+    return params[id].loaded ? params[id].v : def;
+}
+
+void ParamDict::set(int id, int i)
+{
+    params[id].loaded = 1;
+    params[id].i = i;
+}
+
+void ParamDict::set(int id, float f)
+{
+    params[id].loaded = 1;
+    params[id].f = f;
+}
+
+void ParamDict::set(int id, const Mat& v)
+{
+    params[id].loaded = 1;
+    params[id].v = v;
+}
+
 void ParamDict::clear()
 {
     for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
