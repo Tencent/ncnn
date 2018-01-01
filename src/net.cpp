@@ -206,7 +206,6 @@ int Net::load_param(FILE* fp)
             continue;
         }
 
-//         int lr = layer->load_param(fp);
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -325,7 +324,6 @@ int Net::load_param_bin(FILE* fp)
             continue;
         }
 
-//         int lr = layer->load_param_bin(fp);
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -490,7 +488,6 @@ int Net::load_param(const unsigned char* _mem)
             continue;
         }
 
-//         int lr = layer->load_param(mem);
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
