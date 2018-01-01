@@ -17,6 +17,9 @@
 
 #include <stdlib.h>
 #include <string.h>
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif
 
 namespace ncnn {
 
@@ -309,10 +312,45 @@ inline Mat& Mat::operator=(const Mat& m)
 
 inline void Mat::fill(float _v)
 {
-    size_t _total = total();
-    for (size_t i = 0; i < _total; i++)
+    int size = total();
+    float* ptr = data;
+
+#if __ARM_NEON
+    int nn = size >> 2;
+    int remain = size - (nn << 2);
+#else
+    int remain = size;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+    float32x4_t _c = vdupq_n_f32(_v);
+#if __aarch64__
+    for (; nn>0; nn--)
     {
-        data[i] = _v;
+        vst1q_f32(ptr, _c);
+        ptr += 4;
+    }
+#else
+    if (nn > 0)
+    {
+    asm volatile(
+        "0:                             \n"
+        "subs       %0, #1              \n"
+        "vst1.f32   {%e4-%f4}, [%1 :128]!\n"
+        "bne        0b                  \n"
+        : "=r"(nn),     // %0
+          "=r"(ptr)     // %1
+        : "0"(nn),
+          "1"(ptr),
+          "w"(_c)       // %4
+        : "cc", "memory"
+    );
+    }
+#endif // __aarch64__
+#endif // __ARM_NEON
+    for (; remain>0; remain--)
+    {
+        *ptr++ = _v;
     }
 }
 
