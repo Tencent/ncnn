@@ -2752,6 +2752,1181 @@ static void conv3x3s1_winograd64_neon2(const Mat& bottom_blob, Mat& top_blob, co
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w);
 }
 
+static void conv3x3s1_winograd64_neon3(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int inch = bottom_blob.c;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    // pad to 6n+2
+    Mat bottom_blob_bordered = bottom_blob;
+
+    outw = (outw + 5) / 6 * 6;
+    outh = (outh + 5) / 6 * 6;
+
+    w = outw + 2;
+    h = outh + 2;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f);
+
+    const float* bias = _bias;
+
+    // BEGIN transform input
+    Mat bottom_blob_tm;
+    {
+        int w_tm = outw / 6 * 8;
+        int h_tm = outh / 6 * 8;
+        bottom_blob_tm.create(8, 8 * w_tm/8 * h_tm/8, inch);
+        const int tiles = w_tm/8 * h_tm/8;
+
+//         const float itm[8][8] = {
+//             {1.0f,  0.0f, -5.25f,  0.00f,  5.25f,  0.00f, -1.0f, 0.0f},
+//
+//             {0.0f,  1.0f,  1.00f, -4.25f, -4.25f,  1.00f,  1.0f, 0.0f},
+//             {0.0f, -1.0f,  1.00f,  4.25f, -4.25f, -1.00f,  1.0f, 0.0f},
+//
+//             {0.0f,  0.5f,  0.25f, -2.50f, -1.25f,  2.00f,  1.0f, 0.0f},
+//             {0.0f, -0.5f,  0.25f,  2.50f, -1.25f, -2.00f,  1.0f, 0.0f},
+//
+//             {0.0f,  2.0f,  4.00f, -2.50f, -5.00f,  0.50f,  1.0f, 0.0f},
+//             {0.0f, -2.0f,  4.00f,  2.50f, -5.00f, -0.50f,  1.0f, 0.0f},
+//
+//             {0.0f, -1.0f,  0.00f,  5.25f,  0.00f, -5.25f,  0.0f, 1.0f}
+//         };
+
+        // 0 = r00 - r06 + (r04 - r02) * 5.25
+        // 7 = r07 - r01 + (r03 - r05) * 5.25
+
+        // 1 = (r02 + r06 - r04 * 4.25) + (r01 - r03 * 4.25 + r05)
+        // 2 = (r02 + r06 - r04 * 4.25) - (r01 - r03 * 4.25 + r05)
+
+        // 3 = (r06 + r02 * 0.25 - r04 * 1.25) + (r01 * 0.5 - r03 * 2.5 + r05 * 2)
+        // 4 = (r06 + r02 * 0.25 - r04 * 1.25) - (r01 * 0.5 - r03 * 2.5 + r05 * 2)
+
+        // reuse r04 * 1.25
+        // reuse r03 * 2.5
+        // 5 = (r06 + (r02 - r04 * 1.25) * 4) + (r01 * 2 - r03 * 2.5 + r05 * 0.5)
+        // 6 = (r06 + (r02 - r04 * 1.25) * 4) - (r01 * 2 - r03 * 2.5 + r05 * 0.5)
+
+        #pragma omp parallel for
+        for (int q = 0; q<inch; q++)
+        {
+            const Mat img0 = bottom_blob_bordered.channel(q);
+            Mat img0_tm = bottom_blob_tm.channel(q);
+
+            float tmp[8][8];
+
+            // tile
+            for (int i=0; i<h_tm/8; i++)
+            {
+                for (int j=0; j<w_tm/8; j++)
+                {
+                    const float* r0 = img0.row(i * 6) + j * 6;
+                    float* r0_tm0 = img0_tm.row(i * w_tm/8 + j);
+                    float* r0_tm1 = img0_tm.row(i * w_tm/8 + j + tiles);
+                    float* r0_tm2 = img0_tm.row(i * w_tm/8 + j + tiles * 2);
+                    float* r0_tm3 = img0_tm.row(i * w_tm/8 + j + tiles * 3);
+                    float* r0_tm4 = img0_tm.row(i * w_tm/8 + j + tiles * 4);
+                    float* r0_tm5 = img0_tm.row(i * w_tm/8 + j + tiles * 5);
+                    float* r0_tm6 = img0_tm.row(i * w_tm/8 + j + tiles * 6);
+                    float* r0_tm7 = img0_tm.row(i * w_tm/8 + j + tiles * 7);
+
+                    for (int m=0; m<8; m++)
+                    {
+                        tmp[0][m] = r0[0] - r0[6] + (r0[4] - r0[2]) * 5.25;
+                        tmp[7][m] = r0[7] - r0[1] + (r0[3] - r0[5]) * 5.25;
+
+                        float tmp12a = (r0[2] + r0[6] - r0[4] * 4.25);
+                        float tmp12b = (r0[1] + r0[5] - r0[3] * 4.25);
+
+                        tmp[1][m] = tmp12a + tmp12b;
+                        tmp[2][m] = tmp12a - tmp12b;
+
+                        float tmp34a = (r0[6] + r0[2] * 0.25 - r0[4] * 1.25);
+                        float tmp34b = (r0[1] * 0.5 - r0[3] * 2.5 + r0[5] * 2);
+
+                        tmp[3][m] = tmp34a + tmp34b;
+                        tmp[4][m] = tmp34a - tmp34b;
+
+                        float tmp56a = (r0[6] + (r0[2] - r0[4] * 1.25) * 4);
+                        float tmp56b = (r0[1] * 2 - r0[3] * 2.5 + r0[5] * 0.5);
+
+                        tmp[5][m] = tmp56a + tmp56b;
+                        tmp[6][m] = tmp56a - tmp56b;
+
+                        r0 += w;
+                    }
+
+                    float* r0_tms[8] = { r0_tm0, r0_tm1, r0_tm2, r0_tm3, r0_tm4, r0_tm5, r0_tm6, r0_tm7 };
+
+                    for (int m=0; m<8; m++)
+                    {
+                        const float* tmp0 = tmp[m];
+
+                        float* r0_tm = r0_tms[m];
+
+                        r0_tm[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25;
+                        r0_tm[7] = tmp0[7] - tmp0[1] + (tmp0[3] - tmp0[5]) * 5.25;
+
+                        float tmp12a = (tmp0[2] + tmp0[6] - tmp0[4] * 4.25);
+                        float tmp12b = (tmp0[1] - tmp0[3] * 4.25 + tmp0[5]);
+
+                        r0_tm[1] = tmp12a + tmp12b;
+                        r0_tm[2] = tmp12a - tmp12b;
+
+                        float tmp34a = (tmp0[6] + tmp0[2] * 0.25 - tmp0[4] * 1.25);
+                        float tmp34b = (tmp0[1] * 0.5 - tmp0[3] * 2.5 + tmp0[5] * 2);
+
+                        r0_tm[3] = tmp34a + tmp34b;
+                        r0_tm[4] = tmp34a - tmp34b;
+
+                        float tmp56a = (tmp0[6] + (tmp0[2] - tmp0[4] * 1.25) * 4);
+                        float tmp56b = (tmp0[1] * 2 - tmp0[3] * 2.5 + tmp0[5] * 0.5);
+
+                        r0_tm[5] = tmp56a + tmp56b;
+                        r0_tm[6] = tmp56a - tmp56b;
+                    }
+                }
+            }
+        }
+
+    }
+    bottom_blob_bordered = Mat();
+    // END transform input
+
+    // BEGIN dot
+    Mat top_blob_tm;
+    {
+        int w_tm = outw / 6 * 8;
+        int h_tm = outh / 6 * 8;
+        top_blob_tm.create(8, 8 * w_tm/8 * h_tm/8, outch);
+
+        const int tiles = h_tm/8 * w_tm/8;
+
+        int nn_outch = outch >> 1;
+        int remain_outch_start = nn_outch << 1;
+
+        #pragma omp parallel for
+        for (int pp=0; pp<nn_outch; pp++)
+        {
+            int p = pp * 2;
+
+            Mat out0_tm = top_blob_tm.channel(p);
+            Mat out1_tm = top_blob_tm.channel(p+1);
+            const Mat kernel0_tm = kernel_tm.channel(p);
+            const Mat kernel1_tm = kernel_tm.channel(p+1);
+
+            out0_tm.fill(0.f);
+            out1_tm.fill(0.f);
+
+            int q = 0;
+            for (; q+1<inch; q+=2)
+            {
+                const float* r0 = bottom_blob_tm.channel(q);
+                const float* r1 = bottom_blob_tm.channel(q+1);
+
+                const float* k00 = kernel0_tm.row(q);
+                const float* k01 = kernel0_tm.row(q+1);
+                const float* k10 = kernel1_tm.row(q);
+                const float* k11 = kernel1_tm.row(q+1);
+
+                float* output0_tm = out0_tm;
+                float* output1_tm = out1_tm;
+
+                for (int r=0; r<8; r++)
+                {
+#if __ARM_NEON
+#if __aarch64__
+                float32x4_t _k00 = vld1q_f32(k00);
+                float32x4_t _k00n = vld1q_f32(k00+4);
+                float32x4_t _k01 = vld1q_f32(k01);
+                float32x4_t _k01n = vld1q_f32(k01+4);
+                float32x4_t _k10 = vld1q_f32(k10);
+                float32x4_t _k10n = vld1q_f32(k10+4);
+                float32x4_t _k11 = vld1q_f32(k11);
+                float32x4_t _k11n = vld1q_f32(k11+4);
+#else
+                float32x4_t _k00;
+                float32x4_t _k00n;
+                float32x4_t _k01;
+                float32x4_t _k01n;
+                float32x4_t _k10;
+                float32x4_t _k10n;
+                float32x4_t _k11;
+                float32x4_t _k11n;
+
+                asm volatile(
+                    "pld        [%0, #256]              \n"
+                    "vld1.f32   {%e4-%f4}, [%0 :128]!   \n"
+                    "pld        [%1, #256]              \n"
+                    "vld1.f32   {%e6-%f6}, [%1 :128]!   \n"
+                    "pld        [%2, #256]              \n"
+                    "vld1.f32   {%e8-%f8}, [%2 :128]!   \n"
+                    "pld        [%3, #256]              \n"
+                    "vld1.f32   {%e10-%f10}, [%3 :128]! \n"
+
+                    "vld1.f32   {%e5-%f5}, [%0 :128]!   \n"
+                    "vld1.f32   {%e7-%f7}, [%1 :128]!   \n"
+                    "vld1.f32   {%e9-%f9}, [%2 :128]!   \n"
+                    "vld1.f32   {%e11-%f11}, [%3 :128]! \n"
+                    : "=r"(k00),    // %0
+                      "=r"(k01),    // %1
+                      "=r"(k10),    // %2
+                      "=r"(k11),    // %3
+                      "=w"(_k00),   // %4
+                      "=w"(_k00n),  // %5
+                      "=w"(_k01),   // %6
+                      "=w"(_k01n),  // %7
+                      "=w"(_k10),   // %8
+                      "=w"(_k10n),  // %9
+                      "=w"(_k11),   // %10
+                      "=w"(_k11n)   // %11
+                    : "0"(k00),
+                      "1"(k01),
+                      "2"(k10),
+                      "3"(k11)
+                    : "cc", "memory"
+                );
+#endif // __aarch64__
+#endif // __ARM_NEON
+
+                // tile
+#if __ARM_NEON
+                int nn = tiles >> 2;
+                int remain = tiles & 3;
+#else
+                int remain = tiles;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+#if __aarch64__
+                for (; nn>0; nn--)
+                {
+                    float32x4_t _output0_tm = vld1q_f32(output0_tm);
+                    float32x4_t _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    float32x4_t _output1_tm = vld1q_f32(output1_tm);
+                    float32x4_t _output1_tmn = vld1q_f32(output1_tm+4);
+
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    float32x4_t _r0n = vld1q_f32(r0+4);
+                    float32x4_t _r1 = vld1q_f32(r1);
+                    float32x4_t _r1n = vld1q_f32(r1+4);
+
+                    r0 += 8;
+                    r1 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k01);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k01n);
+
+                    _output1_tm = vmlaq_f32(_output1_tm, _r0, _k10);
+                    _output1_tmn = vmlaq_f32(_output1_tmn, _r0n, _k10n);
+                    _output1_tm = vmlaq_f32(_output1_tm, _r1, _k11);
+                    _output1_tmn = vmlaq_f32(_output1_tmn, _r1n, _k11n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    vst1q_f32(output1_tm, _output1_tm);
+                    vst1q_f32(output1_tm+4, _output1_tmn);
+
+                    output0_tm += 8;
+                    output1_tm += 8;
+
+                    _output0_tm = vld1q_f32(output0_tm);
+                    _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    _output1_tm = vld1q_f32(output1_tm);
+                    _output1_tmn = vld1q_f32(output1_tm+4);
+
+                    _r0 = vld1q_f32(r0);
+                    _r0n = vld1q_f32(r0+4);
+                    _r1 = vld1q_f32(r1);
+                    _r1n = vld1q_f32(r1+4);
+
+                    r0 += 8;
+                    r1 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k01);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k01n);
+
+                    _output1_tm = vmlaq_f32(_output1_tm, _r0, _k10);
+                    _output1_tmn = vmlaq_f32(_output1_tmn, _r0n, _k10n);
+                    _output1_tm = vmlaq_f32(_output1_tm, _r1, _k11);
+                    _output1_tmn = vmlaq_f32(_output1_tmn, _r1n, _k11n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    vst1q_f32(output1_tm, _output1_tm);
+                    vst1q_f32(output1_tm+4, _output1_tmn);
+
+                    output0_tm += 8;
+                    output1_tm += 8;
+
+                    _output0_tm = vld1q_f32(output0_tm);
+                    _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    _output1_tm = vld1q_f32(output1_tm);
+                    _output1_tmn = vld1q_f32(output1_tm+4);
+
+                    _r0 = vld1q_f32(r0);
+                    _r0n = vld1q_f32(r0+4);
+                    _r1 = vld1q_f32(r1);
+                    _r1n = vld1q_f32(r1+4);
+
+                    r0 += 8;
+                    r1 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k01);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k01n);
+
+                    _output1_tm = vmlaq_f32(_output1_tm, _r0, _k10);
+                    _output1_tmn = vmlaq_f32(_output1_tmn, _r0n, _k10n);
+                    _output1_tm = vmlaq_f32(_output1_tm, _r1, _k11);
+                    _output1_tmn = vmlaq_f32(_output1_tmn, _r1n, _k11n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    vst1q_f32(output1_tm, _output1_tm);
+                    vst1q_f32(output1_tm+4, _output1_tmn);
+
+                    output0_tm += 8;
+                    output1_tm += 8;
+
+                    _output0_tm = vld1q_f32(output0_tm);
+                    _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    _output1_tm = vld1q_f32(output1_tm);
+                    _output1_tmn = vld1q_f32(output1_tm+4);
+
+                    _r0 = vld1q_f32(r0);
+                    _r0n = vld1q_f32(r0+4);
+                    _r1 = vld1q_f32(r1);
+                    _r1n = vld1q_f32(r1+4);
+
+                    r0 += 8;
+                    r1 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k01);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k01n);
+
+                    _output1_tm = vmlaq_f32(_output1_tm, _r0, _k10);
+                    _output1_tmn = vmlaq_f32(_output1_tmn, _r0n, _k10n);
+                    _output1_tm = vmlaq_f32(_output1_tm, _r1, _k11);
+                    _output1_tmn = vmlaq_f32(_output1_tmn, _r1n, _k11n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    vst1q_f32(output1_tm, _output1_tm);
+                    vst1q_f32(output1_tm+4, _output1_tmn);
+
+                    output0_tm += 8;
+                    output1_tm += 8;
+                }
+#else
+                if (nn > 0)
+                {
+                    asm volatile(
+                        "0:                                 \n"
+
+                        "pld        [%3, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%3 :128]!   \n"// q12 q13 = _r0
+
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%1 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q10           \n"
+                        "vmla.f32   q9, q13, %q11           \n"
+
+                        "pld        [%4, #256]              \n"
+                        "vld1.f32   {d28-d31}, [%4 :128]!   \n"// q14 q15 = _r1
+
+                        "vmla.f32   q8, q14, %q12           \n"
+                        "vmla.f32   q9, q15, %q13           \n"
+
+                        "pld        [%2, #256]              \n"
+                        "vld1.f32   {d20-d23}, [%2 :128]    \n"// q10 q11 = _output1_tm
+
+                        "vmla.f32   q10, q12, %q14          \n"
+                        "vmla.f32   q11, q13, %q15          \n"
+
+                        "pld        [%3, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%3 :128]!   \n"// q12 q13 = _r0
+
+                        "vmla.f32   q10, q14, %q16          \n"
+                        "vmla.f32   q11, q15, %q17          \n"
+
+                        "vst1.f32   {d16-d19}, [%1 :128]!   \n"
+
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%1 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q10           \n"
+                        "vmla.f32   q9, q13, %q11           \n"
+
+                        "pld        [%4, #256]              \n"
+                        "vld1.f32   {d28-d31}, [%4 :128]!   \n"// q14 q15 = _r1
+
+                        "vmla.f32   q8, q14, %q12           \n"
+                        "vmla.f32   q9, q15, %q13           \n"
+
+                        "vst1.f32   {d20-d23}, [%2 :128]!   \n"
+
+                        "pld        [%2, #256]              \n"
+                        "vld1.f32   {d20-d23}, [%2 :128]    \n"// q10 q11 = _output1_tm
+
+                        "vmla.f32   q10, q12, %q14          \n"
+                        "vmla.f32   q11, q13, %q15          \n"
+
+                        "pld        [%3, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%3 :128]!   \n"// q12 q13 = _r0
+
+                        "vmla.f32   q10, q14, %q16          \n"
+                        "vmla.f32   q11, q15, %q17          \n"
+
+                        "vst1.f32   {d16-d19}, [%1 :128]!   \n"
+
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%1 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q10           \n"
+                        "vmla.f32   q9, q13, %q11           \n"
+
+                        "pld        [%4, #256]              \n"
+                        "vld1.f32   {d28-d31}, [%4 :128]!   \n"// q14 q15 = _r1
+
+                        "vmla.f32   q8, q14, %q12           \n"
+                        "vmla.f32   q9, q15, %q13           \n"
+
+                        "vst1.f32   {d20-d23}, [%2 :128]!   \n"
+
+                        "pld        [%2, #256]              \n"
+                        "vld1.f32   {d20-d23}, [%2 :128]    \n"// q10 q11 = _output1_tm
+
+                        "vmla.f32   q10, q12, %q14          \n"
+                        "vmla.f32   q11, q13, %q15          \n"
+
+                        "pld        [%3, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%3 :128]!   \n"// q12 q13 = _r0
+
+                        "vmla.f32   q10, q14, %q16          \n"
+                        "vmla.f32   q11, q15, %q17          \n"
+
+                        "vst1.f32   {d16-d19}, [%1 :128]!   \n"
+
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%1 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q10           \n"
+                        "vmla.f32   q9, q13, %q11           \n"
+
+                        "pld        [%4, #256]              \n"
+                        "vld1.f32   {d28-d31}, [%4 :128]!   \n"// q14 q15 = _r1
+
+                        "vmla.f32   q8, q14, %q12           \n"
+                        "vmla.f32   q9, q15, %q13           \n"
+
+                        "vst1.f32   {d20-d23}, [%2 :128]!   \n"
+
+                        "pld        [%2, #256]              \n"
+                        "vld1.f32   {d20-d23}, [%2 :128]    \n"// q10 q11 = _output1_tm
+
+                        "vmla.f32   q10, q12, %q14          \n"
+                        "vmla.f32   q11, q13, %q15          \n"
+
+                        "vmla.f32   q10, q14, %q16          \n"
+                        "vmla.f32   q11, q15, %q17          \n"
+
+                        "vst1.f32   {d16-d19}, [%1 :128]!   \n"
+                        "vst1.f32   {d20-d23}, [%2 :128]!   \n"
+
+                        "subs       %0, #1                  \n"
+
+                        "bne        0b                      \n"
+
+                        : "=r"(nn),         // %0
+                          "=r"(output0_tm), // %1
+                          "=r"(output1_tm), // %2
+                          "=r"(r0),         // %3
+                          "=r"(r1)          // %4
+                        : "0"(nn),
+                          "1"(output0_tm),
+                          "2"(output1_tm),
+                          "3"(r0),
+                          "4"(r1),
+                          "w"(_k00),         // %10
+                          "w"(_k00n),        // %11
+                          "w"(_k01),         // %12
+                          "w"(_k01n),        // %13
+                          "w"(_k10),         // %14
+                          "w"(_k10n),        // %15
+                          "w"(_k11),         // %16
+                          "w"(_k11n)         // %17
+                        : "cc", "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
+                }
+#endif // __aarch64__
+#endif // __ARM_NEON
+                for (; remain>0; remain--)
+                {
+#if __ARM_NEON
+#if __aarch64__
+                    float32x4_t _output0_tm = vld1q_f32(output0_tm);
+                    float32x4_t _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    float32x4_t _output1_tm = vld1q_f32(output1_tm);
+                    float32x4_t _output1_tmn = vld1q_f32(output1_tm+4);
+
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    float32x4_t _r0n = vld1q_f32(r0+4);
+                    float32x4_t _r1 = vld1q_f32(r1);
+                    float32x4_t _r1n = vld1q_f32(r1+4);
+
+                    r0 += 8;
+                    r1 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k01);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k01n);
+
+                    _output1_tm = vmlaq_f32(_output1_tm, _r0, _k10);
+                    _output1_tmn = vmlaq_f32(_output1_tmn, _r0n, _k10n);
+                    _output1_tm = vmlaq_f32(_output1_tm, _r1, _k11);
+                    _output1_tmn = vmlaq_f32(_output1_tmn, _r1n, _k11n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    vst1q_f32(output1_tm, _output1_tm);
+                    vst1q_f32(output1_tm+4, _output1_tmn);
+
+                    output0_tm += 8;
+                    output1_tm += 8;
+#else
+                    asm volatile(
+                        "pld        [%2, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%2 :128]!   \n"// q12 q13 = _r0
+
+                        "pld        [%0, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%0 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q8            \n"
+                        "vmla.f32   q9, q13, %q9            \n"
+
+                        "pld        [%3, #256]              \n"
+                        "vld1.f32   {d28-d31}, [%3 :128]!   \n"// q14 q15 = _r1
+
+                        "vmla.f32   q8, q14, %q10           \n"
+                        "vmla.f32   q9, q15, %q11           \n"
+
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d20-d23}, [%1 :128]    \n"// q10 q11 = _output1_tm
+
+                        "vmla.f32   q10, q12, %q12          \n"
+                        "vmla.f32   q11, q13, %q13          \n"
+
+                        "vmla.f32   q10, q14, %q14          \n"
+                        "vmla.f32   q11, q15, %q15          \n"
+
+                        "vst1.f32   {d16-d19}, [%0 :128]!   \n"
+                        "vst1.f32   {d20-d23}, [%1 :128]!   \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(r0),         // %2
+                          "=r"(r1)          // %3
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(r0),
+                          "3"(r1),
+                          "w"(_k00),         // %8
+                          "w"(_k00n),        // %9
+                          "w"(_k01),         // %10
+                          "w"(_k01n),        // %11
+                          "w"(_k10),         // %12
+                          "w"(_k10n),        // %13
+                          "w"(_k11),         // %14
+                          "w"(_k11n)         // %15
+                        : "cc", "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
+#endif // __aarch64__
+#else
+                    for (int m=0; m<8; m++)
+                    {
+                        output0_tm[m] += r0[m] * k00[m];
+                        output0_tm[m] += r1[m] * k01[m];
+                        output1_tm[m] += r0[m] * k10[m];
+                        output1_tm[m] += r1[m] * k11[m];
+                    }
+
+                    r0 += 8;
+                    r1 += 8;
+                    output0_tm += 8;
+                    output1_tm += 8;
+#endif // __ARM_NEON
+                }
+
+#if __ARM_NEON
+#if __aarch64__
+                k00 += 8;
+                k01 += 8;
+                k10 += 8;
+                k11 += 8;
+#endif // __aarch64__
+#else
+                k00 += 8;
+                k01 += 8;
+                k10 += 8;
+                k11 += 8;
+#endif // __ARM_NEON
+                }
+            }
+        }
+
+        #pragma omp parallel for
+        for (int p = remain_outch_start; p<outch; p++)
+        {
+            Mat out0_tm = top_blob_tm.channel(p);
+            const Mat kernel0_tm = kernel_tm.channel(p);
+
+            out0_tm.fill(0.f);
+
+            int q = 0;
+            for (; q+1<inch; q+=2)
+            {
+                const float* r0 = bottom_blob_tm.channel(q);
+                const float* r1 = bottom_blob_tm.channel(q+1);
+
+                const float* k00 = kernel0_tm.row(q);
+                const float* k01 = kernel0_tm.row(q+1);
+
+                float* output0_tm = out0_tm;
+
+                for (int r=0; r<8; r++)
+                {
+#if __ARM_NEON
+#if __aarch64__
+                float32x4_t _k00 = vld1q_f32(k00);
+                float32x4_t _k00n = vld1q_f32(k00+4);
+                float32x4_t _k01 = vld1q_f32(k01);
+                float32x4_t _k01n = vld1q_f32(k01+4);
+#else
+                float32x4_t _k00;
+                float32x4_t _k00n;
+                float32x4_t _k01;
+                float32x4_t _k01n;
+
+                asm volatile(
+                    "pld        [%0, #256]              \n"
+                    "vld1.f32   {%e2-%f2}, [%0 :128]!   \n"
+                    "pld        [%1, #256]              \n"
+                    "vld1.f32   {%e4-%f4}, [%1 :128]!   \n"
+
+                    "vld1.f32   {%e3-%f3}, [%0 :128]!   \n"
+                    "vld1.f32   {%e5-%f5}, [%1 :128]!   \n"
+                    : "=r"(k00),    // %0
+                      "=r"(k01),    // %1
+                      "=w"(_k00),   // %2
+                      "=w"(_k00n),  // %3
+                      "=w"(_k01),   // %4
+                      "=w"(_k01n)   // %5
+                    : "0"(k00),
+                      "1"(k01)
+                    : "cc", "memory"
+                );
+#endif // __aarch64__
+#endif // __ARM_NEON
+
+                // tile
+#if __ARM_NEON
+                int nn = tiles >> 2;
+                int remain = tiles & 3;
+#else
+                int remain = tiles;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+#if __aarch64__
+                for (; nn>0; nn--)
+                {
+                    float32x4_t _output0_tm = vld1q_f32(output0_tm);
+                    float32x4_t _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    float32x4_t _r0n = vld1q_f32(r0+4);
+                    float32x4_t _r1 = vld1q_f32(r1);
+                    float32x4_t _r1n = vld1q_f32(r1+4);
+
+                    r0 += 8;
+                    r1 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k01);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k01n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    output0_tm += 8;
+
+                    _output0_tm = vld1q_f32(output0_tm);
+                    _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    _r0 = vld1q_f32(r0);
+                    _r0n = vld1q_f32(r0+4);
+                    _r1 = vld1q_f32(r1);
+                    _r1n = vld1q_f32(r1+4);
+
+                    r0 += 8;
+                    r1 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k01);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k01n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    output0_tm += 8;
+
+                    _output0_tm = vld1q_f32(output0_tm);
+                    _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    _r0 = vld1q_f32(r0);
+                    _r0n = vld1q_f32(r0+4);
+                    _r1 = vld1q_f32(r1);
+                    _r1n = vld1q_f32(r1+4);
+
+                    r0 += 8;
+                    r1 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k01);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k01n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    output0_tm += 8;
+
+                    _output0_tm = vld1q_f32(output0_tm);
+                    _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    _r0 = vld1q_f32(r0);
+                    _r0n = vld1q_f32(r0+4);
+                    _r1 = vld1q_f32(r1);
+                    _r1n = vld1q_f32(r1+4);
+
+                    r0 += 8;
+                    r1 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k01);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k01n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    output0_tm += 8;
+                }
+#else
+                if (nn > 0)
+                {
+                    asm volatile(
+                        "0:                                 \n"
+
+                        "pld        [%2, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%2 :128]!   \n"// q12 q13 = _r0
+
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%1 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q8            \n"
+                        "vmla.f32   q9, q13, %q9            \n"
+
+                        "pld        [%3, #256]              \n"
+                        "vld1.f32   {d28-d31}, [%3 :128]!   \n"// q14 q15 = _r1
+
+                        "vmla.f32   q8, q14, %q10           \n"
+                        "vmla.f32   q9, q15, %q11           \n"
+
+                        "pld        [%2, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%2 :128]!   \n"// q12 q13 = _r0
+
+                        "vst1.f32   {d16-d19}, [%1 :128]!   \n"
+
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%1 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q8            \n"
+                        "vmla.f32   q9, q13, %q9            \n"
+
+                        "pld        [%3, #256]              \n"
+                        "vld1.f32   {d28-d31}, [%3 :128]!   \n"// q14 q15 = _r1
+
+                        "vmla.f32   q8, q14, %q10           \n"
+                        "vmla.f32   q9, q15, %q11           \n"
+
+                        "pld        [%2, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%2 :128]!   \n"// q12 q13 = _r0
+
+                        "vst1.f32   {d16-d19}, [%1 :128]!   \n"
+
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%1 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q8            \n"
+                        "vmla.f32   q9, q13, %q9            \n"
+
+                        "pld        [%3, #256]              \n"
+                        "vld1.f32   {d28-d31}, [%3 :128]!   \n"// q14 q15 = _r1
+
+                        "vmla.f32   q8, q14, %q10           \n"
+                        "vmla.f32   q9, q15, %q11           \n"
+
+                        "pld        [%2, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%2 :128]!   \n"// q12 q13 = _r0
+
+                        "vst1.f32   {d16-d19}, [%1 :128]!   \n"
+
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%1 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q8            \n"
+                        "vmla.f32   q9, q13, %q9            \n"
+
+                        "pld        [%3, #256]              \n"
+                        "vld1.f32   {d28-d31}, [%3 :128]!   \n"// q14 q15 = _r1
+
+                        "vmla.f32   q8, q14, %q10           \n"
+                        "vmla.f32   q9, q15, %q11           \n"
+
+                        "vst1.f32   {d16-d19}, [%1 :128]!   \n"
+
+                        "subs       %0, #1                  \n"
+
+                        "bne        0b                      \n"
+
+                        : "=r"(nn),         // %0
+                          "=r"(output0_tm), // %1
+                          "=r"(r0),         // %2
+                          "=r"(r1)          // %3
+                        : "0"(nn),
+                          "1"(output0_tm),
+                          "2"(r0),
+                          "3"(r1),
+                          "w"(_k00),        // %8
+                          "w"(_k00n),       // %9
+                          "w"(_k01),        // %10
+                          "w"(_k01n)        // %11
+                        : "cc", "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
+                }
+#endif // __aarch64__
+#endif // __ARM_NEON
+                for (; remain>0; remain--)
+                {
+#if __ARM_NEON
+#if __aarch64__
+                    float32x4_t _output0_tm = vld1q_f32(output0_tm);
+                    float32x4_t _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    float32x4_t _r0n = vld1q_f32(r0+4);
+                    float32x4_t _r1 = vld1q_f32(r1);
+                    float32x4_t _r1n = vld1q_f32(r1+4);
+
+                    r0 += 8;
+                    r1 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+                    _output0_tm = vmlaq_f32(_output0_tm, _r1, _k01);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r1n, _k01n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    output0_tm += 8;
+#else
+                    asm volatile(
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%1 :128]!   \n"// q12 q13 = _r0
+
+                        "pld        [%0, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%0 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q6            \n"
+                        "vmla.f32   q9, q13, %q7            \n"
+
+                        "pld        [%2, #256]              \n"
+                        "vld1.f32   {d28-d31}, [%2 :128]!   \n"// q14 q15 = _r1
+
+                        "vmla.f32   q8, q14, %q8            \n"
+                        "vmla.f32   q9, q15, %q9            \n"
+
+                        "vst1.f32   {d16-d19}, [%0 :128]!   \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(r0),         // %1
+                          "=r"(r1)          // %2
+                        : "0"(output0_tm),
+                          "1"(r0),
+                          "2"(r1),
+                          "w"(_k00),        // %6
+                          "w"(_k00n),       // %7
+                          "w"(_k01),        // %8
+                          "w"(_k01n)        // %9
+                        : "cc", "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
+#endif // __aarch64__
+#else
+                    for (int m=0; m<8; m++)
+                    {
+                        output0_tm[m] += r0[m] * k00[m];
+                        output0_tm[m] += r1[m] * k01[m];
+                    }
+
+                    r0 += 8;
+                    r1 += 8;
+                    output0_tm += 8;
+#endif // __ARM_NEON
+                }
+
+#if __ARM_NEON
+#if __aarch64__
+                k00 += 8;
+                k01 += 8;
+#endif // __aarch64__
+#else
+                k00 += 8;
+                k01 += 8;
+#endif // __ARM_NEON
+                }
+            }
+
+            for (; q<inch; q++)
+            {
+                const float* r0 = bottom_blob_tm.channel(q);
+
+                const float* k00 = kernel0_tm.row(q);
+
+                float* output0_tm = out0_tm;
+
+                for (int r=0; r<8; r++)
+                {
+#if __ARM_NEON
+#if __aarch64__
+                float32x4_t _k00 = vld1q_f32(k00);
+                float32x4_t _k00n = vld1q_f32(k00+4);
+#else
+                float32x4_t _k00;
+                float32x4_t _k00n;
+
+                asm volatile(
+                    "pld        [%0, #256]              \n"
+                    "vld1.f32   {%e1-%f1}, [%0 :128]!   \n"
+                    "vld1.f32   {%e2-%f2}, [%0 :128]!   \n"
+                    : "=r"(k00),    // %0
+                      "=w"(_k00),   // %1
+                      "=w"(_k00n)   // %2
+                    : "0"(k00)
+                    : "cc", "memory"
+                );
+#endif // __aarch64__
+#endif // __ARM_NEON
+
+                // tile
+                for (int i=0; i<tiles; i++)
+                {
+#if __ARM_NEON
+#if __aarch64__
+                    float32x4_t _output0_tm = vld1q_f32(output0_tm);
+                    float32x4_t _output0_tmn = vld1q_f32(output0_tm+4);
+
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    float32x4_t _r0n = vld1q_f32(r0+4);
+
+                    r0 += 8;
+
+                    _output0_tm = vmlaq_f32(_output0_tm, _r0, _k00);
+                    _output0_tmn = vmlaq_f32(_output0_tmn, _r0n, _k00n);
+
+                    vst1q_f32(output0_tm, _output0_tm);
+                    vst1q_f32(output0_tm+4, _output0_tmn);
+
+                    output0_tm += 8;
+#else
+                    asm volatile(
+                        "pld        [%1, #256]              \n"
+                        "vld1.f32   {d24-d27}, [%1 :128]!   \n"// q12 q13 = _r0
+
+                        "pld        [%0, #256]              \n"
+                        "vld1.f32   {d16-d19}, [%0 :128]    \n"// q8 q9 = _output0_tm
+
+                        "vmla.f32   q8, q12, %q4            \n"
+                        "vmla.f32   q9, q13, %q5            \n"
+
+                        "vst1.f32   {d16-d19}, [%0 :128]!   \n"
+                        : "=r"(output0_tm), // %0
+                          "=r"(r0)          // %1
+                        : "0"(output0_tm),
+                          "1"(r0),
+                          "w"(_k00),        // %4
+                          "w"(_k00n)        // %5
+                        : "cc", "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
+#endif // __aarch64__
+#else
+                    for (int m=0; m<8; m++)
+                    {
+                        output0_tm[m] += r0[m] * k00[m];
+                    }
+
+                    r0 += 8;
+                    output0_tm += 8;
+#endif // __ARM_NEON
+                }
+
+#if __ARM_NEON
+#if __aarch64__
+                k00 += 8;
+#endif // __aarch64__
+#else
+                k00 += 8;
+#endif // __ARM_NEON
+                }
+            }
+        }
+    }
+    bottom_blob_tm = Mat();
+    // END dot
+
+    // BEGIN transform output
+    Mat top_blob_bordered;
+    top_blob_bordered.create(outw, outh, outch);
+    {
+//         const float otm[6][8] = {
+//             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
+//             {0.0f,  1.0f,  -1.0f,   2.0f,  -2.0f,  16.0f,-16.0f, 0.0f},
+//             {0.0f,  1.0f,   1.0f,   4.0f,   4.0f,   8.0f,  8.0f, 0.0f},
+//             {0.0f,  1.0f,  -1.0f,   8.0f,  -8.0f,   4.0f, -4.0f, 0.0f},
+//             {0.0f,  1.0f,   1.0f,  16.0f,  16.0f,   2.0f,  2.0f, 0.0f},
+//             {0.0f,  1.0f,  -1.0f,  32.0f, -32.0f,   1.0f, -1.0f, 1.0f}
+//         };
+
+        // 0 = r0 + (r1 + r2) + (r3 + r4)     + (r5 + r6) * 32
+        // 1 =      (r1 - r2) + (r3 - r4) * 2 + (r5 - r6) * 16
+        // 2 =      (r1 + r2) + (r3 + r4) * 4 + (r5 + r6) * 8
+        // 3 =      (r1 - r2) + (r3 - r4) * 8 + (r5 - r6) * 4
+        // 4 =      (r1 + r2) + (r3 + r4) * 16+ (r5 + r6) * 2
+        // 5 = r7 + (r1 - r2) + (r3 - r4) * 32+ (r5 - r6)
+
+        int w_tm = outw / 6 * 8;
+        int h_tm = outh / 6 * 8;
+        const int tiles = w_tm/8 * h_tm/8;
+
+        #pragma omp parallel for
+        for (int p = 0; p<outch; p++)
+        {
+            const Mat out0_tm = top_blob_tm.channel(p);
+            Mat out0 = top_blob_bordered.channel(p);
+
+            const float bias0 = bias ? bias[p] : 0.f;
+
+            float tmp[6][8];
+
+            // tile
+            for (int i=0; i<outh/6; i++)
+            {
+                for (int j=0; j<outw/6; j++)
+                {
+                    const float* output0_tm0 = out0_tm.row(i * w_tm/8 + j);
+                    const float* output0_tm1 = out0_tm.row(i * w_tm/8 + j + tiles);
+                    const float* output0_tm2 = out0_tm.row(i * w_tm/8 + j + tiles * 2);
+                    const float* output0_tm3 = out0_tm.row(i * w_tm/8 + j + tiles * 3);
+                    const float* output0_tm4 = out0_tm.row(i * w_tm/8 + j + tiles * 4);
+                    const float* output0_tm5 = out0_tm.row(i * w_tm/8 + j + tiles * 5);
+                    const float* output0_tm6 = out0_tm.row(i * w_tm/8 + j + tiles * 6);
+                    const float* output0_tm7 = out0_tm.row(i * w_tm/8 + j + tiles * 7);
+                    float* output0 = out0.row(i * 6) + j * 6;
+
+                    const float* output0_tms[8] = { output0_tm0, output0_tm1, output0_tm2, output0_tm3, output0_tm4, output0_tm5, output0_tm6, output0_tm7 };
+
+                    for (int m=0; m<8; m++)
+                    {
+                        const float* output0_tm = output0_tms[m];
+
+                        float tmp024a = output0_tm[1] + output0_tm[2];
+                        float tmp135a = output0_tm[1] - output0_tm[2];
+
+                        float tmp024b = output0_tm[3] + output0_tm[4];
+                        float tmp135b = output0_tm[3] - output0_tm[4];
+
+                        float tmp024c = output0_tm[5] + output0_tm[6];
+                        float tmp135c = output0_tm[5] - output0_tm[6];
+
+                        tmp[0][m] = output0_tm[0] + tmp024a + tmp024b + tmp024c * 32;
+                        tmp[2][m] = tmp024a + tmp024b * 4 + tmp024c * 8;
+                        tmp[4][m] = tmp024a + tmp024b * 16 + tmp024c + tmp024c;
+
+                        tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * 16;
+                        tmp[3][m] = tmp135a + tmp135b * 8 + tmp135c * 4;
+                        tmp[5][m] = output0_tm[7] + tmp135a + tmp135b * 32 + tmp135c;
+                    }
+
+                    for (int m=0; m<6; m++)
+                    {
+                        const float* tmp0 = tmp[m];
+
+                        float tmp024a = tmp0[1] + tmp0[2];
+                        float tmp135a = tmp0[1] - tmp0[2];
+
+                        float tmp024b = tmp0[3] + tmp0[4];
+                        float tmp135b = tmp0[3] - tmp0[4];
+
+                        float tmp024c = tmp0[5] + tmp0[6];
+                        float tmp135c = tmp0[5] - tmp0[6];
+
+                        output0[0] = bias0 + tmp0[0] + tmp024a + tmp024b + tmp024c * 32;
+                        output0[2] = bias0 + tmp024a + tmp024b * 4 + tmp024c * 8;
+                        output0[4] = bias0 + tmp024a + tmp024b * 16 + tmp024c + tmp024c;
+
+                        output0[1] = bias0 + tmp135a + tmp135b + tmp135b + tmp135c * 16;
+                        output0[3] = bias0 + tmp135a + tmp135b * 8 + tmp135c * 4;
+                        output0[5] = bias0 + tmp0[7] + tmp135a + tmp135b * 32 + tmp135c;
+
+                        output0 += outw;
+                    }
+                }
+            }
+        }
+    }
+    // END transform output
+
+    // cut result pad
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w);
+}
+
 static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
 {
     int w = bottom_blob.w;
