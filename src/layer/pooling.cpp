@@ -249,7 +249,8 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
             {
                 const float scale = (float)kernel_w / wtail;
 
-                outptr = top_blob.channel(q) + outw - 1;
+                outptr = top_blob.channel(q);
+                outptr += outw - 1;
                 for (int i = 0; i < outh; i++)
                 {
                     *outptr *= scale;

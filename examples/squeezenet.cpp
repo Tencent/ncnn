@@ -42,7 +42,7 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<float>& cls_scores)
     cls_scores.resize(out.c);
     for (int j=0; j<out.c; j++)
     {
-        const float* prob = out.data + out.cstep * j;
+        const float* prob = out.channel(j);
         cls_scores[j] = prob[0];
     }
 

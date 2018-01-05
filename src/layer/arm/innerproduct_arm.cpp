@@ -44,7 +44,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
             float sum = 0.f;
 
             if (bias_term)
-                sum = bias_data.data[p];
+                sum = bias_data[p];
 
             const float* w = weight_data_ptr + channels * p;
 
@@ -73,7 +73,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
         float sum = 0.f;
 
         if (bias_term)
-            sum = bias_data.data[p];
+            sum = bias_data[p];
 
         const float* w = weight_data_ptr + size * channels * p;
 

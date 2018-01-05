@@ -66,14 +66,13 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
 
     if (bias_term)
     {
-        const float* bias_ptr = bias_data;
         #pragma omp parallel for
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
             float s = scale_blob.channel(q)[0];
-            float bias = bias_ptr[q];
+            float bias = bias_data[q];
 
             for (int i=0; i<size; i++)
             {
@@ -109,15 +108,13 @@ int Scale::forward_inplace(Mat& bottom_top_blob) const
 
     if (bias_term)
     {
-        const float* scale_ptr = scale_data;
-        const float* bias_ptr = bias_data;
         #pragma omp parallel for
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            float s = scale_ptr[q];
-            float bias = bias_ptr[q];
+            float s = scale_data[q];
+            float bias = bias_data[q];
 
             for (int i=0; i<size; i++)
             {
@@ -127,13 +124,12 @@ int Scale::forward_inplace(Mat& bottom_top_blob) const
     }
     else
     {
-        const float* scale_ptr = scale_data;
         #pragma omp parallel for
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            float s = scale_ptr[q];
+            float s = scale_data[q];
 
             for (int i=0; i<size; i++)
             {

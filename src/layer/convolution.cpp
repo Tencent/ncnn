@@ -125,7 +125,6 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
 
     // num_output
-    const float* weight_data_ptr = weight_data;
     #pragma omp parallel for
     for (int p=0; p<num_output; p++)
     {
@@ -138,9 +137,9 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
                 float sum = 0.f;
 
                 if (bias_term)
-                    sum = bias_data.data[p];
+                    sum = bias_data[p];
 
-                const float* kptr = weight_data_ptr + maxk * channels * p;
+                const float* kptr = (const float*)weight_data + maxk * channels * p;
 
                 // channels
                 for (int q=0; q<channels; q++)

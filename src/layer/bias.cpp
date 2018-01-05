@@ -47,13 +47,12 @@ int Bias::forward_inplace(Mat& bottom_top_blob) const
     int channels = bottom_top_blob.c;
     int size = w * h;
 
-    const float* bias_ptr = bias_data;
     #pragma omp parallel for
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
-        float bias = bias_ptr[q];
+        float bias = bias_data[q];
 
         for (int i=0; i<size; i++)
         {

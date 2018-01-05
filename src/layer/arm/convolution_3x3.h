@@ -519,7 +519,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
     {
         for (int q = 0; q<inch; q++)
         {
-            const float* kernel0 = kernel.data + p*inch * 9 + q * 9;
+            const float* kernel0 = (const float*)kernel + p*inch * 9 + q * 9;
             float* kernel_tm0 = kernel_tm.channel(p).row(q);
 
             // transform kernel, transposed

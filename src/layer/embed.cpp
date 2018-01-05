@@ -65,7 +65,7 @@ int Embed::forward(const Mat& bottom_blob, Mat& top_blob) const
     #pragma omp parallel for
     for (int q=0; q<words; q++)
     {
-        float* outptr = top_blob.data + top_blob.w * q;
+        float* outptr = (float*)top_blob + top_blob.w * q;
 
         int word_index = (int)word_ptr[q];
 
@@ -79,7 +79,7 @@ int Embed::forward(const Mat& bottom_blob, Mat& top_blob) const
         {
             for (int p=0; p<num_output; p++)
             {
-                outptr[p] += bias_data.data[p];
+                outptr[p] += bias_data[p];
             }
         }
     }

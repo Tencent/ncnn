@@ -61,7 +61,6 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob) const
         return -100;
 
     // num_output
-    const float* weight_data_ptr = weight_data;
     #pragma omp parallel for
     for (int p=0; p<num_output; p++)
     {
@@ -69,12 +68,12 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob) const
         float sum = 0.f;
 
         if (bias_term)
-            sum = bias_data.data[p];
+            sum = bias_data[p];
 
         // channels
         for (int q=0; q<channels; q++)
         {
-            const float* w = weight_data_ptr + size * channels * p + size * q;
+            const float* w = (const float*)weight_data + size * channels * p + size * q;
             const float* m = bottom_blob.channel(q);
 
             for (int i = 0; i < size; i++)

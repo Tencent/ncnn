@@ -92,10 +92,10 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         for (int g=0; g<group; g++)
         {
             const float* inptr = bottom_blob.channel(g);
-            const float* kptr = weight_data + maxk * g;
+            const float* kptr = (const float*)weight_data + maxk * g;
             Mat m = top_blob_bordered.channel(g);
 
-            const float bias = bias_term ? bias_data.data[g] : 0.f;
+            const float bias = bias_term ? bias_data[g] : 0.f;
 
             m.fill(bias);
 
@@ -124,12 +124,12 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         #pragma omp parallel for
         for (int g = 0; g < group; g++)
         {
-            const float* weight_data_ptr = weight_data + maxk * channels_g * num_output_g * g;
+            const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
             for (int p = 0; p < num_output_g; p++)
             {
                 Mat out = top_blob_bordered.channel(g * num_output_g + p);
 
-                const float bias = bias_term ? bias_data.data[g * num_output_g + p] : 0.f;
+                const float bias = bias_term ? bias_data[g * num_output_g + p] : 0.f;
 
                 out.fill(bias);
 
@@ -145,7 +145,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
                         for (int q = 0; q < channels_g; q++)
                         {
                             const Mat m = bottom_blob.channel(channels_g * g + q);
-                            float val = *(m.data + w * i + j);
+                            float val = *(m.row(i) + j);
 
                             for (int k = 0; k < maxk; k++)
                             {

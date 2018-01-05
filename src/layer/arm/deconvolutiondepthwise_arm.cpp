@@ -90,11 +90,11 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) c
         {
             Mat top_blob_bordered_g = top_blob_bordered.channel(g);
             Mat bottom_blob_g = bottom_blob.channel(g);
-            Mat weight_data_g(maxk, (float*)(weight_data + maxk * g));
+            Mat weight_data_g(maxk, (void*)((const float*)weight_data + maxk * g));
 
             Mat bias_data_g;
             if (bias_term)
-                bias_data_g = Mat(1, (float*)(bias_data + g));
+                bias_data_g = Mat(1, (void*)((const float*)bias_data + g));
 
             deconv(bottom_blob_g, top_blob_bordered_g, weight_data_g, bias_data_g);
         }
@@ -110,10 +110,10 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) c
         {
             Mat top_blob_bordered_g(outw, outh, num_output_g, top_blob_bordered.channel(num_output_g * g));
             Mat bottom_blob_g(w, h, channels_g, bottom_blob.channel(channels_g * g).data);
-            Mat weight_data_g(maxk * channels_g * num_output_g, (float*)(weight_data + maxk * channels_g * num_output_g * g));
+            Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const float*)weight_data + maxk * channels_g * num_output_g * g));
             Mat bias_data_g;
             if (bias_term)
-                bias_data_g = Mat(num_output_g, (float*)(bias_data + num_output_g * g));
+                bias_data_g = Mat(num_output_g, (void*)((const float*)bias_data + num_output_g * g));
 
             deconv(bottom_blob_g, top_blob_bordered_g, weight_data_g, bias_data_g);
         }

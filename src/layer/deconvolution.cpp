@@ -101,13 +101,12 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
 
     // num_output
-    const float* weight_data_ptr = weight_data;
     #pragma omp parallel for
     for (int p=0; p<num_output; p++)
     {
         Mat out = top_blob_bordered.channel(p);
 
-        const float bias = bias_term ? bias_data.data[p] : 0.f;
+        const float bias = bias_term ? bias_data[p] : 0.f;
 
         out.fill(bias);
 
@@ -117,13 +116,13 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
             {
                 float* outptr = out.row(i*stride_h) + j*stride_w;
 
-                const float* kptr = weight_data_ptr + maxk * channels * p;
+                const float* kptr = (const float*)weight_data + maxk * channels * p;
 
                 // channels
                 for (int q=0; q<channels; q++)
                 {
                     const Mat m = bottom_blob.channel(q);
-                    float val = *(m.data + m.w * i + j);
+                    float val = *(m.row(i) + j);
 
                     for (int k = 0; k < maxk; k++)
                     {

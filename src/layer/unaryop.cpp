@@ -40,12 +40,10 @@ static int unary_op_inplace(Mat& a)
 
     int size = a.total();
 
-    float* ptr = a;
-
     #pragma omp parallel for
     for (int i=0; i<size; i++)
     {
-        ptr[i] = op(ptr[i]);
+        a[i] = op(a[i]);
     }
 
     return 0;

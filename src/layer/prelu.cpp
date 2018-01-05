@@ -47,13 +47,11 @@ int PReLU::forward_inplace(Mat& bottom_top_blob) const
     int channels = bottom_top_blob.c;
     int size = w * h;
 
-    const float* slope_data_ptr = slope_data;
-
     #pragma omp parallel for
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
-        float slope = num_slope > 1 ? slope_data_ptr[q] : slope_data_ptr[0];
+        float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
 
         for (int i=0; i<size; i++)
         {

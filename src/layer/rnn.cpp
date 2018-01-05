@@ -92,18 +92,18 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         //                0       otherwise
         // calculate hidden
         // h_t = tanh( W_hh * h_cont_{t-1} + W_xh * x_t + b_h )
-        const float cont = cont_blob.data[t];
+        const float cont = cont_blob[t];
         const Mat x = input_blob.channel(t);
         float* hidden_data = hidden;
         for (int q=0; q<num_output; q++)
         {
             float h_cont = cont ? hidden_data[q] : 0.f;
 
-            const float* weight_hh_data_ptr = weight_hh_data.data + weight_hh_data.w * q;
-            const float* weight_xh_data_ptr = weight_xh_data.data + weight_xh_data.w * q;
+            const float* weight_hh_data_ptr = (const float*)weight_hh_data + weight_hh_data.w * q;
+            const float* weight_xh_data_ptr = (const float*)weight_xh_data + weight_xh_data.w * q;
             const float* x_data = x;
 
-            float s0 = bias_h_data.data[q];
+            float s0 = bias_h_data[q];
             for (int i=0; i<size; i++)
             {
                 s0 += weight_hh_data_ptr[i] * h_cont + weight_xh_data_ptr[i] * x_data[i];
@@ -118,9 +118,9 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         float* output_data = output;
         for (int q=0; q<num_output; q++)
         {
-            const float* weight_ho_data_ptr = weight_ho_data.data + weight_ho_data.w * q;
+            const float* weight_ho_data_ptr = (const float*)weight_ho_data + weight_ho_data.w * q;
 
-            float s0 = bias_o_data.data[q];
+            float s0 = bias_o_data[q];
             for (int i=0; i<size; i++)
             {
                 s0 += weight_ho_data_ptr[i] * hidden_data[i];

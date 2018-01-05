@@ -28,14 +28,14 @@ Proposal::Proposal()
 
     // TODO load from param
     ratios.create(3);
-    ratios.data[0] = 0.5f;
-    ratios.data[1] = 1.f;
-    ratios.data[2] = 2.f;
+    ratios[0] = 0.5f;
+    ratios[1] = 1.f;
+    ratios[2] = 2.f;
 
     scales.create(3);
-    scales.data[0] = 8.f;
-    scales.data[1] = 16.f;
-    scales.data[2] = 32.f;
+    scales[0] = 8.f;
+    scales[1] = 16.f;
+    scales[2] = 32.f;
 }
 
 static Mat generate_anchors(int base_size, const Mat& ratios, const Mat& scales)
@@ -51,14 +51,14 @@ static Mat generate_anchors(int base_size, const Mat& ratios, const Mat& scales)
 
     for (int i = 0; i < num_ratio; i++)
     {
-        float ar = ratios.data[i];
+        float ar = ratios[i];
 
         int r_w = round(base_size / sqrt(ar));
         int r_h = round(r_w * ar);//round(base_size * sqrt(ar));
 
         for (int j = 0; j < num_scale; j++)
         {
-            float scale = scales.data[j];
+            float scale = scales[j];
 
             float rs_w = r_w * scale;
             float rs_h = r_h * scale;
@@ -269,8 +269,8 @@ int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 
     // clip predicted boxes to image
-    float im_w = im_info_blob.data[1];
-    float im_h = im_info_blob.data[0];
+    float im_w = im_info_blob[1];
+    float im_h = im_info_blob[0];
 
     #pragma omp parallel for
     for (int q=0; q<num_anchors; q++)
@@ -293,7 +293,7 @@ int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     std::vector<Rect> proposal_boxes;
     std::vector<float> scores;
 
-    float im_scale = im_info_blob.data[2];
+    float im_scale = im_info_blob[2];
     float min_boxsize = min_size * im_scale;
 
     for (int q=0; q<num_anchors; q++)

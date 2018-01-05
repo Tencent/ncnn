@@ -113,7 +113,7 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob) const
                 {
                     for (int j = 0; j < outw; j++)
                     {
-                        const float* sptr = m.data + m.w * i*stride_h + j*stride_w;
+                        const float* sptr = m.row(i*stride_h) + j*stride_w;
 
                         float max = sptr[0];
 
@@ -142,7 +142,7 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob) const
                 {
                     for (int j = 0; j < outw; j++)
                     {
-                        const float* sptr = m.data + m.w * i*stride_h + j*stride_w;
+                        const float* sptr = m.row(i*stride_h) + j*stride_w;
 
                         float sum = 0;
 

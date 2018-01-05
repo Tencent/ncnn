@@ -121,9 +121,15 @@ int ParamDict::load_param(FILE* fp)
                 bool is_float = vstr_is_float(vstr);
 
                 if (is_float)
-                    nscan = sscanf(vstr, "%f", &params[id].v.data[j]);
+                {
+                    float* ptr = params[id].v;
+                    nscan = sscanf(vstr, "%f", &ptr[j]);
+                }
                 else
-                    nscan = sscanf(vstr, "%d", (int*)&params[id].v.data[j]);
+                {
+                    int* ptr = params[id].v;
+                    nscan = sscanf(vstr, "%d", &ptr[j]);
+                }
                 if (nscan != 1)
                 {
                     fprintf(stderr, "ParamDict parse array element fail\n");
@@ -196,10 +202,8 @@ int ParamDict::load_param_bin(FILE* fp)
 
             params[id].v.create(len);
 
-            for (int j = 0; j < len; j++)
-            {
-                fread(&params[id].v.data[j], sizeof(float), 1, fp);
-            }
+            float* ptr = params[id].v;
+            fread(ptr, sizeof(float), len, fp);
         }
         else
         {
@@ -237,11 +241,8 @@ int ParamDict::load_param(const unsigned char*& mem)
 
             params[id].v.create(len);
 
-            for (int j = 0; j < len; j++)
-            {
-                params[id].v.data[j] = *(float*)(mem);
-                mem += 4;
-            }
+            memcpy(params[id].v.data, mem, len * 4);
+            mem += 4;
         }
         else
         {

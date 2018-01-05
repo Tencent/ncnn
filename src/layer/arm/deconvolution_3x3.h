@@ -57,7 +57,7 @@ static void deconv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
 
             for (int i = 0; i < h; i++)
             {
-                float* outptr = out.data + out.w * i;
+                float* outptr = out.row(i);
 
                 float* outptr0 = outptr;
                 float* outptr1 = outptr + outw;
@@ -278,7 +278,7 @@ static void deconv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
 
             for (int i = 0; i < h; i++)
             {
-                float* outptr = out.data + outw * i*2;
+                float* outptr = out.row(i*2);
 
                 float* outptr0 = outptr;
                 float* outptr1 = outptr0 + outw;

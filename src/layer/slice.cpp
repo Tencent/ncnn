@@ -37,7 +37,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
     int channels = bottom_blob.c;
 
     int q = 0;
-    const int* slices_ptr = (const int*)slices.data;
+    const int* slices_ptr = slices;
     for (size_t i=0; i<top_blobs.size(); i++)
     {
         int slice = slices_ptr[i];
@@ -54,11 +54,8 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         int size = bottom_blob.cstep * slice;
 
         const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.data;
-        for (int j=0; j<size; j++)
-        {
-            outptr[j] = ptr[j];
-        }
+        float* outptr = top_blob;
+        memcpy(outptr, ptr, size * sizeof(float));
 
         q += slice;
     }
