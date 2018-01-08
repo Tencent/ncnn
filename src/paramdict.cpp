@@ -242,7 +242,7 @@ int ParamDict::load_param(const unsigned char*& mem)
             params[id].v.create(len);
 
             memcpy(params[id].v.data, mem, len * 4);
-            mem += 4;
+            mem += len * 4;
         }
         else
         {
