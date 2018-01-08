@@ -21,9 +21,9 @@
 
 namespace ncnn {
 
-#if NCNN_STDIO
 static const unsigned char* _null_mem = 0;
 
+#if NCNN_STDIO
 ModelBin::ModelBin(const Mat* _weights) : weights(_weights), binfp(0), mem(_null_mem)
 {
 }
@@ -36,6 +36,10 @@ ModelBin::ModelBin(const unsigned char*& _mem) : weights(0), binfp(0), mem(_mem)
 {
 }
 #else
+ModelBin::ModelBin(const Mat* _weights) : weights(_weights), mem(_null_mem)
+{
+}
+
 ModelBin::ModelBin(const unsigned char*& _mem) : weights(0), mem(_mem)
 {
 }
