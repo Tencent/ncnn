@@ -96,6 +96,13 @@ if (NOT DEFINED IOS_PLATFORM)
 endif (NOT DEFINED IOS_PLATFORM)
 set (IOS_PLATFORM ${IOS_PLATFORM} CACHE STRING "Type of iOS Platform")
 
+# Add Bitcode
+if (${IOS_PLATFORM} STREQUAL "iPhoneOS")
+    set(CMAKE_XCODE_ATTRIBUTE_BITCODE_GENERATION_MODE "bitcode")
+    set(CMAKE_C_FLAGS "-fembed-bitcode ${CMAKE_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "-fembed-bitcode ${CMAKE_CXX_FLAGS}")
+endif (${IOS_PLATFORM} STREQUAL "iPhoneOS")
+
 # Check the platform selection and setup for developer root
 if (${IOS_PLATFORM} STREQUAL "iPhoneOS")
 	set (IOS_PLATFORM_LOCATION "iPhoneOS.platform")
