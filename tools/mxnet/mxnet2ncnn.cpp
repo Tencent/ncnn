@@ -377,6 +377,15 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                 continue;
             }
 
+            //      "attrs": {"__init__": "[\"zero\", {}]"},
+            nscan = sscanf(line, "      \"attrs\": {\"%255[^\"]\": \"%255[^\"]\"}", key, value);
+            if (nscan == 2)
+            {
+                n.attrs[key] = value;
+//                 fprintf(stderr, "# %s = %s\n", key, value);
+                continue;
+            }
+
             //      "param": {"p": "0.5"},
             nscan = sscanf(line, "      \"param\": {\"%255[^\"]\": \"%255[^\"]\"}", key, value);
             if (nscan == 2)
@@ -388,6 +397,13 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
 
             //      "attr": {
             if (memcmp(line, "      \"attr\": {", 15) == 0)
+            {
+                in_attr_block = true;
+                continue;
+            }
+
+            //      "attrs": {
+            if (memcmp(line, "      \"attrs\": {", 15) == 0)
             {
                 in_attr_block = true;
                 continue;
