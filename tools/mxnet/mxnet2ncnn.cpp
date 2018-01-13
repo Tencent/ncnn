@@ -583,7 +583,7 @@ int main(int argc, char** argv)
 {
     const char* jsonpath = argv[1];
     const char* parampath = argv[2];
-    const char* ncnn_prototxt = argc >= 5 ? argv[3] : "ncnn.proto";
+    const char* ncnn_prototxt = argc >= 5 ? argv[3] : "ncnn.param";
     const char* ncnn_modelbin = argc >= 5 ? argv[4] : "ncnn.bin";
 
     std::vector<MXNetNode> nodes;
@@ -679,7 +679,7 @@ int main(int argc, char** argv)
             if (subinput_index != 0)
             {
                 char subinputsuffix[256];
-                sprintf(subinputsuffix, "_%d", subinput_index);
+                sprintf(subinputsuffix, "_subncnn_%d", subinput_index);
                 input_name = input_name + subinputsuffix;
             }
 
@@ -790,6 +790,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Eltwise");
         }
+        else if (n.op == "Embedding")
+        {
+            fprintf(pp, "%-16s", "Embed");
+        }
         else if (n.op == "Flatten")
         {
             fprintf(pp, "%-16s", "Flatten");
@@ -869,6 +873,13 @@ int main(int argc, char** argv)
 
             std::string input_name = nodes[input_index].name;
 
+            if (subinput_index != 0)
+            {
+                char subinputsuffix[256];
+                sprintf(subinputsuffix, "_subncnn_%d", subinput_index);
+                input_name = input_name + subinputsuffix;
+            }
+
             int input_uid = input_index | (subinput_index << 16);
             if (node_reference.find(input_uid) != node_reference.end())
             {
@@ -880,20 +891,13 @@ int main(int argc, char** argv)
                 input_name = input_name + splitsuffix;
             }
 
-            if (subinput_index == 0)
-            {
-                fprintf(pp, " %s", input_name.c_str());
-            }
-            else
-            {
-                fprintf(pp, " %s_%d", input_name.c_str(), subinput_index);
-            }
+            fprintf(pp, " %s", input_name.c_str());
         }
 
         fprintf(pp, " %s", n.name.c_str());
         for (int j=1; j<output_size; j++)
         {
-            fprintf(pp, " %s_%d", n.name.c_str(), j);
+            fprintf(pp, " %s_subncnn_%d", n.name.c_str(), j);
         }
 
         if (n.op == "null")
@@ -1009,6 +1013,21 @@ int main(int argc, char** argv)
             int op_type = 0;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (n.op == "Embedding")
+        {
+            int input_dim = n.attr("input_dim");
+            int output_dim = n.attr("output_dim");
+
+            std::vector<float> weight_data = n.weight(0);
+
+            fprintf(pp, " 0=%d", output_dim);
+            fprintf(pp, " 1=%d", input_dim);
+            fprintf(pp, " 3=%d", (int)weight_data.size());
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+            fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
+        }
         else if (n.op == "Flatten")
         {
         }
@@ -1110,25 +1129,43 @@ int main(int argc, char** argv)
 
         fprintf(pp, "\n");
 
-        if (node_reference.find(i) != node_reference.end())
+        for (int j=0; j<output_size; j++)
         {
-            int refcount = node_reference[i];
-            if (refcount > 1)
+            int input_uid = i | (j << 16);
+            if (node_reference.find(input_uid) != node_reference.end())
             {
-                std::string output_name = n.name;
-
-                char splitname[256];
-                sprintf(splitname, "splitncnn_%d", internal_split);
-                fprintf(pp, "%-16s %-32s %d %d", "Split", splitname, 1, refcount);
-                fprintf(pp, " %s", output_name.c_str());
-
-                for (int j=0; j<refcount; j++)
+                int refcount = node_reference[input_uid];
+                if (refcount > 1)
                 {
-                    fprintf(pp, " %s_splitncnn_%d", output_name.c_str(), j);
-                }
-                fprintf(pp, "\n");
+                    std::string output_name = n.name;
 
-                internal_split++;
+                    char splitname[256];
+                    sprintf(splitname, "splitncnn_%d", internal_split);
+                    fprintf(pp, "%-16s %-32s %d %d", "Split", splitname, 1, refcount);
+                    if (j == 0)
+                    {
+                        fprintf(pp, " %s", output_name.c_str());
+                    }
+                    else
+                    {
+                        fprintf(pp, " %s_subncnn_%d", output_name.c_str(), j);
+                    }
+
+                    for (int k=0; k<refcount; k++)
+                    {
+                        if (j == 0)
+                        {
+                            fprintf(pp, " %s_splitncnn_%d", output_name.c_str(), k);
+                        }
+                        else
+                        {
+                            fprintf(pp, " %s_subncnn_%d_splitncnn_%d", output_name.c_str(), j, k);
+                        }
+                    }
+                    fprintf(pp, "\n");
+
+                    internal_split++;
+                }
             }
         }
     }
