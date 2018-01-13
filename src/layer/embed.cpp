@@ -55,23 +55,24 @@ int Embed::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     int words = bottom_blob.total();
 
-    top_blob.create(num_output, words, 1);
+    top_blob.create(num_output, words);
     if (top_blob.empty())
         return -100;
 
     // num_output
-    const float* word_ptr = bottom_blob;
-    const float* dict_ptr = weight_data;
     #pragma omp parallel for
     for (int q=0; q<words; q++)
     {
-        float* outptr = (float*)top_blob + top_blob.w * q;
+        float* outptr = top_blob.row(q);
 
-        int word_index = (int)word_ptr[q];
+        int word_index = ((const int*)bottom_blob)[q];
 
-        // check word_index >= 0 && word_index < input_dim
+        if (word_index < 0)
+            word_index = 0;
+        if (word_index >= input_dim)
+            word_index = input_dim - 1;
 
-        const float* em = dict_ptr + num_output * word_index;
+        const float* em = (const float*)weight_data + num_output * word_index;
 
         memcpy(outptr, em, num_output * sizeof(float));
 
