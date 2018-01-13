@@ -1091,6 +1091,8 @@ int main(int argc, char** argv)
                 }
                 fprintf(pp, ",-233");
             }
+            int dim = slice_param.axis() - 1;
+            fprintf(pp, " 1=%d", dim);
         }
         else if (layer.type() == "Softmax")
         {
