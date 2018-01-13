@@ -784,11 +784,11 @@ int main(int argc, char** argv)
         }
         else if (n.op == "elemwise_add")
         {
-            fprintf(pp, "%-16s", "Eltwise");
+            fprintf(pp, "%-16s", "BinaryOp");
         }
         else if (n.op == "elemwise_mul")
         {
-            fprintf(pp, "%-16s", "Eltwise");
+            fprintf(pp, "%-16s", "BinaryOp");
         }
         else if (n.op == "Embedding")
         {
@@ -1005,12 +1005,12 @@ int main(int argc, char** argv)
         }
         else if (n.op == "elemwise_add")
         {
-            int op_type = 1;
+            int op_type = 0;
             fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "elemwise_mul")
         {
-            int op_type = 0;
+            int op_type = 2;
             fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "Embedding")
