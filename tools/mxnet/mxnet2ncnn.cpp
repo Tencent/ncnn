@@ -831,6 +831,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Softmax");
         }
+        else if (n.op == "SoftmaxActivation")
+        {
+            fprintf(pp, "%-16s", "Softmax");
+        }
         else
         {
             fprintf(stderr, "%s not supported yet!\n", n.op.c_str());
