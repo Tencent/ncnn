@@ -24,6 +24,7 @@ option(NCNN_OPENMP "openmp support" ON)
 option(NCNN_STDIO "load model from external file" ON)
 option(NCNN_STRING "plain and verbose string" ON)
 option(NCNN_OPENCV "minimal opencv structure emulation" OFF)
+option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)

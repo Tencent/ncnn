@@ -12,12 +12,20 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef NCNN_PLATFORM_H
-#define NCNN_PLATFORM_H
+#ifndef NCNN_BENCHMARK_H
+#define NCNN_BENCHMARK_H
 
-#cmakedefine01 NCNN_STDIO
-#cmakedefine01 NCNN_STRING
-#cmakedefine01 NCNN_OPENCV
-#cmakedefine01 NCNN_BENCHMARK
+#include <stdio.h>
+#include <time.h>
+#include "mat.h"
+#include "layer.h"
+#include "layer/convolution.h"
 
-#endif // NCNN_PLATFORM_H
+namespace ncnn {
+
+void benchmark(const ncnn::Layer* layer, clock_t begin, clock_t end);
+void benchmark(const ncnn::Layer* layer, const ncnn::Mat& bottom_blob, ncnn::Mat& top_blob, clock_t begin, clock_t end);
+
+}
+
+#endif // NCNN_BENCHMARK_H
