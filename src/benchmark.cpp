@@ -13,19 +13,31 @@
 // specific language governing permissions and limitations under the License.
 
 #include "benchmark.h"
+#include <stdio.h>
+#include "layer/convolution.h"
 
 namespace ncnn {
 
-void benchmark(const ncnn::Layer* layer, clock_t begin, clock_t end)
+void benchmark(const ncnn::Layer* layer, struct timeval start, struct timeval end)
 {
-    fprintf(stderr, "%-24s %-24s %8.2lfms", layer->type.c_str(), layer->name.c_str(), (end - begin) * 1.0 / CLOCKS_PER_SEC * 1000);
+    fprintf(stderr, 
+            "%-24s %-24s %8.2lfms", 
+            layer->type.c_str(), 
+            layer->name.c_str(), 
+            ((end.tv_sec * 1000.0 + end.tv_usec / 1000.0) - (start.tv_sec * 1000.0 + start.tv_usec / 1000.0))
+            );
     fprintf(stderr, "    |");
     fprintf(stderr, "\n");
 }
 
-void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, clock_t begin, clock_t end)
+void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, struct timeval start, struct timeval end)
 {
-    fprintf(stderr, "%-24s %-24s %8.2lfms", layer->type.c_str(), layer->name.c_str(), (end - begin) * 1.0 / CLOCKS_PER_SEC * 1000);
+    fprintf(stderr, 
+            "%-24s %-24s %8.2lfms", 
+            layer->type.c_str(), 
+            layer->name.c_str(), 
+            ((end.tv_sec * 1000.0 + end.tv_usec / 1000.0) - (start.tv_sec * 1000.0 + start.tv_usec / 1000.0))
+            );
     fprintf(stderr, "    |    feature_map: %4d x %-4d    inch: %4d    outch: %4d", bottom_blob.w, bottom_blob.h, bottom_blob.c, top_blob.c);
     if (layer->type == "Convolution")
     {
