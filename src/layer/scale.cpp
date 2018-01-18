@@ -71,7 +71,7 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            float s = scale_blob.channel(q)[0];
+            float s = scale_blob[q];
             float bias = bias_data[q];
 
             for (int i=0; i<size; i++)
@@ -87,7 +87,7 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            float s = scale_blob.channel(q)[0];
+            float s = scale_blob[q];
 
             for (int i=0; i<size; i++)
             {
