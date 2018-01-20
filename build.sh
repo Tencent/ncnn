@@ -39,3 +39,14 @@ cmake -DCMAKE_TOOLCHAIN_FILE=../iossimxc.toolchain.cmake ..
 make
 make install
 popd
+
+##### MacOS
+mkdir -p build-mac
+pushd build-mac
+cmake   -DNCNN_OPENMP=OFF \
+        -DNCNN_OPENCV=ON \
+        -DNCNN_BENCHMARK=ON \
+        ..
+make -j 8
+make install
+popd

@@ -24,6 +24,10 @@
 #include <omp.h>
 #endif // _OPENMP
 
+#if NCNN_BENCHMARK
+#include "benchmark.h"
+#endif // NCNN_BENCHMARK
+
 namespace ncnn {
 
 Net::Net()
@@ -642,7 +646,15 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         if (lightmode && layer->support_inplace)
         {
             Mat& bottom_top_blob = bottom_blob;
+#if NCNN_BENCHMARK
+            struct timeval start, end;
+            gettimeofday(&start, NULL);
             int ret = layer->forward_inplace(bottom_top_blob);
+            gettimeofday(&end, NULL);
+            benchmark(layer, bottom_top_blob, bottom_top_blob, start, end);
+#else
+            int ret = layer->forward_inplace(bottom_top_blob);
+#endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
 
@@ -652,7 +664,16 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         else
         {
             Mat top_blob;
+#if NCNN_BENCHMARK
+            struct timeval start, end;
+            gettimeofday(&start, NULL);
             int ret = layer->forward(bottom_blob, top_blob);
+            gettimeofday(&end, NULL);
+            benchmark(layer, bottom_blob, top_blob, start, end);
+#else
+            int ret = layer->forward(bottom_blob, top_blob);
+#endif // NCNN_BENCHMARK
+            
             if (ret != 0)
                 return ret;
 
@@ -695,7 +716,15 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         if (lightmode && layer->support_inplace)
         {
             std::vector<Mat>& bottom_top_blobs = bottom_blobs;
+#if NCNN_BENCHMARK
+            struct timeval start, end;
+            gettimeofday(&start, NULL);
             int ret = layer->forward_inplace(bottom_top_blobs);
+            gettimeofday(&end, NULL);
+            benchmark(layer, start, end);
+#else
+            int ret = layer->forward_inplace(bottom_top_blobs);
+#endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
 
@@ -711,7 +740,16 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         {
             std::vector<Mat> top_blobs;
             top_blobs.resize(layer->tops.size());
+#if NCNN_BENCHMARK
+            struct timeval start, end;
+            gettimeofday(&start, NULL);
             int ret = layer->forward(bottom_blobs, top_blobs);
+            gettimeofday(&end, NULL);
+            benchmark(layer, start, end);
+#else
+            int ret = layer->forward(bottom_blobs, top_blobs);
+#endif // NCNN_BENCHMARK
+            
             if (ret != 0)
                 return ret;
 
