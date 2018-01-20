@@ -15,30 +15,32 @@
 #ifndef NCNN_BENCHMARK_H
 #define NCNN_BENCHMARK_H
 
+#include "platform.h"
+
+#if NCNN_BENCHMARK
+
 #include "mat.h"
 #include "layer.h"
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <stdint.h> // portable: uint64_t   MSVC: __int64
+namespace ncnn {
 
-typedef struct timeval 
+struct timeval
 {
     long tv_sec;
     long tv_usec;
-} timeval;
+};
 
-int gettimeofday(struct timeval * tp, struct timezone * tzp);
-#elif defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
-#include <sys/time.h>
-#endif // _WIN32
+// get now timestamp
+struct timeval get_current_time();
 
-namespace ncnn {
+// get the time elapsed in ms
+double time_elapsed(struct timeval start, struct timeval end);
 
-void benchmark(const ncnn::Layer* layer, struct timeval start, struct timeval end);
-void benchmark(const ncnn::Layer* layer, const ncnn::Mat& bottom_blob, ncnn::Mat& top_blob, struct timeval start, struct timeval end);
+void benchmark(const Layer* layer, struct timeval start, struct timeval end);
+void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, struct timeval start, struct timeval end);
 
-}
+} // namespace ncnn
+
+#endif // NCNN_BENCHMARK
 
 #endif // NCNN_BENCHMARK_H

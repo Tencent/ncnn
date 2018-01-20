@@ -13,19 +13,29 @@
 // specific language governing permissions and limitations under the License.
 
 #include "benchmark.h"
+
+#if NCNN_BENCHMARK
+
 #include <stdio.h>
 #include "layer/convolution.h"
 
 #ifdef _WIN32
+
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <stdint.h> // portable: uint64_t   MSVC: __int64 
+#include <stdint.h> // portable: uint64_t   MSVC: __int64
+#else // _WIN32
+#include <sys/time.h>
+#endif // _WIN32
 
-int gettimeofday(struct timeval * tp, struct timezone * tzp)
+namespace ncnn {
+
+#ifdef _WIN32
+struct timeval get_current_time()
 {
     // Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
     // This magic number is the number of 100 nanosecond intervals since January 1, 1601 (UTC)
-    // until 00:00:00 January 1, 1970 
+    // until 00:00:00 January 1, 1970
     static const uint64_t EPOCH = ((uint64_t) 116444736000000000ULL);
 
     SYSTEMTIME  system_time;
@@ -37,45 +47,53 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
     time =  ((uint64_t)file_time.dwLowDateTime )      ;
     time += ((uint64_t)file_time.dwHighDateTime) << 32;
 
-    tp->tv_sec  = (long) ((time - EPOCH) / 10000000L);
-    tp->tv_usec = (long) (system_time.wMilliseconds * 1000);
-    return 0;
+    struct timeval tp;
+
+    tp.tv_sec  = (long) ((time - EPOCH) / 10000000L);
+    tp.tv_usec = (long) (system_time.wMilliseconds * 1000);
+
+    return tp;
+}
+#else // _WIN32
+struct timeval get_current_time()
+{
+    struct ::timeval tv;
+    ::gettimeofday(&tv, NULL);
+
+    struct timeval tp = { tv.tv_sec, tv.tv_usec };
+
+    return tp;
 }
 #endif // _WIN32
 
-namespace ncnn {
+double time_elapsed(struct timeval start, struct timeval end)
+{
+    return (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_usec - start.tv_usec) / 1000.0;
+}
 
 void benchmark(const ncnn::Layer* layer, struct timeval start, struct timeval end)
 {
-    fprintf(stderr, 
-            "%-24s %-24s %8.2lfms", 
-            layer->type.c_str(), 
-            layer->name.c_str(), 
-            ((end.tv_sec * 1000.0 + end.tv_usec / 1000.0) - (start.tv_sec * 1000.0 + start.tv_usec / 1000.0))
-            );
+    fprintf(stderr, "%-24s %-24s %8.2lfms", layer->type.c_str(), layer->name.c_str(), time_elapsed(start, end));
     fprintf(stderr, "    |");
     fprintf(stderr, "\n");
 }
 
 void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, struct timeval start, struct timeval end)
 {
-    fprintf(stderr, 
-            "%-24s %-24s %8.2lfms", 
-            layer->type.c_str(), 
-            layer->name.c_str(), 
-            ((end.tv_sec * 1000.0 + end.tv_usec / 1000.0) - (start.tv_sec * 1000.0 + start.tv_usec / 1000.0))
-            );
+    fprintf(stderr, "%-24s %-24s %8.2lfms", layer->type.c_str(), layer->name.c_str(), time_elapsed(start, end));
     fprintf(stderr, "    |    feature_map: %4d x %-4d    inch: %4d    outch: %4d", bottom_blob.w, bottom_blob.h, bottom_blob.c, top_blob.c);
     if (layer->type == "Convolution")
     {
-        fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d", 
-        ((Convolution*)layer)->kernel_h, 
-        ((Convolution*)layer)->kernel_w,
-        ((Convolution*)layer)->stride_h,
-        ((Convolution*)layer)->stride_w
+        fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d",
+                ((Convolution*)layer)->kernel_h,
+                ((Convolution*)layer)->kernel_w,
+                ((Convolution*)layer)->stride_h,
+                ((Convolution*)layer)->stride_w
         );
     }
     fprintf(stderr, "\n");
 }
 
-}
+} // namespace ncnn
+
+#endif // NCNN_BENCHMARK
