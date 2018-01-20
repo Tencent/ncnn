@@ -85,10 +85,10 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, struct
     if (layer->type == "Convolution")
     {
         fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d",
-                ((Convolution*)layer)->kernel_h,
                 ((Convolution*)layer)->kernel_w,
-                ((Convolution*)layer)->stride_h,
-                ((Convolution*)layer)->stride_w
+                ((Convolution*)layer)->kernel_h,
+                ((Convolution*)layer)->stride_w,
+                ((Convolution*)layer)->stride_h
         );
     }
     fprintf(stderr, "\n");
