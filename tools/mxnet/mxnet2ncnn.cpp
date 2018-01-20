@@ -772,7 +772,7 @@ int main(int argc, char** argv)
         else if (n.op == "Convolution")
         {
             int num_group = n.attr("num_group");
-            if (num_group > 0) {
+            if (num_group > 1) {
                 fprintf(pp, "%-16s", "ConvolutionDepthWise");
             } else {
                 fprintf(pp, "%-16s", "Convolution");
@@ -957,7 +957,7 @@ int main(int argc, char** argv)
             std::vector<int> stride = n.attr("stride");
             std::vector<int> pad = n.attr("pad");
             int no_bias = n.attr("no_bias");
-            int num_group = n.attr("num_group");//TODO depthwise
+            int num_group = n.attr("num_group");
 
             std::vector<float> weight_data = n.weight(0);
             std::vector<float> bias_data = n.weight(1);
@@ -993,7 +993,7 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
             fprintf(pp, " 6=%d", (int)weight_data.size());
-            if (num_group > 0) {
+            if (num_group > 1) {
                 fprintf(pp, " 7=%d", num_group);
             }
 
