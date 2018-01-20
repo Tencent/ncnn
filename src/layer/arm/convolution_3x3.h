@@ -73,7 +73,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 #endif // __ARM_NEON
 
             int i = 0;
-#if 1
+
             for (; i+1 < outh; i+=2)
             {
 #if __ARM_NEON
@@ -429,7 +429,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 outptr0n += outw;
                 outptr1n += outw;
             }
-#endif
+
             for (; i < outh; i++)
             {
 #if __ARM_NEON
