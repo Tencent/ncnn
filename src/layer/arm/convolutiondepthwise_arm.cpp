@@ -38,7 +38,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
 
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
-        return Convolution::forward(bottom_blob, top_blob);
+        return ConvolutionDepthWise::forward(bottom_blob, top_blob);
     }
 
     const int kernel_size = kernel_w;
@@ -46,7 +46,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
 
     if (kernel_size > 7 || stride > 4 || dilation_w != 1 || dilation_h != 1)
     {
-        return Convolution::forward(bottom_blob, top_blob);
+        return ConvolutionDepthWise::forward(bottom_blob, top_blob);
     }
 
     typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&);
