@@ -12,7 +12,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "convolution_x86.h"
+#include "convolutiondepthwise_x86.h"
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 namespace ncnn {
 
@@ -20,16 +24,18 @@ namespace ncnn {
 #include "convolution_3x3.h"
 #include "convolution_5x5.h"
 
-DEFINE_LAYER_CREATOR(Convolution_x86)
+#include "convolutiondepthwise_3x3.h"
 
-int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
+DEFINE_LAYER_CREATOR(ConvolutionDepthWise_x86)
+
+int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // convolv with NxN kernel
     // value = value + bias
 
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
-        return Convolution::forward(bottom_blob, top_blob);
+        return ConvolutionDepthWise::forward(bottom_blob, top_blob);
     }
 
     const int kernel_size = kernel_w;
@@ -37,7 +43,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     if (kernel_size > 5 || stride > 5 || dilation_w != 1 || dilation_h != 1)
     {
-        return Convolution::forward(bottom_blob, top_blob);
+        return ConvolutionDepthWise::forward(bottom_blob, top_blob);
     }
 
     typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&);
@@ -85,11 +91,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
     conv_func conv = conv_func_table[kernel_size-1][stride-1];
     if (!conv)
     {
-        return Convolution::forward(bottom_blob, top_blob);
+        return ConvolutionDepthWise::forward(bottom_blob, top_blob);
     }
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int channels = bottom_blob.c;
 
     Mat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
@@ -123,7 +130,63 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
     if (top_blob.empty())
         return -100;
 
-    conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
+    const int maxk = kernel_size * kernel_size;
+
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+        if (kernel_size == 3)
+        {
+            if (stride == 1)
+            {
+                convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data);
+                return 0;
+            }
+            else if (stride == 2)
+            {
+                convdw3x3s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data);
+                return 0;
+            }
+        }
+
+#ifdef _OPENMP
+        int nested_current = omp_get_nested();
+        omp_set_nested(0);
+#endif
+
+        #pragma omp parallel for
+        for (int g=0; g<group; g++)
+        {
+            Mat bottom_blob_bordered_g = bottom_blob_bordered.channel(g);
+            Mat top_blob_g = top_blob.channel(g);
+            Mat weight_data_g(maxk, (void*)((const float*)weight_data + maxk * g));
+            Mat bias_data_g;
+            if (bias_term)
+                bias_data_g = Mat(1, (void*)((const float*)bias_data + g));
+
+            conv(bottom_blob_bordered_g, top_blob_g, weight_data_g, bias_data_g);
+        }
+
+#ifdef _OPENMP
+        omp_set_nested(nested_current);
+#endif
+        return 0;
+    }
+
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / group;
+
+    for (int g=0; g<group; g++)
+    {
+        Mat bottom_blob_bordered_g(w, h, channels_g, bottom_blob_bordered.channel(channels_g * g));
+        Mat top_blob_g(outw, outh, num_output_g, top_blob.channel(num_output_g * g));
+        Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const float*)weight_data + maxk * channels_g * num_output_g * g));
+        Mat bias_data_g;
+        if (bias_term)
+            bias_data_g = Mat(num_output_g, (void*)((const float*)bias_data + num_output_g * g));
+
+        conv(bottom_blob_bordered_g, top_blob_g, weight_data_g, bias_data_g);
+    }
 
     return 0;
 }
