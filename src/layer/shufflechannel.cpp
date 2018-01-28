@@ -18,6 +18,19 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(ShuffleChannel)
 
+ShuffleChannel::ShuffleChannel()
+{
+    one_blob_only = true;
+    support_inplace = false;
+}
+
+int ShuffleChannel::load_param(const ParamDict& pd)
+{
+    group = pd.get(0, 1);
+
+    return 0;
+}
+
 int ShuffleChannel::forward(const Mat &bottom_blob, Mat &top_blob) const
 {
     int c = bottom_blob.c;
@@ -31,6 +44,7 @@ int ShuffleChannel::forward(const Mat &bottom_blob, Mat &top_blob) const
         // reject invalid group
         return -100;
     }
+
     top_blob.create(w, h, c);
     if (top_blob.empty())
         return -100;
