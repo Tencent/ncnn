@@ -27,8 +27,642 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     const float* kernel = _kernel;
     const float* bias = _bias;
 
+#if __ARM_NEON && __aarch64__
+
+    int nn_outch = outch >> 3;
+    int remain_outch_start = nn_outch << 3;
+
+    #pragma omp parallel for
+    for (int pp=0; pp<nn_outch; pp++)
+    {
+        int p = pp * 8;
+
+        Mat out0 = top_blob.channel(p);
+        Mat out1 = top_blob.channel(p+1);
+        Mat out2 = top_blob.channel(p+2);
+        Mat out3 = top_blob.channel(p+3);
+        Mat out4 = top_blob.channel(p+4);
+        Mat out5 = top_blob.channel(p+5);
+        Mat out6 = top_blob.channel(p+6);
+        Mat out7 = top_blob.channel(p+7);
+
+        const float bias0 = bias ? bias[p] : 0.f;
+        const float bias1 = bias ? bias[p+1] : 0.f;
+        const float bias2 = bias ? bias[p+2] : 0.f;
+        const float bias3 = bias ? bias[p+3] : 0.f;
+        const float bias4 = bias ? bias[p+4] : 0.f;
+        const float bias5 = bias ? bias[p+5] : 0.f;
+        const float bias6 = bias ? bias[p+6] : 0.f;
+        const float bias7 = bias ? bias[p+7] : 0.f;
+
+        out0.fill(bias0);
+        out1.fill(bias1);
+        out2.fill(bias2);
+        out3.fill(bias3);
+        out4.fill(bias4);
+        out5.fill(bias5);
+        out6.fill(bias6);
+        out7.fill(bias7);
+
+        int q = 0;
+
+        for (; q+7<inch; q+=8)
+        {
+            float* outptr0 = out0;
+            float* outptr1 = out1;
+            float* outptr2 = out2;
+            float* outptr3 = out3;
+            float* outptr4 = out4;
+            float* outptr5 = out5;
+            float* outptr6 = out6;
+            float* outptr7 = out7;
+
+            const float* img0 = bottom_blob.channel(q);
+            const float* img1 = bottom_blob.channel(q+1);
+            const float* img2 = bottom_blob.channel(q+2);
+            const float* img3 = bottom_blob.channel(q+3);
+            const float* img4 = bottom_blob.channel(q+4);
+            const float* img5 = bottom_blob.channel(q+5);
+            const float* img6 = bottom_blob.channel(q+6);
+            const float* img7 = bottom_blob.channel(q+7);
+
+            const float* kernel0 = kernel + p*inch + q;
+            const float* kernel1 = kernel + (p+1)*inch + q;
+            const float* kernel2 = kernel + (p+2)*inch + q;
+            const float* kernel3 = kernel + (p+3)*inch + q;
+            const float* kernel4 = kernel + (p+4)*inch + q;
+            const float* kernel5 = kernel + (p+5)*inch + q;
+            const float* kernel6 = kernel + (p+6)*inch + q;
+            const float* kernel7 = kernel + (p+7)*inch + q;
+
+            const float* r0 = img0;
+            const float* r1 = img1;
+            const float* r2 = img2;
+            const float* r3 = img3;
+            const float* r4 = img4;
+            const float* r5 = img5;
+            const float* r6 = img6;
+            const float* r7 = img7;
+
+            int size = outw * outh;
+
+            int nn = size >> 2;
+            int remain = size & 3;
+
+            float32x4_t _k0 = vld1q_f32(kernel0);
+            float32x4_t _k1 = vld1q_f32(kernel1);
+            float32x4_t _k2 = vld1q_f32(kernel2);
+            float32x4_t _k3 = vld1q_f32(kernel3);
+            float32x4_t _k4 = vld1q_f32(kernel4);
+            float32x4_t _k5 = vld1q_f32(kernel5);
+            float32x4_t _k6 = vld1q_f32(kernel6);
+            float32x4_t _k7 = vld1q_f32(kernel7);
+
+            float32x4_t _k0n = vld1q_f32(kernel0+4);
+            float32x4_t _k1n = vld1q_f32(kernel1+4);
+            float32x4_t _k2n = vld1q_f32(kernel2+4);
+            float32x4_t _k3n = vld1q_f32(kernel3+4);
+            float32x4_t _k4n = vld1q_f32(kernel4+4);
+            float32x4_t _k5n = vld1q_f32(kernel5+4);
+            float32x4_t _k6n = vld1q_f32(kernel6+4);
+            float32x4_t _k7n = vld1q_f32(kernel7+4);
+
+#ifdef __clang__
+            // gcc reject over 30 oprands :(
+            if (nn > 0)
+            {
+            asm volatile(
+                "prfm   pldl1keep, [%9, #128]       \n"
+                "ld1    {v17.4s}, [%9], #16         \n"
+
+                "prfm   pldl1keep, [%1, #128]       \n"
+                "ld1    {v18.4s}, [%1]              \n"
+
+                "prfm   pldl1keep, [%2, #128]       \n"
+                "ld1    {v19.4s}, [%2]              \n"
+
+                "0:                                 \n"
+
+                "fmla   v18.4s, v17.4s, %34.s[0]    \n"
+
+                "prfm   pldl1keep, [%3, #128]       \n"
+                "ld1    {v20.4s}, [%3]              \n"
+
+                "fmla   v19.4s, v17.4s, %35.s[0]    \n"
+
+                "prfm   pldl1keep, [%4, #128]       \n"
+                "ld1    {v21.4s}, [%4]              \n"
+
+                "fmla   v20.4s, v17.4s, %36.s[0]    \n"
+
+                "prfm   pldl1keep, [%5, #128]       \n"
+                "ld1    {v22.4s}, [%5]              \n"
+
+                "fmla   v21.4s, v17.4s, %37.s[0]    \n"
+
+                "prfm   pldl1keep, [%6, #128]       \n"
+                "ld1    {v23.4s}, [%6]              \n"
+
+                "fmla   v22.4s, v17.4s, %38.s[0]    \n"
+
+                "prfm   pldl1keep, [%10, #128]      \n"
+                "ld1    {v16.4s}, [%10], #16        \n"
+
+                "fmla   v23.4s, v17.4s, %39.s[0]    \n"
+
+                "prfm   pldl1keep, [%7, #128]       \n"
+                "ld1    {v24.4s}, [%7]              \n"
+
+                "fmla   v18.4s, v16.4s, %34.s[1]    \n"
+                "fmla   v19.4s, v16.4s, %35.s[1]    \n"
+
+                "prfm   pldl1keep, [%8, #128]       \n"
+                "ld1    {v25.4s}, [%8]              \n"
+
+                "fmla   v24.4s, v17.4s, %40.s[0]    \n"
+                "fmla   v25.4s, v17.4s, %41.s[0]    \n"
+
+                "fmla   v20.4s, v16.4s, %36.s[1]    \n"
+                "fmla   v21.4s, v16.4s, %37.s[1]    \n"
+
+                "prfm   pldl1keep, [%11, #128]      \n"
+                "ld1    {v17.4s}, [%11], #16        \n"
+
+                "fmla   v22.4s, v16.4s, %38.s[1]    \n"
+                "fmla   v23.4s, v16.4s, %39.s[1]    \n"
+
+                "fmla   v18.4s, v17.4s, %34.s[2]    \n"
+                "fmla   v19.4s, v17.4s, %35.s[2]    \n"
+
+                "fmla   v24.4s, v16.4s, %40.s[1]    \n"
+                "fmla   v25.4s, v16.4s, %41.s[1]    \n"
+
+                "fmla   v20.4s, v17.4s, %36.s[2]    \n"
+                "fmla   v21.4s, v17.4s, %37.s[2]    \n"
+
+                "prfm   pldl1keep, [%12, #128]      \n"
+                "ld1    {v16.4s}, [%12], #16        \n"
+
+                "fmla   v22.4s, v17.4s, %38.s[2]    \n"
+                "fmla   v23.4s, v17.4s, %39.s[2]    \n"
+
+                "fmla   v18.4s, v16.4s, %34.s[3]    \n"
+                "fmla   v19.4s, v16.4s, %35.s[3]    \n"
+
+                "fmla   v24.4s, v17.4s, %40.s[2]    \n"
+                "fmla   v25.4s, v17.4s, %41.s[2]    \n"
+
+                "fmla   v20.4s, v16.4s, %36.s[3]    \n"
+                "fmla   v21.4s, v16.4s, %37.s[3]    \n"
+
+                "prfm   pldl1keep, [%13, #128]      \n"
+                "ld1    {v17.4s}, [%13], #16        \n"
+
+                "fmla   v22.4s, v16.4s, %38.s[3]    \n"
+                "fmla   v23.4s, v16.4s, %39.s[3]    \n"
+
+                "fmla   v18.4s, v17.4s, %42.s[0]    \n"
+                "fmla   v19.4s, v17.4s, %43.s[0]    \n"
+
+                "fmla   v24.4s, v16.4s, %40.s[3]    \n"
+                "fmla   v25.4s, v16.4s, %41.s[3]    \n"
+
+                "fmla   v20.4s, v17.4s, %44.s[0]    \n"
+                "fmla   v21.4s, v17.4s, %45.s[0]    \n"
+
+                "prfm   pldl1keep, [%14, #128]      \n"
+                "ld1    {v16.4s}, [%14], #16        \n"
+
+                "fmla   v22.4s, v17.4s, %46.s[0]    \n"
+                "fmla   v23.4s, v17.4s, %47.s[0]    \n"
+
+                "fmla   v18.4s, v16.4s, %42.s[1]    \n"
+                "fmla   v19.4s, v16.4s, %43.s[1]    \n"
+
+                "fmla   v24.4s, v17.4s, %48.s[0]    \n"
+                "fmla   v25.4s, v17.4s, %49.s[0]    \n"
+
+                "fmla   v20.4s, v16.4s, %44.s[1]    \n"
+                "fmla   v21.4s, v16.4s, %45.s[1]    \n"
+
+                "prfm   pldl1keep, [%15, #128]      \n"
+                "ld1    {v17.4s}, [%15], #16        \n"
+
+                "fmla   v22.4s, v16.4s, %46.s[1]    \n"
+                "fmla   v23.4s, v16.4s, %47.s[1]    \n"
+
+                "fmla   v18.4s, v17.4s, %42.s[2]    \n"
+                "fmla   v19.4s, v17.4s, %43.s[2]    \n"
+
+                "fmla   v24.4s, v16.4s, %48.s[1]    \n"
+                "fmla   v25.4s, v16.4s, %49.s[1]    \n"
+
+                "fmla   v20.4s, v17.4s, %44.s[2]    \n"
+                "fmla   v21.4s, v17.4s, %45.s[2]    \n"
+
+                "prfm   pldl1keep, [%16, #128]      \n"
+                "ld1    {v16.4s}, [%16], #16        \n"
+
+                "fmla   v22.4s, v17.4s, %46.s[2]    \n"
+                "fmla   v23.4s, v17.4s, %47.s[2]    \n"
+
+                "fmla   v18.4s, v16.4s, %42.s[3]    \n"
+                "fmla   v19.4s, v16.4s, %43.s[3]    \n"
+
+                "fmla   v24.4s, v17.4s, %48.s[2]    \n"
+                "fmla   v25.4s, v17.4s, %49.s[2]    \n"
+
+                "fmla   v20.4s, v16.4s, %44.s[3]    \n"
+                "fmla   v21.4s, v16.4s, %45.s[3]    \n"
+
+                "st1    {v18.4s}, [%1], #16         \n"
+
+                "fmla   v22.4s, v16.4s, %46.s[3]    \n"
+
+                "st1    {v19.4s}, [%2], #16         \n"
+
+                "fmla   v23.4s, v16.4s, %47.s[3]    \n"
+
+                "st1    {v20.4s}, [%3], #16         \n"
+
+                "prfm   pldl1keep, [%9, #128]       \n"
+                "ld1    {v17.4s}, [%9], #16         \n"
+
+                "fmla   v24.4s, v16.4s, %48.s[3]    \n"
+
+                "st1    {v21.4s}, [%4], #16         \n"
+
+                "fmla   v25.4s, v16.4s, %49.s[3]    \n"
+
+                "st1    {v22.4s}, [%5], #16         \n"
+
+                "prfm   pldl1keep, [%1, #128]       \n"
+                "ld1    {v18.4s}, [%1]              \n"
+
+                "st1    {v23.4s}, [%6], #16         \n"
+
+                "prfm   pldl1keep, [%2, #128]       \n"
+                "ld1    {v19.4s}, [%2]              \n"
+
+                "st1    {v24.4s}, [%7], #16         \n"
+
+                "subs   %w0, %w0, #1                \n"
+
+                "st1    {v25.4s}, [%8], #16         \n"
+
+                "bne    0b                          \n"
+                "sub    %9, %9, #32                 \n"
+                : "=r"(nn),     // %0
+                  "=r"(outptr0),// %1
+                  "=r"(outptr1),// %2
+                  "=r"(outptr2),// %3
+                  "=r"(outptr3),// %4
+                  "=r"(outptr4),// %5
+                  "=r"(outptr5),// %6
+                  "=r"(outptr6),// %7
+                  "=r"(outptr7),// %8
+                  "=r"(r0),     // %9
+                  "=r"(r1),     // %10
+                  "=r"(r2),     // %11
+                  "=r"(r3),     // %12
+                  "=r"(r4),     // %13
+                  "=r"(r5),     // %14
+                  "=r"(r6),     // %15
+                  "=r"(r7)      // %16
+                : "0"(nn),
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(outptr2),
+                  "4"(outptr3),
+                  "5"(outptr4),
+                  "6"(outptr5),
+                  "7"(outptr6),
+                  "8"(outptr7),
+                  "9"(r0),
+                  "10"(r1),
+                  "11"(r2),
+                  "12"(r3),
+                  "13"(r4),
+                  "14"(r5),
+                  "15"(r6),
+                  "16"(r7),
+                  "w"(_k0),     // %34
+                  "w"(_k1),     // %35
+                  "w"(_k2),     // %36
+                  "w"(_k3),     // %37
+                  "w"(_k4),     // %38
+                  "w"(_k5),     // %39
+                  "w"(_k6),     // %40
+                  "w"(_k7),     // %41
+                  "w"(_k0n),    // %42
+                  "w"(_k1n),    // %43
+                  "w"(_k2n),    // %44
+                  "w"(_k3n),    // %45
+                  "w"(_k4n),    // %46
+                  "w"(_k5n),    // %47
+                  "w"(_k6n),    // %48
+                  "w"(_k7n)     // %49
+                : "cc", "memory", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25"//, "v26", "v27", "v28", "v29", "v30", "v31"
+            );
+            }
+#else
+            for (; nn>0; nn--)
+            {
+                float32x4_t _p = vld1q_f32(r0);
+
+                float32x4_t _out0p = vld1q_f32(outptr0);
+                float32x4_t _out1p = vld1q_f32(outptr1);
+                float32x4_t _out2p = vld1q_f32(outptr2);
+                float32x4_t _out3p = vld1q_f32(outptr3);
+                float32x4_t _out4p = vld1q_f32(outptr4);
+                float32x4_t _out5p = vld1q_f32(outptr5);
+                float32x4_t _out6p = vld1q_f32(outptr6);
+                float32x4_t _out7p = vld1q_f32(outptr7);
+
+                _out0p = vfmaq_laneq_f32(_out0p, _p, _k0, 0);
+                _out1p = vfmaq_laneq_f32(_out1p, _p, _k1, 0);
+                _out2p = vfmaq_laneq_f32(_out2p, _p, _k2, 0);
+                _out3p = vfmaq_laneq_f32(_out3p, _p, _k3, 0);
+                _out4p = vfmaq_laneq_f32(_out4p, _p, _k4, 0);
+                _out5p = vfmaq_laneq_f32(_out5p, _p, _k5, 0);
+                _out6p = vfmaq_laneq_f32(_out6p, _p, _k6, 0);
+                _out7p = vfmaq_laneq_f32(_out7p, _p, _k7, 0);
+
+                float32x4_t _p1 = vld1q_f32(r1);
+
+                _out0p = vfmaq_laneq_f32(_out0p, _p1, _k0, 1);
+                _out1p = vfmaq_laneq_f32(_out1p, _p1, _k1, 1);
+                _out2p = vfmaq_laneq_f32(_out2p, _p1, _k2, 1);
+                _out3p = vfmaq_laneq_f32(_out3p, _p1, _k3, 1);
+                _out4p = vfmaq_laneq_f32(_out4p, _p1, _k4, 1);
+                _out5p = vfmaq_laneq_f32(_out5p, _p1, _k5, 1);
+                _out6p = vfmaq_laneq_f32(_out6p, _p1, _k6, 1);
+                _out7p = vfmaq_laneq_f32(_out7p, _p1, _k7, 1);
+
+                float32x4_t _p2 = vld1q_f32(r2);
+
+                _out0p = vfmaq_laneq_f32(_out0p, _p2, _k0, 2);
+                _out1p = vfmaq_laneq_f32(_out1p, _p2, _k1, 2);
+                _out2p = vfmaq_laneq_f32(_out2p, _p2, _k2, 2);
+                _out3p = vfmaq_laneq_f32(_out3p, _p2, _k3, 2);
+                _out4p = vfmaq_laneq_f32(_out4p, _p2, _k4, 2);
+                _out5p = vfmaq_laneq_f32(_out5p, _p2, _k5, 2);
+                _out6p = vfmaq_laneq_f32(_out6p, _p2, _k6, 2);
+                _out7p = vfmaq_laneq_f32(_out7p, _p2, _k7, 2);
+
+                float32x4_t _p3 = vld1q_f32(r3);
+
+                _out0p = vfmaq_laneq_f32(_out0p, _p3, _k0, 3);
+                _out1p = vfmaq_laneq_f32(_out1p, _p3, _k1, 3);
+                _out2p = vfmaq_laneq_f32(_out2p, _p3, _k2, 3);
+                _out3p = vfmaq_laneq_f32(_out3p, _p3, _k3, 3);
+                _out4p = vfmaq_laneq_f32(_out4p, _p3, _k4, 3);
+                _out5p = vfmaq_laneq_f32(_out5p, _p3, _k5, 3);
+                _out6p = vfmaq_laneq_f32(_out6p, _p3, _k6, 3);
+                _out7p = vfmaq_laneq_f32(_out7p, _p3, _k7, 3);
+
+                float32x4_t _p4 = vld1q_f32(r4);
+
+                _out0p = vfmaq_laneq_f32(_out0p, _p4, _k0n, 0);
+                _out1p = vfmaq_laneq_f32(_out1p, _p4, _k1n, 0);
+                _out2p = vfmaq_laneq_f32(_out2p, _p4, _k2n, 0);
+                _out3p = vfmaq_laneq_f32(_out3p, _p4, _k3n, 0);
+                _out4p = vfmaq_laneq_f32(_out4p, _p4, _k4n, 0);
+                _out5p = vfmaq_laneq_f32(_out5p, _p4, _k5n, 0);
+                _out6p = vfmaq_laneq_f32(_out6p, _p4, _k6n, 0);
+                _out7p = vfmaq_laneq_f32(_out7p, _p4, _k7n, 0);
+
+                float32x4_t _p5 = vld1q_f32(r5);
+
+                _out0p = vfmaq_laneq_f32(_out0p, _p5, _k0n, 1);
+                _out1p = vfmaq_laneq_f32(_out1p, _p5, _k1n, 1);
+                _out2p = vfmaq_laneq_f32(_out2p, _p5, _k2n, 1);
+                _out3p = vfmaq_laneq_f32(_out3p, _p5, _k3n, 1);
+                _out4p = vfmaq_laneq_f32(_out4p, _p5, _k4n, 1);
+                _out5p = vfmaq_laneq_f32(_out5p, _p5, _k5n, 1);
+                _out6p = vfmaq_laneq_f32(_out6p, _p5, _k6n, 1);
+                _out7p = vfmaq_laneq_f32(_out7p, _p5, _k7n, 1);
+
+                float32x4_t _p6 = vld1q_f32(r6);
+
+                _out0p = vfmaq_laneq_f32(_out0p, _p6, _k0n, 2);
+                _out1p = vfmaq_laneq_f32(_out1p, _p6, _k1n, 2);
+                _out2p = vfmaq_laneq_f32(_out2p, _p6, _k2n, 2);
+                _out3p = vfmaq_laneq_f32(_out3p, _p6, _k3n, 2);
+                _out4p = vfmaq_laneq_f32(_out4p, _p6, _k4n, 2);
+                _out5p = vfmaq_laneq_f32(_out5p, _p6, _k5n, 2);
+                _out6p = vfmaq_laneq_f32(_out6p, _p6, _k6n, 2);
+                _out7p = vfmaq_laneq_f32(_out7p, _p6, _k7n, 2);
+
+                float32x4_t _p7 = vld1q_f32(r7);
+
+                _out0p = vfmaq_laneq_f32(_out0p, _p7, _k0n, 3);
+                _out1p = vfmaq_laneq_f32(_out1p, _p7, _k1n, 3);
+                _out2p = vfmaq_laneq_f32(_out2p, _p7, _k2n, 3);
+                _out3p = vfmaq_laneq_f32(_out3p, _p7, _k3n, 3);
+                _out4p = vfmaq_laneq_f32(_out4p, _p7, _k4n, 3);
+                _out5p = vfmaq_laneq_f32(_out5p, _p7, _k5n, 3);
+                _out6p = vfmaq_laneq_f32(_out6p, _p7, _k6n, 3);
+                _out7p = vfmaq_laneq_f32(_out7p, _p7, _k7n, 3);
+
+                vst1q_f32(outptr0, _out0p);
+                vst1q_f32(outptr1, _out1p);
+                vst1q_f32(outptr2, _out2p);
+                vst1q_f32(outptr3, _out3p);
+                vst1q_f32(outptr4, _out4p);
+                vst1q_f32(outptr5, _out5p);
+                vst1q_f32(outptr6, _out6p);
+                vst1q_f32(outptr7, _out7p);
+
+                r0 += 4;
+                r1 += 4;
+                r2 += 4;
+                r3 += 4;
+                r4 += 4;
+                r5 += 4;
+                r6 += 4;
+                r7 += 4;
+                outptr0 += 4;
+                outptr1 += 4;
+                outptr2 += 4;
+                outptr3 += 4;
+                outptr4 += 4;
+                outptr5 += 4;
+                outptr6 += 4;
+                outptr7 += 4;
+            }
+#endif
+            for (; remain>0; remain--)
+            {
+                // TODO neon optimize
+                float sum0 = *r0 * kernel0[0] + *r1 * kernel0[1] + *r2 * kernel0[2] + *r3 * kernel0[3] + *r4 * kernel0[4] + *r5 * kernel0[5] + *r6 * kernel0[6] + *r7 * kernel0[7];
+                float sum1 = *r0 * kernel1[0] + *r1 * kernel1[1] + *r2 * kernel1[2] + *r3 * kernel1[3] + *r4 * kernel1[4] + *r5 * kernel1[5] + *r6 * kernel1[6] + *r7 * kernel1[7];
+                float sum2 = *r0 * kernel2[0] + *r1 * kernel2[1] + *r2 * kernel2[2] + *r3 * kernel2[3] + *r4 * kernel2[4] + *r5 * kernel2[5] + *r6 * kernel2[6] + *r7 * kernel2[7];
+                float sum3 = *r0 * kernel3[0] + *r1 * kernel3[1] + *r2 * kernel3[2] + *r3 * kernel3[3] + *r4 * kernel3[4] + *r5 * kernel3[5] + *r6 * kernel3[6] + *r7 * kernel3[7];
+                float sum4 = *r0 * kernel4[0] + *r1 * kernel4[1] + *r2 * kernel4[2] + *r3 * kernel4[3] + *r4 * kernel4[4] + *r5 * kernel4[5] + *r6 * kernel4[6] + *r7 * kernel4[7];
+                float sum5 = *r0 * kernel5[0] + *r1 * kernel5[1] + *r2 * kernel5[2] + *r3 * kernel5[3] + *r4 * kernel5[4] + *r5 * kernel5[5] + *r6 * kernel5[6] + *r7 * kernel5[7];
+                float sum6 = *r0 * kernel6[0] + *r1 * kernel6[1] + *r2 * kernel6[2] + *r3 * kernel6[3] + *r4 * kernel6[4] + *r5 * kernel6[5] + *r6 * kernel6[6] + *r7 * kernel6[7];
+                float sum7 = *r0 * kernel7[0] + *r1 * kernel7[1] + *r2 * kernel7[2] + *r3 * kernel7[3] + *r4 * kernel7[4] + *r5 * kernel7[5] + *r6 * kernel7[6] + *r7 * kernel7[7];
+
+                *outptr0 += sum0;
+                *outptr1 += sum1;
+                *outptr2 += sum2;
+                *outptr3 += sum3;
+                *outptr4 += sum4;
+                *outptr5 += sum5;
+                *outptr6 += sum6;
+                *outptr7 += sum7;
+
+                r0++;
+                r1++;
+                r2++;
+                r3++;
+                r4++;
+                r5++;
+                r6++;
+                r7++;
+                outptr0++;
+                outptr1++;
+                outptr2++;
+                outptr3++;
+                outptr4++;
+                outptr5++;
+                outptr6++;
+                outptr7++;
+            }
+        }
+
+        for (; q<inch; q++)
+        {
+            float* outptr0 = out0;
+            float* outptr1 = out1;
+            float* outptr2 = out2;
+            float* outptr3 = out3;
+            float* outptr4 = out4;
+            float* outptr5 = out5;
+            float* outptr6 = out6;
+            float* outptr7 = out7;
+
+            const float* img0 = bottom_blob.channel(q);
+
+            const float* kernel0 = kernel + p*inch + q;
+            const float* kernel1 = kernel + (p+1)*inch + q;
+            const float* kernel2 = kernel + (p+2)*inch + q;
+            const float* kernel3 = kernel + (p+3)*inch + q;
+            const float* kernel4 = kernel + (p+4)*inch + q;
+            const float* kernel5 = kernel + (p+5)*inch + q;
+            const float* kernel6 = kernel + (p+6)*inch + q;
+            const float* kernel7 = kernel + (p+7)*inch + q;
+
+            const float k0 = kernel0[0];
+            const float k1 = kernel1[0];
+            const float k2 = kernel2[0];
+            const float k3 = kernel3[0];
+            const float k4 = kernel4[0];
+            const float k5 = kernel5[0];
+            const float k6 = kernel6[0];
+            const float k7 = kernel7[0];
+
+            const float* r0 = img0;
+
+            int size = outw * outh;
+
+            int nn = size >> 2;
+            int remain = size & 3;
+
+            float32x4_t _k0 = vdupq_n_f32(k0);
+            float32x4_t _k1 = vdupq_n_f32(k1);
+            float32x4_t _k2 = vdupq_n_f32(k2);
+            float32x4_t _k3 = vdupq_n_f32(k3);
+            float32x4_t _k4 = vdupq_n_f32(k4);
+            float32x4_t _k5 = vdupq_n_f32(k5);
+            float32x4_t _k6 = vdupq_n_f32(k6);
+            float32x4_t _k7 = vdupq_n_f32(k7);
+
+            for (; nn>0; nn--)
+            {
+                float32x4_t _p = vld1q_f32(r0);
+
+                float32x4_t _out0p = vld1q_f32(outptr0);
+                float32x4_t _out1p = vld1q_f32(outptr1);
+                float32x4_t _out2p = vld1q_f32(outptr2);
+                float32x4_t _out3p = vld1q_f32(outptr3);
+                float32x4_t _out4p = vld1q_f32(outptr4);
+                float32x4_t _out5p = vld1q_f32(outptr5);
+                float32x4_t _out6p = vld1q_f32(outptr6);
+                float32x4_t _out7p = vld1q_f32(outptr7);
+
+                _out0p = vfmaq_f32(_out0p, _p, _k0);
+                _out1p = vfmaq_f32(_out1p, _p, _k1);
+                _out2p = vfmaq_f32(_out2p, _p, _k2);
+                _out3p = vfmaq_f32(_out3p, _p, _k3);
+                _out4p = vfmaq_f32(_out4p, _p, _k4);
+                _out5p = vfmaq_f32(_out5p, _p, _k5);
+                _out6p = vfmaq_f32(_out6p, _p, _k6);
+                _out7p = vfmaq_f32(_out7p, _p, _k7);
+
+                vst1q_f32(outptr0, _out0p);
+                vst1q_f32(outptr1, _out1p);
+                vst1q_f32(outptr2, _out2p);
+                vst1q_f32(outptr3, _out3p);
+                vst1q_f32(outptr4, _out4p);
+                vst1q_f32(outptr5, _out5p);
+                vst1q_f32(outptr6, _out6p);
+                vst1q_f32(outptr7, _out7p);
+
+                r0 += 4;
+                outptr0 += 4;
+                outptr1 += 4;
+                outptr2 += 4;
+                outptr3 += 4;
+                outptr4 += 4;
+                outptr5 += 4;
+                outptr6 += 4;
+                outptr7 += 4;
+            }
+            for (; remain>0; remain--)
+            {
+                // TODO neon optimize
+                float sum0 = *r0 * k0;
+                float sum1 = *r0 * k1;
+                float sum2 = *r0 * k2;
+                float sum3 = *r0 * k3;
+                float sum4 = *r0 * k4;
+                float sum5 = *r0 * k5;
+                float sum6 = *r0 * k6;
+                float sum7 = *r0 * k7;
+
+                *outptr0 += sum0;
+                *outptr1 += sum1;
+                *outptr2 += sum2;
+                *outptr3 += sum3;
+                *outptr4 += sum4;
+                *outptr5 += sum5;
+                *outptr6 += sum6;
+                *outptr7 += sum7;
+
+                r0++;
+                outptr0++;
+                outptr1++;
+                outptr2++;
+                outptr3++;
+                outptr4++;
+                outptr5++;
+                outptr6++;
+                outptr7++;
+            }
+        }
+    }
+
+    nn_outch = (outch - remain_outch_start) >> 2;
+    remain_outch_start += nn_outch << 2;
+
+#else // __ARM_NEON && __aarch64__
+
     int nn_outch = outch >> 2;
     int remain_outch_start = nn_outch << 2;
+
+#endif // __ARM_NEON && __aarch64__
 
     #pragma omp parallel for
     for (int pp=0; pp<nn_outch; pp++)
@@ -88,101 +722,130 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k1 = vld1q_f32(kernel1);
             float32x4_t _k2 = vld1q_f32(kernel2);
             float32x4_t _k3 = vld1q_f32(kernel3);
+
 #if __aarch64__
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4_t _p = vld1q_f32(r0);
-                float32x4_t _pn = vld1q_f32(r0+4);
+            asm volatile(
+                "prfm   pldl1keep, [%5, #256]       \n"
+                "ld1    {v6.4s, v7.4s}, [%5], #32   \n"
 
-                float32x4_t _out0p = vld1q_f32(outptr0);
-                float32x4_t _out0pn = vld1q_f32(outptr0+4);
+                "prfm   pldl1keep, [%1, #256]       \n"
+                "ld1    {v8.4s, v9.4s}, [%1]        \n"
 
-                float32x4_t _out1p = vld1q_f32(outptr1);
-                float32x4_t _out1pn = vld1q_f32(outptr1+4);
+                "0:                                 \n"
 
-                float32x4_t _out2p = vld1q_f32(outptr2);
-                float32x4_t _out2pn = vld1q_f32(outptr2+4);
+                "fmla   v8.4s, v6.4s, %18.s[0]      \n"
 
-                float32x4_t _out3p = vld1q_f32(outptr3);
-                float32x4_t _out3pn = vld1q_f32(outptr3+4);
+                "prfm   pldl1keep, [%2, #256]       \n"
+                "ld1    {v10.4s, v11.4s}, [%2]      \n"
 
-                _out0p = vfmaq_laneq_f32(_out0p, _p, _k0, 0);
-                _out0pn = vfmaq_laneq_f32(_out0pn, _pn, _k0, 0);
+                "fmla   v9.4s, v7.4s, %18.s[0]      \n"
 
-                _out1p = vfmaq_laneq_f32(_out1p, _p, _k1, 0);
-                _out1pn = vfmaq_laneq_f32(_out1pn, _pn, _k1, 0);
+                "fmla   v10.4s, v6.4s, %19.s[0]     \n"
 
-                _out2p = vfmaq_laneq_f32(_out2p, _p, _k2, 0);
-                _out2pn = vfmaq_laneq_f32(_out2pn, _pn, _k2, 0);
+                "prfm   pldl1keep, [%3, #256]       \n"
+                "ld1    {v12.4s, v13.4s}, [%3]      \n"
 
-                _out3p = vfmaq_laneq_f32(_out3p, _p, _k3, 0);
-                _out3pn = vfmaq_laneq_f32(_out3pn, _pn, _k3, 0);
+                "fmla   v11.4s, v7.4s, %19.s[0]     \n"
 
-                float32x4_t _p1 = vld1q_f32(r1);
-                float32x4_t _p1n = vld1q_f32(r1+4);
+                "fmla   v12.4s, v6.4s, %20.s[0]     \n"
 
-                _out0p = vfmaq_laneq_f32(_out0p, _p1, _k0, 1);
-                _out0pn = vfmaq_laneq_f32(_out0pn, _p1n, _k0, 1);
+                "prfm   pldl1keep, [%4, #256]       \n"
+                "ld1    {v14.4s, v15.4s}, [%4]      \n"
 
-                _out1p = vfmaq_laneq_f32(_out1p, _p1, _k1, 1);
-                _out1pn = vfmaq_laneq_f32(_out1pn, _p1n, _k1, 1);
+                "fmla   v13.4s, v7.4s, %20.s[0]     \n"
 
-                _out2p = vfmaq_laneq_f32(_out2p, _p1, _k2, 1);
-                _out2pn = vfmaq_laneq_f32(_out2pn, _p1n, _k2, 1);
+                "prfm   pldl1keep, [%6, #256]       \n"
+                "ld1    {v4.4s, v5.4s}, [%6], #32   \n"
 
-                _out3p = vfmaq_laneq_f32(_out3p, _p1, _k3, 1);
-                _out3pn = vfmaq_laneq_f32(_out3pn, _p1n, _k3, 1);
+                "fmla   v14.4s, v6.4s, %21.s[0]     \n"
+                "fmla   v15.4s, v7.4s, %21.s[0]     \n"
 
-                float32x4_t _p2 = vld1q_f32(r2);
-                float32x4_t _p2n = vld1q_f32(r2+4);
+                "fmla   v8.4s, v4.4s, %18.s[1]      \n"
+                "fmla   v9.4s, v5.4s, %18.s[1]      \n"
 
-                _out0p = vfmaq_laneq_f32(_out0p, _p2, _k0, 2);
-                _out0pn = vfmaq_laneq_f32(_out0pn, _p2n, _k0, 2);
+                "fmla   v10.4s, v4.4s, %19.s[1]     \n"
+                "fmla   v11.4s, v5.4s, %19.s[1]     \n"
 
-                _out1p = vfmaq_laneq_f32(_out1p, _p2, _k1, 2);
-                _out1pn = vfmaq_laneq_f32(_out1pn, _p2n, _k1, 2);
+                "fmla   v12.4s, v4.4s, %20.s[1]     \n"
+                "fmla   v13.4s, v5.4s, %20.s[1]     \n"
 
-                _out2p = vfmaq_laneq_f32(_out2p, _p2, _k2, 2);
-                _out2pn = vfmaq_laneq_f32(_out2pn, _p2n, _k2, 2);
+                "prfm   pldl1keep, [%7, #256]       \n"
+                "ld1    {v6.4s, v7.4s}, [%7], #32   \n"
 
-                _out3p = vfmaq_laneq_f32(_out3p, _p2, _k3, 2);
-                _out3pn = vfmaq_laneq_f32(_out3pn, _p2n, _k3, 2);
+                "fmla   v14.4s, v4.4s, %21.s[1]     \n"
+                "fmla   v15.4s, v5.4s, %21.s[1]     \n"
 
-                float32x4_t _p3 = vld1q_f32(r3);
-                float32x4_t _p3n = vld1q_f32(r3+4);
+                "fmla   v8.4s, v6.4s, %18.s[2]      \n"
+                "fmla   v9.4s, v7.4s, %18.s[2]      \n"
 
-                _out0p = vfmaq_laneq_f32(_out0p, _p3, _k0, 3);
-                _out0pn = vfmaq_laneq_f32(_out0pn, _p3n, _k0, 3);
+                "fmla   v10.4s, v6.4s, %19.s[2]     \n"
+                "fmla   v11.4s, v7.4s, %19.s[2]     \n"
 
-                _out1p = vfmaq_laneq_f32(_out1p, _p3, _k1, 3);
-                _out1pn = vfmaq_laneq_f32(_out1pn, _p3n, _k1, 3);
+                "fmla   v12.4s, v6.4s, %20.s[2]     \n"
+                "fmla   v13.4s, v7.4s, %20.s[2]     \n"
 
-                _out2p = vfmaq_laneq_f32(_out2p, _p3, _k2, 3);
-                _out2pn = vfmaq_laneq_f32(_out2pn, _p3n, _k2, 3);
+                "prfm   pldl1keep, [%8, #256]       \n"
+                "ld1    {v4.4s, v5.4s}, [%8], #32   \n"
 
-                _out3p = vfmaq_laneq_f32(_out3p, _p3, _k3, 3);
-                _out3pn = vfmaq_laneq_f32(_out3pn, _p3n, _k3, 3);
+                "fmla   v14.4s, v6.4s, %21.s[2]     \n"
+                "fmla   v15.4s, v7.4s, %21.s[2]     \n"
 
-                vst1q_f32(outptr0, _out0p);
-                vst1q_f32(outptr0+4, _out0pn);
+                "fmla   v8.4s, v4.4s, %18.s[3]      \n"
+                "fmla   v9.4s, v5.4s, %18.s[3]      \n"
 
-                vst1q_f32(outptr1, _out1p);
-                vst1q_f32(outptr1+4, _out1pn);
+                "fmla   v10.4s, v4.4s, %19.s[3]     \n"
+                "fmla   v11.4s, v5.4s, %19.s[3]     \n"
 
-                vst1q_f32(outptr2, _out2p);
-                vst1q_f32(outptr2+4, _out2pn);
+                "st1    {v8.4s, v9.4s}, [%1], #32   \n"
 
-                vst1q_f32(outptr3, _out3p);
-                vst1q_f32(outptr3+4, _out3pn);
+                "fmla   v12.4s, v4.4s, %20.s[3]     \n"
+                "fmla   v13.4s, v5.4s, %20.s[3]     \n"
 
-                r0 += 8;
-                r1 += 8;
-                r2 += 8;
-                r3 += 8;
-                outptr0 += 8;
-                outptr1 += 8;
-                outptr2 += 8;
-                outptr3 += 8;
+                "st1    {v10.4s, v11.4s}, [%2], #32 \n"
+
+                "prfm   pldl1keep, [%5, #256]       \n"
+                "ld1    {v6.4s, v7.4s}, [%5], #32   \n"
+
+                "fmla   v14.4s, v4.4s, %21.s[3]     \n"
+                "fmla   v15.4s, v5.4s, %21.s[3]     \n"
+
+                "st1    {v12.4s, v13.4s}, [%3], #32 \n"
+
+                "prfm   pldl1keep, [%1, #256]       \n"
+                "ld1    {v8.4s, v9.4s}, [%1]        \n"
+
+                "subs   %w0, %w0, #1                \n"
+
+                "st1    {v14.4s, v15.4s}, [%4], #32 \n"
+
+                "bne    0b                          \n"
+                "sub    %5, %5, #32                 \n"
+                : "=r"(nn),     // %0
+                  "=r"(outptr0),// %1
+                  "=r"(outptr1),// %2
+                  "=r"(outptr2),// %3
+                  "=r"(outptr3),// %4
+                  "=r"(r0),     // %5
+                  "=r"(r1),     // %6
+                  "=r"(r2),     // %7
+                  "=r"(r3)      // %8
+                : "0"(nn),
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(outptr2),
+                  "4"(outptr3),
+                  "5"(r0),
+                  "6"(r1),
+                  "7"(r2),
+                  "8"(r3),
+                  "w"(_k0),     // %18
+                  "w"(_k1),     // %19
+                  "w"(_k2),     // %20
+                  "w"(_k3)      // %21
+                : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
+            );
             }
 #else
             if (nn > 0)
