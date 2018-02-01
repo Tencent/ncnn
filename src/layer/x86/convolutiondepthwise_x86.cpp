@@ -18,11 +18,9 @@
 #include <omp.h>
 #endif
 
-namespace ncnn {
+#include "layer_type.h"
 
-#include "convolution_1x1.h"
-#include "convolution_3x3.h"
-#include "convolution_5x5.h"
+namespace ncnn {
 
 #include "convolutiondepthwise_3x3.h"
 
@@ -33,70 +31,18 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob) con
     // convolv with NxN kernel
     // value = value + bias
 
-    if (kernel_w != kernel_h || stride_w != stride_h)
-    {
-        return ConvolutionDepthWise::forward(bottom_blob, top_blob);
-    }
-
-    const int kernel_size = kernel_w;
-    const int stride = stride_w;
-
-    if (kernel_size > 5 || stride > 5 || dilation_w != 1 || dilation_h != 1)
-    {
-        return ConvolutionDepthWise::forward(bottom_blob, top_blob);
-    }
-
-    typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&);
-
-    // kernel_size x stride
-    conv_func conv_func_table[5][5] =
-    {
-        {
-            conv1x1s1_sse,
-            conv1x1s2_sse,
-            0,
-            0,
-            0
-        }, // kernel_size = 1
-        {
-            0,
-            0,
-            0,
-            0,
-            0
-        }, // kernel_size = 2
-        {
-            conv3x3s1_sse,
-            0,
-            0,
-            0,
-            0
-        }, // kernel_size = 3
-        {
-            0,
-            0,
-            0,
-            0,
-            0
-        }, // kernel_size = 4
-        {
-            conv5x5s1_sse,
-            0,
-            0,
-            0,
-            0
-        }  // kernel_size = 5
-    };
-
-    conv_func conv = conv_func_table[kernel_size-1][stride-1];
-    if (!conv)
-    {
-        return ConvolutionDepthWise::forward(bottom_blob, top_blob);
-    }
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+
+    if (channels % group != 0 || num_output % group != 0)
+    {
+        // reject invalid group
+        return -100;
+    }
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
     Mat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
@@ -110,8 +56,8 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob) con
     }
     else if (pad_w == -233 && pad_h == -233)
     {
-        int wpad = kernel_size + (w - 1) / stride * stride - w;
-        int hpad = kernel_size + (h - 1) / stride * stride - h;
+        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
             copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
@@ -123,26 +69,26 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob) con
         h = bottom_blob_bordered.h;
     }
 
-    int outw = (w - kernel_size) / stride + 1;
-    int outh = (h - kernel_size) / stride + 1;
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
 
     top_blob.create(outw, outh, num_output);
     if (top_blob.empty())
         return -100;
 
-    const int maxk = kernel_size * kernel_size;
+    const int maxk = kernel_w * kernel_h;
 
     // depth-wise
     if (channels == group && group == num_output)
     {
-        if (kernel_size == 3)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
         {
-            if (stride == 1)
+            if (stride_w == 1 && stride_h == 1)
             {
                 convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data);
                 return 0;
             }
-            else if (stride == 2)
+            else if (stride_w == 2 && stride_h == 2)
             {
                 convdw3x3s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data);
                 return 0;
@@ -164,7 +110,36 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob) con
             if (bias_term)
                 bias_data_g = Mat(1, (void*)((const float*)bias_data + g));
 
-            conv(bottom_blob_bordered_g, top_blob_g, weight_data_g, bias_data_g);
+            // call Convolution
+            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+
+            // set param
+            ncnn::ParamDict pd;
+            pd.set(0, 1);// num_output
+            pd.set(1, kernel_w);
+            pd.set(11, kernel_h);
+            pd.set(2, dilation_w);
+            pd.set(12, dilation_h);
+            pd.set(3, stride_w);
+            pd.set(13, stride_h);
+            pd.set(4, 0);// pad_w
+            pd.set(14, 0);// pad_h
+            pd.set(5, bias_term);
+            pd.set(6, maxk);// weight_data_size
+
+            op->load_param(pd);
+
+            // set weights
+            ncnn::Mat weights[2];
+            weights[0] = weight_data_g;
+            weights[1] = bias_data_g;
+
+            op->load_model(weights);
+
+            // forward
+            op->forward(bottom_blob_bordered_g, top_blob_g);
+
+            delete op;
         }
 
 #ifdef _OPENMP
@@ -185,7 +160,36 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob) con
         if (bias_term)
             bias_data_g = Mat(num_output_g, (void*)((const float*)bias_data + num_output_g * g));
 
-        conv(bottom_blob_bordered_g, top_blob_g, weight_data_g, bias_data_g);
+        // call Convolution
+        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+
+        // set param
+        ncnn::ParamDict pd;
+        pd.set(0, num_output_g);// num_output
+        pd.set(1, kernel_w);
+        pd.set(11, kernel_h);
+        pd.set(2, dilation_w);
+        pd.set(12, dilation_h);
+        pd.set(3, stride_w);
+        pd.set(13, stride_h);
+        pd.set(4, 0);// pad_w
+        pd.set(14, 0);// pad_h
+        pd.set(5, bias_term);
+        pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
+
+        op->load_param(pd);
+
+        // set weights
+        ncnn::Mat weights[2];
+        weights[0] = weight_data_g;
+        weights[1] = bias_data_g;
+
+        op->load_model(weights);
+
+        // forward
+        op->forward(bottom_blob_bordered_g, top_blob_g);
+
+        delete op;
     }
 
     return 0;
