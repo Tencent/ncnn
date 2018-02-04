@@ -34,6 +34,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
     const int* slices_ptr = slices;
 
     if (dims == 1) // axis == 0
@@ -50,13 +51,13 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(slice);
+            top_blob.create(slice, elemsize);
             if (top_blob.empty())
                 return -100;
 
             const float* ptr = (const float*)bottom_blob + q;
             float* outptr = top_blob;
-            memcpy(outptr, ptr, slice * sizeof(float));
+            memcpy(outptr, ptr, slice * elemsize);
 
             q += slice;
         }
@@ -79,7 +80,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(w, slice);
+            top_blob.create(w, slice, elemsize);
             if (top_blob.empty())
                 return -100;
 
@@ -87,7 +88,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
 
             const float* ptr = bottom_blob.row(q);
             float* outptr = top_blob;
-            memcpy(outptr, ptr, size * sizeof(float));
+            memcpy(outptr, ptr, size * elemsize);
 
             q += slice;
         }
@@ -110,7 +111,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(slice, h);
+            top_blob.create(slice, h, elemsize);
             if (top_blob.empty())
                 return -100;
 
@@ -119,7 +120,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             {
                 float* outptr = top_blob.row(j);
                 const float* ptr = bottom_blob.row(j) + q;
-                memcpy(outptr, ptr, slice * sizeof(float));
+                memcpy(outptr, ptr, slice * elemsize);
             }
 
             q += slice;
@@ -144,7 +145,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(w, h, slice);
+            top_blob.create(w, h, slice, elemsize);
             if (top_blob.empty())
                 return -100;
 
@@ -152,7 +153,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
 
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob;
-            memcpy(outptr, ptr, size * sizeof(float));
+            memcpy(outptr, ptr, size * elemsize);
 
             q += slice;
         }
@@ -176,7 +177,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(w, slice, channels);
+            top_blob.create(w, slice, channels, elemsize);
             if (top_blob.empty())
                 return -100;
 
@@ -187,7 +188,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
 
                 float* outptr = top_blob.channel(p);
                 const float* ptr = bottom_blob.channel(p).row(q);
-                memcpy(outptr, ptr, size * sizeof(float));
+                memcpy(outptr, ptr, size * elemsize);
             }
 
             q += slice;
@@ -212,7 +213,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(slice, h, channels);
+            top_blob.create(slice, h, channels, elemsize);
             if (top_blob.empty())
                 return -100;
 
@@ -225,7 +226,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
                 for (int j=0; j<h; j++)
                 {
                     const float* ptr = m.row(j) + q;
-                    memcpy(outptr, ptr, slice * sizeof(float));
+                    memcpy(outptr, ptr, slice * elemsize);
 
                     outptr += slice;
                 }

@@ -31,34 +31,32 @@ int ShuffleChannel::load_param(const ParamDict& pd)
     return 0;
 }
 
-int ShuffleChannel::forward(const Mat &bottom_blob, Mat &top_blob) const
+int ShuffleChannel::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
-    int c = bottom_blob.c;
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int c = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
     int chs_per_group = c / group;
 
-    if (c != chs_per_group * group) {
-//        cout << "Wrong group num";
-//        error;
+    if (c != chs_per_group * group)
+    {
         // reject invalid group
         return -100;
     }
 
-    top_blob.create(w, h, c);
+    top_blob.create(w, h, c, elemsize);
     if (top_blob.empty())
         return -100;
 
-    int dst_q;
-    int src_q;
-    // cstep * sizeof(float) if addr aligned needed
-    size_t feature_sz = w * h * sizeof(float);
-    for (int i = 0; i != group; ++i) {
-        for (int j = 0; j != chs_per_group; ++j) {
-            src_q = chs_per_group * i + j;
-            dst_q = group * j + i;
-            memcpy(top_blob.channel(dst_q), bottom_blob.channel(src_q),
-                   feature_sz);
+    const size_t feature_sz = w * h * elemsize;
+    for (int i = 0; i != group; i++)
+    {
+        for (int j = 0; j != chs_per_group; j++)
+        {
+            int src_q = chs_per_group * i + j;
+            int dst_q = group * j + i;
+            memcpy(top_blob.channel(dst_q), bottom_blob.channel(src_q), feature_sz);
         }
     }
     return 0;
