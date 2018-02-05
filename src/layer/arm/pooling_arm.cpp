@@ -58,7 +58,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
-    else if (pad_w == -233 && pad_h == -233)
+    else if (pad_mode == 2) // tensorflow padding=SAME
     {
         int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
         int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
@@ -76,12 +76,12 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     int outw = (w - kernel_w) / stride_w + 1;
     int outh = (h - kernel_h) / stride_h + 1;
 
-    int wtail = (w - kernel_w) % stride_w;
-    int htail = (h - kernel_h) % stride_h;
-    if ((pad_w == -233 && pad_h == -233) || (pad_w == -2333 && pad_h == -2333))
+    int wtail = 0;
+    int htail = 0;
+    if (pad_mode == 0) // full padding
     {
-        wtail = 0;
-        htail = 0;
+        wtail = (w - kernel_w) % stride_w;
+        htail = (h - kernel_h) % stride_h;
     }
     if (wtail != 0 || htail != 0)
     {

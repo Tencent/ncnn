@@ -530,6 +530,7 @@ int main(int argc, char** argv)
             int pad = 0;
 
             int global_pooling = 0;
+            int pad_mode = 1;
 
             tensorflow::AttrValue value_ksize;
             if (find_attr_value(node, "ksize", value_ksize))
@@ -552,11 +553,11 @@ int main(int argc, char** argv)
             {
                 if (value_padding.s() == "VALID")
                 {
-                    pad = 0;
+                    pad_mode = 1;
                 }
                 else if (value_padding.s() == "SAME")
                 {
-                    pad = -233;
+                    pad_mode = 2;
                 }
             }
 
@@ -567,6 +568,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 12=%d", stride_h);
             fprintf(pp, " 3=%d", pad);
             fprintf(pp, " 4=%d", global_pooling);
+            fprintf(pp, " 5=%d", pad_mode);
         }
         else if (node.op() == "Concat" || node.op() == "ConcatV2")
         {
@@ -1075,6 +1077,7 @@ int main(int argc, char** argv)
             int pad = 0;
 
             int global_pooling = 0;
+            int pad_mode = 1;
 
             tensorflow::AttrValue value_ksize;
             if (find_attr_value(node, "ksize", value_ksize))
@@ -1097,11 +1100,11 @@ int main(int argc, char** argv)
             {
                 if (value_padding.s() == "VALID")
                 {
-                    pad = -2333;
+                    pad_mode = 1;
                 }
                 else if (value_padding.s() == "SAME")
                 {
-                    pad = -233;
+                    pad_mode = 2;
                 }
             }
 
@@ -1112,6 +1115,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 12=%d", stride_h);
             fprintf(pp, " 3=%d", pad);
             fprintf(pp, " 4=%d", global_pooling);
+            fprintf(pp, " 5=%d", pad_mode);
         }
         else if (node.op() == "Min" || node.op() == "Minimum")
         {

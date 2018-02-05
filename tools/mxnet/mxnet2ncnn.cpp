@@ -1092,9 +1092,14 @@ int main(int argc, char** argv)
                 pool = 1;
             }
 
+            int pad_mode = 1;
             if (pooling_convention == "valid")
             {
-                // TODO valid and full mode
+                pad_mode = 1;
+            }
+            else if (pooling_convention == "full")
+            {
+                pad_mode = 0;
             }
 
             fprintf(pp, " 0=%d", pool);
@@ -1105,6 +1110,7 @@ int main(int argc, char** argv)
             if (!pad.empty())
                 fprintf(pp, " 3=%d", pad[0]);
             fprintf(pp, " 4=%d", global_pool);
+            fprintf(pp, " 5=%d", pad_mode);
         }
         else if (n.op == "SliceChannel")
         {
