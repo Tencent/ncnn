@@ -745,6 +745,10 @@ int main(int argc, char** argv)
 
             fprintf(pp, "%-16s", "Input");
         }
+        else if (n.op == "abs")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (n.op == "Activation")
         {
             std::string type = n.attr("act_type");
@@ -761,9 +765,41 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "TanH");
             }
         }
+        else if (n.op == "arccos")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "arcsin")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "arctan")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (n.op == "BatchNorm")
         {
             fprintf(pp, "%-16s", "BatchNorm");
+        }
+        else if (n.op == "broadcast_add")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "broadcast_div")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "broadcast_mul")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "broadcast_sub")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "ceil")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (n.op == "Concat")
         {
@@ -778,6 +814,10 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "Convolution");
             }
         }
+        else if (n.op == "cos")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (n.op == "Dropout")
         {
             fprintf(pp, "%-16s", "Dropout");
@@ -786,7 +826,15 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
+        else if (n.op == "elemwise_div")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (n.op == "elemwise_mul")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "elemwise_sub")
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
@@ -794,9 +842,17 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Embed");
         }
+        else if (n.op == "exp")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (n.op == "Flatten")
         {
             fprintf(pp, "%-16s", "Flatten");
+        }
+        else if (n.op == "floor")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (n.op == "FullyConnected")
         {
@@ -818,9 +874,53 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "PReLU");
             }
         }
+        else if (n.op == "log")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "max")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (n.op == "maximum")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "mean")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (n.op == "min")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (n.op == "minimum")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "negative")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (n.op == "Pooling")
         {
             fprintf(pp, "%-16s", "Pooling");
+        }
+        else if (n.op == "prod")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (n.op == "reciprocal")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "relu")
+        {
+            fprintf(pp, "%-16s", "ReLU");
+        }
+        else if (n.op == "sin")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (n.op == "SliceChannel")
         {
@@ -834,6 +934,26 @@ int main(int argc, char** argv)
         else if (n.op == "SoftmaxActivation")
         {
             fprintf(pp, "%-16s", "Softmax");
+        }
+        else if (n.op == "sqrt")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "square")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "sum")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (n.op == "tan")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "tanh")
+        {
+            fprintf(pp, "%-16s", "TanH");
         }
         else
         {
@@ -909,6 +1029,11 @@ int main(int argc, char** argv)
             // dummy input shape
 //             fprintf(pp, " 0 0 0");
         }
+        else if (n.op == "abs")
+        {
+            int op_type = 0;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (n.op == "Activation")
         {
             std::string type = n.attr("act_type");
@@ -916,6 +1041,21 @@ int main(int argc, char** argv)
             {
 //                 fprintf(pp, " 0=%f", 0.f);
             }
+        }
+        else if (n.op == "arccos")
+        {
+            int op_type = 13;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "arcsin")
+        {
+            int op_type = 12;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "arctan")
+        {
+            int op_type = 14;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "BatchNorm")
         {
@@ -943,6 +1083,31 @@ int main(int argc, char** argv)
             fwrite(mean_data.data(), sizeof(float), mean_data.size(), bp);
             fwrite(var_data.data(), sizeof(float), var_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+        }
+        else if (n.op == "broadcast_add")
+        {
+            int op_type = 0;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "broadcast_div")
+        {
+            int op_type = 3;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "broadcast_mul")
+        {
+            int op_type = 2;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "broadcast_sub")
+        {
+            int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "ceil")
+        {
+            int op_type = 3;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "Concat")
         {
@@ -1002,6 +1167,11 @@ int main(int argc, char** argv)
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
         }
+        else if (n.op == "cos")
+        {
+            int op_type = 10;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (n.op == "Dropout")
         {
 //             float p = n.attr("p");
@@ -1012,9 +1182,19 @@ int main(int argc, char** argv)
             int op_type = 0;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (n.op == "elemwise_div")
+        {
+            int op_type = 3;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (n.op == "elemwise_mul")
         {
             int op_type = 2;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "elemwise_sub")
+        {
+            int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "Embedding")
@@ -1032,8 +1212,18 @@ int main(int argc, char** argv)
             fwrite(&quantize_tag, sizeof(int), 1, bp);
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
         }
+        else if (n.op == "exp")
+        {
+            int op_type = 7;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (n.op == "Flatten")
         {
+        }
+        else if (n.op == "floor")
+        {
+            int op_type = 2;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "FullyConnected")
         {
@@ -1060,9 +1250,13 @@ int main(int argc, char** argv)
             std::string type = n.attr("act_type");
             if (type == "elu")
             {
+                float slope = n.attr("slope");
+                fprintf(pp, " 0=%f", slope);
             }
             else if (type == "leaky")
             {
+                float slope = n.attr("slope");
+                fprintf(pp, " 0=%f", slope);
             }
             else if (type == "prelu")
             {
@@ -1072,6 +1266,41 @@ int main(int argc, char** argv)
 
                 fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             }
+        }
+        else if (n.op == "log")
+        {
+            int op_type = 8;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "max")
+        {
+            int operation = 4;
+            fprintf(pp, " 0=%d", operation);
+        }
+        else if (n.op == "maximum")
+        {
+            int op_type = 4;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "mean")
+        {
+            int operation = 3;
+            fprintf(pp, " 0=%d", operation);
+        }
+        else if (n.op == "min")
+        {
+            int operation = 5;
+            fprintf(pp, " 0=%d", operation);
+        }
+        else if (n.op == "minimum")
+        {
+            int op_type = 5;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "negative")
+        {
+            int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "Pooling")
         {
@@ -1112,6 +1341,24 @@ int main(int argc, char** argv)
             fprintf(pp, " 4=%d", global_pool);
             fprintf(pp, " 5=%d", pad_mode);
         }
+        else if (n.op == "prod")
+        {
+            int operation = 6;
+            fprintf(pp, " 0=%d", operation);
+        }
+        else if (n.op == "reciprocal")
+        {
+            int op_type = 15;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "relu")
+        {
+        }
+        else if (n.op == "sin")
+        {
+            int op_type = 9;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (n.op == "SliceChannel")
         {
             int num_outputs = n.attr("num_outputs");
@@ -1124,6 +1371,29 @@ int main(int argc, char** argv)
             }
         }
         else if (n.op == "SoftmaxOutput")
+        {
+        }
+        else if (n.op == "sqrt")
+        {
+            int op_type = 5;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "square")
+        {
+            int op_type = 4;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "sum")
+        {
+            int operation = 0;
+            fprintf(pp, " 0=%d", operation);
+        }
+        else if (n.op == "tan")
+        {
+            int op_type = 11;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "tanh")
         {
         }
         else
