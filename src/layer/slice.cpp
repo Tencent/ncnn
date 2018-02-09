@@ -149,7 +149,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             if (top_blob.empty())
                 return -100;
 
-            int size = w * h * slice;
+            int size = bottom_blob.cstep * slice;
 
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob;
