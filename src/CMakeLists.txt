@@ -17,6 +17,7 @@ set(ncnn_SRCS
     net.cpp
     opencv.cpp
     paramdict.cpp
+    benchmark.cpp
 )
 
 macro(ncnn_add_layer class)
@@ -99,7 +100,7 @@ ncnn_add_layer(Deconvolution)
 ncnn_add_layer(Dropout)
 ncnn_add_layer(Eltwise)
 ncnn_add_layer(ELU)
-ncnn_add_layer(Embed OFF)
+ncnn_add_layer(Embed)
 ncnn_add_layer(Exp)
 ncnn_add_layer(Flatten)
 ncnn_add_layer(InnerProduct)
@@ -140,6 +141,7 @@ ncnn_add_layer(DetectionOutput)
 ncnn_add_layer(Interp)
 ncnn_add_layer(DeconvolutionDepthWise)
 ncnn_add_layer(ShuffleChannel)
+ncnn_add_layer(InstanceNorm)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
@@ -154,6 +156,7 @@ install(FILES
     net.h
     opencv.h
     paramdict.h
+    benchmark.h
     ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
     ${CMAKE_CURRENT_BINARY_DIR}/platform.h
     DESTINATION include

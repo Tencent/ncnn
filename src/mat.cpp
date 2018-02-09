@@ -272,10 +272,10 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     {
     asm volatile(
         "0:                             \n"
-        "ldr    d0, [%1], #8            \n"
+        "ld1    {v0.4h}, [%1], #8       \n"
         "fcvtl  v1.4s, v0.4h            \n"
         "subs   %w0, %w0, #1            \n"
-        "str    q1, [%2], #16           \n"
+        "st1    {v1.4s}, [%2], #16      \n"
         "bne    0b                      \n"
         : "=r"(nn),     // %0
           "=r"(data),   // %1

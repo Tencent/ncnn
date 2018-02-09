@@ -514,6 +514,9 @@ inline Mat Mat::reshape(int _w, int _h, int _c) const
 
 inline void Mat::create(int _w, size_t _elemsize)
 {
+    if (dims == 1 && w == _w && elemsize == _elemsize)
+        return;
+
     release();
 
     elemsize = _elemsize;
@@ -536,6 +539,9 @@ inline void Mat::create(int _w, size_t _elemsize)
 
 inline void Mat::create(int _w, int _h, size_t _elemsize)
 {
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize)
+        return;
+
     release();
 
     elemsize = _elemsize;
@@ -558,6 +564,9 @@ inline void Mat::create(int _w, int _h, size_t _elemsize)
 
 inline void Mat::create(int _w, int _h, int _c, size_t _elemsize)
 {
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize)
+        return;
+
     release();
 
     elemsize = _elemsize;

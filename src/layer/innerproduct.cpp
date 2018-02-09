@@ -56,7 +56,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob) const
     int channels = bottom_blob.c;
     int size = w * h;
 
-    top_blob.create(1, 1, num_output);
+    top_blob.create(num_output);
     if (top_blob.empty())
         return -100;
 
@@ -64,7 +64,6 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob) const
     #pragma omp parallel for
     for (int p=0; p<num_output; p++)
     {
-        float* outptr = top_blob.channel(p);
         float sum = 0.f;
 
         if (bias_term)
@@ -82,7 +81,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob) const
             }
         }
 
-        outptr[0] = sum;
+        top_blob[p] = sum;
     }
 
     return 0;

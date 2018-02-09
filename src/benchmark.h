@@ -12,37 +12,35 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_POOLING_H
-#define LAYER_POOLING_H
+#ifndef NCNN_BENCHMARK_H
+#define NCNN_BENCHMARK_H
 
+#include "platform.h"
+
+#if NCNN_BENCHMARK
+
+#include "mat.h"
 #include "layer.h"
 
 namespace ncnn {
 
-class Pooling : public Layer
+struct timeval
 {
-public:
-    Pooling();
-
-    virtual int load_param(const ParamDict& pd);
-
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
-
-    enum { PoolMethod_MAX = 0, PoolMethod_AVE = 1 };
-
-public:
-    // param
-    int pooling_type;
-    int kernel_w;
-    int kernel_h;
-    int stride_w;
-    int stride_h;
-    int pad_w;
-    int pad_h;
-    int global_pooling;
-    int pad_mode;// 0=full 1=valid 2=SAME
+    long tv_sec;
+    long tv_usec;
 };
+
+// get now timestamp
+struct timeval get_current_time();
+
+// get the time elapsed in ms
+double time_elapsed(struct timeval start, struct timeval end);
+
+void benchmark(const Layer* layer, struct timeval start, struct timeval end);
+void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, struct timeval start, struct timeval end);
 
 } // namespace ncnn
 
-#endif // LAYER_POOLING_H
+#endif // NCNN_BENCHMARK
+
+#endif // NCNN_BENCHMARK_H

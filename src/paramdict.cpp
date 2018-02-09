@@ -60,6 +60,7 @@ void ParamDict::clear()
     for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
     {
         params[i].loaded = 0;
+        params[i].v = Mat();
     }
 }
 

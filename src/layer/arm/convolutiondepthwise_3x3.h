@@ -100,7 +100,7 @@ static void convdw3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                 float32x4_t _r32 = vextq_f32(_r30, _r30n, 2);
 
                 float32x4_t _sum1 = vmulq_laneq_f32(_r00, _k012x, 0);
-                float32x4_t _sum2 = vmlaq_laneq_f32(_bias0, _r01, _k012x, 1);
+                float32x4_t _sum2 = vfmaq_laneq_f32(_bias0, _r01, _k012x, 1);
                 _sum1 = vfmaq_laneq_f32(_sum1, _r02, _k012x, 2);
                 _sum2 = vfmaq_laneq_f32(_sum2, _r10, _k345x, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _r11, _k345x, 1);
@@ -110,7 +110,7 @@ static void convdw3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                 _sum1 = vfmaq_laneq_f32(_sum1, _r22, _k678x, 2);
 
                 float32x4_t _sum3 = vmulq_laneq_f32(_r10, _k012x, 0);
-                float32x4_t _sum4 = vmlaq_laneq_f32(_bias0, _r11, _k012x, 1);
+                float32x4_t _sum4 = vfmaq_laneq_f32(_bias0, _r11, _k012x, 1);
                 _sum3 = vfmaq_laneq_f32(_sum3, _r12, _k012x, 2);
                 _sum4 = vfmaq_laneq_f32(_sum4, _r20, _k345x, 0);
                 _sum3 = vfmaq_laneq_f32(_sum3, _r21, _k345x, 1);
@@ -344,7 +344,7 @@ static void convdw3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                 float32x4_t _r22 = vextq_f32(_r20, _r20n, 2);
 
                 float32x4_t _sum1 = vmulq_laneq_f32(_r00, _k012x, 0);
-                float32x4_t _sum2 = vmulq_laneq_f32(_r01, _k012x, 1);
+                float32x4_t _sum2 = vfmaq_laneq_f32(_bias0, _r01, _k012x, 1);
                 _sum1 = vfmaq_laneq_f32(_sum1, _r02, _k012x, 2);
                 _sum2 = vfmaq_laneq_f32(_sum2, _r10, _k345x, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _r11, _k345x, 1);

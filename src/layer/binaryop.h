@@ -28,6 +28,8 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
 
+    virtual int forward_inplace(Mat& bottom_top_blob) const;
+
     enum {
         Operation_ADD   = 0,
         Operation_SUB   = 1,
@@ -41,6 +43,8 @@ public:
 public:
     // param
     int op_type;
+    int with_scalar;
+    float b;
 };
 
 } // namespace ncnn

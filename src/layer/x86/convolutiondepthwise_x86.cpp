@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "convolutiondepthwise_arm.h"
+#include "convolutiondepthwise_x86.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -24,9 +24,9 @@ namespace ncnn {
 
 #include "convolutiondepthwise_3x3.h"
 
-DEFINE_LAYER_CREATOR(ConvolutionDepthWise_arm)
+DEFINE_LAYER_CREATOR(ConvolutionDepthWise_x86)
 
-int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
+int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // convolv with NxN kernel
     // value = value + bias
@@ -85,12 +85,12 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
         {
             if (stride_w == 1 && stride_h == 1)
             {
-                convdw3x3s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data);
+                convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data);
                 return 0;
             }
             else if (stride_w == 2 && stride_h == 2)
             {
-                convdw3x3s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data);
+                convdw3x3s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data);
                 return 0;
             }
         }

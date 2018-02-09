@@ -12,37 +12,34 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_POOLING_H
-#define LAYER_POOLING_H
+#ifndef LAYER_INSTANCENORM_H
+#define LAYER_INSTANCENORM_H
 
 #include "layer.h"
 
 namespace ncnn {
 
-class Pooling : public Layer
+class InstanceNorm : public Layer
 {
 public:
-    Pooling();
+    InstanceNorm();
 
     virtual int load_param(const ParamDict& pd);
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int load_model(const ModelBin& mb);
 
-    enum { PoolMethod_MAX = 0, PoolMethod_AVE = 1 };
+    virtual int forward_inplace(Mat& bottom_top_blob) const;
 
 public:
     // param
-    int pooling_type;
-    int kernel_w;
-    int kernel_h;
-    int stride_w;
-    int stride_h;
-    int pad_w;
-    int pad_h;
-    int global_pooling;
-    int pad_mode;// 0=full 1=valid 2=SAME
+    int channels;
+    float eps;
+
+    // model
+    Mat gamma_data;
+    Mat beta_data;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_POOLING_H
+#endif // LAYER_INSTANCENORM_H

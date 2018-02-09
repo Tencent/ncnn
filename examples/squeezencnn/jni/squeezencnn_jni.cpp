@@ -146,7 +146,7 @@ JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv
         cls_scores.resize(out.c);
         for (int j=0; j<out.c; j++)
         {
-            const float* prob = out.data + out.cstep * j;
+            const float* prob = out.channel(j);
             cls_scores[j] = prob[0];
         }
     }

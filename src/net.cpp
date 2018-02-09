@@ -24,6 +24,10 @@
 #include <omp.h>
 #endif // _OPENMP
 
+#if NCNN_BENCHMARK
+#include "benchmark.h"
+#endif // NCNN_BENCHMARK
+
 namespace ncnn {
 
 Net::Net()
@@ -642,7 +646,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         if (lightmode && layer->support_inplace)
         {
             Mat& bottom_top_blob = bottom_blob;
+#if NCNN_BENCHMARK
+            struct timeval start = get_current_time();
             int ret = layer->forward_inplace(bottom_top_blob);
+            struct timeval end = get_current_time();
+            benchmark(layer, bottom_top_blob, bottom_top_blob, start, end);
+#else
+            int ret = layer->forward_inplace(bottom_top_blob);
+#endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
 
@@ -652,7 +663,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         else
         {
             Mat top_blob;
+#if NCNN_BENCHMARK
+            struct timeval start = get_current_time();
             int ret = layer->forward(bottom_blob, top_blob);
+            struct timeval end = get_current_time();
+            benchmark(layer, bottom_blob, top_blob, start, end);
+#else
+            int ret = layer->forward(bottom_blob, top_blob);
+#endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
 
@@ -695,7 +713,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         if (lightmode && layer->support_inplace)
         {
             std::vector<Mat>& bottom_top_blobs = bottom_blobs;
+#if NCNN_BENCHMARK
+            struct timeval start = get_current_time();
             int ret = layer->forward_inplace(bottom_top_blobs);
+            struct timeval end = get_current_time();
+            benchmark(layer, start, end);
+#else
+            int ret = layer->forward_inplace(bottom_top_blobs);
+#endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
 
@@ -711,7 +736,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         {
             std::vector<Mat> top_blobs;
             top_blobs.resize(layer->tops.size());
+#if NCNN_BENCHMARK
+            struct timeval start = get_current_time();
             int ret = layer->forward(bottom_blobs, top_blobs);
+            struct timeval end = get_current_time();
+            benchmark(layer, start, end);
+#else
+            int ret = layer->forward(bottom_blobs, top_blobs);
+#endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
 
