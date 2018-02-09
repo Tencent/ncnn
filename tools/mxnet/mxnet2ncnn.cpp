@@ -1111,7 +1111,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "Concat")
         {
-            int dim = n.attr("dim");
+            int dim = n.has_attr("dim") ? n.attr("dim") : 1;
             fprintf(pp, " 0=%d", dim-1);
         }
         else if (n.op == "Convolution")
