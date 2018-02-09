@@ -818,6 +818,15 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (n.op == "Deconvolution")
+        {
+            int num_group = n.attr("num_group");
+            if (num_group > 1) {
+                fprintf(pp, "%-16s", "DeconvolutionDepthWise");
+            } else {
+                fprintf(pp, "%-16s", "Deconvolution");
+            }
+        }
         else if (n.op == "Dropout")
         {
             fprintf(pp, "%-16s", "Dropout");
@@ -857,6 +866,10 @@ int main(int argc, char** argv)
         else if (n.op == "FullyConnected")
         {
             fprintf(pp, "%-16s", "InnerProduct");
+        }
+        else if (n.op == "InstanceNorm")
+        {
+            fprintf(pp, "%-16s", "InstanceNorm");
         }
         else if (n.op == "LeakyReLU")
         {
@@ -1167,6 +1180,59 @@ int main(int argc, char** argv)
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
         }
+        else if (n.op == "Deconvolution")
+        {
+            int num_filter = n.attr("num_filter");
+            std::vector<int> kernel = n.attr("kernel");
+            std::vector<int> dilate = n.attr("dilate");
+            std::vector<int> stride = n.attr("stride");
+            std::vector<int> pad = n.attr("pad");
+            int no_bias = n.attr("no_bias");
+            int num_group = n.attr("num_group");
+
+            std::vector<float> weight_data = n.weight(0);
+            std::vector<float> bias_data = n.weight(1);
+
+            fprintf(pp, " 0=%d", num_filter);
+            if (kernel.size() == 1) {
+                fprintf(pp, " 1=%d", kernel[0]);
+            } else if (kernel.size() == 2) {
+                fprintf(pp, " 1=%d", kernel[1]);
+                fprintf(pp, " 11=%d", kernel[0]);
+            }
+
+            if (dilate.size() == 1) {
+                fprintf(pp, " 2=%d", dilate[0]);
+            } else if (dilate.size() == 2) {
+                fprintf(pp, " 2=%d", dilate[1]);
+                fprintf(pp, " 12=%d", dilate[0]);
+            }
+
+            if (stride.size() == 1) {
+                fprintf(pp, " 3=%d", stride[0]);
+            } else if (stride.size() == 2) {
+                fprintf(pp, " 3=%d", stride[1]);
+                fprintf(pp, " 13=%d", stride[0]);
+            }
+
+            if (pad.size() == 1) {
+                fprintf(pp, " 4=%d", pad[0]);
+            } else if (pad.size() == 2) {
+                fprintf(pp, " 4=%d", pad[1]);
+                fprintf(pp, " 14=%d", pad[0]);
+            }
+
+            fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
+            fprintf(pp, " 6=%d", (int)weight_data.size());
+            if (num_group > 1) {
+                fprintf(pp, " 7=%d", num_group);
+            }
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+            fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
+            fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+        }
         else if (n.op == "cos")
         {
             int op_type = 10;
@@ -1245,17 +1311,30 @@ int main(int argc, char** argv)
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
         }
+        else if (n.op == "InstanceNorm")
+        {
+            float eps = n.has_attr("eps") ? n.attr("eps") : 0.001f;
+
+            std::vector<float> gamma_data = n.weight(0);
+            std::vector<float> beta_data = n.weight(1);
+
+            fprintf(pp, " 0=%d", (int)gamma_data.size());
+            fprintf(pp, " 1=%f", eps);
+
+            fwrite(gamma_data.data(), sizeof(float), gamma_data.size(), bp);
+            fwrite(beta_data.data(), sizeof(float), beta_data.size(), bp);
+        }
         else if (n.op == "LeakyReLU")
         {
             std::string type = n.attr("act_type");
             if (type == "elu")
             {
-                float slope = n.attr("slope");
+                float slope = n.has_attr("slope") ? n.attr("slope") : 0.25f;
                 fprintf(pp, " 0=%f", slope);
             }
             else if (type == "leaky")
             {
-                float slope = n.attr("slope");
+                float slope = n.has_attr("slope") ? n.attr("slope") : 0.25f;
                 fprintf(pp, " 0=%f", slope);
             }
             else if (type == "prelu")
