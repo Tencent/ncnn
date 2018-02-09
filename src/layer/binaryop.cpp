@@ -30,6 +30,14 @@ BinaryOp::BinaryOp()
 int BinaryOp::load_param(const ParamDict& pd)
 {
     op_type = pd.get(0, 0);
+    with_scalar = pd.get(1, 0);
+    b = pd.get(2, 0.f);
+
+    if (with_scalar != 0)
+    {
+        one_blob_only = true;
+        support_inplace = true;
+    }
 
     return 0;
 }
@@ -113,9 +121,6 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
                     {
                         outptr[i] = op(ptr[i], b0);
                     }
-
-                    ptr += w;
-                    outptr += w;
                 }
 
                 return 0;
@@ -132,9 +137,6 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
                 {
                     outptr[i] = op(ptr[i], b0);
                 }
-
-                ptr += w;
-                outptr += w;
             }
 
             return 0;
@@ -241,9 +243,6 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
                     {
                         outptr[i] = op(a0, ptr1[i]);
                     }
-
-                    ptr1 += w1;
-                    outptr += w1;
                 }
 
                 return 0;
@@ -297,9 +296,6 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
                 {
                     outptr[i] = op(a0, ptr1[i]);
                 }
-
-                ptr1 += w1;
-                outptr += w1;
             }
 
             return 0;
@@ -356,6 +352,30 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c)
     return 0;
 }
 
+template<typename Op>
+static int binary_op_scalar_inplace(Mat& a, float b)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int channels = a.c;
+    int size = w * h;
+
+    #pragma omp parallel for
+    for (int q=0; q<channels; q++)
+    {
+        float* ptr = a.channel(q);
+
+        for (int i=0; i<size; i++)
+        {
+            ptr[i] = op(ptr[i], b);
+        }
+    }
+
+    return 0;
+}
+
 template<typename T>
 struct binary_op_max : std::binary_function<T,T,T> {
     T operator() (const T& x, const T& y) const { return std::max(x, y); }
@@ -398,6 +418,32 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     if (op_type == Operation_POW)
         return binary_op< binary_op_pow<float> >(bottom_blob, bottom_blob1, top_blob);
+
+    return 0;
+}
+
+int BinaryOp::forward_inplace(Mat& bottom_top_blob) const
+{
+    if (op_type == Operation_ADD)
+        return binary_op_scalar_inplace< std::plus<float> >(bottom_top_blob, b);
+
+    if (op_type == Operation_SUB)
+        return binary_op_scalar_inplace< std::minus<float> >(bottom_top_blob, b);
+
+    if (op_type == Operation_MUL)
+        return binary_op_scalar_inplace< std::multiplies<float> >(bottom_top_blob, b);
+
+    if (op_type == Operation_DIV)
+        return binary_op_scalar_inplace< std::divides<float> >(bottom_top_blob, b);
+
+    if (op_type == Operation_MAX)
+        return binary_op_scalar_inplace< binary_op_max<float> >(bottom_top_blob, b);
+
+    if (op_type == Operation_MIN)
+        return binary_op_scalar_inplace< binary_op_min<float> >(bottom_top_blob, b);
+
+    if (op_type == Operation_POW)
+        return binary_op_scalar_inplace< binary_op_pow<float> >(bottom_top_blob, b);
 
     return 0;
 }
