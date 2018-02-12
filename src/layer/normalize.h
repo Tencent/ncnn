@@ -33,6 +33,7 @@ public:
 public:
     // param
     int across_spatial;
+    int across_channel;
     int channel_shared;
     float eps;
     int scale_data_size;

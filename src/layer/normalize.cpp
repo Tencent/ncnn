@@ -28,6 +28,7 @@ Normalize::Normalize()
 int Normalize::load_param(const ParamDict& pd)
 {
     across_spatial = pd.get(0, 0);
+    across_channel = pd.get(4, 1);
     channel_shared = pd.get(1, 0);
     eps = pd.get(2, 0.0001f);
     scale_data_size = pd.get(3, 0);
@@ -55,7 +56,7 @@ int Normalize::forward(const Mat& bottom_blob, Mat& top_blob) const
     if (top_blob.empty())
         return -100;
 
-    if (across_spatial)
+    if (across_spatial && across_channel)
     {
         // square
         Mat square_sum_blob;
@@ -118,8 +119,37 @@ int Normalize::forward(const Mat& bottom_blob, Mat& top_blob) const
                 }
             }
         }
+
+        return 0;
     }
-    else
+
+    if (across_spatial && !across_channel)
+    {
+        #pragma omp parallel for
+        for (int q=0; q<channels; q++)
+        {
+            const float* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+
+            float ssum = eps;
+            for (int i=0; i<size; i++)
+            {
+                ssum += ptr[i] * ptr[i];
+            }
+
+            float a = 1.f / sqrt(ssum);
+            float scale = a * (channel_shared ? scale_data[0] : scale_data[q]);
+
+            for (int i=0; i<size; i++)
+            {
+                outptr[i] = ptr[i] * scale;
+            }
+        }
+
+        return 0;
+    }
+
+    if (!across_spatial && across_channel)
     {
         // square sum, 1 / sqrt(ssum)
         Mat square_sum_blob;
@@ -184,6 +214,8 @@ int Normalize::forward(const Mat& bottom_blob, Mat& top_blob) const
                 }
             }
         }
+
+        return 0;
     }
 
     return 0;
