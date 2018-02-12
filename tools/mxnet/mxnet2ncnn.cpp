@@ -855,6 +855,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (n.op == "expand_dims")
+        {
+            fprintf(pp, "%-16s", "ExpandDims");
+        }
         else if (n.op == "Flatten")
         {
             fprintf(pp, "%-16s", "Flatten");
@@ -1286,6 +1290,25 @@ int main(int argc, char** argv)
         {
             int op_type = 7;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "expand_dims")
+        {
+            int axis = n.attr("axis");
+
+            int expand_w = 0;
+            int expand_h = 0;
+            int expand_c = 0;
+
+            if (axis == 0)
+                expand_c = 1;
+            if (axis == 1)
+                expand_h = 1;
+            if (axis == 2)
+                expand_w = 1;
+
+            fprintf(pp, " 0=%d", expand_w);
+            fprintf(pp, " 1=%d", expand_h);
+            fprintf(pp, " 2=%d", expand_c);
         }
         else if (n.op == "Flatten")
         {
