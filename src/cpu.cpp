@@ -394,8 +394,8 @@ int set_cpu_powersave(int powersave)
 
     if (little_cluster_offset == 0 && powersave != 0)
     {
+        powersave = 0;
         fprintf(stderr, "SMP cpu powersave not supported\n");
-        return -1;
     }
 
     // prepare affinity cpuid
