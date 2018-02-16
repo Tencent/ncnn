@@ -31,27 +31,49 @@ public:
     // 2 = float16
     // 3 = uint8
     // load vec
-    Mat load(int w, int type) const;
+    virtual Mat load(int w, int type) const = 0;
     // load image
-    Mat load(int w, int h, int type) const;
+    virtual Mat load(int w, int h, int type) const;
     // load dim
-    Mat load(int w, int h, int c, int type) const;
+    virtual Mat load(int w, int h, int c, int type) const;
+};
 
+#if NCNN_STDIO
+class ModelBinFromStdio : public ModelBin
+{
+public:
+    // construct from file
+    ModelBinFromStdio(FILE* binfp);
+
+    virtual Mat load(int w, int type) const;
+
+protected:
+    FILE* binfp;
+};
+#endif // NCNN_STDIO
+
+class ModelBinFromMemory : public ModelBin
+{
+public:
+    // construct from external memory
+    ModelBinFromMemory(const unsigned char*& mem);
+
+    virtual Mat load(int w, int type) const;
+
+protected:
+    const unsigned char*& mem;
+};
+
+class ModelBinFromMatArray : public ModelBin
+{
+public:
     // construct from weight blob array
-    ModelBin(const Mat* weights);
+    ModelBinFromMatArray(const Mat* weights);
+
+    virtual Mat load(int w, int type) const;
 
 protected:
     mutable const Mat* weights;
-
-    friend class Net;
-
-#if NCNN_STDIO
-    ModelBin(FILE* binfp);
-    FILE* binfp;
-#endif // NCNN_STDIO
-
-    ModelBin(const unsigned char*& mem);
-    const unsigned char*& mem;
 };
 
 } // namespace ncnn

@@ -134,7 +134,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
             weights[0] = weight_data_g;
             weights[1] = bias_data_g;
 
-            op->load_model(weights);
+            op->load_model(ModelBinFromMatArray(weights));
 
             // forward
             op->forward(bottom_blob_bordered_g, top_blob_g);
@@ -184,7 +184,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
         weights[0] = weight_data_g;
         weights[1] = bias_data_g;
 
-        op->load_model(weights);
+        op->load_model(ModelBinFromMatArray(weights));
 
         // forward
         op->forward(bottom_blob_bordered_g, top_blob_g);
