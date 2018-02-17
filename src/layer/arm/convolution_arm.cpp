@@ -14,8 +14,6 @@
 
 #include "convolution_arm.h"
 
-#include "cpu.h"
-
 namespace ncnn {
 
 #include "convolution_1x1.h"
@@ -46,26 +44,9 @@ int Convolution_arm::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int Convolution_arm::load_model(FILE* binfp)
+int Convolution_arm::load_model(const ModelBin& mb)
 {
-    int ret = Convolution::load_model(binfp);
-    if (ret != 0)
-        return ret;
-
-    if (use_winograd3x3)
-    {
-        int num_input = weight_data_size / 9 / num_output;
-        conv3x3s1_winograd64_transform_kernel_neon(weight_data, weight_3x3_winograd64_data, num_input, num_output);
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Convolution_arm::load_model(const unsigned char*& mem)
-{
-    int ret = Convolution::load_model(mem);
+    int ret = Convolution::load_model(mb);
     if (ret != 0)
         return ret;
 
@@ -187,30 +168,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     if (top_blob.empty())
         return -100;
 
-    if (use_winograd3x3 && w <= 80 && h <= 80)
+    if (use_winograd3x3 && w <= 120 && h <= 120)
     {
-        int num_threads = get_omp_num_threads();
-        if (num_threads == 1 || (channels >= 64 && num_output >= 64))
-        {
-#if __aarch64__
-            // always faster than the default
-            conv3x3s1_winograd64_neon2(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
-#else
-            if (w <= 50 && h <= 50)
-            {
-                // another path for small image
-                conv3x3s1_winograd64_neon2(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
-            }
-            else
-            {
-                conv3x3s1_winograd64_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
-            }
-#endif // __aarch64__
-        }
-        else
-        {
-            conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
-        }
+        conv3x3s1_winograd64_neon4(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
     }
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data);

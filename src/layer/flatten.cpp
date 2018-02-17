@@ -39,7 +39,7 @@ int Flatten::forward(const Mat& bottom_blob, Mat& top_blob) const
     for (int q=0; q<channels; q++)
     {
         const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.data + size * q;
+        float* outptr = (float*)top_blob + size * q;
 
         for (int i=0; i<size; i++)
         {

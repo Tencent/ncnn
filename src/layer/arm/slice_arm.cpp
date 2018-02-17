@@ -29,7 +29,7 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     int channels = bottom_blob.c;
 
     int q = 0;
-    const int* slices_ptr = (const int*)slices.data;
+    const int* slices_ptr = slices;
     for (size_t i=0; i<top_blobs.size(); i++)
     {
         int slice = slices_ptr[i];
@@ -46,7 +46,7 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         int size = bottom_blob.cstep * slice;
 
         const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.data;
+        float* outptr = top_blob;
 
 #if __ARM_NEON
         int nn = size >> 3;

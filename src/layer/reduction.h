@@ -23,7 +23,6 @@ class Reduction : public Layer
 {
 public:
     Reduction();
-    virtual ~Reduction();
 
     virtual int load_param(const ParamDict& pd);
 

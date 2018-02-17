@@ -33,14 +33,7 @@ int Layer::load_param(const ParamDict& /*pd*/)
     return 0;
 }
 
-#if NCNN_STDIO
-int Layer::load_model(FILE* /*binfp*/)
-{
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Layer::load_model(const unsigned char*& /*mem*/)
+int Layer::load_model(const ModelBin& /*mb*/)
 {
     return 0;
 }
@@ -102,6 +95,15 @@ int layer_to_index(const char* type)
     }
 
     return -1;
+}
+
+Layer* create_layer(const char* type)
+{
+    int index = layer_to_index(type);
+    if (index == -1)
+        return 0;
+
+    return create_layer(index);
 }
 #endif // NCNN_STRING
 

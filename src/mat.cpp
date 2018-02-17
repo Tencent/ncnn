@@ -32,7 +32,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
         #pragma omp parallel for
         for (int q=0; q<c; q++)
         {
-            float* ptr = data + cstep * q;
+            float* ptr = channel(q);//data + cstep * q;
             const float mean = mean_vals[q];
 
 #if __ARM_NEON
@@ -87,7 +87,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
         #pragma omp parallel for
         for (int q=0; q<c; q++)
         {
-            float* ptr = data + cstep * q;
+            float* ptr = channel(q);//data + cstep * q;
             const float norm = norm_vals[q];
 
 #if __ARM_NEON
@@ -142,7 +142,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
         #pragma omp parallel for
         for (int q=0; q<c; q++)
         {
-            float* ptr = data + cstep * q;
+            float* ptr = channel(q);//data + cstep * q;
             const float mean = mean_vals[q];
             const float norm = norm_vals[q];
 
@@ -257,7 +257,7 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     if (m.empty())
         return m;
 
-    float* ptr = m.data;
+    float* ptr = m;//.data;
 
 #if __ARM_NEON && (__ARM_FP & 2)
     int nn = cpu_support_arm_vfpv4() ? size >> 2 : 0;
@@ -272,10 +272,10 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     {
     asm volatile(
         "0:                             \n"
-        "ldr    d0, [%1], #8            \n"
+        "ld1    {v0.4h}, [%1], #8       \n"
         "fcvtl  v1.4s, v0.4h            \n"
         "subs   %w0, %w0, #1            \n"
-        "str    q1, [%2], #16           \n"
+        "st1    {v1.4s}, [%2], #16      \n"
         "bne    0b                      \n"
         : "=r"(nn),     // %0
           "=r"(data),   // %1
@@ -324,8 +324,8 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
     int w = dst.w;
     int h = dst.h;
 
-    const float* ptr = src.data;
-    float* outptr = dst.data;
+    const float* ptr = src;//.data;
+    float* outptr = dst;//.data;
 
     if (type == BORDER_CONSTANT)
     {
@@ -508,8 +508,8 @@ static void copy_cut_border_image(const Mat& src, Mat& dst, int top, int left)
     int w = dst.w;
     int h = dst.h;
 
-    const float* ptr = src.data + src.w * top + left;
-    float* outptr = dst.data;
+    const float* ptr = src.row(top) + left;//.data + src.w * top + left;
+    float* outptr = dst;//.data;
 
     for (int y = 0; y < h; y++)
     {

@@ -31,52 +31,84 @@ int PReLU::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int PReLU::load_model(FILE* binfp)
+int PReLU::load_model(const ModelBin& mb)
 {
-    int nread;
-
-    slope_data.create(num_slope);
+    slope_data = mb.load(num_slope, 1);
     if (slope_data.empty())
         return -100;
-    nread = fread(slope_data, num_slope * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "PReLU read slope_data failed %d\n", nread);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int PReLU::load_model(const unsigned char*& mem)
-{
-    slope_data = Mat(num_slope, (float*)mem);
-    mem += num_slope * sizeof(float);
 
     return 0;
 }
 
 int PReLU::forward_inplace(Mat& bottom_top_blob) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-    int size = w * h;
+    int dims = bottom_top_blob.dims;
 
-    const float* slope_data_ptr = slope_data;
-
-    #pragma omp parallel for
-    for (int q=0; q<channels; q++)
+    if (dims == 1)
     {
-        float* ptr = bottom_top_blob.channel(q);
-        float slope = num_slope > 1 ? slope_data_ptr[q] : slope_data_ptr[0];
+        int w = bottom_top_blob.w;
 
-        for (int i=0; i<size; i++)
+        float* ptr = bottom_top_blob;
+
+        if (num_slope > 1)
         {
-            if (ptr[i] < 0)
-                ptr[i] *= slope;
+            #pragma omp parallel for
+            for (int i=0; i<w; i++)
+            {
+                if (ptr[i] < 0)
+                    ptr[i] *= slope_data[i];
+            }
+        }
+        else
+        {
+            float slope = slope_data[0];
+
+            #pragma omp parallel for
+            for (int i=0; i<w; i++)
+            {
+                if (ptr[i] < 0)
+                    ptr[i] *= slope;
+            }
+        }
+    }
+
+    if (dims == 2)
+    {
+        int w = bottom_top_blob.w;
+        int h = bottom_top_blob.h;
+
+        #pragma omp parallel for
+        for (int i=0; i<h; i++)
+        {
+            float* ptr = bottom_top_blob.row(i);
+            float slope = num_slope > 1 ? slope_data[i] : slope_data[0];
+
+            for (int j=0; j<w; j++)
+            {
+                if (ptr[j] < 0)
+                    ptr[j] *= slope;
+            }
+        }
+    }
+
+    if (dims == 3)
+    {
+        int w = bottom_top_blob.w;
+        int h = bottom_top_blob.h;
+        int channels = bottom_top_blob.c;
+        int size = w * h;
+
+        #pragma omp parallel for
+        for (int q=0; q<channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+            float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
+
+            for (int i=0; i<size; i++)
+            {
+                if (ptr[i] < 0)
+                    ptr[i] *= slope;
+            }
         }
     }
 

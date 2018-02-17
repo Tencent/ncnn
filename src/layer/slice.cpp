@@ -25,6 +25,7 @@ Slice::Slice()
 int Slice::load_param(const ParamDict& pd)
 {
     slices = pd.get(0, Mat());
+    axis = pd.get(1, 0);
 
     return 0;
 }
@@ -32,35 +33,209 @@ int Slice::load_param(const ParamDict& pd)
 int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
+    const int* slices_ptr = slices;
 
-    int q = 0;
-    const int* slices_ptr = (const int*)slices.data;
-    for (size_t i=0; i<top_blobs.size(); i++)
+    if (dims == 1) // axis == 0
     {
-        int slice = slices_ptr[i];
-        if (slice == -233)
+        int w = bottom_blob.w;
+
+        int q = 0;
+        for (size_t i=0; i<top_blobs.size(); i++)
         {
-            slice = (channels - q) / (top_blobs.size() - i);
+            int slice = slices_ptr[i];
+            if (slice == -233)
+            {
+                slice = (w - q) / (top_blobs.size() - i);
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(slice, elemsize);
+            if (top_blob.empty())
+                return -100;
+
+            const float* ptr = (const float*)bottom_blob + q;
+            float* outptr = top_blob;
+            memcpy(outptr, ptr, slice * elemsize);
+
+            q += slice;
         }
 
-        Mat& top_blob = top_blobs[i];
-        top_blob.create(w, h, slice);
-        if (top_blob.empty())
-            return -100;
+        return 0;
+    }
 
-        int size = bottom_blob.cstep * slice;
+    if (dims == 2 && axis == 0)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
 
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.data;
-        for (int j=0; j<size; j++)
+        int q = 0;
+        for (size_t i=0; i<top_blobs.size(); i++)
         {
-            outptr[j] = ptr[j];
+            int slice = slices_ptr[i];
+            if (slice == -233)
+            {
+                slice = (h - q) / (top_blobs.size() - i);
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(w, slice, elemsize);
+            if (top_blob.empty())
+                return -100;
+
+            int size = w * slice;
+
+            const float* ptr = bottom_blob.row(q);
+            float* outptr = top_blob;
+            memcpy(outptr, ptr, size * elemsize);
+
+            q += slice;
         }
 
-        q += slice;
+        return 0;
+    }
+
+    if (dims == 2 && axis == 1)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+
+        int q = 0;
+        for (size_t i=0; i<top_blobs.size(); i++)
+        {
+            int slice = slices_ptr[i];
+            if (slice == -233)
+            {
+                slice = (w - q) / (top_blobs.size() - i);
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(slice, h, elemsize);
+            if (top_blob.empty())
+                return -100;
+
+            #pragma omp parallel for
+            for (int j=0; j<h; j++)
+            {
+                float* outptr = top_blob.row(j);
+                const float* ptr = bottom_blob.row(j) + q;
+                memcpy(outptr, ptr, slice * elemsize);
+            }
+
+            q += slice;
+        }
+
+        return 0;
+    }
+
+    if (dims == 3 && axis == 0)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int channels = bottom_blob.c;
+
+        int q = 0;
+        for (size_t i=0; i<top_blobs.size(); i++)
+        {
+            int slice = slices_ptr[i];
+            if (slice == -233)
+            {
+                slice = (channels - q) / (top_blobs.size() - i);
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(w, h, slice, elemsize);
+            if (top_blob.empty())
+                return -100;
+
+            int size = bottom_blob.cstep * slice;
+
+            const float* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob;
+            memcpy(outptr, ptr, size * elemsize);
+
+            q += slice;
+        }
+
+        return 0;
+    }
+
+    if (dims == 3 && axis == 1)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int channels = bottom_blob.c;
+
+        int q = 0;
+        for (size_t i=0; i<top_blobs.size(); i++)
+        {
+            int slice = slices_ptr[i];
+            if (slice == -233)
+            {
+                slice = (h - q) / (top_blobs.size() - i);
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(w, slice, channels, elemsize);
+            if (top_blob.empty())
+                return -100;
+
+            #pragma omp parallel for
+            for (int p=0; p<channels; p++)
+            {
+                int size = w * slice;
+
+                float* outptr = top_blob.channel(p);
+                const float* ptr = bottom_blob.channel(p).row(q);
+                memcpy(outptr, ptr, size * elemsize);
+            }
+
+            q += slice;
+        }
+
+        return 0;
+    }
+
+    if (dims == 3 && axis == 2)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int channels = bottom_blob.c;
+
+        int q = 0;
+        for (size_t i=0; i<top_blobs.size(); i++)
+        {
+            int slice = slices_ptr[i];
+            if (slice == -233)
+            {
+                slice = (w - q) / (top_blobs.size() - i);
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(slice, h, channels, elemsize);
+            if (top_blob.empty())
+                return -100;
+
+            #pragma omp parallel for
+            for (int p=0; p<channels; p++)
+            {
+                float* outptr = top_blob.channel(p);
+                const Mat m = bottom_blob.channel(p);
+
+                for (int j=0; j<h; j++)
+                {
+                    const float* ptr = m.row(j) + q;
+                    memcpy(outptr, ptr, slice * elemsize);
+
+                    outptr += slice;
+                }
+            }
+
+            q += slice;
+        }
+
+        return 0;
     }
 
     return 0;

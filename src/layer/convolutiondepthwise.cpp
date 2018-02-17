@@ -24,26 +24,42 @@ ConvolutionDepthWise::ConvolutionDepthWise()
     support_inplace = false;
 }
 
-ConvolutionDepthWise::~ConvolutionDepthWise()
-{
-}
-
 int ConvolutionDepthWise::load_param(const ParamDict& pd)
 {
-    Convolution::load_param(pd);
-
+    num_output = pd.get(0, 0);
+    kernel_w = pd.get(1, 0);
+    kernel_h = pd.get(11, kernel_w);
+    dilation_w = pd.get(2, 1);
+    dilation_h = pd.get(12, dilation_w);
+    stride_w = pd.get(3, 1);
+    stride_h = pd.get(13, stride_w);
+    pad_w = pd.get(4, 0);
+    pad_h = pd.get(14, pad_w);
+    bias_term = pd.get(5, 0);
+    weight_data_size = pd.get(6, 0);
     group = pd.get(7, 1);
+
+    return 0;
+}
+
+int ConvolutionDepthWise::load_model(const ModelBin& mb)
+{
+    weight_data = mb.load(weight_data_size, 0);
+    if (weight_data.empty())
+        return -100;
+
+    if (bias_term)
+    {
+        bias_data = mb.load(num_output, 1);
+        if (bias_data.empty())
+            return -100;
+    }
 
     return 0;
 }
 
 int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
-    if (group == 1)
-    {
-        return Convolution::forward(bottom_blob, top_blob);
-    }
-
     // convolv with NxN kernel
     // value = value + bias
 
@@ -122,7 +138,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         for (int g=0; g<group; g++)
         {
             float* outptr = top_blob.channel(g);
-            const float* kptr = weight_data + maxk * g;
+            const float* kptr = (const float*)weight_data + maxk * g;
             const Mat m = bottom_blob_bordered.channel(g);
 
             for (int i = 0; i < outh; i++)
@@ -132,7 +148,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
                     float sum = 0.f;
 
                     if (bias_term)
-                        sum = bias_data.data[g];
+                        sum = bias_data[g];
 
                     const float* sptr = m.row(i*stride_h) + j*stride_w;
 
@@ -162,7 +178,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         for (int p=0; p<num_output_g; p++)
         {
             float* outptr = top_blob.channel(g * num_output_g + p);
-            const float* weight_data_ptr = weight_data + maxk * channels_g * num_output_g * g;
+            const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
 
             for (int i = 0; i < outh; i++)
             {
@@ -171,7 +187,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
                     float sum = 0.f;
 
                     if (bias_term)
-                        sum = bias_data.data[num_output_g * g + p];
+                        sum = bias_data[num_output_g * g + p];
 
                     const float* kptr = weight_data_ptr + maxk * channels_g * p;
 

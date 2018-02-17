@@ -40,6 +40,7 @@ public:
     int pad_w;
     int pad_h;
     int global_pooling;
+    int pad_mode;// 0=full 1=valid 2=SAME
 };
 
 } // namespace ncnn

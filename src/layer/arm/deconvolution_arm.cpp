@@ -66,7 +66,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     int outw = (w - 1) * stride + kernel_size;
     int outh = (h - 1) * stride + kernel_size;
 
-    Mat top_blob_bordered;
+    Mat top_blob_bordered = top_blob;
     top_blob_bordered.create(outw, outh, num_output);
     if (top_blob_bordered.empty())
         return -100;
