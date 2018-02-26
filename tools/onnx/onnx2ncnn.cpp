@@ -147,7 +147,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    FILE* pp = stderr;//fopen(ncnn_prototxt, "wb");
+    FILE* pp = fopen(ncnn_prototxt, "wb");
     FILE* bp = fopen(ncnn_modelbin, "wb");
 
     // magic
@@ -372,6 +372,10 @@ int main(int argc, char** argv)
                 }
             }
             fprintf(pp, "%-16s", "Reshape");
+        }
+        else if (op == "Softmax")
+        {
+            fprintf(pp, "%-16s", "Softmax");
         }
         else if (op == "Transpose")
         {
@@ -626,6 +630,11 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", shape[2]);
                 fprintf(pp, " 2=%d", shape[1]);
             }
+        }
+        else if (op == "Softmax")
+        {
+            int axis = get_node_attr_i(node, "axis", 1);
+            fprintf(pp, " 0=%d", axis-1);
         }
         else if (op == "Transpose")
         {
