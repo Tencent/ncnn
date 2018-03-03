@@ -222,6 +222,13 @@ int main(int argc, char** argv)
             }
         }
 
+        if (op == "Dropout")
+        {
+            const std::string& output_name = node.output(0);
+            blob_names.insert(output_name);
+            continue;
+        }
+
         for (int j=0; j<(int)node.output_size(); j++)
         {
             const std::string& output_name = node.output(j);
@@ -337,10 +344,26 @@ int main(int argc, char** argv)
         else if (op == "Dropout")
         {
             fprintf(pp, "%-16s", "Dropout");
+            output_size = 1;
         }
         else if (op == "Gemm")
         {
-            fprintf(pp, "%-16s", "Innerproduct");
+            float alpha = get_node_attr_f(node, "alpha", 1.f);
+            float beta = get_node_attr_f(node, "beta", 1.f);
+            int broadcast = get_node_attr_i(node, "broadcast", 0);
+            int transA = get_node_attr_i(node, "transA", 0);
+            int transB = get_node_attr_i(node, "transB", 0);
+
+            if (alpha == 1.f && beta == 1.f)
+            {
+                // InnerProduct-like A * B + C
+                if (transA == 0 && transB == 1 && broadcast == 1)
+                {
+                    fprintf(pp, "%-16s", "InnerProduct");
+                }
+            }
+
+            // TODO
         }
         else if (op == "GlobalAveragePool")
         {
@@ -377,6 +400,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Softmax");
         }
+        else if (op == "Sum")
+        {
+            fprintf(pp, "%-16s", "Eltwise");
+        }
         else if (op == "Transpose")
         {
             fprintf(pp, "%-16s", "Permute");
@@ -412,7 +439,7 @@ int main(int argc, char** argv)
             fprintf(pp, " %s", input_name.c_str());
         }
 
-        for (int j=0; j<node.output_size(); j++)
+        for (int j=0; j<output_size; j++)
         {
             const std::string& output_name = node.output(j);
 
@@ -452,7 +479,8 @@ int main(int argc, char** argv)
             } else if (pads.size() == 4) {
                 fprintf(pp, " 3=%d", pads[1]);
                 fprintf(pp, " 13=%d", pads[0]);
-                // TODO hpad2=pads[2]   wpad2=pads[3]
+                fprintf(pp, " 14=%d", pads[3]);
+                fprintf(pp, " 15=%d", pads[2]);
             }
 
             fprintf(pp, " 5=%d", pad_mode);
@@ -569,11 +597,18 @@ int main(int argc, char** argv)
 
             if (alpha == 1.f && beta == 1.f)
             {
-                // A * B + C
+                // InnerProduct-like A * B + C
                 if (transA == 0 && transB == 1 && broadcast == 1)
                 {
                     const onnx::TensorProto& B = graph.initializer(weight_nodes[node.input(1)]);
                     const onnx::TensorProto& C = graph.initializer(weight_nodes[node.input(2)]);
+
+                    fprintf(pp, " 0=%d", get_tensor_proto_data_size(C));
+                    fprintf(pp, " 1=1");
+                    fprintf(pp, " 2=%d", get_tensor_proto_data_size(B));
+
+                    int quantize_tag = 0;
+                    fwrite(&quantize_tag, sizeof(int), 1, bp);
 
                     fwrite_tensor_proto_data(B, bp);
                     fwrite_tensor_proto_data(C, bp);
@@ -635,6 +670,11 @@ int main(int argc, char** argv)
         {
             int axis = get_node_attr_i(node, "axis", 1);
             fprintf(pp, " 0=%d", axis-1);
+        }
+        else if (op == "Sum")
+        {
+            int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "Transpose")
         {
