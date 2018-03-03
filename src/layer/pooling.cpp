@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pooling.h"
+#include <float.h>
 #include <algorithm>
 
 namespace ncnn {
@@ -32,8 +33,10 @@ int Pooling::load_param(const ParamDict& pd)
     kernel_h = pd.get(11, kernel_w);
     stride_w = pd.get(2, 1);
     stride_h = pd.get(12, stride_w);
-    pad_w = pd.get(3, 0);
-    pad_h = pd.get(13, pad_w);
+    pad_left = pd.get(3, 0);
+    pad_right = pd.get(14, pad_left);
+    pad_top = pd.get(13, pad_left);
+    pad_bottom = pd.get(15, pad_top);
     global_pooling = pd.get(4, 0);
     pad_mode = pd.get(5, 0);
 
@@ -52,7 +55,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
 //     fprintf(stderr, "Pooling     input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
     if (global_pooling)
     {
-        top_blob.create(1, 1, channels);
+        top_blob.create(channels);
         if (top_blob.empty())
             return -100;
 
@@ -64,7 +67,6 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
-                float* outptr = top_blob.channel(q);
 
                 float max = ptr[0];
                 for (int i=0; i<size; i++)
@@ -72,7 +74,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
                     max = std::max(max, ptr[i]);
                 }
 
-                outptr[0] = max;
+                top_blob[q] = max;
             }
         }
         else if (pooling_type == PoolMethod_AVE)
@@ -81,7 +83,6 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
-                float* outptr = top_blob.channel(q);
 
                 float sum = 0.f;
                 for (int i=0; i<size; i++)
@@ -89,7 +90,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
                     sum += ptr[i];
                 }
 
-                outptr[0] = sum / size;
+                top_blob[q] = sum / size;
             }
         }
 
@@ -97,9 +98,40 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
 
     Mat bottom_blob_bordered = bottom_blob;
-    if (pad_w > 0 || pad_h > 0)
+
+    float pad_value = 0.f;
+    if (pooling_type == PoolMethod_MAX)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f);
+        pad_value = -FLT_MAX;
+    }
+    else if (pooling_type == PoolMethod_AVE)
+    {
+        pad_value = 0.f;
+    }
+
+    int wtailpad = 0;
+    int htailpad = 0;
+
+    if (pad_mode == 0) // full padding
+    {
+        int wtail = (w + pad_left + pad_right - kernel_w) % stride_w;
+        int htail = (h + pad_top + pad_bottom - kernel_h) % stride_h;
+
+        if (wtail != 0)
+            wtailpad = kernel_w - wtail;
+        if (htail != 0)
+            htailpad = kernel_h - htail;
+
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value);
+        if (bottom_blob_bordered.empty())
+            return -100;
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+    else if (pad_mode == 1) // valid padding
+    {
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -112,7 +144,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -123,45 +155,6 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     int outw = (w - kernel_w) / stride_w + 1;
     int outh = (h - kernel_h) / stride_h + 1;
-
-    int wtail = 0;
-    int htail = 0;
-    if (pad_mode == 0) // full padding
-    {
-        wtail = (w - kernel_w) % stride_w;
-        htail = (h - kernel_h) % stride_h;
-    }
-    if (wtail != 0 || htail != 0)
-    {
-        int wtailpad = 0;
-        int htailpad = 0;
-        if (wtail != 0)
-            wtailpad = kernel_w - wtail;
-        if (htail != 0)
-            htailpad = kernel_h - htail;
-
-        Mat bottom_blob_bordered2;
-        if (pooling_type == PoolMethod_MAX)
-        {
-            copy_make_border(bottom_blob_bordered, bottom_blob_bordered2, 0, htailpad, 0, wtailpad, BORDER_REPLICATE, 0.f);
-        }
-        else if (pooling_type == PoolMethod_AVE)
-        {
-            copy_make_border(bottom_blob_bordered, bottom_blob_bordered2, 0, htailpad, 0, wtailpad, BORDER_CONSTANT, 0.f);
-        }
-        if (bottom_blob_bordered2.empty())
-            return -100;
-
-        bottom_blob_bordered = bottom_blob_bordered2;
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
-
-        if (wtail != 0)
-            outw += 1;
-        if (htail != 0)
-            outh += 1;
-    }
 
     top_blob.create(outw, outh, channels);
     if (top_blob.empty())
@@ -245,10 +238,41 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
                 outptr += outw;
             }
 
-            // fix tail pad
-            if (wtail != 0)
+            // fix pad
+            if (pad_top != 0)
             {
-                const float scale = (float)kernel_w / (kernel_w - wtail);
+                const float scale = (float)kernel_h / (kernel_h - pad_top);
+
+                outptr = top_blob.channel(q).row(0);
+                for (int i = 0; i < outw; i++)
+                {
+                    outptr[i] *= scale;
+                }
+            }
+            if (pad_bottom + htailpad != 0)
+            {
+                const float scale = (float)kernel_h / (kernel_h - pad_bottom - htailpad);
+
+                outptr = top_blob.channel(q).row(outh - 1);
+                for (int i = 0; i < outw; i++)
+                {
+                    outptr[i] *= scale;
+                }
+            }
+            if (pad_left != 0)
+            {
+                const float scale = (float)kernel_w / (kernel_w - pad_left);
+
+                outptr = top_blob.channel(q);
+                for (int i = 0; i < outh; i++)
+                {
+                    *outptr *= scale;
+                    outptr += outw;
+                }
+            }
+            if (pad_right + wtailpad != 0)
+            {
+                const float scale = (float)kernel_w / (kernel_w - pad_right - wtailpad);
 
                 outptr = top_blob.channel(q);
                 outptr += outw - 1;
@@ -256,16 +280,6 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
                 {
                     *outptr *= scale;
                     outptr += outw;
-                }
-            }
-            if (htail != 0)
-            {
-                const float scale = (float)kernel_h / (kernel_h - htail);
-
-                outptr = top_blob.channel(q).row(outh - 1);
-                for (int i = 0; i < outw; i++)
-                {
-                    outptr[i] *= scale;
                 }
             }
         }
