@@ -12,11 +12,23 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ### HowTo
 
-[how-to-build-ncnn-library](https://github.com/Tencent/ncnn/wiki/how-to-build)
+[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build)
 
-[how-to-use-ncnn-with-alexnet](https://github.com/Tencent/ncnn/wiki/how-to-use-ncnn-with-alexnet)
+[how to use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/how-to-use-ncnn-with-alexnet)
 
 [ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/ncnn-%E7%BB%84%E4%BB%B6%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8C%97-alexnet)
+
+[ncnn low-level operation api](https://github.com/Tencent/ncnn/wiki/low-level-operation-api)
+
+[ncnn param and model file spec](https://github.com/Tencent/ncnn/wiki/param-and-model-file-structure)
+
+[ncnn operation param weight table](https://github.com/Tencent/ncnn/wiki/operation-param-weight-table)
+
+---
+
+### FAQ
+
+[ncnn produce wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)
 
 ---
 
@@ -29,7 +41,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * Sophisticated memory management and data structure design, very low memory footprint
 * Supports multi-core parallel computing acceleration, ARM big.LITTLE cpu scheduling optimization
 * The overall library size is less than 500K, and can be easily reduced to less than 300K
-* Extensible model design, supports 8bit quantization and half-precision floating point storage, can import caffe models
+* Extensible model design, supports 8bit quantization and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx models
 * Support direct memory zero copy reference load network model
 * Can be registered with custom layer implementation and extended
 * Well, it is strong, not afraid of being stuffed with 卷   QvQ
@@ -43,7 +55,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * 精细的内存管理和数据结构设计，内存占用极低
 * 支持多核并行计算加速，ARM big.LITTLE cpu 调度优化
 * 整体库体积小于 500K，并可轻松精简到小于 300K
-* 可扩展的模型设计，支持 8bit 量化和半精度浮点存储，可导入 caffe 模型
+* 可扩展的模型设计，支持 8bit 量化和半精度浮点存储，可导入 caffe/pytorch/mxnet/onnx 模型
 * 支持直接内存零拷贝引用加载网络模型
 * 可注册自定义层实现并扩展
 * 恩，很强就是了，不怕被塞卷 QvQ
