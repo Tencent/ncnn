@@ -176,7 +176,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "add        %5, #16             \n"
 
                     "pld        [%8, #192]          \n"
-                    "vld1.f32   {d28-d31}, [%8]     \n"// r3
+                    "vld1.f32   {d28-d30}, [%8]     \n"// r3
                     "add        %8, #16             \n"
 
                     "vext.32    q10, q8, q9, #1     \n"
@@ -211,7 +211,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vmla.f32   q13, q11, %f23[0]   \n"
 
                     "pld        [%6, #192]          \n"
-                    "vld1.f32   {d28-d31}, [%6]     \n"// r1
+                    "vld1.f32   {d28-d30}, [%6]     \n"// r1
                     "add        %6, #16             \n"
 
                     "vmla.f32   q6, q8, %f18[0]     \n"
@@ -266,7 +266,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vmla.f32   q13, q11, %f22[0]   \n"
 
                     "pld        [%8, #192]          \n"
-                    "vld1.f32   {d28-d31}, [%8]     \n"// r3
+                    "vld1.f32   {d28-d30}, [%8]     \n"// r3
                     "add        %8, #16             \n"
 
                     "vext.32    q10, q8, q9, #1     \n"
