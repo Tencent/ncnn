@@ -47,12 +47,10 @@ double get_current_time()
     time =  ((uint64_t)file_time.dwLowDateTime )      ;
     time += ((uint64_t)file_time.dwHighDateTime) << 32;
 
-    struct timeval tv;
+    long tv_sec  = (long) ((time - EPOCH) / 10000000L);
+    long tv_usec = (long) (system_time.wMilliseconds * 1000);
 
-    tv.tv_sec  = (long) ((time - EPOCH) / 10000000L);
-    tv.tv_usec = (long) (system_time.wMilliseconds * 1000);
-
-    return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+    return tv_sec * 1000.0 + tv_usec / 1000.0;
 }
 #else // _WIN32
 double get_current_time()
