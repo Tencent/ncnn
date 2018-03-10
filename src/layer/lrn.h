@@ -36,6 +36,7 @@ public:
     int local_size;
     float alpha;
     float beta;
+    float bias;
 };
 
 } // namespace ncnn
