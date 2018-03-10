@@ -163,6 +163,9 @@ int main(int argc, char** argv)
     // weight node and weight reshape node
     std::map<std::string, int> weight_nodes;
 
+    // weight node before BinaryOp
+    std::map<std::string, int> binaryop_weight_nodes;
+
     for (int j=0; j<graph.initializer_size(); j++)
     {
         const onnx::TensorProto& initializer = graph.initializer(j);
@@ -196,6 +199,31 @@ int main(int argc, char** argv)
                 {
                     weight_nodes[name] = weight_nodes[input_name];
                     continue;
+                }
+            }
+        }
+        else
+        {
+            bool isBinaryOp = false;
+            if (op == "Add" || op == "Mul")
+            {
+                isBinaryOp = true;
+            }
+
+            if (isBinaryOp)
+            {
+                // check weights
+                for (int j=0; j<node.input_size(); j++)
+                {
+                    const std::string& input_name = node.input(j);
+
+                    std::map<std::string, int>::iterator it = weight_nodes.find(input_name);
+                    if (it != weight_nodes.end())
+                    {
+                        // binary op with weight, insert MemoryData layer and const blob
+                        binaryop_weight_nodes[input_name] = it->second;
+                        weight_nodes.erase(it);
+                    }
                 }
             }
         }
@@ -247,6 +275,10 @@ int main(int argc, char** argv)
         if (weight_nodes.find(input_name) != weight_nodes.end())
             continue;
 
+        // check weight before BinaryOp
+        if (binaryop_weight_nodes.find(input_name) != binaryop_weight_nodes.end())
+            continue;
+
         blob_names.insert(input_name);
 
         input_node_count++;
@@ -282,7 +314,39 @@ int main(int argc, char** argv)
         if (weight_nodes.find(input_name) != weight_nodes.end())
             continue;
 
+        // check weight before BinaryOp
+        if (binaryop_weight_nodes.find(input_name) != binaryop_weight_nodes.end())
+            continue;
+
         fprintf(pp, "%-16s %-24s 0 1 %s\n", "Input", input_name.c_str(), input_name.c_str());
+    }
+
+    // place MemoryData next
+    for (int j=0; j<graph.input_size(); j++)
+    {
+        const std::string& input_name = graph.input(j).name();
+
+        // check weight before BinaryOp
+        if (binaryop_weight_nodes.find(input_name) == binaryop_weight_nodes.end())
+            continue;
+
+        fprintf(pp, "%-16s %-24s 0 1 %s", "MemoryData", input_name.c_str(), input_name.c_str());
+
+        const onnx::TensorProto& M = graph.initializer(binaryop_weight_nodes[input_name]);
+
+        if (M.dims_size() == 1) {
+            fprintf(pp, " 0=%d", (int)M.dims(0));
+        } else if (M.dims_size() == 2) {
+            fprintf(pp, " 0=%d", (int)M.dims(1));
+            fprintf(pp, " 1=%d", (int)M.dims(0));
+        } else if (M.dims_size() == 3) {
+            fprintf(pp, " 0=%d", (int)M.dims(2));
+            fprintf(pp, " 1=%d", (int)M.dims(1));
+            fprintf(pp, " 2=%d", (int)M.dims(0));
+        }
+        fprintf(pp, "\n");
+
+        fwrite_tensor_proto_data(M, bp);
     }
 
     for (int i=0; i<node_count; i++)
@@ -320,7 +384,11 @@ int main(int argc, char** argv)
 //             fprintf(stderr, "  output = %s\n", output_name.c_str());
         }
 
-        if (op == "AveragePool" || op == "MaxPool")
+        if (op == "Add")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "AveragePool" || op == "MaxPool")
         {
             fprintf(pp, "%-16s", "Pooling");
         }
@@ -376,6 +444,10 @@ int main(int argc, char** argv)
         else if (op == "LRN")
         {
             fprintf(pp, "%-16s", "LRN");
+        }
+        else if (op == "Mul")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
         }
         else if (op == "Relu")
         {
@@ -446,7 +518,12 @@ int main(int argc, char** argv)
             fprintf(pp, " %s", output_name.c_str());
         }
 
-        if (op == "AveragePool" || op == "MaxPool")
+        if (op == "Add")
+        {
+            int op_type = 0;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "AveragePool" || op == "MaxPool")
         {
             std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
             std::vector<int> strides = get_node_attr_ai(node, "strides");
@@ -494,17 +571,17 @@ int main(int argc, char** argv)
             const onnx::TensorProto& mean = graph.initializer(weight_nodes[node.input(3)]);
             const onnx::TensorProto& var = graph.initializer(weight_nodes[node.input(4)]);
 
-            fprintf(pp, " 0=%d", get_tensor_proto_data_size(scale));
+            int channels = get_tensor_proto_data_size(scale);
+
+            fprintf(pp, " 0=%d", channels);
 
             fwrite_tensor_proto_data(scale, bp);
             fwrite_tensor_proto_data(mean, bp);
             // apply epsilon to var
             {
-                int size = get_tensor_proto_data_size(var);
-
                 const float* v = var.has_raw_data() ? (const float*)var.raw_data().data() : var.float_data().data();
 
-                for (int j=0; j<size; j++)
+                for (int j=0; j<channels; j++)
                 {
                     float ve = v[j] + epsilon;
                     fwrite(&ve, sizeof(float), 1, bp);
@@ -644,6 +721,11 @@ int main(int argc, char** argv)
             fprintf(pp, " 1=%d", size);
             fprintf(pp, " 2=%f", alpha);
             fprintf(pp, " 3=%f", beta);
+        }
+        else if (op == "Mul")
+        {
+            int op_type = 2;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "Reshape")
         {
