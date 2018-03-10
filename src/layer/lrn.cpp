@@ -31,6 +31,7 @@ int LRN::load_param(const ParamDict& pd)
     local_size = pd.get(1, 5);
     alpha = pd.get(2, 1.f);
     beta = pd.get(3, 0.75f);
+    bias = pd.get(4, 1.f);
 
     return 0;
 }
@@ -90,7 +91,7 @@ int LRN::forward_inplace(Mat& bottom_top_blob) const
             float* ptr = bottom_top_blob.channel(q);
             for (int i=0; i<size; i++)
             {
-                ptr[i] = ptr[i] * pow(1.f + alpha_div_size * ssptr[i], -beta);
+                ptr[i] = ptr[i] * pow(bias + alpha_div_size * ssptr[i], -beta);
             }
         }
     }
@@ -154,7 +155,7 @@ int LRN::forward_inplace(Mat& bottom_top_blob) const
                         ss += val;
                     }
 
-                    ptr[j] = ptr[j] * pow(1.f + alpha_div_size * ss, -beta);
+                    ptr[j] = ptr[j] * pow(bias + alpha_div_size * ss, -beta);
                 }
 
                 ptr += outw;
