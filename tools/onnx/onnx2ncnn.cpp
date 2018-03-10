@@ -712,7 +712,7 @@ int main(int argc, char** argv)
         {
             float alpha = get_node_attr_f(node, "alpha", 1.f);
             float beta = get_node_attr_f(node, "beta", 0.5f);
-            float bias = get_node_attr_f(node, "bias", 1.f);// TODO
+            float bias = get_node_attr_f(node, "bias", 1.f);
             int size = get_node_attr_i(node, "size", 1);
 
             int norm_region = 0;
@@ -721,6 +721,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 1=%d", size);
             fprintf(pp, " 2=%f", alpha);
             fprintf(pp, " 3=%f", beta);
+            fprintf(pp, " 4=%f", bias);
         }
         else if (op == "Mul")
         {
