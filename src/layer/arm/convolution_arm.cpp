@@ -64,6 +64,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     // convolv with NxN kernel
     // value = value + bias
 
+    if (bottom_blob.dims != 3)
+    {
+        return Convolution::forward(bottom_blob, top_blob);
+    }
+
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
         return Convolution::forward(bottom_blob, top_blob);
