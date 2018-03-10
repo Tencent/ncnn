@@ -413,7 +413,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         "vld1.f32   {d2-d3}, [%2 :128]  \n"
                         "vmla.f32   q1, q0, %q6         \n"
                         "subs       %0, #1              \n"
-                        "vst1.f32   {d0-d1}, [%2 :128]! \n"
+                        "vst1.f32   {d2-d3}, [%2 :128]! \n"
                         "bne        0b                  \n"
                         : "=r"(nn),     // %0
                           "=r"(ptr),    // %1
