@@ -14,6 +14,8 @@
 
 #include "convolution.h"
 
+#include "layer_type.h"
+
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Convolution)
@@ -61,6 +63,39 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // convolv with NxN kernel
     // value = value + bias
+
+    // flattened blob, implement as InnerProduct
+    if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
+    {
+        int num_input = weight_data_size / num_output;
+        if (bottom_blob.w == num_input)
+        {
+            // call InnerProduct
+            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::InnerProduct);
+
+            // set param
+            ncnn::ParamDict pd;
+            pd.set(0, num_output);
+            pd.set(1, bias_term);
+            pd.set(2, weight_data_size);
+
+            op->load_param(pd);
+
+            // set weights
+            ncnn::Mat weights[2];
+            weights[0] = weight_data;
+            weights[1] = bias_data;
+
+            op->load_model(ModelBinFromMatArray(weights));
+
+            // forward
+            op->forward(bottom_blob, top_blob);
+
+            delete op;
+
+            return 0;
+        }
+    }
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
