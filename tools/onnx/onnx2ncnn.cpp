@@ -100,6 +100,20 @@ static float get_node_attr_f(const onnx::NodeProto& node, const char* key, float
     return def;
 }
 
+static std::string get_node_attr_s(const onnx::NodeProto& node, const char* key, const std::string& def = std::string())
+{
+    for (int i=0; i<node.attribute_size(); i++)
+    {
+        const onnx::AttributeProto& attr = node.attribute(i);
+        if (attr.name() == key)
+        {
+            return attr.s();
+        }
+    }
+
+    return def;
+}
+
 static onnx::TensorProto get_node_attr_tensor(const onnx::NodeProto& node, const char* key)
 {
     for (int i=0; i<node.attribute_size(); i++)
@@ -478,6 +492,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "LRN");
         }
+        else if (op == "MatMul")
+        {
+            fprintf(pp, "%-16s", "InnerProduct");
+        }
         else if (op == "Mul")
         {
             fprintf(pp, "%-16s", "BinaryOp");
@@ -558,6 +576,7 @@ int main(int argc, char** argv)
         }
         else if (op == "AveragePool" || op == "MaxPool")
         {
+            std::string auto_pad = get_node_attr_s(node, "auto_pad");//TODO
             std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
             std::vector<int> strides = get_node_attr_ai(node, "strides");
             std::vector<int> pads = get_node_attr_ai(node, "pads");
@@ -638,11 +657,9 @@ int main(int argc, char** argv)
                     fprintf(pp, " 0=%d", (int)M.dims(0));
                 } else if (M.dims_size() == 2) {
                     fprintf(pp, " 0=%d", (int)M.dims(1));
-                    fprintf(pp, " 1=%d", (int)M.dims(0));
                 } else if (M.dims_size() == 3) {
                     fprintf(pp, " 0=%d", (int)M.dims(2));
                     fprintf(pp, " 1=%d", (int)M.dims(1));
-                    fprintf(pp, " 2=%d", (int)M.dims(0));
                 } else if (M.dims_size() == 4) {
                     fprintf(pp, " 0=%d", (int)M.dims(3));
                     fprintf(pp, " 1=%d", (int)M.dims(2));
@@ -659,6 +676,7 @@ int main(int argc, char** argv)
             int num_filter = W.dims(0);
             int has_bias = node.input_size() == 3 ? 1 : 0;
 
+            std::string auto_pad = get_node_attr_s(node, "auto_pad");//TODO
             std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
             std::vector<int> dilations = get_node_attr_ai(node, "dilations");
             std::vector<int> strides = get_node_attr_ai(node, "strides");
@@ -688,6 +706,13 @@ int main(int argc, char** argv)
                 fprintf(pp, " 13=%d", strides[0]);
             }
 
+            if (auto_pad == "SAME_UPPER")
+            {
+                fprintf(pp, " 4=-233");
+            }
+            else
+            {
+
             if (pads.size() == 1) {
                 fprintf(pp, " 4=%d", pads[0]);
             } else if (pads.size() == 2) {
@@ -697,6 +722,8 @@ int main(int argc, char** argv)
                 fprintf(pp, " 4=%d", pads[1]);
                 fprintf(pp, " 14=%d", pads[0]);
                 // TODO hpad2=pads[2]   wpad2=pads[3]
+            }
+
             }
 
             fprintf(pp, " 5=%d", has_bias);
@@ -780,6 +807,38 @@ int main(int argc, char** argv)
             fprintf(pp, " 2=%f", alpha);
             fprintf(pp, " 3=%f", beta);
             fprintf(pp, " 4=%f", bias);
+        }
+        else if (op == "MatMul")
+        {
+            const onnx::TensorProto& B = weights[node.input(1)];
+
+            int weight_data_size = get_tensor_proto_data_size(B);
+
+            int num_output = B.dims(B.dims_size()-1);
+            int num_input = weight_data_size / num_output;
+
+            fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 1=0");
+            fprintf(pp, " 2=%d", weight_data_size);
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            // reorder num_input-num_output to num_output-num_input
+            {
+                const float* bptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+
+                for (int j=0; j<num_output; j++)
+                {
+                    for (int k=0; k<num_input; k++)
+                    {
+                        float vb = bptr[ k*num_output + j ];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                }
+            }
+
+//                 fwrite_tensor_proto_data(B, bp)
         }
         else if (op == "Mul")
         {
