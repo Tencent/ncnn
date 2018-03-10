@@ -100,6 +100,20 @@ static float get_node_attr_f(const onnx::NodeProto& node, const char* key, float
     return def;
 }
 
+static onnx::TensorProto get_node_attr_tensor(const onnx::NodeProto& node, const char* key)
+{
+    for (int i=0; i<node.attribute_size(); i++)
+    {
+        const onnx::AttributeProto& attr = node.attribute(i);
+        if (attr.name() == key)
+        {
+            return attr.t();
+        }
+    }
+
+    return onnx::TensorProto();
+}
+
 static int get_tensor_proto_data_size(const onnx::TensorProto& tp)
 {
     if (tp.has_raw_data())
@@ -161,16 +175,16 @@ int main(int argc, char** argv)
     std::map<std::string, int> node_reference;
 
     // weight node and weight reshape node
-    std::map<std::string, int> weight_nodes;
+    std::map<std::string, onnx::TensorProto> weights;
 
     // weight node before BinaryOp
-    std::map<std::string, int> binaryop_weight_nodes;
+    std::map<std::string, onnx::TensorProto> binaryop_weights;
 
     for (int j=0; j<graph.initializer_size(); j++)
     {
         const onnx::TensorProto& initializer = graph.initializer(j);
 
-        weight_nodes[initializer.name()] = j;
+        weights[initializer.name()] = initializer;
     }
 
     // global definition line
@@ -188,16 +202,22 @@ int main(int argc, char** argv)
             name = node.output(0);
         }
 
-        if (op == "Reshape")
+        if (op == "Constant")
+        {
+            onnx::TensorProto tensor = get_node_attr_tensor(node, "value");
+            weights[node.output(0)] = tensor;
+            continue;
+        }
+        else if (op == "Reshape")
         {
             if (node.input_size() == 1)
             {
                 const std::string& input_name = node.input(0);
 
                 // check weight
-                if (weight_nodes.find(input_name) != weight_nodes.end())
+                if (weights.find(input_name) != weights.end())
                 {
-                    weight_nodes[name] = weight_nodes[input_name];
+                    weights[node.output(0)] = weights[input_name];
                     continue;
                 }
             }
@@ -217,12 +237,12 @@ int main(int argc, char** argv)
                 {
                     const std::string& input_name = node.input(j);
 
-                    std::map<std::string, int>::iterator it = weight_nodes.find(input_name);
-                    if (it != weight_nodes.end())
+                    std::map<std::string, onnx::TensorProto>::iterator it = weights.find(input_name);
+                    if (it != weights.end())
                     {
                         // binary op with weight, insert MemoryData layer and const blob
-                        binaryop_weight_nodes[input_name] = it->second;
-                        weight_nodes.erase(it);
+                        binaryop_weights[input_name] = it->second;
+                        weights.erase(it);
                     }
                 }
             }
@@ -233,7 +253,7 @@ int main(int argc, char** argv)
             const std::string& input_name = node.input(j);
 
             // check weight
-            if (weight_nodes.find(input_name) != weight_nodes.end())
+            if (weights.find(input_name) != weights.end())
             {
                 continue;
             }
@@ -272,11 +292,11 @@ int main(int argc, char** argv)
         const std::string& input_name = graph.input(j).name();
 
         // check weight
-        if (weight_nodes.find(input_name) != weight_nodes.end())
+        if (weights.find(input_name) != weights.end())
             continue;
 
         // check weight before BinaryOp
-        if (binaryop_weight_nodes.find(input_name) != binaryop_weight_nodes.end())
+        if (binaryop_weights.find(input_name) != binaryop_weights.end())
             continue;
 
         blob_names.insert(input_name);
@@ -301,7 +321,7 @@ int main(int argc, char** argv)
         }
     }
 
-    fprintf(pp, "%lu %lu\n", node_count + input_node_count + node_reference.size() + graph.initializer_size() - weight_nodes.size(), blob_names.size() + splitncnn_blob_count);
+    fprintf(pp, "%lu %lu\n", node_count + input_node_count + node_reference.size() + graph.initializer_size() - weights.size(), blob_names.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 
@@ -311,11 +331,11 @@ int main(int argc, char** argv)
         const std::string& input_name = graph.input(j).name();
 
         // check weight
-        if (weight_nodes.find(input_name) != weight_nodes.end())
+        if (weights.find(input_name) != weights.end())
             continue;
 
         // check weight before BinaryOp
-        if (binaryop_weight_nodes.find(input_name) != binaryop_weight_nodes.end())
+        if (binaryop_weights.find(input_name) != binaryop_weights.end())
             continue;
 
         fprintf(pp, "%-16s %-24s 0 1 %s\n", "Input", input_name.c_str(), input_name.c_str());
@@ -327,12 +347,12 @@ int main(int argc, char** argv)
         const std::string& input_name = graph.input(j).name();
 
         // check weight before BinaryOp
-        if (binaryop_weight_nodes.find(input_name) == binaryop_weight_nodes.end())
+        if (binaryop_weights.find(input_name) == binaryop_weights.end())
             continue;
 
         fprintf(pp, "%-16s %-24s 0 1 %s", "MemoryData", input_name.c_str(), input_name.c_str());
 
-        const onnx::TensorProto& M = graph.initializer(binaryop_weight_nodes[input_name]);
+        const onnx::TensorProto& M = binaryop_weights[input_name];
 
         if (M.dims_size() == 1) {
             fprintf(pp, " 0=%d", (int)M.dims(0));
@@ -344,6 +364,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 1=%d", (int)M.dims(1));
             fprintf(pp, " 2=%d", (int)M.dims(0));
         }
+
         fprintf(pp, "\n");
 
         fwrite_tensor_proto_data(M, bp);
@@ -369,7 +390,7 @@ int main(int argc, char** argv)
             const std::string& input_name = node.input(j);
 
             // check weight
-            if (weight_nodes.find(input_name) != weight_nodes.end())
+            if (weights.find(input_name) != weights.end())
             {
                 input_size--;
             }
@@ -399,6 +420,18 @@ int main(int argc, char** argv)
         else if (op == "Concat")
         {
             fprintf(pp, "%-16s", "Concat");
+        }
+        else if (op == "Constant")
+        {
+            // check weight before BinaryOp
+            if (binaryop_weights.find(node.output(0)) != binaryop_weights.end())
+            {
+                fprintf(pp, "%-16s", "MemoryData");
+            }
+            else
+            {
+                continue;
+            }
         }
         else if (op == "Conv")
         {
@@ -460,9 +493,8 @@ int main(int argc, char** argv)
                 const std::string& input_name = node.input(0);
 
                 // skip weight reshape
-                if (weight_nodes.find(input_name) != weight_nodes.end())
+                if (weights.find(input_name) != weights.end())
                 {
-                    weight_nodes[name] = weight_nodes[input_name];
                     continue;
                 }
             }
@@ -483,6 +515,7 @@ int main(int argc, char** argv)
         else
         {
             // TODO
+            fprintf(stderr, "%s not supported yet!\n", op.c_str());
             fprintf(pp, "%-16s", op.c_str());
         }
 
@@ -493,7 +526,7 @@ int main(int argc, char** argv)
             std::string input_name = node.input(j);
 
             // check weight
-            if (weight_nodes.find(input_name) != weight_nodes.end())
+            if (weights.find(input_name) != weights.end())
             {
                 continue;
             }
@@ -566,10 +599,10 @@ int main(int argc, char** argv)
         {
             float epsilon = get_node_attr_f(node, "epsilon", 1e-5f);
 
-            const onnx::TensorProto& scale = graph.initializer(weight_nodes[node.input(1)]);
-            const onnx::TensorProto& B = graph.initializer(weight_nodes[node.input(2)]);
-            const onnx::TensorProto& mean = graph.initializer(weight_nodes[node.input(3)]);
-            const onnx::TensorProto& var = graph.initializer(weight_nodes[node.input(4)]);
+            const onnx::TensorProto& scale = weights[node.input(1)];
+            const onnx::TensorProto& B = weights[node.input(2)];
+            const onnx::TensorProto& mean = weights[node.input(3)];
+            const onnx::TensorProto& var = weights[node.input(4)];
 
             int channels = get_tensor_proto_data_size(scale);
 
@@ -594,9 +627,34 @@ int main(int argc, char** argv)
             int axis = get_node_attr_i(node, "axis", 1);
             fprintf(pp, " 0=%d", axis-1);
         }
+        else if (op == "Constant")
+        {
+            // check weight before BinaryOp
+            if (binaryop_weights.find(name) != binaryop_weights.end())
+            {
+                const onnx::TensorProto& M = binaryop_weights[name];
+
+                if (M.dims_size() == 1) {
+                    fprintf(pp, " 0=%d", (int)M.dims(0));
+                } else if (M.dims_size() == 2) {
+                    fprintf(pp, " 0=%d", (int)M.dims(1));
+                    fprintf(pp, " 1=%d", (int)M.dims(0));
+                } else if (M.dims_size() == 3) {
+                    fprintf(pp, " 0=%d", (int)M.dims(2));
+                    fprintf(pp, " 1=%d", (int)M.dims(1));
+                    fprintf(pp, " 2=%d", (int)M.dims(0));
+                } else if (M.dims_size() == 4) {
+                    fprintf(pp, " 0=%d", (int)M.dims(3));
+                    fprintf(pp, " 1=%d", (int)M.dims(2));
+                    fprintf(pp, " 2=%d", (int)M.dims(1));
+                }
+
+                fwrite_tensor_proto_data(M, bp);
+            }
+        }
         else if (op == "Conv")
         {
-            const onnx::TensorProto& W = graph.initializer(weight_nodes[node.input(1)]);
+            const onnx::TensorProto& W = weights[node.input(1)];
 
             int num_filter = W.dims(0);
             int has_bias = node.input_size() == 3 ? 1 : 0;
@@ -656,7 +714,7 @@ int main(int argc, char** argv)
 
             if (has_bias)
             {
-                const onnx::TensorProto& B = graph.initializer(weight_nodes[node.input(2)]);
+                const onnx::TensorProto& B = weights[node.input(2)];
                 fwrite_tensor_proto_data(B, bp);
             }
         }
@@ -677,8 +735,8 @@ int main(int argc, char** argv)
                 // InnerProduct-like A * B + C
                 if (transA == 0 && transB == 1 && broadcast == 1)
                 {
-                    const onnx::TensorProto& B = graph.initializer(weight_nodes[node.input(1)]);
-                    const onnx::TensorProto& C = graph.initializer(weight_nodes[node.input(2)]);
+                    const onnx::TensorProto& B = weights[node.input(1)];
+                    const onnx::TensorProto& C = weights[node.input(2)];
 
                     fprintf(pp, " 0=%d", get_tensor_proto_data_size(C));
                     fprintf(pp, " 1=1");
