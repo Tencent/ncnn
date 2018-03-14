@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pooling_arm.h"
-
+#include <float.h>
 namespace ncnn {
 
 #include "pooling_2x2.h"
