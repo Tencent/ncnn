@@ -343,10 +343,20 @@ inline void Mat::fill(float _v)
 #if __ARM_NEON
     float32x4_t _c = vdupq_n_f32(_v);
 #if __aarch64__
-    for (; nn>0; nn--)
+    if (nn > 0)
     {
-        vst1q_f32(ptr, _c);
-        ptr += 4;
+    asm volatile (
+        "0:                             \n"
+        "subs       %w0, %w0, #1        \n"
+        "st1        {%4.4s}, [%1], #16  \n"
+        "bne        0b                  \n"
+        : "=r"(nn),     // %0
+          "=r"(ptr)     // %1
+        : "0"(nn),
+          "1"(ptr),
+          "w"(_c)       // %4
+        : "cc", "memory"
+    );
     }
 #else
     if (nn > 0)

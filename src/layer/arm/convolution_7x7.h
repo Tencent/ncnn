@@ -75,12 +75,197 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
+                float32x4_t _k0123 = vld1q_f32(k0);
+                float32x4_t _k4567 = vld1q_f32(k0 + 4);
+                float32x4_t _k78910 = vld1q_f32(k1);
+                float32x4_t _k11121314 = vld1q_f32(k1 + 4);
+                float32x4_t _k14151617 = vld1q_f32(k2);
+                float32x4_t _k18192021 = vld1q_f32(k2 + 4);
+                float32x4_t _k21222324 = vld1q_f32(k3);
+                float32x4_t _k25262728 = vld1q_f32(k3 + 4);
+                float32x4_t _k28293031 = vld1q_f32(k4);
+                float32x4_t _k32333435 = vld1q_f32(k4 + 4);
+                float32x4_t _k35363738 = vld1q_f32(k5);
+                float32x4_t _k39404142 = vld1q_f32(k5 + 4);
+                float32x4_t _k42434445 = vld1q_f32(k6);
+                float32x4_t _k46474849 = vld1q_f32(k6 + 4);
+#ifdef __clang__    // __ARM_NEON && __aarch64__ && __clang__
+                if (nn > 0)
+                {
+                asm volatile(
+                    // v0:  input / final output
+                    // v1 v2 v3: = ri0 ri4 ri0n , i <-  1-7
+                    // v4 = ri1 / ri3 / ri6
+                    // v5 = ri2 / ri5
+                    // v9 = intermediate sum register
+                    "0:                                        \n"                    
+                    "prfm       pldl1keep, [%1, #128]          \n"
+                    "ld1        {v0.4s}, [%1]                  \n"
+
+                    //i = 1
+                    "prfm       pldl1keep, [%2, #384]          \n"
+                    "ld1        {v1.4s, v2.4s, v3.4s}, [%2]    \n"
+                    "add        %2, %2, #16                    \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #4     \n"
+                    "fmul       v9.4s, v1.4s, %18.s[0]         \n"
+                    "ext        v5.16b, v1.16b, v2.16b, #8     \n"
+                    "fmla       v0.4s, v4.4s, %18.s[1]         \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #12    \n"
+                    "fmla       v9.4s, v5.4s, %18.s[2]         \n"
+                    "ext        v5.16b, v2.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v4.4s, %18.s[3]         \n"
+                    "ext        v4.16b, v2.16b, v3.16b, #8     \n"
+                    "fmla       v9.4s, v2.4s, %19.s[0]         \n"
+                    "fmla       v0.4s, v5.4s, %19.s[1]         \n"
+                    "fmla       v9.4s, v4.4s, %19.s[2]         \n"
+
+                    //i = 2
+                    "prfm       pldl1keep, [%3, #384]          \n"
+                    "ld1        {v1.4s, v2.4s, v3.4s}, [%3]    \n" // v1 v2 v3: = r20 r24 r20n
+                    "add        %3, %3, #16                    \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #4     \n" // v4 = r21
+                    "fmla       v9.4s, v1.4s, %20.s[0]         \n" // *+ r10
+                    "ext        v5.16b, v1.16b, v2.16b, #8     \n" // v5 = r22
+                    "fmla       v0.4s, v4.4s, %20.s[1]         \n" // *+ r11
+                    "ext        v4.16b, v1.16b, v2.16b, #12    \n" // v4 = r23
+                    "fmla       v9.4s, v5.4s, %20.s[2]         \n" // *+ r1
+                    "ext        v5.16b, v2.16b, v3.16b, #4     \n" // v5 = r25
+                    "fmla       v0.4s, v4.4s, %20.s[3]         \n" // *+ r13
+                    "ext        v4.16b, v2.16b, v3.16b, #8     \n" // v4 = r26
+                    "fmla       v9.4s, v2.4s, %21.s[0]         \n" // *+ r14
+                    "fmla       v0.4s, v5.4s, %21.s[1]         \n" // *+ r15
+                    "fmla       v9.4s, v4.4s, %21.s[2]         \n" // *+ r16
+
+                    //i = 3
+                    "prfm       pldl1keep, [%4, #384]          \n"
+                    "ld1        {v1.4s, v2.4s, v3.4s}, [%4]    \n"
+                    "add        %4, %4, #16                    \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #4     \n"
+                    "fmla       v9.4s, v1.4s, %22.s[0]         \n"
+                    "ext        v5.16b, v1.16b, v2.16b, #8     \n"
+                    "fmla       v0.4s, v4.4s, %22.s[1]         \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #12    \n"
+                    "fmla       v9.4s, v5.4s, %22.s[2]         \n"
+                    "ext        v5.16b, v2.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v4.4s, %22.s[3]         \n"
+                    "ext        v4.16b, v2.16b, v3.16b, #8     \n"
+                    "fmla       v9.4s, v2.4s, %23.s[0]         \n"
+                    "fmla       v0.4s, v5.4s, %23.s[1]         \n"
+                    "fmla       v9.4s, v4.4s, %23.s[2]         \n"
+
+                    //i = 4
+                    "prfm       pldl1keep, [%5, #384]          \n"
+                    "ld1        {v1.4s, v2.4s, v3.4s}, [%5]    \n"
+                    "add        %5, %5, #16                    \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #4     \n"
+                    "fmla       v9.4s, v1.4s, %24.s[0]         \n"
+                    "ext        v5.16b, v1.16b, v2.16b, #8     \n"
+                    "fmla       v0.4s, v4.4s, %24.s[1]         \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #12    \n"
+                    "fmla       v9.4s, v5.4s, %24.s[2]         \n"
+                    "ext        v5.16b, v2.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v4.4s, %24.s[3]         \n"
+                    "ext        v4.16b, v2.16b, v3.16b, #8     \n"
+                    "fmla       v9.4s, v2.4s, %25.s[0]         \n"
+                    "fmla       v0.4s, v5.4s, %25.s[1]         \n"
+                    "fmla       v9.4s, v4.4s, %25.s[2]         \n"
+
+                    //i = 5
+                    "prfm       pldl1keep, [%6, #384]          \n"
+                    "ld1        {v1.4s, v2.4s, v3.4s}, [%6]    \n"
+                    "add        %6, %6, #16                    \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #4     \n"
+                    "fmla       v9.4s, v1.4s, %26.s[0]         \n"
+                    "ext        v5.16b, v1.16b, v2.16b, #8     \n"
+                    "fmla       v0.4s, v4.4s, %26.s[1]         \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #12    \n"
+                    "fmla       v9.4s, v5.4s, %26.s[2]         \n"
+                    "ext        v5.16b, v2.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v4.4s, %26.s[3]         \n"
+                    "ext        v4.16b, v2.16b, v3.16b, #8     \n"
+                    "fmla       v9.4s, v2.4s, %27.s[0]         \n"
+                    "fmla       v0.4s, v5.4s, %27.s[1]         \n"
+                    "fmla       v9.4s, v4.4s, %27.s[2]         \n"
+
+                    //i = 6
+                    "prfm       pldl1keep, [%7, #384]          \n"
+                    "ld1        {v1.4s, v2.4s, v3.4s}, [%7]    \n"
+                    "add        %7, %7, #16                    \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #4     \n"
+                    "fmla       v9.4s, v1.4s, %28.s[0]         \n"
+                    "ext        v5.16b, v1.16b, v2.16b, #8     \n"
+                    "fmla       v0.4s, v4.4s, %28.s[1]         \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #12    \n"
+                    "fmla       v9.4s, v5.4s, %28.s[2]         \n"
+                    "ext        v5.16b, v2.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v4.4s, %28.s[3]         \n"
+                    "ext        v4.16b, v2.16b, v3.16b, #8     \n"
+                    "fmla       v9.4s, v2.4s, %29.s[0]         \n"
+                    "fmla       v0.4s, v5.4s, %29.s[1]         \n"
+                    "fmla       v9.4s, v4.4s, %29.s[2]         \n"
+                    
+                    //i = 7
+                    "prfm       pldl1keep, [%8, #384]          \n"
+                    "ld1        {v1.4s, v2.4s, v3.4s}, [%8]    \n"
+                    "add        %8, %8, #16                    \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #4     \n"
+                    "fmla       v9.4s, v1.4s, %30.s[0]         \n"
+                    "ext        v5.16b, v1.16b, v2.16b, #8     \n"
+                    "fmla       v0.4s, v4.4s, %30.s[1]         \n"
+                    "ext        v4.16b, v1.16b, v2.16b, #12    \n"
+                    "fmla       v9.4s, v5.4s, %30.s[2]         \n"                    
+                    "ext        v5.16b, v2.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v4.4s, %30.s[3]         \n"
+                    "ext        v4.16b, v2.16b, v3.16b, #8     \n"
+                    "fmla       v9.4s, v2.4s, %31.s[0]         \n"
+                    "fmla       v0.4s, v5.4s, %31.s[1]         \n"
+                    "fmla       v9.4s, v4.4s, %31.s[2]         \n"
+
+                    "fadd       v0.4s, v0.4s, v9.4s            \n"                    
+                    "st1        {v0.4s}, [%1], #16             \n"                    
+                    "subs       %w0, %w0, #1                   \n"
+                    "bne        0b                             \n"
+                    
+                    : "=r"(nn),         // %0
+                      "=r"(outptr),     // %1
+                      "=r"(r0),         // %2
+                      "=r"(r1),         // %3
+                      "=r"(r2),         // %4
+                      "=r"(r3),         // %5
+                      "=r"(r4),         // %6
+                      "=r"(r5),         // %7
+                      "=r"(r6)          // %8
+                    : "0"(nn),
+                      "1"(outptr),
+                      "2"(r0),
+                      "3"(r1),
+                      "4"(r2),
+                      "5"(r3),
+                      "6"(r4),
+                      "7"(r5),
+                      "8"(r6),
+                      "w"(_k0123),     // %18
+                      "w"(_k4567),     // %19
+                      "w"(_k78910),    // %20
+                      "w"(_k11121314), // %21
+                      "w"(_k14151617), // %22
+                      "w"(_k18192021), // %23
+                      "w"(_k21222324), // %24
+                      "w"(_k25262728), // %25
+                      "w"(_k28293031), // %26
+                      "w"(_k32333435), // %27
+                      "w"(_k35363738), // %28
+                      "w"(_k39404142), // %29
+                      "w"(_k42434445), // %30
+                      "w"(_k46474849)  // %31
+                    : "cc", "memory","v0", "v1", "v2", "v3", "v4", "v5", "v9"
+                );
+                }                    
+#else   // __ARM_NEON && __aarch64__ defined, but __clang__ not defined
+// When compiled with gcc, gcc does not accept over 30 operands
                 for (; nn>0; nn--)
                 {
                     float32x4_t _sum = vld1q_f32(outptr);
-
-                    float32x4_t _k0123 = vld1q_f32(k0);
-                    float32x4_t _k4567 = vld1q_f32(k0 + 4);
 
                     float32x4_t _r00 = vld1q_f32(r0);// 0 1 2 3
                     float32x4_t _r04 = vld1q_f32(r0 + 4);// 4 5 6 7
@@ -99,9 +284,6 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r05, _k4567, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r06, _k4567, 2);
 
-                    float32x4_t _k78910 = vld1q_f32(k1);
-                    float32x4_t _k11121314 = vld1q_f32(k1 + 4);
-
                     float32x4_t _r10 = vld1q_f32(r1);
                     float32x4_t _r14 = vld1q_f32(r1 + 4);
                     float32x4_t _r10n = vld1q_f32(r1 + 8);
@@ -118,9 +300,6 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r14, _k11121314, 0);
                     _sum = vfmaq_laneq_f32(_sum, _r15, _k11121314, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r16, _k11121314, 2);
-
-                    float32x4_t _k14151617 = vld1q_f32(k2);
-                    float32x4_t _k18192021 = vld1q_f32(k2 + 4);
 
                     float32x4_t _r20 = vld1q_f32(r2);
                     float32x4_t _r24 = vld1q_f32(r2 + 4);
@@ -139,9 +318,6 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r25, _k18192021, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r26, _k18192021, 2);
 
-                    float32x4_t _k21222324 = vld1q_f32(k3);
-                    float32x4_t _k25262728 = vld1q_f32(k3 + 4);
-
                     float32x4_t _r30 = vld1q_f32(r3);
                     float32x4_t _r34 = vld1q_f32(r3 + 4);
                     float32x4_t _r30n = vld1q_f32(r3 + 8);
@@ -158,9 +334,6 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r34, _k25262728, 0);
                     _sum = vfmaq_laneq_f32(_sum, _r35, _k25262728, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r36, _k25262728, 2);
-
-                    float32x4_t _k28293031 = vld1q_f32(k4);
-                    float32x4_t _k32333435 = vld1q_f32(k4 + 4);
 
                     float32x4_t _r40 = vld1q_f32(r4);
                     float32x4_t _r44 = vld1q_f32(r4 + 4);
@@ -179,9 +352,6 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r45, _k32333435, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r46, _k32333435, 2);
 
-                    float32x4_t _k35363738 = vld1q_f32(k5);
-                    float32x4_t _k39404142 = vld1q_f32(k5 + 4);
-
                     float32x4_t _r50 = vld1q_f32(r5);
                     float32x4_t _r54 = vld1q_f32(r5 + 4);
                     float32x4_t _r50n = vld1q_f32(r5 + 8);
@@ -198,9 +368,6 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r54, _k39404142, 0);
                     _sum = vfmaq_laneq_f32(_sum, _r55, _k39404142, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r56, _k39404142, 2);
-
-                    float32x4_t _k42434445 = vld1q_f32(k6);
-                    float32x4_t _k46474849 = vld1q_f32(k6 + 4);
 
                     float32x4_t _r60 = vld1q_f32(r6);
                     float32x4_t _r64 = vld1q_f32(r6 + 4);
@@ -230,7 +397,8 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     r6 += 4;
                     outptr += 4;
                 }
-#else
+#endif   // __clang__
+#else //__aarch32__
                 if (nn > 0)
                 {
                 asm volatile(
@@ -599,12 +767,204 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
+                float32x4_t _k0123 = vld1q_f32(k0);
+                float32x4_t _k4567 = vld1q_f32(k0 + 4);
+                float32x4_t _k78910 = vld1q_f32(k1);
+                float32x4_t _k11121314 = vld1q_f32(k1 + 4);
+                float32x4_t _k14151617 = vld1q_f32(k2);
+                float32x4_t _k18192021 = vld1q_f32(k2 + 4);
+                float32x4_t _k21222324 = vld1q_f32(k3);
+                float32x4_t _k25262728 = vld1q_f32(k3 + 4);
+                float32x4_t _k28293031 = vld1q_f32(k4);
+                float32x4_t _k32333435 = vld1q_f32(k4 + 4);
+                float32x4_t _k35363738 = vld1q_f32(k5);
+                float32x4_t _k39404142 = vld1q_f32(k5 + 4);
+                float32x4_t _k42434445 = vld1q_f32(k6);
+                float32x4_t _k46474849 = vld1q_f32(k6 + 4);
+#ifdef __clang__    // __ARM_NEON && __aarch64__ && __clang__
+                if (nn > 0)
+                {
+                asm volatile(
+                    // v0:  input / final output
+                    // v1 v2: = _ri0/_ri1  first 
+                    // v3 v4: =                  then _r0_8101214/_r0_9111315
+                    // v5 = ri2 / ri4 / ri6
+                    // v6 = ri3 / ri5
+                    // v9 = intermediate sum register
+                    "0:                                        \n"                    
+                    "prfm       pldl1keep, [%1, #128]          \n"
+                    "ld1        {v0.4s}, [%1]                  \n"
+
+                    //i = 1
+                    "prfm       pldl1keep, [%2, #512]          \n"
+                    "ld2        {v1.4s, v2.4s}, [%2]           \n" // v1  v2 = _r00  _r01
+                    "add        %2, %2, #32                    \n"
+                    "ld2        {v3.4s, v4.4s}, [%2]           \n" // v3  v4 = _r0_8101214 / _r0_9111315     
+                    "fmul       v9.4s, v1.4s, %18.s[0]         \n" // *+ _r00                       
+                    "ext        v5.16b, v1.16b, v3.16b, #4     \n" // v5 = _r02
+                    "fmla       v0.4s, v2.4s, %18.s[1]         \n" // *+ _r01
+                    "ext        v6.16b, v2.16b, v4.16b, #4     \n" // v6 = _r03
+                    "fmla       v9.4s, v5.4s, %18.s[2]         \n" // *+ _r02
+                    "ext        v5.16b, v1.16b, v3.16b, #8     \n" // v5 = _r04
+                    "fmla       v0.4s, v6.4s, %18.s[3]         \n" // *+ _r03
+                    "ext        v6.16b, v2.16b, v4.16b, #8     \n" // v6 = _r05
+                    "fmla       v9.4s, v5.4s, %19.s[0]         \n" // *+ _r04                    
+                    "ext        v5.16b, v1.16b, v3.16b, #12    \n" // v5 = _r06
+                    "fmla       v0.4s, v6.4s, %19.s[1]         \n" // *+ _r05
+                    "fmla       v9.4s, v5.4s, %19.s[2]         \n" // *+ _r06
+
+                    //i = 2
+                    "prfm       pldl1keep, [%3, #512]          \n"
+                    "ld2        {v1.4s, v2.4s}, [%3]           \n"
+                    "add        %3, %3, #32                    \n"
+                    "ld2        {v3.4s, v4.4s}, [%3]           \n"    
+                    "fmla       v9.4s, v1.4s, %20.s[0]         \n"                       
+                    "ext        v5.16b, v1.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v2.4s, %20.s[1]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #4     \n"
+                    "fmla       v9.4s, v5.4s, %20.s[2]         \n"
+                    "ext        v5.16b, v1.16b, v3.16b, #8     \n"
+                    "fmla       v0.4s, v6.4s, %20.s[3]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #8     \n"
+                    "fmla       v9.4s, v5.4s, %21.s[0]         \n"                   
+                    "ext        v5.16b, v1.16b, v3.16b, #12    \n"
+                    "fmla       v0.4s, v6.4s, %21.s[1]         \n"
+                    "fmla       v9.4s, v5.4s, %21.s[2]         \n"
+
+                    //i = 3
+                    "prfm       pldl1keep, [%4, #512]          \n"
+                    "ld2        {v1.4s, v2.4s}, [%4]           \n"
+                    "add        %4, %4, #32                    \n"
+                    "ld2        {v3.4s, v4.4s}, [%4]           \n"    
+                    "fmla       v9.4s, v1.4s, %22.s[0]         \n"                       
+                    "ext        v5.16b, v1.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v2.4s, %22.s[1]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #4     \n"
+                    "fmla       v9.4s, v5.4s, %22.s[2]         \n"
+                    "ext        v5.16b, v1.16b, v3.16b, #8     \n"
+                    "fmla       v0.4s, v6.4s, %22.s[3]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #8     \n"
+                    "fmla       v9.4s, v5.4s, %23.s[0]         \n"                   
+                    "ext        v5.16b, v1.16b, v3.16b, #12    \n"
+                    "fmla       v0.4s, v6.4s, %23.s[1]         \n"
+                    "fmla       v9.4s, v5.4s, %23.s[2]         \n"
+
+                    //i = 4
+                    "prfm       pldl1keep, [%5, #512]          \n"
+                    "ld2        {v1.4s, v2.4s}, [%5]           \n"
+                    "add        %5, %5, #32                    \n"
+                    "ld2        {v3.4s, v4.4s}, [%5]           \n"    
+                    "fmla       v9.4s, v1.4s, %24.s[0]         \n"                       
+                    "ext        v5.16b, v1.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v2.4s, %24.s[1]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #4     \n"
+                    "fmla       v9.4s, v5.4s, %24.s[2]         \n"
+                    "ext        v5.16b, v1.16b, v3.16b, #8     \n"
+                    "fmla       v0.4s, v6.4s, %24.s[3]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #8     \n"
+                    "fmla       v9.4s, v5.4s, %25.s[0]         \n"                   
+                    "ext        v5.16b, v1.16b, v3.16b, #12    \n"
+                    "fmla       v0.4s, v6.4s, %25.s[1]         \n"
+                    "fmla       v9.4s, v5.4s, %25.s[2]         \n"
+
+                    //i = 5
+                    "prfm       pldl1keep, [%6, #512]          \n"
+                    "ld2        {v1.4s, v2.4s}, [%6]           \n"
+                    "add        %6, %6, #32                    \n"
+                    "ld2        {v3.4s, v4.4s}, [%6]           \n"    
+                    "fmla       v9.4s, v1.4s, %26.s[0]         \n"                       
+                    "ext        v5.16b, v1.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v2.4s, %26.s[1]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #4     \n"
+                    "fmla       v9.4s, v5.4s, %26.s[2]         \n"
+                    "ext        v5.16b, v1.16b, v3.16b, #8     \n"
+                    "fmla       v0.4s, v6.4s, %26.s[3]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #8     \n"
+                    "fmla       v9.4s, v5.4s, %27.s[0]         \n"                   
+                    "ext        v5.16b, v1.16b, v3.16b, #12    \n"
+                    "fmla       v0.4s, v6.4s, %27.s[1]         \n"
+                    "fmla       v9.4s, v5.4s, %27.s[2]         \n"
+
+                    //i = 6
+                    "prfm       pldl1keep, [%7, #512]          \n"
+                    "ld2        {v1.4s, v2.4s}, [%7]           \n"
+                    "add        %7, %7, #32                    \n"
+                    "ld2        {v3.4s, v4.4s}, [%7]           \n"    
+                    "fmla       v9.4s, v1.4s, %28.s[0]         \n"                       
+                    "ext        v5.16b, v1.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v2.4s, %28.s[1]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #4     \n"
+                    "fmla       v9.4s, v5.4s, %28.s[2]         \n"
+                    "ext        v5.16b, v1.16b, v3.16b, #8     \n"
+                    "fmla       v0.4s, v6.4s, %28.s[3]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #8     \n"
+                    "fmla       v9.4s, v5.4s, %29.s[0]         \n"                   
+                    "ext        v5.16b, v1.16b, v3.16b, #12    \n"
+                    "fmla       v0.4s, v6.4s, %29.s[1]         \n"
+                    "fmla       v9.4s, v5.4s, %29.s[2]         \n"
+
+                    //i = 7
+                    "prfm       pldl1keep, [%8, #512]          \n"
+                    "ld2        {v1.4s, v2.4s}, [%8]           \n"
+                    "add        %8, %8, #32                    \n"
+                    "ld2        {v3.4s, v4.4s}, [%8]           \n"    
+                    "fmla       v9.4s, v1.4s, %30.s[0]         \n"                       
+                    "ext        v5.16b, v1.16b, v3.16b, #4     \n"
+                    "fmla       v0.4s, v2.4s, %30.s[1]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #4     \n"
+                    "fmla       v9.4s, v5.4s, %30.s[2]         \n"
+                    "ext        v5.16b, v1.16b, v3.16b, #8     \n"
+                    "fmla       v0.4s, v6.4s, %30.s[3]         \n"
+                    "ext        v6.16b, v2.16b, v4.16b, #8     \n"
+                    "fmla       v9.4s, v5.4s, %31.s[0]         \n"                   
+                    "ext        v5.16b, v1.16b, v3.16b, #12    \n"
+                    "fmla       v0.4s, v6.4s, %31.s[1]         \n"
+                    "fmla       v9.4s, v5.4s, %31.s[2]         \n"
+
+                    "fadd       v0.4s, v0.4s, v9.4s            \n"                    
+                    "st1        {v0.4s}, [%1], #16             \n"                    
+                    "subs       %w0, %w0, #1                   \n"
+                    "bne        0b                             \n"
+                    : "=r"(nn),         // %0
+                      "=r"(outptr),     // %1
+                      "=r"(r0),         // %2
+                      "=r"(r1),         // %3
+                      "=r"(r2),         // %4
+                      "=r"(r3),         // %5
+                      "=r"(r4),         // %6
+                      "=r"(r5),         // %7
+                      "=r"(r6)          // %8
+                    : "0"(nn),
+                      "1"(outptr),
+                      "2"(r0),
+                      "3"(r1),
+                      "4"(r2),
+                      "5"(r3),
+                      "6"(r4),
+                      "7"(r5),
+                      "8"(r6),
+                      "w"(_k0123),     // %18
+                      "w"(_k4567),     // %19
+                      "w"(_k78910),    // %20
+                      "w"(_k11121314), // %21
+                      "w"(_k14151617), // %22
+                      "w"(_k18192021), // %23
+                      "w"(_k21222324), // %24
+                      "w"(_k25262728), // %25
+                      "w"(_k28293031), // %26
+                      "w"(_k32333435), // %27
+                      "w"(_k35363738), // %28
+                      "w"(_k39404142), // %29
+                      "w"(_k42434445), // %30
+                      "w"(_k46474849)  // %31
+                    : "cc", "memory","v0", "v1", "v2", "v3", "v4", "v5", "v6", "v9"
+                );
+                }    
+#else   // __ARM_NEON && __aarch64__ defined, but __clang__ not defined
+// When compiled with gcc, gcc does not accept over 30 operands
                 for (; nn>0; nn--)
                 {
                     float32x4_t _sum = vld1q_f32(outptr);
-
-                    float32x4_t _k0123 = vld1q_f32(k0);
-                    float32x4_t _k4567 = vld1q_f32(k0 + 4);
 
                     float32x4x2_t _r00_02461357 = vld2q_f32(r0);
                     float32x4x2_t _r00nx2 = vld2q_f32(r0 + 8);
@@ -626,9 +986,6 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r05, _k4567, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r06, _k4567, 2);
 
-                    float32x4_t _k78910 = vld1q_f32(k1);
-                    float32x4_t _k11121314 = vld1q_f32(k1 + 4);
-
                     float32x4x2_t _r10_02461357 = vld2q_f32(r1);
                     float32x4x2_t _r10nx2 = vld2q_f32(r1 + 8);
                     float32x4_t _r1_8101214 = _r10nx2.val[0];
@@ -648,9 +1005,6 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r14, _k11121314, 0);
                     _sum = vfmaq_laneq_f32(_sum, _r15, _k11121314, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r16, _k11121314, 2);
-
-                    float32x4_t _k14151617 = vld1q_f32(k2);
-                    float32x4_t _k18192021 = vld1q_f32(k2 + 4);
 
                     float32x4x2_t _r20_02461357 = vld2q_f32(r2);
                     float32x4x2_t _r20nx2 = vld2q_f32(r2 + 8);
@@ -672,9 +1026,6 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r25, _k18192021, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r26, _k18192021, 2);
 
-                    float32x4_t _k21222324 = vld1q_f32(k3);
-                    float32x4_t _k25262728 = vld1q_f32(k3 + 4);
-
                     float32x4x2_t _r30_02461357 = vld2q_f32(r3);
                     float32x4x2_t _r30nx2 = vld2q_f32(r3 + 8);
                     float32x4_t _r3_8101214 = _r30nx2.val[0];
@@ -694,9 +1045,6 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r34, _k25262728, 0);
                     _sum = vfmaq_laneq_f32(_sum, _r35, _k25262728, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r36, _k25262728, 2);
-
-                    float32x4_t _k28293031 = vld1q_f32(k4);
-                    float32x4_t _k32333435 = vld1q_f32(k4 + 4);
 
                     float32x4x2_t _r40_02461357 = vld2q_f32(r4);
                     float32x4x2_t _r40nx2 = vld2q_f32(r4 + 8);
@@ -718,9 +1066,6 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r45, _k32333435, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r46, _k32333435, 2);
 
-                    float32x4_t _k35363738 = vld1q_f32(k5);
-                    float32x4_t _k39404142 = vld1q_f32(k5 + 4);
-
                     float32x4x2_t _r50_02461357 = vld2q_f32(r5);
                     float32x4x2_t _r50nx2 = vld2q_f32(r5 + 8);
                     float32x4_t _r5_8101214 = _r50nx2.val[0];
@@ -740,9 +1085,6 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     _sum = vfmaq_laneq_f32(_sum, _r54, _k39404142, 0);
                     _sum = vfmaq_laneq_f32(_sum, _r55, _k39404142, 1);
                     _sum = vfmaq_laneq_f32(_sum, _r56, _k39404142, 2);
-
-                    float32x4_t _k42434445 = vld1q_f32(k6);
-                    float32x4_t _k46474849 = vld1q_f32(k6 + 4);
 
                     float32x4x2_t _r60_02461357 = vld2q_f32(r6);
                     float32x4x2_t _r60nx2 = vld2q_f32(r6 + 8);
@@ -775,6 +1117,7 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     r6 += 8;
                     outptr += 4;
                 }
+#endif   // __clang__
 #else
                 if (nn > 0)
                 {
