@@ -44,13 +44,24 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
 #if __ARM_NEON
 #if __aarch64__
-            float32x4_t _mean = vdupq_n_f32(mean);
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4_t _ptr = vld1q_f32(ptr);
-                _ptr = vsubq_f32(_ptr, _mean);
-                vst1q_f32(ptr, _ptr);
-                ptr += 4;
+            asm volatile(
+                "dup        v1.4s, %w4            \n"
+                "0:                               \n"
+                "prfm       pldl1keep, [%1, #128] \n"
+                "ld1        {v0.4s}, [%1]         \n"
+                "fsub       v0.4s, v0.4s, v1.4s   \n"
+                "subs       %w0, %w0, #1          \n"
+                "st1        {v0.4s}, [%1], #16    \n"
+                "bne        0b                    \n"
+                : "=r"(nn),     // %0
+                  "=r"(ptr)     // %1
+                : "0"(nn),
+                  "1"(ptr),
+                  "r"(mean)     // %4
+                : "cc", "memory", "v0", "v1"
+            );
             }
 #else
             if (nn > 0)
@@ -99,13 +110,24 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
 #if __ARM_NEON
 #if __aarch64__
-            float32x4_t _norm = vdupq_n_f32(norm);
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4_t _ptr = vld1q_f32(ptr);
-                _ptr = vmulq_f32(_ptr, _norm);
-                vst1q_f32(ptr, _ptr);
-                ptr += 4;
+            asm volatile(
+                "dup        v1.4s, %w4            \n"
+                "0:                               \n"
+                "prfm       pldl1keep, [%1, #128] \n"
+                "ld1        {v0.4s}, [%1]         \n"
+                "fmul       v0.4s, v0.4s, v1.4s   \n"
+                "subs       %w0, %w0, #1          \n"
+                "st1        {v0.4s}, [%1], #16    \n"
+                "bne        0b                    \n"
+                : "=r"(nn),     // %0
+                  "=r"(ptr)     // %1
+                : "0"(nn),
+                  "1"(ptr),
+                  "r"(norm)     // %4
+                : "cc", "memory", "v0", "v1"
+            );
             }
 #else
             if (nn > 0)
@@ -155,15 +177,27 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
 #if __ARM_NEON
 #if __aarch64__
-            float32x4_t _mean = vdupq_n_f32(mean);
-            float32x4_t _norm = vdupq_n_f32(norm);
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4_t _ptr = vld1q_f32(ptr);
-                _ptr = vsubq_f32(_ptr, _mean);
-                _ptr = vmulq_f32(_ptr, _norm);
-                vst1q_f32(ptr, _ptr);
-                ptr += 4;
+            asm volatile(
+                "dup        v1.4s, %w4            \n"
+                "dup        v2.4s, %w5            \n"
+                "0:                               \n"
+                "prfm       pldl1keep, [%1, #128] \n"
+                "ld1        {v0.4s}, [%1]         \n"
+                "fsub       v0.4s, v0.4s, v1.4s   \n"
+                "fmul       v0.4s, v0.4s, v2.4s   \n"
+                "subs       %w0, %w0, #1          \n"
+                "st1        {v0.4s}, [%1], #16    \n"
+                "bne        0b                    \n"
+                : "=r"(nn),     // %0
+                  "=r"(ptr)     // %1
+                : "0"(nn),
+                  "1"(ptr),
+                  "r"(mean),    // %4
+                  "r"(norm)     // %5
+                : "cc", "memory", "v0", "v1", "v2"
+            );  
             }
 #else
             if (nn > 0)

@@ -6858,49 +6858,74 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                for (; nn>0; nn--)
+                if (nn > 0)
                 {
-                    float32x4_t _outp = vld1q_f32(outptr);
+                asm volatile(
+                    "prfm       pldl1keep, [%2, #256]          \n"
+                    "ld2        {v2.4s, v3.4s}, [%2], #32      \n"
+                    "0:                                        \n"
+                    
+                    "prfm       pldl1keep, [%1, #128]          \n"
+                    "ld1        {v0.4s}, [%1]                  \n"
 
-                    float32x4x2_t _r0 = vld2q_f32(r0);
-                    float32x4x2_t _r0n = vld2q_f32(r0+8);
+                    "fmla       v0.4s,  v2.4s, %10.s[0]        \n"
+                    "fmul       v10.4s, v3.4s, %10.s[1]        \n"
 
-                    float32x4_t _r00 = _r0.val[0];// 0 2 4 6
-                    float32x4_t _r01 = _r0.val[1];// 1 3 5 7
-                    float32x4_t _r02 = vextq_f32(_r00, _r0n.val[0], 1);// 2 4 6 8
+                    "prfm       pldl1keep, [%2, #256]          \n"
+                    "ld2        {v8.4s, v9.4s}, [%2]           \n"
+                    "ext        v1.16b, v2.16b, v8.16b, #4     \n"
 
-                    _outp = vfmaq_laneq_f32(_outp, _r00, _k0123, 0);
-                    _outp = vfmaq_laneq_f32(_outp, _r01, _k0123, 1);
-                    _outp = vfmaq_laneq_f32(_outp, _r02, _k0123, 2);
+                    "fmul       v11.4s, v1.4s, %10.s[2]        \n"
 
-                    float32x4x2_t _r1 = vld2q_f32(r1);
-                    float32x4x2_t _r1n = vld2q_f32(r1+8);
+                    "prfm       pldl1keep, [%3, #256]          \n"
+                    "ld2        {v2.4s, v3.4s}, [%3], #32      \n"
 
-                    float32x4_t _r10 = _r1.val[0];
-                    float32x4_t _r11 = _r1.val[1];
-                    float32x4_t _r12 = vextq_f32(_r10, _r1n.val[0], 1);
+                    "fmla       v0.4s,  v2.4s, %11.s[0]        \n"
+                    "fmla       v10.4s, v3.4s, %11.s[1]        \n"
 
-                    _outp = vfmaq_laneq_f32(_outp, _r10, _k3456, 0);
-                    _outp = vfmaq_laneq_f32(_outp, _r11, _k3456, 1);
-                    _outp = vfmaq_laneq_f32(_outp, _r12, _k3456, 2);
+                    "prfm       pldl1keep, [%3, #256]          \n"
+                    "ld2        {v8.4s, v9.4s}, [%3]           \n"
+                    "ext        v1.16b, v2.16b, v8.16b, #4     \n"
 
-                    float32x4x2_t _r2 = vld2q_f32(r2);
-                    float32x4x2_t _r2n = vld2q_f32(r2+8);
+                    "fmla       v11.4s, v1.4s, %11.s[2]        \n"
 
-                    float32x4_t _r20 = _r2.val[0];
-                    float32x4_t _r21 = _r2.val[1];
-                    float32x4_t _r22 = vextq_f32(_r20, _r2n.val[0], 1);
+                    "prfm       pldl1keep, [%4, #256]          \n"
+                    "ld2        {v2.4s, v3.4s}, [%4], #32      \n"
 
-                    _outp = vfmaq_laneq_f32(_outp, _r20, _k6789, 0);
-                    _outp = vfmaq_laneq_f32(_outp, _r21, _k6789, 1);
-                    _outp = vfmaq_laneq_f32(_outp, _r22, _k6789, 2);
+                    "fmla       v0.4s,  v2.4s, %12.s[0]        \n"
+                    "fmla       v10.4s, v3.4s, %12.s[1]        \n"
 
-                    vst1q_f32(outptr, _outp);
+                    "prfm       pldl1keep, [%4, #256]          \n"
+                    "ld2        {v8.4s, v9.4s}, [%4]           \n"
+                    "ext        v1.16b, v2.16b, v8.16b, #4     \n"
 
-                    r0 += 8;
-                    r1 += 8;
-                    r2 += 8;
-                    outptr += 4;
+                    "fmla       v11.4s, v1.4s, %12.s[2]        \n"
+
+                    "prfm       pldl1keep, [%2, #256]          \n"
+                    "ld2        {v2.4s, v3.4s}, [%2], #32      \n"
+
+                    "fadd       v0.4s, v0.4s, v10.4s           \n"
+                    "fadd       v0.4s, v0.4s, v11.4s           \n"
+
+                    "subs       %w0, %w0, #1                   \n"
+                    "st1        {v0.4s}, [%1], #16             \n"
+                    "bne        0b                             \n"
+                    "sub        %2, %2, #32                    \n"
+                    : "=r"(nn),     // %0
+                      "=r"(outptr), // %1
+                      "=r"(r0),     // %2
+                      "=r"(r1),     // %3
+                      "=r"(r2)      // %4
+                    : "0"(nn),
+                      "1"(outptr),
+                      "2"(r0),
+                      "3"(r1),
+                      "4"(r2),
+                      "w"(_k0123),  // %10
+                      "w"(_k3456),  // %11
+                      "w"(_k6789)   // %12
+                    : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
+                );
                 }
 #else
                 if (nn > 0)
