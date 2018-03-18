@@ -24,6 +24,8 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 [ncnn operation param weight table](https://github.com/Tencent/ncnn/wiki/operation-param-weight-table)
 
+[how to implement custom layer step by step](https://github.com/Tencent/ncnn/wiki/how-to-implement-custom-layer-step-by-step)
+
 ---
 
 ### FAQ
