@@ -84,6 +84,7 @@ protected:
     int find_blob_index_by_name(const char* name) const;
     int find_layer_index_by_name(const char* name) const;
     int custom_layer_to_index(const char* type);
+    Layer* create_custom_layer(const char* type);
 #endif // NCNN_STRING
     Layer* create_custom_layer(int index);
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode) const;
@@ -100,7 +101,7 @@ class Extractor
 public:
     // enable light mode
     // intermediate blob will be recycled when enabled
-    // disabled by default, but recommend to enable
+    // enabled by default
     void set_light_mode(bool enable);
 
     // set thread count for this extractor

@@ -306,7 +306,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 145 (last added: crop_param)
+// LayerParameter next available layer-specific ID: 146 (last added: shuffle_channel_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -399,6 +399,7 @@ message LayerParameter {
   optional ReshapeParameter reshape_param = 133;
   optional ROIPoolingParameter roi_pooling_param = 8266711;
   optional ScaleParameter scale_param = 142;
+  optional ShuffleChannelParameter shuffle_channel_param = 145;
   optional SigmoidParameter sigmoid_param = 124;
   optional SmoothL1LossParameter smooth_l1_loss_param = 8266712;
   optional SoftmaxParameter softmax_param = 125;
@@ -1260,6 +1261,13 @@ message ScaleParameter {
   // may be more efficient).  Initialized with bias_filler (defaults to 0).
   optional bool bias_term = 4 [default = false];
   optional FillerParameter bias_filler = 5;
+}
+
+message ShuffleChannelParameter {
+  // first introduced by
+  // "ShuffleNet: An Extremely Efficient Convolutional Neural Network
+  // for Mobile Devices"
+  optional uint32 group = 1[default = 1]; // The number of group
 }
 
 message SigmoidParameter {

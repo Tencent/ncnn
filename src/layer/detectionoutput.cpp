@@ -201,7 +201,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
         for (int j = 0; j < num_prior; j++)
         {
-            float score = confidence.data[j * num_class + i];
+            float score = confidence[j * num_class + i];
 
             if (score > confidence_threshold)
             {

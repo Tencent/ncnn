@@ -26,7 +26,15 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     // deconvolv with NxN kernel
     // value = value + bias
 
-    if ((kernel_size != 3 && kernel_size != 4) || stride > 2 || dilation != 1)
+    if (kernel_w != kernel_h || stride_w != stride_h)
+    {
+        return Deconvolution::forward(bottom_blob, top_blob);
+    }
+
+    const int kernel_size = kernel_w;
+    const int stride = stride_w;
+
+    if ((kernel_size != 3 && kernel_size != 4) || stride > 2 || dilation_w != 1 || dilation_h != 1)
     {
         return Deconvolution::forward(bottom_blob, top_blob);
     }
@@ -58,7 +66,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     int outw = (w - 1) * stride + kernel_size;
     int outh = (h - 1) * stride + kernel_size;
 
-    Mat top_blob_bordered;
+    Mat top_blob_bordered = top_blob;
     top_blob_bordered.create(outw, outh, num_output);
     if (top_blob_bordered.empty())
         return -100;
@@ -67,9 +75,9 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     top_blob = top_blob_bordered;
 
-    if (pad > 0)
+    if (pad_w > 0 || pad_h > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad, pad, pad, pad);
+        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w);
         if (top_blob.empty())
             return -100;
 

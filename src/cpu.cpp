@@ -15,6 +15,7 @@
 #include "cpu.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <vector>
 
 #ifdef _OPENMP
@@ -391,10 +392,10 @@ int set_cpu_powersave(int powersave)
         sort_cpuid_by_max_frequency(sorted_cpuids, &little_cluster_offset);
     }
 
-    if (little_cluster_offset == 0)
+    if (little_cluster_offset == 0 && powersave != 0)
     {
+        powersave = 0;
         fprintf(stderr, "SMP cpu powersave not supported\n");
-        return -1;
     }
 
     // prepare affinity cpuid

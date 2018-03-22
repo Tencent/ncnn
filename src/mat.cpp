@@ -32,7 +32,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
         #pragma omp parallel for
         for (int q=0; q<c; q++)
         {
-            float* ptr = data + cstep * q;
+            float* ptr = channel(q);//data + cstep * q;
             const float mean = mean_vals[q];
 
 #if __ARM_NEON
@@ -44,13 +44,24 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
 #if __ARM_NEON
 #if __aarch64__
-            float32x4_t _mean = vdupq_n_f32(mean);
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4_t _ptr = vld1q_f32(ptr);
-                _ptr = vsubq_f32(_ptr, _mean);
-                vst1q_f32(ptr, _ptr);
-                ptr += 4;
+            asm volatile(
+                "dup        v1.4s, %w4            \n"
+                "0:                               \n"
+                "prfm       pldl1keep, [%1, #128] \n"
+                "ld1        {v0.4s}, [%1]         \n"
+                "fsub       v0.4s, v0.4s, v1.4s   \n"
+                "subs       %w0, %w0, #1          \n"
+                "st1        {v0.4s}, [%1], #16    \n"
+                "bne        0b                    \n"
+                : "=r"(nn),     // %0
+                  "=r"(ptr)     // %1
+                : "0"(nn),
+                  "1"(ptr),
+                  "r"(mean)     // %4
+                : "cc", "memory", "v0", "v1"
+            );
             }
 #else
             if (nn > 0)
@@ -87,7 +98,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
         #pragma omp parallel for
         for (int q=0; q<c; q++)
         {
-            float* ptr = data + cstep * q;
+            float* ptr = channel(q);//data + cstep * q;
             const float norm = norm_vals[q];
 
 #if __ARM_NEON
@@ -99,13 +110,24 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
 #if __ARM_NEON
 #if __aarch64__
-            float32x4_t _norm = vdupq_n_f32(norm);
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4_t _ptr = vld1q_f32(ptr);
-                _ptr = vmulq_f32(_ptr, _norm);
-                vst1q_f32(ptr, _ptr);
-                ptr += 4;
+            asm volatile(
+                "dup        v1.4s, %w4            \n"
+                "0:                               \n"
+                "prfm       pldl1keep, [%1, #128] \n"
+                "ld1        {v0.4s}, [%1]         \n"
+                "fmul       v0.4s, v0.4s, v1.4s   \n"
+                "subs       %w0, %w0, #1          \n"
+                "st1        {v0.4s}, [%1], #16    \n"
+                "bne        0b                    \n"
+                : "=r"(nn),     // %0
+                  "=r"(ptr)     // %1
+                : "0"(nn),
+                  "1"(ptr),
+                  "r"(norm)     // %4
+                : "cc", "memory", "v0", "v1"
+            );
             }
 #else
             if (nn > 0)
@@ -142,7 +164,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
         #pragma omp parallel for
         for (int q=0; q<c; q++)
         {
-            float* ptr = data + cstep * q;
+            float* ptr = channel(q);//data + cstep * q;
             const float mean = mean_vals[q];
             const float norm = norm_vals[q];
 
@@ -155,15 +177,27 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
 #if __ARM_NEON
 #if __aarch64__
-            float32x4_t _mean = vdupq_n_f32(mean);
-            float32x4_t _norm = vdupq_n_f32(norm);
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4_t _ptr = vld1q_f32(ptr);
-                _ptr = vsubq_f32(_ptr, _mean);
-                _ptr = vmulq_f32(_ptr, _norm);
-                vst1q_f32(ptr, _ptr);
-                ptr += 4;
+            asm volatile(
+                "dup        v1.4s, %w4            \n"
+                "dup        v2.4s, %w5            \n"
+                "0:                               \n"
+                "prfm       pldl1keep, [%1, #128] \n"
+                "ld1        {v0.4s}, [%1]         \n"
+                "fsub       v0.4s, v0.4s, v1.4s   \n"
+                "fmul       v0.4s, v0.4s, v2.4s   \n"
+                "subs       %w0, %w0, #1          \n"
+                "st1        {v0.4s}, [%1], #16    \n"
+                "bne        0b                    \n"
+                : "=r"(nn),     // %0
+                  "=r"(ptr)     // %1
+                : "0"(nn),
+                  "1"(ptr),
+                  "r"(mean),    // %4
+                  "r"(norm)     // %5
+                : "cc", "memory", "v0", "v1", "v2"
+            );  
             }
 #else
             if (nn > 0)
@@ -257,7 +291,7 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     if (m.empty())
         return m;
 
-    float* ptr = m.data;
+    float* ptr = m;//.data;
 
 #if __ARM_NEON && (__ARM_FP & 2)
     int nn = cpu_support_arm_vfpv4() ? size >> 2 : 0;
@@ -272,10 +306,10 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     {
     asm volatile(
         "0:                             \n"
-        "ldr    d0, [%1], #8            \n"
+        "ld1    {v0.4h}, [%1], #8       \n"
         "fcvtl  v1.4s, v0.4h            \n"
         "subs   %w0, %w0, #1            \n"
-        "str    q1, [%2], #16           \n"
+        "st1    {v1.4s}, [%2], #16      \n"
         "bne    0b                      \n"
         : "=r"(nn),     // %0
           "=r"(data),   // %1
@@ -324,8 +358,8 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
     int w = dst.w;
     int h = dst.h;
 
-    const float* ptr = src.data;
-    float* outptr = dst.data;
+    const float* ptr = src;//.data;
+    float* outptr = dst;//.data;
 
     if (type == BORDER_CONSTANT)
     {
@@ -508,8 +542,8 @@ static void copy_cut_border_image(const Mat& src, Mat& dst, int top, int left)
     int w = dst.w;
     int h = dst.h;
 
-    const float* ptr = src.data + src.w * top + left;
-    float* outptr = dst.data;
+    const float* ptr = src.row(top) + left;//.data + src.w * top + left;
+    float* outptr = dst;//.data;
 
     for (int y = 0; y < h; y++)
     {

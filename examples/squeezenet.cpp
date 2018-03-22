@@ -39,11 +39,10 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<float>& cls_scores)
     ncnn::Mat out;
     ex.extract("prob", out);
 
-    cls_scores.resize(out.c);
-    for (int j=0; j<out.c; j++)
+    cls_scores.resize(out.w);
+    for (int j=0; j<out.w; j++)
     {
-        const float* prob = out.data + out.cstep * j;
-        cls_scores[j] = prob[0];
+        cls_scores[j] = out[j];
     }
 
     return 0;

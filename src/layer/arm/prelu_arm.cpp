@@ -24,6 +24,10 @@ DEFINE_LAYER_CREATOR(PReLU_arm)
 
 int PReLU_arm::forward_inplace(Mat& bottom_top_blob) const
 {
+    int dims = bottom_top_blob.dims;
+    if (dims != 3)
+        return PReLU::forward_inplace(bottom_top_blob);
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;

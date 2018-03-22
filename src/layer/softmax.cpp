@@ -84,13 +84,12 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
             return -100;
         max.fill(-FLT_MAX);
 
-        float* maxptr = max;
         for (int i=0; i<h; i++)
         {
             const float* ptr = bottom_top_blob.row(i);
             for (int j=0; j<w; j++)
             {
-                maxptr[j] = std::max(maxptr[j], ptr[j]);
+                max[j] = std::max(max[j], ptr[j]);
             }
         }
 
@@ -99,7 +98,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
             float* ptr = bottom_top_blob.row(i);
             for (int j=0; j<w; j++)
             {
-                ptr[j] = exp(ptr[j] - maxptr[j]);
+                ptr[j] = exp(ptr[j] - max[j]);
             }
         }
 
@@ -109,13 +108,12 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
             return -100;
         sum.fill(0.f);
 
-        float* sumptr = sum;
         for (int i=0; i<h; i++)
         {
             const float* ptr = bottom_top_blob.row(i);
             for (int j=0; j<w; j++)
             {
-                sumptr[j] += ptr[j];
+                sum[j] += ptr[j];
             }
         }
 
@@ -124,7 +122,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
             float* ptr = bottom_top_blob.row(i);
             for (int j=0; j<w; j++)
             {
-                ptr[j] /= sumptr[j];
+                ptr[j] /= sum[j];
             }
         }
 
@@ -141,7 +139,6 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         if (max.empty())
             return -100;
 
-        float* maxptr = max;
         for (int i=0; i<h; i++)
         {
             const float* ptr = bottom_top_blob.row(i);
@@ -152,14 +149,14 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
                 m = std::max(m, ptr[j]);
             }
 
-            maxptr[i] = m;
+            max[i] = m;
         }
 
         for (int i=0; i<h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
 
-            float m = maxptr[i];
+            float m = max[i];
             for (int j=0; j<w; j++)
             {
                 ptr[j] = exp(ptr[j] - m);
@@ -171,7 +168,6 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         if (sum.empty())
             return -100;
 
-        float* sumptr = sum;
         for (int i=0; i<h; i++)
         {
             const float* ptr = bottom_top_blob.row(i);
@@ -182,14 +178,14 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
                 s += ptr[j];
             }
 
-            sumptr[i] = s;
+            sum[i] = s;
         }
 
         for (int i=0; i<h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
 
-            float s = sumptr[i];
+            float s = sum[i];
             for (int j=0; j<w; j++)
             {
                 ptr[j] /= s;
@@ -214,11 +210,10 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
-            float* maxptr = max;
 
             for (int i=0; i<size; i++)
             {
-                maxptr[i] = std::max(maxptr[i], ptr[i]);
+                max[i] = std::max(max[i], ptr[i]);
             }
         }
 
@@ -226,11 +221,10 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
-            float* maxptr = max;
 
             for (int i=0; i<size; i++)
             {
-                ptr[i] = exp(ptr[i] - maxptr[i]);
+                ptr[i] = exp(ptr[i] - max[i]);
             }
         }
 
@@ -242,11 +236,10 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
-            float* sumptr = sum;
 
             for (int i=0; i<size; i++)
             {
-                sumptr[i] += ptr[i];
+                sum[i] += ptr[i];
             }
         }
 
@@ -254,11 +247,10 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
-            float* sumptr = sum;
 
             for (int i=0; i<size; i++)
             {
-                ptr[i] /= sumptr[i];
+                ptr[i] /= sum[i];
             }
         }
 

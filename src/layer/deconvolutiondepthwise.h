@@ -16,22 +16,39 @@
 #define LAYER_DECONVOLUTIONDEPTHWISE_H
 
 #include "layer.h"
-#include "deconvolution.h"
 
 namespace ncnn {
 
-class DeconvolutionDepthWise : public Deconvolution
+class DeconvolutionDepthWise : public Layer
 {
 public:
     DeconvolutionDepthWise();
-    virtual ~DeconvolutionDepthWise();
 
     virtual int load_param(const ParamDict& pd);
+
+    virtual int load_model(const ModelBin& mb);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
 
 public:
+    // param
+    int num_output;
+    int kernel_w;
+    int kernel_h;
+    int dilation_w;
+    int dilation_h;
+    int stride_w;
+    int stride_h;
+    int pad_w;
+    int pad_h;
+    int bias_term;
+
+    int weight_data_size;
     int group;
+
+    // model
+    Mat weight_data;
+    Mat bias_data;
 };
 
 } // namespace ncnn

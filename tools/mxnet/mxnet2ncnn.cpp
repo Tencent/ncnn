@@ -59,6 +59,7 @@ public:
     std::string name;
     std::map<std::string, std::string> attrs;
     std::vector<int> inputs;
+    std::vector<int> subinputs;
     std::vector<int> weights;
 };
 
@@ -226,30 +227,31 @@ static void replace_backslash_doublequote_dollar(char* s)
     }
 }
 
-static std::vector<int> parse_input_list(const char* s)
+static void parse_input_list(const char* s, std::vector<int>& inputs, std::vector<int>& subinputs)
 {
-    std::vector<int> inputs;
+    inputs.clear();
+    subinputs.clear();
 
     if (memcmp(s, "[]", 2) == 0)
-        return inputs;
+        return;
 
     int nscan = 0;
     int nconsumed = 0;
 
     int id;
+    int subid;
 
     int c = 1;// skip leading [
-    nscan = sscanf(s + c, "[%d, %*[^]]]%n", &id, &nconsumed);
-    while (nscan == 1)
+    nscan = sscanf(s + c, "[%d, %d%n", &id, &subid, &nconsumed);
+    while (nscan == 2)
     {
         inputs.push_back(id);
-//         fprintf(stderr, "%d\n", id);
+        subinputs.push_back(subid);
+//         fprintf(stderr, "%d %d\n", id, subid);
 
         c += nconsumed;
-        nscan = sscanf(s + c, "%*[^[][%d, %*[^]]]%n", &id, &nconsumed);
+        nscan = sscanf(s + c, "%*[^[][%d, %d%n", &id, &subid, &nconsumed);
     }
-
-    return inputs;
 }
 
 static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
@@ -352,7 +354,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             nscan = sscanf(line, "      \"inputs\": %255[^\n]", inputs);
             if (nscan == 1)
             {
-                n.inputs = parse_input_list(inputs);
+                parse_input_list(inputs, n.inputs, n.subinputs);
 //                 fprintf(stderr, "inputs = %s\n", inputs);
                 continue;
             }
@@ -377,6 +379,15 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                 continue;
             }
 
+            //      "attrs": {"__init__": "[\"zero\", {}]"},
+            nscan = sscanf(line, "      \"attrs\": {\"%255[^\"]\": \"%255[^\"]\"}", key, value);
+            if (nscan == 2)
+            {
+                n.attrs[key] = value;
+//                 fprintf(stderr, "# %s = %s\n", key, value);
+                continue;
+            }
+
             //      "param": {"p": "0.5"},
             nscan = sscanf(line, "      \"param\": {\"%255[^\"]\": \"%255[^\"]\"}", key, value);
             if (nscan == 2)
@@ -388,6 +399,13 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
 
             //      "attr": {
             if (memcmp(line, "      \"attr\": {", 15) == 0)
+            {
+                in_attr_block = true;
+                continue;
+            }
+
+            //      "attrs": {
+            if (memcmp(line, "      \"attrs\": {", 15) == 0)
             {
                 in_attr_block = true;
                 continue;
@@ -495,7 +513,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             shape32.resize(ndim);
             fread(&shape32[0], 1, ndim * sizeof(uint32_t), fp);
 
-            for (int j=0; j<ndim; j++)
+            for (int j=0; j<(int)ndim; j++)
             {
                 shape[j] = shape32[j];
             }
@@ -548,6 +566,10 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         {
             p.name = std::string(p.name.c_str() + 4);
         }
+        if (memcmp(p.name.c_str(), "aux:", 4) == 0)
+        {
+            p.name = std::string(p.name.c_str() + 4);
+        }
 
 //         fprintf(stderr, "%s read\n", p.name.c_str());
     }
@@ -561,7 +583,7 @@ int main(int argc, char** argv)
 {
     const char* jsonpath = argv[1];
     const char* parampath = argv[2];
-    const char* ncnn_prototxt = argc >= 5 ? argv[3] : "ncnn.proto";
+    const char* ncnn_prototxt = argc >= 5 ? argv[3] : "ncnn.param";
     const char* ncnn_modelbin = argc >= 5 ? argv[4] : "ncnn.bin";
 
     std::vector<MXNetNode> nodes;
@@ -596,6 +618,7 @@ int main(int argc, char** argv)
         n.params = &params;
 
         const std::string& output_name = n.name;
+        int output_size = 1;
 
         if (n.op == "null")
         {
@@ -622,6 +645,10 @@ int main(int argc, char** argv)
             }
             continue;
         }
+        else if (n.op == "SliceChannel")
+        {
+            output_size = n.attr("num_outputs");
+        }
 
         // distinguish weights and inputs
         std::vector<int> weights;
@@ -644,24 +671,42 @@ int main(int argc, char** argv)
         for (int j=0; j<(int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
+            int subinput_index = n.subinputs[j];
 
-            const std::string& input_name = nodes[input_index].name;
+            std::string input_name = nodes[input_index].name;
 //             fprintf(stderr, "input = %s\n", input_name.c_str());
+
+            if (subinput_index != 0)
+            {
+                char subinputsuffix[256];
+                sprintf(subinputsuffix, "_subncnn_%d", subinput_index);
+                input_name = input_name + subinputsuffix;
+            }
+
             blob_names.insert(input_name);
 
-            if (node_reference.find(input_index) == node_reference.end())
+            int input_uid = input_index | (subinput_index << 16);
+            if (node_reference.find(input_uid) == node_reference.end())
             {
-                node_reference[input_index] = 1;
+                node_reference[input_uid] = 1;
             }
             else
             {
-                node_reference[input_index] = node_reference[input_index] + 1;
+                node_reference[input_uid] = node_reference[input_uid] + 1;
             }
         }
 
         // output
 //         fprintf(stderr, "output = %s\n", output_name.c_str());
         blob_names.insert(output_name);
+
+        for (int j=1; j<output_size; j++)
+        {
+            char subinputsuffix[256];
+            sprintf(subinputsuffix, "_%d", j);
+            std::string output_name_j = output_name + subinputsuffix;
+            blob_names.insert(output_name_j);
+        }
     }
 
     // remove node_reference entry with reference equals to one
@@ -689,6 +734,8 @@ int main(int argc, char** argv)
     {
         const MXNetNode& n = nodes[i];
 
+        int output_size = 1;
+
         if (n.op == "null")
         {
             if (n.is_weight())
@@ -697,6 +744,10 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, "%-16s", "Input");
+        }
+        else if (n.op == "abs")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (n.op == "Activation")
         {
@@ -714,9 +765,41 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "TanH");
             }
         }
+        else if (n.op == "arccos")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "arcsin")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "arctan")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (n.op == "BatchNorm")
         {
             fprintf(pp, "%-16s", "BatchNorm");
+        }
+        else if (n.op == "broadcast_add")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "broadcast_div")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "broadcast_mul")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "broadcast_sub")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "ceil")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (n.op == "Concat")
         {
@@ -724,7 +807,25 @@ int main(int argc, char** argv)
         }
         else if (n.op == "Convolution")
         {
-            fprintf(pp, "%-16s", "Convolution");
+            int num_group = n.attr("num_group");
+            if (num_group > 1) {
+                fprintf(pp, "%-16s", "ConvolutionDepthWise");
+            } else {
+                fprintf(pp, "%-16s", "Convolution");
+            }
+        }
+        else if (n.op == "cos")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "Deconvolution")
+        {
+            int num_group = n.attr("num_group");
+            if (num_group > 1) {
+                fprintf(pp, "%-16s", "DeconvolutionDepthWise");
+            } else {
+                fprintf(pp, "%-16s", "Deconvolution");
+            }
         }
         else if (n.op == "Dropout")
         {
@@ -732,15 +833,51 @@ int main(int argc, char** argv)
         }
         else if (n.op == "elemwise_add")
         {
-            fprintf(pp, "%-16s", "Eltwise");
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "elemwise_div")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "elemwise_mul")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "elemwise_sub")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "Embedding")
+        {
+            fprintf(pp, "%-16s", "Embed");
+        }
+        else if (n.op == "exp")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "expand_dims")
+        {
+            fprintf(pp, "%-16s", "ExpandDims");
         }
         else if (n.op == "Flatten")
         {
             fprintf(pp, "%-16s", "Flatten");
         }
+        else if (n.op == "floor")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (n.op == "FullyConnected")
         {
             fprintf(pp, "%-16s", "InnerProduct");
+        }
+        else if (n.op == "InstanceNorm")
+        {
+            fprintf(pp, "%-16s", "InstanceNorm");
+        }
+        else if (n.op == "L2Normalization")
+        {
+            fprintf(pp, "%-16s", "Normalize");
         }
         else if (n.op == "LeakyReLU")
         {
@@ -758,13 +895,86 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "PReLU");
             }
         }
+        else if (n.op == "log")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "max")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (n.op == "maximum")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "mean")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (n.op == "min")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (n.op == "minimum")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "negative")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (n.op == "Pooling")
         {
             fprintf(pp, "%-16s", "Pooling");
         }
+        else if (n.op == "prod")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (n.op == "reciprocal")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "relu")
+        {
+            fprintf(pp, "%-16s", "ReLU");
+        }
+        else if (n.op == "sin")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "SliceChannel")
+        {
+            fprintf(pp, "%-16s", "Slice");
+            output_size = n.attr("num_outputs");
+        }
         else if (n.op == "SoftmaxOutput")
         {
             fprintf(pp, "%-16s", "Softmax");
+        }
+        else if (n.op == "SoftmaxActivation")
+        {
+            fprintf(pp, "%-16s", "Softmax");
+        }
+        else if (n.op == "sqrt")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "square")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "sum")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
+        else if (n.op == "tan")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "tanh")
+        {
+            fprintf(pp, "%-16s", "TanH");
         }
         else
         {
@@ -788,11 +998,12 @@ int main(int argc, char** argv)
             input_size--;
         }
 
-        fprintf(pp, " %-32s %d 1", n.name.c_str(), input_size);
+        fprintf(pp, " %-32s %d %d", n.name.c_str(), input_size, output_size);
 
         for (int j=0; j<(int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
+            int subinput_index = n.subinputs[j];
             if (nodes[input_index].is_weight())
             {
                 continue;
@@ -801,16 +1012,24 @@ int main(int argc, char** argv)
             if (n.op == "SoftmaxOutput")
             {
                 // drop label
-                if (nodes[input_index].op == "null")
+                if (j == 1)
                     continue;
             }
 
             std::string input_name = nodes[input_index].name;
 
-            if (node_reference.find(input_index) != node_reference.end())
+            if (subinput_index != 0)
             {
-                int refidx = node_reference[input_index] - 1;
-                node_reference[input_index] = refidx;
+                char subinputsuffix[256];
+                sprintf(subinputsuffix, "_subncnn_%d", subinput_index);
+                input_name = input_name + subinputsuffix;
+            }
+
+            int input_uid = input_index | (subinput_index << 16);
+            if (node_reference.find(input_uid) != node_reference.end())
+            {
+                int refidx = node_reference[input_uid] - 1;
+                node_reference[input_uid] = refidx;
 
                 char splitsuffix[256];
                 sprintf(splitsuffix, "_splitncnn_%d", refidx);
@@ -821,11 +1040,20 @@ int main(int argc, char** argv)
         }
 
         fprintf(pp, " %s", n.name.c_str());
+        for (int j=1; j<output_size; j++)
+        {
+            fprintf(pp, " %s_subncnn_%d", n.name.c_str(), j);
+        }
 
         if (n.op == "null")
         {
             // dummy input shape
 //             fprintf(pp, " 0 0 0");
+        }
+        else if (n.op == "abs")
+        {
+            int op_type = 0;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "Activation")
         {
@@ -835,9 +1063,27 @@ int main(int argc, char** argv)
 //                 fprintf(pp, " 0=%f", 0.f);
             }
         }
+        else if (n.op == "arccos")
+        {
+            int op_type = 13;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "arcsin")
+        {
+            int op_type = 12;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "arctan")
+        {
+            int op_type = 14;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (n.op == "BatchNorm")
         {
-            float eps = n.attr("eps");
+            float eps = 1e-3;
+            if (n.has_attr("eps")) {
+                eps = n.attr("eps");
+            }
 
             std::vector<float> slope_data = n.weight(0);
             std::vector<float> bias_data = n.weight(1);
@@ -859,9 +1105,34 @@ int main(int argc, char** argv)
             fwrite(var_data.data(), sizeof(float), var_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
         }
+        else if (n.op == "broadcast_add")
+        {
+            int op_type = 0;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "broadcast_div")
+        {
+            int op_type = 3;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "broadcast_mul")
+        {
+            int op_type = 2;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "broadcast_sub")
+        {
+            int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "ceil")
+        {
+            int op_type = 3;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (n.op == "Concat")
         {
-            int dim = n.attr("dim");
+            int dim = n.has_attr("dim") ? n.attr("dim") : 1;
             fprintf(pp, " 0=%d", dim-1);
         }
         else if (n.op == "Convolution")
@@ -872,27 +1143,108 @@ int main(int argc, char** argv)
             std::vector<int> stride = n.attr("stride");
             std::vector<int> pad = n.attr("pad");
             int no_bias = n.attr("no_bias");
-            int num_group = n.attr("num_group");//TODO depthwise
+            int num_group = n.attr("num_group");
 
             std::vector<float> weight_data = n.weight(0);
             std::vector<float> bias_data = n.weight(1);
 
             fprintf(pp, " 0=%d", num_filter);
-            if (!kernel.empty())
+            if (kernel.size() == 1) {
                 fprintf(pp, " 1=%d", kernel[0]);
-            if (!dilate.empty())
+            } else if (kernel.size() == 2) {
+                fprintf(pp, " 1=%d", kernel[1]);
+                fprintf(pp, " 11=%d", kernel[0]);
+            }
+
+            if (dilate.size() == 1) {
                 fprintf(pp, " 2=%d", dilate[0]);
-            if (!stride.empty())
+            } else if (dilate.size() == 2) {
+                fprintf(pp, " 2=%d", dilate[1]);
+                fprintf(pp, " 12=%d", dilate[0]);
+            }
+
+            if (stride.size() == 1) {
                 fprintf(pp, " 3=%d", stride[0]);
-            if (!pad.empty())
+            } else if (stride.size() == 2) {
+                fprintf(pp, " 3=%d", stride[1]);
+                fprintf(pp, " 13=%d", stride[0]);
+            }
+
+            if (pad.size() == 1) {
                 fprintf(pp, " 4=%d", pad[0]);
+            } else if (pad.size() == 2) {
+                fprintf(pp, " 4=%d", pad[1]);
+                fprintf(pp, " 14=%d", pad[0]);
+            }
+
             fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
-            fprintf(pp, " 6=%d", weight_data.size());
+            fprintf(pp, " 6=%d", (int)weight_data.size());
+            if (num_group > 1) {
+                fprintf(pp, " 7=%d", num_group);
+            }
 
             int quantize_tag = 0;
             fwrite(&quantize_tag, sizeof(int), 1, bp);
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+        }
+        else if (n.op == "Deconvolution")
+        {
+            int num_filter = n.attr("num_filter");
+            std::vector<int> kernel = n.attr("kernel");
+            std::vector<int> dilate = n.attr("dilate");
+            std::vector<int> stride = n.attr("stride");
+            std::vector<int> pad = n.attr("pad");
+            int no_bias = n.attr("no_bias");
+            int num_group = n.attr("num_group");
+
+            std::vector<float> weight_data = n.weight(0);
+            std::vector<float> bias_data = n.weight(1);
+
+            fprintf(pp, " 0=%d", num_filter);
+            if (kernel.size() == 1) {
+                fprintf(pp, " 1=%d", kernel[0]);
+            } else if (kernel.size() == 2) {
+                fprintf(pp, " 1=%d", kernel[1]);
+                fprintf(pp, " 11=%d", kernel[0]);
+            }
+
+            if (dilate.size() == 1) {
+                fprintf(pp, " 2=%d", dilate[0]);
+            } else if (dilate.size() == 2) {
+                fprintf(pp, " 2=%d", dilate[1]);
+                fprintf(pp, " 12=%d", dilate[0]);
+            }
+
+            if (stride.size() == 1) {
+                fprintf(pp, " 3=%d", stride[0]);
+            } else if (stride.size() == 2) {
+                fprintf(pp, " 3=%d", stride[1]);
+                fprintf(pp, " 13=%d", stride[0]);
+            }
+
+            if (pad.size() == 1) {
+                fprintf(pp, " 4=%d", pad[0]);
+            } else if (pad.size() == 2) {
+                fprintf(pp, " 4=%d", pad[1]);
+                fprintf(pp, " 14=%d", pad[0]);
+            }
+
+            fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
+            fprintf(pp, " 6=%d", (int)weight_data.size());
+            if (num_group > 1) {
+                fprintf(pp, " 7=%d", num_group);
+            }
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+            fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
+            fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+        }
+        else if (n.op == "cos")
+        {
+            int op_type = 10;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "Dropout")
         {
@@ -901,17 +1253,76 @@ int main(int argc, char** argv)
         }
         else if (n.op == "elemwise_add")
         {
+            int op_type = 0;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "elemwise_div")
+        {
+            int op_type = 3;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "elemwise_mul")
+        {
+            int op_type = 2;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "elemwise_sub")
+        {
             int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (n.op == "Embedding")
+        {
+            int input_dim = n.attr("input_dim");
+            int output_dim = n.attr("output_dim");
+
+            std::vector<float> weight_data = n.weight(0);
+
+            fprintf(pp, " 0=%d", output_dim);
+            fprintf(pp, " 1=%d", input_dim);
+            fprintf(pp, " 3=%d", (int)weight_data.size());
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+            fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
+        }
+        else if (n.op == "exp")
+        {
+            int op_type = 7;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "expand_dims")
+        {
+            int axis = n.attr("axis");
+
+            int expand_w = 0;
+            int expand_h = 0;
+            int expand_c = 0;
+
+            if (axis == 0)
+                expand_c = 1;
+            if (axis == 1)
+                expand_h = 1;
+            if (axis == 2)
+                expand_w = 1;
+
+            fprintf(pp, " 0=%d", expand_w);
+            fprintf(pp, " 1=%d", expand_h);
+            fprintf(pp, " 2=%d", expand_c);
+        }
         else if (n.op == "Flatten")
         {
+        }
+        else if (n.op == "floor")
+        {
+            int op_type = 2;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "FullyConnected")
         {
             int num_hidden = n.attr("num_hidden");
             int no_bias = n.attr("no_bias");
-            int flatten = n.attr("flatten");
+//             int flatten = n.attr("flatten");
 
             // TODO flatten
 
@@ -920,30 +1331,117 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", num_hidden);
             fprintf(pp, " 1=%d", no_bias == 1 ? 0 : 1);
-            fprintf(pp, " 2=%d", weight_data.size());
+            fprintf(pp, " 2=%d", (int)weight_data.size());
 
             int quantize_tag = 0;
             fwrite(&quantize_tag, sizeof(int), 1, bp);
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
         }
+        else if (n.op == "InstanceNorm")
+        {
+            float eps = n.has_attr("eps") ? n.attr("eps") : 0.001f;
+
+            std::vector<float> gamma_data = n.weight(0);
+            std::vector<float> beta_data = n.weight(1);
+
+            fprintf(pp, " 0=%d", (int)gamma_data.size());
+            fprintf(pp, " 1=%f", eps);
+
+            fwrite(gamma_data.data(), sizeof(float), gamma_data.size(), bp);
+            fwrite(beta_data.data(), sizeof(float), beta_data.size(), bp);
+        }
+        else if (n.op == "L2Normalization")
+        {
+            std::string mode = n.attr("mode");
+            float eps = n.has_attr("eps") ? n.attr("eps") : 1e-10;
+
+            int across_spatial = 0;
+            int across_channel = 1;
+            int channel_shared = 1;
+            int scale_data_size = 1;
+
+            if (mode == "instance")
+            {
+                across_spatial = 1;
+                across_channel = 1;
+            }
+            else if (mode == "channel")
+            {
+                across_spatial = 0;
+                across_channel = 1;
+            }
+            else if (mode == "spatial")
+            {
+                across_spatial = 1;
+                across_channel = 0;
+            }
+
+            fprintf(pp, " 0=%d", across_spatial);
+            fprintf(pp, " 4=%d", across_channel);
+            fprintf(pp, " 1=%d", channel_shared);
+            fprintf(pp, " 2=%f", eps);
+            fprintf(pp, " 3=%d", scale_data_size);
+
+            const float scale_data[1] = { 1.f };
+            fwrite(scale_data, sizeof(float), 1, bp);
+        }
         else if (n.op == "LeakyReLU")
         {
             std::string type = n.attr("act_type");
             if (type == "elu")
             {
+                float slope = n.has_attr("slope") ? n.attr("slope") : 0.25f;
+                fprintf(pp, " 0=%f", slope);
             }
             else if (type == "leaky")
             {
+                float slope = n.has_attr("slope") ? n.attr("slope") : 0.25f;
+                fprintf(pp, " 0=%f", slope);
             }
             else if (type == "prelu")
             {
                 std::vector<float> weight_data = n.weight(0);
 
-                fprintf(pp, " 0=%d", weight_data.size());
+                fprintf(pp, " 0=%d", (int)weight_data.size());
 
                 fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             }
+        }
+        else if (n.op == "log")
+        {
+            int op_type = 8;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "max")
+        {
+            int operation = 4;
+            fprintf(pp, " 0=%d", operation);
+        }
+        else if (n.op == "maximum")
+        {
+            int op_type = 4;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "mean")
+        {
+            int operation = 3;
+            fprintf(pp, " 0=%d", operation);
+        }
+        else if (n.op == "min")
+        {
+            int operation = 5;
+            fprintf(pp, " 0=%d", operation);
+        }
+        else if (n.op == "minimum")
+        {
+            int op_type = 5;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "negative")
+        {
+            int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "Pooling")
         {
@@ -964,9 +1462,14 @@ int main(int argc, char** argv)
                 pool = 1;
             }
 
+            int pad_mode = 1;
             if (pooling_convention == "valid")
             {
-                // TODO valid and full mode
+                pad_mode = 1;
+            }
+            else if (pooling_convention == "full")
+            {
+                pad_mode = 0;
             }
 
             fprintf(pp, " 0=%d", pool);
@@ -977,8 +1480,61 @@ int main(int argc, char** argv)
             if (!pad.empty())
                 fprintf(pp, " 3=%d", pad[0]);
             fprintf(pp, " 4=%d", global_pool);
+            fprintf(pp, " 5=%d", pad_mode);
+        }
+        else if (n.op == "prod")
+        {
+            int operation = 6;
+            fprintf(pp, " 0=%d", operation);
+        }
+        else if (n.op == "reciprocal")
+        {
+            int op_type = 15;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "relu")
+        {
+        }
+        else if (n.op == "sin")
+        {
+            int op_type = 9;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "SliceChannel")
+        {
+            int num_outputs = n.attr("num_outputs");
+            int squeeze_axis = n.attr("squeeze_axis");// TODO
+
+            fprintf(pp, " -23300=%d", num_outputs);
+            for (int j=0; j<num_outputs; j++)
+            {
+                fprintf(pp, ",-233");
+            }
         }
         else if (n.op == "SoftmaxOutput")
+        {
+        }
+        else if (n.op == "sqrt")
+        {
+            int op_type = 5;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "square")
+        {
+            int op_type = 4;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "sum")
+        {
+            int operation = 0;
+            fprintf(pp, " 0=%d", operation);
+        }
+        else if (n.op == "tan")
+        {
+            int op_type = 11;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "tanh")
         {
         }
         else
@@ -994,25 +1550,43 @@ int main(int argc, char** argv)
 
         fprintf(pp, "\n");
 
-        if (node_reference.find(i) != node_reference.end())
+        for (int j=0; j<output_size; j++)
         {
-            int refcount = node_reference[i];
-            if (refcount > 1)
+            int input_uid = i | (j << 16);
+            if (node_reference.find(input_uid) != node_reference.end())
             {
-                std::string output_name = n.name;
-
-                char splitname[256];
-                sprintf(splitname, "splitncnn_%d", internal_split);
-                fprintf(pp, "%-16s %-32s %d %d", "Split", splitname, 1, refcount);
-                fprintf(pp, " %s", output_name.c_str());
-
-                for (int j=0; j<refcount; j++)
+                int refcount = node_reference[input_uid];
+                if (refcount > 1)
                 {
-                    fprintf(pp, " %s_splitncnn_%d", output_name.c_str(), j);
-                }
-                fprintf(pp, "\n");
+                    std::string output_name = n.name;
 
-                internal_split++;
+                    char splitname[256];
+                    sprintf(splitname, "splitncnn_%d", internal_split);
+                    fprintf(pp, "%-16s %-32s %d %d", "Split", splitname, 1, refcount);
+                    if (j == 0)
+                    {
+                        fprintf(pp, " %s", output_name.c_str());
+                    }
+                    else
+                    {
+                        fprintf(pp, " %s_subncnn_%d", output_name.c_str(), j);
+                    }
+
+                    for (int k=0; k<refcount; k++)
+                    {
+                        if (j == 0)
+                        {
+                            fprintf(pp, " %s_splitncnn_%d", output_name.c_str(), k);
+                        }
+                        else
+                        {
+                            fprintf(pp, " %s_subncnn_%d_splitncnn_%d", output_name.c_str(), j, k);
+                        }
+                    }
+                    fprintf(pp, "\n");
+
+                    internal_split++;
+                }
             }
         }
     }

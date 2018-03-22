@@ -143,11 +143,10 @@ JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv
         ncnn::Mat out;
         ex.extract(squeezenet_v1_1_param_id::BLOB_prob, out);
 
-        cls_scores.resize(out.c);
-        for (int j=0; j<out.c; j++)
+        cls_scores.resize(out.w);
+        for (int j=0; j<out.w; j++)
         {
-            const float* prob = out.data + out.cstep * j;
-            cls_scores[j] = prob[0];
+            cls_scores[j] = out[j];
         }
     }
 

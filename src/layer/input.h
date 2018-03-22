@@ -29,7 +29,9 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob) const;
 
 public:
-    int size[3];
+    int w;
+    int h;
+    int c;
 };
 
 } // namespace ncnn

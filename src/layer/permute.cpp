@@ -36,7 +36,6 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob) const
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    int size = w * h;
 
     // order_type
     // 0 = w h c
