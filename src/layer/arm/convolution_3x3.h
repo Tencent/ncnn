@@ -1174,8 +1174,360 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
             }
         }
     }
+
+    // optimized layout for winograd4
+    // interleave weights
+    int nn_outch = outch >> 2;
+    int remain_outch_start = nn_outch << 2;
+
+    Mat kernel_tm2(8*8 * inch * 4, 1, nn_outch + (outch % 4 + 3) / 4);
+
+    #pragma omp parallel for
+    for (int pp=0; pp<nn_outch; pp++)
+    {
+        int p = pp * 4;
+
+        float* ktm2 = kernel_tm2.channel(pp);
+
+        const Mat kernel0_tm = kernel_tm.channel(p);
+        const Mat kernel1_tm = kernel_tm.channel(p+1);
+        const Mat kernel2_tm = kernel_tm.channel(p+2);
+        const Mat kernel3_tm = kernel_tm.channel(p+3);
+
+        int q=0;
+
+#if __ARM_NEON && __aarch64__
+        for (; q+3<inch; q+=4)
+        {
+            const float* k00 = kernel0_tm.row(q);
+            const float* k01 = kernel0_tm.row(q+1);
+            const float* k02 = kernel0_tm.row(q+2);
+            const float* k03 = kernel0_tm.row(q+3);
+            const float* k10 = kernel1_tm.row(q);
+            const float* k11 = kernel1_tm.row(q+1);
+            const float* k12 = kernel1_tm.row(q+2);
+            const float* k13 = kernel1_tm.row(q+3);
+            const float* k20 = kernel2_tm.row(q);
+            const float* k21 = kernel2_tm.row(q+1);
+            const float* k22 = kernel2_tm.row(q+2);
+            const float* k23 = kernel2_tm.row(q+3);
+            const float* k30 = kernel3_tm.row(q);
+            const float* k31 = kernel3_tm.row(q+1);
+            const float* k32 = kernel3_tm.row(q+2);
+            const float* k33 = kernel3_tm.row(q+3);
+
+            for (int r=0; r<16; r++)
+            {
+            asm volatile(
+                "ld1    {v0.4s}, [%1], #16  \n"
+                "ld1    {v1.4s}, [%2], #16  \n"
+                "ld1    {v2.4s}, [%3], #16  \n"
+                "ld1    {v3.4s}, [%4], #16  \n"
+                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64  \n"
+
+                "ld1    {v0.4s}, [%5], #16  \n"
+                "ld1    {v1.4s}, [%6], #16  \n"
+                "ld1    {v2.4s}, [%7], #16  \n"
+                "ld1    {v3.4s}, [%8], #16  \n"
+                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64  \n"
+
+                "ld1    {v0.4s}, [%9], #16  \n"
+                "ld1    {v1.4s}, [%10], #16 \n"
+                "ld1    {v2.4s}, [%11], #16 \n"
+                "ld1    {v3.4s}, [%12], #16 \n"
+                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64  \n"
+
+                "ld1    {v0.4s}, [%13], #16 \n"
+                "ld1    {v1.4s}, [%14], #16 \n"
+                "ld1    {v2.4s}, [%15], #16 \n"
+                "ld1    {v3.4s}, [%16], #16 \n"
+                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64  \n"
+
+                : "=r"(ktm2),   // %0
+                  "=r"(k00),    // %1
+                  "=r"(k01),    // %2
+                  "=r"(k02),    // %3
+                  "=r"(k03),    // %4
+                  "=r"(k10),    // %5
+                  "=r"(k11),    // %6
+                  "=r"(k12),    // %7
+                  "=r"(k13),    // %8
+                  "=r"(k20),    // %9
+                  "=r"(k21),    // %10
+                  "=r"(k22),    // %11
+                  "=r"(k23),    // %12
+                  "=r"(k30),    // %13
+                  "=r"(k31),    // %14
+                  "=r"(k32),    // %15
+                  "=r"(k33)     // %16
+                : "0"(ktm2),
+                  "1"(k00),
+                  "2"(k01),
+                  "3"(k02),
+                  "4"(k03),
+                  "5"(k10),
+                  "6"(k11),
+                  "7"(k12),
+                  "8"(k13),
+                  "9"(k20),
+                  "10"(k21),
+                  "11"(k22),
+                  "12"(k23),
+                  "13"(k30),
+                  "14"(k31),
+                  "15"(k32),
+                  "16"(k33)
+                : "cc", "memory", "v0", "v1", "v2", "v3"
+            );
+            }
+        }
+#endif // __ARM_NEON && __aarch64__
+
+        for (; q+1<inch; q+=2)
+        {
+            const float* k00 = kernel0_tm.row(q);
+            const float* k01 = kernel0_tm.row(q+1);
+            const float* k10 = kernel1_tm.row(q);
+            const float* k11 = kernel1_tm.row(q+1);
+            const float* k20 = kernel2_tm.row(q);
+            const float* k21 = kernel2_tm.row(q+1);
+            const float* k30 = kernel3_tm.row(q);
+            const float* k31 = kernel3_tm.row(q+1);
+
+            for (int r=0; r<16; r++)
+            {
+#if __ARM_NEON
+#if __aarch64__
+            asm volatile(
+                "ld1    {v0.4s}, [%1], #16  \n"
+                "ld1    {v1.4s}, [%2], #16  \n"
+                "st1    {v0.4s, v1.4s}, [%0], #32  \n"
+
+                "ld1    {v0.4s}, [%3], #16  \n"
+                "ld1    {v1.4s}, [%4], #16  \n"
+                "st1    {v0.4s, v1.4s}, [%0], #32  \n"
+
+                "ld1    {v0.4s}, [%5], #16  \n"
+                "ld1    {v1.4s}, [%6], #16  \n"
+                "st1    {v0.4s, v1.4s}, [%0], #32  \n"
+
+                "ld1    {v0.4s}, [%7], #16  \n"
+                "ld1    {v1.4s}, [%8], #16  \n"
+                "st1    {v0.4s, v1.4s}, [%0], #32  \n"
+
+                : "=r"(ktm2),   // %0
+                  "=r"(k00),    // %1
+                  "=r"(k01),    // %2
+                  "=r"(k10),    // %3
+                  "=r"(k11),    // %4
+                  "=r"(k20),    // %5
+                  "=r"(k21),    // %6
+                  "=r"(k30),    // %7
+                  "=r"(k31)     // %8
+                : "0"(ktm2),
+                  "1"(k00),
+                  "2"(k01),
+                  "3"(k10),
+                  "4"(k11),
+                  "5"(k20),
+                  "6"(k21),
+                  "7"(k30),
+                  "8"(k31)
+                : "cc", "memory", "v0", "v1"
+            );
+#else
+            asm volatile(
+                "vld1.f32   {d0-d1}, [%1 :128]! \n"
+                "vld1.f32   {d2-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%0 :128]! \n"
+
+                "vld1.f32   {d0-d1}, [%3 :128]! \n"
+                "vld1.f32   {d2-d3}, [%4 :128]! \n"
+                "vst1.f32   {d0-d3}, [%0 :128]! \n"
+
+                "vld1.f32   {d0-d1}, [%5 :128]! \n"
+                "vld1.f32   {d2-d3}, [%6 :128]! \n"
+                "vst1.f32   {d0-d3}, [%0 :128]! \n"
+
+                "vld1.f32   {d0-d1}, [%7 :128]! \n"
+                "vld1.f32   {d2-d3}, [%8 :128]! \n"
+                "vst1.f32   {d0-d3}, [%0 :128]! \n"
+
+                : "=r"(ktm2),   // %0
+                  "=r"(k00),    // %1
+                  "=r"(k01),    // %2
+                  "=r"(k10),    // %3
+                  "=r"(k11),    // %4
+                  "=r"(k20),    // %5
+                  "=r"(k21),    // %6
+                  "=r"(k30),    // %7
+                  "=r"(k31)     // %8
+                : "0"(ktm2),
+                  "1"(k00),
+                  "2"(k01),
+                  "3"(k10),
+                  "4"(k11),
+                  "5"(k20),
+                  "6"(k21),
+                  "7"(k30),
+                  "8"(k31)
+                : "cc", "memory", "q0", "q1"
+            );
+#endif // __aarch64__
+#else
+                for (int m=0; m<4; m++)
+                {
+                    ktm2[0 +m] = k00[m];
+                    ktm2[4 +m] = k01[m];
+                    ktm2[8 +m] = k10[m];
+                    ktm2[12+m] = k11[m];
+                    ktm2[16+m] = k20[m];
+                    ktm2[20+m] = k21[m];
+                    ktm2[24+m] = k30[m];
+                    ktm2[28+m] = k31[m];
+                }
+
+                k00 += 4;
+                k01 += 4;
+                k10 += 4;
+                k11 += 4;
+                k20 += 4;
+                k21 += 4;
+                k30 += 4;
+                k31 += 4;
+                ktm2 += 32;
+#endif // __ARM_NEON
+            }
+        }
+
+        for (; q<inch; q++)
+        {
+            const float* k00 = kernel0_tm.row(q);
+            const float* k10 = kernel1_tm.row(q);
+            const float* k20 = kernel2_tm.row(q);
+            const float* k30 = kernel3_tm.row(q);
+
+            for (int r=0; r<16; r++)
+            {
+#if __ARM_NEON
+#if __aarch64__
+            asm volatile(
+                "ld1    {v0.4s}, [%1], #16  \n"
+                "ld1    {v1.4s}, [%2], #16  \n"
+                "st1    {v0.4s, v1.4s}, [%0], #32  \n"
+
+                "ld1    {v0.4s}, [%3], #16  \n"
+                "ld1    {v1.4s}, [%4], #16  \n"
+                "st1    {v0.4s, v1.4s}, [%0], #32  \n"
+
+                : "=r"(ktm2),   // %0
+                  "=r"(k00),    // %1
+                  "=r"(k10),    // %2
+                  "=r"(k20),    // %3
+                  "=r"(k30)     // %4
+                : "0"(ktm2),
+                  "1"(k00),
+                  "2"(k10),
+                  "3"(k20),
+                  "4"(k30)
+                : "cc", "memory", "v0", "v1"
+            );
+#else
+            asm volatile(
+                "vld1.f32   {d0-d1}, [%1 :128]! \n"
+                "vld1.f32   {d2-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%0 :128]! \n"
+
+                "vld1.f32   {d0-d1}, [%3 :128]! \n"
+                "vld1.f32   {d2-d3}, [%4 :128]! \n"
+                "vst1.f32   {d0-d3}, [%0 :128]! \n"
+
+                : "=r"(ktm2),   // %0
+                  "=r"(k00),    // %1
+                  "=r"(k10),    // %2
+                  "=r"(k20),    // %3
+                  "=r"(k30)     // %4
+                : "0"(ktm2),
+                  "1"(k00),
+                  "2"(k10),
+                  "3"(k20),
+                  "4"(k30)
+                : "cc", "memory", "q0", "q1"
+            );
+#endif // __aarch64__
+#else
+                for (int m=0; m<4; m++)
+                {
+                    ktm2[0 +m] = k00[m];
+                    ktm2[4 +m] = k10[m];
+                    ktm2[8 +m] = k20[m];
+                    ktm2[12+m] = k30[m];
+                }
+
+                k00 += 4;
+                k10 += 4;
+                k20 += 4;
+                k30 += 4;
+                ktm2 += 16;
+#endif // __ARM_NEON
+            }
+        }
+    }
+
+    #pragma omp parallel for
+    for (int p = remain_outch_start; p<outch; p++)
+    {
+        float* ktm2 = (float*)kernel_tm2.channel(nn_outch) + 8*8 * inch * (p-remain_outch_start);
+
+        const Mat kernel0_tm = kernel_tm.channel(p);
+
+        int q = 0;
+
+        for (; q<inch; q++)
+        {
+            const float* k00 = kernel0_tm.row(q);
+
+            for (int r=0; r<16; r++)
+            {
+#if __ARM_NEON
+#if __aarch64__
+            asm volatile(
+                "ld1    {v0.4s}, [%1], #16  \n"
+                "st1    {v0.4s}, [%0], #16  \n"
+                : "=r"(ktm2),   // %0
+                  "=r"(k00)     // %1
+                : "0"(ktm2),
+                  "1"(k00)
+                : "cc", "memory", "v0"
+            );
+#else
+            asm volatile(
+                "vld1.f32   {d0-d1}, [%1 :128]! \n"
+                "vst1.f32   {d0-d1}, [%0 :128]! \n"
+                : "=r"(ktm2),   // %0
+                  "=r"(k00)     // %1
+                : "0"(ktm2),
+                  "1"(k00)
+                : "cc", "memory", "q0"
+            );
+#endif // __aarch64__
+#else
+                for (int m=0; m<4; m++)
+                {
+                    ktm2[m] = k00[m];
+                }
+
+                k00 += 4;
+                ktm2 += 4;
+#endif // __ARM_NEON
+            }
+        }
+    }
+
+    kernel_tm = kernel_tm2;
 }
 
+#if 0//TODO remove old code sometime later
 static void conv3x3s1_winograd64_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
 {
     int w = bottom_blob.w;
@@ -4901,6 +5253,7 @@ static void conv3x3s1_winograd64_neon3(const Mat& bottom_blob, Mat& top_blob, co
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w);
 }
+#endif
 
 static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
 {
@@ -5078,10 +5431,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
             Mat out1_tm = top_blob_tm.channel(p+1);
             Mat out2_tm = top_blob_tm.channel(p+2);
             Mat out3_tm = top_blob_tm.channel(p+3);
-            const Mat kernel0_tm = kernel_tm.channel(p);
-            const Mat kernel1_tm = kernel_tm.channel(p+1);
-            const Mat kernel2_tm = kernel_tm.channel(p+2);
-            const Mat kernel3_tm = kernel_tm.channel(p+3);
+
+            const float* ktm = kernel_tm.channel(pp);
 
             out0_tm.fill(0.f);
             out1_tm.fill(0.f);
@@ -5098,23 +5449,6 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                 const float* r2 = bottom_blob_tm.channel(q+2);
                 const float* r3 = bottom_blob_tm.channel(q+3);
 
-                const float* k00 = kernel0_tm.row(q);
-                const float* k01 = kernel0_tm.row(q+1);
-                const float* k02 = kernel0_tm.row(q+2);
-                const float* k03 = kernel0_tm.row(q+3);
-                const float* k10 = kernel1_tm.row(q);
-                const float* k11 = kernel1_tm.row(q+1);
-                const float* k12 = kernel1_tm.row(q+2);
-                const float* k13 = kernel1_tm.row(q+3);
-                const float* k20 = kernel2_tm.row(q);
-                const float* k21 = kernel2_tm.row(q+1);
-                const float* k22 = kernel2_tm.row(q+2);
-                const float* k23 = kernel2_tm.row(q+3);
-                const float* k30 = kernel3_tm.row(q);
-                const float* k31 = kernel3_tm.row(q+1);
-                const float* k32 = kernel3_tm.row(q+2);
-                const float* k33 = kernel3_tm.row(q+3);
-
                 float* output0_tm = out0_tm;
                 float* output1_tm = out1_tm;
                 float* output2_tm = out2_tm;
@@ -5122,22 +5456,50 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 
                 for (int r=0; r<16; r++)
                 {
-                float32x4_t _k00 = vld1q_f32(k00);
-                float32x4_t _k01 = vld1q_f32(k01);
-                float32x4_t _k02 = vld1q_f32(k02);
-                float32x4_t _k03 = vld1q_f32(k03);
-                float32x4_t _k10 = vld1q_f32(k10);
-                float32x4_t _k11 = vld1q_f32(k11);
-                float32x4_t _k12 = vld1q_f32(k12);
-                float32x4_t _k13 = vld1q_f32(k13);
-                float32x4_t _k20 = vld1q_f32(k20);
-                float32x4_t _k21 = vld1q_f32(k21);
-                float32x4_t _k22 = vld1q_f32(k22);
-                float32x4_t _k23 = vld1q_f32(k23);
-                float32x4_t _k30 = vld1q_f32(k30);
-                float32x4_t _k31 = vld1q_f32(k31);
-                float32x4_t _k32 = vld1q_f32(k32);
-                float32x4_t _k33 = vld1q_f32(k33);
+                float32x4_t _k00;
+                float32x4_t _k01;
+                float32x4_t _k02;
+                float32x4_t _k03;
+                float32x4_t _k10;
+                float32x4_t _k11;
+                float32x4_t _k12;
+                float32x4_t _k13;
+                float32x4_t _k20;
+                float32x4_t _k21;
+                float32x4_t _k22;
+                float32x4_t _k23;
+                float32x4_t _k30;
+                float32x4_t _k31;
+                float32x4_t _k32;
+                float32x4_t _k33;
+                asm volatile(
+                    "prfm  pldl1keep, [%16, #512]  \n"
+                    "ld1   {%0.4s, %1.4s, %2.4s, %3.4s}, [%16], #64    \n"
+                    "prfm  pldl1keep, [%16, #512]  \n"
+                    "ld1   {%4.4s, %5.4s, %6.4s, %7.4s}, [%16], #64    \n"
+                    "prfm  pldl1keep, [%16, #512]  \n"
+                    "ld1   {%8.4s, %9.4s, %10.4s, %11.4s}, [%16], #64  \n"
+                    "prfm  pldl1keep, [%16, #512]  \n"
+                    "ld1   {%12.4s, %13.4s, %14.4s, %15.4s}, [%16], #64\n"
+                    : "=w"(_k00),
+                      "=w"(_k01),
+                      "=w"(_k02),
+                      "=w"(_k03),
+                      "=w"(_k10),
+                      "=w"(_k11),
+                      "=w"(_k12),
+                      "=w"(_k13),
+                      "=w"(_k20),
+                      "=w"(_k21),
+                      "=w"(_k22),
+                      "=w"(_k23),
+                      "=w"(_k30),
+                      "=w"(_k31),
+                      "=w"(_k32),
+                      "=w"(_k33)
+                    : "r"(ktm)
+                    : "cc", "memory"
+                );
 
                 // tile
                 int nn = tiles >> 2;
@@ -5769,22 +6131,6 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 #endif
                 }
 
-                k00 += 4;
-                k01 += 4;
-                k02 += 4;
-                k03 += 4;
-                k10 += 4;
-                k11 += 4;
-                k12 += 4;
-                k13 += 4;
-                k20 += 4;
-                k21 += 4;
-                k22 += 4;
-                k23 += 4;
-                k30 += 4;
-                k31 += 4;
-                k32 += 4;
-                k33 += 4;
                 }
             }
 #endif // __ARM_NEON && __aarch64__
@@ -5793,15 +6139,6 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
             {
                 const float* r0 = bottom_blob_tm.channel(q);
                 const float* r1 = bottom_blob_tm.channel(q+1);
-
-                const float* k00 = kernel0_tm.row(q);
-                const float* k01 = kernel0_tm.row(q+1);
-                const float* k10 = kernel1_tm.row(q);
-                const float* k11 = kernel1_tm.row(q+1);
-                const float* k20 = kernel2_tm.row(q);
-                const float* k21 = kernel2_tm.row(q+1);
-                const float* k30 = kernel3_tm.row(q);
-                const float* k31 = kernel3_tm.row(q+1);
 
                 float* output0_tm = out0_tm;
                 float* output1_tm = out1_tm;
@@ -5812,15 +6149,6 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                 {
 #if __ARM_NEON
 #if __aarch64__
-                float32x4_t _k00 = vld1q_f32(k00);
-                float32x4_t _k01 = vld1q_f32(k01);
-                float32x4_t _k10 = vld1q_f32(k10);
-                float32x4_t _k11 = vld1q_f32(k11);
-                float32x4_t _k20 = vld1q_f32(k20);
-                float32x4_t _k21 = vld1q_f32(k21);
-                float32x4_t _k30 = vld1q_f32(k30);
-                float32x4_t _k31 = vld1q_f32(k31);
-#else
                 float32x4_t _k00;
                 float32x4_t _k01;
                 float32x4_t _k10;
@@ -5829,51 +6157,37 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                 float32x4_t _k21;
                 float32x4_t _k30;
                 float32x4_t _k31;
-
                 asm volatile(
-                    "pld        [%0, #128]              \n"
-                    "vld1.f32   {%e8-%f8}, [%0 :128]!   \n"
-                    "pld        [%1, #128]              \n"
-                    "vld1.f32   {%e9-%f9}, [%1 :128]!   \n"
-                    "pld        [%2, #128]              \n"
-                    "vld1.f32   {%e10-%f10}, [%2 :128]! \n"
-                    "pld        [%3, #128]              \n"
-                    "vld1.f32   {%e11-%f11}, [%3 :128]! \n"
-                    "pld        [%4, #128]              \n"
-                    "vld1.f32   {%e12-%f12}, [%4 :128]! \n"
-                    "pld        [%5, #128]              \n"
-                    "vld1.f32   {%e13-%f13}, [%5 :128]! \n"
-                    "pld        [%6, #128]              \n"
-                    "vld1.f32   {%e14-%f14}, [%6 :128]! \n"
-                    "pld        [%7, #128]              \n"
-                    "vld1.f32   {%e15-%f15}, [%7 :128]! \n"
-                    : "=r"(k00),    // %0
-                      "=r"(k01),    // %1
-                      "=r"(k10),    // %2
-                      "=r"(k11),    // %3
-                      "=r"(k20),    // %4
-                      "=r"(k21),    // %5
-                      "=r"(k30),    // %6
-                      "=r"(k31),    // %7
-                      "=w"(_k00),   // %8
-                      "=w"(_k01),   // %9
-                      "=w"(_k10),   // %10
-                      "=w"(_k11),   // %11
-                      "=w"(_k20),   // %12
-                      "=w"(_k21),   // %13
-                      "=w"(_k30),   // %14
-                      "=w"(_k31)    // %15
-                    : "0"(k00),
-                      "1"(k01),
-                      "2"(k10),
-                      "3"(k11),
-                      "4"(k20),
-                      "5"(k21),
-                      "6"(k30),
-                      "7"(k31)
+                    "prfm   pldl1keep, [%8, #256]   \n"
+                    "ld1    {%0.4s, %1.4s}, [%8], #32   \n"
+                    "prfm   pldl1keep, [%8, #256]   \n"
+                    "ld1    {%2.4s, %3.4s}, [%8], #32   \n"
+                    "prfm   pldl1keep, [%8, #256]   \n"
+                    "ld1    {%4.4s, %5.4s}, [%8], #32   \n"
+                    "prfm   pldl1keep, [%8, #256]   \n"
+                    "ld1    {%6.4s, %7.4s}, [%8], #32   \n"
+                    : "=w"(_k00),
+                      "=w"(_k01),
+                      "=w"(_k10),
+                      "=w"(_k11),
+                      "=w"(_k20),
+                      "=w"(_k21),
+                      "=w"(_k30),
+                      "=w"(_k31)
+                    : "r"(ktm)
                     : "cc", "memory"
                 );
-#endif
+#else
+                asm volatile("pld   [%0, #1024]  \n" : : "r"(ktm) : );
+                float32x4_t _k00 = vld1q_f32(ktm); ktm += 4;
+                float32x4_t _k01 = vld1q_f32(ktm); ktm += 4;
+                float32x4_t _k10 = vld1q_f32(ktm); ktm += 4;
+                float32x4_t _k11 = vld1q_f32(ktm); ktm += 4;
+                float32x4_t _k20 = vld1q_f32(ktm); ktm += 4;
+                float32x4_t _k21 = vld1q_f32(ktm); ktm += 4;
+                float32x4_t _k30 = vld1q_f32(ktm); ktm += 4;
+                float32x4_t _k31 = vld1q_f32(ktm); ktm += 4;
+#endif // __aarch64__
 #endif // __ARM_NEON
 
                 // tile
@@ -6409,14 +6723,14 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 #else
                     for (int m=0; m<4; m++)
                     {
-                        output0_tm[m] += r0[m] * k00[m];
-                        output0_tm[m] += r1[m] * k01[m];
-                        output1_tm[m] += r0[m] * k10[m];
-                        output1_tm[m] += r1[m] * k11[m];
-                        output2_tm[m] += r0[m] * k20[m];
-                        output2_tm[m] += r1[m] * k21[m];
-                        output3_tm[m] += r0[m] * k30[m];
-                        output3_tm[m] += r1[m] * k31[m];
+                        output0_tm[m] += r0[m] * ktm[0 +m];
+                        output0_tm[m] += r1[m] * ktm[4 +m];
+                        output1_tm[m] += r0[m] * ktm[8 +m];
+                        output1_tm[m] += r1[m] * ktm[12+m];
+                        output2_tm[m] += r0[m] * ktm[16+m];
+                        output2_tm[m] += r1[m] * ktm[20+m];
+                        output3_tm[m] += r0[m] * ktm[24+m];
+                        output3_tm[m] += r1[m] * ktm[28+m];
                     }
 
                     r0 += 4;
@@ -6428,26 +6742,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __ARM_NEON
                 }
 
-#if __ARM_NEON
-#if __aarch64__
-                k00 += 4;
-                k01 += 4;
-                k10 += 4;
-                k11 += 4;
-                k20 += 4;
-                k21 += 4;
-                k30 += 4;
-                k31 += 4;
-#endif // __aarch64__
-#else
-                k00 += 4;
-                k01 += 4;
-                k10 += 4;
-                k11 += 4;
-                k20 += 4;
-                k21 += 4;
-                k30 += 4;
-                k31 += 4;
+#if !__ARM_NEON
+                ktm += 32;
 #endif // __ARM_NEON
                 }
             }
@@ -6455,11 +6751,6 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
             for (; q<inch; q++)
             {
                 const float* r0 = bottom_blob_tm.channel(q);
-
-                const float* k00 = kernel0_tm.row(q);
-                const float* k10 = kernel1_tm.row(q);
-                const float* k20 = kernel2_tm.row(q);
-                const float* k30 = kernel3_tm.row(q);
 
                 float* output0_tm = out0_tm;
                 float* output1_tm = out1_tm;
@@ -6469,10 +6760,30 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                 for (int r=0; r<16; r++)
                 {
 #if __ARM_NEON
-                float32x4_t _k00 = vld1q_f32(k00);
-                float32x4_t _k10 = vld1q_f32(k10);
-                float32x4_t _k20 = vld1q_f32(k20);
-                float32x4_t _k30 = vld1q_f32(k30);
+#if __aarch64__
+                float32x4_t _k00;
+                float32x4_t _k10;
+                float32x4_t _k20;
+                float32x4_t _k30;
+                asm volatile(
+                    "prfm   pldl1keep, [%4, #256]   \n"
+                    "ld1    {%0.4s, %1.4s}, [%4], #32   \n"
+                    "prfm   pldl1keep, [%4, #256]   \n"
+                    "ld1    {%2.4s, %3.4s}, [%4], #32   \n"
+                    : "=w"(_k00),
+                      "=w"(_k10),
+                      "=w"(_k20),
+                      "=w"(_k30)
+                    : "r"(ktm)
+                    : "cc", "memory"
+                );
+#else
+                asm volatile("pld   [%0, #512]  \n" : : "r"(ktm) : );
+                float32x4_t _k00 = vld1q_f32(ktm); ktm += 4;
+                float32x4_t _k10 = vld1q_f32(ktm); ktm += 4;
+                float32x4_t _k20 = vld1q_f32(ktm); ktm += 4;
+                float32x4_t _k30 = vld1q_f32(ktm); ktm += 4;
+#endif // __aarch64__
 #endif // __ARM_NEON
 
                 // tile
@@ -6577,10 +6888,10 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 #else
                     for (int m=0; m<4; m++)
                     {
-                        output0_tm[m] += r0[m] * k00[m];
-                        output1_tm[m] += r0[m] * k10[m];
-                        output2_tm[m] += r0[m] * k20[m];
-                        output3_tm[m] += r0[m] * k30[m];
+                        output0_tm[m] += r0[m] * ktm[0 +m];
+                        output1_tm[m] += r0[m] * ktm[4 +m];
+                        output2_tm[m] += r0[m] * ktm[8 +m];
+                        output3_tm[m] += r0[m] * ktm[12+m];
                     }
 
                     r0 += 4;
@@ -6591,10 +6902,9 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __ARM_NEON
                 }
 
-                k00 += 4;
-                k10 += 4;
-                k20 += 4;
-                k30 += 4;
+#if !__ARM_NEON
+                ktm += 16;
+#endif // __ARM_NEON
                 }
             }
         }
@@ -6603,7 +6913,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
         for (int p = remain_outch_start; p<outch; p++)
         {
             Mat out0_tm = top_blob_tm.channel(p);
-            const Mat kernel0_tm = kernel_tm.channel(p);
+
+            const float* ktm = (float*)kernel_tm.channel(nn_outch) + 8*8 * inch * (p-remain_outch_start);
 
             out0_tm.fill(0.f);
 
@@ -6613,14 +6924,12 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
             {
                 const float* r0 = bottom_blob_tm.channel(q);
 
-                const float* k00 = kernel0_tm.row(q);
-
                 float* output0_tm = out0_tm;
 
                 for (int r=0; r<16; r++)
                 {
 #if __ARM_NEON
-                float32x4_t _k00 = vld1q_f32(k00);
+                float32x4_t _k00 = vld1q_f32(ktm); ktm += 4;
 #endif // __ARM_NEON
 
                 // tile
@@ -6667,7 +6976,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 #else
                     for (int m=0; m<4; m++)
                     {
-                        output0_tm[m] += r0[m] * k00[m];
+                        output0_tm[m] += r0[m] * ktm[m];
                     }
 
                     r0 += 4;
@@ -6675,7 +6984,9 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __ARM_NEON
                 }
 
-                k00 += 4;
+#if !__ARM_NEON
+                ktm += 4;
+#endif // __ARM_NEON
                 }
             }
         }
