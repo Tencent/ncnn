@@ -15,19 +15,39 @@ Usage
 ```
 
 Typical output (executed in android adb shell)
+
+Qualcomm MSM8916 Snapdragon 410 (Cortex-A53 1.2GHz x 4)
 ```
 HM2014812:/data/local/tmp # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   98.27  max =  118.75  avg =  105.22
-       mobilenet  min =  168.36  max =  178.58  avg =  174.52
-    mobilenet_v2  min =  192.38  max =  210.21  avg =  201.79
-      shufflenet  min =   66.07  max =   74.64  avg =   70.58
-       googlenet  min =  327.53  max =  344.18  avg =  334.36
-        resnet18  min =  465.24  max =  479.58  avg =  470.86
-         alexnet  min =  380.57  max =  406.64  avg =  397.66
-           vgg16  min = 2341.65  max = 2475.65  avg = 2402.14
-  squeezenet-ssd  min =  187.64  max =  283.71  avg =  204.29
-   mobilenet-ssd  min =  183.96  max =  214.15  avg =  193.30
+      squeezenet  min =   93.58  max =  101.45  avg =   97.25
+       mobilenet  min =  161.20  max =  178.63  avg =  172.35
+    mobilenet_v2  min =  197.19  max =  208.24  avg =  201.92
+      shufflenet  min =   67.94  max =   78.27  avg =   71.46
+       googlenet  min =  295.77  max =  307.95  avg =  300.59
+        resnet18  min =  397.61  max =  437.82  avg =  409.97
+         alexnet  min =  403.48  max =  432.38  avg =  415.66
+           vgg16  min = 2284.47  max = 2472.28  avg = 2365.15
+  squeezenet-ssd  min =  174.64  max =  265.13  avg =  197.99
+   mobilenet-ssd  min =  180.67  max =  200.76  avg =  192.40
+```
+
+Freescale i.MX7 Dual (Cortex A7 1.0GHz x 2)
+```
+imx7d_pico:/data/local/tmp # ./benchncnn 8 2 0
+loop_count = 8
+num_threads = 2
+powersave = 0
+      squeezenet  min =  380.20  max =  398.50  avg =  387.51
+       mobilenet  min =  621.16  max =  654.25  avg =  629.71
+    mobilenet_v2  min =  582.39  max =  602.03  avg =  589.80
+      shufflenet  min =  209.09  max =  228.76  avg =  213.98
+       googlenet  min = 1309.58  max = 1434.97  avg = 1336.70
+        resnet18  min = 1665.45  max = 3474.38  avg = 2166.64
+         alexnet  min = 1539.43  max = 1640.56  avg = 1558.17
+           vgg16  min =    0.14  max =    0.87  avg =    0.42 (FAIL due to out of memory)
+  squeezenet-ssd  min =  677.92  max =  693.59  avg =  685.56
+   mobilenet-ssd  min =  720.13  max =  729.33  avg =  724.47
 ```
