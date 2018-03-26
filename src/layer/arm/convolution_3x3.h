@@ -5456,54 +5456,53 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 
                 for (int r=0; r<16; r++)
                 {
-                float32x4_t _k00;
-                float32x4_t _k01;
-                float32x4_t _k02;
-                float32x4_t _k03;
-                float32x4_t _k10;
-                float32x4_t _k11;
-                float32x4_t _k12;
-                float32x4_t _k13;
-                float32x4_t _k20;
-                float32x4_t _k21;
-                float32x4_t _k22;
-                float32x4_t _k23;
-                float32x4_t _k30;
-                float32x4_t _k31;
-                float32x4_t _k32;
-                float32x4_t _k33;
-                asm volatile(
-                    "prfm  pldl1keep, [%16, #512]  \n"
-                    "ld1   {%0.4s, %1.4s, %2.4s, %3.4s}, [%16], #64    \n"
-                    "prfm  pldl1keep, [%16, #512]  \n"
-                    "ld1   {%4.4s, %5.4s, %6.4s, %7.4s}, [%16], #64    \n"
-                    "prfm  pldl1keep, [%16, #512]  \n"
-                    "ld1   {%8.4s, %9.4s, %10.4s, %11.4s}, [%16], #64  \n"
-                    "prfm  pldl1keep, [%16, #512]  \n"
-                    "ld1   {%12.4s, %13.4s, %14.4s, %15.4s}, [%16], #64\n"
-                    : "=w"(_k00),
-                      "=w"(_k01),
-                      "=w"(_k02),
-                      "=w"(_k03),
-                      "=w"(_k10),
-                      "=w"(_k11),
-                      "=w"(_k12),
-                      "=w"(_k13),
-                      "=w"(_k20),
-                      "=w"(_k21),
-                      "=w"(_k22),
-                      "=w"(_k23),
-                      "=w"(_k30),
-                      "=w"(_k31),
-                      "=w"(_k32),
-                      "=w"(_k33)
-                    : "r"(ktm)
-                    : "cc", "memory"
-                );
+                    register float32x4_t _k00 asm("v0");
+                    register float32x4_t _k01 asm("v1");
+                    register float32x4_t _k02 asm("v2");
+                    register float32x4_t _k03 asm("v3");
+                    register float32x4_t _k10 asm("v4");
+                    register float32x4_t _k11 asm("v5");
+                    register float32x4_t _k12 asm("v6");
+                    register float32x4_t _k13 asm("v7");
+                    register float32x4_t _k20 asm("v8");
+                    register float32x4_t _k21 asm("v9");
+                    register float32x4_t _k22 asm("v10");
+                    register float32x4_t _k23 asm("v11");
+                    register float32x4_t _k30 asm("v12");
+                    register float32x4_t _k31 asm("v13");
+                    register float32x4_t _k32 asm("v14");
+                    register float32x4_t _k33 asm("v15");
+                    asm volatile(
+                        "prfm  pldl1keep, [%16, #512]  \n"
+                        "ld1   {%0.4s, %1.4s, %2.4s, %3.4s}, [%16], #64    \n"
+                        "prfm  pldl1keep, [%16, #512]  \n"
+                        "ld1   {%4.4s, %5.4s, %6.4s, %7.4s}, [%16], #64    \n"
+                        "prfm  pldl1keep, [%16, #512]  \n"
+                        "ld1   {%8.4s, %9.4s, %10.4s, %11.4s}, [%16], #64  \n"
+                        "prfm  pldl1keep, [%16, #512]  \n"
+                        "ld1   {%12.4s, %13.4s, %14.4s, %15.4s}, [%16], #64\n"
+                        : "=w"(_k00),
+                          "=w"(_k01),
+                          "=w"(_k02),
+                          "=w"(_k03),
+                          "=w"(_k10),
+                          "=w"(_k11),
+                          "=w"(_k12),
+                          "=w"(_k13),
+                          "=w"(_k20),
+                          "=w"(_k21),
+                          "=w"(_k22),
+                          "=w"(_k23),
+                          "=w"(_k30),
+                          "=w"(_k31),
+                          "=w"(_k32),
+                          "=w"(_k33)
+                        : "r"(ktm)
+                        : "cc", "memory");
 
-                // tile
-                int nn = tiles >> 2;
-                int remain = tiles & 3;
+                    // tile
+                    int nn = tiles >> 2;
+                    int remain = tiles & 3;
 
 #ifdef __clang__
                 // gcc reject over 30 oprands :(
@@ -6914,7 +6913,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
         {
             Mat out0_tm = top_blob_tm.channel(p);
 
-            const float* ktm = (float*)kernel_tm.channel(nn_outch) + 8*8 * inch * (p-remain_outch_start);
+            const float* ktm = (const float*)kernel_tm.channel(nn_outch) + 8*8 * inch * (p-remain_outch_start);
 
             out0_tm.fill(0.f);
 
