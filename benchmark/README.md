@@ -16,6 +16,24 @@ Usage
 
 Typical output (executed in android adb shell)
 
+Qualcomm MSM8994 Snapdragon 810 (Cortex-A57 2.0GHz x 4 + Cortex-A53 1.55GHz x 4)
+```
+angler:/data/local/tmp $ ./benchncnn 8 8 0
+loop_count = 8
+num_threads = 8
+powersave = 0
+      squeezenet  min =   58.94  max =   64.86  avg =   60.08
+       mobilenet  min =   69.22  max =   81.54  avg =   72.96
+    mobilenet_v2  min =   94.18  max =  107.57  avg =   98.76
+      shufflenet  min =   48.10  max =   64.86  avg =   53.72
+       googlenet  min =  192.29  max =  212.10  avg =  201.60
+        resnet18  min =  254.64  max =  308.90  avg =  274.12
+         alexnet  min =  196.18  max =  226.44  avg =  210.53
+           vgg16  min = 1465.17  max = 1561.20  avg = 1501.23
+  squeezenet-ssd  min =  136.68  max =  191.48  avg =  163.87
+   mobilenet-ssd  min =  123.21  max =  161.13  avg =  140.20
+```
+
 Qualcomm MSM8916 Snapdragon 410 (Cortex-A53 1.2GHz x 4)
 ```
 HM2014812:/data/local/tmp # ./benchncnn 8 4 0
@@ -36,7 +54,7 @@ powersave = 0
 
 iPhone 5S (Apple A7 1.3GHz x 2)
 ```
-iPhone:~ root# ./benchncnn 8 2 0   
+iPhone:~ root# ./benchncnn 8 2 0
 loop_count = 8
 num_threads = 2
 powersave = 0
