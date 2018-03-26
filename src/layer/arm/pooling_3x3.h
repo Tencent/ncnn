@@ -47,39 +47,68 @@ static void pooling3x3s2_max_neon(const Mat& bottom_blob, Mat& top_blob)
 
 #if __ARM_NEON
 #if __aarch64__
-            float32x4x2_t _r0 = vld2q_f32(r0);
-            float32x4x2_t _r1 = vld2q_f32(r1);
-            float32x4x2_t _r2 = vld2q_f32(r2);
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4x2_t _r0n = vld2q_f32(r0+8);
-                float32x4x2_t _r1n = vld2q_f32(r1+8);
-                float32x4x2_t _r2n = vld2q_f32(r2+8);
+            asm volatile(
+                "prfm       pldl1keep, [%1, #256]       \n"
+                "ld2        {v0.4s, v1.4s}, [%1], #32   \n"
+                "prfm       pldl1keep, [%2, #256]       \n"
+                "ld2        {v2.4s, v3.4s}, [%2], #32   \n"
+                "prfm       pldl1keep, [%3, #256]       \n"
+                "ld2        {v4.4s, v5.4s}, [%3], #32   \n"
+                "0:                                     \n"
 
-                float32x4_t _max0 = vmaxq_f32(_r0.val[0], _r0.val[1]);
-                float32x4_t _max1 = vmaxq_f32(_r1.val[0], _r1.val[1]);
-                float32x4_t _max2 = vmaxq_f32(_r2.val[0], _r2.val[1]);
+                "prfm       pldl1keep, [%1, #256]       \n"
+                "ld2        {v6.4s, v7.4s}, [%1], #32   \n"
 
-                float32x4_t _r02 = vextq_f32(_r0.val[0], _r0n.val[0], 1);
-                float32x4_t _r12 = vextq_f32(_r1.val[0], _r1n.val[0], 1);
-                float32x4_t _r22 = vextq_f32(_r2.val[0], _r2n.val[0], 1);
+                "fmax       v12.4s, v0.4s, v1.4s        \n"
+                "fmax       v13.4s, v2.4s, v3.4s        \n"
 
-                _max0 = vmaxq_f32(_max0, _r02);
-                _max1 = vmaxq_f32(_max1, _r12);
-                _max2 = vmaxq_f32(_max2, _r22);
+                "prfm       pldl1keep, [%2, #256]       \n"
+                "ld2        {v8.4s, v9.4s}, [%2], #32   \n"
 
-                float32x4_t _max = vmaxq_f32(vmaxq_f32(_max0, _max1), _max2);
+                "fmax       v14.4s, v4.4s, v5.4s        \n"
+                "ext        v0.16b, v0.16b, v6.16b, #4  \n"
 
-                vst1q_f32(outptr, _max);
+                "prfm       pldl1keep, [%3, #256]       \n"
+                "ld2        {v10.4s, v11.4s}, [%3], #32 \n"
 
-                _r0 = _r0n;
-                _r1 = _r1n;
-                _r2 = _r2n;
+                "ext        v2.16b,  v2.16b, v8.16b, #4 \n"
 
-                r0 += 8;
-                r1 += 8;
-                r2 += 8;
-                outptr += 4;
+                "fmax       v12.4s, v12.4s, v0.4s       \n"
+                "ext        v4.16b, v4.16b, v10.16b, #4 \n"
+
+                "fmax       v13.4s, v13.4s, v2.4s       \n"
+                "fmax       v14.4s, v14.4s, v4.4s       \n"
+                "fmax       v12.4s, v12.4s, v13.4s      \n"
+
+                "orr        v0.16b, v6.16b, v6.16b      \n"
+                "orr        v1.16b, v7.16b, v7.16b      \n"
+                "fmax       v12.4s, v12.4s, v14.4s      \n"
+
+                "orr        v2.16b, v8.16b, v8.16b      \n"
+                "orr        v3.16b, v9.16b, v9.16b      \n"
+                "orr        v4.16b, v10.16b, v10.16b    \n"
+                "orr        v5.16b, v11.16b, v11.16b    \n"
+
+                "subs       %w0, %w0, #1                \n"
+                "st1        {v12.4s}, [%4], #16         \n"
+                "bne        0b                          \n"
+                "sub        %1, %1, #32                 \n"
+                "sub        %2, %2, #32                 \n"
+                "sub        %3, %3, #32                 \n"
+                : "=r"(nn),     // %0
+                  "=r"(r0),     // %1
+                  "=r"(r1),     // %2
+                  "=r"(r2),     // %3
+                  "=r"(outptr)  // %4
+                : "0"(nn),
+                  "1"(r0),
+                  "2"(r1),
+                  "3"(r2),
+                  "4"(outptr)
+                : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14"
+            );
             }
 #else
             if (nn > 0)

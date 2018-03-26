@@ -594,25 +594,29 @@ int main(int argc, char** argv)
             fprintf(pp, " 5=%d", convolution_param.bias_term());
             fprintf(pp, " 6=%d", weight_blob.data_size());
 
-            if (convolution_param.group() != 1)
+            int group = convolution_param.group();
+            if (group != 1)
             {
-                fprintf(pp, " 7=%d", convolution_param.group());
+                fprintf(pp, " 7=%d", group);
             }
 
             int quantized_weight = 0;
             fwrite(&quantized_weight, sizeof(int), 1, bp);
 
+            for (int g=0; g<group; g++)
+            {
             // reorder weight from inch-outch to outch-inch
             int ksize = convolution_param.kernel_size(0);
-            int num_output = convolution_param.num_output();
-            int num_input = weight_blob.data_size() / (ksize * ksize) / num_output;
-            const float* weight_data_ptr = weight_blob.data().data();
+            int num_output = convolution_param.num_output() / group;
+            int num_input = weight_blob.data_size() / (ksize * ksize) / num_output / group;
+            const float* weight_data_ptr = weight_blob.data().data() + g * (ksize * ksize) * num_output * num_input;
             for (int k=0; k<num_output; k++)
             {
                 for (int j=0; j<num_input; j++)
                 {
                     fwrite(weight_data_ptr + (j*num_output + k) * ksize * ksize, sizeof(float), ksize * ksize, bp);
                 }
+            }
             }
 
             for (int j=1; j<binlayer.blobs_size(); j++)

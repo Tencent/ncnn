@@ -111,6 +111,22 @@ void mobilenet_run(const ncnn::Net& net)
     ex.extract("prob", out);
 }
 
+void mobilenet_v2_init(ncnn::Net& net)
+{
+    net.load_param("mobilenet_v2.param");
+}
+
+void mobilenet_v2_run(const ncnn::Net& net)
+{
+    ncnn::Extractor ex = net.create_extractor();
+
+    ncnn::Mat in(224, 224, 3);
+    ex.input("data", in);
+
+    ncnn::Mat out;
+    ex.extract("prob", out);
+}
+
 void shufflenet_init(ncnn::Net& net)
 {
     net.load_param("shufflenet.param");
@@ -257,6 +273,8 @@ int main(int argc, char** argv)
     benchmark("squeezenet", squeezenet_init, squeezenet_run);
 
     benchmark("mobilenet", mobilenet_init, mobilenet_run);
+
+    benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
 
     benchmark("shufflenet", shufflenet_init, shufflenet_run);
 

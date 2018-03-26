@@ -57,15 +57,23 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
 #if __ARM_NEON
 #if __aarch64__
-        for (; nn>0; nn--)
+        if (nn > 0)
         {
-            float32x4_t _p = vld1q_f32(ptr);
-            float32x4_t _p2 = vld1q_f32(ptr+4);
-            vst1q_f32(outptr, _p);
-            vst1q_f32(outptr+4, _p2);
-
-            ptr += 8;
-            outptr += 8;
+        asm volatile(
+            "0:                                   \n"
+            "prfm       pldl1keep, [%1, #256]     \n"
+            "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
+            "subs       %w0, %w0, #1              \n"
+            "st1        {v0.4s, v1.4s}, [%2], #32 \n"
+            "bne        0b                        \n"
+            : "=r"(nn),     // %0
+              "=r"(ptr),    // %1
+              "=r"(outptr)  // %2
+            : "0"(nn),
+              "1"(ptr),
+              "2"(outptr)
+            : "cc", "memory", "v0", "v1"
+        );
         }
 #else
         if (nn > 0)

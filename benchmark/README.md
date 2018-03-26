@@ -15,18 +15,75 @@ Usage
 ```
 
 Typical output (executed in android adb shell)
+
+Qualcomm MSM8994 Snapdragon 810 (Cortex-A57 2.0GHz x 4 + Cortex-A53 1.55GHz x 4)
 ```
-HM2014812:/data/local/tmp # ./benchncnn 4 4 0
-loop_count = 4
+angler:/data/local/tmp $ ./benchncnn 8 8 0
+loop_count = 8
+num_threads = 8
+powersave = 0
+      squeezenet  min =   58.94  max =   64.86  avg =   60.08
+       mobilenet  min =   69.22  max =   81.54  avg =   72.96
+    mobilenet_v2  min =   94.18  max =  107.57  avg =   98.76
+      shufflenet  min =   48.10  max =   64.86  avg =   53.72
+       googlenet  min =  192.29  max =  212.10  avg =  201.60
+        resnet18  min =  254.64  max =  308.90  avg =  274.12
+         alexnet  min =  196.18  max =  226.44  avg =  210.53
+           vgg16  min = 1465.17  max = 1561.20  avg = 1501.23
+  squeezenet-ssd  min =  136.68  max =  191.48  avg =  163.87
+   mobilenet-ssd  min =  123.21  max =  161.13  avg =  140.20
+```
+
+Qualcomm MSM8916 Snapdragon 410 (Cortex-A53 1.2GHz x 4)
+```
+HM2014812:/data/local/tmp # ./benchncnn 8 4 0
+loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   99.34  max =  104.24  avg =  102.83
-       mobilenet  min =  171.06  max =  177.08  avg =  173.45
-      shufflenet  min =   67.80  max =   73.63  avg =   69.35
-       googlenet  min =  337.30  max =  341.33  avg =  339.00
-        resnet18  min =  466.41  max =  476.33  avg =  472.07
-         alexnet  min =  397.47  max =  421.54  avg =  404.22
-           vgg16  min = 2338.67  max = 2984.17  avg = 2557.16
-  squeezenet-ssd  min =  201.43  max =  304.06  avg =  236.67
-   mobilenet-ssd  min =  198.93  max =  241.33  avg =  214.54
+      squeezenet  min =   93.58  max =  101.45  avg =   97.25
+       mobilenet  min =  161.20  max =  178.63  avg =  172.35
+    mobilenet_v2  min =  197.19  max =  208.24  avg =  201.92
+      shufflenet  min =   67.94  max =   78.27  avg =   71.46
+       googlenet  min =  295.77  max =  307.95  avg =  300.59
+        resnet18  min =  397.61  max =  437.82  avg =  409.97
+         alexnet  min =  403.48  max =  432.38  avg =  415.66
+           vgg16  min = 2284.47  max = 2472.28  avg = 2365.15
+  squeezenet-ssd  min =  174.64  max =  265.13  avg =  197.99
+   mobilenet-ssd  min =  180.67  max =  200.76  avg =  192.40
+```
+
+iPhone 5S (Apple A7 1.3GHz x 2)
+```
+iPhone:~ root# ./benchncnn 8 2 0
+loop_count = 8
+num_threads = 2
+powersave = 0
+      squeezenet  min =  146.85  max =  160.10  avg =  152.25
+       mobilenet  min =  170.99  max =  192.57  avg =  181.07
+    mobilenet_v2  min =  230.88  max =  377.16  avg =  260.93
+      shufflenet  min =  101.45  max =  113.17  avg =  107.05
+       googlenet  min =  446.15  max =  462.75  avg =  453.62
+        resnet18  min = 1711.46  max = 1798.15  avg = 1751.01
+         alexnet  min = 1476.57  max = 1651.94  avg = 1574.76
+           vgg16  min = 5377.98  max = 5493.23  avg = 5433.10
+  squeezenet-ssd  min =  256.51  max =  336.59  avg =  282.25
+   mobilenet-ssd  min =  215.67  max =  226.62  avg =  221.52
+```
+
+Freescale i.MX7 Dual (Cortex A7 1.0GHz x 2)
+```
+imx7d_pico:/data/local/tmp # ./benchncnn 8 2 0
+loop_count = 8
+num_threads = 2
+powersave = 0
+      squeezenet  min =  380.20  max =  398.50  avg =  387.51
+       mobilenet  min =  621.16  max =  654.25  avg =  629.71
+    mobilenet_v2  min =  582.39  max =  602.03  avg =  589.80
+      shufflenet  min =  209.09  max =  228.76  avg =  213.98
+       googlenet  min = 1309.58  max = 1434.97  avg = 1336.70
+        resnet18  min = 1665.45  max = 3474.38  avg = 2166.64
+         alexnet  min = 1539.43  max = 1640.56  avg = 1558.17
+           vgg16  min =    0.14  max =    0.87  avg =    0.42 (FAIL due to out of memory)
+  squeezenet-ssd  min =  677.92  max =  693.59  avg =  685.56
+   mobilenet-ssd  min =  720.13  max =  729.33  avg =  724.47
 ```

@@ -37,8 +37,10 @@ public:
     int kernel_h;
     int stride_w;
     int stride_h;
-    int pad_w;
-    int pad_h;
+    int pad_left;
+    int pad_right;
+    int pad_top;
+    int pad_bottom;
     int global_pooling;
     int pad_mode;// 0=full 1=valid 2=SAME
 };

@@ -75,63 +75,107 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                for (; nn>0; nn--)
+                if (nn > 0)
                 {
-                    float32x4_t _r00 = vld1q_f32(r0);
-                    float32x4_t _r10 = vld1q_f32(r1);
-                    float32x4_t _r20 = vld1q_f32(r2);
-                    float32x4_t _r30 = vld1q_f32(r3);
+                asm volatile(
+                    "prfm       pldl1keep, [%1, #128]          \n"
+                    "0:                                        \n"
 
-                    float32x4_t _r01 = vld1q_f32(r0 + 4);
-                    float32x4_t _r11 = vld1q_f32(r1 + 4);
-                    float32x4_t _r21 = vld1q_f32(r2 + 4);
-                    float32x4_t _r31 = vld1q_f32(r3 + 4);
+                    "prfm       pldl1keep, [%2, #512]          \n"
+                    "prfm       pldl1keep, [%3, #512]          \n"
 
-                    float32x4_t _r02 = vld1q_f32(r0 + 8);
-                    float32x4_t _r12 = vld1q_f32(r1 + 8);
-                    float32x4_t _r22 = vld1q_f32(r2 + 8);
-                    float32x4_t _r32 = vld1q_f32(r3 + 8);
+                    "ld1        {v7.4s}, [%1]                  \n" // v7 = outptr
 
-                    float32x4_t _r03 = vld1q_f32(r0 + 12);
-                    float32x4_t _r13 = vld1q_f32(r1 + 12);
-                    float32x4_t _r23 = vld1q_f32(r2 + 12);
-                    float32x4_t _r33 = vld1q_f32(r3 + 12);
+                    "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
+                    "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
 
-                    float32x4_t _sum0 = vmulq_f32(_r00, _k0123);
-                    float32x4_t _sum1 = vmulq_f32(_r01, _k0123);
-                    float32x4_t _sum2 = vmulq_f32(_r02, _k0123);
-                    float32x4_t _sum3 = vmulq_f32(_r03, _k0123);
+                    "prfm       pldl1keep, [%4, #512]          \n"
+                    "prfm       pldl1keep, [%5, #512]          \n"
 
-                    _sum0 = vfmaq_f32(_sum0, _r10, _k4567);
-                    _sum1 = vfmaq_f32(_sum1, _r11, _k4567);
-                    _sum2 = vfmaq_f32(_sum2, _r12, _k4567);
-                    _sum3 = vfmaq_f32(_sum3, _r13, _k4567);
+                    "fmul       v12.4s, v8.4s, %12.4s          \n"
+                    "fmul       v13.4s, v9.4s, %13.4s          \n"
 
-                    _sum0 = vfmaq_f32(_sum0, _r20, _k891011);
-                    _sum1 = vfmaq_f32(_sum1, _r21, _k891011);
-                    _sum2 = vfmaq_f32(_sum2, _r22, _k891011);
-                    _sum3 = vfmaq_f32(_sum3, _r23, _k891011);
+                    "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
+                    "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
 
-                    _sum0 = vfmaq_f32(_sum0, _r30, _k12131415);
-                    _sum1 = vfmaq_f32(_sum1, _r31, _k12131415);
-                    _sum2 = vfmaq_f32(_sum2, _r32, _k12131415);
-                    _sum3 = vfmaq_f32(_sum3, _r33, _k12131415);
+                    "fmla       v12.4s, v10.4s, %14.4s         \n"
+                    "fmla       v13.4s, v11.4s, %15.4s         \n"
 
-                    float32x4_t _s01 = vpaddq_f32(_sum0, _sum1);
-                    float32x4_t _s23 = vpaddq_f32(_sum2, _sum3);
-                    float32x4_t _sum = vpaddq_f32(_s01, _s23);
+                    "fadd       v5.4s, v12.4s, v13.4s          \n"
 
-                    float32x4_t _outp = vld1q_f32(outptr);
+                    "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
+                    "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
 
-                    _outp = vaddq_f32(_outp, _sum);
+                    "fmul       v12.4s, v8.4s, %12.4s          \n"
+                    "fmul       v13.4s, v9.4s, %13.4s          \n"
 
-                    vst1q_f32(outptr, _outp);
+                    "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
+                    "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
+                    
+                    "fmla       v12.4s, v10.4s, %14.4s         \n"
+                    "fmla       v13.4s, v11.4s, %15.4s         \n"
 
-                    r0 += 16;
-                    r1 += 16;
-                    r2 += 16;
-                    r3 += 16;
-                    outptr += 4;
+                    "fadd       v6.4s, v12.4s, v13.4s          \n"
+
+                    "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
+                    "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
+
+                    "fmul       v12.4s, v8.4s, %12.4s          \n"
+                    "fmul       v13.4s, v9.4s, %13.4s          \n"
+
+                    "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
+                    "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
+
+                    "fmla       v12.4s, v10.4s, %14.4s         \n"
+                    "fmla       v13.4s, v11.4s, %15.4s         \n"
+
+                    "fadd       v14.4s, v12.4s, v13.4s         \n"
+                    "faddp      v5.4s, v5.4s, v6.4s            \n"  // Move to here to enhance ILP
+
+                    "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
+                    "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
+
+                    "fmul       v12.4s, v8.4s, %12.4s          \n"
+                    "fmul       v13.4s, v9.4s, %13.4s          \n"
+
+                    "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
+                    "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
+
+                    "fmla       v12.4s, v10.4s, %14.4s         \n"
+                    "fmla       v13.4s, v11.4s, %15.4s         \n"
+
+                    "fadd       v15.4s, v12.4s, v13.4s         \n"
+
+//                  "faddp      v5.4s ,  v5.4s,  v6.4s         \n"  // Move this line upward.
+                    "faddp      v14.4s, v14.4s, v15.4s         \n"
+                    "faddp      v5.4s ,  v5.4s, v14.4s         \n"
+            
+                    "fadd       v7.4s, v7.4s, v5.4s            \n"
+
+                    "st1        {v7.4s}, [%1], #16             \n"
+
+                    "prfm       pldl1keep, [%1, #128]          \n"
+
+                    "subs       %w0, %w0, #1                   \n"
+                    "bne        0b                             \n"
+                    : "=r"(nn),         // %0
+                      "=r"(outptr),     // %1
+                      "=r"(r0),         // %2
+                      "=r"(r1),         // %3
+                      "=r"(r2),         // %4
+                      "=r"(r3)          // %5
+                    : "0"(nn),
+                      "1"(outptr),
+                      "2"(r0),
+                      "3"(r1),
+                      "4"(r2),
+                      "5"(r3),
+                      "w"(_k0123),      // %12
+                      "w"(_k4567),      // %13
+                      "w"(_k891011),    // %14
+                      "w"(_k12131415)   // %15
+                    : "cc", "memory", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
+                );
                 }
 #else
                 if (nn > 0)
@@ -247,22 +291,42 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 {
 #if __ARM_NEON
 #if __aarch64__
-                    float32x4_t _r0 = vld1q_f32(r0);
-                    float32x4_t _r1 = vld1q_f32(r1);
-                    float32x4_t _r2 = vld1q_f32(r2);
-                    float32x4_t _r3 = vld1q_f32(r3);
+                    float sum = 0.f;
 
-                    float32x4_t _sum = vmulq_f32(_r0, _k0123);
-                    _sum = vmlaq_f32(_sum, _r1, _k4567);
-                    _sum = vmlaq_f32(_sum, _r2, _k891011);
-                    _sum = vmlaq_f32(_sum, _r3, _k12131415);
+                    asm volatile(
+                        "ld1        {v8.4s}, [%0], #16             \n"// v8  = r0
+                        "ld1        {v9.4s}, [%1], #16             \n"// v9  = r1
 
-                    *outptr += vaddvq_f32(_sum);
+                        "fmul       v12.4s, v8.4s, %9.4s           \n"
+                        "fmul       v13.4s, v9.4s, %10.4s          \n"
 
-                    r0 += 4;
-                    r1 += 4;
-                    r2 += 4;
-                    r3 += 4;
+                        "ld1        {v10.4s}, [%2], #16            \n"// v10 = r2
+                        "ld1        {v11.4s}, [%3], #16            \n"// v11 = r3
+
+                        "fmla       v12.4s, v10.4s, %11.4s         \n"
+                        "fmla       v13.4s, v11.4s, %12.4s         \n"
+
+                        "fadd       v5.4s, v12.4s, v13.4s          \n"            
+                        "faddp      v5.4s, v5.4s, v5.4s            \n"  
+                        "faddp      s5, v5.2s                      \n" 
+                        "fmov       %w4, s5                        \n"
+                        : "=r"(r0),         // %0
+                          "=r"(r1),         // %1
+                          "=r"(r2),         // %2
+                          "=r"(r3),         // %3
+                          "=r"(sum)         // %4
+                        : "0"(r0),
+                          "1"(r1),
+                          "2"(r2),
+                          "3"(r3),
+                          "w"(_k0123),      // %9
+                          "w"(_k4567),      // %10
+                          "w"(_k891011),    // %11
+                          "w"(_k12131415)   // %12
+                        : "cc", "memory", "v5", "v6", "v8", "v9", "v10", "v11", "v12", "v13"
+                    );
+                    
+                    *outptr += sum;
 #else
                     float sum = 0.f;
 
