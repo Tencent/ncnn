@@ -1218,6 +1218,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
 
             for (int r=0; r<16; r++)
             {
+            // split into two asm blocks for gcc reject over 30 oprands :(
             asm volatile(
                 "ld1    {v0.4s}, [%1], #16  \n"
                 "ld1    {v1.4s}, [%2], #16  \n"
@@ -1231,18 +1232,6 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
                 "ld1    {v3.4s}, [%8], #16  \n"
                 "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64  \n"
 
-                "ld1    {v0.4s}, [%9], #16  \n"
-                "ld1    {v1.4s}, [%10], #16 \n"
-                "ld1    {v2.4s}, [%11], #16 \n"
-                "ld1    {v3.4s}, [%12], #16 \n"
-                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64  \n"
-
-                "ld1    {v0.4s}, [%13], #16 \n"
-                "ld1    {v1.4s}, [%14], #16 \n"
-                "ld1    {v2.4s}, [%15], #16 \n"
-                "ld1    {v3.4s}, [%16], #16 \n"
-                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64  \n"
-
                 : "=r"(ktm2),   // %0
                   "=r"(k00),    // %1
                   "=r"(k01),    // %2
@@ -1251,15 +1240,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
                   "=r"(k10),    // %5
                   "=r"(k11),    // %6
                   "=r"(k12),    // %7
-                  "=r"(k13),    // %8
-                  "=r"(k20),    // %9
-                  "=r"(k21),    // %10
-                  "=r"(k22),    // %11
-                  "=r"(k23),    // %12
-                  "=r"(k30),    // %13
-                  "=r"(k31),    // %14
-                  "=r"(k32),    // %15
-                  "=r"(k33)     // %16
+                  "=r"(k13)     // %8
                 : "0"(ktm2),
                   "1"(k00),
                   "2"(k01),
@@ -1268,15 +1249,40 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
                   "5"(k10),
                   "6"(k11),
                   "7"(k12),
-                  "8"(k13),
-                  "9"(k20),
-                  "10"(k21),
-                  "11"(k22),
-                  "12"(k23),
-                  "13"(k30),
-                  "14"(k31),
-                  "15"(k32),
-                  "16"(k33)
+                  "8"(k13)
+                : "cc", "memory", "v0", "v1", "v2", "v3"
+            );
+            asm volatile(
+                "ld1    {v0.4s}, [%1], #16  \n"
+                "ld1    {v1.4s}, [%2], #16  \n"
+                "ld1    {v2.4s}, [%3], #16  \n"
+                "ld1    {v3.4s}, [%4], #16  \n"
+                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64  \n"
+
+                "ld1    {v0.4s}, [%5], #16  \n"
+                "ld1    {v1.4s}, [%6], #16  \n"
+                "ld1    {v2.4s}, [%7], #16  \n"
+                "ld1    {v3.4s}, [%8], #16  \n"
+                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64  \n"
+
+                : "=r"(ktm2),   // %0
+                  "=r"(k20),    // %1
+                  "=r"(k21),    // %2
+                  "=r"(k22),    // %3
+                  "=r"(k23),    // %4
+                  "=r"(k30),    // %5
+                  "=r"(k31),    // %6
+                  "=r"(k32),    // %7
+                  "=r"(k33)     // %8
+                : "0"(ktm2),
+                  "1"(k20),
+                  "2"(k21),
+                  "3"(k22),
+                  "4"(k23),
+                  "5"(k30),
+                  "6"(k31),
+                  "7"(k32),
+                  "8"(k33)
                 : "cc", "memory", "v0", "v1", "v2", "v3"
             );
             }
