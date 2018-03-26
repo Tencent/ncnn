@@ -6914,7 +6914,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
         {
             Mat out0_tm = top_blob_tm.channel(p);
 
-            const float* ktm = (float*)kernel_tm.channel(nn_outch) + 8*8 * inch * (p-remain_outch_start);
+            const float* ktm = (const float*)kernel_tm.channel(nn_outch) + 8*8 * inch * (p-remain_outch_start);
 
             out0_tm.fill(0.f);
 
