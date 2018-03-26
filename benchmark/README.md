@@ -34,6 +34,24 @@ powersave = 0
    mobilenet-ssd  min =  180.67  max =  200.76  avg =  192.40
 ```
 
+iPhone 5S (Apple A7 1.3GHz x 2)
+```
+iPhone:~ root# ./benchncnn 8 2 0   
+loop_count = 8
+num_threads = 2
+powersave = 0
+      squeezenet  min =  146.85  max =  160.10  avg =  152.25
+       mobilenet  min =  170.99  max =  192.57  avg =  181.07
+    mobilenet_v2  min =  230.88  max =  377.16  avg =  260.93
+      shufflenet  min =  101.45  max =  113.17  avg =  107.05
+       googlenet  min =  446.15  max =  462.75  avg =  453.62
+        resnet18  min = 1711.46  max = 1798.15  avg = 1751.01
+         alexnet  min = 1476.57  max = 1651.94  avg = 1574.76
+           vgg16  min = 5377.98  max = 5493.23  avg = 5433.10
+  squeezenet-ssd  min =  256.51  max =  336.59  avg =  282.25
+   mobilenet-ssd  min =  215.67  max =  226.62  avg =  221.52
+```
+
 Freescale i.MX7 Dual (Cortex A7 1.0GHz x 2)
 ```
 imx7d_pico:/data/local/tmp # ./benchncnn 8 2 0
