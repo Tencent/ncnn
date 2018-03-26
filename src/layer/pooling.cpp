@@ -138,7 +138,24 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
-    else if (pad_mode == 2) // tensorflow padding=SAME
+
+    int outw = (w - kernel_size) / stride + 1;
+    int outh = (h - kernel_size) / stride + 1;
+    if (w < kernel_size) outw = 0;
+    if (h < kernel_size) outh = 0;
+	
+
+    int wtail = (w - kernel_size) % stride;
+    int htail = (h - kernel_size) % stride;
+    if (wtail < 0) wtail += kernel_size;
+    if (htail < 0) htail += kernel_size;
+
+    if (pad == -233 || pad == -2333)
+    {
+        wtail = 0;
+        htail = 0;
+    }
+    if (wtail != 0 || htail != 0)
     {
         int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
         int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
