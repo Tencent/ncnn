@@ -33,6 +33,7 @@ public:
 public:
     // param
     int channels;
+    float eps;
 
     // model
     Mat slope_data;
