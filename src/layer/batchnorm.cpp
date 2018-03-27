@@ -28,6 +28,7 @@ BatchNorm::BatchNorm()
 int BatchNorm::load_param(const ParamDict& pd)
 {
     channels = pd.get(0, 0);
+    eps = pd.get(1, 0.f);
 
     return 0;
 }
@@ -59,7 +60,7 @@ int BatchNorm::load_model(const ModelBin& mb)
 
     for (int i=0; i<channels; i++)
     {
-        float sqrt_var = sqrt(var_data[i]);
+        float sqrt_var = sqrt(var_data[i] + eps);
         a_data[i] = bias_data[i] - slope_data[i] * mean_data[i] / sqrt_var;
         b_data[i] = slope_data[i] / sqrt_var;
     }
