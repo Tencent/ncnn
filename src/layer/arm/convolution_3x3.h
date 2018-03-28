@@ -5462,22 +5462,22 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 
                 for (int r=0; r<16; r++)
                 {
-                float32x4_t _k00;
-                float32x4_t _k01;
-                float32x4_t _k02;
-                float32x4_t _k03;
-                float32x4_t _k10;
-                float32x4_t _k11;
-                float32x4_t _k12;
-                float32x4_t _k13;
-                float32x4_t _k20;
-                float32x4_t _k21;
-                float32x4_t _k22;
-                float32x4_t _k23;
-                float32x4_t _k30;
-                float32x4_t _k31;
-                float32x4_t _k32;
-                float32x4_t _k33;
+                register float32x4_t _k00 asm("v0");
+                register float32x4_t _k01 asm("v1");
+                register float32x4_t _k02 asm("v2");
+                register float32x4_t _k03 asm("v3");
+                register float32x4_t _k10 asm("v4");
+                register float32x4_t _k11 asm("v5");
+                register float32x4_t _k12 asm("v6");
+                register float32x4_t _k13 asm("v7");
+                register float32x4_t _k20 asm("v8");
+                register float32x4_t _k21 asm("v9");
+                register float32x4_t _k22 asm("v10");
+                register float32x4_t _k23 asm("v11");
+                register float32x4_t _k30 asm("v12");
+                register float32x4_t _k31 asm("v13");
+                register float32x4_t _k32 asm("v14");
+                register float32x4_t _k33 asm("v15");
                 asm volatile(
                     "prfm  pldl1keep, [%16, #512]  \n"
                     "ld1   {%0.4s, %1.4s, %2.4s, %3.4s}, [%16], #64    \n"
@@ -6155,14 +6155,14 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                 {
 #if __ARM_NEON
 #if __aarch64__
-                float32x4_t _k00;
-                float32x4_t _k01;
-                float32x4_t _k10;
-                float32x4_t _k11;
-                float32x4_t _k20;
-                float32x4_t _k21;
-                float32x4_t _k30;
-                float32x4_t _k31;
+                register float32x4_t _k00 asm("v0");
+                register float32x4_t _k01 asm("v1");
+                register float32x4_t _k10 asm("v2");
+                register float32x4_t _k11 asm("v3");
+                register float32x4_t _k20 asm("v4");
+                register float32x4_t _k21 asm("v5");
+                register float32x4_t _k30 asm("v6");
+                register float32x4_t _k31 asm("v7");
                 asm volatile(
                     "prfm   pldl1keep, [%8, #256]   \n"
                     "ld1    {%0.4s, %1.4s}, [%8], #32   \n"
@@ -6184,15 +6184,34 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     : "cc", "memory"
                 );
 #else
-                asm volatile("pld   [%0, #1024]  \n" : : "r"(ktm) : );
-                float32x4_t _k00 = vld1q_f32(ktm); ktm += 4;
-                float32x4_t _k01 = vld1q_f32(ktm); ktm += 4;
-                float32x4_t _k10 = vld1q_f32(ktm); ktm += 4;
-                float32x4_t _k11 = vld1q_f32(ktm); ktm += 4;
-                float32x4_t _k20 = vld1q_f32(ktm); ktm += 4;
-                float32x4_t _k21 = vld1q_f32(ktm); ktm += 4;
-                float32x4_t _k30 = vld1q_f32(ktm); ktm += 4;
-                float32x4_t _k31 = vld1q_f32(ktm); ktm += 4;
+                register float32x4_t _k00 asm("q0");
+                register float32x4_t _k01 asm("q1");
+                register float32x4_t _k10 asm("q2");
+                register float32x4_t _k11 asm("q3");
+                register float32x4_t _k20 asm("q4");
+                register float32x4_t _k21 asm("q5");
+                register float32x4_t _k30 asm("q6");
+                register float32x4_t _k31 asm("q7");
+                asm volatile(
+                    "pld        [%8, #256]              \n"
+                    "vld1.f32   {%e0-%f1}, [%8 :128]!   \n"
+                    "pld        [%8, #256]              \n"
+                    "vld1.f32   {%e2-%f3}, [%8 :128]!   \n"
+                    "pld        [%8, #256]              \n"
+                    "vld1.f32   {%e4-%f5}, [%8 :128]!   \n"
+                    "pld        [%8, #256]              \n"
+                    "vld1.f32   {%e6-%f7}, [%8 :128]!   \n"
+                    : "=w"(_k00),
+                      "=w"(_k01),
+                      "=w"(_k10),
+                      "=w"(_k11),
+                      "=w"(_k20),
+                      "=w"(_k21),
+                      "=w"(_k30),
+                      "=w"(_k31)
+                    : "r"(ktm)
+                    : "cc", "memory"
+                );
 #endif // __aarch64__
 #endif // __ARM_NEON
 
@@ -6767,10 +6786,10 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                 {
 #if __ARM_NEON
 #if __aarch64__
-                float32x4_t _k00;
-                float32x4_t _k10;
-                float32x4_t _k20;
-                float32x4_t _k30;
+                register float32x4_t _k00 asm("v0");
+                register float32x4_t _k10 asm("v1");
+                register float32x4_t _k20 asm("v2");
+                register float32x4_t _k30 asm("v3");
                 asm volatile(
                     "prfm   pldl1keep, [%4, #256]   \n"
                     "ld1    {%0.4s, %1.4s}, [%4], #32   \n"
@@ -6784,11 +6803,22 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     : "cc", "memory"
                 );
 #else
-                asm volatile("pld   [%0, #512]  \n" : : "r"(ktm) : );
-                float32x4_t _k00 = vld1q_f32(ktm); ktm += 4;
-                float32x4_t _k10 = vld1q_f32(ktm); ktm += 4;
-                float32x4_t _k20 = vld1q_f32(ktm); ktm += 4;
-                float32x4_t _k30 = vld1q_f32(ktm); ktm += 4;
+                register float32x4_t _k00 asm("q0");
+                register float32x4_t _k10 asm("q1");
+                register float32x4_t _k20 asm("q2");
+                register float32x4_t _k30 asm("q3");
+                asm volatile(
+                    "pld        [%4, #256]              \n"
+                    "vld1.f32   {%e0-%f1}, [%4 :128]!   \n"
+                    "pld        [%4, #256]              \n"
+                    "vld1.f32   {%e2-%f3}, [%4 :128]!   \n"
+                    : "=w"(_k00),
+                      "=w"(_k10),
+                      "=w"(_k20),
+                      "=w"(_k30)
+                    : "r"(ktm)
+                    : "cc", "memory"
+                );
 #endif // __aarch64__
 #endif // __ARM_NEON
 
