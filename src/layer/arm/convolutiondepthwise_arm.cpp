@@ -103,8 +103,8 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
         #pragma omp parallel for
         for (int g=0; g<group; g++)
         {
-            Mat bottom_blob_bordered_g = bottom_blob_bordered.channel(g);
-            Mat top_blob_g = top_blob.channel(g);
+            Mat bottom_blob_bordered_g(w, h, 1, bottom_blob_bordered.channel(g));
+            Mat top_blob_g(outw, outh, 1, top_blob.channel(g));
             Mat weight_data_g(maxk, (void*)((const float*)weight_data + maxk * g));
             Mat bias_data_g;
             if (bias_term)
