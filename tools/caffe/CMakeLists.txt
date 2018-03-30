@@ -1,5 +1,5 @@
 
-find_package(Protobuf REQUIRED)
+find_package(Protobuf)
 
 if(PROTOBUF_FOUND)
     include_directories(${PROTOBUF_INCLUDE_DIR})
