@@ -34,17 +34,21 @@ if(NCNN_OPENMP)
     endif()
 endif()
 
-add_definitions(-Wall -Wextra -Wno-unused-function)
+if(WIN32)
+    add_definitions(-D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE)
+else()
+    add_definitions(-Wall -Wextra -Wno-unused-function)
 
-add_definitions(-fPIC)
-add_definitions(-Ofast)
+    add_definitions(-fPIC)
+    add_definitions(-Ofast)
 
-add_definitions(-ffast-math)
-# add_definitions(-march=native)
+    add_definitions(-ffast-math)
+    # add_definitions(-march=native)
 
-# add_definitions(-flto)
+    # add_definitions(-flto)
 
-add_definitions(-fvisibility=hidden -fvisibility-inlines-hidden)
+    add_definitions(-fvisibility=hidden -fvisibility-inlines-hidden)
+endif()
 
 if(ANDROID)
     # disable shared library on android
