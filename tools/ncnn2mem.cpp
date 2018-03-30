@@ -257,7 +257,11 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
     fprintf(cppfp, "#ifndef NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
     fprintf(cppfp, "#define NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
 
+#ifdef _WIN32
+    fprintf(cppfp, " __declspec(align(4)) ");
+#else
     fprintf(cppfp, "__attribute__((aligned(4))) ");
+#endif
     fprintf(cppfp, "static const unsigned char %s[] = {\n", param_var.c_str());
 
     int i = 0;
@@ -284,7 +288,11 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     FILE* bp = fopen(modelpath, "rb");
 
+#ifdef _WIN32
+    fprintf(cppfp, " __declspec(align(4)) ");
+#else
     fprintf(cppfp, "__attribute__((aligned(4))) ");
+#endif
     fprintf(cppfp, "static const unsigned char %s[] = {\n", model_var.c_str());
 
     i = 0;
