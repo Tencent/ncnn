@@ -25,10 +25,6 @@ LSTM::LSTM()
     support_inplace = false;
 }
 
-LSTM::~LSTM()
-{
-}
-
 int LSTM::load_param(const ParamDict& pd)
 {
     num_output = pd.get(0, 0);
