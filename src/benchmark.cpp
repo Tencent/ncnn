@@ -12,6 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <stdint.h> // portable: uint64_t   MSVC: __int64
+#else // _WIN32
+#include <sys/time.h>
+#endif // _WIN32
+
 #include "benchmark.h"
 
 #if NCNN_BENCHMARK
@@ -19,14 +27,6 @@
 #include "layer/convolution.h"
 #endif // NCNN_BENCHMARK
 
-#ifdef _WIN32
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <stdint.h> // portable: uint64_t   MSVC: __int64
-#else // _WIN32
-#include <sys/time.h>
-#endif // _WIN32
 
 namespace ncnn {
 
