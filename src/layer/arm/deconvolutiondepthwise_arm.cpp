@@ -63,7 +63,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) c
         #pragma omp parallel for
         for (int g=0; g<group; g++)
         {
-            Mat bottom_blob_g(w, h, 1, bottom_blob.channel(g));
+            Mat bottom_blob_g(w, h, 1, bottom_blob.channel(g).data);
             Mat top_blob_bordered_g(outw, outh, 1, top_blob_bordered.channel(g));
             Mat weight_data_g(maxk, (void*)((const float*)weight_data + maxk * g));
 
