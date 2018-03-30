@@ -42,6 +42,12 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob) const
     int c = bottom_blob.c;
     int oh = output_height;
     int ow = output_width;
+    if (bottom_blob.dims == 1)
+    {
+        h = 1;
+        w = 1;
+        c = bottom_blob.w;
+    }
     if (ow == 0 || ow == 0)
     {
         oh = h * height_scale;
@@ -56,26 +62,42 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob) const
     if (top_blob.empty())
         return -100;
 
-    if (resize_type == 1)//nearest
+    if (resize_type == 1 || bottom_blob.dims == 1)//nearest
     {
-        #pragma omp parallel for
-        for (int q = 0; q < c; ++q)
+        if(bottom_blob.dims == 1)
         {
-            const float *ptr = bottom_blob.channel(q);
-            float *output_ptr = top_blob.channel(q);
-            for (int y = 0; y < oh; ++y)
+            #pragma omp parallel for
+            for (int q = 0; q < c; ++q)
             {
-                const int in_y = std::min((int) (y / height_scale), (h - 1));
-                for (int x = 0; x < ow; ++x)
+                const float *ptr = ((float*)bottom_blob.data+q);
+                float *output_ptr = top_blob.channel(q);
+                for (int i = 0; i < top_blob.cstep; ++i)
                 {
-                    const int in_x = std::min((int) (x / width_scale), (w - 1));
-                    output_ptr[ow * y + x] = ptr[in_y * w + in_x];
+                    output_ptr[i] = *ptr;
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for
+            for (int q = 0; q < c; ++q)
+            {
+                const float *ptr = bottom_blob.channel(q);
+                float *output_ptr = top_blob.channel(q);
+                for (int y = 0; y < oh; ++y)
+                {
+                    const int in_y = std::min((int) (y / height_scale), (h - 1));
+                    for (int x = 0; x < ow; ++x)
+                    {
+                        const int in_x = std::min((int) (x / width_scale), (w - 1));
+                        output_ptr[ow * y + x] = ptr[in_y * w + in_x];
+                    }
                 }
             }
         }
         return 0;
 
-        }
+    }
     else if (resize_type == 2)// bilinear
     {
         resize_bilinear(bottom_blob, top_blob, ow, oh);
