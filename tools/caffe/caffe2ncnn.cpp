@@ -488,7 +488,15 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, " 3=%d", convolution_param.stride_size() != 0 ? convolution_param.stride(0) : 1);
             }
-            fprintf(pp, " 4=%d", convolution_param.pad_size() != 0 ? convolution_param.pad(0) : 0);
+            if (convolution_param.has_pad_w() && convolution_param.has_pad_h())
+            {
+                fprintf(pp, " 4=%d", convolution_param.pad_w());
+                fprintf(pp, " 14=%d", convolution_param.pad_h());
+            }
+            else
+            {
+                fprintf(pp, " 4=%d", convolution_param.pad_size() != 0 ? convolution_param.pad(0) : 0);
+            }
             fprintf(pp, " 5=%d", convolution_param.bias_term());
             fprintf(pp, " 6=%d", weight_blob.data_size());
 
@@ -590,7 +598,15 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, " 3=%d", convolution_param.stride_size() != 0 ? convolution_param.stride(0) : 1);
             }
-            fprintf(pp, " 4=%d", convolution_param.pad_size() != 0 ? convolution_param.pad(0) : 0);
+            if (convolution_param.has_pad_w() && convolution_param.has_pad_h())
+            {
+                fprintf(pp, " 4=%d", convolution_param.pad_w());
+                fprintf(pp, " 14=%d", convolution_param.pad_h());
+            }
+            else
+            {
+                fprintf(pp, " 4=%d", convolution_param.pad_size() != 0 ? convolution_param.pad(0) : 0);
+            }
             fprintf(pp, " 5=%d", convolution_param.bias_term());
             fprintf(pp, " 6=%d", weight_blob.data_size());
 
