@@ -62,35 +62,35 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob) const
     if (top_blob.empty())
         return -100;
 
-	if (bottom_blob.dims == 1)
-	{
-		#pragma omp parallel for
-		for (int q = 0; q < c; ++q)
-		{
-			Mat top_blob_c = top_blob.channel(q);
-			const float *ptr = ((const float*)bottom_blob.data + q);
-			top_blob_c.fill(*ptr);
-		}
-		return 0;
-	}
-	
+    if (bottom_blob.dims == 1)
+    {
+        #pragma omp parallel for
+        for (int q = 0; q < c; ++q)
+        {
+            Mat top_blob_c = top_blob.channel(q);
+            const float *ptr = ((const float*)bottom_blob.data + q);
+            top_blob_c.fill(*ptr);
+        }
+        return 0;
+    }
+
     if (resize_type == 1)//nearest
     {
-		#pragma omp parallel for
-		for (int q = 0; q < c; ++q)
-		{
-			const float *ptr = bottom_blob.channel(q);
-			float *output_ptr = top_blob.channel(q);
-			for (int y = 0; y < oh; ++y)
-			{
-				const int in_y = std::min((int) (y / height_scale), (h - 1));
-				for (int x = 0; x < ow; ++x)
-				{
-					const int in_x = std::min((int) (x / width_scale), (w - 1));
-					output_ptr[ow * y + x] = ptr[in_y * w + in_x];
-				}
-			}
-		}
+        #pragma omp parallel for
+        for (int q = 0; q < c; ++q)
+        {
+            const float *ptr = bottom_blob.channel(q);
+            float *output_ptr = top_blob.channel(q);
+            for (int y = 0; y < oh; ++y)
+            {
+                const int in_y = std::min((int) (y / height_scale), (h - 1));
+                for (int x = 0; x < ow; ++x)
+                {
+                    const int in_x = std::min((int) (x / width_scale), (w - 1));
+                    output_ptr[ow * y + x] = ptr[in_y * w + in_x];
+                }
+            }
+        }
         return 0;
 
     }
