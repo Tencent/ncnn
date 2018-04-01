@@ -386,7 +386,7 @@ template <typename T>
 inline void Mat::fill(T _v)
 {
     int size = total();
-    T* ptr = (T*)data;
+    float* ptr = (float*)data;
     for (int i=0; i<size; i++)
     {
         ptr[i] = _v;
