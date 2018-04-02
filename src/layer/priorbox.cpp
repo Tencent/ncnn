@@ -135,10 +135,10 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                     if (flip)
                     {
-                        box[0] = (center_x - box_h * 0.5f) / image_h;
-                        box[1] = (center_y - box_w * 0.5f) / image_w;
-                        box[2] = (center_x + box_h * 0.5f) / image_h;
-                        box[3] = (center_y + box_w * 0.5f) / image_w;
+                        box[0] = (center_x - box_h * 0.5f) / image_w;
+                        box[1] = (center_y - box_w * 0.5f) / image_h;
+                        box[2] = (center_x + box_h * 0.5f) / image_w;
+                        box[3] = (center_y + box_w * 0.5f) / image_h;
 
                         box += 4;
                     }
