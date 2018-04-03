@@ -24,6 +24,10 @@ DEFINE_LAYER_CREATOR(Scale_arm)
 
 int Scale_arm::forward_inplace(Mat& bottom_top_blob) const
 {
+    int dims = bottom_top_blob.dims;
+    if (dims != 3)
+        return Scale::forward_inplace(bottom_top_blob);
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
