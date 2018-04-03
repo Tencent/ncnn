@@ -24,6 +24,10 @@ DEFINE_LAYER_CREATOR(BatchNorm_arm)
 
 int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob) const
 {
+    int dims = bottom_top_blob.dims;
+    if (dims != 3)
+        return BatchNorm::forward_inplace(bottom_top_blob);
+
     // a = bias - slope * mean / sqrt(var)
     // b = slope / sqrt(var)
     // value = b * value + a
