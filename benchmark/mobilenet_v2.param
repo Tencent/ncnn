@@ -81,7 +81,7 @@ Convolution      conv4_3/expand   1 1 block_4_2 conv4_3/expand 0=192 1=1 2=1 3=1
 BatchNorm        conv4_3/expand/bn 1 1 conv4_3/expand conv4_3/expand/bn 0=192
 Scale            conv4_3/expand/scale 1 1 conv4_3/expand/bn conv4_3/expand/bn_conv4_3/expand/scale 0=192 1=1
 ReLU             relu4_3/expand   1 1 conv4_3/expand/bn_conv4_3/expand/scale conv4_3/expand/bn_relu4_3/expand
-ConvolutionDepthWise conv4_3/dwise    1 1 conv4_3/expand/bn_relu4_3/expand conv4_3/dwise 0=192 1=3 2=1 3=1 4=1 5=0 6=1728 7=192
+ConvolutionDepthWise conv4_3/dwise    1 1 conv4_3/expand/bn_relu4_3/expand conv4_3/dwise 0=192 1=3 2=1 3=2 4=1 5=0 6=1728 7=192
 BatchNorm        conv4_3/dwise/bn 1 1 conv4_3/dwise conv4_3/dwise/bn 0=192
 Scale            conv4_3/dwise/scale 1 1 conv4_3/dwise/bn conv4_3/dwise/bn_conv4_3/dwise/scale 0=192 1=1
 ReLU             relu4_3/dwise    1 1 conv4_3/dwise/bn_conv4_3/dwise/scale conv4_3/dwise/bn_relu4_3/dwise
@@ -131,7 +131,7 @@ Convolution      conv4_7/expand   1 1 block_4_6 conv4_7/expand 0=384 1=1 2=1 3=1
 BatchNorm        conv4_7/expand/bn 1 1 conv4_7/expand conv4_7/expand/bn 0=384
 Scale            conv4_7/expand/scale 1 1 conv4_7/expand/bn conv4_7/expand/bn_conv4_7/expand/scale 0=384 1=1
 ReLU             relu4_7/expand   1 1 conv4_7/expand/bn_conv4_7/expand/scale conv4_7/expand/bn_relu4_7/expand
-ConvolutionDepthWise conv4_7/dwise    1 1 conv4_7/expand/bn_relu4_7/expand conv4_7/dwise 0=384 1=3 2=1 3=2 4=1 5=0 6=3456 7=384
+ConvolutionDepthWise conv4_7/dwise    1 1 conv4_7/expand/bn_relu4_7/expand conv4_7/dwise 0=384 1=3 2=1 3=1 4=1 5=0 6=3456 7=384
 BatchNorm        conv4_7/dwise/bn 1 1 conv4_7/dwise conv4_7/dwise/bn 0=384
 Scale            conv4_7/dwise/scale 1 1 conv4_7/dwise/bn conv4_7/dwise/bn_conv4_7/dwise/scale 0=384 1=1
 ReLU             relu4_7/dwise    1 1 conv4_7/dwise/bn_conv4_7/dwise/scale conv4_7/dwise/bn_relu4_7/dwise
