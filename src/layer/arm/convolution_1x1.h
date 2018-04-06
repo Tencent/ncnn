@@ -27,10 +27,13 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     const float* kernel = _kernel;
     const float* bias = _bias;
 
+    int nn_outch = 0;
+    int remain_outch_start = 0;
+
 #if __ARM_NEON && __aarch64__
 
-    int nn_outch = outch >> 3;
-    int remain_outch_start = nn_outch << 3;
+    nn_outch = outch >> 3;
+    remain_outch_start = nn_outch << 3;
 
     #pragma omp parallel for
     for (int pp=0; pp<nn_outch; pp++)
@@ -311,7 +314,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 "st1    {v25.4s}, [%8], #16         \n"
 
                 "bne    0b                          \n"
-                "sub    %9, %9, #32                 \n"
+                "sub    %9, %9, #16                 \n"
                 : "=r"(nn),     // %0
                   "=r"(outptr0),// %1
                   "=r"(outptr1),// %2
@@ -654,20 +657,406 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
         }
     }
 
-    nn_outch = (outch - remain_outch_start) >> 2;
-    remain_outch_start += nn_outch << 2;
+#else
 
-#else // __ARM_NEON && __aarch64__
-
-    int nn_outch = outch >> 2;
-    int remain_outch_start = nn_outch << 2;
-
-#endif // __ARM_NEON && __aarch64__
+    nn_outch = outch / 6;
+    remain_outch_start = nn_outch * 6;
 
     #pragma omp parallel for
     for (int pp=0; pp<nn_outch; pp++)
     {
-        int p = pp * 4;
+        int p = pp * 6;
+
+        Mat out0 = top_blob.channel(p);
+        Mat out1 = top_blob.channel(p+1);
+        Mat out2 = top_blob.channel(p+2);
+        Mat out3 = top_blob.channel(p+3);
+        Mat out4 = top_blob.channel(p+4);
+        Mat out5 = top_blob.channel(p+5);
+
+        const float bias0 = bias ? bias[p] : 0.f;
+        const float bias1 = bias ? bias[p+1] : 0.f;
+        const float bias2 = bias ? bias[p+2] : 0.f;
+        const float bias3 = bias ? bias[p+3] : 0.f;
+        const float bias4 = bias ? bias[p+4] : 0.f;
+        const float bias5 = bias ? bias[p+5] : 0.f;
+
+        out0.fill(bias0);
+        out1.fill(bias1);
+        out2.fill(bias2);
+        out3.fill(bias3);
+        out4.fill(bias4);
+        out5.fill(bias5);
+
+        int q = 0;
+
+        for (; q+3<inch; q+=4)
+        {
+            float* outptr0 = out0;
+            float* outptr1 = out1;
+            float* outptr2 = out2;
+            float* outptr3 = out3;
+            float* outptr4 = out4;
+            float* outptr5 = out5;
+
+            const float* img0 = bottom_blob.channel(q);
+            const float* img1 = bottom_blob.channel(q+1);
+            const float* img2 = bottom_blob.channel(q+2);
+            const float* img3 = bottom_blob.channel(q+3);
+
+            const float* kernel0 = kernel + p*inch + q;
+            const float* kernel1 = kernel + (p+1)*inch + q;
+            const float* kernel2 = kernel + (p+2)*inch + q;
+            const float* kernel3 = kernel + (p+3)*inch + q;
+            const float* kernel4 = kernel + (p+4)*inch + q;
+            const float* kernel5 = kernel + (p+5)*inch + q;
+
+            const float* r0 = img0;
+            const float* r1 = img1;
+            const float* r2 = img2;
+            const float* r3 = img3;
+
+            int size = outw * outh;
+
+#if __ARM_NEON
+            int nn = size >> 2;
+            int remain = size & 3;
+#else
+            int remain = size;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+            float32x4_t _k0 = vld1q_f32(kernel0);
+            float32x4_t _k1 = vld1q_f32(kernel1);
+            float32x4_t _k2 = vld1q_f32(kernel2);
+            float32x4_t _k3 = vld1q_f32(kernel3);
+            float32x4_t _k4 = vld1q_f32(kernel4);
+            float32x4_t _k5 = vld1q_f32(kernel5);
+
+            if (nn > 0)
+            {
+            asm volatile(
+                "pld        [%7, #128]              \n"
+                "vld1.f32   {d24-d25}, [%7 :128]!   \n"// q12 = r0
+
+                "pld        [%1, #128]              \n"
+                "vld1.f32   {d12-d13}, [%1 :128]    \n"// q6 = outptr0
+
+                "pld        [%2, #128]              \n"
+                "vld1.f32   {d14-d15}, [%2 :128]    \n"// q7 = outptr1
+
+                "vmla.f32   q6, q12, %e22[0]        \n"
+
+                "0:                                 \n"
+
+                "pld        [%3, #128]              \n"
+                "vld1.f32   {d16-d17}, [%3 :128]    \n"// q8 = outptr2
+
+                "vmla.f32   q7, q12, %e23[0]        \n"
+
+                "pld        [%4, #128]              \n"
+                "vld1.f32   {d18-d19}, [%4 :128]    \n"// q9 = outptr3
+
+                "vmla.f32   q8, q12, %e24[0]        \n"
+
+                "pld        [%8, #128]              \n"
+                "vld1.f32   {d26-d27}, [%8 :128]!   \n"// q13 = r1
+
+                "vmla.f32   q9, q12, %e25[0]        \n"
+
+                "pld        [%5, #128]              \n"
+                "vld1.f32   {d20-d21}, [%5 :128]    \n"// q10 = outptr4
+
+                "vmla.f32   q6, q13, %e22[1]        \n"
+                "vmla.f32   q7, q13, %e23[1]        \n"
+
+                "pld        [%6, #128]              \n"
+                "vld1.f32   {d22-d23}, [%6 :128]    \n"// q11 = outptr5
+
+                "vmla.f32   q10, q12, %e26[0]       \n"
+                "vmla.f32   q11, q12, %e27[0]       \n"
+
+                "vmla.f32   q8, q13, %e24[1]        \n"
+                "vmla.f32   q9, q13, %e25[1]        \n"
+
+                "pld        [%9, #128]              \n"
+                "vld1.f32   {d28-d29}, [%9 :128]!   \n"// q14 = r2
+
+                "vmla.f32   q10, q13, %e26[1]       \n"
+                "vmla.f32   q11, q13, %e27[1]       \n"
+
+                "vmla.f32   q6, q14, %f22[0]        \n"
+                "vmla.f32   q7, q14, %f23[0]        \n"
+                "vmla.f32   q8, q14, %f24[0]        \n"
+                "vmla.f32   q9, q14, %f25[0]        \n"
+
+                "pld        [%10, #128]             \n"
+                "vld1.f32   {d30-d31}, [%10 :128]!  \n"// q15 = r3
+
+                "vmla.f32   q10, q14, %f26[0]       \n"
+                "vmla.f32   q11, q14, %f27[0]       \n"
+
+                "vmla.f32   q6, q15, %f22[1]        \n"
+                "vmla.f32   q7, q15, %f23[1]        \n"
+                "vmla.f32   q8, q15, %f24[1]        \n"
+                "vmla.f32   q9, q15, %f25[1]        \n"
+
+                "pld        [%7, #128]              \n"
+                "vld1.f32   {d24-d25}, [%7 :128]!   \n"// q12 = r0
+
+                "vmla.f32   q10, q15, %f26[1]       \n"
+                "vmla.f32   q11, q15, %f27[1]       \n"
+
+                "vst1.f32   {d12-d13}, [%1 :128]!   \n"
+                "vst1.f32   {d14-d15}, [%2 :128]!   \n"
+
+                "pld        [%1, #128]              \n"
+                "vld1.f32   {d12-d13}, [%1 :128]    \n"// q6 = outptr0
+
+                "vst1.f32   {d16-d17}, [%3 :128]!   \n"
+                "vst1.f32   {d18-d19}, [%4 :128]!   \n"
+
+                "vmla.f32   q6, q12, %e22[0]        \n"
+
+                "pld        [%2, #128]              \n"
+                "vld1.f32   {d14-d15}, [%2 :128]    \n"// q7 = outptr1
+
+                "subs       %0, #1                  \n"
+
+                "vst1.f32   {d20-d21}, [%5 :128]!   \n"
+                "vst1.f32   {d22-d23}, [%6 :128]!   \n"
+
+                "bne        0b                      \n"
+
+                "sub        %7, #16                 \n"
+
+                : "=r"(nn),     // %0
+                  "=r"(outptr0),// %1
+                  "=r"(outptr1),// %2
+                  "=r"(outptr2),// %3
+                  "=r"(outptr3),// %4
+                  "=r"(outptr4),// %5
+                  "=r"(outptr5),// %6
+                  "=r"(r0),     // %7
+                  "=r"(r1),     // %8
+                  "=r"(r2),     // %9
+                  "=r"(r3)      // %10
+                : "0"(nn),
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(outptr2),
+                  "4"(outptr3),
+                  "5"(outptr4),
+                  "6"(outptr5),
+                  "7"(r0),
+                  "8"(r1),
+                  "9"(r2),
+                  "10"(r3),
+                  "w"(_k0),     // %22
+                  "w"(_k1),     // %23
+                  "w"(_k2),     // %24
+                  "w"(_k3),     // %25
+                  "w"(_k4),     // %26
+                  "w"(_k5)      // %27
+                : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+            );
+            }
+#endif // __ARM_NEON
+
+            for (; remain>0; remain--)
+            {
+                // TODO neon optimize
+                float sum0 = *r0 * kernel0[0] + *r1 * kernel0[1] + *r2 * kernel0[2] + *r3 * kernel0[3];
+                float sum1 = *r0 * kernel1[0] + *r1 * kernel1[1] + *r2 * kernel1[2] + *r3 * kernel1[3];
+                float sum2 = *r0 * kernel2[0] + *r1 * kernel2[1] + *r2 * kernel2[2] + *r3 * kernel2[3];
+                float sum3 = *r0 * kernel3[0] + *r1 * kernel3[1] + *r2 * kernel3[2] + *r3 * kernel3[3];
+                float sum4 = *r0 * kernel4[0] + *r1 * kernel4[1] + *r2 * kernel4[2] + *r3 * kernel4[3];
+                float sum5 = *r0 * kernel5[0] + *r1 * kernel5[1] + *r2 * kernel5[2] + *r3 * kernel5[3];
+
+                *outptr0 += sum0;
+                *outptr1 += sum1;
+                *outptr2 += sum2;
+                *outptr3 += sum3;
+                *outptr4 += sum4;
+                *outptr5 += sum5;
+
+                r0++;
+                r1++;
+                r2++;
+                r3++;
+                outptr0++;
+                outptr1++;
+                outptr2++;
+                outptr3++;
+                outptr4++;
+                outptr5++;
+            }
+        }
+
+        for (; q<inch; q++)
+        {
+            float* outptr0 = out0;
+            float* outptr1 = out1;
+            float* outptr2 = out2;
+            float* outptr3 = out3;
+            float* outptr4 = out4;
+            float* outptr5 = out5;
+
+            const float* img0 = bottom_blob.channel(q);
+
+            const float* kernel0 = kernel + p*inch + q;
+            const float* kernel1 = kernel + (p+1)*inch + q;
+            const float* kernel2 = kernel + (p+2)*inch + q;
+            const float* kernel3 = kernel + (p+3)*inch + q;
+            const float* kernel4 = kernel + (p+4)*inch + q;
+            const float* kernel5 = kernel + (p+5)*inch + q;
+
+            const float k0 = kernel0[0];
+            const float k1 = kernel1[0];
+            const float k2 = kernel2[0];
+            const float k3 = kernel3[0];
+            const float k4 = kernel4[0];
+            const float k5 = kernel5[0];
+
+            const float* r0 = img0;
+
+            int size = outw * outh;
+
+#if __ARM_NEON
+            int nn = size >> 2;
+            int remain = size & 3;
+#else
+            int remain = size;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+            float32x4_t _k0 = vdupq_n_f32(k0);
+            float32x4_t _k1 = vdupq_n_f32(k1);
+            float32x4_t _k2 = vdupq_n_f32(k2);
+            float32x4_t _k3 = vdupq_n_f32(k3);
+            float32x4_t _k4 = vdupq_n_f32(k4);
+            float32x4_t _k5 = vdupq_n_f32(k5);
+
+            if (nn > 0)
+            {
+            asm volatile(
+                "pld        [%7, #128]              \n"
+                "vld1.f32   {d24-d25}, [%7 :128]!   \n"// q12 = r0
+
+                "pld        [%1, #128]              \n"
+                "vld1.f32   {d12-d13}, [%1 :128]    \n"// q6 = outptr0
+
+                "0:                                 \n"
+
+                "pld        [%2, #128]              \n"
+                "vld1.f32   {d14-d15}, [%2 :128]    \n"// q7 = outptr1
+
+                "vmla.f32   q6, q12, %q16           \n"
+
+                "pld        [%3, #128]              \n"
+                "vld1.f32   {d16-d17}, [%3 :128]    \n"// q8 = outptr2
+
+                "vmla.f32   q7, q12, %q17           \n"
+
+                "pld        [%4, #128]              \n"
+                "vld1.f32   {d18-d19}, [%4 :128]    \n"// q9 = outptr3
+
+                "vmla.f32   q8, q12, %q18           \n"
+
+                "pld        [%5, #128]              \n"
+                "vld1.f32   {d20-d21}, [%5 :128]    \n"// q10 = outptr4
+
+                "vmla.f32   q9, q12, %q19           \n"
+
+                "pld        [%6, #128]              \n"
+                "vld1.f32   {d22-d23}, [%6 :128]    \n"// q11 = outptr5
+
+                "vmla.f32   q10, q12, %q20          \n"
+                "vmla.f32   q11, q12, %q21          \n"
+
+                "pld        [%7, #128]              \n"
+                "vld1.f32   {d24-d25}, [%7 :128]!   \n"// q12 = r0
+
+                "vst1.f32   {d12-d13}, [%1 :128]!   \n"
+                "vst1.f32   {d14-d15}, [%2 :128]!   \n"
+
+                "pld        [%1, #128]              \n"
+                "vld1.f32   {d12-d13}, [%1 :128]    \n"// q6 = outptr0
+
+                "vst1.f32   {d16-d17}, [%3 :128]!   \n"
+                "vst1.f32   {d18-d19}, [%4 :128]!   \n"
+
+                "subs       %0, #1                  \n"
+
+                "vst1.f32   {d20-d21}, [%5 :128]!   \n"
+                "vst1.f32   {d22-d23}, [%6 :128]!   \n"
+
+                "bne        0b                      \n"
+
+                "sub        %7, #16                 \n"
+
+                : "=r"(nn),     // %0
+                  "=r"(outptr0),// %1
+                  "=r"(outptr1),// %2
+                  "=r"(outptr2),// %3
+                  "=r"(outptr3),// %4
+                  "=r"(outptr4),// %5
+                  "=r"(outptr5),// %6
+                  "=r"(r0)      // %7
+                : "0"(nn),
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(outptr2),
+                  "4"(outptr3),
+                  "5"(outptr4),
+                  "6"(outptr5),
+                  "7"(r0),
+                  "w"(_k0),     // %16
+                  "w"(_k1),     // %17
+                  "w"(_k2),     // %18
+                  "w"(_k3),     // %19
+                  "w"(_k4),     // %20
+                  "w"(_k5)      // %21
+                : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12"
+            );
+            }
+#endif // __ARM_NEON
+
+            for (; remain>0; remain--)
+            {
+                // TODO neon optimize
+                float sum0 = *r0 * k0;
+                float sum1 = *r0 * k1;
+                float sum2 = *r0 * k2;
+                float sum3 = *r0 * k3;
+                float sum4 = *r0 * k4;
+                float sum5 = *r0 * k5;
+
+                *outptr0 += sum0;
+                *outptr1 += sum1;
+                *outptr2 += sum2;
+                *outptr3 += sum3;
+                *outptr4 += sum4;
+                *outptr5 += sum5;
+
+                r0++;
+                outptr0++;
+                outptr1++;
+                outptr2++;
+                outptr3++;
+                outptr4++;
+                outptr5++;
+            }
+        }
+    }
+#endif // __ARM_NEON && __aarch64__
+
+    nn_outch = (outch - remain_outch_start) >> 2;
+
+    #pragma omp parallel for
+    for (int pp=0; pp<nn_outch; pp++)
+    {
+        int p = remain_outch_start + pp * 4;
 
         Mat out0 = top_blob.channel(p);
         Mat out1 = top_blob.channel(p+1);
@@ -917,17 +1306,17 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 "vmla.f32   q10, q4, %f19[1]        \n"
                 "vmla.f32   q11, q5, %f19[1]        \n"
 
+                "vmla.f32   q12, q4, %f20[1]        \n"
                 "vst1.f32   {d16-d19}, [%1 :128]!   \n"
 
-                "vmla.f32   q12, q4, %f20[1]        \n"
                 "vmla.f32   q13, q5, %f20[1]        \n"
 
                 "vst1.f32   {d20-d23}, [%2 :128]!   \n"
 
+                "vmla.f32   q14, q4, %f21[1]        \n"
                 "pld        [%5, #256]              \n"
                 "vld1.f32   {d12-d15}, [%5 :128]!   \n"
 
-                "vmla.f32   q14, q4, %f21[1]        \n"
                 "vmla.f32   q15, q5, %f21[1]        \n"
 
                 "vst1.f32   {d24-d27}, [%3 :128]!   \n"
@@ -1165,6 +1554,8 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             }
         }
     }
+
+    remain_outch_start += nn_outch << 2;
 
     #pragma omp parallel for
     for (int p=remain_outch_start; p<outch; p++)
