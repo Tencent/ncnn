@@ -72,6 +72,28 @@ static std::vector<int> get_node_attr_ai(const onnx::NodeProto& node, const char
     return v;
 }
 
+static std::vector<float> get_node_attr_af(const onnx::NodeProto& node, const char* key)
+{
+    std::vector<float> v;
+
+    for (int i=0; i<node.attribute_size(); i++)
+    {
+        const onnx::AttributeProto& attr = node.attribute(i);
+        if (attr.name() == key)
+        {
+            v.resize(attr.floats_size());
+            for (int j=0; j<attr.ints_size(); j++)
+            {
+                v[j] = attr.floats(j);
+            }
+
+            break;
+        }
+    }
+
+    return v;
+}
+
 static int get_node_attr_i(const onnx::NodeProto& node, const char* key, int def = 0)
 {
     for (int i=0; i<node.attribute_size(); i++)
@@ -488,6 +510,14 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Pooling");
         }
+        else if (op == "ImageScaler")
+        {
+            fprintf(pp, "%-16s", "Scale");
+        }
+        else if (op == "LeakyRelu")
+        {
+            fprintf(pp, "%-16s", "ReLU");
+        }
         else if (op == "LRN")
         {
             fprintf(pp, "%-16s", "LRN");
@@ -583,6 +613,12 @@ int main(int argc, char** argv)
 
             int pool = op == "AveragePool" ? 1 : 0;
             int pad_mode = 1;
+
+            if (auto_pad == "SAME_LOWER" || auto_pad == "SAME_UPPER")
+            {
+                // TODO
+                pad_mode = 2;
+            }
 
             fprintf(pp, " 0=%d", pool);
 
@@ -706,8 +742,9 @@ int main(int argc, char** argv)
                 fprintf(pp, " 13=%d", strides[0]);
             }
 
-            if (auto_pad == "SAME_UPPER")
+            if (auto_pad == "SAME_LOWER" || auto_pad == "SAME_UPPER")
             {
+                // TODO
                 fprintf(pp, " 4=-233");
             }
             else
@@ -792,6 +829,28 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", pool);
             fprintf(pp, " 4=%d", global_pool);
+        }
+        else if (op == "ImageScaler")
+        {
+            std::vector<float> bias = get_node_attr_af(node, "bias");
+            float scale = get_node_attr_f(node, "scale", 1.f);
+
+            int channels = bias.size();
+
+            fprintf(pp, " 0=%d", channels);
+            fprintf(pp, " 1=1");
+
+            for (int j=0; j<channels; j++)
+            {
+                fwrite(&scale, sizeof(float), 1, bp);
+            }
+            fwrite(&bias[0], sizeof(float), channels, bp);
+        }
+        else if (op == "LeakyRelu")
+        {
+            float alpha = get_node_attr_f(node, "alpha", 0.01f);
+
+            fprintf(pp, " 0=%f", alpha);
         }
         else if (op == "LRN")
         {
