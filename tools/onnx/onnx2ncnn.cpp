@@ -82,7 +82,7 @@ static std::vector<float> get_node_attr_af(const onnx::NodeProto& node, const ch
         if (attr.name() == key)
         {
             v.resize(attr.floats_size());
-            for (int j=0; j<attr.ints_size(); j++)
+            for (int j=0; j<attr.floats_size(); j++)
             {
                 v[j] = attr.floats(j);
             }
