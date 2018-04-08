@@ -8,6 +8,5 @@ if(PROTOBUF_FOUND)
     add_executable(caffe2ncnn caffe2ncnn.cpp ${CAFFE_PROTO_SRCS} ${CAFFE_PROTO_HDRS})
     target_link_libraries(caffe2ncnn ${PROTOBUF_LIBRARIES})
 else()
-    MESSAGE(WARNING "Protobuf not found, caffe model convert tools won't build")
+    message(WARNING "Protobuf not found, caffe model convert tool won't be built")
 endif()
-
