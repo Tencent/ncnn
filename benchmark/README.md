@@ -40,16 +40,16 @@ angler:/data/local/tmp $ ./benchncnn 8 8 0
 loop_count = 8
 num_threads = 8
 powersave = 0
-      squeezenet  min =   58.94  max =   64.86  avg =   60.08
-       mobilenet  min =   69.22  max =   81.54  avg =   72.96
-    mobilenet_v2  min =   94.18  max =  107.57  avg =   98.76
-      shufflenet  min =   48.10  max =   64.86  avg =   53.72
-       googlenet  min =  192.29  max =  212.10  avg =  201.60
-        resnet18  min =  254.64  max =  308.90  avg =  274.12
-         alexnet  min =  196.18  max =  226.44  avg =  210.53
-           vgg16  min = 1465.17  max = 1561.20  avg = 1501.23
-  squeezenet-ssd  min =  136.68  max =  191.48  avg =  163.87
-   mobilenet-ssd  min =  123.21  max =  161.13  avg =  140.20
+      squeezenet  min =   55.02  max =   59.17  avg =   56.19
+       mobilenet  min =   64.74  max =   67.88  avg =   65.69
+    mobilenet_v2  min =   68.38  max =   69.97  avg =   68.92
+      shufflenet  min =   44.27  max =   47.37  avg =   45.12
+       googlenet  min =  158.51  max =  177.85  avg =  165.95
+        resnet18  min =  179.01  max =  213.72  avg =  193.28
+         alexnet  min =  158.99  max =  172.32  avg =  165.38
+           vgg16  min = 1245.07  max = 1453.01  avg = 1377.76
+  squeezenet-ssd  min =  106.20  max =  126.05  avg =  114.63
+   mobilenet-ssd  min =   74.45  max =   86.69  avg =   79.13
 ```
 
 Qualcomm MSM8916 Snapdragon 410 (Cortex-A53 1.2GHz x 4)
