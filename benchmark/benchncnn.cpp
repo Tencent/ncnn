@@ -1,6 +1,12 @@
 #include <float.h>
 #include <stdio.h>
 
+#ifdef _WIN32
+#include <windows.h> // Sleep()
+#else
+#include <unistd.h> // sleep()
+#endif
+
 #include "benchmark.h"
 #include "cpu.h"
 #include "net.h"
@@ -52,7 +58,16 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
 
     net.load_model();
 
+    // sleep 10 seconds for cooling down SOC  :(
+#ifdef _WIN32
+    Sleep(10 * 1000);
+#else
+    sleep(10);
+#endif
+
     // warm up
+    run(net);
+    run(net);
     run(net);
 
     double time_min = DBL_MAX;
