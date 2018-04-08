@@ -22,16 +22,16 @@ root@msm8996:/data/local/tmp/ncnn # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   36.40  max =   39.33  avg =   38.27
-       mobilenet  min =   58.53  max =   62.40  avg =   60.18
-    mobilenet_v2  min =   59.49  max =   61.35  avg =   60.58
-      shufflenet  min =   27.47  max =   28.47  avg =   27.92
-       googlenet  min =  127.26  max =  138.16  avg =  130.62
-        resnet18  min =  129.63  max =  145.10  avg =  132.80
-         alexnet  min =  196.04  max =  222.30  avg =  205.18
-           vgg16  min =  701.14  max =  788.79  avg =  747.02
-  squeezenet-ssd  min =   74.85  max =   80.77  avg =   77.36
-   mobilenet-ssd  min =   79.09  max =  101.17  avg =   84.24
+      squeezenet  min =   36.25  max =   38.47  avg =   37.28
+       mobilenet  min =   55.31  max =   69.14  avg =   57.51
+    mobilenet_v2  min =   56.36  max =   57.99  avg =   56.87
+      shufflenet  min =   24.42  max =   26.06  avg =   25.20
+       googlenet  min =  120.63  max =  130.53  avg =  123.36
+        resnet18  min =  108.70  max =  125.09  avg =  116.06
+         alexnet  min =  186.38  max =  205.25  avg =  192.74
+           vgg16  min =  609.07  max =  648.99  avg =  632.39
+  squeezenet-ssd  min =   66.86  max =   75.74  avg =   68.65
+   mobilenet-ssd  min =   64.70  max =   73.18  avg =   67.22
 ```
 
 Qualcomm MSM8994 Snapdragon 810 (Cortex-A57 2.0GHz x 4 + Cortex-A53 1.55GHz x 4)
