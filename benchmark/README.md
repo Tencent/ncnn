@@ -76,16 +76,16 @@ iPhone:~ root# ./benchncnn 8 2 0
 loop_count = 8
 num_threads = 2
 powersave = 0
-      squeezenet  min =  146.85  max =  160.10  avg =  152.25
-       mobilenet  min =  170.99  max =  192.57  avg =  181.07
-    mobilenet_v2  min =  230.88  max =  377.16  avg =  260.93
-      shufflenet  min =  101.45  max =  113.17  avg =  107.05
-       googlenet  min =  446.15  max =  462.75  avg =  453.62
-        resnet18  min = 1711.46  max = 1798.15  avg = 1751.01
-         alexnet  min = 1476.57  max = 1651.94  avg = 1574.76
-           vgg16  min = 5377.98  max = 5493.23  avg = 5433.10
-  squeezenet-ssd  min =  256.51  max =  336.59  avg =  282.25
-   mobilenet-ssd  min =  215.67  max =  226.62  avg =  221.52
+      squeezenet  min =  142.08  max =  149.40  avg =  146.29
+       mobilenet  min =  173.65  max =  198.31  avg =  182.60
+    mobilenet_v2  min =  190.85  max =  199.66  avg =  195.04
+      shufflenet  min =  102.90  max =  107.93  avg =  104.69
+       googlenet  min =  444.17  max =  486.42  avg =  456.42
+        resnet18  min = 1499.48  max = 1741.99  avg = 1580.66
+         alexnet  min =  757.03  max =  922.91  avg =  853.67
+           vgg16  min = 5368.56  max = 5487.89  avg = 5408.96
+  squeezenet-ssd  min =  248.48  max =  256.78  avg =  253.82
+   mobilenet-ssd  min =  210.11  max =  223.64  avg =  216.97
 ```
 
 Freescale i.MX7 Dual (Cortex A7 1.0GHz x 2)
