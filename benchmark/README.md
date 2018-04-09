@@ -70,6 +70,24 @@ powersave = 0
    mobilenet-ssd  min =  171.26  max =  182.79  avg =  176.83
 ```
 
+Rockchip RK3288 (Cortex-A17 1.8GHz x 4)
+```
+root@rk3288:/data/local/tmp/ncnn # ./benchncnn 8 4 0 
+loop_count = 8
+num_threads = 4
+powersave = 0
+      squeezenet  min =   78.10  max =   78.89  avg =   78.35
+       mobilenet  min =  119.14  max =  120.19  avg =  119.66
+    mobilenet_v2  min =  145.50  max =  150.22  avg =  146.43
+      shufflenet  min =   47.96  max =   48.95  avg =   48.35
+       googlenet  min =  233.60  max =  241.46  avg =  234.85
+        resnet18  min =  260.83  max =  274.38  avg =  268.66
+         alexnet  min =  221.32  max =  246.93  avg =  226.54
+           vgg16  min = 2032.24  max = 2347.03  avg = 2152.34
+  squeezenet-ssd  min =  121.88  max =  242.83  avg =  141.04
+   mobilenet-ssd  min =  129.17  max =  130.86  avg =  129.87
+```
+
 iPhone 5S (Apple A7 1.3GHz x 2)
 ```
 iPhone:~ root# ./benchncnn 8 2 0
