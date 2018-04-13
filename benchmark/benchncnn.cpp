@@ -7,6 +7,9 @@
 #include <unistd.h> // sleep()
 #endif
 
+#include <iostream>
+#include <numeric>
+#include <algorithm>
 #include "benchmark.h"
 #include "cpu.h"
 #include "net.h"
@@ -48,7 +51,7 @@ public:
 
 } // namespace ncnn
 
-static int g_loop_count = 4;
+static int g_loop_count = 80;
 
 void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const ncnn::Net&))
 {
@@ -66,14 +69,8 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
 #endif
 
     // warm up
-    run(net);
-    run(net);
-    run(net);
-
-    double time_min = DBL_MAX;
-    double time_max = -DBL_MAX;
-    double time_avg = 0;
-
+    for (int i=0; i<30; i++)  run(net);
+    std::vector<double> times(g_loop_count);
     for (int i=0; i<g_loop_count; i++)
     {
         double start = ncnn::get_current_time();
@@ -83,15 +80,17 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
         double end = ncnn::get_current_time();
 
         double time = end - start;
-
-        time_min = std::min(time_min, time);
-        time_max = std::max(time_max, time);
-        time_avg += time;
+        times[i] = time;
+        usleep(20000);
     }
 
-    time_avg /= g_loop_count;
-
-    fprintf(stderr, "%16s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
+    std::cout << "Test for " << g_loop_count << " times, cost time list:" << std::endl;
+    for(int i=0; i<g_loop_count; i++)
+        std::cout << times[i] << " ";
+    std::sort(times.begin(), times.end());
+    double sum = std::accumulate(times.begin()+5, times.end()-5, 0);  // 掐头去尾
+    std::cout << std::endl;
+    fprintf(stderr, "%16s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, times[0], times[g_loop_count-1], sum / (g_loop_count-10));
 }
 
 void squeezenet_init(ncnn::Net& net)
@@ -256,7 +255,7 @@ void mobilenet_ssd_run(const ncnn::Net& net)
 
 int main(int argc, char** argv)
 {
-    int loop_count = 4;
+    int loop_count = 80;
     int num_threads = ncnn::get_cpu_count();
     int powersave = 0;
 
@@ -285,25 +284,24 @@ int main(int argc, char** argv)
     fprintf(stderr, "powersave = %d\n", ncnn::get_cpu_powersave());
 
     // run
-    benchmark("squeezenet", squeezenet_init, squeezenet_run);
-
+    // benchmark("squeezenet", squeezenet_init, squeezenet_run);
     benchmark("mobilenet", mobilenet_init, mobilenet_run);
 
-    benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
+    // benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
 
-    benchmark("shufflenet", shufflenet_init, shufflenet_run);
+    // benchmark("shufflenet", shufflenet_init, shufflenet_run);
 
-    benchmark("googlenet", googlenet_init, googlenet_run);
+    // benchmark("googlenet", googlenet_init, googlenet_run);
 
-    benchmark("resnet18", resnet18_init, resnet18_run);
+    // benchmark("resnet18", resnet18_init, resnet18_run);
 
-    benchmark("alexnet", alexnet_init, alexnet_run);
+    // benchmark("alexnet", alexnet_init, alexnet_run);
 
-    benchmark("vgg16", vgg16_init, vgg16_run);
+    // benchmark("vgg16", vgg16_init, vgg16_run);
 
-    benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
+    // benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
 
-    benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
+    // benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
 
     return 0;
 }
