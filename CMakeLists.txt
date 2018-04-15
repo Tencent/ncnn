@@ -18,7 +18,7 @@ cmake_minimum_required(VERSION 2.8.10)
 
 # set(CMAKE_BUILD_TYPE debug)
 # set(CMAKE_BUILD_TYPE relwithdebinfo)
-set(CMAKE_BUILD_TYPE release)
+set(CMAKE_BUILD_TYPE release CACHE STRING "Release")
 
 option(NCNN_OPENMP "openmp support" ON)
 option(NCNN_STDIO "load model from external file" ON)
@@ -39,10 +39,12 @@ if(WIN32)
 else()
     add_definitions(-Wall -Wextra -Wno-unused-function)
 
-    add_definitions(-fPIC)
-    add_definitions(-Ofast)
+    if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
+        add_definitions(-fPIC)
+        add_definitions(-Ofast)
 
-    add_definitions(-ffast-math)
+        add_definitions(-ffast-math)
+    endif()
     # add_definitions(-march=native)
 
     # add_definitions(-flto)
