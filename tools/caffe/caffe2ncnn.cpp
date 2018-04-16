@@ -1096,7 +1096,7 @@ int main(int argc, char** argv)
         else if (layer.type() == "Slice")
         {
             const caffe::SliceParameter& slice_param = layer.slice_param();
-            if (slice_param.has_slice_dim())
+            if (slice_param.slice_point_size() == 0)
             {
                 int num_slice = layer.top_size();
                 fprintf(pp, " -23300=%d", num_slice);
