@@ -12,13 +12,13 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Installation 
 endif()
 message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 
-project(ncnn)
-
 cmake_minimum_required(VERSION 2.8.10)
 
-# set(CMAKE_BUILD_TYPE debug)
-# set(CMAKE_BUILD_TYPE relwithdebinfo)
-set(CMAKE_BUILD_TYPE release CACHE STRING "Release")
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
+endif()
+
+project(ncnn)
 
 option(NCNN_OPENMP "openmp support" ON)
 option(NCNN_STDIO "load model from external file" ON)
