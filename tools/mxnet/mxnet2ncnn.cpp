@@ -939,6 +939,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "ReLU");
         }
+        else if (n.op == "Reshape")
+        {
+            fprintf(pp, "%-16s", "Reshape");
+        }
         else if (n.op == "sin")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -976,9 +980,9 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "TanH");
         }
-        else if (n.op == "Reshape")
+        else if (n.op == "Transpose")
         {
-            fprintf(pp, "%-16s", "Reshape");
+            fprintf(pp, "%-16s", "Permute");
         }
         else
         {
@@ -1499,6 +1503,27 @@ int main(int argc, char** argv)
         else if (n.op == "relu")
         {
         }
+        else if (n.op == "Reshape")
+        {
+            std::vector<int> shape = n.attr("shape");
+
+            if (shape.size() == 1) {
+                fprintf(pp, " 0=%d", shape[0]);// should never reach here
+            } else if (shape.size() == 2) {
+                fprintf(pp, " 0=%d", shape[1]);
+            } else if (shape.size() == 3) {
+                fprintf(pp, " 0=%d", shape[2]);
+                fprintf(pp, " 1=%d", shape[1]);
+            } else if (shape.size() == 4) {
+                fprintf(pp, " 0=%d", shape[3]);
+                fprintf(pp, " 1=%d", shape[2]);
+                fprintf(pp, " 2=%d", shape[1]);
+            } else if (shape.size() == 5) {
+                fprintf(pp, " 0=%d", shape[4] * shape[3]);
+                fprintf(pp, " 1=%d", shape[2]);
+                fprintf(pp, " 2=%d", shape[1]);
+            }
+        }
         else if (n.op == "sin")
         {
             int op_type = 9;
@@ -1541,37 +1566,38 @@ int main(int argc, char** argv)
         else if (n.op == "tanh")
         {
         }
-        else if (n.op == "Reshape")
+        else if (n.op == "Transpose")
         {
-            std::vector<int> shape_data = n.attr("shape");
-            int size = shape_data.size();
-            if (size <= 4)
-            {
-                // n c h w
-                // n h w
-                // n w
-                if (size == 4)
-                {
-                    fprintf(pp, " 0=%d 1=%d 2=%d 3=0", shape_data[3], shape_data[2], shape_data[1]);
-                }
-                else if (size == 3)
-                {
-                    fprintf(pp, " 0=%d 1=%d 2=-233 3=0", shape_data[2], shape_data[1]);
-                }
-                else if (size == 2)
-                {
-                    fprintf(pp, " 0=%d 1=-233 2=-233 3=0", shape_data[1]);
-                }
+            std::vector<int> axes = n.attr("axes");
+
+            if (axes.size() == 4) {
+                if (axes[1] == 1 && axes[2] == 2 && axes[3] == 3)
+                    fprintf(pp, " 0=0");// w h c
+                else if (axes[1] == 1 && axes[2] == 3 && axes[3] == 2)
+                    fprintf(pp, " 0=1");// h w c
+                else if (axes[1] == 2 && axes[2] == 1 && axes[3] == 3)
+                    fprintf(pp, " 0=2");// w c h
+                else if (axes[1] == 2 && axes[2] == 3 && axes[3] == 1)
+                    fprintf(pp, " 0=3");// c w h
+                else if (axes[1] == 3 && axes[2] == 1 && axes[3] == 2)
+                    fprintf(pp, " 0=4");// h c w
+                else if (axes[1] == 3 && axes[2] == 2 && axes[3] == 1)
+                    fprintf(pp, " 0=5");// c h w
+            } else if (axes.size() == 5) {
+                if (axes[1] == 1 && axes[2] == 2 && axes[3] == 3 && axes[4] == 4)
+                    fprintf(pp, " 0=0");// wx h c
+                else if (axes[1] == 1 && axes[2] == 3 && axes[3] == 4 && axes[4] == 2)
+                    fprintf(pp, " 0=1");// h wx c
+                else if (axes[1] == 2 && axes[2] == 1 && axes[3] == 3 && axes[4] == 4)
+                    fprintf(pp, " 0=2");// wx c h
+                else if (axes[1] == 2 && axes[2] == 3 && axes[3] == 4 && axes[4] == 1)
+                    fprintf(pp, " 0=3");// c wx h
+                else if (axes[1] == 3 && axes[2] == 4 && axes[3] == 1 && axes[4] == 2)
+                    fprintf(pp, " 0=4");// h c wx
+                else if (axes[1] == 3 && axes[2] == 4 && axes[3] == 2 && axes[4] == 1)
+                    fprintf(pp, " 0=5");// c h wx
                 else
-                {
-                    fprintf(pp, " 0=0 1=0 2=0 3=0");  // size == 0, pass through
-                }
-            }
-            else
-            {
-                // pass through
-                fprintf(stderr, "Reshape dims is bigger than 4, not supported yet!\n");
-                fprintf(pp, " 0=0 1=0 2=0 3=0");
+                    fprintf(stderr, "Unsupported transpose type !\n");
             }
         }
         else
