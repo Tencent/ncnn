@@ -29,6 +29,10 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
 
 private:
+    // reshape flag
+    // 0 = copy from bottom
+    // -1 = remaining
+    // -233 = drop this dim (default)
     int w;
     int h;
     int c;
