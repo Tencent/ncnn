@@ -5353,23 +5353,23 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 
                     for (int m=0; m<8; m++)
                     {
-                        tmp[0][m] = r0[0] - r0[6] + (r0[4] - r0[2]) * 5.25;
-                        tmp[7][m] = r0[7] - r0[1] + (r0[3] - r0[5]) * 5.25;
+                        tmp[0][m] = r0[0] - r0[6] + (r0[4] - r0[2]) * 5.25f;
+                        tmp[7][m] = r0[7] - r0[1] + (r0[3] - r0[5]) * 5.25f;
 
-                        float tmp12a = (r0[2] + r0[6] - r0[4] * 4.25);
-                        float tmp12b = (r0[1] + r0[5] - r0[3] * 4.25);
+                        float tmp12a = (r0[2] + r0[6] - r0[4] * 4.25f);
+                        float tmp12b = (r0[1] + r0[5] - r0[3] * 4.25f);
 
                         tmp[1][m] = tmp12a + tmp12b;
                         tmp[2][m] = tmp12a - tmp12b;
 
-                        float tmp34a = (r0[6] + r0[2] * 0.25 - r0[4] * 1.25);
-                        float tmp34b = (r0[1] * 0.5 - r0[3] * 2.5 + r0[5] * 2);
+                        float tmp34a = (r0[6] + r0[2] * 0.25f - r0[4] * 1.25f);
+                        float tmp34b = (r0[1] * 0.5f - r0[3] * 2.5f + r0[5] * 2.f);
 
                         tmp[3][m] = tmp34a + tmp34b;
                         tmp[4][m] = tmp34a - tmp34b;
 
-                        float tmp56a = (r0[6] + (r0[2] - r0[4] * 1.25) * 4);
-                        float tmp56b = (r0[1] * 2 - r0[3] * 2.5 + r0[5] * 0.5);
+                        float tmp56a = (r0[6] + (r0[2] - r0[4] * 1.25f) * 4.f);
+                        float tmp56b = (r0[1] * 2.f - r0[3] * 2.5f + r0[5] * 0.5f);
 
                         tmp[5][m] = tmp56a + tmp56b;
                         tmp[6][m] = tmp56a - tmp56b;
@@ -5387,23 +5387,23 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                         float* r0_tm_0 = r0_tms_0[m];
                         float* r0_tm_4 = r0_tms_4[m];
 
-                        r0_tm_0[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25;
-                        r0_tm_4[3] = tmp0[7] - tmp0[1] + (tmp0[3] - tmp0[5]) * 5.25;
+                        r0_tm_0[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25f;
+                        r0_tm_4[3] = tmp0[7] - tmp0[1] + (tmp0[3] - tmp0[5]) * 5.25f;
 
-                        float tmp12a = (tmp0[2] + tmp0[6] - tmp0[4] * 4.25);
-                        float tmp12b = (tmp0[1] - tmp0[3] * 4.25 + tmp0[5]);
+                        float tmp12a = (tmp0[2] + tmp0[6] - tmp0[4] * 4.25f);
+                        float tmp12b = (tmp0[1] - tmp0[3] * 4.25f + tmp0[5]);
 
                         r0_tm_0[1] = tmp12a + tmp12b;
                         r0_tm_0[2] = tmp12a - tmp12b;
 
-                        float tmp34a = (tmp0[6] + tmp0[2] * 0.25 - tmp0[4] * 1.25);
-                        float tmp34b = (tmp0[1] * 0.5 - tmp0[3] * 2.5 + tmp0[5] * 2);
+                        float tmp34a = (tmp0[6] + tmp0[2] * 0.25f - tmp0[4] * 1.25f);
+                        float tmp34b = (tmp0[1] * 0.5f - tmp0[3] * 2.5f + tmp0[5] * 2.f);
 
                         r0_tm_0[3] = tmp34a + tmp34b;
                         r0_tm_4[0] = tmp34a - tmp34b;
 
-                        float tmp56a = (tmp0[6] + (tmp0[2] - tmp0[4] * 1.25) * 4);
-                        float tmp56b = (tmp0[1] * 2 - tmp0[3] * 2.5 + tmp0[5] * 0.5);
+                        float tmp56a = (tmp0[6] + (tmp0[2] - tmp0[4] * 1.25f) * 4.f);
+                        float tmp56b = (tmp0[1] * 2.f - tmp0[3] * 2.5f + tmp0[5] * 0.5f);
 
                         r0_tm_4[1] = tmp56a + tmp56b;
                         r0_tm_4[2] = tmp56a - tmp56b;
