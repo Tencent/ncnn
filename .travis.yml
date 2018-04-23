@@ -16,10 +16,10 @@ addons:
 install:
   - wget https://github.com/google/protobuf/archive/v3.5.1.tar.gz
   - tar -xzvf v3.5.1.tar.gz
-  - pushd protobuf-3.5.1 && ./autogen.sh && ./configure --prefix=/usr && make && sudo make install && sudo ldconfig && popd
+  - pushd protobuf-3.5.1 && ./autogen.sh && ./configure --prefix=/usr && make -j2 && sudo make install && sudo ldconfig && popd
 
 script:
   - mkdir build
   - cd build
   - cmake ..
-  - make
+  - make -j2
