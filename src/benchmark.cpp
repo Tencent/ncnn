@@ -14,7 +14,7 @@
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include <windows.h>
 #include <stdint.h> // portable: uint64_t   MSVC: __int64
 #else // _WIN32
 #include <sys/time.h>
