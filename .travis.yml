@@ -1,4 +1,4 @@
-sudo: required
+sudo: false
 dist: trusty
 
 language: cpp
@@ -12,8 +12,15 @@ addons:
     - ubuntu-toolchain-r-test
     packages:
     - cmake
-    - libprotobuf-dev
-    - protobuf-compiler
+
+before_install:
+    - export PATH=$HOME/protobuf/bin:$PATH
+
+install:
+    - mkdir -p $HOME/protobuf && pushd $HOME/protobuf
+      && curl -LO 'https://github.com/google/protobuf/releases/download/v3.4.0/protoc-3.4.0-linux-x86_64.zip'
+      && unzip protoc-3.4.0-linux-x86_64.zip
+      && popd
 
 script:
   - mkdir build
