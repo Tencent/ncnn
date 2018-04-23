@@ -13,14 +13,10 @@ addons:
     packages:
     - cmake
 
-before_install:
-    - export PATH=$HOME/protobuf/bin:$PATH
-
 install:
-    - mkdir -p $HOME/protobuf && pushd $HOME/protobuf
-      && curl -LO 'https://github.com/google/protobuf/releases/download/v3.4.0/protoc-3.4.0-linux-x86_64.zip'
-      && unzip protoc-3.4.0-linux-x86_64.zip
-      && popd
+  - wget https://github.com/google/protobuf/archive/v3.5.1.tar.gz
+  - tar -xzvf protobuf-3.5.1.tar.gz
+  - pushd protobuf-3.5.1 && ./configure --prefix=/usr && make && sudo make install && popd
 
 script:
   - mkdir build
