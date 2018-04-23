@@ -15,7 +15,7 @@ addons:
 
 install:
   - wget https://github.com/google/protobuf/archive/v3.5.1.tar.gz
-  - tar -xzvf protobuf-3.5.1.tar.gz
+  - tar -xzvf v3.5.1.tar.gz
   - pushd protobuf-3.5.1 && ./configure --prefix=/usr && make && sudo make install && popd
 
 script:
