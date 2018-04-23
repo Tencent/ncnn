@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include <ctype.h>
 #include "paramdict.h"
 #include "platform.h"
 
@@ -74,7 +75,7 @@ static bool vstr_is_float(const char vstr[16])
         if (vstr[j] == '\0')
             break;
 
-        if (vstr[j] == '.')
+        if (vstr[j] == '.' || tolower(vstr[j]) == 'e')
             return true;
     }
 
