@@ -67,7 +67,7 @@ static bool vstr_is_float(const char vstr[16])
         if (vstr[j] == '\0')
             break;
 
-        if (vstr[j] == '.')
+        if (vstr[j] == '.' || tolower(vstr[j]) == 'e')
             return true;
     }
 
