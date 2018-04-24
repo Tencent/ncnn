@@ -27,7 +27,6 @@
 #include "layer/convolution.h"
 #endif // NCNN_BENCHMARK
 
-
 namespace ncnn {
 
 #ifdef _WIN32
