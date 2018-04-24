@@ -108,8 +108,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     {
         int nscan = 0;
 
-        char layer_type[32];
-        char layer_name[256];
+        char layer_type[33];
+        char layer_name[257];
         int bottom_count = 0;
         int top_count = 0;
         nscan = fscanf(fp, "%32s %256s %d %d", layer_type, layer_name, &bottom_count, &top_count);
@@ -131,7 +131,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 //         layer->bottoms.resize(bottom_count);
         for (int i=0; i<bottom_count; i++)
         {
-            char bottom_name[256];
+            char bottom_name[257];
             nscan = fscanf(fp, "%256s", bottom_name);
             if (nscan != 1)
             {
@@ -148,7 +148,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 //         layer->tops.resize(top_count);
         for (int i=0; i<top_count; i++)
         {
-            char blob_name[256];
+            char blob_name[257];
             nscan = fscanf(fp, "%256s", blob_name);
             if (nscan != 1)
             {
