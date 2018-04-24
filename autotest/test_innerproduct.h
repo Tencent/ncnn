@@ -8,7 +8,7 @@ forward - pass:
              1,1,1,1]    0.5]    6.5]
 */
 
-TEST(innerproduct, forward) 
+TEST(innerproduct, forward)
 {
     // layer params
     InnerProduct inner_product_layer;
@@ -29,7 +29,7 @@ TEST(innerproduct, forward)
 
     // weights & bias
     float_t w[] = {
-        1.0f, 1.0f, 1.0f, 1.0f,        
+        1.0f, 1.0f, 1.0f, 1.0f,
         1.0f, 1.0f, 1.0f, 1.0f
     };
 

@@ -7,7 +7,7 @@
 #include "opencv.h"
 #include "platform.h"
 
-#include "test_convlution.h"
+#include "test_convolution.h"
 #include "test_innerproduct.h"
 #include "gtest/gtest.h"
 
