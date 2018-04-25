@@ -239,7 +239,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     std::vector<BBoxRect> bbox_rects;
     std::vector<float> bbox_scores;
 
-    for (int i = 0; i < num_class; i++)
+    for (int i = 1; i < num_class; i++)
     {
         const std::vector<BBoxRect>& class_bbox_rects = all_class_bbox_rects[i];
         const std::vector<float>& class_bbox_scores = all_class_bbox_scores[i];
