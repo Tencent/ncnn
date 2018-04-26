@@ -59,6 +59,119 @@ int Convolution_arm::load_model(const ModelBin& mb)
     return 0;
 }
 
+int Convolution_arm::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+
+    const int kernel_size = kernel_w;
+    const int stride = stride_w;
+    const int dilation = dilation_w;
+    const int kernel_extent = dilation * (kernel_size - 1) + 1;
+
+    Mat bottom_blob_bordered = bottom_blob;
+    if (pad_w > 0 || pad_h > 0)
+    {
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f);
+        if (bottom_blob_bordered.empty())
+            return -100;
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+    else if (pad_w == -233 && pad_h == -233)
+    {
+        int wpad = kernel_extent + (w - 1) / stride * stride - w;
+        int hpad = kernel_extent + (h - 1) / stride * stride - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
+            if (bottom_blob_bordered.empty())
+                return -100;
+        }
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+
+    int outw = (w - kernel_extent) / stride + 1;
+    int outh = (h - kernel_extent) / stride + 1;
+
+    top_blob.create(outw, outh, num_output);
+    if (top_blob.empty())
+        return -100;
+
+    // Make (dilation * dilation) batches
+    Mat inner_bottom_blob;
+    Mat inner_top_blob;
+    for (int x = 0; x < dilation; x ++)
+    {
+        for (int y = 0; y < dilation; y ++)
+        {
+            int inner_w = (w - y + dilation - 1) / dilation;
+            int inner_h = (h - x + dilation - 1) / dilation;
+
+            int inner_outw = (inner_w - kernel_size) / stride + 1;
+            int inner_outh = (inner_h - kernel_size) / stride + 1;
+
+            if (inner_bottom_blob.w != inner_w || inner_bottom_blob.h != inner_h)
+            {
+                inner_bottom_blob.create(inner_w, inner_h, bottom_blob.c);
+
+                if (inner_bottom_blob.empty())
+                {
+                    return -100;
+                }
+            }
+
+            if (inner_top_blob.w != inner_outw || inner_top_blob.h != inner_outh)
+            {
+                inner_top_blob.create(inner_outw, inner_outh, num_output);
+
+                if (inner_top_blob.empty())
+                {
+                    return -100;
+                }
+            }
+
+            #pragma omp parallel for
+            for (int c = 0; c < bottom_blob.c; c ++)
+            {
+                float *outptr = (float *) inner_bottom_blob.channel(c);
+
+                for (int i = 0; i < inner_h; i ++)
+                {
+                    const float *ptr = (const float *) bottom_blob_bordered.channel(c) + dilation * i * w + x * w + y;
+                    for (int j = 0; j < inner_w; j ++)
+                    {
+                        outptr[j] = ptr[j*dilation];
+                    }
+                    outptr += inner_w;
+                }
+            }
+
+            conv(inner_bottom_blob, inner_top_blob, weight_data, bias_data);
+
+            #pragma omp parallel for
+            for (int c = 0; c < num_output; c ++)
+            {
+                float *outptr = (float *) top_blob.channel(c) + x * outw + y;
+                for (int i = 0; i < inner_outh; i ++)
+                {
+                    const float *ptr = (const float *) inner_top_blob.channel(c) + i * inner_outw;
+                    for (int j = 0; j < inner_outw; j ++)
+                    {
+                        outptr[j*dilation] = ptr[j];
+                    }
+                    outptr += dilation * outw;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // convolv with NxN kernel
@@ -77,7 +190,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     const int kernel_size = kernel_w;
     const int stride = stride_w;
 
-    if (kernel_size > 7 || stride > 4 || dilation_w != 1 || dilation_h != 1)
+    if (kernel_size > 7 || stride > 4 || dilation_w != dilation_h)
     {
         return Convolution::forward(bottom_blob, top_blob);
     }
@@ -135,6 +248,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     if (!conv)
     {
         return Convolution::forward(bottom_blob, top_blob);
+    }
+
+    if (dilation_w != 1)
+    {
+        return forwardDilation(bottom_blob, top_blob, conv);
     }
 
     int w = bottom_blob.w;

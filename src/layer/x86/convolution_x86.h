@@ -19,10 +19,13 @@
 
 namespace ncnn {
 
+typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&);
+
 class Convolution_x86 : public Convolution
 {
 public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forwardDilation(const Mat& bottom_blob, Mat &top_blob, conv_func conv) const;
 };
 
 } // namespace ncnn

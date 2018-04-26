@@ -19,6 +19,8 @@
 
 namespace ncnn {
 
+typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&);
+
 class Convolution_arm : public Convolution
 {
 public:
@@ -27,6 +29,7 @@ public:
     virtual int load_model(const ModelBin& mb);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv) const;
 
 public:
     bool use_winograd3x3;
