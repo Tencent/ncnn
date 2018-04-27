@@ -438,7 +438,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                float scale_factor = 1 / binlayer.blobs(2).data().data()[0];
+                float scale_factor = binlayer.blobs(2).data().data()[0] == 0 ? 0 : 1 / binlayer.blobs(2).data().data()[0];
                 // premultiply scale_factor to mean and variance
                 float tmp;
                 for (int j=0; j<mean_blob.data_size(); j++)
