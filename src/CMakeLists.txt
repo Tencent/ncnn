@@ -144,6 +144,7 @@ ncnn_add_layer(Interp)
 ncnn_add_layer(DeconvolutionDepthWise)
 ncnn_add_layer(ShuffleChannel)
 ncnn_add_layer(InstanceNorm)
+ncnn_add_layer(Clip)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 

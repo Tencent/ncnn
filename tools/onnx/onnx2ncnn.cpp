@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include <float.h>
 #include <stdio.h>
 #include <limits.h>
 
@@ -453,6 +454,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "BatchNorm");
         }
+        else if (op == "Clip")
+        {
+            fprintf(pp, "%-16s", "Clip");
+        }
         else if (op == "Concat")
         {
             fprintf(pp, "%-16s", "Concat");
@@ -689,6 +694,13 @@ int main(int argc, char** argv)
                 }
             }
             fwrite_tensor_proto_data(B, bp);
+        }
+        else if (op == "Clip")
+        {
+            float min = get_node_attr_f(node, "min", -FLT_MAX);
+            float max = get_node_attr_f(node, "max", FLT_MAX);
+            fprintf(pp, " 0=%f", min);
+            fprintf(pp, " 1=%f", max);
         }
         else if (op == "Concat")
         {
