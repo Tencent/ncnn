@@ -801,6 +801,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (n.op == "clip")
+        {
+            fprintf(pp, "%-16s", "Clip");
+        }
         else if (n.op == "Concat")
         {
             fprintf(pp, "%-16s", "Concat");
@@ -1137,6 +1141,13 @@ int main(int argc, char** argv)
         {
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "clip")
+        {
+            float min = n.attr("a_min");
+            float max = n.attr("a_max");
+            fprintf(pp, " 0=%f", min);
+            fprintf(pp, " 1=%f", max);
         }
         else if (n.op == "Concat")
         {
