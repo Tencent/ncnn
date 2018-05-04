@@ -231,7 +231,7 @@ void squeezenet_ssd_run(const ncnn::Net& net)
 {
     ncnn::Extractor ex = net.create_extractor();
 
-    ncnn::Mat in(227, 227, 3);
+    ncnn::Mat in(300, 300, 3);
     ex.input("data", in);
 
     ncnn::Mat out;
@@ -247,7 +247,7 @@ void mobilenet_ssd_run(const ncnn::Net& net)
 {
     ncnn::Extractor ex = net.create_extractor();
 
-    ncnn::Mat in(227, 227, 3);
+    ncnn::Mat in(300, 300, 3);
     ex.input("data", in);
 
     ncnn::Mat out;
