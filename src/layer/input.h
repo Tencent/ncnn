@@ -26,12 +26,12 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
-
     virtual int forward_inplace(Mat& bottom_top_blob) const;
 
 public:
-    int size[3];
+    int w;
+    int h;
+    int c;
 };
 
 } // namespace ncnn

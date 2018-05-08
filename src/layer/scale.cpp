@@ -24,106 +24,139 @@ Scale::Scale()
     support_inplace = true;
 }
 
-Scale::~Scale()
-{
-}
-
 int Scale::load_param(const ParamDict& pd)
 {
     scale_data_size = pd.get(0, 0);
     bias_term = pd.get(1, 0);
 
+    if (scale_data_size == -233)
+        one_blob_only = false;
+
     return 0;
 }
 
-#if NCNN_STDIO
-int Scale::load_model(FILE* binfp)
+int Scale::load_model(const ModelBin& mb)
 {
-    int nread;
-
-    scale_data.create(scale_data_size);
-    nread = fread(scale_data, scale_data_size * sizeof(float), 1, binfp);
-    if (nread != 1)
+    if (scale_data_size != -233)
     {
-        fprintf(stderr, "Scale read scale_data failed %d\n", nread);
-        return -1;
+        scale_data = mb.load(scale_data_size, 1);
+        if (scale_data.empty())
+            return -100;
     }
 
     if (bias_term)
     {
-        bias_data.create(scale_data_size);
+        bias_data = mb.load(scale_data_size, 1);
         if (bias_data.empty())
             return -100;
-        nread = fread(bias_data, scale_data_size * sizeof(float), 1, binfp);
-        if (nread != 1)
-        {
-            fprintf(stderr, "Scale read bias_data failed %d\n", nread);
-            return -1;
-        }
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Scale::load_model(const unsigned char*& mem)
-{
-    scale_data = Mat(scale_data_size, (float*)mem);
-    mem += scale_data_size * sizeof(float);
-
-    if (bias_term)
-    {
-        bias_data = Mat(scale_data_size, (float*)mem);
-        mem += scale_data_size * sizeof(float);
     }
 
     return 0;
 }
 
-int Scale::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
 {
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    int size = w * h;
+    Mat& bottom_top_blob = bottom_top_blobs[0];
+    const Mat& scale_blob = bottom_top_blobs[1];
 
-    top_blob.create(w, h, channels);
-    if (top_blob.empty())
-        return -100;
+    int dims = bottom_top_blob.dims;
 
-    if (bias_term)
+    if (dims == 1)
     {
-        const float* scale_ptr = scale_data;
-        const float* bias_ptr = bias_data;
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
+        int w = bottom_top_blob.w;
+
+        float* ptr = bottom_top_blob;
+
+        if (bias_term)
         {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-
-            float s = scale_ptr[q];
-            float bias = bias_ptr[q];
-
-            for (int i=0; i<size; i++)
+            #pragma omp parallel for
+            for (int i=0; i<w; i++)
             {
-                outptr[i] = ptr[i] * s + bias;
+                ptr[i] = ptr[i] * scale_blob[i] + bias_data[i];
+            }
+        }
+        else
+        {
+            #pragma omp parallel for
+            for (int i=0; i<w; i++)
+            {
+                ptr[i] *= scale_blob[i];
             }
         }
     }
-    else
+
+    if (dims == 2)
     {
-        const float* scale_ptr = scale_data;
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
+        int w = bottom_top_blob.w;
+        int h = bottom_top_blob.h;
+
+        if (bias_term)
         {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-
-            float s = scale_ptr[q];
-
-            for (int i=0; i<size; i++)
+            #pragma omp parallel for
+            for (int i=0; i<h; i++)
             {
-                outptr[i] = ptr[i] * s;
+                float* ptr = bottom_top_blob.row(i);
+                float s = scale_blob[i];
+                float bias = bias_data[i];
+
+                for (int j=0; j<w; j++)
+                {
+                    ptr[j] = ptr[j] * s + bias;
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for
+            for (int i=0; i<h; i++)
+            {
+                float* ptr = bottom_top_blob.row(i);
+                float s = scale_blob[i];
+
+                for (int j=0; j<w; j++)
+                {
+                    ptr[j] *= s;
+                }
+            }
+        }
+    }
+
+    if (dims == 3)
+    {
+        int w = bottom_top_blob.w;
+        int h = bottom_top_blob.h;
+        int channels = bottom_top_blob.c;
+        int size = w * h;
+
+        if (bias_term)
+        {
+            #pragma omp parallel for
+            for (int q=0; q<channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+
+                float s = scale_blob[q];
+                float bias = bias_data[q];
+
+                for (int i=0; i<size; i++)
+                {
+                    ptr[i] = ptr[i] * s + bias;
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for
+            for (int q=0; q<channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+
+                float s = scale_blob[q];
+
+                for (int i=0; i<size; i++)
+                {
+                    ptr[i] *= s;
+                }
             }
         }
     }
@@ -133,47 +166,11 @@ int Scale::forward(const Mat& bottom_blob, Mat& top_blob) const
 
 int Scale::forward_inplace(Mat& bottom_top_blob) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-    int size = w * h;
+    std::vector<Mat> bottom_top_blobs(2);
+    bottom_top_blobs[0] = bottom_top_blob;
+    bottom_top_blobs[1] = scale_data;
 
-    if (bias_term)
-    {
-        const float* scale_ptr = scale_data;
-        const float* bias_ptr = bias_data;
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-
-            float s = scale_ptr[q];
-            float bias = bias_ptr[q];
-
-            for (int i=0; i<size; i++)
-            {
-                ptr[i] = ptr[i] * s + bias;
-            }
-        }
-    }
-    else
-    {
-        const float* scale_ptr = scale_data;
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-
-            float s = scale_ptr[q];
-
-            for (int i=0; i<size; i++)
-            {
-                ptr[i] *= s;
-            }
-        }
-    }
-
-    return 0;
+    return forward_inplace(bottom_top_blobs);
 }
 
 } // namespace ncnn

@@ -22,93 +22,12 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(BatchNorm_arm)
 
-int BatchNorm_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
-{
-    // a = bias - slope * mean / sqrt(var)
-    // b = slope / sqrt(var)
-    // value = b * value + a
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int size = w * h;
-
-    top_blob.create(w, h, channels);
-    if (top_blob.empty())
-        return -100;
-
-    const float* a_data_ptr = a_data;
-    const float* b_data_ptr = b_data;
-    #pragma omp parallel for
-    for (int q=0; q<channels; q++)
-    {
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
-
-        float a = a_data_ptr[q];
-        float b = b_data_ptr[q];
-
-#if __ARM_NEON
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-#if __aarch64__
-        float32x4_t _a = vdupq_n_f32(a);
-        float32x4_t _b = vdupq_n_f32(b);
-        for (; nn>0; nn--)
-        {
-            float32x4_t _p = vld1q_f32(ptr);
-            float32x4_t _outp = _a;
-            _outp = vfmaq_f32(_outp, _p, _b);
-            vst1q_f32(outptr, _outp);
-
-            ptr += 4;
-            outptr += 4;
-        }
-#else
-        if (nn > 0)
-        {
-        asm volatile(
-            "vdup.f32   q1, %6              \n"
-            "vdup.f32   q2, %7              \n"
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld1.f32   {d0-d1}, [%1 :128]! \n"
-            "vorr.32    q3, q1, q1          \n"
-            "vmla.f32   q3, q0, q2          \n"
-            "subs       %0, #1              \n"
-            "vst1.f32   {d6-d7}, [%2 :128]! \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(ptr),    // %1
-              "=r"(outptr)  // %2
-            : "0"(nn),
-              "1"(ptr),
-              "2"(outptr),
-              "r"(a),       // %6
-              "r"(b)        // %7
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
-        }
-#endif // __aarch64__
-#endif // __ARM_NEON
-        for (; remain>0; remain--)
-        {
-            *outptr = b * *ptr + a;
-
-            ptr++;
-            outptr++;
-        }
-    }
-
-    return 0;
-}
-
 int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob) const
 {
+    int dims = bottom_top_blob.dims;
+    if (dims != 3)
+        return BatchNorm::forward_inplace(bottom_top_blob);
+
     // a = bias - slope * mean / sqrt(var)
     // b = slope / sqrt(var)
     // value = b * value + a
@@ -136,16 +55,27 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob) const
 
 #if __ARM_NEON
 #if __aarch64__
-        float32x4_t _a = vdupq_n_f32(a);
-        float32x4_t _b = vdupq_n_f32(b);
-        for (; nn>0; nn--)
+        if (nn > 0)
         {
-            float32x4_t _p = vld1q_f32(ptr);
-            float32x4_t _outp = _a;
-            _outp = vfmaq_f32(_outp, _p, _b);
-            vst1q_f32(ptr, _outp);
-
-            ptr += 4;
+        asm volatile(
+            "dup        v1.4s, %w4             \n"
+            "dup        v2.4s, %w5             \n"
+            "0:                                \n"
+            "prfm       pldl1keep, [%1, #128]  \n"
+            "ld1        {v0.4s}, [%1]          \n"
+            "orr        v3.16b, v1.16b, v1.16b \n"
+            "fmla       v3.4s, v0.4s, v2.4s    \n"
+            "subs       %w0, %w0, #1           \n"
+            "st1        {v3.4s}, [%1], #16     \n"
+            "bne        0b                     \n"
+            : "=r"(nn),     // %0
+              "=r"(ptr)     // %1
+            : "0"(nn),
+              "1"(ptr),
+              "r"(a),       // %4
+              "r"(b)        // %5
+            : "cc", "memory", "v0", "v1", "v2", "v3"
+        );
         }
 #else
         if (nn > 0)

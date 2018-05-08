@@ -25,10 +25,6 @@ RNN::RNN()
     support_inplace = false;
 }
 
-RNN::~RNN()
-{
-}
-
 int RNN::load_param(const ParamDict& pd)
 {
     num_output = pd.get(0, 0);
@@ -37,87 +33,30 @@ int RNN::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int RNN::load_model(FILE* binfp)
+int RNN::load_model(const ModelBin& mb)
 {
-    int nread;
-
     int size = (weight_data_size - num_output * num_output) / 2 / num_output;
 
     // raw weight data
-    weight_hh_data.create(size, num_output);
+    weight_hh_data = mb.load(size, num_output, 1);
     if (weight_hh_data.empty())
         return -100;
-    nread = fread(weight_hh_data.data, size * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "RNN read weight_hh_data failed %d\n", nread);
-        return -1;
-    }
 
-    weight_xh_data.create(size, num_output);
+    weight_xh_data = mb.load(size, num_output, 1);
     if (weight_xh_data.empty())
         return -100;
-    nread = fread(weight_xh_data.data, size * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "RNN read weight_xh_data failed %d\n", nread);
-        return -1;
-    }
 
-    weight_ho_data.create(num_output, num_output);
+    weight_ho_data = mb.load(num_output, num_output, 1);
     if (weight_ho_data.empty())
         return -100;
-    nread = fread(weight_ho_data.data, num_output * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "RNN read weight_ho_data failed %d\n", nread);
-        return -1;
-    }
 
-    bias_h_data.create(num_output);
+    bias_h_data = mb.load(num_output, 1);
     if (bias_h_data.empty())
         return -100;
-    nread = fread(bias_h_data.data, num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "RNN read bias_h_data failed %d\n", nread);
-        return -1;
-    }
 
-    bias_o_data.create(num_output);
+    bias_o_data = mb.load(num_output, 1);
     if (bias_o_data.empty())
         return -100;
-    nread = fread(bias_o_data.data, num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "RNN read bias_o_data failed %d\n", nread);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int RNN::load_model(const unsigned char*& mem)
-{
-    int size = (weight_data_size - num_output * num_output) / 2 / num_output;
-
-    // raw weight data
-    weight_hh_data = Mat(size, num_output, (float*)mem);
-    mem += size * num_output * sizeof(float);
-
-    weight_xh_data = Mat(size, num_output, (float*)mem);
-    mem += size * num_output * sizeof(float);
-
-    weight_ho_data = Mat(num_output, num_output, (float*)mem);
-    mem += num_output * num_output * sizeof(float);
-
-    bias_h_data = Mat(num_output, (float*)mem);
-    mem += num_output * sizeof(float);
-
-    bias_o_data = Mat(num_output, (float*)mem);
-    mem += num_output * sizeof(float);
 
     return 0;
 }
@@ -153,18 +92,18 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         //                0       otherwise
         // calculate hidden
         // h_t = tanh( W_hh * h_cont_{t-1} + W_xh * x_t + b_h )
-        const float cont = cont_blob.data[t];
+        const float cont = cont_blob[t];
         const Mat x = input_blob.channel(t);
         float* hidden_data = hidden;
         for (int q=0; q<num_output; q++)
         {
             float h_cont = cont ? hidden_data[q] : 0.f;
 
-            const float* weight_hh_data_ptr = weight_hh_data.data + weight_hh_data.w * q;
-            const float* weight_xh_data_ptr = weight_xh_data.data + weight_xh_data.w * q;
+            const float* weight_hh_data_ptr = (const float*)weight_hh_data + weight_hh_data.w * q;
+            const float* weight_xh_data_ptr = (const float*)weight_xh_data + weight_xh_data.w * q;
             const float* x_data = x;
 
-            float s0 = bias_h_data.data[q];
+            float s0 = bias_h_data[q];
             for (int i=0; i<size; i++)
             {
                 s0 += weight_hh_data_ptr[i] * h_cont + weight_xh_data_ptr[i] * x_data[i];
@@ -179,9 +118,9 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         float* output_data = output;
         for (int q=0; q<num_output; q++)
         {
-            const float* weight_ho_data_ptr = weight_ho_data.data + weight_ho_data.w * q;
+            const float* weight_ho_data_ptr = (const float*)weight_ho_data + weight_ho_data.w * q;
 
-            float s0 = bias_o_data.data[q];
+            float s0 = bias_o_data[q];
             for (int i=0; i<size; i++)
             {
                 s0 += weight_ho_data_ptr[i] * hidden_data[i];

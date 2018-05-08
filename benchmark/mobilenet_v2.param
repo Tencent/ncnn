@@ -1,0 +1,221 @@
+7767517
+219 229
+Input            data             0 1 data 0=224 1=224 2=3
+Convolution      conv1            1 1 data conv1 0=32 1=3 2=1 3=2 4=1 5=0 6=864
+BatchNorm        conv1/bn         1 1 conv1 conv1/bn 0=32
+Scale            conv1/scale      1 1 conv1/bn conv1/bn_conv1/scale 0=32 1=1
+ReLU             relu1            1 1 conv1/bn_conv1/scale conv1/bn_relu1
+Convolution      conv2_1/expand   1 1 conv1/bn_relu1 conv2_1/expand 0=32 1=1 2=1 3=1 4=0 5=0 6=1024
+BatchNorm        conv2_1/expand/bn 1 1 conv2_1/expand conv2_1/expand/bn 0=32
+Scale            conv2_1/expand/scale 1 1 conv2_1/expand/bn conv2_1/expand/bn_conv2_1/expand/scale 0=32 1=1
+ReLU             relu2_1/expand   1 1 conv2_1/expand/bn_conv2_1/expand/scale conv2_1/expand/bn_relu2_1/expand
+ConvolutionDepthWise conv2_1/dwise    1 1 conv2_1/expand/bn_relu2_1/expand conv2_1/dwise 0=32 1=3 2=1 3=1 4=1 5=0 6=288 7=32
+BatchNorm        conv2_1/dwise/bn 1 1 conv2_1/dwise conv2_1/dwise/bn 0=32
+Scale            conv2_1/dwise/scale 1 1 conv2_1/dwise/bn conv2_1/dwise/bn_conv2_1/dwise/scale 0=32 1=1
+ReLU             relu2_1/dwise    1 1 conv2_1/dwise/bn_conv2_1/dwise/scale conv2_1/dwise/bn_relu2_1/dwise
+Convolution      conv2_1/linear   1 1 conv2_1/dwise/bn_relu2_1/dwise conv2_1/linear 0=16 1=1 2=1 3=1 4=0 5=0 6=512
+BatchNorm        conv2_1/linear/bn 1 1 conv2_1/linear conv2_1/linear/bn 0=16
+Scale            conv2_1/linear/scale 1 1 conv2_1/linear/bn conv2_1/linear/bn_conv2_1/linear/scale 0=16 1=1
+Convolution      conv2_2/expand   1 1 conv2_1/linear/bn_conv2_1/linear/scale conv2_2/expand 0=96 1=1 2=1 3=1 4=0 5=0 6=1536
+BatchNorm        conv2_2/expand/bn 1 1 conv2_2/expand conv2_2/expand/bn 0=96
+Scale            conv2_2/expand/scale 1 1 conv2_2/expand/bn conv2_2/expand/bn_conv2_2/expand/scale 0=96 1=1
+ReLU             relu2_2/expand   1 1 conv2_2/expand/bn_conv2_2/expand/scale conv2_2/expand/bn_relu2_2/expand
+ConvolutionDepthWise conv2_2/dwise    1 1 conv2_2/expand/bn_relu2_2/expand conv2_2/dwise 0=96 1=3 2=1 3=2 4=1 5=0 6=864 7=96
+BatchNorm        conv2_2/dwise/bn 1 1 conv2_2/dwise conv2_2/dwise/bn 0=96
+Scale            conv2_2/dwise/scale 1 1 conv2_2/dwise/bn conv2_2/dwise/bn_conv2_2/dwise/scale 0=96 1=1
+ReLU             relu2_2/dwise    1 1 conv2_2/dwise/bn_conv2_2/dwise/scale conv2_2/dwise/bn_relu2_2/dwise
+Convolution      conv2_2/linear   1 1 conv2_2/dwise/bn_relu2_2/dwise conv2_2/linear 0=24 1=1 2=1 3=1 4=0 5=0 6=2304
+BatchNorm        conv2_2/linear/bn 1 1 conv2_2/linear conv2_2/linear/bn 0=24
+Scale            conv2_2/linear/scale 1 1 conv2_2/linear/bn conv2_2/linear/bn_conv2_2/linear/scale 0=24 1=1
+Split            splitncnn_0      1 2 conv2_2/linear/bn_conv2_2/linear/scale conv2_2/linear/bn_conv2_2/linear/scale_splitncnn_0 conv2_2/linear/bn_conv2_2/linear/scale_splitncnn_1
+Convolution      conv3_1/expand   1 1 conv2_2/linear/bn_conv2_2/linear/scale_splitncnn_1 conv3_1/expand 0=144 1=1 2=1 3=1 4=0 5=0 6=3456
+BatchNorm        conv3_1/expand/bn 1 1 conv3_1/expand conv3_1/expand/bn 0=144
+Scale            conv3_1/expand/scale 1 1 conv3_1/expand/bn conv3_1/expand/bn_conv3_1/expand/scale 0=144 1=1
+ReLU             relu3_1/expand   1 1 conv3_1/expand/bn_conv3_1/expand/scale conv3_1/expand/bn_relu3_1/expand
+ConvolutionDepthWise conv3_1/dwise    1 1 conv3_1/expand/bn_relu3_1/expand conv3_1/dwise 0=144 1=3 2=1 3=1 4=1 5=0 6=1296 7=144
+BatchNorm        conv3_1/dwise/bn 1 1 conv3_1/dwise conv3_1/dwise/bn 0=144
+Scale            conv3_1/dwise/scale 1 1 conv3_1/dwise/bn conv3_1/dwise/bn_conv3_1/dwise/scale 0=144 1=1
+ReLU             relu3_1/dwise    1 1 conv3_1/dwise/bn_conv3_1/dwise/scale conv3_1/dwise/bn_relu3_1/dwise
+Convolution      conv3_1/linear   1 1 conv3_1/dwise/bn_relu3_1/dwise conv3_1/linear 0=24 1=1 2=1 3=1 4=0 5=0 6=3456
+BatchNorm        conv3_1/linear/bn 1 1 conv3_1/linear conv3_1/linear/bn 0=24
+Scale            conv3_1/linear/scale 1 1 conv3_1/linear/bn conv3_1/linear/bn_conv3_1/linear/scale 0=24 1=1
+Eltwise          block_3_1        2 1 conv2_2/linear/bn_conv2_2/linear/scale_splitncnn_0 conv3_1/linear/bn_conv3_1/linear/scale block_3_1 0=1 -23301=0
+Convolution      conv3_2/expand   1 1 block_3_1 conv3_2/expand 0=144 1=1 2=1 3=1 4=0 5=0 6=3456
+BatchNorm        conv3_2/expand/bn 1 1 conv3_2/expand conv3_2/expand/bn 0=144
+Scale            conv3_2/expand/scale 1 1 conv3_2/expand/bn conv3_2/expand/bn_conv3_2/expand/scale 0=144 1=1
+ReLU             relu3_2/expand   1 1 conv3_2/expand/bn_conv3_2/expand/scale conv3_2/expand/bn_relu3_2/expand
+ConvolutionDepthWise conv3_2/dwise    1 1 conv3_2/expand/bn_relu3_2/expand conv3_2/dwise 0=144 1=3 2=1 3=2 4=1 5=0 6=1296 7=144
+BatchNorm        conv3_2/dwise/bn 1 1 conv3_2/dwise conv3_2/dwise/bn 0=144
+Scale            conv3_2/dwise/scale 1 1 conv3_2/dwise/bn conv3_2/dwise/bn_conv3_2/dwise/scale 0=144 1=1
+ReLU             relu3_2/dwise    1 1 conv3_2/dwise/bn_conv3_2/dwise/scale conv3_2/dwise/bn_relu3_2/dwise
+Convolution      conv3_2/linear   1 1 conv3_2/dwise/bn_relu3_2/dwise conv3_2/linear 0=32 1=1 2=1 3=1 4=0 5=0 6=4608
+BatchNorm        conv3_2/linear/bn 1 1 conv3_2/linear conv3_2/linear/bn 0=32
+Scale            conv3_2/linear/scale 1 1 conv3_2/linear/bn conv3_2/linear/bn_conv3_2/linear/scale 0=32 1=1
+Split            splitncnn_1      1 2 conv3_2/linear/bn_conv3_2/linear/scale conv3_2/linear/bn_conv3_2/linear/scale_splitncnn_0 conv3_2/linear/bn_conv3_2/linear/scale_splitncnn_1
+Convolution      conv4_1/expand   1 1 conv3_2/linear/bn_conv3_2/linear/scale_splitncnn_1 conv4_1/expand 0=192 1=1 2=1 3=1 4=0 5=0 6=6144
+BatchNorm        conv4_1/expand/bn 1 1 conv4_1/expand conv4_1/expand/bn 0=192
+Scale            conv4_1/expand/scale 1 1 conv4_1/expand/bn conv4_1/expand/bn_conv4_1/expand/scale 0=192 1=1
+ReLU             relu4_1/expand   1 1 conv4_1/expand/bn_conv4_1/expand/scale conv4_1/expand/bn_relu4_1/expand
+ConvolutionDepthWise conv4_1/dwise    1 1 conv4_1/expand/bn_relu4_1/expand conv4_1/dwise 0=192 1=3 2=1 3=1 4=1 5=0 6=1728 7=192
+BatchNorm        conv4_1/dwise/bn 1 1 conv4_1/dwise conv4_1/dwise/bn 0=192
+Scale            conv4_1/dwise/scale 1 1 conv4_1/dwise/bn conv4_1/dwise/bn_conv4_1/dwise/scale 0=192 1=1
+ReLU             relu4_1/dwise    1 1 conv4_1/dwise/bn_conv4_1/dwise/scale conv4_1/dwise/bn_relu4_1/dwise
+Convolution      conv4_1/linear   1 1 conv4_1/dwise/bn_relu4_1/dwise conv4_1/linear 0=32 1=1 2=1 3=1 4=0 5=0 6=6144
+BatchNorm        conv4_1/linear/bn 1 1 conv4_1/linear conv4_1/linear/bn 0=32
+Scale            conv4_1/linear/scale 1 1 conv4_1/linear/bn conv4_1/linear/bn_conv4_1/linear/scale 0=32 1=1
+Eltwise          block_4_1        2 1 conv3_2/linear/bn_conv3_2/linear/scale_splitncnn_0 conv4_1/linear/bn_conv4_1/linear/scale block_4_1 0=1 -23301=0
+Split            splitncnn_2      1 2 block_4_1 block_4_1_splitncnn_0 block_4_1_splitncnn_1
+Convolution      conv4_2/expand   1 1 block_4_1_splitncnn_1 conv4_2/expand 0=192 1=1 2=1 3=1 4=0 5=0 6=6144
+BatchNorm        conv4_2/expand/bn 1 1 conv4_2/expand conv4_2/expand/bn 0=192
+Scale            conv4_2/expand/scale 1 1 conv4_2/expand/bn conv4_2/expand/bn_conv4_2/expand/scale 0=192 1=1
+ReLU             relu4_2/expand   1 1 conv4_2/expand/bn_conv4_2/expand/scale conv4_2/expand/bn_relu4_2/expand
+ConvolutionDepthWise conv4_2/dwise    1 1 conv4_2/expand/bn_relu4_2/expand conv4_2/dwise 0=192 1=3 2=1 3=1 4=1 5=0 6=1728 7=192
+BatchNorm        conv4_2/dwise/bn 1 1 conv4_2/dwise conv4_2/dwise/bn 0=192
+Scale            conv4_2/dwise/scale 1 1 conv4_2/dwise/bn conv4_2/dwise/bn_conv4_2/dwise/scale 0=192 1=1
+ReLU             relu4_2/dwise    1 1 conv4_2/dwise/bn_conv4_2/dwise/scale conv4_2/dwise/bn_relu4_2/dwise
+Convolution      conv4_2/linear   1 1 conv4_2/dwise/bn_relu4_2/dwise conv4_2/linear 0=32 1=1 2=1 3=1 4=0 5=0 6=6144
+BatchNorm        conv4_2/linear/bn 1 1 conv4_2/linear conv4_2/linear/bn 0=32
+Scale            conv4_2/linear/scale 1 1 conv4_2/linear/bn conv4_2/linear/bn_conv4_2/linear/scale 0=32 1=1
+Eltwise          block_4_2        2 1 block_4_1_splitncnn_0 conv4_2/linear/bn_conv4_2/linear/scale block_4_2 0=1 -23301=0
+Convolution      conv4_3/expand   1 1 block_4_2 conv4_3/expand 0=192 1=1 2=1 3=1 4=0 5=0 6=6144
+BatchNorm        conv4_3/expand/bn 1 1 conv4_3/expand conv4_3/expand/bn 0=192
+Scale            conv4_3/expand/scale 1 1 conv4_3/expand/bn conv4_3/expand/bn_conv4_3/expand/scale 0=192 1=1
+ReLU             relu4_3/expand   1 1 conv4_3/expand/bn_conv4_3/expand/scale conv4_3/expand/bn_relu4_3/expand
+ConvolutionDepthWise conv4_3/dwise    1 1 conv4_3/expand/bn_relu4_3/expand conv4_3/dwise 0=192 1=3 2=1 3=2 4=1 5=0 6=1728 7=192
+BatchNorm        conv4_3/dwise/bn 1 1 conv4_3/dwise conv4_3/dwise/bn 0=192
+Scale            conv4_3/dwise/scale 1 1 conv4_3/dwise/bn conv4_3/dwise/bn_conv4_3/dwise/scale 0=192 1=1
+ReLU             relu4_3/dwise    1 1 conv4_3/dwise/bn_conv4_3/dwise/scale conv4_3/dwise/bn_relu4_3/dwise
+Convolution      conv4_3/linear   1 1 conv4_3/dwise/bn_relu4_3/dwise conv4_3/linear 0=64 1=1 2=1 3=1 4=0 5=0 6=12288
+BatchNorm        conv4_3/linear/bn 1 1 conv4_3/linear conv4_3/linear/bn 0=64
+Scale            conv4_3/linear/scale 1 1 conv4_3/linear/bn conv4_3/linear/bn_conv4_3/linear/scale 0=64 1=1
+Split            splitncnn_3      1 2 conv4_3/linear/bn_conv4_3/linear/scale conv4_3/linear/bn_conv4_3/linear/scale_splitncnn_0 conv4_3/linear/bn_conv4_3/linear/scale_splitncnn_1
+Convolution      conv4_4/expand   1 1 conv4_3/linear/bn_conv4_3/linear/scale_splitncnn_1 conv4_4/expand 0=384 1=1 2=1 3=1 4=0 5=0 6=24576
+BatchNorm        conv4_4/expand/bn 1 1 conv4_4/expand conv4_4/expand/bn 0=384
+Scale            conv4_4/expand/scale 1 1 conv4_4/expand/bn conv4_4/expand/bn_conv4_4/expand/scale 0=384 1=1
+ReLU             relu4_4/expand   1 1 conv4_4/expand/bn_conv4_4/expand/scale conv4_4/expand/bn_relu4_4/expand
+ConvolutionDepthWise conv4_4/dwise    1 1 conv4_4/expand/bn_relu4_4/expand conv4_4/dwise 0=384 1=3 2=1 3=1 4=1 5=0 6=3456 7=384
+BatchNorm        conv4_4/dwise/bn 1 1 conv4_4/dwise conv4_4/dwise/bn 0=384
+Scale            conv4_4/dwise/scale 1 1 conv4_4/dwise/bn conv4_4/dwise/bn_conv4_4/dwise/scale 0=384 1=1
+ReLU             relu4_4/dwise    1 1 conv4_4/dwise/bn_conv4_4/dwise/scale conv4_4/dwise/bn_relu4_4/dwise
+Convolution      conv4_4/linear   1 1 conv4_4/dwise/bn_relu4_4/dwise conv4_4/linear 0=64 1=1 2=1 3=1 4=0 5=0 6=24576
+BatchNorm        conv4_4/linear/bn 1 1 conv4_4/linear conv4_4/linear/bn 0=64
+Scale            conv4_4/linear/scale 1 1 conv4_4/linear/bn conv4_4/linear/bn_conv4_4/linear/scale 0=64 1=1
+Eltwise          block_4_4        2 1 conv4_3/linear/bn_conv4_3/linear/scale_splitncnn_0 conv4_4/linear/bn_conv4_4/linear/scale block_4_4 0=1 -23301=0
+Split            splitncnn_4      1 2 block_4_4 block_4_4_splitncnn_0 block_4_4_splitncnn_1
+Convolution      conv4_5/expand   1 1 block_4_4_splitncnn_1 conv4_5/expand 0=384 1=1 2=1 3=1 4=0 5=0 6=24576
+BatchNorm        conv4_5/expand/bn 1 1 conv4_5/expand conv4_5/expand/bn 0=384
+Scale            conv4_5/expand/scale 1 1 conv4_5/expand/bn conv4_5/expand/bn_conv4_5/expand/scale 0=384 1=1
+ReLU             relu4_5/expand   1 1 conv4_5/expand/bn_conv4_5/expand/scale conv4_5/expand/bn_relu4_5/expand
+ConvolutionDepthWise conv4_5/dwise    1 1 conv4_5/expand/bn_relu4_5/expand conv4_5/dwise 0=384 1=3 2=1 3=1 4=1 5=0 6=3456 7=384
+BatchNorm        conv4_5/dwise/bn 1 1 conv4_5/dwise conv4_5/dwise/bn 0=384
+Scale            conv4_5/dwise/scale 1 1 conv4_5/dwise/bn conv4_5/dwise/bn_conv4_5/dwise/scale 0=384 1=1
+ReLU             relu4_5/dwise    1 1 conv4_5/dwise/bn_conv4_5/dwise/scale conv4_5/dwise/bn_relu4_5/dwise
+Convolution      conv4_5/linear   1 1 conv4_5/dwise/bn_relu4_5/dwise conv4_5/linear 0=64 1=1 2=1 3=1 4=0 5=0 6=24576
+BatchNorm        conv4_5/linear/bn 1 1 conv4_5/linear conv4_5/linear/bn 0=64
+Scale            conv4_5/linear/scale 1 1 conv4_5/linear/bn conv4_5/linear/bn_conv4_5/linear/scale 0=64 1=1
+Eltwise          block_4_5        2 1 block_4_4_splitncnn_0 conv4_5/linear/bn_conv4_5/linear/scale block_4_5 0=1 -23301=0
+Split            splitncnn_5      1 2 block_4_5 block_4_5_splitncnn_0 block_4_5_splitncnn_1
+Convolution      conv4_6/expand   1 1 block_4_5_splitncnn_1 conv4_6/expand 0=384 1=1 2=1 3=1 4=0 5=0 6=24576
+BatchNorm        conv4_6/expand/bn 1 1 conv4_6/expand conv4_6/expand/bn 0=384
+Scale            conv4_6/expand/scale 1 1 conv4_6/expand/bn conv4_6/expand/bn_conv4_6/expand/scale 0=384 1=1
+ReLU             relu4_6/expand   1 1 conv4_6/expand/bn_conv4_6/expand/scale conv4_6/expand/bn_relu4_6/expand
+ConvolutionDepthWise conv4_6/dwise    1 1 conv4_6/expand/bn_relu4_6/expand conv4_6/dwise 0=384 1=3 2=1 3=1 4=1 5=0 6=3456 7=384
+BatchNorm        conv4_6/dwise/bn 1 1 conv4_6/dwise conv4_6/dwise/bn 0=384
+Scale            conv4_6/dwise/scale 1 1 conv4_6/dwise/bn conv4_6/dwise/bn_conv4_6/dwise/scale 0=384 1=1
+ReLU             relu4_6/dwise    1 1 conv4_6/dwise/bn_conv4_6/dwise/scale conv4_6/dwise/bn_relu4_6/dwise
+Convolution      conv4_6/linear   1 1 conv4_6/dwise/bn_relu4_6/dwise conv4_6/linear 0=64 1=1 2=1 3=1 4=0 5=0 6=24576
+BatchNorm        conv4_6/linear/bn 1 1 conv4_6/linear conv4_6/linear/bn 0=64
+Scale            conv4_6/linear/scale 1 1 conv4_6/linear/bn conv4_6/linear/bn_conv4_6/linear/scale 0=64 1=1
+Eltwise          block_4_6        2 1 block_4_5_splitncnn_0 conv4_6/linear/bn_conv4_6/linear/scale block_4_6 0=1 -23301=0
+Convolution      conv4_7/expand   1 1 block_4_6 conv4_7/expand 0=384 1=1 2=1 3=1 4=0 5=0 6=24576
+BatchNorm        conv4_7/expand/bn 1 1 conv4_7/expand conv4_7/expand/bn 0=384
+Scale            conv4_7/expand/scale 1 1 conv4_7/expand/bn conv4_7/expand/bn_conv4_7/expand/scale 0=384 1=1
+ReLU             relu4_7/expand   1 1 conv4_7/expand/bn_conv4_7/expand/scale conv4_7/expand/bn_relu4_7/expand
+ConvolutionDepthWise conv4_7/dwise    1 1 conv4_7/expand/bn_relu4_7/expand conv4_7/dwise 0=384 1=3 2=1 3=1 4=1 5=0 6=3456 7=384
+BatchNorm        conv4_7/dwise/bn 1 1 conv4_7/dwise conv4_7/dwise/bn 0=384
+Scale            conv4_7/dwise/scale 1 1 conv4_7/dwise/bn conv4_7/dwise/bn_conv4_7/dwise/scale 0=384 1=1
+ReLU             relu4_7/dwise    1 1 conv4_7/dwise/bn_conv4_7/dwise/scale conv4_7/dwise/bn_relu4_7/dwise
+Convolution      conv4_7/linear   1 1 conv4_7/dwise/bn_relu4_7/dwise conv4_7/linear 0=96 1=1 2=1 3=1 4=0 5=0 6=36864
+BatchNorm        conv4_7/linear/bn 1 1 conv4_7/linear conv4_7/linear/bn 0=96
+Scale            conv4_7/linear/scale 1 1 conv4_7/linear/bn conv4_7/linear/bn_conv4_7/linear/scale 0=96 1=1
+Split            splitncnn_6      1 2 conv4_7/linear/bn_conv4_7/linear/scale conv4_7/linear/bn_conv4_7/linear/scale_splitncnn_0 conv4_7/linear/bn_conv4_7/linear/scale_splitncnn_1
+Convolution      conv5_1/expand   1 1 conv4_7/linear/bn_conv4_7/linear/scale_splitncnn_1 conv5_1/expand 0=576 1=1 2=1 3=1 4=0 5=0 6=55296
+BatchNorm        conv5_1/expand/bn 1 1 conv5_1/expand conv5_1/expand/bn 0=576
+Scale            conv5_1/expand/scale 1 1 conv5_1/expand/bn conv5_1/expand/bn_conv5_1/expand/scale 0=576 1=1
+ReLU             relu5_1/expand   1 1 conv5_1/expand/bn_conv5_1/expand/scale conv5_1/expand/bn_relu5_1/expand
+ConvolutionDepthWise conv5_1/dwise    1 1 conv5_1/expand/bn_relu5_1/expand conv5_1/dwise 0=576 1=3 2=1 3=1 4=1 5=0 6=5184 7=576
+BatchNorm        conv5_1/dwise/bn 1 1 conv5_1/dwise conv5_1/dwise/bn 0=576
+Scale            conv5_1/dwise/scale 1 1 conv5_1/dwise/bn conv5_1/dwise/bn_conv5_1/dwise/scale 0=576 1=1
+ReLU             relu5_1/dwise    1 1 conv5_1/dwise/bn_conv5_1/dwise/scale conv5_1/dwise/bn_relu5_1/dwise
+Convolution      conv5_1/linear   1 1 conv5_1/dwise/bn_relu5_1/dwise conv5_1/linear 0=96 1=1 2=1 3=1 4=0 5=0 6=55296
+BatchNorm        conv5_1/linear/bn 1 1 conv5_1/linear conv5_1/linear/bn 0=96
+Scale            conv5_1/linear/scale 1 1 conv5_1/linear/bn conv5_1/linear/bn_conv5_1/linear/scale 0=96 1=1
+Eltwise          block_5_1        2 1 conv4_7/linear/bn_conv4_7/linear/scale_splitncnn_0 conv5_1/linear/bn_conv5_1/linear/scale block_5_1 0=1 -23301=0
+Split            splitncnn_7      1 2 block_5_1 block_5_1_splitncnn_0 block_5_1_splitncnn_1
+Convolution      conv5_2/expand   1 1 block_5_1_splitncnn_1 conv5_2/expand 0=576 1=1 2=1 3=1 4=0 5=0 6=55296
+BatchNorm        conv5_2/expand/bn 1 1 conv5_2/expand conv5_2/expand/bn 0=576
+Scale            conv5_2/expand/scale 1 1 conv5_2/expand/bn conv5_2/expand/bn_conv5_2/expand/scale 0=576 1=1
+ReLU             relu5_2/expand   1 1 conv5_2/expand/bn_conv5_2/expand/scale conv5_2/expand/bn_relu5_2/expand
+ConvolutionDepthWise conv5_2/dwise    1 1 conv5_2/expand/bn_relu5_2/expand conv5_2/dwise 0=576 1=3 2=1 3=1 4=1 5=0 6=5184 7=576
+BatchNorm        conv5_2/dwise/bn 1 1 conv5_2/dwise conv5_2/dwise/bn 0=576
+Scale            conv5_2/dwise/scale 1 1 conv5_2/dwise/bn conv5_2/dwise/bn_conv5_2/dwise/scale 0=576 1=1
+ReLU             relu5_2/dwise    1 1 conv5_2/dwise/bn_conv5_2/dwise/scale conv5_2/dwise/bn_relu5_2/dwise
+Convolution      conv5_2/linear   1 1 conv5_2/dwise/bn_relu5_2/dwise conv5_2/linear 0=96 1=1 2=1 3=1 4=0 5=0 6=55296
+BatchNorm        conv5_2/linear/bn 1 1 conv5_2/linear conv5_2/linear/bn 0=96
+Scale            conv5_2/linear/scale 1 1 conv5_2/linear/bn conv5_2/linear/bn_conv5_2/linear/scale 0=96 1=1
+Eltwise          block_5_2        2 1 block_5_1_splitncnn_0 conv5_2/linear/bn_conv5_2/linear/scale block_5_2 0=1 -23301=0
+Convolution      conv5_3/expand   1 1 block_5_2 conv5_3/expand 0=576 1=1 2=1 3=1 4=0 5=0 6=55296
+BatchNorm        conv5_3/expand/bn 1 1 conv5_3/expand conv5_3/expand/bn 0=576
+Scale            conv5_3/expand/scale 1 1 conv5_3/expand/bn conv5_3/expand/bn_conv5_3/expand/scale 0=576 1=1
+ReLU             relu5_3/expand   1 1 conv5_3/expand/bn_conv5_3/expand/scale conv5_3/expand/bn_relu5_3/expand
+ConvolutionDepthWise conv5_3/dwise    1 1 conv5_3/expand/bn_relu5_3/expand conv5_3/dwise 0=576 1=3 2=1 3=2 4=1 5=0 6=5184 7=576
+BatchNorm        conv5_3/dwise/bn 1 1 conv5_3/dwise conv5_3/dwise/bn 0=576
+Scale            conv5_3/dwise/scale 1 1 conv5_3/dwise/bn conv5_3/dwise/bn_conv5_3/dwise/scale 0=576 1=1
+ReLU             relu5_3/dwise    1 1 conv5_3/dwise/bn_conv5_3/dwise/scale conv5_3/dwise/bn_relu5_3/dwise
+Convolution      conv5_3/linear   1 1 conv5_3/dwise/bn_relu5_3/dwise conv5_3/linear 0=160 1=1 2=1 3=1 4=0 5=0 6=92160
+BatchNorm        conv5_3/linear/bn 1 1 conv5_3/linear conv5_3/linear/bn 0=160
+Scale            conv5_3/linear/scale 1 1 conv5_3/linear/bn conv5_3/linear/bn_conv5_3/linear/scale 0=160 1=1
+Split            splitncnn_8      1 2 conv5_3/linear/bn_conv5_3/linear/scale conv5_3/linear/bn_conv5_3/linear/scale_splitncnn_0 conv5_3/linear/bn_conv5_3/linear/scale_splitncnn_1
+Convolution      conv6_1/expand   1 1 conv5_3/linear/bn_conv5_3/linear/scale_splitncnn_1 conv6_1/expand 0=960 1=1 2=1 3=1 4=0 5=0 6=153600
+BatchNorm        conv6_1/expand/bn 1 1 conv6_1/expand conv6_1/expand/bn 0=960
+Scale            conv6_1/expand/scale 1 1 conv6_1/expand/bn conv6_1/expand/bn_conv6_1/expand/scale 0=960 1=1
+ReLU             relu6_1/expand   1 1 conv6_1/expand/bn_conv6_1/expand/scale conv6_1/expand/bn_relu6_1/expand
+ConvolutionDepthWise conv6_1/dwise    1 1 conv6_1/expand/bn_relu6_1/expand conv6_1/dwise 0=960 1=3 2=1 3=1 4=1 5=0 6=8640 7=960
+BatchNorm        conv6_1/dwise/bn 1 1 conv6_1/dwise conv6_1/dwise/bn 0=960
+Scale            conv6_1/dwise/scale 1 1 conv6_1/dwise/bn conv6_1/dwise/bn_conv6_1/dwise/scale 0=960 1=1
+ReLU             relu6_1/dwise    1 1 conv6_1/dwise/bn_conv6_1/dwise/scale conv6_1/dwise/bn_relu6_1/dwise
+Convolution      conv6_1/linear   1 1 conv6_1/dwise/bn_relu6_1/dwise conv6_1/linear 0=160 1=1 2=1 3=1 4=0 5=0 6=153600
+BatchNorm        conv6_1/linear/bn 1 1 conv6_1/linear conv6_1/linear/bn 0=160
+Scale            conv6_1/linear/scale 1 1 conv6_1/linear/bn conv6_1/linear/bn_conv6_1/linear/scale 0=160 1=1
+Eltwise          block_6_1        2 1 conv5_3/linear/bn_conv5_3/linear/scale_splitncnn_0 conv6_1/linear/bn_conv6_1/linear/scale block_6_1 0=1 -23301=0
+Split            splitncnn_9      1 2 block_6_1 block_6_1_splitncnn_0 block_6_1_splitncnn_1
+Convolution      conv6_2/expand   1 1 block_6_1_splitncnn_1 conv6_2/expand 0=960 1=1 2=1 3=1 4=0 5=0 6=153600
+BatchNorm        conv6_2/expand/bn 1 1 conv6_2/expand conv6_2/expand/bn 0=960
+Scale            conv6_2/expand/scale 1 1 conv6_2/expand/bn conv6_2/expand/bn_conv6_2/expand/scale 0=960 1=1
+ReLU             relu6_2/expand   1 1 conv6_2/expand/bn_conv6_2/expand/scale conv6_2/expand/bn_relu6_2/expand
+ConvolutionDepthWise conv6_2/dwise    1 1 conv6_2/expand/bn_relu6_2/expand conv6_2/dwise 0=960 1=3 2=1 3=1 4=1 5=0 6=8640 7=960
+BatchNorm        conv6_2/dwise/bn 1 1 conv6_2/dwise conv6_2/dwise/bn 0=960
+Scale            conv6_2/dwise/scale 1 1 conv6_2/dwise/bn conv6_2/dwise/bn_conv6_2/dwise/scale 0=960 1=1
+ReLU             relu6_2/dwise    1 1 conv6_2/dwise/bn_conv6_2/dwise/scale conv6_2/dwise/bn_relu6_2/dwise
+Convolution      conv6_2/linear   1 1 conv6_2/dwise/bn_relu6_2/dwise conv6_2/linear 0=160 1=1 2=1 3=1 4=0 5=0 6=153600
+BatchNorm        conv6_2/linear/bn 1 1 conv6_2/linear conv6_2/linear/bn 0=160
+Scale            conv6_2/linear/scale 1 1 conv6_2/linear/bn conv6_2/linear/bn_conv6_2/linear/scale 0=160 1=1
+Eltwise          block_6_2        2 1 block_6_1_splitncnn_0 conv6_2/linear/bn_conv6_2/linear/scale block_6_2 0=1 -23301=0
+Convolution      conv6_3/expand   1 1 block_6_2 conv6_3/expand 0=960 1=1 2=1 3=1 4=0 5=0 6=153600
+BatchNorm        conv6_3/expand/bn 1 1 conv6_3/expand conv6_3/expand/bn 0=960
+Scale            conv6_3/expand/scale 1 1 conv6_3/expand/bn conv6_3/expand/bn_conv6_3/expand/scale 0=960 1=1
+ReLU             relu6_3/expand   1 1 conv6_3/expand/bn_conv6_3/expand/scale conv6_3/expand/bn_relu6_3/expand
+ConvolutionDepthWise conv6_3/dwise    1 1 conv6_3/expand/bn_relu6_3/expand conv6_3/dwise 0=960 1=3 2=1 3=1 4=1 5=0 6=8640 7=960
+BatchNorm        conv6_3/dwise/bn 1 1 conv6_3/dwise conv6_3/dwise/bn 0=960
+Scale            conv6_3/dwise/scale 1 1 conv6_3/dwise/bn conv6_3/dwise/bn_conv6_3/dwise/scale 0=960 1=1
+ReLU             relu6_3/dwise    1 1 conv6_3/dwise/bn_conv6_3/dwise/scale conv6_3/dwise/bn_relu6_3/dwise
+Convolution      conv6_3/linear   1 1 conv6_3/dwise/bn_relu6_3/dwise conv6_3/linear 0=320 1=1 2=1 3=1 4=0 5=0 6=307200
+BatchNorm        conv6_3/linear/bn 1 1 conv6_3/linear conv6_3/linear/bn 0=320
+Scale            conv6_3/linear/scale 1 1 conv6_3/linear/bn conv6_3/linear/bn_conv6_3/linear/scale 0=320 1=1
+Convolution      conv6_4          1 1 conv6_3/linear/bn_conv6_3/linear/scale conv6_4 0=1280 1=1 2=1 3=1 4=0 5=0 6=409600
+BatchNorm        conv6_4/bn       1 1 conv6_4 conv6_4/bn 0=1280
+Scale            conv6_4/scale    1 1 conv6_4/bn conv6_4/bn_conv6_4/scale 0=1280 1=1
+ReLU             relu6_4          1 1 conv6_4/bn_conv6_4/scale conv6_4/bn_relu6_4
+Pooling          pool6            1 1 conv6_4/bn_relu6_4 pool6 0=1 1=0 2=1 3=0 4=1
+Convolution      fc7              1 1 pool6 fc7 0=1000 1=1 2=1 3=1 4=0 5=1 6=1280000
+Softmax          prob             1 1 fc7 prob 0=0

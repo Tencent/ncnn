@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include "mat.h"
+#include "modelbin.h"
 #include "paramdict.h"
 #include "platform.h"
 
@@ -36,16 +37,9 @@ public:
     // return 0 if success
     virtual int load_param(const ParamDict& pd);
 
-#if NCNN_STDIO
-    // load layer specific weight data from model file
+    // load layer specific weight data from model binary
     // return 0 if success
-    virtual int load_model(FILE* binfp);
-#endif // NCNN_STDIO
-
-    // load layer specific weight data from memory
-    // memory pointer is 32-bit aligned
-    // return 0 if success
-    virtual int load_model(const unsigned char*& mem);
+    virtual int load_model(const ModelBin& mb);
 
 public:
     // one input and one output blob
@@ -94,6 +88,8 @@ struct layer_registry_entry
 #if NCNN_STRING
 // get layer type from type name
 int layer_to_index(const char* type);
+// create layer from type name
+Layer* create_layer(const char* type);
 #endif // NCNN_STRING
 // create layer from layer type
 Layer* create_layer(int index);

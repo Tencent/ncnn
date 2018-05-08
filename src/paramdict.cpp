@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include <ctype.h>
 #include "paramdict.h"
 #include "platform.h"
 
@@ -22,11 +23,45 @@ ParamDict::ParamDict()
     clear();
 }
 
+int ParamDict::get(int id, int def) const
+{
+    return params[id].loaded ? params[id].i : def;
+}
+
+float ParamDict::get(int id, float def) const
+{
+    return params[id].loaded ? params[id].f : def;
+}
+
+Mat ParamDict::get(int id, const Mat& def) const
+{
+    return params[id].loaded ? params[id].v : def;
+}
+
+void ParamDict::set(int id, int i)
+{
+    params[id].loaded = 1;
+    params[id].i = i;
+}
+
+void ParamDict::set(int id, float f)
+{
+    params[id].loaded = 1;
+    params[id].f = f;
+}
+
+void ParamDict::set(int id, const Mat& v)
+{
+    params[id].loaded = 1;
+    params[id].v = v;
+}
+
 void ParamDict::clear()
 {
     for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
     {
         params[i].loaded = 0;
+        params[i].v = Mat();
     }
 }
 
@@ -40,7 +75,7 @@ static bool vstr_is_float(const char vstr[16])
         if (vstr[j] == '\0')
             break;
 
-        if (vstr[j] == '.')
+        if (vstr[j] == '.' || tolower(vstr[j]) == 'e')
             return true;
     }
 
@@ -88,9 +123,15 @@ int ParamDict::load_param(FILE* fp)
                 bool is_float = vstr_is_float(vstr);
 
                 if (is_float)
-                    nscan = sscanf(vstr, "%f", &params[id].v.data[j]);
+                {
+                    float* ptr = params[id].v;
+                    nscan = sscanf(vstr, "%f", &ptr[j]);
+                }
                 else
-                    nscan = sscanf(vstr, "%d", (int*)&params[id].v.data[j]);
+                {
+                    int* ptr = params[id].v;
+                    nscan = sscanf(vstr, "%d", &ptr[j]);
+                }
                 if (nscan != 1)
                 {
                     fprintf(stderr, "ParamDict parse array element fail\n");
@@ -163,10 +204,8 @@ int ParamDict::load_param_bin(FILE* fp)
 
             params[id].v.create(len);
 
-            for (int j = 0; j < len; j++)
-            {
-                fread(&params[id].v.data[j], sizeof(float), 1, fp);
-            }
+            float* ptr = params[id].v;
+            fread(ptr, sizeof(float), len, fp);
         }
         else
         {
@@ -204,11 +243,8 @@ int ParamDict::load_param(const unsigned char*& mem)
 
             params[id].v.create(len);
 
-            for (int j = 0; j < len; j++)
-            {
-                params[id].v.data[j] = *(float*)(mem);
-                mem += 4;
-            }
+            memcpy(params[id].v.data, mem, len * 4);
+            mem += len * 4;
         }
         else
         {

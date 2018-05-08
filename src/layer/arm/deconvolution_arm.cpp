@@ -16,29 +16,57 @@
 
 namespace ncnn {
 
+#include "deconvolution_4x4.h"
 #include "deconvolution_3x3.h"
 
 DEFINE_LAYER_CREATOR(Deconvolution_arm)
 
 int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
-    if (kernel_size != 3 || stride != 1 || dilation != 1)
+    // deconvolv with NxN kernel
+    // value = value + bias
+
+    if (kernel_w != kernel_h || stride_w != stride_h)
+    {
+        return Deconvolution::forward(bottom_blob, top_blob);
+    }
+
+    const int kernel_size = kernel_w;
+    const int stride = stride_w;
+
+    if ((kernel_size != 3 && kernel_size != 4) || stride > 2 || dilation_w != 1 || dilation_h != 1)
     {
         return Deconvolution::forward(bottom_blob, top_blob);
     }
 
     typedef void (*deconv_func)(const Mat&, Mat&, const Mat&, const Mat&);
 
-    deconv_func deconv = deconv3x3s1_neon;
+    // kernel_size x stride
+    deconv_func deconv_func_table[2][2] =
+    {
+        {
+            deconv3x3s1_neon,
+            deconv3x3s2_neon
+        },  // kernel_size = 3
+        {
+            deconv4x4s1_neon,
+            deconv4x4s2_neon
+        }   // kernel_size = 4
+    };
+
+    deconv_func deconv = deconv_func_table[kernel_size-3][stride-1];
+    if (!deconv)
+    {
+        return Deconvolution::forward(bottom_blob, top_blob);
+    }
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
 
     int outw = (w - 1) * stride + kernel_size;
     int outh = (h - 1) * stride + kernel_size;
 
-    Mat top_blob_bordered;
+    Mat top_blob_bordered = top_blob;
     top_blob_bordered.create(outw, outh, num_output);
     if (top_blob_bordered.empty())
         return -100;
@@ -47,9 +75,9 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     top_blob = top_blob_bordered;
 
-    if (pad > 0)
+    if (pad_w > 0 || pad_h > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad, pad, pad, pad);
+        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w);
         if (top_blob.empty())
             return -100;
 

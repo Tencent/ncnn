@@ -28,28 +28,25 @@ class Net;
 class ParamDict
 {
 public:
+    // empty
+    ParamDict();
+
     // get int
-    int get(int id, int def) const
-    {
-        return params[id].loaded ? params[id].i : def;
-    }
-
+    int get(int id, int def) const;
     // get float
-    float get(int id, float def) const
-    {
-        return params[id].loaded ? params[id].f : def;
-    }
-
+    float get(int id, float def) const;
     // get array
-    Mat get(int id, const Mat& def) const
-    {
-        return params[id].loaded ? params[id].v : def;
-    }
+    Mat get(int id, const Mat& def) const;
+
+    // set int
+    void set(int id, int i);
+    // set float
+    void set(int id, float f);
+    // set array
+    void set(int id, const Mat& v);
 
 protected:
     friend class Net;
-
-    ParamDict();
 
     void clear();
 

@@ -30,6 +30,7 @@ public:
 
 public:
     Mat slices;
+    int axis;
 };
 
 } // namespace ncnn

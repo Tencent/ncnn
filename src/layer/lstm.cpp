@@ -25,10 +25,6 @@ LSTM::LSTM()
     support_inplace = false;
 }
 
-LSTM::~LSTM()
-{
-}
-
 int LSTM::load_param(const ParamDict& pd)
 {
     num_output = pd.get(0, 0);
@@ -37,61 +33,22 @@ int LSTM::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if NCNN_STDIO
-int LSTM::load_model(FILE* binfp)
+int LSTM::load_model(const ModelBin& mb)
 {
-    int nread;
-
     int size = weight_data_size / 2 / num_output / 4;
 
     // raw weight data
-    weight_hc_data.create(size * 4, num_output);
+    weight_hc_data = mb.load(size * 4, num_output, 1);
     if (weight_hc_data.empty())
         return -100;
-    nread = fread(weight_hc_data.data, size * 4 * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "LSTM read weight_hc_data failed %d\n", nread);
-        return -1;
-    }
 
-    weight_xc_data.create(size * 4, num_output);
+    weight_xc_data = mb.load(size * 4, num_output, 1);
     if (weight_xc_data.empty())
         return -100;
-    nread = fread(weight_xc_data.data, size * 4 * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "LSTM read weight_xc_data failed %d\n", nread);
-        return -1;
-    }
 
-    bias_c_data.create(4, num_output);
+    bias_c_data = mb.load(4, num_output, 1);
     if (bias_c_data.empty())
         return -100;
-    nread = fread(bias_c_data.data, 4 * num_output * sizeof(float), 1, binfp);
-    if (nread != 1)
-    {
-        fprintf(stderr, "LSTM read bias_c_data failed %d\n", nread);
-        return -1;
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int LSTM::load_model(const unsigned char*& mem)
-{
-    int size = weight_data_size / 2 / num_output / 4;
-
-    // raw weight data
-    weight_hc_data = Mat(size * 4, num_output, (float*)mem);
-    mem += size * 4 * num_output * sizeof(float);
-
-    weight_xc_data = Mat(size * 4, num_output, (float*)mem);
-    mem += size * 4 * num_output * sizeof(float);
-
-    bias_c_data = Mat(4, num_output, (float*)mem);
-    mem += 4 * num_output * sizeof(float);
 
     return 0;
 }
@@ -136,7 +93,7 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         //                0       otherwise
         // calculate hidden
         // gate_input_t := W_hc * h_conted_{t-1} + W_xc * x_t + b_c
-        const float cont = cont_blob.data[t];
+        const float cont = cont_blob[t];
         const Mat x = input_blob.channel(t);
         float* hidden_data = hidden;
         for (int q=0; q<num_output; q++)
@@ -144,18 +101,18 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             float h_cont = cont ? hidden_data[q] : 0.f;
 
             const float* x_data = x;
-            const float* bias_c_data_ptr = bias_c_data.data + 4 * q;
-            float* gates_data = gates.data + 4 * q;
+            const float* bias_c_data_ptr = (const float*)bias_c_data + 4 * q;
+            float* gates_data = (float*)gates + 4 * q;
 
             // gate I F O G
-            const float* weight_hc_data_I = weight_hc_data.data + weight_hc_data.w * q;
-            const float* weight_xc_data_I = weight_xc_data.data + weight_xc_data.w * q;
-            const float* weight_hc_data_F = weight_hc_data.data + weight_hc_data.w * q + size;
-            const float* weight_xc_data_F = weight_xc_data.data + weight_xc_data.w * q + size;
-            const float* weight_hc_data_O = weight_hc_data.data + weight_hc_data.w * q + size*2;
-            const float* weight_xc_data_O = weight_xc_data.data + weight_xc_data.w * q + size*2;
-            const float* weight_hc_data_G = weight_hc_data.data + weight_hc_data.w * q + size*3;
-            const float* weight_xc_data_G = weight_xc_data.data + weight_xc_data.w * q + size*3;
+            const float* weight_hc_data_I = (const float*)weight_hc_data + weight_hc_data.w * q;
+            const float* weight_xc_data_I = (const float*)weight_xc_data + weight_xc_data.w * q;
+            const float* weight_hc_data_F = (const float*)weight_hc_data + weight_hc_data.w * q + size;
+            const float* weight_xc_data_F = (const float*)weight_xc_data + weight_xc_data.w * q + size;
+            const float* weight_hc_data_O = (const float*)weight_hc_data + weight_hc_data.w * q + size*2;
+            const float* weight_xc_data_O = (const float*)weight_xc_data + weight_xc_data.w * q + size*2;
+            const float* weight_hc_data_G = (const float*)weight_hc_data + weight_hc_data.w * q + size*3;
+            const float* weight_xc_data_G = (const float*)weight_xc_data + weight_xc_data.w * q + size*3;
 
             float I = bias_c_data_ptr[0];
             float F = bias_c_data_ptr[1];
@@ -187,7 +144,7 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         float* output_data = output;
         for (int q=0; q<num_output; q++)
         {
-            float* gates_data = gates.data + 4 * q;
+            float* gates_data = (float*)gates + 4 * q;
 
             float I = gates_data[0];
             float F = gates_data[1];

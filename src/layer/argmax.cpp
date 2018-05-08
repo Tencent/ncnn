@@ -22,6 +22,7 @@ DEFINE_LAYER_CREATOR(ArgMax)
 
 ArgMax::ArgMax()
 {
+    one_blob_only = true;
 }
 
 int ArgMax::load_param(const ParamDict& pd)

@@ -23,22 +23,17 @@ class BatchNorm : public Layer
 {
 public:
     BatchNorm();
-    virtual ~BatchNorm();
 
     virtual int load_param(const ParamDict& pd);
 
-#if NCNN_STDIO
-    virtual int load_model(FILE* binfp);
-#endif // NCNN_STDIO
-    virtual int load_model(const unsigned char*& mem);
-
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int load_model(const ModelBin& mb);
 
     virtual int forward_inplace(Mat& bottom_top_blob) const;
 
 public:
     // param
     int channels;
+    float eps;
 
     // model
     Mat slope_data;

@@ -33,42 +33,47 @@ int Layer::load_param(const ParamDict& /*pd*/)
     return 0;
 }
 
-#if NCNN_STDIO
-int Layer::load_model(FILE* /*binfp*/)
-{
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int Layer::load_model(const unsigned char*& /*mem*/)
+int Layer::load_model(const ModelBin& /*mb*/)
 {
     return 0;
 }
 
-int Layer::forward(const std::vector<Mat>& /*bottom_blobs*/, std::vector<Mat>& /*top_blobs*/) const
+int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+{
+    if (!support_inplace)
+        return -1;
+
+    top_blobs = bottom_blobs;
+    for (int i = 0; i < (int)top_blobs.size(); i++)
+    {
+        top_blobs[i] = bottom_blobs[i].clone();
+        if (top_blobs[i].empty())
+            return -100;
+    }
+
+    return forward_inplace(top_blobs);
+}
+
+int Layer::forward(const Mat& bottom_blob, Mat& top_blob) const
+{
+    if (!support_inplace)
+        return -1;
+
+    top_blob = bottom_blob.clone();
+    if (top_blob.empty())
+        return -100;
+
+    return forward_inplace(top_blob);
+}
+
+int Layer::forward_inplace(std::vector<Mat>& /*bottom_top_blobs*/) const
 {
     return -1;
 }
 
-int Layer::forward(const Mat& /*bottom_blob*/, Mat& /*top_blob*/) const
+int Layer::forward_inplace(Mat& /*bottom_top_blob*/) const
 {
     return -1;
-}
-
-int Layer::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
-{
-    std::vector<Mat> top_blobs;
-    int ret = forward(bottom_top_blobs, top_blobs);
-    bottom_top_blobs = top_blobs;
-    return ret;
-}
-
-int Layer::forward_inplace(Mat& bottom_top_blob) const
-{
-    Mat top_blob;
-    int ret = forward(bottom_top_blob, top_blob);
-    bottom_top_blob = top_blob;
-    return ret;
 }
 
 #include "layer_declaration.h"
@@ -90,6 +95,15 @@ int layer_to_index(const char* type)
     }
 
     return -1;
+}
+
+Layer* create_layer(const char* type)
+{
+    int index = layer_to_index(type);
+    if (index == -1)
+        return 0;
+
+    return create_layer(index);
 }
 #endif // NCNN_STRING
 

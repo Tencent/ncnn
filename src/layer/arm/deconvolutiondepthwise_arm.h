@@ -12,19 +12,19 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_SLICE_ARM_H
-#define LAYER_SLICE_ARM_H
+#ifndef LAYER_DECONVOLUTIONDEPTHWISE_ARM_H
+#define LAYER_DECONVOLUTIONDEPTHWISE_ARM_H
 
-#include "slice.h"
+#include "deconvolutiondepthwise.h"
 
 namespace ncnn {
 
-class Slice_arm : public Slice
+class DeconvolutionDepthWise_arm : public DeconvolutionDepthWise
 {
 public:
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_SLICE_ARM_H
+#endif // LAYER_DECONVOLUTIONDEPTHWISE_ARM_H

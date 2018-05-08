@@ -14,6 +14,7 @@
 
 #include "net.h"
 #include "layer_type.h"
+#include "modelbin.h"
 #include "paramdict.h"
 
 #include <stdio.h>
@@ -22,6 +23,10 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif // _OPENMP
+
+#if NCNN_BENCHMARK
+#include "benchmark.h"
+#endif // NCNN_BENCHMARK
 
 namespace ncnn {
 
@@ -117,8 +122,8 @@ int Net::load_param(FILE* fp)
     {
         int nscan = 0;
 
-        char layer_type[256];
-        char layer_name[256];
+        char layer_type[257];
+        char layer_name[257];
         int bottom_count = 0;
         int top_count = 0;
         nscan = fscanf(fp, "%256s %256s %d %d", layer_type, layer_name, &bottom_count, &top_count);
@@ -127,12 +132,10 @@ int Net::load_param(FILE* fp)
             continue;
         }
 
-        int typeindex = layer_to_index(layer_type);
-        Layer* layer = create_layer(typeindex);
+        Layer* layer = create_layer(layer_type);
         if (!layer)
         {
-            typeindex = custom_layer_to_index(layer_type);
-            layer = create_custom_layer(typeindex);
+            layer = create_custom_layer(layer_type);
         }
         if (!layer)
         {
@@ -148,7 +151,7 @@ int Net::load_param(FILE* fp)
         layer->bottoms.resize(bottom_count);
         for (int i=0; i<bottom_count; i++)
         {
-            char bottom_name[256];
+            char bottom_name[257];
             nscan = fscanf(fp, "%256s", bottom_name);
             if (nscan != 1)
             {
@@ -180,7 +183,7 @@ int Net::load_param(FILE* fp)
         {
             Blob& blob = blobs[blob_index];
 
-            char blob_name[256];
+            char blob_name[257];
             nscan = fscanf(fp, "%256s", blob_name);
             if (nscan != 1)
             {
@@ -205,7 +208,6 @@ int Net::load_param(FILE* fp)
             continue;
         }
 
-//         int lr = layer->load_param(fp);
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -324,7 +326,6 @@ int Net::load_param_bin(FILE* fp)
             continue;
         }
 
-//         int lr = layer->load_param_bin(fp);
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -359,11 +360,12 @@ int Net::load_model(FILE* fp)
     // load file
     int ret = 0;
 
+    ModelBinFromStdio mb(fp);
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
 
-        int lret = layer->load_model(fp);
+        int lret = layer->load_model(mb);
         if (lret != 0)
         {
             fprintf(stderr, "layer load_model %d failed\n", (int)i);
@@ -488,7 +490,6 @@ int Net::load_param(const unsigned char* _mem)
             continue;
         }
 
-//         int lr = layer->load_param(mem);
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -512,11 +513,12 @@ int Net::load_model(const unsigned char* _mem)
     }
 
     const unsigned char* mem = _mem;
+    ModelBinFromMemory mb(mem);
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
 
-        int lret = layer->load_model(mem);
+        int lret = layer->load_model(mb);
         if (lret != 0)
         {
             fprintf(stderr, "layer load_model failed\n");
@@ -584,6 +586,15 @@ int Net::custom_layer_to_index(const char* type)
 
     return -1;
 }
+
+Layer* Net::create_custom_layer(const char* type)
+{
+    int index = custom_layer_to_index(type);
+    if (index == -1)
+        return 0;
+
+    return create_custom_layer(index);
+}
 #endif // NCNN_STRING
 
 Layer* Net::create_custom_layer(int index)
@@ -635,7 +646,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         if (lightmode && layer->support_inplace)
         {
             Mat& bottom_top_blob = bottom_blob;
+#if NCNN_BENCHMARK
+            double start = get_current_time();
             int ret = layer->forward_inplace(bottom_top_blob);
+            double end = get_current_time();
+            benchmark(layer, bottom_top_blob, bottom_top_blob, start, end);
+#else
+            int ret = layer->forward_inplace(bottom_top_blob);
+#endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
 
@@ -645,7 +663,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         else
         {
             Mat top_blob;
+#if NCNN_BENCHMARK
+            double start = get_current_time();
             int ret = layer->forward(bottom_blob, top_blob);
+            double end = get_current_time();
+            benchmark(layer, bottom_blob, top_blob, start, end);
+#else
+            int ret = layer->forward(bottom_blob, top_blob);
+#endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
 
@@ -688,7 +713,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         if (lightmode && layer->support_inplace)
         {
             std::vector<Mat>& bottom_top_blobs = bottom_blobs;
+#if NCNN_BENCHMARK
+            double start = get_current_time();
             int ret = layer->forward_inplace(bottom_top_blobs);
+            double end = get_current_time();
+            benchmark(layer, start, end);
+#else
+            int ret = layer->forward_inplace(bottom_top_blobs);
+#endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
 
@@ -704,7 +736,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         {
             std::vector<Mat> top_blobs;
             top_blobs.resize(layer->tops.size());
+#if NCNN_BENCHMARK
+            double start = get_current_time();
             int ret = layer->forward(bottom_blobs, top_blobs);
+            double end = get_current_time();
+            benchmark(layer, start, end);
+#else
+            int ret = layer->forward(bottom_blobs, top_blobs);
+#endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
 
@@ -728,7 +767,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
 Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 {
     blob_mats.resize(blob_count);
-    lightmode = false;
+    lightmode = true;
     num_threads = 0;
 }
 

@@ -13,9 +13,11 @@ set(ncnn_SRCS
     layer.cpp
     mat.cpp
     mat_pixel.cpp
+    modelbin.cpp
     net.cpp
     opencv.cpp
     paramdict.cpp
+    benchmark.cpp
 )
 
 macro(ncnn_add_layer class)
@@ -37,6 +39,8 @@ macro(ncnn_add_layer class)
         # optimized implementation for armv7 aarch64
         if((ANDROID AND ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "armv7-a"))
             OR (ANDROID AND ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
+            OR (UNIX AND ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "armv7l"))
+            OR (UNIX AND ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
             OR (IOS AND ("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "armv7"))
             OR (IOS AND ("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64"))
             OR (IOS AND ("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "armv7;arm64")))
@@ -98,7 +102,7 @@ ncnn_add_layer(Deconvolution)
 ncnn_add_layer(Dropout)
 ncnn_add_layer(Eltwise)
 ncnn_add_layer(ELU)
-ncnn_add_layer(Embed OFF)
+ncnn_add_layer(Embed)
 ncnn_add_layer(Exp)
 ncnn_add_layer(Flatten)
 ncnn_add_layer(InnerProduct)
@@ -137,6 +141,10 @@ ncnn_add_layer(Permute)
 ncnn_add_layer(PriorBox)
 ncnn_add_layer(DetectionOutput)
 ncnn_add_layer(Interp)
+ncnn_add_layer(DeconvolutionDepthWise)
+ncnn_add_layer(ShuffleChannel)
+ncnn_add_layer(InstanceNorm)
+ncnn_add_layer(Clip)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
@@ -147,9 +155,11 @@ install(FILES
     layer.h
     layer_type.h
     mat.h
+    modelbin.h
     net.h
     opencv.h
     paramdict.h
+    benchmark.h
     ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
     ${CMAKE_CURRENT_BINARY_DIR}/platform.h
     DESTINATION include

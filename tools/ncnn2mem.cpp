@@ -67,7 +67,7 @@ static bool vstr_is_float(const char vstr[16])
         if (vstr[j] == '\0')
             break;
 
-        if (vstr[j] == '.')
+        if (vstr[j] == '.' || tolower(vstr[j]) == 'e')
             return true;
     }
 
@@ -108,8 +108,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     {
         int nscan = 0;
 
-        char layer_type[32];
-        char layer_name[256];
+        char layer_type[33];
+        char layer_name[257];
         int bottom_count = 0;
         int top_count = 0;
         nscan = fscanf(fp, "%32s %256s %d %d", layer_type, layer_name, &bottom_count, &top_count);
@@ -131,7 +131,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 //         layer->bottoms.resize(bottom_count);
         for (int i=0; i<bottom_count; i++)
         {
-            char bottom_name[256];
+            char bottom_name[257];
             nscan = fscanf(fp, "%256s", bottom_name);
             if (nscan != 1)
             {
@@ -148,7 +148,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 //         layer->tops.resize(top_count);
         for (int i=0; i<top_count; i++)
         {
-            char blob_name[256];
+            char blob_name[257];
             nscan = fscanf(fp, "%256s", blob_name);
             if (nscan != 1)
             {
@@ -257,6 +257,7 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
     fprintf(cppfp, "#ifndef NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
     fprintf(cppfp, "#define NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
 
+    fprintf(cppfp, "\n#ifdef _MSC_VER\n__declspec(align(4))\n#else\n__attribute__((aligned(4)))\n#endif\n");
     fprintf(cppfp, "static const unsigned char %s[] = {\n", param_var.c_str());
 
     int i = 0;
@@ -283,6 +284,7 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     FILE* bp = fopen(modelpath, "rb");
 
+    fprintf(cppfp, "\n#ifdef _MSC_VER\n__declspec(align(4))\n#else\n__attribute__((aligned(4)))\n#endif\n");
     fprintf(cppfp, "static const unsigned char %s[] = {\n", model_var.c_str());
 
     i = 0;

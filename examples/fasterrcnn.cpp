@@ -142,9 +142,9 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     in.substract_mean_normalize(mean_vals, 0);
 
     ncnn::Mat im_info(3);
-    im_info.data[0] = h;
-    im_info.data[1] = w;
-    im_info.data[2] = scale;
+    im_info[0] = h;
+    im_info[1] = w;
+    im_info[2] = scale;
 
     // step1, extract feature and all rois
     ncnn::Extractor ex1 = fasterrcnn.create_extractor();
@@ -174,7 +174,7 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
         ex2.extract("bbox_pred", bbox_pred);
         ex2.extract("cls_prob", cls_prob);
 
-        int num_class = cls_prob.c;
+        int num_class = cls_prob.w;
         class_candidates.resize(num_class);
 
         // find class id with highest score
@@ -182,7 +182,7 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
         float score = 0.f;
         for (int i=0; i<num_class; i++)
         {
-            float class_score = cls_prob.channel(i).data[0];
+            float class_score = cls_prob[i];
             if (class_score > score)
             {
                 label = i;
@@ -197,23 +197,19 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 //         fprintf(stderr, "%d = %f\n", label, score);
 
         // unscale to image size
-        float x1 = roi.data[0] / scale;
-        float y1 = roi.data[1] / scale;
-        float x2 = roi.data[2] / scale;
-        float y2 = roi.data[3] / scale;
+        float x1 = roi[0] / scale;
+        float y1 = roi[1] / scale;
+        float x2 = roi[2] / scale;
+        float y2 = roi[3] / scale;
 
         float pb_w = x2 - x1 + 1;
         float pb_h = y2 - y1 + 1;
 
         // apply bbox regression
-        const float* bbox_xptr = bbox_pred.channel(label * 4);
-        const float* bbox_yptr = bbox_pred.channel(label * 4 + 1);
-        const float* bbox_wptr = bbox_pred.channel(label * 4 + 2);
-        const float* bbox_hptr = bbox_pred.channel(label * 4 + 3);
-        float dx = bbox_xptr[0];
-        float dy = bbox_yptr[0];
-        float dw = bbox_wptr[0];
-        float dh = bbox_hptr[0];
+        float dx = bbox_pred[label * 4];
+        float dy = bbox_pred[label * 4 + 1];
+        float dw = bbox_pred[label * 4 + 2];
+        float dh = bbox_pred[label * 4 + 3];
 
         float cx = x1 + pb_w * 0.5f;
         float cy = y1 + pb_h * 0.5f;

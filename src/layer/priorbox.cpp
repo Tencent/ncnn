@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "priorbox.h"
+#include <algorithm>
 #include <math.h>
 
 namespace ncnn {
@@ -78,7 +79,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     #pragma omp parallel for
     for (int i = 0; i < h; i++)
     {
-        float* box = top_blob.data + i * w * num_prior * 4;
+        float* box = (float*)top_blob + i * w * num_prior * 4;
 
         float center_x = offset * step_w;
         float center_y = offset * step_h + i * step_h;
@@ -90,7 +91,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
             for (int k = 0; k < num_min_size; k++)
             {
-                float min_size = min_sizes.data[k];
+                float min_size = min_sizes[k];
 
                 // min size box
                 box_w = box_h = min_size;
@@ -104,7 +105,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 if (num_max_size > 0)
                 {
-                    float max_size = max_sizes.data[k];
+                    float max_size = max_sizes[k];
 
                     // max size box
                     box_w = box_h = sqrt(min_size * max_size);
@@ -134,10 +135,10 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                     if (flip)
                     {
-                        box[0] = (center_x - box_h * 0.5f) / image_h;
-                        box[1] = (center_y - box_w * 0.5f) / image_w;
-                        box[2] = (center_x + box_h * 0.5f) / image_h;
-                        box[3] = (center_y + box_w * 0.5f) / image_w;
+                        box[0] = (center_x - box_h * 0.5f) / image_w;
+                        box[1] = (center_y - box_w * 0.5f) / image_h;
+                        box[2] = (center_x + box_h * 0.5f) / image_w;
+                        box[3] = (center_y + box_w * 0.5f) / image_h;
 
                         box += 4;
                     }
