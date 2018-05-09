@@ -745,6 +745,14 @@ int main(int argc, char** argv)
 
             fprintf(pp, "%-16s", "Input");
         }
+        else if (n.op == "_minus_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "_mul_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (n.op == "abs")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -1061,6 +1069,24 @@ int main(int argc, char** argv)
         {
             // dummy input shape
 //             fprintf(pp, " 0 0 0");
+        }
+        else if (n.op == "_minus_scalar")
+        {
+            int op_type = 1;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
+        }
+        else if (n.op == "_mul_scalar")
+        {
+            int op_type = 2;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
         }
         else if (n.op == "abs")
         {
