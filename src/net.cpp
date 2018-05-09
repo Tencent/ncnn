@@ -357,6 +357,12 @@ int Net::load_param_bin(const char* protopath)
 
 int Net::load_model(FILE* fp)
 {
+    if (layers.empty())
+    {
+        fprintf(stderr, "network graph not ready\n");
+        return -1;
+    }
+
     // load file
     int ret = 0;
 
@@ -505,6 +511,12 @@ int Net::load_param(const unsigned char* _mem)
 
 int Net::load_model(const unsigned char* _mem)
 {
+    if (layers.empty())
+    {
+        fprintf(stderr, "network graph not ready\n");
+        return 0;
+    }
+
     if ((unsigned long)_mem & 0x3)
     {
         // reject unaligned memory
