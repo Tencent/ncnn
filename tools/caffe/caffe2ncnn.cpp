@@ -332,7 +332,7 @@ int main(int argc, char** argv)
             else
                 fprintf(pp, "%-16s", "Convolution");
         }
-        else if (layer.type() == "ConvolutionDepthwise")
+        else if (layer.type() == "ConvolutionDepthwise" || layer.type() == "DepthwiseConvolution")
         {
             fprintf(pp, "%-16s", "ConvolutionDepthWise");
         }
@@ -462,7 +462,7 @@ int main(int argc, char** argv)
             int dim = concat_param.axis() - 1;
             fprintf(pp, " 0=%d", dim);
         }
-        else if (layer.type() == "Convolution" || layer.type() == "ConvolutionDepthwise")
+        else if (layer.type() == "Convolution" || layer.type() == "ConvolutionDepthwise" || layer.type() == "DepthwiseConvolution")
         {
             const caffe::LayerParameter& binlayer = net.layer(netidx);
 
