@@ -497,6 +497,10 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", "Dropout");
             output_size = 1;
         }
+        else if (op == "Elu")
+        {
+            fprintf(pp, "%-16s", "ELU");
+        }
         else if (op == "Gemm")
         {
             float alpha = get_node_attr_f(node, "alpha", 1.f);
@@ -897,6 +901,11 @@ int main(int argc, char** argv)
         else if (op == "Dropout")
         {
             // no-op
+        }
+        else if (op == "Elu")
+        {
+            float alpha = get_node_attr_f(node, "alpha", 1.f);
+            fprintf(pp, " 0=%f", alpha);
         }
         else if (op == "Gemm")
         {
