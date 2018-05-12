@@ -396,6 +396,11 @@ struct binary_op_rsub : std::binary_function<T,T,T> {
     T operator() (const T& x, const T& y) const { return y - x; }
 };
 
+template<typename T>
+struct binary_op_rdiv : std::binary_function<T,T,T> {
+    T operator() (const T& x, const T& y) const { return y / x; }
+};
+
 int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
@@ -427,6 +432,9 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (op_type == Operation_RSUB)
         return binary_op< binary_op_rsub<float> >(bottom_blob, bottom_blob1, top_blob);
 
+    if (op_type == Operation_RDIV)
+        return binary_op< binary_op_rdiv<float> >(bottom_blob, bottom_blob1, top_blob);
+
     return 0;
 }
 
@@ -455,6 +463,9 @@ int BinaryOp::forward_inplace(Mat& bottom_top_blob) const
 
     if (op_type == Operation_RSUB)
         return binary_op_scalar_inplace< binary_op_rsub<float> >(bottom_top_blob, b);
+
+    if (op_type == Operation_RDIV)
+        return binary_op_scalar_inplace< binary_op_rdiv<float> >(bottom_top_blob, b);
 
     return 0;
 }

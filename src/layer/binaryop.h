@@ -38,7 +38,8 @@ public:
         Operation_MAX   = 4,
         Operation_MIN   = 5,
         Operation_POW   = 6,
-        Operation_RSUB  = 7
+        Operation_RSUB  = 7,
+        Operation_RDIV  = 8
     };
 
 public:
