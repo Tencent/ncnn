@@ -552,6 +552,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Padding");
         }
+        else if (op == "PRelu")
+        {
+            fprintf(pp, "%-16s", "PReLU");
+        }
         else if (op == "Relu")
         {
             fprintf(pp, "%-16s", "ReLU");
@@ -1055,6 +1059,16 @@ int main(int argc, char** argv)
             fprintf(pp, " 3=%d", right);
             fprintf(pp, " 4=%d", type);
             fprintf(pp, " 5=%f", value);
+        }
+        else if (op == "PRelu")
+        {
+            const onnx::TensorProto& slope = weights[node.input(1)];
+
+            int num_slope = get_tensor_proto_data_size(slope);
+
+            fprintf(pp, " 0=%d", num_slope);
+
+            fwrite_tensor_proto_data(slope, bp);
         }
         else if (op == "Reshape")
         {
