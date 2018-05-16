@@ -22,16 +22,16 @@ root@msm8996:/data/local/tmp/ncnn # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   36.25  max =   38.47  avg =   37.28
-       mobilenet  min =   55.31  max =   69.14  avg =   57.51
-    mobilenet_v2  min =   56.36  max =   57.99  avg =   56.87
-      shufflenet  min =   24.42  max =   26.06  avg =   25.20
-       googlenet  min =  120.63  max =  130.53  avg =  123.36
-        resnet18  min =  108.70  max =  125.09  avg =  116.06
-         alexnet  min =  186.38  max =  205.25  avg =  192.74
-           vgg16  min =  609.07  max =  648.99  avg =  632.39
-  squeezenet-ssd  min =   66.86  max =   75.74  avg =   68.65
-   mobilenet-ssd  min =   64.70  max =   73.18  avg =   67.22
+      squeezenet  min =   34.99  max =   35.49  avg =   35.21
+       mobilenet  min =   55.14  max =   66.88  avg =   56.87
+    mobilenet_v2  min =   42.42  max =   43.28  avg =   42.94
+      shufflenet  min =   24.02  max =   25.37  avg =   24.78
+       googlenet  min =  116.84  max =  134.88  avg =  123.13
+        resnet18  min =  113.23  max =  119.52  avg =  114.85
+         alexnet  min =  186.85  max =  207.04  avg =  193.54
+           vgg16  min =  616.64  max =  635.01  avg =  627.31
+  squeezenet-ssd  min =   83.07  max =   97.50  avg =   86.36
+   mobilenet-ssd  min =  105.19  max =  123.38  avg =  109.45
 ```
 
 Qualcomm MSM8994 Snapdragon 810 (Cortex-A57 2.0GHz x 4 + Cortex-A53 1.55GHz x 4)
@@ -86,6 +86,23 @@ powersave = 0
            vgg16  min = 2032.24  max = 2347.03  avg = 2152.34
   squeezenet-ssd  min =  121.88  max =  242.83  avg =  141.04
    mobilenet-ssd  min =  129.17  max =  130.86  avg =  129.87
+```
+
+HiSilicon Hi3519V101 (Cortex-A17 1.2GHz x 1)
+```
+root@Hi3519:/ncnn-benchmark # taskset 2 ./benchncnn 4 1 0 
+loop_count = 4
+num_threads = 1
+powersave = 0
+      squeezenet  min =  317.23  max =  317.81  avg =  317.47
+       mobilenet  min =  567.67  max =  569.52  avg =  568.43
+    mobilenet_v2  min =  390.11  max =  392.65  avg =  391.05
+      shufflenet  min =  173.85  max =  174.02  avg =  173.94
+       googlenet  min = 1190.73  max = 1193.02  avg = 1191.47
+        resnet18  min = 1171.72  max = 1173.36  avg = 1172.22
+         alexnet  min = 1216.17  max = 1217.52  avg = 1216.93
+  squeezenet-ssd  min =  631.80  max =  633.84  avg =  632.66
+   mobilenet-ssd  min = 1118.35  max = 1120.58  avg = 1119.41
 ```
 
 iPhone 5S (Apple A7 1.3GHz x 2)
