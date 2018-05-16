@@ -745,6 +745,42 @@ int main(int argc, char** argv)
 
             fprintf(pp, "%-16s", "Input");
         }
+        else if (n.op == "_div_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "_maximum_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "_minimum_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "_minus_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "_mul_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "_plus_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "_power_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "_rdiv_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (n.op == "_rminus_scalar")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (n.op == "abs")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -800,6 +836,10 @@ int main(int argc, char** argv)
         else if (n.op == "ceil")
         {
             fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "clip")
+        {
+            fprintf(pp, "%-16s", "Clip");
         }
         else if (n.op == "Concat")
         {
@@ -939,6 +979,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "ReLU");
         }
+        else if (n.op == "Reshape")
+        {
+            fprintf(pp, "%-16s", "Reshape");
+        }
         else if (n.op == "sin")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -975,6 +1019,10 @@ int main(int argc, char** argv)
         else if (n.op == "tanh")
         {
             fprintf(pp, "%-16s", "TanH");
+        }
+        else if (n.op == "Transpose")
+        {
+            fprintf(pp, "%-16s", "Permute");
         }
         else
         {
@@ -1049,6 +1097,87 @@ int main(int argc, char** argv)
         {
             // dummy input shape
 //             fprintf(pp, " 0 0 0");
+        }
+        else if (n.op == "_div_scalar")
+        {
+            int op_type = 3;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
+        }
+        else if (n.op == "_maximum_scalar")
+        {
+            int op_type = 4;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
+        }
+        else if (n.op == "_minimum_scalar")
+        {
+            int op_type = 5;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
+        }
+        else if (n.op == "_minus_scalar")
+        {
+            int op_type = 1;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
+        }
+        else if (n.op == "_mul_scalar")
+        {
+            int op_type = 2;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
+        }
+        else if (n.op == "_plus_scalar")
+        {
+            int op_type = 0;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
+        }
+        else if (n.op == "_power_scalar")
+        {
+            int op_type = 6;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
+        }
+        else if (n.op == "_rdiv_scalar")
+        {
+            int op_type = 8;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
+        }
+        else if (n.op == "_rminus_scalar")
+        {
+            int op_type = 7;
+            int with_scalar = 1;
+            float scalar = n.attr("scalar");
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%f", scalar);
         }
         else if (n.op == "abs")
         {
@@ -1129,6 +1258,13 @@ int main(int argc, char** argv)
         {
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "clip")
+        {
+            float min = n.attr("a_min");
+            float max = n.attr("a_max");
+            fprintf(pp, " 0=%f", min);
+            fprintf(pp, " 1=%f", max);
         }
         else if (n.op == "Concat")
         {
@@ -1495,6 +1631,27 @@ int main(int argc, char** argv)
         else if (n.op == "relu")
         {
         }
+        else if (n.op == "Reshape")
+        {
+            std::vector<int> shape = n.attr("shape");
+
+            if (shape.size() == 1) {
+                fprintf(pp, " 0=%d", shape[0]);// should never reach here
+            } else if (shape.size() == 2) {
+                fprintf(pp, " 0=%d", shape[1]);
+            } else if (shape.size() == 3) {
+                fprintf(pp, " 0=%d", shape[2]);
+                fprintf(pp, " 1=%d", shape[1]);
+            } else if (shape.size() == 4) {
+                fprintf(pp, " 0=%d", shape[3]);
+                fprintf(pp, " 1=%d", shape[2]);
+                fprintf(pp, " 2=%d", shape[1]);
+            } else if (shape.size() == 5) {
+                fprintf(pp, " 0=%d", shape[4] * shape[3]);
+                fprintf(pp, " 1=%d", shape[2]);
+                fprintf(pp, " 2=%d", shape[1]);
+            }
+        }
         else if (n.op == "sin")
         {
             int op_type = 9;
@@ -1536,6 +1693,40 @@ int main(int argc, char** argv)
         }
         else if (n.op == "tanh")
         {
+        }
+        else if (n.op == "Transpose")
+        {
+            std::vector<int> axes = n.attr("axes");
+
+            if (axes.size() == 4) {
+                if (axes[1] == 1 && axes[2] == 2 && axes[3] == 3)
+                    fprintf(pp, " 0=0");// w h c
+                else if (axes[1] == 1 && axes[2] == 3 && axes[3] == 2)
+                    fprintf(pp, " 0=1");// h w c
+                else if (axes[1] == 2 && axes[2] == 1 && axes[3] == 3)
+                    fprintf(pp, " 0=2");// w c h
+                else if (axes[1] == 2 && axes[2] == 3 && axes[3] == 1)
+                    fprintf(pp, " 0=3");// c w h
+                else if (axes[1] == 3 && axes[2] == 1 && axes[3] == 2)
+                    fprintf(pp, " 0=4");// h c w
+                else if (axes[1] == 3 && axes[2] == 2 && axes[3] == 1)
+                    fprintf(pp, " 0=5");// c h w
+            } else if (axes.size() == 5) {
+                if (axes[1] == 1 && axes[2] == 2 && axes[3] == 3 && axes[4] == 4)
+                    fprintf(pp, " 0=0");// wx h c
+                else if (axes[1] == 1 && axes[2] == 3 && axes[3] == 4 && axes[4] == 2)
+                    fprintf(pp, " 0=1");// h wx c
+                else if (axes[1] == 2 && axes[2] == 1 && axes[3] == 3 && axes[4] == 4)
+                    fprintf(pp, " 0=2");// wx c h
+                else if (axes[1] == 2 && axes[2] == 3 && axes[3] == 4 && axes[4] == 1)
+                    fprintf(pp, " 0=3");// c wx h
+                else if (axes[1] == 3 && axes[2] == 4 && axes[3] == 1 && axes[4] == 2)
+                    fprintf(pp, " 0=4");// h c wx
+                else if (axes[1] == 3 && axes[2] == 4 && axes[3] == 2 && axes[4] == 1)
+                    fprintf(pp, " 0=5");// c h wx
+                else
+                    fprintf(stderr, "Unsupported transpose type !\n");
+            }
         }
         else
         {

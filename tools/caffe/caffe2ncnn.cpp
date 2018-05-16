@@ -332,7 +332,7 @@ int main(int argc, char** argv)
             else
                 fprintf(pp, "%-16s", "Convolution");
         }
-        else if (layer.type() == "ConvolutionDepthwise")
+        else if (layer.type() == "ConvolutionDepthwise" || layer.type() == "DepthwiseConvolution")
         {
             fprintf(pp, "%-16s", "ConvolutionDepthWise");
         }
@@ -438,7 +438,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                float scale_factor = 1 / binlayer.blobs(2).data().data()[0];
+                float scale_factor = binlayer.blobs(2).data().data()[0] == 0 ? 0 : 1 / binlayer.blobs(2).data().data()[0];
                 // premultiply scale_factor to mean and variance
                 float tmp;
                 for (int j=0; j<mean_blob.data_size(); j++)
@@ -462,7 +462,7 @@ int main(int argc, char** argv)
             int dim = concat_param.axis() - 1;
             fprintf(pp, " 0=%d", dim);
         }
-        else if (layer.type() == "Convolution" || layer.type() == "ConvolutionDepthwise")
+        else if (layer.type() == "Convolution" || layer.type() == "ConvolutionDepthwise" || layer.type() == "DepthwiseConvolution")
         {
             const caffe::LayerParameter& binlayer = net.layer(netidx);
 
@@ -1096,7 +1096,7 @@ int main(int argc, char** argv)
         else if (layer.type() == "Slice")
         {
             const caffe::SliceParameter& slice_param = layer.slice_param();
-            if (slice_param.has_slice_dim())
+            if (slice_param.slice_point_size() == 0)
             {
                 int num_slice = layer.top_size();
                 fprintf(pp, " -23300=%d", num_slice);

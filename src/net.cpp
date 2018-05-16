@@ -122,8 +122,8 @@ int Net::load_param(FILE* fp)
     {
         int nscan = 0;
 
-        char layer_type[256];
-        char layer_name[256];
+        char layer_type[257];
+        char layer_name[257];
         int bottom_count = 0;
         int top_count = 0;
         nscan = fscanf(fp, "%256s %256s %d %d", layer_type, layer_name, &bottom_count, &top_count);
@@ -151,7 +151,7 @@ int Net::load_param(FILE* fp)
         layer->bottoms.resize(bottom_count);
         for (int i=0; i<bottom_count; i++)
         {
-            char bottom_name[256];
+            char bottom_name[257];
             nscan = fscanf(fp, "%256s", bottom_name);
             if (nscan != 1)
             {
@@ -183,7 +183,7 @@ int Net::load_param(FILE* fp)
         {
             Blob& blob = blobs[blob_index];
 
-            char blob_name[256];
+            char blob_name[257];
             nscan = fscanf(fp, "%256s", blob_name);
             if (nscan != 1)
             {
@@ -357,6 +357,12 @@ int Net::load_param_bin(const char* protopath)
 
 int Net::load_model(FILE* fp)
 {
+    if (layers.empty())
+    {
+        fprintf(stderr, "network graph not ready\n");
+        return -1;
+    }
+
     // load file
     int ret = 0;
 
@@ -505,6 +511,12 @@ int Net::load_param(const unsigned char* _mem)
 
 int Net::load_model(const unsigned char* _mem)
 {
+    if (layers.empty())
+    {
+        fprintf(stderr, "network graph not ready\n");
+        return 0;
+    }
+
     if ((unsigned long)_mem & 0x3)
     {
         // reject unaligned memory
