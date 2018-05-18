@@ -939,6 +939,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (n.op == "LogisticRegressionOutput")
+        {
+            fprintf(pp, "%-16s", "Sigmoid");
+        }
         else if (n.op == "max")
         {
             fprintf(pp, "%-16s", "Reduction");
@@ -1040,7 +1044,7 @@ int main(int argc, char** argv)
             }
         }
 
-        if (n.op == "SoftmaxOutput")
+        if (n.op == "SoftmaxOutput" || n.op == "LogisticRegressionOutput")
         {
             // drop label
             input_size--;
@@ -1057,7 +1061,7 @@ int main(int argc, char** argv)
                 continue;
             }
 
-            if (n.op == "SoftmaxOutput")
+            if (n.op == "SoftmaxOutput" || n.op == "LogisticRegressionOutput")
             {
                 // drop label
                 if (j == 1)
@@ -1548,6 +1552,9 @@ int main(int argc, char** argv)
         {
             int op_type = 8;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "LogisticRegressionOutput")
+        {
         }
         else if (n.op == "max")
         {
