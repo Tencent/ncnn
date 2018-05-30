@@ -70,6 +70,25 @@ powersave = 0
    mobilenet-ssd  min =  171.26  max =  182.79  avg =  176.83
 ```
 
+Rockchip RK3399 (Cortex-A72 1.8GHz x 2 + Cortex-A53 1.5GHz x 4)
+```
+rk3399_firefly_box:/data/local/tmp/ncnn # ./benchncnn 8 6 0 
+loop_count = 8
+num_threads = 6
+powersave = 0
+      squeezenet  min =   52.63  max =  143.31  avg =   64.81
+       mobilenet  min =   87.87  max =  189.37  avg =  105.93
+    mobilenet_v2  min =   79.99  max =  204.02  avg =   99.30
+      shufflenet  min =   39.34  max =   42.18  avg =   40.80
+       googlenet  min =  156.26  max =  228.16  avg =  175.04
+        resnet18  min =  208.08  max =  294.64  avg =  231.67
+        resnet50  min =  713.41  max =  862.93  avg =  796.93
+         alexnet  min =  501.34  max =  648.37  avg =  561.81
+           vgg16  min = 1265.89  max = 1387.90  avg = 1308.65
+  squeezenet-ssd  min =  128.86  max =  247.58  avg =  151.40
+   mobilenet-ssd  min =  174.78  max =  250.38  avg =  186.19
+```
+
 Rockchip RK3288 (Cortex-A17 1.8GHz x 4)
 ```
 root@rk3288:/data/local/tmp/ncnn # ./benchncnn 8 4 0 
