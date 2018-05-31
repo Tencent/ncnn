@@ -1533,6 +1533,323 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
     kernel_tm = kernel_tm2;
 }
 
+static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
+{
+    kernel_tm.create(8*8, inch, outch);
+
+    const float ktm[8][3] = {
+        {   1.0f,     0.0f,     0.0f},
+        {-2.0f/9,  -2.0f/9,  -2.0f/9},
+        {-2.0f/9,   2.0f/9,  -2.0f/9},
+        {1.0f/90,  1.0f/45,  2.0f/45},
+        {1.0f/90, -1.0f/45,  2.0f/45},
+        {1.0f/45,  1.0f/90, 1.0f/180},
+        {1.0f/45, -1.0f/90, 1.0f/180},
+        {   0.0f,     0.0f,     1.0f}
+    };
+
+    #pragma omp parallel for
+    for (int p = 0; p<outch; p++)
+    {
+        for (int q = 0; q<inch; q++)
+        {
+            const float* kernel0 = (const float*)kernel + p*inch * 9 + q * 9;
+            float* kernel_tm0 = kernel_tm.channel(p).row(q);
+
+            // transform kernel, transposed
+            const float* k0 = kernel0;
+            const float* k1 = kernel0 + 3;
+            const float* k2 = kernel0 + 6;
+
+            // h
+            float tmp[8][3];
+            for (int i=0; i<8; i++)
+            {
+                tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
+                tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
+                tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
+            }
+
+            // v
+            for (int j=0; j<8; j++)
+            {
+                float* tmpp = &tmp[j][0];
+
+                for (int i=0; i<8; i++)
+                {
+                    kernel_tm0[j*8 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
+                }
+            }
+        }
+    }
+
+
+    // optimized layout for winograd5
+    // interleave weights
+//     Mat kernel_tm2(8*8, inch, outch);
+//     Mat kernel_tm2(inch, 64, outch);
+//     Mat kernel_tm2(4*4*(inch/4), 64, outch/4);
+    Mat kernel_tm2(8*4*(inch/4) + 8*(inch%4), 64, outch/8 + (outch%8)/4 + outch%4);
+
+    int p=0;
+    for (; p+7<outch; p+=8)
+    {
+        const Mat kernel0_tm = kernel_tm.channel(p);
+        const Mat kernel1_tm = kernel_tm.channel(p+1);
+        const Mat kernel2_tm = kernel_tm.channel(p+2);
+        const Mat kernel3_tm = kernel_tm.channel(p+3);
+        const Mat kernel4_tm = kernel_tm.channel(p+4);
+        const Mat kernel5_tm = kernel_tm.channel(p+5);
+        const Mat kernel6_tm = kernel_tm.channel(p+6);
+        const Mat kernel7_tm = kernel_tm.channel(p+7);
+
+        Mat ktm2 = kernel_tm2.channel(p/8);
+
+        for (int r=0; r<64; r++)
+        {
+            float* ktm2p = ktm2.row(r);
+
+            int q=0;
+            for (; q+3<inch; q+=4)
+            {
+                const float* ktm0_0 = kernel0_tm.row(q);
+                const float* ktm0_1 = kernel0_tm.row(q+1);
+                const float* ktm0_2 = kernel0_tm.row(q+2);
+                const float* ktm0_3 = kernel0_tm.row(q+3);
+
+                ktm2p[0] = ktm0_0[r];
+                ktm2p[1] = ktm0_1[r];
+                ktm2p[2] = ktm0_2[r];
+                ktm2p[3] = ktm0_3[r];
+
+                ktm2p += 4;
+
+                const float* ktm1_0 = kernel1_tm.row(q);
+                const float* ktm1_1 = kernel1_tm.row(q+1);
+                const float* ktm1_2 = kernel1_tm.row(q+2);
+                const float* ktm1_3 = kernel1_tm.row(q+3);
+
+                ktm2p[0] = ktm1_0[r];
+                ktm2p[1] = ktm1_1[r];
+                ktm2p[2] = ktm1_2[r];
+                ktm2p[3] = ktm1_3[r];
+
+                ktm2p += 4;
+
+                const float* ktm2_0 = kernel2_tm.row(q);
+                const float* ktm2_1 = kernel2_tm.row(q+1);
+                const float* ktm2_2 = kernel2_tm.row(q+2);
+                const float* ktm2_3 = kernel2_tm.row(q+3);
+
+                ktm2p[0] = ktm2_0[r];
+                ktm2p[1] = ktm2_1[r];
+                ktm2p[2] = ktm2_2[r];
+                ktm2p[3] = ktm2_3[r];
+
+                ktm2p += 4;
+
+                const float* ktm3_0 = kernel3_tm.row(q);
+                const float* ktm3_1 = kernel3_tm.row(q+1);
+                const float* ktm3_2 = kernel3_tm.row(q+2);
+                const float* ktm3_3 = kernel3_tm.row(q+3);
+
+                ktm2p[0] = ktm3_0[r];
+                ktm2p[1] = ktm3_1[r];
+                ktm2p[2] = ktm3_2[r];
+                ktm2p[3] = ktm3_3[r];
+
+                ktm2p += 4;
+
+                const float* ktm4_0 = kernel4_tm.row(q);
+                const float* ktm4_1 = kernel4_tm.row(q+1);
+                const float* ktm4_2 = kernel4_tm.row(q+2);
+                const float* ktm4_3 = kernel4_tm.row(q+3);
+
+                ktm2p[0] = ktm4_0[r];
+                ktm2p[1] = ktm4_1[r];
+                ktm2p[2] = ktm4_2[r];
+                ktm2p[3] = ktm4_3[r];
+
+                ktm2p += 4;
+
+                const float* ktm5_0 = kernel5_tm.row(q);
+                const float* ktm5_1 = kernel5_tm.row(q+1);
+                const float* ktm5_2 = kernel5_tm.row(q+2);
+                const float* ktm5_3 = kernel5_tm.row(q+3);
+
+                ktm2p[0] = ktm5_0[r];
+                ktm2p[1] = ktm5_1[r];
+                ktm2p[2] = ktm5_2[r];
+                ktm2p[3] = ktm5_3[r];
+
+                ktm2p += 4;
+
+                const float* ktm6_0 = kernel6_tm.row(q);
+                const float* ktm6_1 = kernel6_tm.row(q+1);
+                const float* ktm6_2 = kernel6_tm.row(q+2);
+                const float* ktm6_3 = kernel6_tm.row(q+3);
+
+                ktm2p[0] = ktm6_0[r];
+                ktm2p[1] = ktm6_1[r];
+                ktm2p[2] = ktm6_2[r];
+                ktm2p[3] = ktm6_3[r];
+
+                ktm2p += 4;
+
+                const float* ktm7_0 = kernel7_tm.row(q);
+                const float* ktm7_1 = kernel7_tm.row(q+1);
+                const float* ktm7_2 = kernel7_tm.row(q+2);
+                const float* ktm7_3 = kernel7_tm.row(q+3);
+
+                ktm2p[0] = ktm7_0[r];
+                ktm2p[1] = ktm7_1[r];
+                ktm2p[2] = ktm7_2[r];
+                ktm2p[3] = ktm7_3[r];
+
+                ktm2p += 4;
+            }
+            for (; q<inch; q++)
+            {
+                const float* ktm0_0 = kernel0_tm.row(q);
+                const float* ktm1_0 = kernel1_tm.row(q);
+                const float* ktm2_0 = kernel2_tm.row(q);
+                const float* ktm3_0 = kernel3_tm.row(q);
+                const float* ktm4_0 = kernel4_tm.row(q);
+                const float* ktm5_0 = kernel5_tm.row(q);
+                const float* ktm6_0 = kernel6_tm.row(q);
+                const float* ktm7_0 = kernel7_tm.row(q);
+
+                ktm2p[0] = ktm0_0[r];
+                ktm2p[1] = ktm1_0[r];
+                ktm2p[2] = ktm2_0[r];
+                ktm2p[3] = ktm3_0[r];
+                ktm2p[4] = ktm4_0[r];
+                ktm2p[5] = ktm5_0[r];
+                ktm2p[6] = ktm6_0[r];
+                ktm2p[7] = ktm7_0[r];
+
+                ktm2p += 8;
+            }
+        }
+    }
+    for (; p+3<outch; p+=4)
+    {
+        const Mat kernel0_tm = kernel_tm.channel(p);
+        const Mat kernel1_tm = kernel_tm.channel(p+1);
+        const Mat kernel2_tm = kernel_tm.channel(p+2);
+        const Mat kernel3_tm = kernel_tm.channel(p+3);
+
+        Mat ktm2 = kernel_tm2.channel(p/8+(p%8)/4);
+
+        for (int r=0; r<64; r++)
+        {
+            float* ktm2p = ktm2.row(r);
+
+            int q=0;
+            for (; q+3<inch; q+=4)
+            {
+                const float* ktm0_0 = kernel0_tm.row(q);
+                const float* ktm0_1 = kernel0_tm.row(q+1);
+                const float* ktm0_2 = kernel0_tm.row(q+2);
+                const float* ktm0_3 = kernel0_tm.row(q+3);
+
+                ktm2p[0] = ktm0_0[r];
+                ktm2p[1] = ktm0_1[r];
+                ktm2p[2] = ktm0_2[r];
+                ktm2p[3] = ktm0_3[r];
+
+                ktm2p += 4;
+
+                const float* ktm1_0 = kernel1_tm.row(q);
+                const float* ktm1_1 = kernel1_tm.row(q+1);
+                const float* ktm1_2 = kernel1_tm.row(q+2);
+                const float* ktm1_3 = kernel1_tm.row(q+3);
+
+                ktm2p[0] = ktm1_0[r];
+                ktm2p[1] = ktm1_1[r];
+                ktm2p[2] = ktm1_2[r];
+                ktm2p[3] = ktm1_3[r];
+
+                ktm2p += 4;
+
+                const float* ktm2_0 = kernel2_tm.row(q);
+                const float* ktm2_1 = kernel2_tm.row(q+1);
+                const float* ktm2_2 = kernel2_tm.row(q+2);
+                const float* ktm2_3 = kernel2_tm.row(q+3);
+
+                ktm2p[0] = ktm2_0[r];
+                ktm2p[1] = ktm2_1[r];
+                ktm2p[2] = ktm2_2[r];
+                ktm2p[3] = ktm2_3[r];
+
+                ktm2p += 4;
+
+                const float* ktm3_0 = kernel3_tm.row(q);
+                const float* ktm3_1 = kernel3_tm.row(q+1);
+                const float* ktm3_2 = kernel3_tm.row(q+2);
+                const float* ktm3_3 = kernel3_tm.row(q+3);
+
+                ktm2p[0] = ktm3_0[r];
+                ktm2p[1] = ktm3_1[r];
+                ktm2p[2] = ktm3_2[r];
+                ktm2p[3] = ktm3_3[r];
+
+                ktm2p += 4;
+            }
+            for (; q<inch; q++)
+            {
+                const float* ktm0_0 = kernel0_tm.row(q);
+                const float* ktm1_0 = kernel1_tm.row(q);
+                const float* ktm2_0 = kernel2_tm.row(q);
+                const float* ktm3_0 = kernel3_tm.row(q);
+
+                ktm2p[0] = ktm0_0[r];
+                ktm2p[1] = ktm1_0[r];
+                ktm2p[2] = ktm2_0[r];
+                ktm2p[3] = ktm3_0[r];
+
+                ktm2p += 4;
+            }
+        }
+    }
+    for (; p<outch; p++)
+    {
+        const Mat kernel0_tm = kernel_tm.channel(p);
+        Mat ktm2 = kernel_tm2.channel(p/8+(p%8)/4+p%4);
+
+        for (int r=0; r<64; r++)
+        {
+            float* ktm2p = ktm2.row(r);
+
+            int q=0;
+            for (; q+3<inch; q+=4)
+            {
+                const float* ktm0_0 = kernel0_tm.row(q);
+                const float* ktm0_1 = kernel0_tm.row(q+1);
+                const float* ktm0_2 = kernel0_tm.row(q+2);
+                const float* ktm0_3 = kernel0_tm.row(q+3);
+
+                ktm2p[0] = ktm0_0[r];
+                ktm2p[1] = ktm0_1[r];
+                ktm2p[2] = ktm0_2[r];
+                ktm2p[3] = ktm0_3[r];
+
+                ktm2p += 4;
+            }
+            for (; q<inch; q++)
+            {
+                const float* ktm0_0 = kernel0_tm.row(q);
+
+                ktm2p[0] = ktm0_0[r];
+
+                ktm2p += 1;
+            }
+        }
+    }
+
+    kernel_tm = kernel_tm2;
+}
+
 #if 0//TODO remove old code sometime later
 static void conv3x3s1_winograd64_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
 {
@@ -7993,6 +8310,1732 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w);
 }
+
+#if __aarch64__
+static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int inch = bottom_blob.c;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    // pad to 6n+2
+    Mat bottom_blob_bordered = bottom_blob;
+
+    outw = (outw + 5) / 6 * 6;
+    outh = (outh + 5) / 6 * 6;
+
+    w = outw + 2;
+    h = outh + 2;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f);
+
+    const float* bias = _bias;
+
+    // BEGIN transform input
+    Mat bottom_blob_tm;
+    {
+        int w_tm = outw / 6 * 8;
+        int h_tm = outh / 6 * 8;
+        const int tiles = w_tm/8 * h_tm/8;
+        bottom_blob_tm.create(1, 64 * tiles, inch);
+//         bottom_blob_tm.create(inch, tiles, 64);
+
+//         const float itm[8][8] = {
+//             {1.0f,  0.0f, -5.25f,  0.00f,  5.25f,  0.00f, -1.0f, 0.0f},
+//
+//             {0.0f,  1.0f,  1.00f, -4.25f, -4.25f,  1.00f,  1.0f, 0.0f},
+//             {0.0f, -1.0f,  1.00f,  4.25f, -4.25f, -1.00f,  1.0f, 0.0f},
+//
+//             {0.0f,  0.5f,  0.25f, -2.50f, -1.25f,  2.00f,  1.0f, 0.0f},
+//             {0.0f, -0.5f,  0.25f,  2.50f, -1.25f, -2.00f,  1.0f, 0.0f},
+//
+//             {0.0f,  2.0f,  4.00f, -2.50f, -5.00f,  0.50f,  1.0f, 0.0f},
+//             {0.0f, -2.0f,  4.00f,  2.50f, -5.00f, -0.50f,  1.0f, 0.0f},
+//
+//             {0.0f, -1.0f,  0.00f,  5.25f,  0.00f, -5.25f,  0.0f, 1.0f}
+//         };
+
+        // 0 = r00 - r06 + (r04 - r02) * 5.25
+        // 7 = r07 - r01 + (r03 - r05) * 5.25
+
+        // 1 = (r02 + r06 - r04 * 4.25) + (r01 - r03 * 4.25 + r05)
+        // 2 = (r02 + r06 - r04 * 4.25) - (r01 - r03 * 4.25 + r05)
+
+        // 3 = (r06 + r02 * 0.25 - r04 * 1.25) + (r01 * 0.5 - r03 * 2.5 + r05 * 2)
+        // 4 = (r06 + r02 * 0.25 - r04 * 1.25) - (r01 * 0.5 - r03 * 2.5 + r05 * 2)
+
+        // reuse r04 * 1.25
+        // reuse r03 * 2.5
+        // 5 = (r06 + (r02 - r04 * 1.25) * 4) + (r01 * 2 - r03 * 2.5 + r05 * 0.5)
+        // 6 = (r06 + (r02 - r04 * 1.25) * 4) - (r01 * 2 - r03 * 2.5 + r05 * 0.5)
+
+#if __ARM_NEON
+        const float coeff[8] = {
+            0.25f, 0.5f, -1.25f,   2.f,
+            -2.5f,  4.f,  4.25f, 5.25f
+        };
+        float32x4_t _coeff0 = vld1q_f32(coeff);
+        float32x4_t _coeff1 = vld1q_f32(coeff+4);
+#endif // __ARM_NEON
+
+        #pragma omp parallel for
+        for (int q = 0; q<inch; q++)
+        {
+            const Mat img0 = bottom_blob_bordered.channel(q);
+            Mat img0_tm = bottom_blob_tm.channel(q);
+
+            float tmp[8][8];
+
+            // tile
+            for (int i=0; i<h_tm/8; i++)
+            {
+                for (int j=0; j<w_tm/8; j++)
+                {
+#if __ARM_NEON
+                    const float* r0 = img0.row(i * 6) + j * 6;
+                    const float* r1 = r0 + w;
+                    const float* r2 = r0 + w*2;
+                    const float* r3 = r0 + w*3;
+
+                    for (int m=0; m+3<8; m+=4)
+                    {
+                        float32x4_t _r0_0123 = vld1q_f32(r0);
+                        float32x4_t _r0_4567 = vld1q_f32(r0+4);
+                        float32x4_t _r1_0123 = vld1q_f32(r1);
+                        float32x4_t _r1_4567 = vld1q_f32(r1+4);
+                        float32x4_t _r2_0123 = vld1q_f32(r2);
+                        float32x4_t _r2_4567 = vld1q_f32(r2+4);
+                        float32x4_t _r3_0123 = vld1q_f32(r3);
+                        float32x4_t _r3_4567 = vld1q_f32(r3+4);
+
+                        float32x4x2_t _r01_00221133 = vtrnq_f32(_r0_0123, _r1_0123);
+                        float32x4x2_t _r01_44665577 = vtrnq_f32(_r0_4567, _r1_4567);
+                        float32x4x2_t _r23_00221133 = vtrnq_f32(_r2_0123, _r3_0123);
+                        float32x4x2_t _r23_44665577 = vtrnq_f32(_r2_4567, _r3_4567);
+
+                        // no vswp intrinsic  :(
+                        float32x4_t _r_00 = vcombine_f32(vget_low_f32(_r01_00221133.val[0]), vget_low_f32(_r23_00221133.val[0]));
+                        float32x4_t _r_11 = vcombine_f32(vget_low_f32(_r01_00221133.val[1]), vget_low_f32(_r23_00221133.val[1]));
+                        float32x4_t _r_22 = vcombine_f32(vget_high_f32(_r01_00221133.val[0]), vget_high_f32(_r23_00221133.val[0]));
+                        float32x4_t _r_33 = vcombine_f32(vget_high_f32(_r01_00221133.val[1]), vget_high_f32(_r23_00221133.val[1]));
+                        float32x4_t _r_44 = vcombine_f32(vget_low_f32(_r01_44665577.val[0]), vget_low_f32(_r23_44665577.val[0]));
+                        float32x4_t _r_55 = vcombine_f32(vget_low_f32(_r01_44665577.val[1]), vget_low_f32(_r23_44665577.val[1]));
+                        float32x4_t _r_66 = vcombine_f32(vget_high_f32(_r01_44665577.val[0]), vget_high_f32(_r23_44665577.val[0]));
+                        float32x4_t _r_77 = vcombine_f32(vget_high_f32(_r01_44665577.val[1]), vget_high_f32(_r23_44665577.val[1]));
+
+                        float32x4_t _r_0_m_6 = vsubq_f32(_r_00, _r_66);
+                        float32x4_t _r_7_m_1 = vsubq_f32(_r_77, _r_11);
+
+                        float32x4_t _r_4_m_2 = vsubq_f32(_r_44, _r_22);
+                        float32x4_t _r_3_m_5 = vsubq_f32(_r_33, _r_55);
+
+                        float32x4_t _tmp0 = vmlaq_lane_f32(_r_0_m_6, _r_4_m_2, vget_high_f32(_coeff1), 1);
+                        float32x4_t _tmp7 = vmlaq_lane_f32(_r_7_m_1, _r_3_m_5, vget_high_f32(_coeff1), 1);
+
+                        vst1q_f32(&tmp[0][m], _tmp0);
+                        vst1q_f32(&tmp[7][m], _tmp7);
+
+                        float32x4_t _r_2_a_6 = vaddq_f32(_r_22, _r_66);
+                        float32x4_t _r_1_a_5 = vaddq_f32(_r_11, _r_55);
+
+                        float32x4_t _tmp12a = vmlsq_lane_f32(_r_2_a_6, _r_44, vget_high_f32(_coeff1), 0);
+                        float32x4_t _tmp12b = vmlsq_lane_f32(_r_1_a_5, _r_33, vget_high_f32(_coeff1), 0);
+
+                        float32x4_t _tmp1 = vaddq_f32(_tmp12a, _tmp12b);
+                        float32x4_t _tmp2 = vsubq_f32(_tmp12a, _tmp12b);
+
+                        vst1q_f32(&tmp[1][m], _tmp1);
+                        vst1q_f32(&tmp[2][m], _tmp2);
+
+                        float32x4_t _r_4_x_c = vmulq_lane_f32(_r_44, vget_high_f32(_coeff0), 0);
+                        float32x4_t _r_3_x_c = vmulq_lane_f32(_r_33, vget_low_f32(_coeff1), 0);
+
+                        float32x4_t _tmp34a = vaddq_f32(_r_66, _r_4_x_c);
+                        _tmp34a = vmlaq_lane_f32(_tmp34a, _r_22, vget_low_f32(_coeff0), 0);
+
+                        float32x4_t _tmp34b = vmlaq_lane_f32(_r_3_x_c, _r_11, vget_low_f32(_coeff0), 1);
+                        _tmp34b = vmlaq_lane_f32(_tmp34b, _r_55, vget_high_f32(_coeff0), 1);
+
+                        float32x4_t _tmp3 = vaddq_f32(_tmp34a, _tmp34b);
+                        float32x4_t _tmp4 = vsubq_f32(_tmp34a, _tmp34b);
+
+                        vst1q_f32(&tmp[3][m], _tmp3);
+                        vst1q_f32(&tmp[4][m], _tmp4);
+
+                        // reuse r04 * 1.25
+                        // reuse r03 * 2.5
+                        float32x4_t _r_2_a_4c = vaddq_f32(_r_22, _r_4_x_c);
+                        float32x4_t _tmp56a = vmlaq_lane_f32(_r_66, _r_2_a_4c, vget_low_f32(_coeff1), 1);
+                        float32x4_t _tmp56b = vmlaq_lane_f32(_r_3_x_c, _r_11, vget_high_f32(_coeff0), 1);
+                        _tmp56b = vmlaq_lane_f32(_tmp56b, _r_55, vget_low_f32(_coeff0), 1);
+
+                        float32x4_t _tmp5 = vaddq_f32(_tmp56a, _tmp56b);
+                        float32x4_t _tmp6 = vsubq_f32(_tmp56a, _tmp56b);
+
+                        vst1q_f32(&tmp[5][m], _tmp5);
+                        vst1q_f32(&tmp[6][m], _tmp6);
+
+                        r0 += w*4;
+                        r1 += w*4;
+                        r2 += w*4;
+                        r3 += w*4;
+                    }
+
+                    const float* t0 = tmp[0];
+                    const float* t1 = tmp[1];
+                    const float* t2 = tmp[2];
+                    const float* t3 = tmp[3];
+
+                    float* r0_tm0 = img0_tm.row(i * w_tm/8 + j);
+                    float* r0_tm1 = img0_tm.row(i * w_tm/8 + j + tiles*8);
+                    float* r0_tm2 = img0_tm.row(i * w_tm/8 + j + tiles*16);
+                    float* r0_tm3 = img0_tm.row(i * w_tm/8 + j + tiles*24);
+
+                    for (int m=0; m+3<8; m+=4)
+                    {
+                        float32x4_t _t0_0123 = vld1q_f32(t0);
+                        float32x4_t _t0_4567 = vld1q_f32(t0+4);
+                        float32x4_t _t1_0123 = vld1q_f32(t1);
+                        float32x4_t _t1_4567 = vld1q_f32(t1+4);
+                        float32x4_t _t2_0123 = vld1q_f32(t2);
+                        float32x4_t _t2_4567 = vld1q_f32(t2+4);
+                        float32x4_t _t3_0123 = vld1q_f32(t3);
+                        float32x4_t _t3_4567 = vld1q_f32(t3+4);
+
+                        float32x4x2_t _t01_00221133 = vtrnq_f32(_t0_0123, _t1_0123);
+                        float32x4x2_t _t01_44665577 = vtrnq_f32(_t0_4567, _t1_4567);
+                        float32x4x2_t _t23_00221133 = vtrnq_f32(_t2_0123, _t3_0123);
+                        float32x4x2_t _t23_44665577 = vtrnq_f32(_t2_4567, _t3_4567);
+
+                        // no vswp intrinsic  :(
+                        float32x4_t _t_00 = vcombine_f32(vget_low_f32(_t01_00221133.val[0]), vget_low_f32(_t23_00221133.val[0]));
+                        float32x4_t _t_11 = vcombine_f32(vget_low_f32(_t01_00221133.val[1]), vget_low_f32(_t23_00221133.val[1]));
+                        float32x4_t _t_22 = vcombine_f32(vget_high_f32(_t01_00221133.val[0]), vget_high_f32(_t23_00221133.val[0]));
+                        float32x4_t _t_33 = vcombine_f32(vget_high_f32(_t01_00221133.val[1]), vget_high_f32(_t23_00221133.val[1]));
+                        float32x4_t _t_44 = vcombine_f32(vget_low_f32(_t01_44665577.val[0]), vget_low_f32(_t23_44665577.val[0]));
+                        float32x4_t _t_55 = vcombine_f32(vget_low_f32(_t01_44665577.val[1]), vget_low_f32(_t23_44665577.val[1]));
+                        float32x4_t _t_66 = vcombine_f32(vget_high_f32(_t01_44665577.val[0]), vget_high_f32(_t23_44665577.val[0]));
+                        float32x4_t _t_77 = vcombine_f32(vget_high_f32(_t01_44665577.val[1]), vget_high_f32(_t23_44665577.val[1]));
+
+                        float32x4_t _t_0_m_6 = vsubq_f32(_t_00, _t_66);
+                        float32x4_t _t_7_m_1 = vsubq_f32(_t_77, _t_11);
+
+                        float32x4_t _t_4_m_2 = vsubq_f32(_t_44, _t_22);
+                        float32x4_t _t_3_m_5 = vsubq_f32(_t_33, _t_55);
+
+                        float32x4_t _r0_tm_0_0 = vmlaq_lane_f32(_t_0_m_6, _t_4_m_2, vget_high_f32(_coeff1), 1);
+                        float32x4_t _r0_tm_4_3 = vmlaq_lane_f32(_t_7_m_1, _t_3_m_5, vget_high_f32(_coeff1), 1);
+
+                        r0_tm0[0] = vgetq_lane_f32(_r0_tm_0_0, 0);
+                        r0_tm1[0] = vgetq_lane_f32(_r0_tm_0_0, 1);
+                        r0_tm2[0] = vgetq_lane_f32(_r0_tm_0_0, 2);
+                        r0_tm3[0] = vgetq_lane_f32(_r0_tm_0_0, 3);
+
+                        r0_tm0 += img0_tm.w*tiles;
+                        r0_tm1 += img0_tm.w*tiles;
+                        r0_tm2 += img0_tm.w*tiles;
+                        r0_tm3 += img0_tm.w*tiles;
+
+                        float32x4_t _t_2_m_6 = vaddq_f32(_t_22, _t_66);
+                        float32x4_t _t_1_m_5 = vaddq_f32(_t_11, _t_55);
+
+                        float32x4_t _tmp12a = vmlsq_lane_f32(_t_2_m_6, _t_44, vget_high_f32(_coeff1), 0);
+                        float32x4_t _tmp12b = vmlsq_lane_f32(_t_1_m_5, _t_33, vget_high_f32(_coeff1), 0);
+
+                        float32x4_t _r0_tm_0_1 = vaddq_f32(_tmp12a, _tmp12b);
+                        float32x4_t _r0_tm_0_2 = vsubq_f32(_tmp12a, _tmp12b);
+
+                        r0_tm0[0] = vgetq_lane_f32(_r0_tm_0_1, 0);
+                        r0_tm1[0] = vgetq_lane_f32(_r0_tm_0_1, 1);
+                        r0_tm2[0] = vgetq_lane_f32(_r0_tm_0_1, 2);
+                        r0_tm3[0] = vgetq_lane_f32(_r0_tm_0_1, 3);
+
+                        r0_tm0 += img0_tm.w*tiles;
+                        r0_tm1 += img0_tm.w*tiles;
+                        r0_tm2 += img0_tm.w*tiles;
+                        r0_tm3 += img0_tm.w*tiles;
+
+                        r0_tm0[0] = vgetq_lane_f32(_r0_tm_0_2, 0);
+                        r0_tm1[0] = vgetq_lane_f32(_r0_tm_0_2, 1);
+                        r0_tm2[0] = vgetq_lane_f32(_r0_tm_0_2, 2);
+                        r0_tm3[0] = vgetq_lane_f32(_r0_tm_0_2, 3);
+
+                        r0_tm0 += img0_tm.w*tiles;
+                        r0_tm1 += img0_tm.w*tiles;
+                        r0_tm2 += img0_tm.w*tiles;
+                        r0_tm3 += img0_tm.w*tiles;
+
+                        float32x4_t _t_4_x_c = vmulq_lane_f32(_t_44, vget_high_f32(_coeff0), 0);
+                        float32x4_t _t_3_x_c = vmulq_lane_f32(_t_33, vget_low_f32(_coeff1), 0);
+
+                        float32x4_t _tmp34a = vaddq_f32(_t_66, _t_4_x_c);
+                        _tmp34a = vmlaq_lane_f32(_tmp34a, _t_22, vget_low_f32(_coeff0), 0);
+
+                        float32x4_t _tmp34b = vmlaq_lane_f32(_t_3_x_c, _t_11, vget_low_f32(_coeff0), 1);
+                        _tmp34b = vmlaq_lane_f32(_tmp34b, _t_55, vget_high_f32(_coeff0), 1);
+
+                        float32x4_t _r0_tm_0_3 = vaddq_f32(_tmp34a, _tmp34b);
+                        float32x4_t _r0_tm_4_0 = vsubq_f32(_tmp34a, _tmp34b);
+
+                        r0_tm0[0] = vgetq_lane_f32(_r0_tm_0_3, 0);
+                        r0_tm1[0] = vgetq_lane_f32(_r0_tm_0_3, 1);
+                        r0_tm2[0] = vgetq_lane_f32(_r0_tm_0_3, 2);
+                        r0_tm3[0] = vgetq_lane_f32(_r0_tm_0_3, 3);
+
+                        r0_tm0 += img0_tm.w*tiles;
+                        r0_tm1 += img0_tm.w*tiles;
+                        r0_tm2 += img0_tm.w*tiles;
+                        r0_tm3 += img0_tm.w*tiles;
+
+                        r0_tm0[0] = vgetq_lane_f32(_r0_tm_4_0, 0);
+                        r0_tm1[0] = vgetq_lane_f32(_r0_tm_4_0, 1);
+                        r0_tm2[0] = vgetq_lane_f32(_r0_tm_4_0, 2);
+                        r0_tm3[0] = vgetq_lane_f32(_r0_tm_4_0, 3);
+
+                        r0_tm0 += img0_tm.w*tiles;
+                        r0_tm1 += img0_tm.w*tiles;
+                        r0_tm2 += img0_tm.w*tiles;
+                        r0_tm3 += img0_tm.w*tiles;
+
+                        float32x4_t _t_2_a_4c = vaddq_f32(_t_22, _t_4_x_c);
+                        float32x4_t _tmp56a = vmlaq_lane_f32(_t_66, _t_2_a_4c, vget_low_f32(_coeff1), 1);
+                        float32x4_t _tmp56b = vmlaq_lane_f32(_t_3_x_c, _t_11, vget_high_f32(_coeff0), 1);
+                        _tmp56b = vmlaq_lane_f32(_tmp56b, _t_55, vget_low_f32(_coeff0), 1);
+
+                        float32x4_t _r0_tm_4_1 = vaddq_f32(_tmp56a, _tmp56b);
+                        float32x4_t _r0_tm_4_2 = vsubq_f32(_tmp56a, _tmp56b);
+
+                        r0_tm0[0] = vgetq_lane_f32(_r0_tm_4_1, 0);
+                        r0_tm1[0] = vgetq_lane_f32(_r0_tm_4_1, 1);
+                        r0_tm2[0] = vgetq_lane_f32(_r0_tm_4_1, 2);
+                        r0_tm3[0] = vgetq_lane_f32(_r0_tm_4_1, 3);
+
+                        r0_tm0 += img0_tm.w*tiles;
+                        r0_tm1 += img0_tm.w*tiles;
+                        r0_tm2 += img0_tm.w*tiles;
+                        r0_tm3 += img0_tm.w*tiles;
+
+                        r0_tm0[0] = vgetq_lane_f32(_r0_tm_4_2, 0);
+                        r0_tm1[0] = vgetq_lane_f32(_r0_tm_4_2, 1);
+                        r0_tm2[0] = vgetq_lane_f32(_r0_tm_4_2, 2);
+                        r0_tm3[0] = vgetq_lane_f32(_r0_tm_4_2, 3);
+
+                        r0_tm0 += img0_tm.w*tiles;
+                        r0_tm1 += img0_tm.w*tiles;
+                        r0_tm2 += img0_tm.w*tiles;
+                        r0_tm3 += img0_tm.w*tiles;
+
+                        r0_tm0[0] = vgetq_lane_f32(_r0_tm_4_3, 0);
+                        r0_tm1[0] = vgetq_lane_f32(_r0_tm_4_3, 1);
+                        r0_tm2[0] = vgetq_lane_f32(_r0_tm_4_3, 2);
+                        r0_tm3[0] = vgetq_lane_f32(_r0_tm_4_3, 3);
+
+                        t0 += 8*4;
+                        t1 += 8*4;
+                        t2 += 8*4;
+                        t3 += 8*4;
+
+                        r0_tm0 += img0_tm.w*tiles*25;
+                        r0_tm1 += img0_tm.w*tiles*25;
+                        r0_tm2 += img0_tm.w*tiles*25;
+                        r0_tm3 += img0_tm.w*tiles*25;
+                    }
+#else
+                    const float* r0 = img0.row(i * 6) + j * 6;
+
+                    for (int m=0; m<8; m++)
+                    {
+                        tmp[0][m] = r0[0] - r0[6] + (r0[4] - r0[2]) * 5.25f;
+                        tmp[7][m] = r0[7] - r0[1] + (r0[3] - r0[5]) * 5.25f;
+
+                        float tmp12a = (r0[2] + r0[6] - r0[4] * 4.25f);
+                        float tmp12b = (r0[1] + r0[5] - r0[3] * 4.25f);
+
+                        tmp[1][m] = tmp12a + tmp12b;
+                        tmp[2][m] = tmp12a - tmp12b;
+
+                        float tmp34a = (r0[6] + r0[2] * 0.25f - r0[4] * 1.25f);
+                        float tmp34b = (r0[1] * 0.5f - r0[3] * 2.5f + r0[5] * 2.f);
+
+                        tmp[3][m] = tmp34a + tmp34b;
+                        tmp[4][m] = tmp34a - tmp34b;
+
+                        float tmp56a = (r0[6] + (r0[2] - r0[4] * 1.25f) * 4.f);
+                        float tmp56b = (r0[1] * 2.f - r0[3] * 2.5f + r0[5] * 0.5f);
+
+                        tmp[5][m] = tmp56a + tmp56b;
+                        tmp[6][m] = tmp56a - tmp56b;
+
+                        r0 += w;
+                    }
+
+                    float* r0_tm_0 = img0_tm.row(i * w_tm/8 + j);
+                    float* r0_tm_1 = img0_tm.row(i * w_tm/8 + j + tiles);
+                    float* r0_tm_2 = img0_tm.row(i * w_tm/8 + j + tiles*2);
+                    float* r0_tm_3 = img0_tm.row(i * w_tm/8 + j + tiles*3);
+                    float* r0_tm_4 = img0_tm.row(i * w_tm/8 + j + tiles*4);
+                    float* r0_tm_5 = img0_tm.row(i * w_tm/8 + j + tiles*5);
+                    float* r0_tm_6 = img0_tm.row(i * w_tm/8 + j + tiles*6);
+                    float* r0_tm_7 = img0_tm.row(i * w_tm/8 + j + tiles*7);
+
+                    for (int m=0; m<8; m++)
+                    {
+                        const float* tmp0 = tmp[m];
+
+                        r0_tm_0[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25f;
+                        r0_tm_7[0] = tmp0[7] - tmp0[1] + (tmp0[3] - tmp0[5]) * 5.25f;
+
+                        float tmp12a = (tmp0[2] + tmp0[6] - tmp0[4] * 4.25f);
+                        float tmp12b = (tmp0[1] - tmp0[3] * 4.25f + tmp0[5]);
+
+                        r0_tm_1[0] = tmp12a + tmp12b;
+                        r0_tm_2[0] = tmp12a - tmp12b;
+
+                        float tmp34a = (tmp0[6] + tmp0[2] * 0.25f - tmp0[4] * 1.25f);
+                        float tmp34b = (tmp0[1] * 0.5f - tmp0[3] * 2.5f + tmp0[5] * 2.f);
+
+                        r0_tm_3[0] = tmp34a + tmp34b;
+                        r0_tm_4[0] = tmp34a - tmp34b;
+
+                        float tmp56a = (tmp0[6] + (tmp0[2] - tmp0[4] * 1.25f) * 4.f);
+                        float tmp56b = (tmp0[1] * 2.f - tmp0[3] * 2.5f + tmp0[5] * 0.5f);
+
+                        r0_tm_5[0] = tmp56a + tmp56b;
+                        r0_tm_6[0] = tmp56a - tmp56b;
+
+                        r0_tm_0 += img0_tm.w * tiles * 8;
+                        r0_tm_1 += img0_tm.w * tiles * 8;
+                        r0_tm_2 += img0_tm.w * tiles * 8;
+                        r0_tm_3 += img0_tm.w * tiles * 8;
+                        r0_tm_4 += img0_tm.w * tiles * 8;
+                        r0_tm_5 += img0_tm.w * tiles * 8;
+                        r0_tm_6 += img0_tm.w * tiles * 8;
+                        r0_tm_7 += img0_tm.w * tiles * 8;
+                    }
+#endif // __ARM_NEON
+                }
+            }
+        }
+    }
+    bottom_blob_bordered = Mat();
+    // END transform input
+
+    // BEGIN dot
+    Mat top_blob_tm;
+    {
+        int w_tm = outw / 6 * 8;
+        int h_tm = outh / 6 * 8;
+        const int tiles = w_tm/8 * h_tm/8;
+        top_blob_tm.create(1, 64 * tiles, outch);
+
+        // permute
+        // bottom_blob_tm.create(1, 64 * tiles, inch);
+//         Mat bottom_blob_tm2(inch, tiles, 64);
+        Mat bottom_blob_tm2(8*inch, tiles/8 + (tiles%8)/4 + tiles%4, 64);
+
+        #pragma omp parallel for
+        for (int r=0; r<64; r++)
+        {
+            Mat tm2 = bottom_blob_tm2.channel(r);
+
+            // tile
+            int i=0;
+            for (; i+7<tiles; i+=8)
+            {
+                float* tm2p = tm2.row(i/8);
+
+                const float* r0 = bottom_blob_tm;
+
+                r0 += r*tiles + i;
+
+                int q=0;
+                for (; q<inch; q++)
+                {
+                    asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(r0) :);
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    float32x4_t _r0n = vld1q_f32(r0+4);
+                    vst1q_f32(tm2p, _r0);
+                    vst1q_f32(tm2p+4, _r0n);
+
+//                     tm2p[0] = r0[0];
+//                     tm2p[1] = r0[1];
+//                     tm2p[2] = r0[2];
+//                     tm2p[3] = r0[3];
+//                     tm2p[4] = r0[4];
+//                     tm2p[5] = r0[5];
+//                     tm2p[6] = r0[6];
+//                     tm2p[7] = r0[7];
+
+                    r0 += bottom_blob_tm.cstep;
+                    tm2p += 8;
+                }
+            }
+            for (; i+3<tiles; i+=4)
+            {
+                float* tm2p = tm2.row(i/8+(i%8)/4);
+
+                const float* r0 = bottom_blob_tm;
+
+                r0 += r*tiles + i;
+
+                int q=0;
+                for (; q<inch; q++)
+                {
+                    asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(r0) :);
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    vst1q_f32(tm2p, _r0);
+
+//                     tm2p[0] = r0[0];
+//                     tm2p[1] = r0[1];
+//                     tm2p[2] = r0[2];
+//                     tm2p[3] = r0[3];
+
+                    r0 += bottom_blob_tm.cstep;
+                    tm2p += 4;
+                }
+            }
+            for (; i<tiles; i++)
+            {
+                float* tm2p = tm2.row(i/8+(i%8)/4+i%4);
+
+                const float* r0 = bottom_blob_tm;
+
+                r0 += r*tiles + i;
+
+                int q=0;
+                for (; q<inch; q++)
+                {
+                    tm2p[0] = r0[0];
+
+                    r0 += bottom_blob_tm.cstep;
+                    tm2p += 1;
+                }
+            }
+        }
+
+        bottom_blob_tm = Mat();
+        // permute end
+
+        #pragma omp parallel for
+        for (int pp=0; pp<outch/8; pp++)
+        {
+            int p = pp * 8;
+
+            const Mat kernel_tm0 = kernel_tm.channel(p/8);
+
+            Mat out0_tm = top_blob_tm.channel(p);
+            Mat out1_tm = top_blob_tm.channel(p+1);
+            Mat out2_tm = top_blob_tm.channel(p+2);
+            Mat out3_tm = top_blob_tm.channel(p+3);
+            Mat out4_tm = top_blob_tm.channel(p+4);
+            Mat out5_tm = top_blob_tm.channel(p+5);
+            Mat out6_tm = top_blob_tm.channel(p+6);
+            Mat out7_tm = top_blob_tm.channel(p+7);
+
+            float* output0_tm = out0_tm;
+            float* output1_tm = out1_tm;
+            float* output2_tm = out2_tm;
+            float* output3_tm = out3_tm;
+            float* output4_tm = out4_tm;
+            float* output5_tm = out5_tm;
+            float* output6_tm = out6_tm;
+            float* output7_tm = out7_tm;
+
+            for (int r=0; r<64; r++)
+            {
+                const Mat bb2 = bottom_blob_tm2.channel(r);
+
+                // tile
+                int i=0;
+                for (; i+7<tiles; i+=8)
+                {
+                    const float* bb2p0 = bb2.row(i/8);
+
+                    const float* ktm0 = kernel_tm0.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum0n = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1n = vdupq_n_f32(0.f);
+                    float32x4_t _sum2 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2n = vdupq_n_f32(0.f);
+                    float32x4_t _sum3 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3n = vdupq_n_f32(0.f);
+
+                    float32x4_t _sum4 = vdupq_n_f32(0.f);
+                    float32x4_t _sum4n = vdupq_n_f32(0.f);
+                    float32x4_t _sum5 = vdupq_n_f32(0.f);
+                    float32x4_t _sum5n = vdupq_n_f32(0.f);
+                    float32x4_t _sum6 = vdupq_n_f32(0.f);
+                    float32x4_t _sum6n = vdupq_n_f32(0.f);
+                    float32x4_t _sum7 = vdupq_n_f32(0.f);
+                    float32x4_t _sum7n = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q+3<inch; q+=4)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
+                        float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
+                        float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
+                        float32x4_t _ktm3 = vld1q_f32(ktm0 + 12);
+                        ktm0 += 16;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p0n, _ktm0, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm1, 0);
+                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p0n, _ktm1, 0);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm2, 0);
+                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p0n, _ktm2, 0);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm3, 0);
+                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p0n, _ktm3, 0);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p1 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p1n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p1n, _ktm0, 1);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p1, _ktm1, 1);
+                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p1n, _ktm1, 1);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p1, _ktm2, 1);
+                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p1n, _ktm2, 1);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p1, _ktm3, 1);
+                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p1n, _ktm3, 1);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p2 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p2n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p2n, _ktm0, 2);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p2, _ktm1, 2);
+                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p2n, _ktm1, 2);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p2, _ktm2, 2);
+                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p2n, _ktm2, 2);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p2, _ktm3, 2);
+                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p2n, _ktm3, 2);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p3 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p3n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p3n, _ktm0, 3);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p3, _ktm1, 3);
+                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p3n, _ktm1, 3);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p3, _ktm2, 3);
+                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p3n, _ktm2, 3);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p3, _ktm3, 3);
+                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p3n, _ktm3, 3);
+
+                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm4 = vld1q_f32(ktm0 + 0);
+                        float32x4_t _ktm5 = vld1q_f32(ktm0 + 4);
+                        float32x4_t _ktm6 = vld1q_f32(ktm0 + 8);
+                        float32x4_t _ktm7 = vld1q_f32(ktm0 + 12);
+                        ktm0 += 16;
+
+                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p0, _ktm4, 0);
+                        _sum4n = vmlaq_laneq_f32(_sum4n, _bb2p0n, _ktm4, 0);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p0, _ktm5, 0);
+                        _sum5n = vmlaq_laneq_f32(_sum5n, _bb2p0n, _ktm5, 0);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p0, _ktm6, 0);
+                        _sum6n = vmlaq_laneq_f32(_sum6n, _bb2p0n, _ktm6, 0);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p0, _ktm7, 0);
+                        _sum7n = vmlaq_laneq_f32(_sum7n, _bb2p0n, _ktm7, 0);
+
+                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p1, _ktm4, 1);
+                        _sum4n = vmlaq_laneq_f32(_sum4n, _bb2p1n, _ktm4, 1);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p1, _ktm5, 1);
+                        _sum5n = vmlaq_laneq_f32(_sum5n, _bb2p1n, _ktm5, 1);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p1, _ktm6, 1);
+                        _sum6n = vmlaq_laneq_f32(_sum6n, _bb2p1n, _ktm6, 1);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p1, _ktm7, 1);
+                        _sum7n = vmlaq_laneq_f32(_sum7n, _bb2p1n, _ktm7, 1);
+
+                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p2, _ktm4, 2);
+                        _sum4n = vmlaq_laneq_f32(_sum4n, _bb2p2n, _ktm4, 2);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p2, _ktm5, 2);
+                        _sum5n = vmlaq_laneq_f32(_sum5n, _bb2p2n, _ktm5, 2);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p2, _ktm6, 2);
+                        _sum6n = vmlaq_laneq_f32(_sum6n, _bb2p2n, _ktm6, 2);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p2, _ktm7, 2);
+                        _sum7n = vmlaq_laneq_f32(_sum7n, _bb2p2n, _ktm7, 2);
+
+                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p3, _ktm4, 3);
+                        _sum4n = vmlaq_laneq_f32(_sum4n, _bb2p3n, _ktm4, 3);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p3, _ktm5, 3);
+                        _sum5n = vmlaq_laneq_f32(_sum5n, _bb2p3n, _ktm5, 3);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p3, _ktm6, 3);
+                        _sum6n = vmlaq_laneq_f32(_sum6n, _bb2p3n, _ktm6, 3);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p3, _ktm7, 3);
+                        _sum7n = vmlaq_laneq_f32(_sum7n, _bb2p3n, _ktm7, 3);
+                    }
+                    for (; q<inch; q++)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0);
+                        ktm0 += 4;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p0n, _ktm0, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm0, 1);
+                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p0n, _ktm0, 1);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm0, 2);
+                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p0n, _ktm0, 2);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm0, 3);
+                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p0n, _ktm0, 3);
+
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm1 = vld1q_f32(ktm0);
+                        ktm0 += 4;
+
+                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p0, _ktm1, 0);
+                        _sum4n = vmlaq_laneq_f32(_sum4n, _bb2p0n, _ktm1, 0);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p0, _ktm1, 1);
+                        _sum5n = vmlaq_laneq_f32(_sum5n, _bb2p0n, _ktm1, 1);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p0, _ktm1, 2);
+                        _sum6n = vmlaq_laneq_f32(_sum6n, _bb2p0n, _ktm1, 2);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p0, _ktm1, 3);
+                        _sum7n = vmlaq_laneq_f32(_sum7n, _bb2p0n, _ktm1, 3);
+                    }
+
+                    vst1q_f32(output0_tm, _sum0);
+                    vst1q_f32(output0_tm+4, _sum0n);
+                    vst1q_f32(output1_tm, _sum1);
+                    vst1q_f32(output1_tm+4, _sum1n);
+                    vst1q_f32(output2_tm, _sum2);
+                    vst1q_f32(output2_tm+4, _sum2n);
+                    vst1q_f32(output3_tm, _sum3);
+                    vst1q_f32(output3_tm+4, _sum3n);
+                    vst1q_f32(output4_tm, _sum4);
+                    vst1q_f32(output4_tm+4, _sum4n);
+                    vst1q_f32(output5_tm, _sum5);
+                    vst1q_f32(output5_tm+4, _sum5n);
+                    vst1q_f32(output6_tm, _sum6);
+                    vst1q_f32(output6_tm+4, _sum6n);
+                    vst1q_f32(output7_tm, _sum7);
+                    vst1q_f32(output7_tm+4, _sum7n);
+
+                    output0_tm += 8;
+                    output1_tm += 8;
+                    output2_tm += 8;
+                    output3_tm += 8;
+                    output4_tm += 8;
+                    output5_tm += 8;
+                    output6_tm += 8;
+                    output7_tm += 8;
+                }
+                for (; i+3<tiles; i+=4)
+                {
+                    const float* bb2p0 = bb2.row(i/8+(i%8)/4);
+
+                    const float* ktm0 = kernel_tm0.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3 = vdupq_n_f32(0.f);
+                    float32x4_t _sum4 = vdupq_n_f32(0.f);
+                    float32x4_t _sum5 = vdupq_n_f32(0.f);
+                    float32x4_t _sum6 = vdupq_n_f32(0.f);
+                    float32x4_t _sum7 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q+3<inch; q+=4)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0 + 0);
+                        float32x4_t _bb2p1 = vld1q_f32(bb2p0 + 4);
+                        bb2p0 += 8;
+
+                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
+                        float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
+                        float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
+                        float32x4_t _ktm3 = vld1q_f32(ktm0 + 12);
+                        ktm0 += 16;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm1, 0);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm2, 0);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm3, 0);
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p1, _ktm1, 1);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p1, _ktm2, 1);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p1, _ktm3, 1);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p2 = vld1q_f32(bb2p0 + 0);
+                        float32x4_t _bb2p3 = vld1q_f32(bb2p0 + 4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p2, _ktm1, 2);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p2, _ktm2, 2);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p2, _ktm3, 2);
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p3, _ktm1, 3);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p3, _ktm2, 3);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p3, _ktm3, 3);
+
+                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm4 = vld1q_f32(ktm0 + 0);
+                        float32x4_t _ktm5 = vld1q_f32(ktm0 + 4);
+                        float32x4_t _ktm6 = vld1q_f32(ktm0 + 8);
+                        float32x4_t _ktm7 = vld1q_f32(ktm0 + 12);
+                        ktm0 += 16;
+
+                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p0, _ktm4, 0);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p0, _ktm5, 0);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p0, _ktm6, 0);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p0, _ktm7, 0);
+
+                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p1, _ktm4, 1);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p1, _ktm5, 1);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p1, _ktm6, 1);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p1, _ktm7, 1);
+
+                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p2, _ktm4, 2);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p2, _ktm5, 2);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p2, _ktm6, 2);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p2, _ktm7, 2);
+
+                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p3, _ktm4, 3);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p3, _ktm5, 3);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p3, _ktm6, 3);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p3, _ktm7, 3);
+                    }
+                    for (; q<inch; q++)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        bb2p0 += 4;
+
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0);
+                        ktm0 += 4;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm0, 1);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm0, 2);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm0, 3);
+
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm1 = vld1q_f32(ktm0);
+                        ktm0 += 4;
+
+                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p0, _ktm1, 0);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p0, _ktm1, 1);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p0, _ktm1, 2);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p0, _ktm1, 3);
+                    }
+
+                    vst1q_f32(output0_tm, _sum0);
+                    vst1q_f32(output1_tm, _sum1);
+                    vst1q_f32(output2_tm, _sum2);
+                    vst1q_f32(output3_tm, _sum3);
+                    vst1q_f32(output4_tm, _sum4);
+                    vst1q_f32(output5_tm, _sum5);
+                    vst1q_f32(output6_tm, _sum6);
+                    vst1q_f32(output7_tm, _sum7);
+
+                    output0_tm += 4;
+                    output1_tm += 4;
+                    output2_tm += 4;
+                    output3_tm += 4;
+                    output4_tm += 4;
+                    output5_tm += 4;
+                    output6_tm += 4;
+                    output7_tm += 4;
+                }
+                for (; i<tiles; i++)
+                {
+                    const float* bb2p0 = bb2.row(i/8+(i%8)/4+i%4);
+
+                    const float* ktm0 = kernel_tm0.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3 = vdupq_n_f32(0.f);
+                    float32x4_t _sum4 = vdupq_n_f32(0.f);
+                    float32x4_t _sum5 = vdupq_n_f32(0.f);
+                    float32x4_t _sum6 = vdupq_n_f32(0.f);
+                    float32x4_t _sum7 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q+3<inch; q+=4)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        bb2p0 += 4;
+
+                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
+                        float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
+                        float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
+                        float32x4_t _ktm3 = vld1q_f32(ktm0 + 12);
+                        ktm0 += 16;
+
+                        _sum0 = vmlaq_f32(_sum0, _bb2p0, _ktm0);
+                        _sum1 = vmlaq_f32(_sum1, _bb2p0, _ktm1);
+                        _sum2 = vmlaq_f32(_sum2, _bb2p0, _ktm2);
+                        _sum3 = vmlaq_f32(_sum3, _bb2p0, _ktm3);
+
+                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm4 = vld1q_f32(ktm0 + 0);
+                        float32x4_t _ktm5 = vld1q_f32(ktm0 + 4);
+                        float32x4_t _ktm6 = vld1q_f32(ktm0 + 8);
+                        float32x4_t _ktm7 = vld1q_f32(ktm0 + 12);
+                        ktm0 += 16;
+
+                        _sum4 = vmlaq_f32(_sum4, _bb2p0, _ktm4);
+                        _sum5 = vmlaq_f32(_sum5, _bb2p0, _ktm5);
+                        _sum6 = vmlaq_f32(_sum6, _bb2p0, _ktm6);
+                        _sum7 = vmlaq_f32(_sum7, _bb2p0, _ktm7);
+                    }
+
+                    float sum0 = vaddvq_f32(_sum0);
+                    float sum1 = vaddvq_f32(_sum1);
+                    float sum2 = vaddvq_f32(_sum2);
+                    float sum3 = vaddvq_f32(_sum3);
+                    float sum4 = vaddvq_f32(_sum4);
+                    float sum5 = vaddvq_f32(_sum5);
+                    float sum6 = vaddvq_f32(_sum6);
+                    float sum7 = vaddvq_f32(_sum7);
+
+                    for (; q<inch; q++)
+                    {
+                        sum0 += bb2p0[0] * ktm0[0];
+                        sum1 += bb2p0[0] * ktm0[1];
+                        sum2 += bb2p0[0] * ktm0[2];
+                        sum3 += bb2p0[0] * ktm0[3];
+                        sum4 += bb2p0[0] * ktm0[4];
+                        sum5 += bb2p0[0] * ktm0[5];
+                        sum6 += bb2p0[0] * ktm0[6];
+                        sum7 += bb2p0[0] * ktm0[7];
+
+                        bb2p0 += 1;
+                        ktm0 += 8;
+                    }
+
+                    output0_tm[0] = sum0;
+                    output1_tm[0] = sum1;
+                    output2_tm[0] = sum2;
+                    output3_tm[0] = sum3;
+                    output4_tm[0] = sum4;
+                    output5_tm[0] = sum5;
+                    output6_tm[0] = sum6;
+                    output7_tm[0] = sum7;
+
+                    output0_tm += 1;
+                    output1_tm += 1;
+                    output2_tm += 1;
+                    output3_tm += 1;
+                    output4_tm += 1;
+                    output5_tm += 1;
+                    output6_tm += 1;
+                    output7_tm += 1;
+                }
+            }
+        }
+
+        int p = outch/8*8;
+        for (; p+3<outch; p+=4)
+        {
+            const Mat kernel_tm0 = kernel_tm.channel(p/8+(p%8)/4);
+
+            Mat out0_tm = top_blob_tm.channel(p);
+            Mat out1_tm = top_blob_tm.channel(p+1);
+            Mat out2_tm = top_blob_tm.channel(p+2);
+            Mat out3_tm = top_blob_tm.channel(p+3);
+
+            float* output0_tm = out0_tm;
+            float* output1_tm = out1_tm;
+            float* output2_tm = out2_tm;
+            float* output3_tm = out3_tm;
+
+            for (int r=0; r<64; r++)
+            {
+                const Mat bb2 = bottom_blob_tm2.channel(r);
+
+                // tile
+                int i=0;
+                for (; i+7<tiles; i+=8)
+                {
+                    const float* bb2p0 = bb2.row(i/8);
+
+                    const float* ktm0 = kernel_tm0.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum0n = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1n = vdupq_n_f32(0.f);
+                    float32x4_t _sum2 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2n = vdupq_n_f32(0.f);
+                    float32x4_t _sum3 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3n = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q+3<inch; q+=4)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
+                        float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
+                        float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
+                        float32x4_t _ktm3 = vld1q_f32(ktm0 + 12);
+                        ktm0 += 16;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p0n, _ktm0, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm1, 0);
+                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p0n, _ktm1, 0);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm2, 0);
+                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p0n, _ktm2, 0);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm3, 0);
+                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p0n, _ktm3, 0);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p1 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p1n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p1n, _ktm0, 1);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p1, _ktm1, 1);
+                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p1n, _ktm1, 1);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p1, _ktm2, 1);
+                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p1n, _ktm2, 1);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p1, _ktm3, 1);
+                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p1n, _ktm3, 1);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p2 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p2n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p2n, _ktm0, 2);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p2, _ktm1, 2);
+                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p2n, _ktm1, 2);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p2, _ktm2, 2);
+                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p2n, _ktm2, 2);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p2, _ktm3, 2);
+                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p2n, _ktm3, 2);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p3 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p3n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p3n, _ktm0, 3);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p3, _ktm1, 3);
+                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p3n, _ktm1, 3);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p3, _ktm2, 3);
+                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p3n, _ktm2, 3);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p3, _ktm3, 3);
+                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p3n, _ktm3, 3);
+                    }
+                    for (; q<inch; q++)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0);
+                        ktm0 += 4;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p0n, _ktm0, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm0, 1);
+                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p0n, _ktm0, 1);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm0, 2);
+                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p0n, _ktm0, 2);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm0, 3);
+                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p0n, _ktm0, 3);
+                    }
+
+                    vst1q_f32(output0_tm, _sum0);
+                    vst1q_f32(output0_tm+4, _sum0n);
+                    vst1q_f32(output1_tm, _sum1);
+                    vst1q_f32(output1_tm+4, _sum1n);
+                    vst1q_f32(output2_tm, _sum2);
+                    vst1q_f32(output2_tm+4, _sum2n);
+                    vst1q_f32(output3_tm, _sum3);
+                    vst1q_f32(output3_tm+4, _sum3n);
+
+                    output0_tm += 8;
+                    output1_tm += 8;
+                    output2_tm += 8;
+                    output3_tm += 8;
+                }
+                for (; i+3<tiles; i+=4)
+                {
+                    const float* bb2p0 = bb2.row(i/8+(i%8)/4);
+
+                    const float* ktm0 = kernel_tm0.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q+3<inch; q+=4)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0 + 0);
+                        float32x4_t _bb2p1 = vld1q_f32(bb2p0 + 4);
+                        bb2p0 += 8;
+
+                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
+                        float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
+                        float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
+                        float32x4_t _ktm3 = vld1q_f32(ktm0 + 12);
+                        ktm0 += 16;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm1, 0);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm2, 0);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm3, 0);
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p1, _ktm1, 1);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p1, _ktm2, 1);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p1, _ktm3, 1);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p2 = vld1q_f32(bb2p0 + 0);
+                        float32x4_t _bb2p3 = vld1q_f32(bb2p0 + 4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p2, _ktm1, 2);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p2, _ktm2, 2);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p2, _ktm3, 2);
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p3, _ktm1, 3);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p3, _ktm2, 3);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p3, _ktm3, 3);
+                    }
+                    for (; q<inch; q++)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        bb2p0 += 4;
+
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0);
+                        ktm0 += 4;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm0, 1);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm0, 2);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm0, 3);
+                    }
+
+                    vst1q_f32(output0_tm, _sum0);
+                    vst1q_f32(output1_tm, _sum1);
+                    vst1q_f32(output2_tm, _sum2);
+                    vst1q_f32(output3_tm, _sum3);
+
+                    output0_tm += 4;
+                    output1_tm += 4;
+                    output2_tm += 4;
+                    output3_tm += 4;
+                }
+                for (; i<tiles; i++)
+                {
+                    const float* bb2p0 = bb2.row(i/8+(i%8)/4+i%4);
+
+                    const float* ktm0 = kernel_tm0.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q+3<inch; q+=4)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        bb2p0 += 4;
+
+                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
+                        float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
+                        float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
+                        float32x4_t _ktm3 = vld1q_f32(ktm0 + 12);
+                        ktm0 += 16;
+
+                        _sum0 = vmlaq_f32(_sum0, _bb2p0, _ktm0);
+                        _sum1 = vmlaq_f32(_sum1, _bb2p0, _ktm1);
+                        _sum2 = vmlaq_f32(_sum2, _bb2p0, _ktm2);
+                        _sum3 = vmlaq_f32(_sum3, _bb2p0, _ktm3);
+                    }
+
+                    float sum0 = vaddvq_f32(_sum0);
+                    float sum1 = vaddvq_f32(_sum1);
+                    float sum2 = vaddvq_f32(_sum2);
+                    float sum3 = vaddvq_f32(_sum3);
+
+                    for (; q<inch; q++)
+                    {
+                        sum0 += bb2p0[0] * ktm0[0];
+                        sum1 += bb2p0[0] * ktm0[1];
+                        sum2 += bb2p0[0] * ktm0[2];
+                        sum3 += bb2p0[0] * ktm0[3];
+
+                        bb2p0 += 1;
+                        ktm0 += 4;
+                    }
+
+                    output0_tm[0] = sum0;
+                    output1_tm[0] = sum1;
+                    output2_tm[0] = sum2;
+                    output3_tm[0] = sum3;
+
+                    output0_tm += 1;
+                    output1_tm += 1;
+                    output2_tm += 1;
+                    output3_tm += 1;
+                }
+            }
+        }
+        for (; p<outch; p++)
+        {
+            const Mat kernel_tm0 = kernel_tm.channel(p/8+(p%8)/4+p%4);
+
+            Mat out0_tm = top_blob_tm.channel(p);
+
+            float* output0_tm = out0_tm;
+
+            for (int r=0; r<64; r++)
+            {
+                const Mat bb2 = bottom_blob_tm2.channel(r);
+
+                // tile
+                int i=0;
+                for (; i+7<tiles; i+=8)
+                {
+                    const float* bb2p0 = bb2.row(i/8);
+
+                    const float* ktm0 = kernel_tm0.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum0n = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q+3<inch; q+=4)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0);
+                        ktm0 += 4;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p0n, _ktm0, 0);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p1 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p1n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p1n, _ktm0, 1);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p2 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p2n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p2n, _ktm0, 2);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p3 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p3n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
+                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p3n, _ktm0, 3);
+                    }
+                    for (; q<inch; q++)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
+                        bb2p0 += 8;
+
+                        float32x4_t _ktm0 = vdupq_n_f32(ktm0[0]);
+                        ktm0 += 1;
+
+                        _sum0 = vmlaq_f32(_sum0, _bb2p0, _ktm0);
+                        _sum0n = vmlaq_f32(_sum0n, _bb2p0n, _ktm0);
+                    }
+
+                    vst1q_f32(output0_tm, _sum0);
+                    vst1q_f32(output0_tm+4, _sum0n);
+
+                    output0_tm += 8;
+                }
+                for (; i+3<tiles; i+=4)
+                {
+                    const float* bb2p0 = bb2.row(i/8+(i%8)/4);
+
+                    const float* ktm0 = kernel_tm0.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q+3<inch; q+=4)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0 + 0);
+                        float32x4_t _bb2p1 = vld1q_f32(bb2p0 + 4);
+                        bb2p0 += 8;
+
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
+                        float32x4_t _ktm0 = vld1q_f32(ktm0);
+                        ktm0 += 4;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
+
+                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p2 = vld1q_f32(bb2p0 + 0);
+                        float32x4_t _bb2p3 = vld1q_f32(bb2p0 + 4);
+                        bb2p0 += 8;
+
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
+                    }
+                    for (; q<inch; q++)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        bb2p0 += 4;
+
+                        float32x4_t _ktm0 = vdupq_n_f32(ktm0[0]);
+                        ktm0 += 1;
+
+                        _sum0 = vmlaq_f32(_sum0, _bb2p0, _ktm0);
+                    }
+
+                    vst1q_f32(output0_tm, _sum0);
+
+                    output0_tm += 4;
+                }
+                for (; i<tiles; i++)
+                {
+                    const float* bb2p0 = bb2.row(i/8+(i%8)/4+i%4);
+
+                    const float* ktm0 = kernel_tm0.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q+3<inch; q+=4)
+                    {
+                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
+                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
+                        bb2p0 += 4;
+
+                        float32x4_t _ktm0 = vld1q_f32(ktm0);
+                        ktm0 += 4;
+
+                        _sum0 = vmlaq_f32(_sum0, _bb2p0, _ktm0);
+                    }
+
+                    float sum0 = vaddvq_f32(_sum0);
+
+                    for (; q<inch; q++)
+                    {
+                        sum0 += bb2p0[0] * ktm0[0];
+
+                        bb2p0 += 1;
+                        ktm0 += 1;
+                    }
+
+                    output0_tm[0] = sum0;
+
+                    output0_tm += 1;
+                }
+            }
+        }
+
+    }
+    bottom_blob_tm = Mat();
+    // END dot
+
+    // BEGIN transform output
+    Mat top_blob_bordered;
+    top_blob_bordered.create(outw, outh, outch);
+    {
+//         const float otm[6][8] = {
+//             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
+//             {0.0f,  1.0f,  -1.0f,   2.0f,  -2.0f,  16.0f,-16.0f, 0.0f},
+//             {0.0f,  1.0f,   1.0f,   4.0f,   4.0f,   8.0f,  8.0f, 0.0f},
+//             {0.0f,  1.0f,  -1.0f,   8.0f,  -8.0f,   4.0f, -4.0f, 0.0f},
+//             {0.0f,  1.0f,   1.0f,  16.0f,  16.0f,   2.0f,  2.0f, 0.0f},
+//             {0.0f,  1.0f,  -1.0f,  32.0f, -32.0f,   1.0f, -1.0f, 1.0f}
+//         };
+
+        // 0 = r0 + (r1 + r2) + (r3 + r4)     + (r5 + r6) * 32
+        // 1 =      (r1 - r2) + (r3 - r4) * 2 + (r5 - r6) * 16
+        // 2 =      (r1 + r2) + (r3 + r4) * 4 + (r5 + r6) * 8
+        // 3 =      (r1 - r2) + (r3 - r4) * 8 + (r5 - r6) * 4
+        // 4 =      (r1 + r2) + (r3 + r4) * 16+ (r5 + r6) * 2
+        // 5 = r7 + (r1 - r2) + (r3 - r4) * 32+ (r5 - r6)
+
+#if __ARM_NEON
+        const float coeff[4] = { 4.f, 8.f, 16.f, 32.f };
+        float32x4_t _coeff = vld1q_f32(coeff);
+#endif // __ARM_NEON
+
+        int w_tm = outw / 6 * 8;
+        int h_tm = outh / 6 * 8;
+        const int tiles = w_tm/8 * h_tm/8;
+
+        #pragma omp parallel for
+        for (int p = 0; p<outch; p++)
+        {
+            const Mat out0_tm = top_blob_tm.channel(p);
+            Mat out0 = top_blob_bordered.channel(p);
+
+            const float bias0 = bias ? bias[p] : 0.f;
+#if __ARM_NEON
+            float32x2_t _bias0 = vdup_n_f32(bias0);
+#endif // __ARM_NEON
+
+            float tmp[6][8];
+
+            // tile
+            for (int i=0; i<outh/6; i++)
+            {
+                for (int j=0; j<outw/6; j++)
+                {
+#if __ARM_NEON
+                    const float* output0_tm0 = out0_tm.row(i * w_tm/8 + j);
+                    const float* output0_tm1 = out0_tm.row(i * w_tm/8 + j + tiles*8);
+                    const float* output0_tm2 = out0_tm.row(i * w_tm/8 + j + tiles*16);
+                    const float* output0_tm3 = out0_tm.row(i * w_tm/8 + j + tiles*24);
+
+                    for (int m=0; m+3<8; m+=4)
+                    {
+                        float32x4_t _output0_tm_00;
+                        float32x4_t _output0_tm_11;
+                        float32x4_t _output0_tm_22;
+                        float32x4_t _output0_tm_33;
+                        float32x4_t _output0_tm_44;
+                        float32x4_t _output0_tm_55;
+                        float32x4_t _output0_tm_66;
+                        float32x4_t _output0_tm_77;
+
+                        _output0_tm_00 = vsetq_lane_f32(output0_tm0[0], _output0_tm_00, 0);
+                        output0_tm0 += out0_tm.w * tiles;
+                        _output0_tm_00 = vsetq_lane_f32(output0_tm1[0], _output0_tm_00, 1);
+                        output0_tm1 += out0_tm.w * tiles;
+                        _output0_tm_00 = vsetq_lane_f32(output0_tm2[0], _output0_tm_00, 2);
+                        output0_tm2 += out0_tm.w * tiles;
+                        _output0_tm_00 = vsetq_lane_f32(output0_tm3[0], _output0_tm_00, 3);
+                        output0_tm3 += out0_tm.w * tiles;
+
+                        _output0_tm_11 = vsetq_lane_f32(output0_tm0[0], _output0_tm_11, 0);
+                        output0_tm0 += out0_tm.w * tiles;
+                        _output0_tm_11 = vsetq_lane_f32(output0_tm1[0], _output0_tm_11, 1);
+                        output0_tm1 += out0_tm.w * tiles;
+                        _output0_tm_11 = vsetq_lane_f32(output0_tm2[0], _output0_tm_11, 2);
+                        output0_tm2 += out0_tm.w * tiles;
+                        _output0_tm_11 = vsetq_lane_f32(output0_tm3[0], _output0_tm_11, 3);
+                        output0_tm3 += out0_tm.w * tiles;
+
+                        _output0_tm_22 = vsetq_lane_f32(output0_tm0[0], _output0_tm_22, 0);
+                        output0_tm0 += out0_tm.w * tiles;
+                        _output0_tm_22 = vsetq_lane_f32(output0_tm1[0], _output0_tm_22, 1);
+                        output0_tm1 += out0_tm.w * tiles;
+                        _output0_tm_22 = vsetq_lane_f32(output0_tm2[0], _output0_tm_22, 2);
+                        output0_tm2 += out0_tm.w * tiles;
+                        _output0_tm_22 = vsetq_lane_f32(output0_tm3[0], _output0_tm_22, 3);
+                        output0_tm3 += out0_tm.w * tiles;
+
+                        _output0_tm_33 = vsetq_lane_f32(output0_tm0[0], _output0_tm_33, 0);
+                        output0_tm0 += out0_tm.w * tiles;
+                        _output0_tm_33 = vsetq_lane_f32(output0_tm1[0], _output0_tm_33, 1);
+                        output0_tm1 += out0_tm.w * tiles;
+                        _output0_tm_33 = vsetq_lane_f32(output0_tm2[0], _output0_tm_33, 2);
+                        output0_tm2 += out0_tm.w * tiles;
+                        _output0_tm_33 = vsetq_lane_f32(output0_tm3[0], _output0_tm_33, 3);
+                        output0_tm3 += out0_tm.w * tiles;
+
+                        _output0_tm_44 = vsetq_lane_f32(output0_tm0[0], _output0_tm_44, 0);
+                        output0_tm0 += out0_tm.w * tiles;
+                        _output0_tm_44 = vsetq_lane_f32(output0_tm1[0], _output0_tm_44, 1);
+                        output0_tm1 += out0_tm.w * tiles;
+                        _output0_tm_44 = vsetq_lane_f32(output0_tm2[0], _output0_tm_44, 2);
+                        output0_tm2 += out0_tm.w * tiles;
+                        _output0_tm_44 = vsetq_lane_f32(output0_tm3[0], _output0_tm_44, 3);
+                        output0_tm3 += out0_tm.w * tiles;
+
+                        _output0_tm_55 = vsetq_lane_f32(output0_tm0[0], _output0_tm_55, 0);
+                        output0_tm0 += out0_tm.w * tiles;
+                        _output0_tm_55 = vsetq_lane_f32(output0_tm1[0], _output0_tm_55, 1);
+                        output0_tm1 += out0_tm.w * tiles;
+                        _output0_tm_55 = vsetq_lane_f32(output0_tm2[0], _output0_tm_55, 2);
+                        output0_tm2 += out0_tm.w * tiles;
+                        _output0_tm_55 = vsetq_lane_f32(output0_tm3[0], _output0_tm_55, 3);
+                        output0_tm3 += out0_tm.w * tiles;
+
+                        _output0_tm_66 = vsetq_lane_f32(output0_tm0[0], _output0_tm_66, 0);
+                        output0_tm0 += out0_tm.w * tiles;
+                        _output0_tm_66 = vsetq_lane_f32(output0_tm1[0], _output0_tm_66, 1);
+                        output0_tm1 += out0_tm.w * tiles;
+                        _output0_tm_66 = vsetq_lane_f32(output0_tm2[0], _output0_tm_66, 2);
+                        output0_tm2 += out0_tm.w * tiles;
+                        _output0_tm_66 = vsetq_lane_f32(output0_tm3[0], _output0_tm_66, 3);
+                        output0_tm3 += out0_tm.w * tiles;
+
+                        _output0_tm_77 = vsetq_lane_f32(output0_tm0[0], _output0_tm_77, 0);
+                        _output0_tm_77 = vsetq_lane_f32(output0_tm1[0], _output0_tm_77, 1);
+                        _output0_tm_77 = vsetq_lane_f32(output0_tm2[0], _output0_tm_77, 2);
+                        _output0_tm_77 = vsetq_lane_f32(output0_tm3[0], _output0_tm_77, 3);
+
+                        float32x4_t _tmp024a = vaddq_f32(_output0_tm_11, _output0_tm_22);
+                        float32x4_t _tmp135a = vsubq_f32(_output0_tm_11, _output0_tm_22);
+
+                        float32x4_t _tmp024b = vaddq_f32(_output0_tm_33, _output0_tm_44);
+                        float32x4_t _tmp135b = vsubq_f32(_output0_tm_33, _output0_tm_44);
+
+                        float32x4_t _tmp024c = vaddq_f32(_output0_tm_55, _output0_tm_66);
+                        float32x4_t _tmp135c = vsubq_f32(_output0_tm_55, _output0_tm_66);
+
+                        float32x4_t _tmp0 = vaddq_f32(_output0_tm_00, _tmp024a);
+                        _tmp0 = vmlaq_lane_f32(_tmp0, _tmp024c, vget_high_f32(_coeff), 1);
+                        _tmp0 = vaddq_f32(_tmp0, _tmp024b);
+
+                        float32x4_t _tmp2 = vmlaq_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeff), 0);
+                        _tmp2 = vmlaq_lane_f32(_tmp2, _tmp024c, vget_low_f32(_coeff), 1);
+
+                        float32x4_t _tmp4 = vmlaq_lane_f32(_tmp024a, _tmp024b, vget_high_f32(_coeff), 0);
+                        _tmp4 = vaddq_f32(_tmp4, _tmp024c);
+                        _tmp4 = vaddq_f32(_tmp4, _tmp024c);
+
+                        vst1q_f32(&tmp[0][m], _tmp0);
+                        vst1q_f32(&tmp[2][m], _tmp2);
+                        vst1q_f32(&tmp[4][m], _tmp4);
+
+                        float32x4_t _tmp1 = vmlaq_lane_f32(_tmp135a, _tmp135c, vget_high_f32(_coeff), 0);
+                        _tmp1 = vaddq_f32(_tmp1, _tmp135b);
+                        _tmp1 = vaddq_f32(_tmp1, _tmp135b);
+
+                        float32x4_t _tmp3 = vmlaq_lane_f32(_tmp135a, _tmp135b, vget_low_f32(_coeff), 1);
+                        _tmp3 = vmlaq_lane_f32(_tmp3, _tmp135c, vget_low_f32(_coeff), 0);
+
+                        float32x4_t _tmp5 = vaddq_f32(_output0_tm_77, _tmp135a);
+                        _tmp5 = vmlaq_lane_f32(_tmp5, _tmp135b, vget_high_f32(_coeff), 1);
+                        _tmp5 = vaddq_f32(_tmp5, _tmp135c);
+
+                        vst1q_f32(&tmp[1][m], _tmp1);
+                        vst1q_f32(&tmp[3][m], _tmp3);
+                        vst1q_f32(&tmp[5][m], _tmp5);
+
+                        output0_tm0 += out0_tm.w*tiles*25;
+                        output0_tm1 += out0_tm.w*tiles*25;
+                        output0_tm2 += out0_tm.w*tiles*25;
+                        output0_tm3 += out0_tm.w*tiles*25;
+                    }
+
+                    const float* t0 = tmp[0];
+                    const float* t1 = tmp[1];
+
+                    float* output0 = out0.row(i * 6) + j * 6;
+                    float* output1 = output0 + outw;
+
+                    for (int m=0; m+1<6; m+=2)
+                    {
+                        float32x4_t _t0_0123 = vld1q_f32(t0);
+                        float32x4_t _t0_4567 = vld1q_f32(t0+4);
+                        float32x4_t _t1_0123 = vld1q_f32(t1);
+                        float32x4_t _t1_4567 = vld1q_f32(t1+4);
+
+                        float32x4x2_t _t01_00221133 = vtrnq_f32(_t0_0123, _t1_0123);
+                        float32x4x2_t _t01_44665577 = vtrnq_f32(_t0_4567, _t1_4567);
+
+                        float32x2_t _t_00 = vget_low_f32(_t01_00221133.val[0]);
+                        float32x2_t _t_11 = vget_low_f32(_t01_00221133.val[1]);
+                        float32x2_t _t_22 = vget_high_f32(_t01_00221133.val[0]);
+                        float32x2_t _t_33 = vget_high_f32(_t01_00221133.val[1]);
+                        float32x2_t _t_44 = vget_low_f32(_t01_44665577.val[0]);
+                        float32x2_t _t_55 = vget_low_f32(_t01_44665577.val[1]);
+                        float32x2_t _t_66 = vget_high_f32(_t01_44665577.val[0]);
+                        float32x2_t _t_77 = vget_high_f32(_t01_44665577.val[1]);
+
+                        float32x2_t _tmp024a = vadd_f32(_t_11, _t_22);
+                        float32x2_t _tmp135a = vsub_f32(_t_11, _t_22);
+
+                        float32x2_t _tmp024b = vadd_f32(_t_33, _t_44);
+                        float32x2_t _tmp135b = vsub_f32(_t_33, _t_44);
+
+                        float32x2_t _tmp024c = vadd_f32(_t_55, _t_66);
+                        float32x2_t _tmp135c = vsub_f32(_t_55, _t_66);
+
+                        float32x2_t _output_0 = vadd_f32(_t_00, _tmp024a);
+                        _output_0 = vmla_lane_f32(_output_0, _tmp024c, vget_high_f32(_coeff), 1);
+                        _output_0 = vadd_f32(_output_0, _tmp024b);
+                        _output_0 = vadd_f32(_output_0, _bias0);
+
+                        float32x2_t _output_2 = vmla_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeff), 0);
+                        _output_2 = vmla_lane_f32(_output_2, _tmp024c, vget_low_f32(_coeff), 1);
+                        _output_2 = vadd_f32(_output_2, _bias0);
+
+                        float32x2_t _output_4 = vmla_lane_f32(_tmp024a, _tmp024b, vget_high_f32(_coeff), 0);
+                        _output_4 = vadd_f32(_output_4, _tmp024c);
+                        _output_4 = vadd_f32(_output_4, _tmp024c);
+                        _output_4 = vadd_f32(_output_4, _bias0);
+
+                        output0[0] = vget_lane_f32(_output_0, 0);
+                        output1[0] = vget_lane_f32(_output_0, 1);
+                        output0[2] = vget_lane_f32(_output_2, 0);
+                        output1[2] = vget_lane_f32(_output_2, 1);
+                        output0[4] = vget_lane_f32(_output_4, 0);
+                        output1[4] = vget_lane_f32(_output_4, 1);
+
+                        float32x2_t _output_1 = vmla_lane_f32(_tmp135a, _tmp135c, vget_high_f32(_coeff), 0);
+                        _output_1 = vadd_f32(_output_1, _tmp135b);
+                        _output_1 = vadd_f32(_output_1, _tmp135b);
+                        _output_1 = vadd_f32(_output_1, _bias0);
+
+                        float32x2_t _output_3 = vmla_lane_f32(_tmp135a, _tmp135b, vget_low_f32(_coeff), 1);
+                        _output_3 = vmla_lane_f32(_output_3, _tmp135c, vget_low_f32(_coeff), 0);
+                        _output_3 = vadd_f32(_output_3, _bias0);
+
+                        float32x2_t _output_5 = vadd_f32(_t_77, _tmp135a);
+                        _output_5 = vmla_lane_f32(_output_5, _tmp135b, vget_high_f32(_coeff), 1);
+                        _output_5 = vadd_f32(_output_5, _tmp135c);
+                        _output_5 = vadd_f32(_output_5, _bias0);
+
+                        output0[1] = vget_lane_f32(_output_1, 0);
+                        output1[1] = vget_lane_f32(_output_1, 1);
+                        output0[3] = vget_lane_f32(_output_3, 0);
+                        output1[3] = vget_lane_f32(_output_3, 1);
+                        output0[5] = vget_lane_f32(_output_5, 0);
+                        output1[5] = vget_lane_f32(_output_5, 1);
+
+                        t0 += 8*2;
+                        t1 += 8*2;
+                        output0 += outw*2;
+                        output1 += outw*2;
+                    }
+#else
+                    const float* output0_tm_0 = out0_tm.row(i * w_tm/8 + j);
+                    const float* output0_tm_1 = out0_tm.row(i * w_tm/8 + j + tiles);
+                    const float* output0_tm_2 = out0_tm.row(i * w_tm/8 + j + tiles*2);
+                    const float* output0_tm_3 = out0_tm.row(i * w_tm/8 + j + tiles*3);
+                    const float* output0_tm_4 = out0_tm.row(i * w_tm/8 + j + tiles*4);
+                    const float* output0_tm_5 = out0_tm.row(i * w_tm/8 + j + tiles*5);
+                    const float* output0_tm_6 = out0_tm.row(i * w_tm/8 + j + tiles*6);
+                    const float* output0_tm_7 = out0_tm.row(i * w_tm/8 + j + tiles*7);
+
+                    for (int m=0; m<8; m++)
+                    {
+                        float tmp024a = output0_tm_1[0] + output0_tm_2[0];
+                        float tmp135a = output0_tm_1[0] - output0_tm_2[0];
+
+                        float tmp024b = output0_tm_3[0] + output0_tm_4[0];
+                        float tmp135b = output0_tm_3[0] - output0_tm_4[0];
+
+                        float tmp024c = output0_tm_5[0] + output0_tm_6[0];
+                        float tmp135c = output0_tm_5[0] - output0_tm_6[0];
+
+                        tmp[0][m] = output0_tm_0[0] + tmp024a + tmp024b + tmp024c * 32;
+                        tmp[2][m] = tmp024a + tmp024b * 4 + tmp024c * 8;
+                        tmp[4][m] = tmp024a + tmp024b * 16 + tmp024c + tmp024c;
+
+                        tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * 16;
+                        tmp[3][m] = tmp135a + tmp135b * 8 + tmp135c * 4;
+                        tmp[5][m] = output0_tm_7[0] + tmp135a + tmp135b * 32 + tmp135c;
+
+                        output0_tm_0 += out0_tm.w * tiles * 8;
+                        output0_tm_1 += out0_tm.w * tiles * 8;
+                        output0_tm_2 += out0_tm.w * tiles * 8;
+                        output0_tm_3 += out0_tm.w * tiles * 8;
+                        output0_tm_4 += out0_tm.w * tiles * 8;
+                        output0_tm_5 += out0_tm.w * tiles * 8;
+                        output0_tm_6 += out0_tm.w * tiles * 8;
+                        output0_tm_7 += out0_tm.w * tiles * 8;
+                    }
+
+                    float* output0 = out0.row(i * 6) + j * 6;
+
+                    for (int m=0; m<6; m++)
+                    {
+                        const float* tmp0 = tmp[m];
+
+                        float tmp024a = tmp0[1] + tmp0[2];
+                        float tmp135a = tmp0[1] - tmp0[2];
+
+                        float tmp024b = tmp0[3] + tmp0[4];
+                        float tmp135b = tmp0[3] - tmp0[4];
+
+                        float tmp024c = tmp0[5] + tmp0[6];
+                        float tmp135c = tmp0[5] - tmp0[6];
+
+                        output0[0] = bias0 + tmp0[0] + tmp024a + tmp024b + tmp024c * 32;
+                        output0[2] = bias0 + tmp024a + tmp024b * 4 + tmp024c * 8;
+                        output0[4] = bias0 + tmp024a + tmp024b * 16 + tmp024c + tmp024c;
+
+                        output0[1] = bias0 + tmp135a + tmp135b + tmp135b + tmp135c * 16;
+                        output0[3] = bias0 + tmp135a + tmp135b * 8 + tmp135c * 4;
+                        output0[5] = bias0 + tmp0[7] + tmp135a + tmp135b * 32 + tmp135c;
+
+                        output0 += outw;
+                    }
+#endif // __ARM_NEON
+                }
+            }
+        }
+    }
+    // END transform output
+
+    // cut result pad
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w);
+}
+#endif
 
 static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
 {
