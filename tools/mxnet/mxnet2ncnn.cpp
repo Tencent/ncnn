@@ -1382,7 +1382,31 @@ int main(int argc, char** argv)
 
             int quantize_tag = 0;
             fwrite(&quantize_tag, sizeof(int), 1, bp);
-            fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
+
+            int maxk = 0;
+            if (kernel.size() == 2)
+            {
+                maxk = kernel[1] * kernel[0];
+            }
+            else
+            {
+                maxk = kernel[0] * kernel[0];
+            }
+            for (int g=0; g<num_group; g++)
+            {
+            // reorder weight from inch-outch to outch-inch
+            int num_filter_g = num_filter / num_group;
+            int num_input = weight_data.size() / maxk / num_filter_g / num_group;
+            const float* weight_data_ptr = weight_data.data() + g * maxk * num_filter_g * num_input;
+            for (int k=0; k<num_filter_g; k++)
+            {
+                for (int j=0; j<num_input; j++)
+                {
+                    fwrite(weight_data_ptr + (j*num_filter_g + k) * maxk, sizeof(float), maxk, bp);
+                }
+            }
+            }
+
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
         }
         else if (n.op == "cos")

@@ -619,18 +619,26 @@ int main(int argc, char** argv)
             int quantized_weight = 0;
             fwrite(&quantized_weight, sizeof(int), 1, bp);
 
+            int maxk = 0;
+            if (convolution_param.has_kernel_w() && convolution_param.has_kernel_h())
+            {
+                maxk = convolution_param.kernel_w() * convolution_param.kernel_h();
+            }
+            else
+            {
+                maxk = convolution_param.kernel_size(0) * convolution_param.kernel_size(0);
+            }
             for (int g=0; g<group; g++)
             {
             // reorder weight from inch-outch to outch-inch
-            int ksize = convolution_param.kernel_size(0);
             int num_output = convolution_param.num_output() / group;
-            int num_input = weight_blob.data_size() / (ksize * ksize) / num_output / group;
-            const float* weight_data_ptr = weight_blob.data().data() + g * (ksize * ksize) * num_output * num_input;
+            int num_input = weight_blob.data_size() / maxk / num_output / group;
+            const float* weight_data_ptr = weight_blob.data().data() + g * maxk * num_output * num_input;
             for (int k=0; k<num_output; k++)
             {
                 for (int j=0; j<num_input; j++)
                 {
-                    fwrite(weight_data_ptr + (j*num_output + k) * ksize * ksize, sizeof(float), ksize * ksize, bp);
+                    fwrite(weight_data_ptr + (j*num_output + k) * maxk, sizeof(float), maxk, bp);
                 }
             }
             }

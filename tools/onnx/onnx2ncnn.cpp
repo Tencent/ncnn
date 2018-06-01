@@ -890,7 +890,39 @@ int main(int argc, char** argv)
             int quantize_tag = 0;
             fwrite(&quantize_tag, sizeof(int), 1, bp);
 
-            fwrite_tensor_proto_data(W, bp);
+            int maxk = 0;
+            if (kernel_shape.size() == 2)
+            {
+                maxk = kernel_shape[1] * kernel_shape[0];
+            }
+            else
+            {
+                maxk = kernel_shape[0] * kernel_shape[0];
+            }
+            int weight_data_size = get_tensor_proto_data_size(W);
+            const float* weight_data = 0;
+            if (W.has_raw_data())
+            {
+                weight_data = (const float*)W.raw_data().data();
+            }
+            else if (W.data_type() == 1)
+            {
+                weight_data = W.float_data().data();
+            }
+            for (int g=0; g<group; g++)
+            {
+            // reorder weight from inch-outch to outch-inch
+            int num_filter_g = num_filter / group;
+            int num_input = weight_data_size / maxk / num_filter_g / group;
+            const float* weight_data_ptr = weight_data + g * maxk * num_filter_g * num_input;
+            for (int k=0; k<num_filter_g; k++)
+            {
+                for (int j=0; j<num_input; j++)
+                {
+                    fwrite(weight_data_ptr + (j*num_filter_g + k) * maxk, sizeof(float), maxk, bp);
+                }
+            }
+            }
 
             if (has_bias)
             {
