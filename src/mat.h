@@ -118,9 +118,9 @@ public:
     static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height);
 
     // convenient export to pixel data
-    void to_pixels(unsigned char* pixels, int type);
+    void to_pixels(unsigned char* pixels, int type) const;
     // convenient export to pixel data and resize to specific size
-    void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height);
+    void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height) const;
 
     // substract channel-wise mean values, then multiply by normalize values, pass 0 to skip
     void substract_mean_normalize(const float* mean_vals, const float* norm_vals);
