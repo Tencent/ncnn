@@ -2022,7 +2022,7 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     return m;
 }
 
-void Mat::to_pixels(unsigned char* pixels, int type)
+void Mat::to_pixels(unsigned char* pixels, int type) const
 {
     if (type & PIXEL_CONVERT_MASK)
     {
@@ -2042,7 +2042,7 @@ void Mat::to_pixels(unsigned char* pixels, int type)
     }
 }
 
-void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height)
+void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height) const
 {
     if (w == target_width && h == target_height)
         return to_pixels(pixels, type);
