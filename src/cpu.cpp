@@ -92,6 +92,14 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 #endif // __ANDROID__
 
 #if __IOS__
+static unsigned int get_hw_cpufamily()
+{
+    unsigned int value = 0;
+    size_t len = sizeof(value);
+    sysctlbyname("hw.cpufamily", &value, &len, NULL, 0);
+    return value;
+}
+
 static cpu_type_t get_hw_cputype()
 {
     cpu_type_t value = 0;
@@ -108,6 +116,7 @@ static cpu_subtype_t get_hw_cpusubtype()
     return value;
 }
 
+static unsigned int g_hw_cpufamily = get_hw_cpufamily();
 static cpu_type_t g_hw_cputype = get_hw_cputype();
 static cpu_subtype_t g_hw_cpusubtype = get_hw_cpusubtype();
 #endif // __IOS__
@@ -161,7 +170,13 @@ int cpu_support_arm_asimdhp()
 #endif
 #elif __IOS__
 #if __aarch64__
-    return 0;
+#ifndef CPUFAMILY_ARM_HURRICANE
+#define CPUFAMILY_ARM_HURRICANE 0x67ceee93
+#endif
+#ifndef CPUFAMILY_ARM_MONSOON_MISTRAL
+#define CPUFAMILY_ARM_MONSOON_MISTRAL 0xe81e7ef6
+#endif
+    return g_hw_cpufamily == CPUFAMILY_ARM_HURRICANE || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL;
 #else
     return 0;
 #endif
