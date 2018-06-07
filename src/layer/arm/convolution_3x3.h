@@ -1588,10 +1588,14 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
     // interleave weights
 //     Mat kernel_tm2(8*8, inch, outch);
 //     Mat kernel_tm2(inch, 64, outch);
-//     Mat kernel_tm2(4*4*(inch/4), 64, outch/4);
+#if __aarch64__
     Mat kernel_tm2(8*4*(inch/4) + 8*(inch%4), 64, outch/8 + (outch%8)/4 + outch%4);
+#else
+    Mat kernel_tm2(4*4*(inch/4) + 4*(inch%4), 64, outch/4 + outch%4);
+#endif
 
     int p=0;
+#if __aarch64__
     for (; p+7<outch; p+=8)
     {
         const Mat kernel0_tm = kernel_tm.channel(p);
@@ -1732,6 +1736,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
             }
         }
     }
+#endif // __aarch64__
     for (; p+3<outch; p+=4)
     {
         const Mat kernel0_tm = kernel_tm.channel(p);
@@ -1739,7 +1744,11 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
         const Mat kernel2_tm = kernel_tm.channel(p+2);
         const Mat kernel3_tm = kernel_tm.channel(p+3);
 
+#if __aarch64__
         Mat ktm2 = kernel_tm2.channel(p/8+(p%8)/4);
+#else
+        Mat ktm2 = kernel_tm2.channel(p/4);
+#endif
 
         for (int r=0; r<64; r++)
         {
@@ -1815,7 +1824,12 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
     for (; p<outch; p++)
     {
         const Mat kernel0_tm = kernel_tm.channel(p);
+
+#if __aarch64__
         Mat ktm2 = kernel_tm2.channel(p/8+(p%8)/4+p%4);
+#else
+        Mat ktm2 = kernel_tm2.channel(p/4+p%4);
+#endif
 
         for (int r=0; r<64; r++)
         {
@@ -8311,7 +8325,16 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w);
 }
 
-#if __aarch64__
+#if !__aarch64__
+// TODO drop it
+static inline float vaddvq_f32(float32x4_t _v)
+{
+    float32x2_t _ss = vadd_f32(vget_low_f32(_v), vget_high_f32(_v));
+    float32x2_t _ss2 = vpadd_f32(_ss, _ss);
+    return vget_lane_f32(_ss2, 0);
+}
+#endif // !__aarch64__
+
 static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
 {
     int w = bottom_blob.w;
@@ -8400,6 +8423,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     const float* r2 = r0 + w*2;
                     const float* r3 = r0 + w*3;
 
+#if __aarch64__
                     for (int m=0; m+3<8; m+=4)
                     {
                         float32x4_t _r0_0123 = vld1q_f32(r0);
@@ -8643,6 +8667,478 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         r0_tm2 += img0_tm.w*tiles*25;
                         r0_tm3 += img0_tm.w*tiles*25;
                     }
+#else // __aarch64__
+                    float* t0 = tmp[0];
+                    float* t1 = tmp[1];
+                    float* t2 = tmp[2];
+                    float* t3 = tmp[3];
+                    float* t4 = tmp[4];
+                    float* t5 = tmp[5];
+                    float* t6 = tmp[6];
+                    float* t7 = tmp[7];
+
+                    int stepw = w*4*4;
+
+                    asm volatile(
+
+                        // loop0
+                        "vld1.f32   {d16-d19}, [%8], %26    \n"
+                        "vld1.f32   {d20-d23}, [%9], %26    \n"
+                        "vld1.f32   {d24-d27}, [%10], %26   \n"
+
+                        "vtrn.32    q8, q10             \n"
+
+                        "vld1.f32   {d28-d31}, [%11], %26   \n"
+
+                        "vtrn.32    q9, q11             \n"
+                        "vtrn.32    q12, q14            \n"
+                        "vtrn.32    q13, q15            \n"
+
+                        "vswp       d17, d24            \n"
+                        "vswp       d19, d26            \n"
+                        "vswp       d21, d28            \n"//  q8 = 00   q9 = 44  q10 = 11  q11 = 55
+                        "vswp       d23, d30            \n"// q12 = 22  q13 = 66  q14 = 33  q15 = 77
+
+                        "vsub.f32   q2, q8, q13         \n"
+                        "vsub.f32   q3, q9, q12         \n"
+
+                        "vadd.f32   q4, q12, q13        \n"
+                        "vadd.f32   q5, q10, q11        \n"
+
+                        "vmla.f32   q2, q3, %f25[1]     \n"
+
+                        "vmul.f32   q7, q14, %e25[0]    \n"// q7 = _r_3_x_c
+                        "vmul.f32   q6, q9, %f24[0]     \n"// q6 = _r_4_x_c
+
+                        "vmls.f32   q4, q9, %f25[0]     \n"
+                        "vmls.f32   q5, q14, %f25[0]    \n"
+
+                        "vst1.f32   {d4-d5}, [%0]!      \n"// tmp[0][m]
+
+                        "vmov       q3, q7              \n"// use q7
+
+                        "vadd.f32   q2, q13, q6         \n"// use q6
+                        "vmla.f32   q3, q10, %e24[1]    \n"
+
+                        "vadd.f32   q8, q4, q5          \n"
+                        "vsub.f32   q9, q4, q5          \n"
+
+                        "vmov       q5, q7              \n"// use q7
+
+                        "vadd.f32   q6, q12, q6         \n"// use q6
+                        "vmla.f32   q5, q10, %f24[1]    \n"
+
+                        "vmov       q4, q13             \n"
+
+                        "vmla.f32   q2, q12, %e24[0]    \n"
+                        "vmla.f32   q3, q11, %f24[1]    \n"
+
+                        "vst1.f32   {d16-d17}, [%1]!    \n"// tmp[1][m]
+
+                        "vmla.f32   q4, q6, %e25[1]     \n"
+                        "vmla.f32   q5, q11, %e24[1]    \n"
+
+                        "vst1.f32   {d18-d19}, [%2]!    \n"// tmp[2][m]
+
+                        "vadd.f32   q8, q2, q3          \n"
+                        "vsub.f32   q9, q2, q3          \n"
+
+                        "vsub.f32   q6, q15, q10        \n"
+                        "vsub.f32   q7, q14, q11        \n"
+
+                        "vadd.f32   q2, q4, q5          \n"
+                        "vsub.f32   q3, q4, q5          \n"
+
+                        "vst1.f32   {d16-d17}, [%3]!    \n"// tmp[3][m]
+                        "vst1.f32   {d18-d19}, [%4]!    \n"// tmp[4][m]
+
+                        "vmla.f32   q6, q7, %f25[1]     \n"
+
+                        "vst1.f32   {d4-d5}, [%5]!      \n"// tmp[5][m]
+                        "vst1.f32   {d6-d7}, [%6]!      \n"// tmp[6][m]
+
+                        "vst1.f32   {d12-d13}, [%7]!    \n"// tmp[7][m]
+
+                        // loop1
+                        "vld1.f32   {d16-d19}, [%8]     \n"
+                        "vld1.f32   {d20-d23}, [%9]     \n"
+                        "vld1.f32   {d24-d27}, [%10]    \n"
+
+                        "vtrn.32    q8, q10             \n"
+
+                        "vld1.f32   {d28-d31}, [%11]    \n"
+
+                        "vtrn.32    q9, q11             \n"
+                        "vtrn.32    q12, q14            \n"
+                        "vtrn.32    q13, q15            \n"
+
+                        "vswp       d17, d24            \n"
+                        "vswp       d19, d26            \n"
+                        "vswp       d21, d28            \n"//  q8 = 00   q9 = 44  q10 = 11  q11 = 55
+                        "vswp       d23, d30            \n"// q12 = 22  q13 = 66  q14 = 33  q15 = 77
+
+                        "vsub.f32   q2, q8, q13         \n"
+                        "vsub.f32   q3, q9, q12         \n"
+
+                        "vadd.f32   q4, q12, q13        \n"
+                        "vadd.f32   q5, q10, q11        \n"
+
+                        "vmla.f32   q2, q3, %f25[1]     \n"
+
+                        "vmul.f32   q7, q14, %e25[0]    \n"// q7 = _r_3_x_c
+                        "vmul.f32   q6, q9, %f24[0]     \n"// q6 = _r_4_x_c
+
+                        "vmls.f32   q4, q9, %f25[0]     \n"
+                        "vmls.f32   q5, q14, %f25[0]    \n"
+
+                        "vst1.f32   {d4-d5}, [%0]!      \n"// tmp[0][m]
+
+                        "vmov       q3, q7              \n"// use q7
+
+                        "vadd.f32   q2, q13, q6         \n"// use q6
+                        "vmla.f32   q3, q10, %e24[1]    \n"
+
+                        "vadd.f32   q8, q4, q5          \n"
+                        "vsub.f32   q9, q4, q5          \n"
+
+                        "vmov       q5, q7              \n"// use q7
+
+                        "vadd.f32   q6, q12, q6         \n"// use q6
+                        "vmla.f32   q5, q10, %f24[1]    \n"
+
+                        "vmov       q4, q13             \n"
+
+                        "vmla.f32   q2, q12, %e24[0]    \n"
+                        "vmla.f32   q3, q11, %f24[1]    \n"
+
+                        "vst1.f32   {d16-d17}, [%1]!    \n"// tmp[1][m]
+
+                        "vmla.f32   q4, q6, %e25[1]     \n"
+                        "vmla.f32   q5, q11, %e24[1]    \n"
+
+                        "vst1.f32   {d18-d19}, [%2]!    \n"// tmp[2][m]
+
+                        "vadd.f32   q8, q2, q3          \n"
+                        "vsub.f32   q9, q2, q3          \n"
+
+                        "vsub.f32   q6, q15, q10        \n"
+                        "vsub.f32   q7, q14, q11        \n"
+
+                        "vadd.f32   q2, q4, q5          \n"
+                        "vsub.f32   q3, q4, q5          \n"
+
+                        "vst1.f32   {d16-d17}, [%3]!    \n"// tmp[3][m]
+                        "vst1.f32   {d18-d19}, [%4]!    \n"// tmp[4][m]
+
+                        "vmla.f32   q6, q7, %f25[1]     \n"
+
+                        "vst1.f32   {d4-d5}, [%5]!      \n"// tmp[5][m]
+                        "vst1.f32   {d6-d7}, [%6]!      \n"// tmp[6][m]
+
+                        "vst1.f32   {d12-d13}, [%7]!    \n"// tmp[7][m]
+
+                        : "=r"(t0),     // %0
+                          "=r"(t1),     // %1
+                          "=r"(t2),     // %2
+                          "=r"(t3),     // %3
+                          "=r"(t4),     // %4
+                          "=r"(t5),     // %5
+                          "=r"(t6),     // %6
+                          "=r"(t7),     // %7
+                          "=r"(r0),     // %8
+                          "=r"(r1),     // %9
+                          "=r"(r2),     // %10
+                          "=r"(r3)      // %11
+                        : "0"(t0),
+                          "1"(t1),
+                          "2"(t2),
+                          "3"(t3),
+                          "4"(t4),
+                          "5"(t5),
+                          "6"(t6),
+                          "7"(t7),
+                          "8"(r0),
+                          "9"(r1),
+                          "10"(r2),
+                          "11"(r3),
+                          "w"(_coeff0), // %24
+                          "w"(_coeff1), // %25
+                          "r"(stepw)        // %26
+                        : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
+
+                    t0 = tmp[0];
+                    t1 = tmp[1];
+                    t2 = tmp[2];
+                    t3 = tmp[3];
+
+                    float* r0_tm0_0 = img0_tm.row(i * w_tm/8 + j);
+                    float* r0_tm1_0 = img0_tm.row(i * w_tm/8 + j + tiles*8);
+                    float* r0_tm2_0 = img0_tm.row(i * w_tm/8 + j + tiles*16);
+                    float* r0_tm3_0 = img0_tm.row(i * w_tm/8 + j + tiles*24);
+                    float* r0_tm0_4 = img0_tm.row(i * w_tm/8 + j + tiles*32);
+                    float* r0_tm1_4 = img0_tm.row(i * w_tm/8 + j + tiles*40);
+                    float* r0_tm2_4 = img0_tm.row(i * w_tm/8 + j + tiles*48);
+                    float* r0_tm3_4 = img0_tm.row(i * w_tm/8 + j + tiles*56);
+
+                    int step = img0_tm.w*tiles*4;
+
+                    asm volatile(
+
+                        // loop0
+                        "vld1.f32   {d16-d19}, [%8]     \n"
+                        "add        %8, %8, #128        \n"
+                        "vld1.f32   {d20-d23}, [%9]     \n"
+                        "add        %9, %9, #128        \n"
+                        "vld1.f32   {d24-d27}, [%10]    \n"
+                        "add        %10, %10, #128      \n"
+
+                        "vtrn.32    q8, q10             \n"
+
+                        "vld1.f32   {d28-d31}, [%11]    \n"
+                        "add        %11, %11, #128      \n"
+
+                        "vtrn.32    q9, q11             \n"
+                        "vtrn.32    q12, q14            \n"
+                        "vtrn.32    q13, q15            \n"
+
+                        "vswp       d17, d24            \n"
+                        "vswp       d19, d26            \n"
+                        "vswp       d21, d28            \n"//  q8 = 00   q9 = 44  q10 = 11  q11 = 55
+                        "vswp       d23, d30            \n"// q12 = 22  q13 = 66  q14 = 33  q15 = 77
+
+                        "vsub.f32   q2, q8, q13         \n"
+                        "vsub.f32   q3, q9, q12         \n"
+
+                        "vadd.f32   q4, q12, q13        \n"
+                        "vadd.f32   q5, q10, q11        \n"
+
+                        "vmla.f32   q2, q3, %f25[1]     \n"
+
+                        "vmul.f32   q7, q14, %e25[0]    \n"// q7 = _r_3_x_c
+                        "vmul.f32   q6, q9, %f24[0]     \n"// q6 = _r_4_x_c
+
+                        "vmls.f32   q4, q9, %f25[0]     \n"
+                        "vmls.f32   q5, q14, %f25[0]    \n"
+
+                        "vst1.f32   {d4[0]}, [%0], %26  \n"
+                        "vst1.f32   {d4[1]}, [%1], %26  \n"
+
+                        "vmov       q3, q7              \n"// use q7
+
+                        "vst1.f32   {d5[0]}, [%2], %26  \n"
+                        "vst1.f32   {d5[1]}, [%3], %26  \n"
+
+                        "vadd.f32   q2, q13, q6         \n"// use q6
+                        "vmla.f32   q3, q10, %e24[1]    \n"
+
+                        "vadd.f32   q8, q4, q5          \n"
+                        "vsub.f32   q9, q4, q5          \n"
+
+                        "vmov       q5, q7              \n"// use q7
+
+                        "vadd.f32   q6, q12, q6         \n"// use q6
+                        "vmla.f32   q5, q10, %f24[1]    \n"
+
+                        "vmov       q4, q13             \n"
+
+                        "vmla.f32   q2, q12, %e24[0]    \n"
+                        "vmla.f32   q3, q11, %f24[1]    \n"
+
+                        "vst1.f32   {d16[0]}, [%0], %26 \n"
+                        "vst1.f32   {d16[1]}, [%1], %26 \n"
+
+                        "vmla.f32   q4, q6, %e25[1]     \n"
+
+                        "vst1.f32   {d17[0]}, [%2], %26 \n"
+                        "vst1.f32   {d17[1]}, [%3], %26 \n"
+
+                        "vmla.f32   q5, q11, %e24[1]    \n"
+
+                        "vst1.f32   {d18[0]}, [%0], %26 \n"
+                        "vst1.f32   {d18[1]}, [%1], %26 \n"
+
+                        "vadd.f32   q8, q2, q3          \n"
+
+                        "vst1.f32   {d19[0]}, [%2], %26 \n"
+                        "vst1.f32   {d19[1]}, [%3], %26 \n"
+
+                        "vsub.f32   q9, q2, q3          \n"
+
+                        "vsub.f32   q6, q15, q10        \n"
+                        "vsub.f32   q7, q14, q11        \n"
+
+                        "vst1.f32   {d16[0]}, [%0], %26 \n"
+                        "vst1.f32   {d16[1]}, [%1], %26 \n"
+                        "vst1.f32   {d17[0]}, [%2], %26 \n"
+                        "vst1.f32   {d17[1]}, [%3], %26 \n"
+
+                        "vadd.f32   q2, q4, q5          \n"
+
+                        "vst1.f32   {d18[0]}, [%0], %26 \n"
+                        "vst1.f32   {d18[1]}, [%1], %26 \n"
+                        "vst1.f32   {d19[0]}, [%2], %26 \n"
+                        "vst1.f32   {d19[1]}, [%3], %26 \n"
+
+                        "vsub.f32   q3, q4, q5          \n"
+
+                        "vst1.f32   {d4[0]}, [%0], %26  \n"
+                        "vst1.f32   {d4[1]}, [%1], %26  \n"
+                        "vst1.f32   {d5[0]}, [%2], %26  \n"
+                        "vst1.f32   {d5[1]}, [%3], %26  \n"
+
+                        "vmla.f32   q6, q7, %f25[1]     \n"
+
+                        "vst1.f32   {d6[0]}, [%0], %26  \n"
+                        "vst1.f32   {d6[1]}, [%1], %26  \n"
+                        "vst1.f32   {d7[0]}, [%2], %26  \n"
+                        "vst1.f32   {d7[1]}, [%3], %26  \n"
+
+                        "vst1.f32   {d12[0]}, [%0]      \n"
+                        "vst1.f32   {d12[1]}, [%1]      \n"
+                        "vst1.f32   {d13[0]}, [%2]      \n"
+                        "vst1.f32   {d13[1]}, [%3]      \n"
+
+                        // loop1
+                        "vld1.f32   {d16-d19}, [%8]     \n"
+                        "vld1.f32   {d20-d23}, [%9]     \n"
+                        "vld1.f32   {d24-d27}, [%10]    \n"
+
+                        "vtrn.32    q8, q10             \n"
+
+                        "vld1.f32   {d28-d31}, [%11]    \n"
+
+                        "vtrn.32    q9, q11             \n"
+                        "vtrn.32    q12, q14            \n"
+                        "vtrn.32    q13, q15            \n"
+
+                        "vswp       d17, d24            \n"
+                        "vswp       d19, d26            \n"
+                        "vswp       d21, d28            \n"//  q8 = 00   q9 = 44  q10 = 11  q11 = 55
+                        "vswp       d23, d30            \n"// q12 = 22  q13 = 66  q14 = 33  q15 = 77
+
+                        "vsub.f32   q2, q8, q13         \n"
+                        "vsub.f32   q3, q9, q12         \n"
+
+                        "vadd.f32   q4, q12, q13        \n"
+                        "vadd.f32   q5, q10, q11        \n"
+
+                        "vmla.f32   q2, q3, %f25[1]     \n"
+
+                        "vmul.f32   q7, q14, %e25[0]    \n"// q7 = _r_3_x_c
+                        "vmul.f32   q6, q9, %f24[0]     \n"// q6 = _r_4_x_c
+
+                        "vmls.f32   q4, q9, %f25[0]     \n"
+                        "vmls.f32   q5, q14, %f25[0]    \n"
+
+                        "vst1.f32   {d4[0]}, [%4], %26  \n"
+                        "vst1.f32   {d4[1]}, [%5], %26  \n"
+
+                        "vmov       q3, q7              \n"// use q7
+
+                        "vst1.f32   {d5[0]}, [%6], %26  \n"
+                        "vst1.f32   {d5[1]}, [%7], %26  \n"
+
+                        "vadd.f32   q2, q13, q6         \n"// use q6
+                        "vmla.f32   q3, q10, %e24[1]    \n"
+
+                        "vadd.f32   q8, q4, q5          \n"
+                        "vsub.f32   q9, q4, q5          \n"
+
+                        "vmov       q5, q7              \n"// use q7
+
+                        "vadd.f32   q6, q12, q6         \n"// use q6
+                        "vmla.f32   q5, q10, %f24[1]    \n"
+
+                        "vmov       q4, q13             \n"
+
+                        "vmla.f32   q2, q12, %e24[0]    \n"
+                        "vmla.f32   q3, q11, %f24[1]    \n"
+
+                        "vst1.f32   {d16[0]}, [%4], %26 \n"
+                        "vst1.f32   {d16[1]}, [%5], %26 \n"
+
+                        "vmla.f32   q4, q6, %e25[1]     \n"
+
+                        "vst1.f32   {d17[0]}, [%6], %26 \n"
+                        "vst1.f32   {d17[1]}, [%7], %26 \n"
+
+                        "vmla.f32   q5, q11, %e24[1]    \n"
+
+                        "vst1.f32   {d18[0]}, [%4], %26 \n"
+                        "vst1.f32   {d18[1]}, [%5], %26 \n"
+
+                        "vadd.f32   q8, q2, q3          \n"
+
+                        "vst1.f32   {d19[0]}, [%6], %26 \n"
+                        "vst1.f32   {d19[1]}, [%7], %26 \n"
+
+                        "vsub.f32   q9, q2, q3          \n"
+
+                        "vsub.f32   q6, q15, q10        \n"
+                        "vsub.f32   q7, q14, q11        \n"
+
+                        "vst1.f32   {d16[0]}, [%4], %26 \n"
+                        "vst1.f32   {d16[1]}, [%5], %26 \n"
+                        "vst1.f32   {d17[0]}, [%6], %26 \n"
+                        "vst1.f32   {d17[1]}, [%7], %26 \n"
+
+                        "vadd.f32   q2, q4, q5          \n"
+
+                        "vst1.f32   {d18[0]}, [%4], %26 \n"
+                        "vst1.f32   {d18[1]}, [%5], %26 \n"
+                        "vst1.f32   {d19[0]}, [%6], %26 \n"
+                        "vst1.f32   {d19[1]}, [%7], %26 \n"
+
+                        "vsub.f32   q3, q4, q5          \n"
+
+                        "vst1.f32   {d4[0]}, [%4], %26  \n"
+                        "vst1.f32   {d4[1]}, [%5], %26  \n"
+                        "vst1.f32   {d5[0]}, [%6], %26  \n"
+                        "vst1.f32   {d5[1]}, [%7], %26  \n"
+
+                        "vmla.f32   q6, q7, %f25[1]     \n"
+
+                        "vst1.f32   {d6[0]}, [%4], %26  \n"
+                        "vst1.f32   {d6[1]}, [%5], %26  \n"
+                        "vst1.f32   {d7[0]}, [%6], %26  \n"
+                        "vst1.f32   {d7[1]}, [%7], %26  \n"
+
+                        "vst1.f32   {d12[0]}, [%4]      \n"
+                        "vst1.f32   {d12[1]}, [%5]      \n"
+                        "vst1.f32   {d13[0]}, [%6]      \n"
+                        "vst1.f32   {d13[1]}, [%7]      \n"
+
+                        : "=r"(r0_tm0_0),     // %0
+                          "=r"(r0_tm1_0),     // %1
+                          "=r"(r0_tm2_0),     // %2
+                          "=r"(r0_tm3_0),     // %3
+                          "=r"(r0_tm0_4),     // %4
+                          "=r"(r0_tm1_4),     // %5
+                          "=r"(r0_tm2_4),     // %6
+                          "=r"(r0_tm3_4),     // %7
+                          "=r"(t0),     // %8
+                          "=r"(t1),     // %9
+                          "=r"(t2),     // %10
+                          "=r"(t3)      // %11
+                        : "0"(r0_tm0_0),
+                          "1"(r0_tm1_0),
+                          "2"(r0_tm2_0),
+                          "3"(r0_tm3_0),
+                          "4"(r0_tm0_4),
+                          "5"(r0_tm1_4),
+                          "6"(r0_tm2_4),
+                          "7"(r0_tm3_4),
+                          "8"(t0),
+                          "9"(t1),
+                          "10"(t2),
+                          "11"(t3),
+                          "w"(_coeff0), // %24
+                          "w"(_coeff1), // %25
+                          "r"(step)        // %26
+                        : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
+#endif // __aarch64__
 #else
                     const float* r0 = img0.row(i * 6) + j * 6;
 
@@ -8754,7 +9250,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                 int q=0;
                 for (; q<inch; q++)
                 {
-                    asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(r0) :);
+//                     asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(r0) :);
                     float32x4_t _r0 = vld1q_f32(r0);
                     float32x4_t _r0n = vld1q_f32(r0+4);
                     vst1q_f32(tm2p, _r0);
@@ -8784,7 +9280,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                 int q=0;
                 for (; q<inch; q++)
                 {
-                    asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(r0) :);
+//                     asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(r0) :);
                     float32x4_t _r0 = vld1q_f32(r0);
                     vst1q_f32(tm2p, _r0);
 
@@ -8819,8 +9315,15 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         bottom_blob_tm = Mat();
         // permute end
 
+        int nn_outch = 0;
+        int remain_outch_start = 0;
+
+#if __aarch64__
+        nn_outch = outch >> 3;
+        remain_outch_start = nn_outch << 3;
+
         #pragma omp parallel for
-        for (int pp=0; pp<outch/8; pp++)
+        for (int pp=0; pp<nn_outch; pp++)
         {
             int p = pp * 8;
 
@@ -8856,192 +9359,191 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
                     const float* ktm0 = kernel_tm0.row(r);
 
-                    float32x4_t _sum0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum0n = vdupq_n_f32(0.f);
-                    float32x4_t _sum1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1n = vdupq_n_f32(0.f);
-                    float32x4_t _sum2 = vdupq_n_f32(0.f);
-                    float32x4_t _sum2n = vdupq_n_f32(0.f);
-                    float32x4_t _sum3 = vdupq_n_f32(0.f);
-                    float32x4_t _sum3n = vdupq_n_f32(0.f);
+                    asm volatile(
+                        "eor    v16.16b, v16.16b, v16.16b  \n"
+                        "eor    v17.16b, v17.16b, v17.16b  \n"
+                        "eor    v18.16b, v18.16b, v18.16b  \n"
+                        "eor    v19.16b, v19.16b, v19.16b  \n"
+                        "eor    v20.16b, v20.16b, v20.16b  \n"
+                        "eor    v21.16b, v21.16b, v21.16b  \n"
+                        "eor    v22.16b, v22.16b, v22.16b  \n"
+                        "eor    v23.16b, v23.16b, v23.16b  \n"
+                        "eor    v24.16b, v24.16b, v24.16b  \n"
+                        "eor    v25.16b, v25.16b, v25.16b  \n"
+                        "eor    v26.16b, v26.16b, v26.16b  \n"
+                        "eor    v27.16b, v27.16b, v27.16b  \n"
+                        "eor    v28.16b, v28.16b, v28.16b  \n"
+                        "eor    v29.16b, v29.16b, v29.16b  \n"
+                        "eor    v30.16b, v30.16b, v30.16b  \n"
+                        "eor    v31.16b, v31.16b, v31.16b  \n"
 
-                    float32x4_t _sum4 = vdupq_n_f32(0.f);
-                    float32x4_t _sum4n = vdupq_n_f32(0.f);
-                    float32x4_t _sum5 = vdupq_n_f32(0.f);
-                    float32x4_t _sum5n = vdupq_n_f32(0.f);
-                    float32x4_t _sum6 = vdupq_n_f32(0.f);
-                    float32x4_t _sum6n = vdupq_n_f32(0.f);
-                    float32x4_t _sum7 = vdupq_n_f32(0.f);
-                    float32x4_t _sum7n = vdupq_n_f32(0.f);
+                        // inch loop
+                        "lsr    w4, %w20, #2            \n"// w4 = nn = inch >> 2
+                        "cmp    w4, #0                  \n"
+                        "beq    1f                      \n"
 
-                    int q=0;
-                    for (; q+3<inch; q+=4)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "0:                             \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
-                        float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
-                        float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
-                        float32x4_t _ktm3 = vld1q_f32(ktm0 + 12);
-                        ktm0 += 16;
+                        "prfm   pldl1keep, [%8, #512]   \n"
+                        "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%8], #64   \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p0n, _ktm0, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm1, 0);
-                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p0n, _ktm1, 0);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm2, 0);
-                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p0n, _ktm2, 0);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm3, 0);
-                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p0n, _ktm3, 0);
+                        "prfm   pldl1keep, [%9, #512]   \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%9], #64   \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p1 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p1n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "fmla   v16.4s, v8.4s, v0.s[0]  \n"
+                        "fmla   v17.4s, v9.4s, v0.s[0]  \n"
+                        "fmla   v18.4s, v8.4s, v1.s[0]  \n"
+                        "fmla   v19.4s, v9.4s, v1.s[0]  \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p1n, _ktm0, 1);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p1, _ktm1, 1);
-                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p1n, _ktm1, 1);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p1, _ktm2, 1);
-                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p1n, _ktm2, 1);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p1, _ktm3, 1);
-                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p1n, _ktm3, 1);
+                        "prfm   pldl1keep, [%9, #512]   \n"
+                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%9], #64   \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p2 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p2n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "fmla   v20.4s, v8.4s, v2.s[0]  \n"
+                        "fmla   v21.4s, v9.4s, v2.s[0]  \n"
+                        "fmla   v22.4s, v8.4s, v3.s[0]  \n"
+                        "fmla   v23.4s, v9.4s, v3.s[0]  \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p2n, _ktm0, 2);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p2, _ktm1, 2);
-                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p2n, _ktm1, 2);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p2, _ktm2, 2);
-                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p2n, _ktm2, 2);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p2, _ktm3, 2);
-                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p2n, _ktm3, 2);
+                        "fmla   v24.4s, v8.4s, v4.s[0]  \n"
+                        "fmla   v25.4s, v9.4s, v4.s[0]  \n"
+                        "fmla   v26.4s, v8.4s, v5.s[0]  \n"
+                        "fmla   v27.4s, v9.4s, v5.s[0]  \n"
+                        "fmla   v28.4s, v8.4s, v6.s[0]  \n"
+                        "fmla   v29.4s, v9.4s, v6.s[0]  \n"
+                        "fmla   v30.4s, v8.4s, v7.s[0]  \n"
+                        "fmla   v31.4s, v9.4s, v7.s[0]  \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p3 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p3n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "fmla   v16.4s, v10.4s, v0.s[1] \n"
+                        "fmla   v17.4s, v11.4s, v0.s[1] \n"
+                        "fmla   v18.4s, v10.4s, v1.s[1] \n"
+                        "fmla   v19.4s, v11.4s, v1.s[1] \n"
+                        "fmla   v20.4s, v10.4s, v2.s[1] \n"
+                        "fmla   v21.4s, v11.4s, v2.s[1] \n"
+                        "fmla   v22.4s, v10.4s, v3.s[1] \n"
+                        "fmla   v23.4s, v11.4s, v3.s[1] \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p3n, _ktm0, 3);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p3, _ktm1, 3);
-                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p3n, _ktm1, 3);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p3, _ktm2, 3);
-                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p3n, _ktm2, 3);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p3, _ktm3, 3);
-                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p3n, _ktm3, 3);
+                        "prfm   pldl1keep, [%8, #512]   \n"
+                        "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%8], #64 \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm4 = vld1q_f32(ktm0 + 0);
-                        float32x4_t _ktm5 = vld1q_f32(ktm0 + 4);
-                        float32x4_t _ktm6 = vld1q_f32(ktm0 + 8);
-                        float32x4_t _ktm7 = vld1q_f32(ktm0 + 12);
-                        ktm0 += 16;
+                        "fmla   v24.4s, v10.4s, v4.s[1] \n"
+                        "fmla   v25.4s, v11.4s, v4.s[1] \n"
+                        "fmla   v26.4s, v10.4s, v5.s[1] \n"
+                        "fmla   v27.4s, v11.4s, v5.s[1] \n"
+                        "fmla   v28.4s, v10.4s, v6.s[1] \n"
+                        "fmla   v29.4s, v11.4s, v6.s[1] \n"
+                        "fmla   v30.4s, v10.4s, v7.s[1] \n"
+                        "fmla   v31.4s, v11.4s, v7.s[1] \n"
 
-                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p0, _ktm4, 0);
-                        _sum4n = vmlaq_laneq_f32(_sum4n, _bb2p0n, _ktm4, 0);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p0, _ktm5, 0);
-                        _sum5n = vmlaq_laneq_f32(_sum5n, _bb2p0n, _ktm5, 0);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p0, _ktm6, 0);
-                        _sum6n = vmlaq_laneq_f32(_sum6n, _bb2p0n, _ktm6, 0);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p0, _ktm7, 0);
-                        _sum7n = vmlaq_laneq_f32(_sum7n, _bb2p0n, _ktm7, 0);
+                        "fmla   v16.4s, v12.4s, v0.s[2] \n"
+                        "fmla   v17.4s, v13.4s, v0.s[2] \n"
+                        "fmla   v18.4s, v12.4s, v1.s[2] \n"
+                        "fmla   v19.4s, v13.4s, v1.s[2] \n"
+                        "fmla   v20.4s, v12.4s, v2.s[2] \n"
+                        "fmla   v21.4s, v13.4s, v2.s[2] \n"
+                        "fmla   v22.4s, v12.4s, v3.s[2] \n"
+                        "fmla   v23.4s, v13.4s, v3.s[2] \n"
 
-                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p1, _ktm4, 1);
-                        _sum4n = vmlaq_laneq_f32(_sum4n, _bb2p1n, _ktm4, 1);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p1, _ktm5, 1);
-                        _sum5n = vmlaq_laneq_f32(_sum5n, _bb2p1n, _ktm5, 1);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p1, _ktm6, 1);
-                        _sum6n = vmlaq_laneq_f32(_sum6n, _bb2p1n, _ktm6, 1);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p1, _ktm7, 1);
-                        _sum7n = vmlaq_laneq_f32(_sum7n, _bb2p1n, _ktm7, 1);
+                        "fmla   v24.4s, v12.4s, v4.s[2] \n"
+                        "fmla   v25.4s, v13.4s, v4.s[2] \n"
+                        "fmla   v26.4s, v12.4s, v5.s[2] \n"
+                        "fmla   v27.4s, v13.4s, v5.s[2] \n"
+                        "fmla   v28.4s, v12.4s, v6.s[2] \n"
+                        "fmla   v29.4s, v13.4s, v6.s[2] \n"
+                        "fmla   v30.4s, v12.4s, v7.s[2] \n"
+                        "fmla   v31.4s, v13.4s, v7.s[2] \n"
 
-                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p2, _ktm4, 2);
-                        _sum4n = vmlaq_laneq_f32(_sum4n, _bb2p2n, _ktm4, 2);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p2, _ktm5, 2);
-                        _sum5n = vmlaq_laneq_f32(_sum5n, _bb2p2n, _ktm5, 2);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p2, _ktm6, 2);
-                        _sum6n = vmlaq_laneq_f32(_sum6n, _bb2p2n, _ktm6, 2);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p2, _ktm7, 2);
-                        _sum7n = vmlaq_laneq_f32(_sum7n, _bb2p2n, _ktm7, 2);
+                        "fmla   v16.4s, v14.4s, v0.s[3] \n"
+                        "fmla   v17.4s, v15.4s, v0.s[3] \n"
+                        "fmla   v18.4s, v14.4s, v1.s[3] \n"
+                        "fmla   v19.4s, v15.4s, v1.s[3] \n"
+                        "fmla   v20.4s, v14.4s, v2.s[3] \n"
+                        "fmla   v21.4s, v15.4s, v2.s[3] \n"
+                        "fmla   v22.4s, v14.4s, v3.s[3] \n"
+                        "fmla   v23.4s, v15.4s, v3.s[3] \n"
 
-                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p3, _ktm4, 3);
-                        _sum4n = vmlaq_laneq_f32(_sum4n, _bb2p3n, _ktm4, 3);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p3, _ktm5, 3);
-                        _sum5n = vmlaq_laneq_f32(_sum5n, _bb2p3n, _ktm5, 3);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p3, _ktm6, 3);
-                        _sum6n = vmlaq_laneq_f32(_sum6n, _bb2p3n, _ktm6, 3);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p3, _ktm7, 3);
-                        _sum7n = vmlaq_laneq_f32(_sum7n, _bb2p3n, _ktm7, 3);
-                    }
-                    for (; q<inch; q++)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "subs   w4, w4, #1              \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm0 = vld1q_f32(ktm0);
-                        ktm0 += 4;
+                        "fmla   v24.4s, v14.4s, v4.s[3] \n"
+                        "fmla   v25.4s, v15.4s, v4.s[3] \n"
+                        "fmla   v26.4s, v14.4s, v5.s[3] \n"
+                        "fmla   v27.4s, v15.4s, v5.s[3] \n"
+                        "fmla   v28.4s, v14.4s, v6.s[3] \n"
+                        "fmla   v29.4s, v15.4s, v6.s[3] \n"
+                        "fmla   v30.4s, v14.4s, v7.s[3] \n"
+                        "fmla   v31.4s, v15.4s, v7.s[3] \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p0n, _ktm0, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm0, 1);
-                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p0n, _ktm0, 1);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm0, 2);
-                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p0n, _ktm0, 2);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm0, 3);
-                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p0n, _ktm0, 3);
+                        "bne    0b                      \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm1 = vld1q_f32(ktm0);
-                        ktm0 += 4;
+                        "1:                             \n"
 
-                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p0, _ktm1, 0);
-                        _sum4n = vmlaq_laneq_f32(_sum4n, _bb2p0n, _ktm1, 0);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p0, _ktm1, 1);
-                        _sum5n = vmlaq_laneq_f32(_sum5n, _bb2p0n, _ktm1, 1);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p0, _ktm1, 2);
-                        _sum6n = vmlaq_laneq_f32(_sum6n, _bb2p0n, _ktm1, 2);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p0, _ktm1, 3);
-                        _sum7n = vmlaq_laneq_f32(_sum7n, _bb2p0n, _ktm1, 3);
-                    }
+                        // remain loop
+                        "and    w4, %w20, #3            \n"// w4 = remain = tiles & 3;
+                        "cmp    w4, #0                  \n"
+                        "beq    3f                      \n"
 
-                    vst1q_f32(output0_tm, _sum0);
-                    vst1q_f32(output0_tm+4, _sum0n);
-                    vst1q_f32(output1_tm, _sum1);
-                    vst1q_f32(output1_tm+4, _sum1n);
-                    vst1q_f32(output2_tm, _sum2);
-                    vst1q_f32(output2_tm+4, _sum2n);
-                    vst1q_f32(output3_tm, _sum3);
-                    vst1q_f32(output3_tm+4, _sum3n);
-                    vst1q_f32(output4_tm, _sum4);
-                    vst1q_f32(output4_tm+4, _sum4n);
-                    vst1q_f32(output5_tm, _sum5);
-                    vst1q_f32(output5_tm+4, _sum5n);
-                    vst1q_f32(output6_tm, _sum6);
-                    vst1q_f32(output6_tm+4, _sum6n);
-                    vst1q_f32(output7_tm, _sum7);
-                    vst1q_f32(output7_tm+4, _sum7n);
+                        "2:                             \n"
 
-                    output0_tm += 8;
-                    output1_tm += 8;
-                    output2_tm += 8;
-                    output3_tm += 8;
-                    output4_tm += 8;
-                    output5_tm += 8;
-                    output6_tm += 8;
-                    output7_tm += 8;
+                        "prfm   pldl1keep, [%8, #256]   \n"
+                        "ld1    {v8.4s, v9.4s}, [%8], #32   \n"
+
+                        "prfm   pldl1keep, [%9, #256]   \n"
+                        "ld1    {v0.4s, v1.4s}, [%9], #32   \n"
+
+                        "fmla   v16.4s, v8.4s, v0.s[0]  \n"
+                        "fmla   v17.4s, v9.4s, v0.s[0]  \n"
+                        "fmla   v18.4s, v8.4s, v0.s[1]  \n"
+                        "fmla   v19.4s, v9.4s, v0.s[1]  \n"
+                        "fmla   v20.4s, v8.4s, v0.s[2]  \n"
+                        "fmla   v21.4s, v9.4s, v0.s[2]  \n"
+                        "fmla   v22.4s, v8.4s, v0.s[3]  \n"
+                        "fmla   v23.4s, v9.4s, v0.s[3]  \n"
+
+                        "subs   w4, w4, #1              \n"
+
+                        "fmla   v24.4s, v8.4s, v1.s[0]  \n"
+                        "fmla   v25.4s, v9.4s, v1.s[0]  \n"
+                        "fmla   v26.4s, v8.4s, v1.s[1]  \n"
+                        "fmla   v27.4s, v9.4s, v1.s[1]  \n"
+                        "fmla   v28.4s, v8.4s, v1.s[2]  \n"
+                        "fmla   v29.4s, v9.4s, v1.s[2]  \n"
+                        "fmla   v30.4s, v8.4s, v1.s[3]  \n"
+                        "fmla   v31.4s, v9.4s, v1.s[3]  \n"
+
+                        "bne    2b                      \n"
+
+                        "3:                             \n"
+
+                        "st1    {v16.4s, v17.4s}, [%0], #32 \n"
+                        "st1    {v18.4s, v19.4s}, [%1], #32 \n"
+                        "st1    {v20.4s, v21.4s}, [%2], #32 \n"
+                        "st1    {v22.4s, v23.4s}, [%3], #32 \n"
+                        "st1    {v24.4s, v25.4s}, [%4], #32 \n"
+                        "st1    {v26.4s, v27.4s}, [%5], #32 \n"
+                        "st1    {v28.4s, v29.4s}, [%6], #32 \n"
+                        "st1    {v30.4s, v31.4s}, [%7], #32 \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(output4_tm), // %4
+                          "=r"(output5_tm), // %5
+                          "=r"(output6_tm), // %6
+                          "=r"(output7_tm), // %7
+                          "=r"(bb2p0),      // %8
+                          "=r"(ktm0)        // %9
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(output4_tm),
+                          "5"(output5_tm),
+                          "6"(output6_tm),
+                          "7"(output7_tm),
+                          "8"(bb2p0),
+                          "9"(ktm0),
+                          "r"(inch)         // %20
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+                    );
                 }
                 for (; i+3<tiles; i+=4)
                 {
@@ -9049,124 +9551,136 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
                     const float* ktm0 = kernel_tm0.row(r);
 
-                    float32x4_t _sum0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum2 = vdupq_n_f32(0.f);
-                    float32x4_t _sum3 = vdupq_n_f32(0.f);
-                    float32x4_t _sum4 = vdupq_n_f32(0.f);
-                    float32x4_t _sum5 = vdupq_n_f32(0.f);
-                    float32x4_t _sum6 = vdupq_n_f32(0.f);
-                    float32x4_t _sum7 = vdupq_n_f32(0.f);
+                    asm volatile(
+                        "eor    v16.16b, v16.16b, v16.16b  \n"
+                        "eor    v17.16b, v17.16b, v17.16b  \n"
+                        "eor    v18.16b, v18.16b, v18.16b  \n"
+                        "eor    v19.16b, v19.16b, v19.16b  \n"
+                        "eor    v20.16b, v20.16b, v20.16b  \n"
+                        "eor    v21.16b, v21.16b, v21.16b  \n"
+                        "eor    v22.16b, v22.16b, v22.16b  \n"
+                        "eor    v23.16b, v23.16b, v23.16b  \n"
 
-                    int q=0;
-                    for (; q+3<inch; q+=4)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0 + 0);
-                        float32x4_t _bb2p1 = vld1q_f32(bb2p0 + 4);
-                        bb2p0 += 8;
+                        // inch loop
+                        "lsr    w4, %w20, #2            \n"// w4 = nn = inch >> 2
+                        "cmp    w4, #0                  \n"
+                        "beq    1f                      \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
-                        float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
-                        float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
-                        float32x4_t _ktm3 = vld1q_f32(ktm0 + 12);
-                        ktm0 += 16;
+                        "0:                             \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm1, 0);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm2, 0);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm3, 0);
+                        "prfm   pldl1keep, [%8, #512]   \n"
+                        "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%8], #64 \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p1, _ktm1, 1);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p1, _ktm2, 1);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p1, _ktm3, 1);
+                        "prfm   pldl1keep, [%9, #512]   \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%9], #64   \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p2 = vld1q_f32(bb2p0 + 0);
-                        float32x4_t _bb2p3 = vld1q_f32(bb2p0 + 4);
-                        bb2p0 += 8;
+                        "fmla   v16.4s, v8.4s, v0.s[0]  \n"
+                        "fmla   v17.4s, v8.4s, v1.s[0]  \n"
+                        "fmla   v18.4s, v8.4s, v2.s[0]  \n"
+                        "fmla   v19.4s, v8.4s, v3.s[0]  \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p2, _ktm1, 2);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p2, _ktm2, 2);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p2, _ktm3, 2);
+                        "prfm   pldl1keep, [%9, #512]   \n"
+                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%9], #64   \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p3, _ktm1, 3);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p3, _ktm2, 3);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p3, _ktm3, 3);
+                        "fmla   v20.4s, v8.4s, v4.s[0]  \n"
+                        "fmla   v21.4s, v8.4s, v5.s[0]  \n"
+                        "fmla   v22.4s, v8.4s, v6.s[0]  \n"
+                        "fmla   v23.4s, v8.4s, v7.s[0]  \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm4 = vld1q_f32(ktm0 + 0);
-                        float32x4_t _ktm5 = vld1q_f32(ktm0 + 4);
-                        float32x4_t _ktm6 = vld1q_f32(ktm0 + 8);
-                        float32x4_t _ktm7 = vld1q_f32(ktm0 + 12);
-                        ktm0 += 16;
+                        "fmla   v16.4s, v9.4s, v0.s[1]  \n"
+                        "fmla   v17.4s, v9.4s, v1.s[1]  \n"
+                        "fmla   v18.4s, v9.4s, v2.s[1]  \n"
+                        "fmla   v19.4s, v9.4s, v3.s[1]  \n"
+                        "fmla   v20.4s, v9.4s, v4.s[1]  \n"
+                        "fmla   v21.4s, v9.4s, v5.s[1]  \n"
+                        "fmla   v22.4s, v9.4s, v6.s[1]  \n"
+                        "fmla   v23.4s, v9.4s, v7.s[1]  \n"
 
-                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p0, _ktm4, 0);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p0, _ktm5, 0);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p0, _ktm6, 0);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p0, _ktm7, 0);
+                        "fmla   v16.4s, v10.4s, v0.s[2] \n"
+                        "fmla   v17.4s, v10.4s, v1.s[2] \n"
+                        "fmla   v18.4s, v10.4s, v2.s[2] \n"
+                        "fmla   v19.4s, v10.4s, v3.s[2] \n"
+                        "fmla   v20.4s, v10.4s, v4.s[2] \n"
+                        "fmla   v21.4s, v10.4s, v5.s[2] \n"
+                        "fmla   v22.4s, v10.4s, v6.s[2] \n"
+                        "fmla   v23.4s, v10.4s, v7.s[2] \n"
 
-                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p1, _ktm4, 1);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p1, _ktm5, 1);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p1, _ktm6, 1);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p1, _ktm7, 1);
+                        "subs   w4, w4, #1              \n"
 
-                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p2, _ktm4, 2);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p2, _ktm5, 2);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p2, _ktm6, 2);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p2, _ktm7, 2);
+                        "fmla   v16.4s, v11.4s, v0.s[3] \n"
+                        "fmla   v17.4s, v11.4s, v1.s[3] \n"
+                        "fmla   v18.4s, v11.4s, v2.s[3] \n"
+                        "fmla   v19.4s, v11.4s, v3.s[3] \n"
+                        "fmla   v20.4s, v11.4s, v4.s[3] \n"
+                        "fmla   v21.4s, v11.4s, v5.s[3] \n"
+                        "fmla   v22.4s, v11.4s, v6.s[3] \n"
+                        "fmla   v23.4s, v11.4s, v7.s[3] \n"
 
-                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p3, _ktm4, 3);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p3, _ktm5, 3);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p3, _ktm6, 3);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p3, _ktm7, 3);
-                    }
-                    for (; q<inch; q++)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
-                        bb2p0 += 4;
+                        "bne    0b                      \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm0 = vld1q_f32(ktm0);
-                        ktm0 += 4;
+                        "1:                             \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm0, 1);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm0, 2);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm0, 3);
+                        // remain loop
+                        "and    w4, %w20, #3            \n"// w4 = remain = tiles & 3;
+                        "cmp    w4, #0                  \n"
+                        "beq    3f                      \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm1 = vld1q_f32(ktm0);
-                        ktm0 += 4;
+                        "2:                             \n"
 
-                        _sum4 = vmlaq_laneq_f32(_sum4, _bb2p0, _ktm1, 0);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _bb2p0, _ktm1, 1);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _bb2p0, _ktm1, 2);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _bb2p0, _ktm1, 3);
-                    }
+                        "prfm   pldl1keep, [%8, #128]   \n"
+                        "ld1    {v8.4s}, [%8], #16      \n"
 
-                    vst1q_f32(output0_tm, _sum0);
-                    vst1q_f32(output1_tm, _sum1);
-                    vst1q_f32(output2_tm, _sum2);
-                    vst1q_f32(output3_tm, _sum3);
-                    vst1q_f32(output4_tm, _sum4);
-                    vst1q_f32(output5_tm, _sum5);
-                    vst1q_f32(output6_tm, _sum6);
-                    vst1q_f32(output7_tm, _sum7);
+                        "prfm   pldl1keep, [%9, #256]   \n"
+                        "ld1    {v0.4s, v1.4s}, [%9], #32   \n"
 
-                    output0_tm += 4;
-                    output1_tm += 4;
-                    output2_tm += 4;
-                    output3_tm += 4;
-                    output4_tm += 4;
-                    output5_tm += 4;
-                    output6_tm += 4;
-                    output7_tm += 4;
+                        "fmla   v16.4s, v8.4s, v0.s[0]  \n"
+                        "fmla   v17.4s, v8.4s, v0.s[1]  \n"
+                        "fmla   v18.4s, v8.4s, v0.s[2]  \n"
+                        "fmla   v19.4s, v8.4s, v0.s[3]  \n"
+
+                        "subs   w4, w4, #1              \n"
+
+                        "fmla   v20.4s, v8.4s, v1.s[0]  \n"
+                        "fmla   v21.4s, v8.4s, v1.s[1]  \n"
+                        "fmla   v22.4s, v8.4s, v1.s[2]  \n"
+                        "fmla   v23.4s, v8.4s, v1.s[3]  \n"
+
+                        "bne    2b                      \n"
+
+                        "3:                             \n"
+
+                        "st1    {v16.4s}, [%0], #16     \n"
+                        "st1    {v17.4s}, [%1], #16     \n"
+                        "st1    {v18.4s}, [%2], #16     \n"
+                        "st1    {v19.4s}, [%3], #16     \n"
+                        "st1    {v20.4s}, [%4], #16     \n"
+                        "st1    {v21.4s}, [%5], #16     \n"
+                        "st1    {v22.4s}, [%6], #16     \n"
+                        "st1    {v23.4s}, [%7], #16     \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(output4_tm), // %4
+                          "=r"(output5_tm), // %5
+                          "=r"(output6_tm), // %6
+                          "=r"(output7_tm), // %7
+                          "=r"(bb2p0),      // %8
+                          "=r"(ktm0)        // %9
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(output4_tm),
+                          "5"(output5_tm),
+                          "6"(output6_tm),
+                          "7"(output7_tm),
+                          "8"(bb2p0),
+                          "9"(ktm0),
+                          "r"(inch)         // %20
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
+                    );
                 }
                 for (; i<tiles; i++)
                 {
@@ -9186,11 +9700,11 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     int q=0;
                     for (; q+3<inch; q+=4)
                     {
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
+//                         asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
                         float32x4_t _bb2p0 = vld1q_f32(bb2p0);
                         bb2p0 += 4;
 
-                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+//                         asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
                         float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
                         float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
                         float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
@@ -9202,7 +9716,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         _sum2 = vmlaq_f32(_sum2, _bb2p0, _ktm2);
                         _sum3 = vmlaq_f32(_sum3, _bb2p0, _ktm3);
 
-                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+//                         asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
                         float32x4_t _ktm4 = vld1q_f32(ktm0 + 0);
                         float32x4_t _ktm5 = vld1q_f32(ktm0 + 4);
                         float32x4_t _ktm6 = vld1q_f32(ktm0 + 8);
@@ -9215,6 +9729,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         _sum7 = vmlaq_f32(_sum7, _bb2p0, _ktm7);
                     }
 
+                    // TODO transpose and acc
                     float sum0 = vaddvq_f32(_sum0);
                     float sum1 = vaddvq_f32(_sum1);
                     float sum2 = vaddvq_f32(_sum2);
@@ -9259,11 +9774,20 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                 }
             }
         }
+#endif // __aarch64__
 
-        int p = outch/8*8;
-        for (; p+3<outch; p+=4)
+        nn_outch = (outch - remain_outch_start) >> 2;
+
+        #pragma omp parallel for
+        for (int pp=0; pp<nn_outch; pp++)
         {
+            int p = remain_outch_start + pp * 4;
+
+#if __aarch64__
             const Mat kernel_tm0 = kernel_tm.channel(p/8+(p%8)/4);
+#else
+            const Mat kernel_tm0 = kernel_tm.channel(p/4);
+#endif
 
             Mat out0_tm = top_blob_tm.channel(p);
             Mat out1_tm = top_blob_tm.channel(p+1);
@@ -9286,193 +9810,430 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     const float* bb2p0 = bb2.row(i/8);
 
                     const float* ktm0 = kernel_tm0.row(r);
+#if __aarch64__
+                    asm volatile(
+                        "eor    v8.16b, v8.16b, v8.16b     \n"
+                        "eor    v9.16b, v9.16b, v9.16b     \n"
+                        "eor    v10.16b, v10.16b, v10.16b  \n"
+                        "eor    v11.16b, v11.16b, v11.16b  \n"
+                        "eor    v12.16b, v12.16b, v12.16b  \n"
+                        "eor    v13.16b, v13.16b, v13.16b  \n"
+                        "eor    v14.16b, v14.16b, v14.16b  \n"
+                        "eor    v15.16b, v15.16b, v15.16b  \n"
 
-                    float32x4_t _sum0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum0n = vdupq_n_f32(0.f);
-                    float32x4_t _sum1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1n = vdupq_n_f32(0.f);
-                    float32x4_t _sum2 = vdupq_n_f32(0.f);
-                    float32x4_t _sum2n = vdupq_n_f32(0.f);
-                    float32x4_t _sum3 = vdupq_n_f32(0.f);
-                    float32x4_t _sum3n = vdupq_n_f32(0.f);
+                        // inch loop
+                        "lsr    w4, %w12, #2            \n"// w4 = nn = inch >> 2
+                        "cmp    w4, #0                  \n"
+                        "beq    1f                      \n"
 
-                    int q=0;
-                    for (; q+3<inch; q+=4)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "0:                             \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
-                        float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
-                        float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
-                        float32x4_t _ktm3 = vld1q_f32(ktm0 + 12);
-                        ktm0 += 16;
+                        "prfm   pldl1keep, [%4, #512]   \n"
+                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%4], #64     \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p0n, _ktm0, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm1, 0);
-                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p0n, _ktm1, 0);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm2, 0);
-                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p0n, _ktm2, 0);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm3, 0);
-                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p0n, _ktm3, 0);
+                        "prfm   pldl1keep, [%5, #512]   \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%5], #64     \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p1 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p1n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "fmla   v8.4s, v4.4s, v0.s[0]   \n"
+                        "fmla   v9.4s, v5.4s, v0.s[0]   \n"
+                        "fmla   v10.4s, v4.4s, v1.s[0]  \n"
+                        "fmla   v11.4s, v5.4s, v1.s[0]  \n"
+                        "fmla   v12.4s, v4.4s, v2.s[0]  \n"
+                        "fmla   v13.4s, v5.4s, v2.s[0]  \n"
+                        "fmla   v14.4s, v4.4s, v3.s[0]  \n"
+                        "fmla   v15.4s, v5.4s, v3.s[0]  \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p1n, _ktm0, 1);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p1, _ktm1, 1);
-                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p1n, _ktm1, 1);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p1, _ktm2, 1);
-                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p1n, _ktm2, 1);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p1, _ktm3, 1);
-                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p1n, _ktm3, 1);
+                        "fmla   v8.4s, v6.4s, v0.s[1]   \n"
+                        "fmla   v9.4s, v7.4s, v0.s[1]   \n"
+                        "fmla   v10.4s, v6.4s, v1.s[1]  \n"
+                        "fmla   v11.4s, v7.4s, v1.s[1]  \n"
+                        "fmla   v12.4s, v6.4s, v2.s[1]  \n"
+                        "fmla   v13.4s, v7.4s, v2.s[1]  \n"
+                        "fmla   v14.4s, v6.4s, v3.s[1]  \n"
+                        "fmla   v15.4s, v7.4s, v3.s[1]  \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p2 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p2n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "prfm   pldl1keep, [%4, #512]   \n"
+                        "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%4], #64 \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p2n, _ktm0, 2);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p2, _ktm1, 2);
-                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p2n, _ktm1, 2);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p2, _ktm2, 2);
-                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p2n, _ktm2, 2);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p2, _ktm3, 2);
-                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p2n, _ktm3, 2);
+                        "fmla   v8.4s, v16.4s, v0.s[2]  \n"
+                        "fmla   v9.4s, v17.4s, v0.s[2]  \n"
+                        "fmla   v10.4s, v16.4s, v1.s[2] \n"
+                        "fmla   v11.4s, v17.4s, v1.s[2] \n"
+                        "fmla   v12.4s, v16.4s, v2.s[2] \n"
+                        "fmla   v13.4s, v17.4s, v2.s[2] \n"
+                        "fmla   v14.4s, v16.4s, v3.s[2] \n"
+                        "fmla   v15.4s, v17.4s, v3.s[2] \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p3 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p3n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "fmla   v8.4s, v18.4s, v0.s[3]  \n"
+                        "fmla   v9.4s, v19.4s, v0.s[3]  \n"
+                        "fmla   v10.4s, v18.4s, v1.s[3] \n"
+                        "fmla   v11.4s, v19.4s, v1.s[3] \n"
+                        "fmla   v12.4s, v18.4s, v2.s[3] \n"
+                        "fmla   v13.4s, v19.4s, v2.s[3] \n"
+                        "fmla   v14.4s, v18.4s, v3.s[3] \n"
+                        "fmla   v15.4s, v19.4s, v3.s[3] \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p3n, _ktm0, 3);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p3, _ktm1, 3);
-                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p3n, _ktm1, 3);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p3, _ktm2, 3);
-                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p3n, _ktm2, 3);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p3, _ktm3, 3);
-                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p3n, _ktm3, 3);
-                    }
-                    for (; q<inch; q++)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "subs   w4, w4, #1              \n"
+                        "bne    0b                      \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm0 = vld1q_f32(ktm0);
-                        ktm0 += 4;
+                        "1:                             \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p0n, _ktm0, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm0, 1);
-                        _sum1n = vmlaq_laneq_f32(_sum1n, _bb2p0n, _ktm0, 1);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm0, 2);
-                        _sum2n = vmlaq_laneq_f32(_sum2n, _bb2p0n, _ktm0, 2);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm0, 3);
-                        _sum3n = vmlaq_laneq_f32(_sum3n, _bb2p0n, _ktm0, 3);
-                    }
+                        // remain loop
+                        "and    w4, %w12, #3            \n"// w4 = remain = tiles & 3;
+                        "cmp    w4, #0                  \n"
+                        "beq    3f                      \n"
 
-                    vst1q_f32(output0_tm, _sum0);
-                    vst1q_f32(output0_tm+4, _sum0n);
-                    vst1q_f32(output1_tm, _sum1);
-                    vst1q_f32(output1_tm+4, _sum1n);
-                    vst1q_f32(output2_tm, _sum2);
-                    vst1q_f32(output2_tm+4, _sum2n);
-                    vst1q_f32(output3_tm, _sum3);
-                    vst1q_f32(output3_tm+4, _sum3n);
+                        "2:                             \n"
 
-                    output0_tm += 8;
-                    output1_tm += 8;
-                    output2_tm += 8;
-                    output3_tm += 8;
+                        "prfm   pldl1keep, [%4, #256]   \n"
+                        "ld1    {v4.4s, v5.4s}, [%4], #32      \n"
+
+                        "prfm   pldl1keep, [%5, #128]   \n"
+                        "ld1    {v0.4s}, [%5], #16      \n"
+
+                        "fmla   v8.4s, v4.4s, v0.s[0]   \n"
+                        "fmla   v9.4s, v5.4s, v0.s[0]   \n"
+                        "fmla   v10.4s, v4.4s, v0.s[1]  \n"
+                        "fmla   v11.4s, v5.4s, v0.s[1]  \n"
+                        "fmla   v12.4s, v4.4s, v0.s[2]  \n"
+                        "fmla   v13.4s, v5.4s, v0.s[2]  \n"
+                        "fmla   v14.4s, v4.4s, v0.s[3]  \n"
+                        "fmla   v15.4s, v5.4s, v0.s[3]  \n"
+
+                        "subs   w4, w4, #1              \n"
+                        "bne    2b                      \n"
+
+                        "3:                             \n"
+
+                        "st1    {v8.4s, v9.4s}, [%0], #32       \n"
+                        "st1    {v10.4s, v11.4s}, [%1], #32     \n"
+                        "st1    {v12.4s, v13.4s}, [%2], #32     \n"
+                        "st1    {v14.4s, v15.4s}, [%3], #32     \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(bb2p0),      // %4
+                          "=r"(ktm0)        // %5
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(bb2p0),
+                          "5"(ktm0),
+                          "r"(inch)         // %12
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19"
+                    );
+#else // __aarch64__
+                    asm volatile(
+                        "veor       q8, q8, q8      \n"
+                        "veor       q9, q9, q9      \n"
+                        "veor       q10, q10, q10   \n"
+                        "veor       q11, q11, q11   \n"
+                        "veor       q12, q12, q12   \n"
+                        "veor       q13, q13, q13   \n"
+                        "veor       q14, q14, q14   \n"
+                        "veor       q15, q15, q15   \n"
+
+                        // inch loop
+                        "lsr        r4, %12, #2     \n"// r4 = nn = inch >> 2
+                        "cmp        r4, #0          \n"
+                        "beq        1f              \n"
+
+                        "0:                         \n"
+
+                        "pld        [%4, #512]      \n"
+//                         "vldm       %4!, {d8-d15}   \n"
+                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
+                        "vld1.f32   {d12-d15}, [%4 :128]! \n"
+
+                        "pld        [%5, #512]      \n"
+//                         "vldm       %5!, {d0-d7}    \n"
+                        "vld1.f32   {d0-d3}, [%5 :128]!  \n"
+                        "vld1.f32   {d4-d7}, [%5 :128]!  \n"
+
+                        "vmla.f32   q8, q4, d0[0]   \n"
+                        "vmla.f32   q9, q5, d0[0]   \n"
+                        "vmla.f32   q10, q4, d2[0]  \n"
+                        "vmla.f32   q11, q5, d2[0]  \n"
+                        "vmla.f32   q12, q4, d4[0]  \n"
+                        "vmla.f32   q13, q5, d4[0]  \n"
+                        "vmla.f32   q14, q4, d6[0]  \n"
+                        "vmla.f32   q15, q5, d6[0]  \n"
+
+                        "vmla.f32   q8, q6, d0[1]   \n"
+                        "vmla.f32   q9, q7, d0[1]   \n"
+                        "vmla.f32   q10, q6, d2[1]  \n"
+                        "vmla.f32   q11, q7, d2[1]  \n"
+                        "vmla.f32   q12, q6, d4[1]  \n"
+                        "vmla.f32   q13, q7, d4[1]  \n"
+                        "vmla.f32   q14, q6, d6[1]  \n"
+                        "vmla.f32   q15, q7, d6[1]  \n"
+
+                        "pld        [%4, #512]      \n"
+//                         "vldm       %4!, {d8-d15}   \n"
+                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
+                        "vld1.f32   {d12-d15}, [%4 :128]! \n"
+
+                        "vmla.f32   q8, q4, d1[0]   \n"
+                        "vmla.f32   q9, q5, d1[0]   \n"
+                        "vmla.f32   q10, q4, d3[0]  \n"
+                        "vmla.f32   q11, q5, d3[0]  \n"
+                        "vmla.f32   q12, q4, d5[0]  \n"
+                        "vmla.f32   q13, q5, d5[0]  \n"
+                        "vmla.f32   q14, q4, d7[0]  \n"
+                        "vmla.f32   q15, q5, d7[0]  \n"
+
+                        "vmla.f32   q8, q6, d1[1]   \n"
+                        "vmla.f32   q9, q7, d1[1]   \n"
+                        "vmla.f32   q10, q6, d3[1]  \n"
+                        "vmla.f32   q11, q7, d3[1]  \n"
+                        "vmla.f32   q12, q6, d5[1]  \n"
+                        "vmla.f32   q13, q7, d5[1]  \n"
+                        "vmla.f32   q14, q6, d7[1]  \n"
+                        "vmla.f32   q15, q7, d7[1]  \n"
+
+                        "subs       r4, r4, #1      \n"
+                        "bne        0b              \n"
+
+                        "1:                         \n"
+
+                        // remain loop
+                        "and        r4, %12, #3     \n"// r4 = remain = tiles & 3;
+                        "cmp        r4, #0          \n"
+                        "beq        3f              \n"
+
+                        "2:                         \n"
+
+                        "pld        [%4, #256]      \n"
+                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
+
+                        "pld        [%5, #128]      \n"
+                        "vld1.f32   {d0-d1}, [%5 :128]!  \n"
+
+                        "vmla.f32   q8, q4, d0[0]   \n"
+                        "vmla.f32   q9, q5, d0[0]   \n"
+                        "vmla.f32   q10, q4, d0[1]  \n"
+                        "vmla.f32   q11, q5, d0[1]  \n"
+                        "vmla.f32   q12, q4, d1[0]  \n"
+                        "vmla.f32   q13, q5, d1[0]  \n"
+                        "vmla.f32   q14, q4, d1[1]  \n"
+                        "vmla.f32   q15, q5, d1[1]  \n"
+
+                        "subs       r4, r4, #1      \n"
+                        "bne        2b              \n"
+
+                        "3:                         \n"
+
+                        "vst1.f32   {d16-d19}, [%0]! \n"
+                        "vst1.f32   {d20-d23}, [%1]! \n"
+                        "vst1.f32   {d24-d27}, [%2]! \n"
+                        "vst1.f32   {d28-d31}, [%3]! \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(bb2p0),      // %4
+                          "=r"(ktm0)        // %5
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(bb2p0),
+                          "5"(ktm0),
+                          "r"(inch)         // %12
+                        : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
+#endif // __aarch64__
                 }
                 for (; i+3<tiles; i+=4)
                 {
                     const float* bb2p0 = bb2.row(i/8+(i%8)/4);
 
                     const float* ktm0 = kernel_tm0.row(r);
+#if __aarch64__
+                    asm volatile(
+                        "eor    v8.16b, v8.16b, v8.16b     \n"
+                        "eor    v9.16b, v9.16b, v9.16b     \n"
+                        "eor    v10.16b, v10.16b, v10.16b  \n"
+                        "eor    v11.16b, v11.16b, v11.16b  \n"
 
-                    float32x4_t _sum0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum2 = vdupq_n_f32(0.f);
-                    float32x4_t _sum3 = vdupq_n_f32(0.f);
+                        // inch loop
+                        "lsr    w4, %w12, #2            \n"// w4 = nn = inch >> 2
+                        "cmp    w4, #0                  \n"
+                        "beq    1f                      \n"
 
-                    int q=0;
-                    for (; q+3<inch; q+=4)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0 + 0);
-                        float32x4_t _bb2p1 = vld1q_f32(bb2p0 + 4);
-                        bb2p0 += 8;
+                        "0:                             \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
-                        float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
-                        float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
-                        float32x4_t _ktm3 = vld1q_f32(ktm0 + 12);
-                        ktm0 += 16;
+                        "prfm   pldl1keep, [%4, #512]   \n"
+                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%4], #64     \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm1, 0);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm2, 0);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm3, 0);
+                        "prfm   pldl1keep, [%5, #512]   \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%5], #64     \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p1, _ktm1, 1);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p1, _ktm2, 1);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p1, _ktm3, 1);
+                        "fmla   v8.4s, v4.4s, v0.s[0]   \n"
+                        "fmla   v9.4s, v4.4s, v1.s[0]   \n"
+                        "fmla   v10.4s, v4.4s, v2.s[0]  \n"
+                        "fmla   v11.4s, v4.4s, v3.s[0]  \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p2 = vld1q_f32(bb2p0 + 0);
-                        float32x4_t _bb2p3 = vld1q_f32(bb2p0 + 4);
-                        bb2p0 += 8;
+                        "fmla   v8.4s, v5.4s, v0.s[1]   \n"
+                        "fmla   v9.4s, v5.4s, v1.s[1]   \n"
+                        "fmla   v10.4s, v5.4s, v2.s[1]  \n"
+                        "fmla   v11.4s, v5.4s, v3.s[1]  \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p2, _ktm1, 2);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p2, _ktm2, 2);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p2, _ktm3, 2);
+                        "fmla   v8.4s, v6.4s, v0.s[2]   \n"
+                        "fmla   v9.4s, v6.4s, v1.s[2]   \n"
+                        "fmla   v10.4s, v6.4s, v2.s[2]  \n"
+                        "fmla   v11.4s, v6.4s, v3.s[2]  \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p3, _ktm1, 3);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p3, _ktm2, 3);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p3, _ktm3, 3);
-                    }
-                    for (; q<inch; q++)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
-                        bb2p0 += 4;
+                        "fmla   v8.4s, v7.4s, v0.s[3]   \n"
+                        "fmla   v9.4s, v7.4s, v1.s[3]   \n"
+                        "fmla   v10.4s, v7.4s, v2.s[3]  \n"
+                        "fmla   v11.4s, v7.4s, v3.s[3]  \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm0 = vld1q_f32(ktm0);
-                        ktm0 += 4;
+                        "subs   w4, w4, #1              \n"
+                        "bne    0b                      \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _bb2p0, _ktm0, 1);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _bb2p0, _ktm0, 2);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _bb2p0, _ktm0, 3);
-                    }
+                        "1:                             \n"
 
-                    vst1q_f32(output0_tm, _sum0);
-                    vst1q_f32(output1_tm, _sum1);
-                    vst1q_f32(output2_tm, _sum2);
-                    vst1q_f32(output3_tm, _sum3);
+                        // remain loop
+                        "and    w4, %w12, #3            \n"// w4 = remain = tiles & 3;
+                        "cmp    w4, #0                  \n"
+                        "beq    3f                      \n"
 
-                    output0_tm += 4;
-                    output1_tm += 4;
-                    output2_tm += 4;
-                    output3_tm += 4;
+                        "2:                             \n"
+
+                        "prfm   pldl1keep, [%4, #128]   \n"
+                        "ld1    {v4.4s}, [%4], #16      \n"
+
+                        "prfm   pldl1keep, [%5, #128]   \n"
+                        "ld1    {v0.4s}, [%5], #16      \n"
+
+                        "fmla   v8.4s, v4.4s, v0.s[0]   \n"
+                        "fmla   v9.4s, v4.4s, v0.s[1]   \n"
+                        "fmla   v10.4s, v4.4s, v0.s[2]  \n"
+                        "fmla   v11.4s, v4.4s, v0.s[3]  \n"
+
+                        "subs   w4, w4, #1              \n"
+                        "bne    2b                      \n"
+
+                        "3:                             \n"
+
+                        "st1    {v8.4s}, [%0], #16      \n"
+                        "st1    {v9.4s}, [%1], #16      \n"
+                        "st1    {v10.4s}, [%2], #16     \n"
+                        "st1    {v11.4s}, [%3], #16     \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(bb2p0),      // %4
+                          "=r"(ktm0)        // %5
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(bb2p0),
+                          "5"(ktm0),
+                          "r"(inch)         // %12
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
+                    );
+#else // __aarch64__
+                    asm volatile(
+                        "veor       q8, q8, q8      \n"
+                        "veor       q9, q9, q9      \n"
+                        "veor       q10, q10, q10   \n"
+                        "veor       q11, q11, q11   \n"
+
+                        // inch loop
+                        "lsr        r4, %12, #2     \n"// r4 = nn = inch >> 2
+                        "cmp        r4, #0          \n"
+                        "beq        1f              \n"
+
+                        "0:                         \n"
+
+                        "pld        [%4, #512]      \n"
+//                         "vldm       %4!, {d8-d15}   \n"
+                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
+                        "vld1.f32   {d12-d15}, [%4 :128]! \n"
+
+                        "pld        [%5, #512]      \n"
+//                         "vldm       %5!, {d0-d7}    \n"
+                        "vld1.f32   {d0-d3}, [%5 :128]!  \n"
+                        "vld1.f32   {d4-d7}, [%5 :128]!  \n"
+
+                        "vmla.f32   q8, q4, d0[0]   \n"
+                        "vmla.f32   q9, q4, d2[0]   \n"
+                        "vmla.f32   q10, q4, d4[0]  \n"
+                        "vmla.f32   q11, q4, d6[0]  \n"
+
+                        "vmla.f32   q8, q5, d0[1]   \n"
+                        "vmla.f32   q9, q5, d2[1]   \n"
+                        "vmla.f32   q10, q5, d4[1]  \n"
+                        "vmla.f32   q11, q5, d6[1]  \n"
+
+                        "vmla.f32   q8, q6, d1[0]   \n"
+                        "vmla.f32   q9, q6, d3[0]   \n"
+                        "vmla.f32   q10, q6, d5[0]  \n"
+                        "vmla.f32   q11, q6, d7[0]  \n"
+
+                        "vmla.f32   q8, q7, d1[1]   \n"
+                        "vmla.f32   q9, q7, d3[1]   \n"
+                        "vmla.f32   q10, q7, d5[1]  \n"
+                        "vmla.f32   q11, q7, d7[1]  \n"
+
+                        "subs       r4, r4, #1      \n"
+                        "bne        0b              \n"
+
+                        "1:                         \n"
+
+                        // remain loop
+                        "and        r4, %12, #3     \n"// r4 = remain = tiles & 3;
+                        "cmp        r4, #0          \n"
+                        "beq        3f              \n"
+
+                        "2:                         \n"
+
+                        "pld        [%4, #128]      \n"
+                        "vld1.f32   {d8-d9}, [%4 :128]!  \n"
+
+                        "pld        [%5, #128]      \n"
+                        "vld1.f32   {d0-d1}, [%5 :128]!  \n"
+
+                        "vmla.f32   q8, q4, d0[0]   \n"
+                        "vmla.f32   q9, q4, d0[1]   \n"
+                        "vmla.f32   q10, q4, d1[0]  \n"
+                        "vmla.f32   q11, q4, d1[1]  \n"
+
+                        "subs       r4, r4, #1      \n"
+                        "bne        2b              \n"
+
+                        "3:                         \n"
+
+                        "vst1.f32   {d16-d17}, [%0]! \n"
+                        "vst1.f32   {d18-d19}, [%1]! \n"
+                        "vst1.f32   {d20-d21}, [%2]! \n"
+                        "vst1.f32   {d22-d23}, [%3]! \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(bb2p0),      // %4
+                          "=r"(ktm0)        // %5
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(bb2p0),
+                          "5"(ktm0),
+                          "r"(inch)         // %12
+                        : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11"
+                    );
+#endif // __aarch64__
                 }
                 for (; i<tiles; i++)
                 {
@@ -9488,11 +10249,11 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     int q=0;
                     for (; q+3<inch; q+=4)
                     {
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
+//                         asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
                         float32x4_t _bb2p0 = vld1q_f32(bb2p0);
                         bb2p0 += 4;
 
-                        asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
+//                         asm volatile("prfm pldl1keep, [%0, #512] \n" : :"r"(ktm0) :);
                         float32x4_t _ktm0 = vld1q_f32(ktm0 + 0);
                         float32x4_t _ktm1 = vld1q_f32(ktm0 + 4);
                         float32x4_t _ktm2 = vld1q_f32(ktm0 + 8);
@@ -9505,6 +10266,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         _sum3 = vmlaq_f32(_sum3, _bb2p0, _ktm3);
                     }
 
+                    // TODO transpose and acc
                     float sum0 = vaddvq_f32(_sum0);
                     float sum1 = vaddvq_f32(_sum1);
                     float sum2 = vaddvq_f32(_sum2);
@@ -9533,9 +10295,16 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                 }
             }
         }
-        for (; p<outch; p++)
+
+        remain_outch_start += nn_outch << 2;
+
+        for (int p=remain_outch_start; p<outch; p++)
         {
+#if __aarch64__
             const Mat kernel_tm0 = kernel_tm.channel(p/8+(p%8)/4+p%4);
+#else
+            const Mat kernel_tm0 = kernel_tm.channel(p/4+p%4);
+#endif
 
             Mat out0_tm = top_blob_tm.channel(p);
 
@@ -9552,114 +10321,272 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     const float* bb2p0 = bb2.row(i/8);
 
                     const float* ktm0 = kernel_tm0.row(r);
+#if __aarch64__
+                    asm volatile(
+                        "eor    v8.16b, v8.16b, v8.16b     \n"
+                        "eor    v9.16b, v9.16b, v9.16b     \n"
 
-                    float32x4_t _sum0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum0n = vdupq_n_f32(0.f);
+                        // inch loop
+                        "lsr    w4, %w6, #2             \n"// w4 = nn = inch >> 2
+                        "cmp    w4, #0                  \n"
+                        "beq    1f                      \n"
 
-                    int q=0;
-                    for (; q+3<inch; q+=4)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "0:                             \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm0 = vld1q_f32(ktm0);
-                        ktm0 += 4;
+                        "prfm   pldl1keep, [%4, #512]   \n"
+                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%4], #64     \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p0n, _ktm0, 0);
+                        "prfm   pldl1keep, [%5, #128]   \n"
+                        "ld1    {v0.4s}, [%5], #16      \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p1 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p1n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "fmla   v8.4s, v4.4s, v0.s[0]   \n"
+                        "fmla   v9.4s, v5.4s, v0.s[0]   \n"
+                        "fmla   v8.4s, v6.4s, v0.s[1]   \n"
+                        "fmla   v9.4s, v7.4s, v0.s[1]   \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p1n, _ktm0, 1);
+                        "prfm   pldl1keep, [%4, #512]   \n"
+                        "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%4], #64 \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p2 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p2n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "fmla   v8.4s, v12.4s, v0.s[2]  \n"
+                        "fmla   v9.4s, v13.4s, v0.s[2]  \n"
+                        "fmla   v8.4s, v14.4s, v0.s[3]  \n"
+                        "fmla   v9.4s, v15.4s, v0.s[3]  \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p2n, _ktm0, 2);
+                        "subs   w4, w4, #1              \n"
+                        "bne    0b                      \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p3 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p3n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        "1:                             \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
-                        _sum0n = vmlaq_laneq_f32(_sum0n, _bb2p3n, _ktm0, 3);
-                    }
-                    for (; q<inch; q++)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
-                        float32x4_t _bb2p0n = vld1q_f32(bb2p0+4);
-                        bb2p0 += 8;
+                        // remain loop
+                        "and    w4, %w6, #3             \n"// w4 = remain = tiles & 3;
+                        "cmp    w4, #0                  \n"
+                        "beq    3f                      \n"
 
-                        float32x4_t _ktm0 = vdupq_n_f32(ktm0[0]);
-                        ktm0 += 1;
+                        "2:                             \n"
 
-                        _sum0 = vmlaq_f32(_sum0, _bb2p0, _ktm0);
-                        _sum0n = vmlaq_f32(_sum0n, _bb2p0n, _ktm0);
-                    }
+                        "prfm   pldl1keep, [%4, #256]   \n"
+                        "ld1    {v4.4s, v5.4s}, [%4], #32      \n"
 
-                    vst1q_f32(output0_tm, _sum0);
-                    vst1q_f32(output0_tm+4, _sum0n);
+                        "prfm   pldl1keep, [%5, #32]    \n"
+                        "ld1r   {v0.4s}, [%5], #4       \n"
 
-                    output0_tm += 8;
+                        "fmla   v8.4s, v4.4s, v0.4s     \n"
+                        "fmla   v9.4s, v5.4s, v0.4s     \n"
+
+                        "subs   w4, w4, #1              \n"
+                        "bne    2b                      \n"
+
+                        "3:                             \n"
+
+                        "st1    {v8.4s, v9.4s}, [%0], #32       \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(bb2p0),      // %1
+                          "=r"(ktm0)        // %2
+                        : "0"(output0_tm),
+                          "1"(bb2p0),
+                          "2"(ktm0),
+                          "r"(inch)         // %6
+                        : "cc", "memory", "x4", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v12", "v13", "v14", "v15"
+                    );
+#else // __aarch64__
+                    asm volatile(
+                        "veor       q8, q8, q8          \n"
+                        "veor       q9, q9, q9          \n"
+
+                        // inch loop
+                        "lsr        r4, %6, #2          \n"// r4 = nn = inch >> 2
+                        "cmp        r4, #0              \n"
+                        "beq        1f                  \n"
+
+                        "0:                             \n"
+
+                        "pld        [%4, #512]          \n"
+//                         "vldm       %4!, {d8-d15}       \n"
+                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
+                        "vld1.f32   {d12-d15}, [%4 :128]! \n"
+
+                        "pld        [%5, #128]          \n"
+                        "vld1.f32   {d0-d1}, [%5 :128]! \n"
+
+                        "vmla.f32   q8, q4, d0[0]       \n"
+                        "vmla.f32   q9, q5, d0[0]       \n"
+                        "vmla.f32   q8, q6, d0[1]       \n"
+                        "vmla.f32   q9, q7, d0[1]       \n"
+
+                        "pld        [%4, #512]          \n"
+//                         "vldm       %4!, {d24-d31}      \n"
+                        "vld1.f32   {d24-d27}, [%4 :128]! \n"
+                        "vld1.f32   {d28-d31}, [%4 :128]! \n"
+
+                        "vmla.f32   q8, q12, d1[0]      \n"
+                        "vmla.f32   q9, q13, d1[0]      \n"
+                        "vmla.f32   q8, q14, d1[1]      \n"
+                        "vmla.f32   q9, q15, d1[1]      \n"
+
+                        "subs       r4, r4, #1          \n"
+                        "bne        0b                  \n"
+
+                        "1:                             \n"
+
+                        // remain loop
+                        "and        r4, %6, #3          \n"// r4 = remain = tiles & 3;
+                        "cmp        r4, #0              \n"
+                        "beq        3f                  \n"
+
+                        "2:                             \n"
+
+                        "pld        [%4, #256]          \n"
+                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
+
+                        "pld        [%5, #32]           \n"
+                        "vld1.f32   {d0[],d1[]}, [%5]!  \n"
+
+                        "vmla.f32   q8, q4, q0          \n"
+                        "vmla.f32   q9, q5, q0          \n"
+
+                        "subs       r4, r4, #1          \n"
+                        "bne        2b                  \n"
+
+                        "3:                             \n"
+
+                        "vst1.f32   {d16-d19}, [%0]!    \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(bb2p0),      // %1
+                          "=r"(ktm0)        // %2
+                        : "0"(output0_tm),
+                          "1"(bb2p0),
+                          "2"(ktm0),
+                          "r"(inch)         // %6
+                        : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q12", "q13", "q14", "q15"
+                    );
+#endif // __aarch64__
                 }
                 for (; i+3<tiles; i+=4)
                 {
                     const float* bb2p0 = bb2.row(i/8+(i%8)/4);
 
                     const float* ktm0 = kernel_tm0.row(r);
+#if __aarch64__
+                    asm volatile(
+                        "eor    v8.16b, v8.16b, v8.16b     \n"
 
-                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                        // inch loop
+                        "lsr    w4, %w6, #2             \n"// w4 = nn = inch >> 2
+                        "cmp    w4, #0                  \n"
+                        "beq    1f                      \n"
 
-                    int q=0;
-                    for (; q+3<inch; q+=4)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0 + 0);
-                        float32x4_t _bb2p1 = vld1q_f32(bb2p0 + 4);
-                        bb2p0 += 8;
+                        "0:                             \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(ktm0) :);
-                        float32x4_t _ktm0 = vld1q_f32(ktm0);
-                        ktm0 += 4;
+                        "prfm   pldl1keep, [%4, #512]   \n"
+                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%4], #64     \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p0, _ktm0, 0);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p1, _ktm0, 1);
+                        "prfm   pldl1keep, [%5, #128]   \n"
+                        "ld1    {v0.4s}, [%5], #16      \n"
 
-                        asm volatile("prfm pldl1keep, [%0, #256] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p2 = vld1q_f32(bb2p0 + 0);
-                        float32x4_t _bb2p3 = vld1q_f32(bb2p0 + 4);
-                        bb2p0 += 8;
+                        "fmla   v8.4s, v4.4s, v0.s[0]   \n"
+                        "fmla   v8.4s, v5.4s, v0.s[1]   \n"
+                        "fmla   v8.4s, v6.4s, v0.s[2]   \n"
+                        "fmla   v8.4s, v7.4s, v0.s[3]   \n"
 
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p2, _ktm0, 2);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _bb2p3, _ktm0, 3);
-                    }
-                    for (; q<inch; q++)
-                    {
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
-                        float32x4_t _bb2p0 = vld1q_f32(bb2p0);
-                        bb2p0 += 4;
+                        "subs   w4, w4, #1              \n"
+                        "bne    0b                      \n"
 
-                        float32x4_t _ktm0 = vdupq_n_f32(ktm0[0]);
-                        ktm0 += 1;
+                        "1:                             \n"
 
-                        _sum0 = vmlaq_f32(_sum0, _bb2p0, _ktm0);
-                    }
+                        // remain loop
+                        "and    w4, %w6, #3             \n"// w4 = remain = tiles & 3;
+                        "cmp    w4, #0                  \n"
+                        "beq    3f                      \n"
 
-                    vst1q_f32(output0_tm, _sum0);
+                        "2:                             \n"
 
-                    output0_tm += 4;
+                        "prfm   pldl1keep, [%4, #128]   \n"
+                        "ld1    {v4.4s}, [%4], #16      \n"
+
+                        "prfm   pldl1keep, [%5, #32]    \n"
+                        "ld1r   {v0.4s}, [%5], #4       \n"
+
+                        "fmla   v8.4s, v4.4s, v0.4s     \n"
+
+                        "subs   w4, w4, #1              \n"
+                        "bne    2b                      \n"
+
+                        "3:                             \n"
+
+                        "st1    {v8.4s}, [%0], #16      \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(bb2p0),      // %1
+                          "=r"(ktm0)        // %2
+                        : "0"(output0_tm),
+                          "1"(bb2p0),
+                          "2"(ktm0),
+                          "r"(inch)         // %6
+                        : "cc", "memory", "x4", "v0", "v4", "v5", "v6", "v7", "v8"
+                    );
+#else // __aarch64__
+                    asm volatile(
+                        "veor       q8, q8, q8          \n"
+
+                        // inch loop
+                        "lsr        r4, %6, #2          \n"// r4 = nn = inch >> 2
+                        "cmp        r4, #0              \n"
+                        "beq        1f                  \n"
+
+                        "0:                             \n"
+
+                        "pld        [%4, #512]          \n"
+//                         "vldm       %4!, {d8-d15}       \n"
+                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
+                        "vld1.f32   {d12-d15}, [%4 :128]! \n"
+
+                        "pld        [%5, #128]          \n"
+                        "vld1.f32   {d0-d1}, [%5 :128]! \n"
+
+                        "vmla.f32   q8, q4, d0[0]       \n"
+                        "vmla.f32   q8, q5, d0[1]       \n"
+                        "vmla.f32   q8, q6, d1[0]       \n"
+                        "vmla.f32   q8, q7, d1[1]       \n"
+
+                        "subs       r4, r4, #1          \n"
+                        "bne        0b                  \n"
+
+                        "1:                             \n"
+
+                        // remain loop
+                        "and        r4, %6, #3          \n"// r4 = remain = tiles & 3;
+                        "cmp        r4, #0              \n"
+                        "beq        3f                  \n"
+
+                        "2:                             \n"
+
+                        "pld        [%4, #128]          \n"
+                        "vld1.f32   {d8-d9}, [%4]!      \n"
+
+                        "pld        [%5, #32]           \n"
+                        "vld1.f32   {d0[],d1[]}, [%5]!  \n"
+
+                        "vmla.f32   q8, q4, q0          \n"
+
+                        "subs       r4, r4, #1          \n"
+                        "bne        2b                  \n"
+
+                        "3:                             \n"
+
+                        "vst1.f32   {d16-d17}, [%0]!    \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(bb2p0),      // %1
+                          "=r"(ktm0)        // %2
+                        : "0"(output0_tm),
+                          "1"(bb2p0),
+                          "2"(ktm0),
+                          "r"(inch)         // %6
+                        : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8"
+                    );
+#endif // __aarch64__
                 }
                 for (; i<tiles; i++)
                 {
@@ -9672,7 +10599,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     int q=0;
                     for (; q+3<inch; q+=4)
                     {
-                        asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
+//                         asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
                         float32x4_t _bb2p0 = vld1q_f32(bb2p0);
                         bb2p0 += 4;
 
@@ -9698,7 +10625,6 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                 }
             }
         }
-
     }
     bottom_blob_tm = Mat();
     // END dot
@@ -9751,6 +10677,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                 for (int j=0; j<outw/6; j++)
                 {
 #if __ARM_NEON
+#if __aarch64__
                     const float* output0_tm0 = out0_tm.row(i * w_tm/8 + j);
                     const float* output0_tm1 = out0_tm.row(i * w_tm/8 + j + tiles*8);
                     const float* output0_tm2 = out0_tm.row(i * w_tm/8 + j + tiles*16);
@@ -9961,6 +10888,453 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         output0 += outw*2;
                         output1 += outw*2;
                     }
+#else // __aarch64__
+                    const float* output0_tm0_0 = out0_tm.row(i * w_tm/8 + j);
+                    const float* output0_tm1_0 = out0_tm.row(i * w_tm/8 + j + tiles*8);
+                    const float* output0_tm2_0 = out0_tm.row(i * w_tm/8 + j + tiles*16);
+                    const float* output0_tm3_0 = out0_tm.row(i * w_tm/8 + j + tiles*24);
+                    const float* output0_tm0_4 = out0_tm.row(i * w_tm/8 + j + tiles*32);
+                    const float* output0_tm1_4 = out0_tm.row(i * w_tm/8 + j + tiles*40);
+                    const float* output0_tm2_4 = out0_tm.row(i * w_tm/8 + j + tiles*48);
+                    const float* output0_tm3_4 = out0_tm.row(i * w_tm/8 + j + tiles*56);
+
+                    float* t0 = tmp[0];
+                    float* t1 = tmp[1];
+
+//                     int step = out0_tm.w * tiles * 2*4 *4;
+                    int step = out0_tm.w * tiles *4;
+
+                    asm volatile(
+
+                        // loop0
+//                         "vld1.f32   {d16-d17}, [%2], %21 \n"
+//                         "vld1.f32   {d18-d19}, [%3], %21 \n"
+//                         "vld1.f32   {d20-d21}, [%4], %21 \n"
+//                         "vld1.f32   {d22-d23}, [%5], %21 \n"
+//                         "vld1.f32   {d24-d25}, [%6], %21 \n"
+//                         "vld1.f32   {d26-d27}, [%7], %21 \n"
+//                         "vld1.f32   {d28-d29}, [%8], %21 \n"
+//                         "vld1.f32   {d30-d31}, [%9], %21 \n"
+
+//                         "vtrn.32    q8, q10             \n"
+//                         "vtrn.32    q9, q11             \n"
+//                         "vtrn.32    q12, q14            \n"
+//                         "vtrn.32    q13, q15            \n"
+
+//                         "vswp       d17, d24            \n"
+//                         "vswp       d19, d26            \n"
+//                         "vswp       d21, d28            \n"//  q8 = 00   q9 = 44  q10 = 11  q11 = 55
+//                         "vswp       d23, d30            \n"// q12 = 22  q13 = 66  q14 = 33  q15 = 77
+                        "vld1.f32   {d16[0]}, [%2], %21 \n"
+                        "vld1.f32   {d16[1]}, [%3], %21 \n"
+                        "vld1.f32   {d17[0]}, [%4], %21 \n"
+                        "vld1.f32   {d17[1]}, [%5], %21 \n"
+
+                        "vld1.f32   {d20[0]}, [%2], %21 \n"
+                        "vld1.f32   {d20[1]}, [%3], %21 \n"
+                        "vld1.f32   {d21[0]}, [%4], %21 \n"
+                        "vld1.f32   {d21[1]}, [%5], %21 \n"
+
+                        "vld1.f32   {d24[0]}, [%2], %21 \n"
+                        "vld1.f32   {d24[1]}, [%3], %21 \n"
+                        "vld1.f32   {d25[0]}, [%4], %21 \n"
+                        "vld1.f32   {d25[1]}, [%5], %21 \n"
+
+                        "vadd.f32   q2, q10, q12        \n"
+                        "vsub.f32   q3, q10, q12        \n"
+
+                        "vld1.f32   {d28[0]}, [%2], %21 \n"
+                        "vld1.f32   {d28[1]}, [%3], %21 \n"
+                        "vld1.f32   {d29[0]}, [%4], %21 \n"
+                        "vld1.f32   {d29[1]}, [%5], %21 \n"
+
+                        "vld1.f32   {d18[0]}, [%2], %21 \n"
+                        "vld1.f32   {d18[1]}, [%3], %21 \n"
+                        "vld1.f32   {d19[0]}, [%4], %21 \n"
+                        "vld1.f32   {d19[1]}, [%5], %21 \n"
+
+                        "vadd.f32   q4, q14, q9         \n"
+                        "vsub.f32   q5, q14, q9         \n"
+
+                        "vld1.f32   {d22[0]}, [%2], %21 \n"
+                        "vld1.f32   {d22[1]}, [%3], %21 \n"
+                        "vld1.f32   {d23[0]}, [%4], %21 \n"
+                        "vld1.f32   {d23[1]}, [%5], %21 \n"
+
+                        "vld1.f32   {d26[0]}, [%2], %21 \n"
+                        "vld1.f32   {d26[1]}, [%3], %21 \n"
+                        "vld1.f32   {d27[0]}, [%4], %21 \n"
+                        "vld1.f32   {d27[1]}, [%5], %21 \n"
+
+                        "vadd.f32   q6, q11, q13        \n"
+                        "vsub.f32   q7, q11, q13        \n"// spare q9 q10 q11 q12 q13 q14
+
+                        "vld1.f32   {d30[0]}, [%2]      \n"
+                        "vld1.f32   {d30[1]}, [%3]      \n"
+                        "vld1.f32   {d31[0]}, [%4]      \n"
+                        "vld1.f32   {d31[1]}, [%5]      \n"
+
+                        "vmov       q9, q3              \n"
+                        "vadd.f32   q8, q8, q2          \n"
+                        "vmla.f32   q9, q7, %f20[0]     \n"
+                        "vmov       q12, q2             \n"
+                        "vmov       q10, q2             \n"
+                        "vmov       q11, q3             \n"
+                        "vmla.f32   q12, q4, %f20[0]    \n"
+                        "vadd.f32   q15, q15, q3        \n"
+                        "vmla.f32   q8, q6, %f20[1]     \n"
+                        "vadd.f32   q9, q9, q5          \n"
+                        "vmla.f32   q10, q4, %e20[0]    \n"
+                        "vmla.f32   q11, q5, %e20[1]    \n"
+                        "vadd.f32   q12, q12, q6        \n"
+                        "vmla.f32   q15, q5, %f20[1]    \n"
+                        "vadd.f32   q8, q8, q4          \n"
+                        "vadd.f32   q9, q9, q5          \n"
+                        "vmla.f32   q10, q6, %e20[1]    \n"
+                        "vmla.f32   q11, q7, %e20[0]    \n"
+                        "vadd.f32   q12, q12, q6        \n"
+                        "vadd.f32   q15, q15, q7        \n"
+
+                        "vst1.f32   {d16-d17}, [%0]     \n"
+                        "add        %0, %0, #64         \n"
+
+                        "vst1.f32   {d18-d19}, [%1]     \n"
+                        "add        %1, %1, #64         \n"
+
+                        "vst1.f32   {d20-d21}, [%0]     \n"
+                        "add        %0, %0, #64         \n"
+
+                        "vst1.f32   {d22-d23}, [%1]     \n"
+                        "add        %1, %1, #64         \n"
+
+                        "vst1.f32   {d24-d25}, [%0]     \n"
+                        "sub        %0, %0, #112        \n"
+
+                        "vst1.f32   {d30-d31}, [%1]     \n"
+                        "sub        %1, %1, #112        \n"
+
+                        // loop1
+//                         "vld1.f32   {d16-d17}, [%2]     \n"
+//                         "vld1.f32   {d18-d19}, [%3]     \n"
+//                         "vld1.f32   {d20-d21}, [%4]     \n"
+//                         "vld1.f32   {d22-d23}, [%5]     \n"
+//                         "vld1.f32   {d24-d25}, [%6]     \n"
+//                         "vld1.f32   {d26-d27}, [%7]     \n"
+//                         "vld1.f32   {d28-d29}, [%8]     \n"
+//                         "vld1.f32   {d30-d31}, [%9]     \n"
+
+//                         "vtrn.32    q8, q10             \n"
+//                         "vtrn.32    q9, q11             \n"
+//                         "vtrn.32    q12, q14            \n"
+//                         "vtrn.32    q13, q15            \n"
+
+//                         "vswp       d17, d24            \n"
+//                         "vswp       d19, d26            \n"
+//                         "vswp       d21, d28            \n"//  q8 = 00   q9 = 44  q10 = 11  q11 = 55
+//                         "vswp       d23, d30            \n"// q12 = 22  q13 = 66  q14 = 33  q15 = 77
+                        "vld1.f32   {d16[0]}, [%6], %21 \n"
+                        "vld1.f32   {d16[1]}, [%7], %21 \n"
+                        "vld1.f32   {d17[0]}, [%8], %21 \n"
+                        "vld1.f32   {d17[1]}, [%9], %21 \n"
+
+                        "vld1.f32   {d20[0]}, [%6], %21 \n"
+                        "vld1.f32   {d20[1]}, [%7], %21 \n"
+                        "vld1.f32   {d21[0]}, [%8], %21 \n"
+                        "vld1.f32   {d21[1]}, [%9], %21 \n"
+
+                        "vld1.f32   {d24[0]}, [%6], %21 \n"
+                        "vld1.f32   {d24[1]}, [%7], %21 \n"
+                        "vld1.f32   {d25[0]}, [%8], %21 \n"
+                        "vld1.f32   {d25[1]}, [%9], %21 \n"
+
+                        "vadd.f32   q2, q10, q12        \n"
+                        "vsub.f32   q3, q10, q12        \n"
+
+                        "vld1.f32   {d28[0]}, [%6], %21 \n"
+                        "vld1.f32   {d28[1]}, [%7], %21 \n"
+                        "vld1.f32   {d29[0]}, [%8], %21 \n"
+                        "vld1.f32   {d29[1]}, [%9], %21 \n"
+
+                        "vld1.f32   {d18[0]}, [%6], %21 \n"
+                        "vld1.f32   {d18[1]}, [%7], %21 \n"
+                        "vld1.f32   {d19[0]}, [%8], %21 \n"
+                        "vld1.f32   {d19[1]}, [%9], %21 \n"
+
+                        "vadd.f32   q4, q14, q9         \n"
+                        "vsub.f32   q5, q14, q9         \n"
+
+                        "vld1.f32   {d22[0]}, [%6], %21 \n"
+                        "vld1.f32   {d22[1]}, [%7], %21 \n"
+                        "vld1.f32   {d23[0]}, [%8], %21 \n"
+                        "vld1.f32   {d23[1]}, [%9], %21 \n"
+
+                        "vld1.f32   {d26[0]}, [%6], %21 \n"
+                        "vld1.f32   {d26[1]}, [%7], %21 \n"
+                        "vld1.f32   {d27[0]}, [%8], %21 \n"
+                        "vld1.f32   {d27[1]}, [%9], %21 \n"
+
+                        "vadd.f32   q6, q11, q13        \n"
+                        "vsub.f32   q7, q11, q13        \n"// spare q9 q10 q11 q12 q13 q14
+
+                        "vld1.f32   {d30[0]}, [%6]      \n"
+                        "vld1.f32   {d30[1]}, [%7]      \n"
+                        "vld1.f32   {d31[0]}, [%8]      \n"
+                        "vld1.f32   {d31[1]}, [%9]      \n"
+
+                        "vmov       q9, q3              \n"
+                        "vadd.f32   q8, q8, q2          \n"
+                        "vmla.f32   q9, q7, %f20[0]     \n"
+                        "vmov       q12, q2             \n"
+                        "vmov       q10, q2             \n"
+                        "vmov       q11, q3             \n"
+                        "vmla.f32   q12, q4, %f20[0]    \n"
+                        "vadd.f32   q15, q15, q3        \n"
+                        "vmla.f32   q8, q6, %f20[1]     \n"
+                        "vadd.f32   q9, q9, q5          \n"
+                        "vmla.f32   q10, q4, %e20[0]    \n"
+                        "vmla.f32   q11, q5, %e20[1]    \n"
+                        "vadd.f32   q12, q12, q6        \n"
+                        "vmla.f32   q15, q5, %f20[1]    \n"
+                        "vadd.f32   q8, q8, q4          \n"
+                        "vadd.f32   q9, q9, q5          \n"
+                        "vmla.f32   q10, q6, %e20[1]    \n"
+                        "vmla.f32   q11, q7, %e20[0]    \n"
+                        "vadd.f32   q12, q12, q6        \n"
+                        "vadd.f32   q15, q15, q7        \n"
+
+                        "vst1.f32   {d16-d17}, [%0]     \n"
+                        "add        %0, %0, #64         \n"
+
+                        "vst1.f32   {d18-d19}, [%1]     \n"
+                        "add        %1, %1, #64         \n"
+
+                        "vst1.f32   {d20-d21}, [%0]     \n"
+                        "add        %0, %0, #64         \n"
+
+                        "vst1.f32   {d22-d23}, [%1]     \n"
+                        "add        %1, %1, #64         \n"
+
+                        "vst1.f32   {d24-d25}, [%0]     \n"
+
+                        "vst1.f32   {d30-d31}, [%1]     \n"
+
+                        : "=r"(t0),             // %0
+                          "=r"(t1),             // %1
+                          "=r"(output0_tm0_0),  // %2
+                          "=r"(output0_tm1_0),  // %3
+                          "=r"(output0_tm2_0),  // %4
+                          "=r"(output0_tm3_0),  // %5
+                          "=r"(output0_tm0_4),  // %6
+                          "=r"(output0_tm1_4),  // %7
+                          "=r"(output0_tm2_4),  // %8
+                          "=r"(output0_tm3_4)   // %9
+                        : "0"(t0),
+                          "1"(t1),
+                          "2"(output0_tm0_0),
+                          "3"(output0_tm1_0),
+                          "4"(output0_tm2_0),
+                          "5"(output0_tm3_0),
+                          "6"(output0_tm0_4),
+                          "7"(output0_tm1_4),
+                          "8"(output0_tm2_4),
+                          "9"(output0_tm3_4),
+                          "w"(_coeff),          // %20
+                          "r"(step)             // %21
+                        : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
+
+                    t0 = tmp[0];
+                    t1 = tmp[1];
+
+                    float* output0 = out0.row(i * 6) + j * 6;
+                    float* output1 = output0 + outw;
+
+                    int stepw = outw*2 * 4;
+
+                    asm volatile(
+
+                        // loop0
+                        "vld1.f32   {d16-d19}, [%2]     \n"
+                        "vld1.f32   {d20-d23}, [%3]     \n"
+
+                        "add        %2, %2, #64         \n"
+                        "add        %3, %3, #64         \n"
+
+                        "vtrn.32    q8, q10             \n"// q8 = 0 2  q10 = 1 3
+                        "vtrn.32    q9, q11             \n"// q9 = 4 6  q11 = 5 7
+
+                        "vadd.f32   d4, d20, d17        \n"
+                        "vsub.f32   d5, d20, d17        \n"
+
+                        "vadd.f32   d6, d21, d18        \n"
+                        "vsub.f32   d7, d21, d18        \n"
+
+                        "vadd.f32   d8, d22, d19        \n"
+                        "vsub.f32   d9, d22, d19        \n"// spare d17 ~ d22
+
+                        "vmov       d20, d5             \n"
+                        "vmov       d18, d4             \n"
+
+                        "vadd.f32   d16, d16, d4        \n"
+                        "vmla.f32   d20, d9, %f8[0]     \n"
+                        "vmov       d17, d4             \n"
+                        "vmov       d21, d5             \n"
+                        "vmla.f32   d18, d6, %f8[0]     \n"
+                        "vadd.f32   d22, d23, d5        \n"
+
+                        "vmla.f32   d16, d8, %f8[1]     \n"
+                        "vadd.f32   d20, d20, d7        \n"
+                        "vmla.f32   d17, d6, %e8[0]     \n"
+                        "vmla.f32   d21, d7, %e8[1]     \n"
+                        "vadd.f32   d18, d18, d8        \n"
+                        "vmla.f32   d22, d7, %f8[1]     \n"
+
+                        "vadd.f32   d16, d16, d6        \n"
+                        "vadd.f32   d20, d20, d7        \n"
+                        "vmla.f32   d17, d8, %e8[1]     \n"
+                        "vmla.f32   d21, d9, %e8[0]     \n"
+                        "vadd.f32   d18, d18, d8        \n"
+                        "vadd.f32   d22, d22, d9        \n"
+
+                        "vadd.f32   d16, d16, %P9       \n"// _bias0
+                        "vadd.f32   d20, d20, %P9       \n"// _bias0
+                        "vadd.f32   d17, d17, %P9       \n"// _bias0
+                        "vadd.f32   d21, d21, %P9       \n"// _bias0
+                        "vadd.f32   d18, d18, %P9       \n"// _bias0
+                        "vadd.f32   d22, d22, %P9       \n"// _bias0
+
+                        "vtrn.f32   q8, q10             \n"
+                        "vtrn.f32   d18, d22            \n"
+
+                        "vst1.f32   {d16-d18}, [%0], %10 \n"
+                        "vst1.f32   {d20-d22}, [%1], %10 \n"
+
+                        // loop1
+                        "vld1.f32   {d16-d19}, [%2]     \n"
+                        "vld1.f32   {d20-d23}, [%3]     \n"
+
+                        "add        %2, %2, #64         \n"
+                        "add        %3, %3, #64         \n"
+
+                        "vtrn.32    q8, q10             \n"// q8 = 0 2  q10 = 1 3
+                        "vtrn.32    q9, q11             \n"// q9 = 4 6  q11 = 5 7
+
+                        "vadd.f32   d4, d20, d17        \n"
+                        "vsub.f32   d5, d20, d17        \n"
+
+                        "vadd.f32   d6, d21, d18        \n"
+                        "vsub.f32   d7, d21, d18        \n"
+
+                        "vadd.f32   d8, d22, d19        \n"
+                        "vsub.f32   d9, d22, d19        \n"// spare d17 ~ d22
+
+                        "vmov       d20, d5             \n"
+                        "vmov       d18, d4             \n"
+
+                        "vadd.f32   d16, d16, d4        \n"
+                        "vmla.f32   d20, d9, %f8[0]     \n"
+                        "vmov       d17, d4             \n"
+                        "vmov       d21, d5             \n"
+                        "vmla.f32   d18, d6, %f8[0]     \n"
+                        "vadd.f32   d22, d23, d5        \n"
+
+                        "vmla.f32   d16, d8, %f8[1]     \n"
+                        "vadd.f32   d20, d20, d7        \n"
+                        "vmla.f32   d17, d6, %e8[0]     \n"
+                        "vmla.f32   d21, d7, %e8[1]     \n"
+                        "vadd.f32   d18, d18, d8        \n"
+                        "vmla.f32   d22, d7, %f8[1]     \n"
+
+                        "vadd.f32   d16, d16, d6        \n"
+                        "vadd.f32   d20, d20, d7        \n"
+                        "vmla.f32   d17, d8, %e8[1]     \n"
+                        "vmla.f32   d21, d9, %e8[0]     \n"
+                        "vadd.f32   d18, d18, d8        \n"
+                        "vadd.f32   d22, d22, d9        \n"
+
+                        "vadd.f32   d16, d16, %P9       \n"// _bias0
+                        "vadd.f32   d20, d20, %P9       \n"// _bias0
+                        "vadd.f32   d17, d17, %P9       \n"// _bias0
+                        "vadd.f32   d21, d21, %P9       \n"// _bias0
+                        "vadd.f32   d18, d18, %P9       \n"// _bias0
+                        "vadd.f32   d22, d22, %P9       \n"// _bias0
+
+                        "vtrn.f32   q8, q10             \n"
+                        "vtrn.f32   d18, d22            \n"
+
+                        "vst1.f32   {d16-d18}, [%0], %10 \n"
+                        "vst1.f32   {d20-d22}, [%1], %10 \n"
+
+                        // loop2
+                        "vld1.f32   {d16-d19}, [%2]     \n"
+                        "vld1.f32   {d20-d23}, [%3]     \n"
+
+                        "add        %2, %2, #64         \n"
+                        "add        %3, %3, #64         \n"
+
+                        "vtrn.32    q8, q10             \n"// q8 = 0 2  q10 = 1 3
+                        "vtrn.32    q9, q11             \n"// q9 = 4 6  q11 = 5 7
+
+                        "vadd.f32   d4, d20, d17        \n"
+                        "vsub.f32   d5, d20, d17        \n"
+
+                        "vadd.f32   d6, d21, d18        \n"
+                        "vsub.f32   d7, d21, d18        \n"
+
+                        "vadd.f32   d8, d22, d19        \n"
+                        "vsub.f32   d9, d22, d19        \n"// spare d17 ~ d22
+
+                        "vmov       d20, d5             \n"
+                        "vmov       d18, d4             \n"
+
+                        "vadd.f32   d16, d16, d4        \n"
+                        "vmla.f32   d20, d9, %f8[0]     \n"
+                        "vmov       d17, d4             \n"
+                        "vmov       d21, d5             \n"
+                        "vmla.f32   d18, d6, %f8[0]     \n"
+                        "vadd.f32   d22, d23, d5        \n"
+
+                        "vmla.f32   d16, d8, %f8[1]     \n"
+                        "vadd.f32   d20, d20, d7        \n"
+                        "vmla.f32   d17, d6, %e8[0]     \n"
+                        "vmla.f32   d21, d7, %e8[1]     \n"
+                        "vadd.f32   d18, d18, d8        \n"
+                        "vmla.f32   d22, d7, %f8[1]     \n"
+
+                        "vadd.f32   d16, d16, d6        \n"
+                        "vadd.f32   d20, d20, d7        \n"
+                        "vmla.f32   d17, d8, %e8[1]     \n"
+                        "vmla.f32   d21, d9, %e8[0]     \n"
+                        "vadd.f32   d18, d18, d8        \n"
+                        "vadd.f32   d22, d22, d9        \n"
+
+                        "vadd.f32   d16, d16, %P9       \n"// _bias0
+                        "vadd.f32   d20, d20, %P9       \n"// _bias0
+                        "vadd.f32   d17, d17, %P9       \n"// _bias0
+                        "vadd.f32   d21, d21, %P9       \n"// _bias0
+                        "vadd.f32   d18, d18, %P9       \n"// _bias0
+                        "vadd.f32   d22, d22, %P9       \n"// _bias0
+
+                        "vtrn.f32   q8, q10             \n"
+                        "vtrn.f32   d18, d22            \n"
+
+                        "vst1.f32   {d16-d18}, [%0], %10 \n"
+                        "vst1.f32   {d20-d22}, [%1], %10 \n"
+
+                        : "=r"(output0),    // %0
+                          "=r"(output1),    // %1
+                          "=r"(t0),         // %2
+                          "=r"(t1)          // %3
+                        : "0"(output0),
+                          "1"(output1),
+                          "2"(t0),
+                          "3"(t1),
+                          "w"(_coeff),      // %8
+                          "w"(_bias0),      // %9
+                          "r"(stepw)        // %10
+                        : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
+#endif // __aarch64__
 #else
                     const float* output0_tm_0 = out0_tm.row(i * w_tm/8 + j);
                     const float* output0_tm_1 = out0_tm.row(i * w_tm/8 + j + tiles);
@@ -10035,7 +11409,6 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w);
 }
-#endif
 
 static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
 {
