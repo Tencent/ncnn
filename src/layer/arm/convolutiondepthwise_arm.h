@@ -22,7 +22,15 @@ namespace ncnn {
 class ConvolutionDepthWise_arm : public ConvolutionDepthWise
 {
 public:
+    ConvolutionDepthWise_arm();
+    virtual ~ConvolutionDepthWise_arm();
+
+    virtual int load_model(const ModelBin& mb);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+
+public:
+    std::vector<ncnn::Layer*> group_ops;
 };
 
 } // namespace ncnn
