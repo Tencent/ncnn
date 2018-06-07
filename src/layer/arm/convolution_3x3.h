@@ -9225,7 +9225,6 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
         const int tiles = w_tm/8 * h_tm/8;
-        top_blob_tm.create(1, 64 * tiles, outch);
 
         // permute
         // bottom_blob_tm.create(1, 64 * tiles, inch);
@@ -9314,6 +9313,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
         bottom_blob_tm = Mat();
         // permute end
+
+        top_blob_tm.create(1, 64 * tiles, outch);
 
         int nn_outch = 0;
         int remain_outch_start = 0;
