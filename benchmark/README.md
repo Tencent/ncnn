@@ -95,16 +95,16 @@ root@rk3288:/data/local/tmp/ncnn # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   78.10  max =   78.89  avg =   78.35
-       mobilenet  min =  119.14  max =  120.19  avg =  119.66
-    mobilenet_v2  min =  145.50  max =  150.22  avg =  146.43
-      shufflenet  min =   47.96  max =   48.95  avg =   48.35
-       googlenet  min =  233.60  max =  241.46  avg =  234.85
-        resnet18  min =  260.83  max =  274.38  avg =  268.66
-         alexnet  min =  221.32  max =  246.93  avg =  226.54
-           vgg16  min = 2032.24  max = 2347.03  avg = 2152.34
-  squeezenet-ssd  min =  121.88  max =  242.83  avg =  141.04
-   mobilenet-ssd  min =  129.17  max =  130.86  avg =  129.87
+      squeezenet  min =   67.52  max =   78.36  avg =   72.19
+       mobilenet  min =  120.60  max =  123.74  avg =  122.06
+    mobilenet_v2  min =   97.44  max =  111.16  avg =  104.43
+      shufflenet  min =   43.90  max =   44.36  avg =   44.23
+       googlenet  min =  240.81  max =  248.98  avg =  243.49
+        resnet18  min =  246.31  max =  261.57  avg =  254.33
+         alexnet  min =  153.53  max =  157.21  avg =  154.66
+           vgg16  min = 1412.51  max = 1524.88  avg = 1480.32
+  squeezenet-ssd  min =  160.99  max =  185.69  avg =  167.69
+   mobilenet-ssd  min =  200.13  max =  229.45  avg =  208.56
 ```
 
 HiSilicon Hi3519V101 (Cortex-A17 1.2GHz x 1)
