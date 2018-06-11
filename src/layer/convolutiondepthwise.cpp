@@ -39,6 +39,12 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
     weight_data_size = pd.get(6, 0);
     group = pd.get(7, 1);
 
+    if (num_output % group != 0)
+    {
+        // reject invalid group
+        return -100;
+    }
+
     return 0;
 }
 

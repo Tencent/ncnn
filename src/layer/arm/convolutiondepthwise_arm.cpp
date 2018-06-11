@@ -26,6 +26,82 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(ConvolutionDepthWise_arm)
 
+ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
+{
+}
+
+ConvolutionDepthWise_arm::~ConvolutionDepthWise_arm()
+{
+    for (int i=0; i<(int)group_ops.size(); i++)
+        delete group_ops[i];
+
+    group_ops.clear();
+}
+
+int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
+{
+    int ret = ConvolutionDepthWise::load_model(mb);
+    if (ret != 0)
+        return ret;
+
+    // create Convolution op for each group
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    for (int i=0; i<(int)group_ops.size(); i++)
+        delete group_ops[i];
+
+    group_ops.clear();
+
+    if (channels == group && group == num_output)
+    {
+        // depth-wise specific
+        return 0;
+    }
+
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / group;
+
+    group_ops.resize(group);
+
+    for (int g=0; g<group; g++)
+    {
+        Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const float*)weight_data + maxk * channels_g * num_output_g * g));
+        Mat bias_data_g;
+        if (bias_term)
+            bias_data_g = Mat(num_output_g, (void*)((const float*)bias_data + num_output_g * g));
+
+        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+
+        // set param
+        ncnn::ParamDict pd;
+        pd.set(0, num_output_g);// num_output
+        pd.set(1, kernel_w);
+        pd.set(11, kernel_h);
+        pd.set(2, dilation_w);
+        pd.set(12, dilation_h);
+        pd.set(3, stride_w);
+        pd.set(13, stride_h);
+        pd.set(4, 0);// pad_w
+        pd.set(14, 0);// pad_h
+        pd.set(5, bias_term);
+        pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
+
+        op->load_param(pd);
+
+        // set weights
+        ncnn::Mat weights[2];
+        weights[0] = weight_data_g;
+        weights[1] = bias_data_g;
+
+        op->load_model(ModelBinFromMatArray(weights));
+
+        group_ops[g] = op;
+    }
+
+    return 0;
+}
+
 int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 {
     // convolv with NxN kernel
@@ -155,41 +231,11 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) con
     {
         Mat bottom_blob_bordered_g(w, h, channels_g, bottom_blob_bordered.channel(channels_g * g));
         Mat top_blob_g(outw, outh, num_output_g, top_blob.channel(num_output_g * g));
-        Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const float*)weight_data + maxk * channels_g * num_output_g * g));
-        Mat bias_data_g;
-        if (bias_term)
-            bias_data_g = Mat(num_output_g, (void*)((const float*)bias_data + num_output_g * g));
 
-        // call Convolution
-        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
-
-        // set param
-        ncnn::ParamDict pd;
-        pd.set(0, num_output_g);// num_output
-        pd.set(1, kernel_w);
-        pd.set(11, kernel_h);
-        pd.set(2, dilation_w);
-        pd.set(12, dilation_h);
-        pd.set(3, stride_w);
-        pd.set(13, stride_h);
-        pd.set(4, 0);// pad_w
-        pd.set(14, 0);// pad_h
-        pd.set(5, bias_term);
-        pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
-
-        op->load_param(pd);
-
-        // set weights
-        ncnn::Mat weights[2];
-        weights[0] = weight_data_g;
-        weights[1] = bias_data_g;
-
-        op->load_model(ModelBinFromMatArray(weights));
+        const ncnn::Layer* op = group_ops[g];
 
         // forward
         op->forward(bottom_blob_bordered_g, top_blob_g);
-
-        delete op;
     }
 
     return 0;

@@ -48,7 +48,7 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob) const
         w = 1;
         c = bottom_blob.w;
     }
-    if (ow == 0 || ow == 0)
+    if (oh == 0 || ow == 0)
     {
         oh = h * height_scale;
         ow = w * width_scale;

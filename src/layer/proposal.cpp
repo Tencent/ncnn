@@ -360,7 +360,7 @@ int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         for (int i=0; i<picked_count; i++)
         {
             float* outptr = roi_score_blob.channel(i);
-            outptr[i] = scores[ picked[i] ];
+            outptr[0] = scores[ picked[i] ];
         }
     }
 

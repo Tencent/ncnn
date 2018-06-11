@@ -939,6 +939,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (n.op == "LogisticRegressionOutput")
+        {
+            fprintf(pp, "%-16s", "Sigmoid");
+        }
         else if (n.op == "max")
         {
             fprintf(pp, "%-16s", "Reduction");
@@ -982,6 +986,10 @@ int main(int argc, char** argv)
         else if (n.op == "Reshape")
         {
             fprintf(pp, "%-16s", "Reshape");
+        }
+        else if (n.op == "sigmoid")
+        {
+            fprintf(pp, "%-16s", "Sigmoid");
         }
         else if (n.op == "sin")
         {
@@ -1040,7 +1048,7 @@ int main(int argc, char** argv)
             }
         }
 
-        if (n.op == "SoftmaxOutput")
+        if (n.op == "SoftmaxOutput" || n.op == "LogisticRegressionOutput")
         {
             // drop label
             input_size--;
@@ -1057,7 +1065,7 @@ int main(int argc, char** argv)
                 continue;
             }
 
-            if (n.op == "SoftmaxOutput")
+            if (n.op == "SoftmaxOutput" || n.op == "LogisticRegressionOutput")
             {
                 // drop label
                 if (j == 1)
@@ -1374,7 +1382,31 @@ int main(int argc, char** argv)
 
             int quantize_tag = 0;
             fwrite(&quantize_tag, sizeof(int), 1, bp);
-            fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
+
+            int maxk = 0;
+            if (kernel.size() == 2)
+            {
+                maxk = kernel[1] * kernel[0];
+            }
+            else
+            {
+                maxk = kernel[0] * kernel[0];
+            }
+            for (int g=0; g<num_group; g++)
+            {
+            // reorder weight from inch-outch to outch-inch
+            int num_filter_g = num_filter / num_group;
+            int num_input = weight_data.size() / maxk / num_filter_g / num_group;
+            const float* weight_data_ptr = weight_data.data() + g * maxk * num_filter_g * num_input;
+            for (int k=0; k<num_filter_g; k++)
+            {
+                for (int j=0; j<num_input; j++)
+                {
+                    fwrite(weight_data_ptr + (j*num_filter_g + k) * maxk, sizeof(float), maxk, bp);
+                }
+            }
+            }
+
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
         }
         else if (n.op == "cos")
@@ -1549,6 +1581,9 @@ int main(int argc, char** argv)
             int op_type = 8;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (n.op == "LogisticRegressionOutput")
+        {
+        }
         else if (n.op == "max")
         {
             int operation = 4;
@@ -1651,6 +1686,9 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", shape[2]);
                 fprintf(pp, " 2=%d", shape[1]);
             }
+        }
+        else if (n.op == "sigmoid")
+        {
         }
         else if (n.op == "sin")
         {
