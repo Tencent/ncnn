@@ -31,6 +31,8 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ### FAQ
 
+[ncnn throw error](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-throw-error)
+
 [ncnn produce wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)
 
 ---
