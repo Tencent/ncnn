@@ -207,6 +207,8 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
                 const float* ptr = bottom_blob.channel(q);
                 memcpy(outptr, ptr, size * elemsize);
+
+                outptr += size;
             }
         }
 
