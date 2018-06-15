@@ -567,10 +567,22 @@ int main(int argc, char** argv)
         {
             const caffe::CropParameter& crop_param = layer.crop_param();
             int num_offset = crop_param.offset_size();
-            int woffset = (num_offset == 2) ? crop_param.offset(0) : 0;
-            int hoffset = (num_offset == 2) ? crop_param.offset(1) : 0;
-            fprintf(pp, " 0=%d", woffset);
-            fprintf(pp, " 1=%d", hoffset);
+            if (num_offset == 2)
+            {
+                int woffset = crop_param.offset(1);
+                int hoffset = crop_param.offset(0);
+                fprintf(pp, " 0=%d", woffset);
+                fprintf(pp, " 1=%d", hoffset);
+            }
+            else if (num_offset == 3)
+            {
+                int woffset = crop_param.offset(2);
+                int hoffset = crop_param.offset(1);
+                int coffset = crop_param.offset(0);
+                fprintf(pp, " 0=%d", woffset);
+                fprintf(pp, " 1=%d", hoffset);
+                fprintf(pp, " 2=%d", coffset);
+            }
         }
         else if (layer.type() == "Deconvolution")
         {
