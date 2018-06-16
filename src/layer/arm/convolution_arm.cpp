@@ -53,7 +53,8 @@ int Convolution_arm::load_model(const ModelBin& mb)
     if (use_winograd3x3)
     {
         int num_input = weight_data_size / 9 / num_output;
-        conv3x3s1_winograd64_transform_kernel_neon(weight_data, weight_3x3_winograd64_data, num_input, num_output);
+//         conv3x3s1_winograd64_transform_kernel_neon(weight_data, weight_3x3_winograd64_data, num_input, num_output);
+        conv3x3s1_winograd64_transform_kernel_neon5(weight_data, weight_3x3_winograd64_data, num_input, num_output);
     }
 
     return 0;
@@ -293,7 +294,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     if (use_winograd3x3 && w <= 120 && h <= 120)
     {
-        conv3x3s1_winograd64_neon4(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
+//         conv3x3s1_winograd64_neon4(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
+        conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
     }
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
