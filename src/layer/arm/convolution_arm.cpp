@@ -32,6 +32,7 @@ int Convolution_arm::load_param(const ParamDict& pd)
         return ret;
 
     use_winograd3x3 = false;
+    use_sgemm1x1 = false;
 
     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
@@ -40,6 +41,17 @@ int Convolution_arm::load_param(const ParamDict& pd)
         if (num_input >= 16 && num_output >= 16)
             use_winograd3x3 = true;
     }
+
+#if __aarch64__
+    // TODO armv7 compiler is foolish!
+    // TODO assume more proper condition
+    if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        int num_input = weight_data_size / num_output;
+        if (num_input >= 16 && num_output >= 16)
+            use_sgemm1x1 = true;
+    }
+#endif // __aarch64__
 
     return 0;
 }
@@ -55,6 +67,12 @@ int Convolution_arm::load_model(const ModelBin& mb)
         int num_input = weight_data_size / 9 / num_output;
 //         conv3x3s1_winograd64_transform_kernel_neon(weight_data, weight_3x3_winograd64_data, num_input, num_output);
         conv3x3s1_winograd64_transform_kernel_neon5(weight_data, weight_3x3_winograd64_data, num_input, num_output);
+    }
+
+    if (use_sgemm1x1)
+    {
+        int num_input = weight_data_size / num_output;
+        conv1x1s1_sgemm_transform_kernel_neon(weight_data, weight_1x1_sgemm_data, num_input, num_output);
     }
 
     return 0;
@@ -296,6 +314,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     {
 //         conv3x3s1_winograd64_neon4(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
         conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
+    }
+    else if (use_sgemm1x1 && w <= 120 && h <= 120)
+    {
+        // TODO assume more proper condition
+        conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data);
     }
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
