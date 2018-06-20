@@ -16,6 +16,1242 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#if !__aarch64__
+// TODO HACK drop them
+static inline float32x4_t vfmaq_f32(float32x4_t _s, float32x4_t _a, float32x4_t _b)
+{
+    return vmlaq_f32(_s, _a, _b);
+}
+
+static inline float32x4_t vfmaq_laneq_f32(float32x4_t _s, float32x4_t _a, float32x4_t _b, int i)
+{
+    if (i == 0) return vmlaq_lane_f32(_s, _a, vget_low_f32(_b), 0);
+    if (i == 1) return vmlaq_lane_f32(_s, _a, vget_low_f32(_b), 1);
+    if (i == 2) return vmlaq_lane_f32(_s, _a, vget_high_f32(_b), 0);
+    if (i == 3) return vmlaq_lane_f32(_s, _a, vget_high_f32(_b), 1);
+}
+
+static inline float vaddvq_f32(float32x4_t _s)
+{
+    float32x2_t _ss = vadd_f32(vget_low_f32(_s), vget_high_f32(_s));
+    float32x2_t _ss2 = vpadd_f32(_ss, _ss);
+    return vget_lane_f32(_ss2, 0);
+}
+#endif
+
+static void conv1x1s1_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
+{
+    const float* kernel = _kernel;
+
+    // interleave
+#if __aarch64__
+    kernel_tm.create(4*8, inch/4 + inch%4, outch/8 + (outch%8)/4 + outch%4);
+#else
+    kernel_tm.create(4*4, inch/4 + inch%4, outch/4 + outch%4);
+#endif // __aarch64__
+
+    int p = 0;
+#if __aarch64__
+    for (; p+7<outch; p+=8)
+    {
+        const float* kernel0 = kernel + (p+0)*inch;
+        const float* kernel1 = kernel + (p+1)*inch;
+        const float* kernel2 = kernel + (p+2)*inch;
+        const float* kernel3 = kernel + (p+3)*inch;
+        const float* kernel4 = kernel + (p+4)*inch;
+        const float* kernel5 = kernel + (p+5)*inch;
+        const float* kernel6 = kernel + (p+6)*inch;
+        const float* kernel7 = kernel + (p+7)*inch;
+
+        float* ktmp = kernel_tm.channel(p/8);
+
+        int q = 0;
+        for (; q+3<inch; q+=4)
+        {
+            vst1q_f32(ktmp, vld1q_f32(kernel0));
+            ktmp += 4;
+            vst1q_f32(ktmp, vld1q_f32(kernel1));
+            ktmp += 4;
+            vst1q_f32(ktmp, vld1q_f32(kernel2));
+            ktmp += 4;
+            vst1q_f32(ktmp, vld1q_f32(kernel3));
+            ktmp += 4;
+            vst1q_f32(ktmp, vld1q_f32(kernel4));
+            ktmp += 4;
+            vst1q_f32(ktmp, vld1q_f32(kernel5));
+            ktmp += 4;
+            vst1q_f32(ktmp, vld1q_f32(kernel6));
+            ktmp += 4;
+            vst1q_f32(ktmp, vld1q_f32(kernel7));
+            ktmp += 4;
+
+            kernel0 += 4;
+            kernel1 += 4;
+            kernel2 += 4;
+            kernel3 += 4;
+            kernel4 += 4;
+            kernel5 += 4;
+            kernel6 += 4;
+            kernel7 += 4;
+        }
+        for (; q<inch; q++)
+        {
+            // kernel0...7 0
+            ktmp[0] = kernel0[0];
+            ktmp[1] = kernel1[0];
+            ktmp[2] = kernel2[0];
+            ktmp[3] = kernel3[0];
+            ktmp[4] = kernel4[0];
+            ktmp[5] = kernel5[0];
+            ktmp[6] = kernel6[0];
+            ktmp[7] = kernel7[0];
+            ktmp += 8;
+
+            kernel0 += 1;
+            kernel1 += 1;
+            kernel2 += 1;
+            kernel3 += 1;
+            kernel4 += 1;
+            kernel5 += 1;
+            kernel6 += 1;
+            kernel7 += 1;
+        }
+    }
+#endif // __aarch64__
+    for (; p+3<outch; p+=4)
+    {
+        const float* kernel0 = kernel + (p+0)*inch;
+        const float* kernel1 = kernel + (p+1)*inch;
+        const float* kernel2 = kernel + (p+2)*inch;
+        const float* kernel3 = kernel + (p+3)*inch;
+
+#if __aarch64__
+        float* ktmp = kernel_tm.channel(p/8 + (p%8)/4);
+#else
+        float* ktmp = kernel_tm.channel(p/4);
+#endif // __aarch64__
+
+        int q = 0;
+        for (; q+3<inch; q+=4)
+        {
+            vst1q_f32(ktmp, vld1q_f32(kernel0));
+            ktmp += 4;
+            vst1q_f32(ktmp, vld1q_f32(kernel1));
+            ktmp += 4;
+            vst1q_f32(ktmp, vld1q_f32(kernel2));
+            ktmp += 4;
+            vst1q_f32(ktmp, vld1q_f32(kernel3));
+            ktmp += 4;
+
+            kernel0 += 4;
+            kernel1 += 4;
+            kernel2 += 4;
+            kernel3 += 4;
+        }
+        for (; q<inch; q++)
+        {
+            // kernel0...7 0
+            ktmp[0] = kernel0[0];
+            ktmp[1] = kernel1[0];
+            ktmp[2] = kernel2[0];
+            ktmp[3] = kernel3[0];
+            ktmp += 4;
+
+            kernel0 += 1;
+            kernel1 += 1;
+            kernel2 += 1;
+            kernel3 += 1;
+        }
+    }
+    for (; p<outch; p++)
+    {
+        const float* kernel0 = kernel + p*inch;
+
+#if __aarch64__
+        float* ktmp = kernel_tm.channel(p/8 + (p%8)/4 + p%4);
+#else
+        float* ktmp = kernel_tm.channel(p/4 + p%4);
+#endif // __aarch64__
+
+        int q = 0;
+        for (; q+3<inch; q+=4)
+        {
+            vst1q_f32(ktmp, vld1q_f32(kernel0));
+            ktmp += 4;
+
+            kernel0 += 4;
+        }
+        for (; q<inch; q++)
+        {
+            ktmp[0] = kernel0[0];
+            ktmp++;
+            kernel0++;
+        }
+    }
+}
+
+static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias)
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int inch = bottom_blob.c;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    const int size = w * h;
+
+    const float* bias = _bias;
+
+    // interleave
+    Mat tmp(8*4, inch/4+inch%4, size/8 + (size%8)/4 + size%4);
+    {
+        int i = 0;
+
+        for (; i+7<size; i+=8)
+        {
+            const float* img0 = bottom_blob.channel(0);
+            const float* img1 = bottom_blob.channel(1);
+            const float* img2 = bottom_blob.channel(2);
+            const float* img3 = bottom_blob.channel(3);
+
+            img0 += i;
+            img1 += i;
+            img2 += i;
+            img3 += i;
+
+            const int imgstep = bottom_blob.cstep*4;
+
+            float* tmpptr = tmp.channel(i/8);
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+                vst1q_f32(tmpptr, vld1q_f32(img0));
+                vst1q_f32(tmpptr+4, vld1q_f32(img0+4));
+                tmpptr += 8;
+
+                vst1q_f32(tmpptr, vld1q_f32(img1));
+                vst1q_f32(tmpptr+4, vld1q_f32(img1+4));
+                tmpptr += 8;
+
+                vst1q_f32(tmpptr, vld1q_f32(img2));
+                vst1q_f32(tmpptr+4, vld1q_f32(img2+4));
+                tmpptr += 8;
+
+                vst1q_f32(tmpptr, vld1q_f32(img3));
+                vst1q_f32(tmpptr+4, vld1q_f32(img3+4));
+                tmpptr += 8;
+
+                img0 += imgstep;
+                img1 += imgstep;
+                img2 += imgstep;
+                img3 += imgstep;
+            }
+
+            for (; q<inch; q++)
+            {
+                vst1q_f32(tmpptr, vld1q_f32(img0));
+                vst1q_f32(tmpptr+4, vld1q_f32(img0+4));
+                tmpptr += 8;
+
+                img0 += bottom_blob.cstep;
+            }
+        }
+
+        for (; i+3<size; i+=4)
+        {
+            const float* img0 = bottom_blob.channel(0);
+            const float* img1 = bottom_blob.channel(1);
+            const float* img2 = bottom_blob.channel(2);
+            const float* img3 = bottom_blob.channel(3);
+
+            img0 += i;
+            img1 += i;
+            img2 += i;
+            img3 += i;
+
+            const int imgstep = bottom_blob.cstep*4;
+
+            float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+                vst1q_f32(tmpptr, vld1q_f32(img0));
+                tmpptr += 4;
+
+                vst1q_f32(tmpptr, vld1q_f32(img1));
+                tmpptr += 4;
+
+                vst1q_f32(tmpptr, vld1q_f32(img2));
+                tmpptr += 4;
+
+                vst1q_f32(tmpptr, vld1q_f32(img3));
+                tmpptr += 4;
+
+                img0 += imgstep;
+                img1 += imgstep;
+                img2 += imgstep;
+                img3 += imgstep;
+            }
+
+            for (; q<inch; q++)
+            {
+                vst1q_f32(tmpptr, vld1q_f32(img0));
+                tmpptr += 4;
+
+                img0 += bottom_blob.cstep;
+            }
+        }
+
+        for (; i<size; i++)
+        {
+            const float* img0 = bottom_blob.channel(0);
+            const float* img1 = bottom_blob.channel(1);
+            const float* img2 = bottom_blob.channel(2);
+            const float* img3 = bottom_blob.channel(3);
+
+            img0 += i;
+            img1 += i;
+            img2 += i;
+            img3 += i;
+
+            const int imgstep = bottom_blob.cstep*4;
+
+            float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+                tmpptr[0] = img0[0];
+                tmpptr[1] = img1[0];
+                tmpptr[2] = img2[0];
+                tmpptr[3] = img3[0];
+                tmpptr += 4;
+
+                img0 += imgstep;
+                img1 += imgstep;
+                img2 += imgstep;
+                img3 += imgstep;
+            }
+
+            for (; q<inch; q++)
+            {
+                tmpptr[0] = img0[0];
+                tmpptr++;
+
+                img0 += bottom_blob.cstep;
+            }
+        }
+    }
+
+    int p = 0;
+#if __aarch64__
+    for (; p+7<outch; p+=8)
+    {
+        Mat out0 = top_blob.channel(p);
+        Mat out1 = top_blob.channel(p+1);
+        Mat out2 = top_blob.channel(p+2);
+        Mat out3 = top_blob.channel(p+3);
+        Mat out4 = top_blob.channel(p+4);
+        Mat out5 = top_blob.channel(p+5);
+        Mat out6 = top_blob.channel(p+6);
+        Mat out7 = top_blob.channel(p+7);
+
+        const float bias0 = bias ? bias[p] : 0.f;
+        const float bias1 = bias ? bias[p+1] : 0.f;
+        const float bias2 = bias ? bias[p+2] : 0.f;
+        const float bias3 = bias ? bias[p+3] : 0.f;
+        const float bias4 = bias ? bias[p+4] : 0.f;
+        const float bias5 = bias ? bias[p+5] : 0.f;
+        const float bias6 = bias ? bias[p+6] : 0.f;
+        const float bias7 = bias ? bias[p+7] : 0.f;
+
+        float* outptr0 = out0;
+        float* outptr1 = out1;
+        float* outptr2 = out2;
+        float* outptr3 = out3;
+        float* outptr4 = out4;
+        float* outptr5 = out5;
+        float* outptr6 = out6;
+        float* outptr7 = out7;
+
+        int i = 0;
+
+        for (; i+7<size; i+=8)
+        {
+            float32x4_t _sum0 = vdupq_n_f32(bias0);
+            float32x4_t _sum1 = vdupq_n_f32(bias1);
+            float32x4_t _sum2 = vdupq_n_f32(bias2);
+            float32x4_t _sum3 = vdupq_n_f32(bias3);
+            float32x4_t _sum4 = vdupq_n_f32(bias4);
+            float32x4_t _sum5 = vdupq_n_f32(bias5);
+            float32x4_t _sum6 = vdupq_n_f32(bias6);
+            float32x4_t _sum7 = vdupq_n_f32(bias7);
+
+            float32x4_t _sum0n = vdupq_n_f32(bias0);
+            float32x4_t _sum1n = vdupq_n_f32(bias1);
+            float32x4_t _sum2n = vdupq_n_f32(bias2);
+            float32x4_t _sum3n = vdupq_n_f32(bias3);
+            float32x4_t _sum4n = vdupq_n_f32(bias4);
+            float32x4_t _sum5n = vdupq_n_f32(bias5);
+            float32x4_t _sum6n = vdupq_n_f32(bias6);
+            float32x4_t _sum7n = vdupq_n_f32(bias7);
+
+            const float* tmpptr = tmp.channel(i/8);
+            const float* kptr = kernel.channel(p/8);
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+                asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                float32x4_t _p0n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+                asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p1 = vld1q_f32(tmpptr);
+                float32x4_t _p1n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+                asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p2 = vld1q_f32(tmpptr);
+                float32x4_t _p2n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+                asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p3 = vld1q_f32(tmpptr);
+                float32x4_t _p3n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+
+                asm volatile("prfm   pldl1keep, [%0, #512] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_f32(kptr);
+                float32x4_t _k1 = vld1q_f32(kptr+4);
+                float32x4_t _k2 = vld1q_f32(kptr+8);
+                float32x4_t _k3 = vld1q_f32(kptr+12);
+                kptr += 16;
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p0, _k0, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p0, _k1, 0);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p0, _k2, 0);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p0, _k3, 0);
+
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p0n, _k0, 0);
+                _sum1n = vfmaq_laneq_f32(_sum1n, _p0n, _k1, 0);
+                _sum2n = vfmaq_laneq_f32(_sum2n, _p0n, _k2, 0);
+                _sum3n = vfmaq_laneq_f32(_sum3n, _p0n, _k3, 0);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p1, _k0, 1);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p1, _k1, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p1, _k2, 1);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p1, _k3, 1);
+
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p1n, _k0, 1);
+                _sum1n = vfmaq_laneq_f32(_sum1n, _p1n, _k1, 1);
+                _sum2n = vfmaq_laneq_f32(_sum2n, _p1n, _k2, 1);
+                _sum3n = vfmaq_laneq_f32(_sum3n, _p1n, _k3, 1);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p2, _k0, 2);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p2, _k1, 2);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p2, _k2, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p2, _k3, 2);
+
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p2n, _k0, 2);
+                _sum1n = vfmaq_laneq_f32(_sum1n, _p2n, _k1, 2);
+                _sum2n = vfmaq_laneq_f32(_sum2n, _p2n, _k2, 2);
+                _sum3n = vfmaq_laneq_f32(_sum3n, _p2n, _k3, 2);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p3, _k0, 3);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p3, _k1, 3);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p3, _k2, 3);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p3, _k3, 3);
+
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p3n, _k0, 3);
+                _sum1n = vfmaq_laneq_f32(_sum1n, _p3n, _k1, 3);
+                _sum2n = vfmaq_laneq_f32(_sum2n, _p3n, _k2, 3);
+                _sum3n = vfmaq_laneq_f32(_sum3n, _p3n, _k3, 3);
+
+                asm volatile("prfm   pldl1keep, [%0, #512] \n" : : "r"(kptr) :);
+                _k0 = vld1q_f32(kptr);
+                _k1 = vld1q_f32(kptr+4);
+                _k2 = vld1q_f32(kptr+8);
+                _k3 = vld1q_f32(kptr+12);
+                kptr += 16;
+
+                _sum4 = vfmaq_laneq_f32(_sum4, _p0, _k0, 0);
+                _sum5 = vfmaq_laneq_f32(_sum5, _p0, _k1, 0);
+                _sum6 = vfmaq_laneq_f32(_sum6, _p0, _k2, 0);
+                _sum7 = vfmaq_laneq_f32(_sum7, _p0, _k3, 0);
+
+                _sum4n = vfmaq_laneq_f32(_sum4n, _p0n, _k0, 0);
+                _sum5n = vfmaq_laneq_f32(_sum5n, _p0n, _k1, 0);
+                _sum6n = vfmaq_laneq_f32(_sum6n, _p0n, _k2, 0);
+                _sum7n = vfmaq_laneq_f32(_sum7n, _p0n, _k3, 0);
+
+                _sum4 = vfmaq_laneq_f32(_sum4, _p1, _k0, 1);
+                _sum5 = vfmaq_laneq_f32(_sum5, _p1, _k1, 1);
+                _sum6 = vfmaq_laneq_f32(_sum6, _p1, _k2, 1);
+                _sum7 = vfmaq_laneq_f32(_sum7, _p1, _k3, 1);
+
+                _sum4n = vfmaq_laneq_f32(_sum4n, _p1n, _k0, 1);
+                _sum5n = vfmaq_laneq_f32(_sum5n, _p1n, _k1, 1);
+                _sum6n = vfmaq_laneq_f32(_sum6n, _p1n, _k2, 1);
+                _sum7n = vfmaq_laneq_f32(_sum7n, _p1n, _k3, 1);
+
+                _sum4 = vfmaq_laneq_f32(_sum4, _p2, _k0, 2);
+                _sum5 = vfmaq_laneq_f32(_sum5, _p2, _k1, 2);
+                _sum6 = vfmaq_laneq_f32(_sum6, _p2, _k2, 2);
+                _sum7 = vfmaq_laneq_f32(_sum7, _p2, _k3, 2);
+
+                _sum4n = vfmaq_laneq_f32(_sum4n, _p2n, _k0, 2);
+                _sum5n = vfmaq_laneq_f32(_sum5n, _p2n, _k1, 2);
+                _sum6n = vfmaq_laneq_f32(_sum6n, _p2n, _k2, 2);
+                _sum7n = vfmaq_laneq_f32(_sum7n, _p2n, _k3, 2);
+
+                _sum4 = vfmaq_laneq_f32(_sum4, _p3, _k0, 3);
+                _sum5 = vfmaq_laneq_f32(_sum5, _p3, _k1, 3);
+                _sum6 = vfmaq_laneq_f32(_sum6, _p3, _k2, 3);
+                _sum7 = vfmaq_laneq_f32(_sum7, _p3, _k3, 3);
+
+                _sum4n = vfmaq_laneq_f32(_sum4n, _p3n, _k0, 3);
+                _sum5n = vfmaq_laneq_f32(_sum5n, _p3n, _k1, 3);
+                _sum6n = vfmaq_laneq_f32(_sum6n, _p3n, _k2, 3);
+                _sum7n = vfmaq_laneq_f32(_sum7n, _p3n, _k3, 3);
+            }
+
+            for (; q<inch; q++)
+            {
+                asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                float32x4_t _p0n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+
+                asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(kptr) :);
+                float32x4_t _k0123 = vld1q_f32(kptr);
+                float32x4_t _k4567 = vld1q_f32(kptr+4);
+                kptr += 8;
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p0, _k0123, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p0, _k0123, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p0, _k0123, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p0, _k0123, 3);
+                _sum4 = vfmaq_laneq_f32(_sum4, _p0, _k4567, 0);
+                _sum5 = vfmaq_laneq_f32(_sum5, _p0, _k4567, 1);
+                _sum6 = vfmaq_laneq_f32(_sum6, _p0, _k4567, 2);
+                _sum7 = vfmaq_laneq_f32(_sum7, _p0, _k4567, 3);
+
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p0n, _k0123, 0);
+                _sum1n = vfmaq_laneq_f32(_sum1n, _p0n, _k0123, 1);
+                _sum2n = vfmaq_laneq_f32(_sum2n, _p0n, _k0123, 2);
+                _sum3n = vfmaq_laneq_f32(_sum3n, _p0n, _k0123, 3);
+                _sum4n = vfmaq_laneq_f32(_sum4n, _p0n, _k4567, 0);
+                _sum5n = vfmaq_laneq_f32(_sum5n, _p0n, _k4567, 1);
+                _sum6n = vfmaq_laneq_f32(_sum6n, _p0n, _k4567, 2);
+                _sum7n = vfmaq_laneq_f32(_sum7n, _p0n, _k4567, 3);
+            }
+
+            vst1q_f32(outptr0+i, _sum0);
+            vst1q_f32(outptr1+i, _sum1);
+            vst1q_f32(outptr2+i, _sum2);
+            vst1q_f32(outptr3+i, _sum3);
+            vst1q_f32(outptr4+i, _sum4);
+            vst1q_f32(outptr5+i, _sum5);
+            vst1q_f32(outptr6+i, _sum6);
+            vst1q_f32(outptr7+i, _sum7);
+
+            vst1q_f32(outptr0+i+4, _sum0n);
+            vst1q_f32(outptr1+i+4, _sum1n);
+            vst1q_f32(outptr2+i+4, _sum2n);
+            vst1q_f32(outptr3+i+4, _sum3n);
+            vst1q_f32(outptr4+i+4, _sum4n);
+            vst1q_f32(outptr5+i+4, _sum5n);
+            vst1q_f32(outptr6+i+4, _sum6n);
+            vst1q_f32(outptr7+i+4, _sum7n);
+        }
+
+        for (; i+3<size; i+=4)
+        {
+            float32x4_t _sum0 = vdupq_n_f32(bias0);
+            float32x4_t _sum1 = vdupq_n_f32(bias1);
+            float32x4_t _sum2 = vdupq_n_f32(bias2);
+            float32x4_t _sum3 = vdupq_n_f32(bias3);
+            float32x4_t _sum4 = vdupq_n_f32(bias4);
+            float32x4_t _sum5 = vdupq_n_f32(bias5);
+            float32x4_t _sum6 = vdupq_n_f32(bias6);
+            float32x4_t _sum7 = vdupq_n_f32(bias7);
+
+            const float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+            const float* kptr = kernel.channel(p/8);
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+                asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+                asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p1 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+                asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p2 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+                asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p3 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+
+                asm volatile("prfm   pldl1keep, [%0, #512] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_f32(kptr);
+                float32x4_t _k1 = vld1q_f32(kptr+4);
+                float32x4_t _k2 = vld1q_f32(kptr+8);
+                float32x4_t _k3 = vld1q_f32(kptr+12);
+                kptr += 16;
+
+                asm volatile("prfm   pldl1keep, [%0, #512] \n" : : "r"(kptr) :);
+                float32x4_t _k4 = vld1q_f32(kptr);
+                float32x4_t _k5 = vld1q_f32(kptr+4);
+                float32x4_t _k6 = vld1q_f32(kptr+8);
+                float32x4_t _k7 = vld1q_f32(kptr+12);
+                kptr += 16;
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p0, _k0, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p0, _k1, 0);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p0, _k2, 0);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p0, _k3, 0);
+                _sum4 = vfmaq_laneq_f32(_sum4, _p0, _k4, 0);
+                _sum5 = vfmaq_laneq_f32(_sum5, _p0, _k5, 0);
+                _sum6 = vfmaq_laneq_f32(_sum6, _p0, _k6, 0);
+                _sum7 = vfmaq_laneq_f32(_sum7, _p0, _k7, 0);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p1, _k0, 1);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p1, _k1, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p1, _k2, 1);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p1, _k3, 1);
+                _sum4 = vfmaq_laneq_f32(_sum4, _p1, _k4, 1);
+                _sum5 = vfmaq_laneq_f32(_sum5, _p1, _k5, 1);
+                _sum6 = vfmaq_laneq_f32(_sum6, _p1, _k6, 1);
+                _sum7 = vfmaq_laneq_f32(_sum7, _p1, _k7, 1);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p2, _k0, 2);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p2, _k1, 2);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p2, _k2, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p2, _k3, 2);
+                _sum4 = vfmaq_laneq_f32(_sum4, _p2, _k4, 2);
+                _sum5 = vfmaq_laneq_f32(_sum5, _p2, _k5, 2);
+                _sum6 = vfmaq_laneq_f32(_sum6, _p2, _k6, 2);
+                _sum7 = vfmaq_laneq_f32(_sum7, _p2, _k7, 2);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p3, _k0, 3);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p3, _k1, 3);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p3, _k2, 3);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p3, _k3, 3);
+                _sum4 = vfmaq_laneq_f32(_sum4, _p3, _k4, 3);
+                _sum5 = vfmaq_laneq_f32(_sum5, _p3, _k5, 3);
+                _sum6 = vfmaq_laneq_f32(_sum6, _p3, _k6, 3);
+                _sum7 = vfmaq_laneq_f32(_sum7, _p3, _k7, 3);
+            }
+
+            for (; q<inch; q++)
+            {
+                asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+
+                asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(kptr) :);
+                float32x4_t _k0123 = vld1q_f32(kptr);
+                float32x4_t _k4567 = vld1q_f32(kptr+4);
+                kptr += 8;
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p0, _k0123, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p0, _k0123, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p0, _k0123, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p0, _k0123, 3);
+                _sum4 = vfmaq_laneq_f32(_sum4, _p0, _k4567, 0);
+                _sum5 = vfmaq_laneq_f32(_sum5, _p0, _k4567, 1);
+                _sum6 = vfmaq_laneq_f32(_sum6, _p0, _k4567, 2);
+                _sum7 = vfmaq_laneq_f32(_sum7, _p0, _k4567, 3);
+            }
+
+            vst1q_f32(outptr0+i, _sum0);
+            vst1q_f32(outptr1+i, _sum1);
+            vst1q_f32(outptr2+i, _sum2);
+            vst1q_f32(outptr3+i, _sum3);
+            vst1q_f32(outptr4+i, _sum4);
+            vst1q_f32(outptr5+i, _sum5);
+            vst1q_f32(outptr6+i, _sum6);
+            vst1q_f32(outptr7+i, _sum7);
+        }
+
+        for (; i<size; i++)
+        {
+            float32x4_t _sum0 = vdupq_n_f32(0.f);
+            float32x4_t _sum1 = vdupq_n_f32(0.f);
+            float32x4_t _sum2 = vdupq_n_f32(0.f);
+            float32x4_t _sum3 = vdupq_n_f32(0.f);
+            float32x4_t _sum4 = vdupq_n_f32(0.f);
+            float32x4_t _sum5 = vdupq_n_f32(0.f);
+            float32x4_t _sum6 = vdupq_n_f32(0.f);
+            float32x4_t _sum7 = vdupq_n_f32(0.f);
+
+            const float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
+            const float* kptr = kernel.channel(p/8);
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+                asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+
+                asm volatile("prfm   pldl1keep, [%0, #512] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_f32(kptr);
+                float32x4_t _k1 = vld1q_f32(kptr+4);
+                float32x4_t _k2 = vld1q_f32(kptr+8);
+                float32x4_t _k3 = vld1q_f32(kptr+12);
+                kptr += 16;
+
+                asm volatile("prfm   pldl1keep, [%0, #512] \n" : : "r"(kptr) :);
+                float32x4_t _k4 = vld1q_f32(kptr);
+                float32x4_t _k5 = vld1q_f32(kptr+4);
+                float32x4_t _k6 = vld1q_f32(kptr+8);
+                float32x4_t _k7 = vld1q_f32(kptr+12);
+                kptr += 16;
+
+                _sum0 = vfmaq_f32(_sum0, _p0, _k0);
+                _sum1 = vfmaq_f32(_sum1, _p0, _k1);
+                _sum2 = vfmaq_f32(_sum2, _p0, _k2);
+                _sum3 = vfmaq_f32(_sum3, _p0, _k3);
+                _sum4 = vfmaq_f32(_sum4, _p0, _k4);
+                _sum5 = vfmaq_f32(_sum5, _p0, _k5);
+                _sum6 = vfmaq_f32(_sum6, _p0, _k6);
+                _sum7 = vfmaq_f32(_sum7, _p0, _k7);
+            }
+
+            float32x4_t _sum0123 = vdupq_n_f32(0.f);
+            float32x4_t _sum4567 = vdupq_n_f32(0.f);
+
+            for (; q<inch; q++)
+            {
+                asm volatile("prfm   pldl1keep, [%0, #32] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_dup_f32(tmpptr);
+                tmpptr += 1;
+
+                asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(kptr) :);
+                float32x4_t _k0123 = vld1q_f32(kptr);
+                float32x4_t _k4567 = vld1q_f32(kptr+4);
+                kptr += 8;
+
+                _sum0123 = vfmaq_f32(_sum0123, _p0, _k0123);
+                _sum4567 = vfmaq_f32(_sum4567, _p0, _k4567);
+            }
+
+            float sum0 = bias0 + vaddvq_f32(_sum0) + vgetq_lane_f32(_sum0123, 0);
+            float sum1 = bias1 + vaddvq_f32(_sum1) + vgetq_lane_f32(_sum0123, 1);
+            float sum2 = bias2 + vaddvq_f32(_sum2) + vgetq_lane_f32(_sum0123, 2);
+            float sum3 = bias3 + vaddvq_f32(_sum3) + vgetq_lane_f32(_sum0123, 3);
+            float sum4 = bias4 + vaddvq_f32(_sum4) + vgetq_lane_f32(_sum4567, 0);
+            float sum5 = bias5 + vaddvq_f32(_sum5) + vgetq_lane_f32(_sum4567, 1);
+            float sum6 = bias6 + vaddvq_f32(_sum6) + vgetq_lane_f32(_sum4567, 2);
+            float sum7 = bias7 + vaddvq_f32(_sum7) + vgetq_lane_f32(_sum4567, 3);
+
+            outptr0[i] = sum0;
+            outptr1[i] = sum1;
+            outptr2[i] = sum2;
+            outptr3[i] = sum3;
+            outptr4[i] = sum4;
+            outptr5[i] = sum5;
+            outptr6[i] = sum6;
+            outptr7[i] = sum7;
+        }
+    }
+#endif // __aarch64__
+    for (; p+3<outch; p+=4)
+    {
+        Mat out0 = top_blob.channel(p);
+        Mat out1 = top_blob.channel(p+1);
+        Mat out2 = top_blob.channel(p+2);
+        Mat out3 = top_blob.channel(p+3);
+
+        const float bias0 = bias ? bias[p] : 0.f;
+        const float bias1 = bias ? bias[p+1] : 0.f;
+        const float bias2 = bias ? bias[p+2] : 0.f;
+        const float bias3 = bias ? bias[p+3] : 0.f;
+
+        float* outptr0 = out0;
+        float* outptr1 = out1;
+        float* outptr2 = out2;
+        float* outptr3 = out3;
+
+        int i = 0;
+
+        for (; i+7<size; i+=8)
+        {
+            float32x4_t _sum0 = vdupq_n_f32(bias0);
+            float32x4_t _sum1 = vdupq_n_f32(bias1);
+            float32x4_t _sum2 = vdupq_n_f32(bias2);
+            float32x4_t _sum3 = vdupq_n_f32(bias3);
+
+            float32x4_t _sum0n = vdupq_n_f32(bias0);
+            float32x4_t _sum1n = vdupq_n_f32(bias1);
+            float32x4_t _sum2n = vdupq_n_f32(bias2);
+            float32x4_t _sum3n = vdupq_n_f32(bias3);
+
+            const float* tmpptr = tmp.channel(i/8);
+#if __aarch64__
+            const float* kptr = kernel.channel(p/8 + (p%8)/4);
+#else
+            const float* kptr = kernel.channel(p/4);
+#endif // __aarch64__
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                float32x4_t _p0n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+//                 asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p1 = vld1q_f32(tmpptr);
+                float32x4_t _p1n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+//                 asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p2 = vld1q_f32(tmpptr);
+                float32x4_t _p2n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+//                 asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p3 = vld1q_f32(tmpptr);
+                float32x4_t _p3n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #512] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_f32(kptr);
+                float32x4_t _k1 = vld1q_f32(kptr+4);
+                float32x4_t _k2 = vld1q_f32(kptr+8);
+                float32x4_t _k3 = vld1q_f32(kptr+12);
+                kptr += 16;
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p0, _k0, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p0, _k1, 0);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p0, _k2, 0);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p0, _k3, 0);
+
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p0n, _k0, 0);
+                _sum1n = vfmaq_laneq_f32(_sum1n, _p0n, _k1, 0);
+                _sum2n = vfmaq_laneq_f32(_sum2n, _p0n, _k2, 0);
+                _sum3n = vfmaq_laneq_f32(_sum3n, _p0n, _k3, 0);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p1, _k0, 1);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p1, _k1, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p1, _k2, 1);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p1, _k3, 1);
+
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p1n, _k0, 1);
+                _sum1n = vfmaq_laneq_f32(_sum1n, _p1n, _k1, 1);
+                _sum2n = vfmaq_laneq_f32(_sum2n, _p1n, _k2, 1);
+                _sum3n = vfmaq_laneq_f32(_sum3n, _p1n, _k3, 1);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p2, _k0, 2);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p2, _k1, 2);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p2, _k2, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p2, _k3, 2);
+
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p2n, _k0, 2);
+                _sum1n = vfmaq_laneq_f32(_sum1n, _p2n, _k1, 2);
+                _sum2n = vfmaq_laneq_f32(_sum2n, _p2n, _k2, 2);
+                _sum3n = vfmaq_laneq_f32(_sum3n, _p2n, _k3, 2);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p3, _k0, 3);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p3, _k1, 3);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p3, _k2, 3);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p3, _k3, 3);
+
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p3n, _k0, 3);
+                _sum1n = vfmaq_laneq_f32(_sum1n, _p3n, _k1, 3);
+                _sum2n = vfmaq_laneq_f32(_sum2n, _p3n, _k2, 3);
+                _sum3n = vfmaq_laneq_f32(_sum3n, _p3n, _k3, 3);
+            }
+
+            for (; q<inch; q++)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                float32x4_t _p0n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(kptr) :);
+                float32x4_t _k0123 = vld1q_f32(kptr);
+                kptr += 4;
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p0, _k0123, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p0, _k0123, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p0, _k0123, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p0, _k0123, 3);
+
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p0n, _k0123, 0);
+                _sum1n = vfmaq_laneq_f32(_sum1n, _p0n, _k0123, 1);
+                _sum2n = vfmaq_laneq_f32(_sum2n, _p0n, _k0123, 2);
+                _sum3n = vfmaq_laneq_f32(_sum3n, _p0n, _k0123, 3);
+            }
+
+            vst1q_f32(outptr0+i, _sum0);
+            vst1q_f32(outptr1+i, _sum1);
+            vst1q_f32(outptr2+i, _sum2);
+            vst1q_f32(outptr3+i, _sum3);
+
+            vst1q_f32(outptr0+i+4, _sum0n);
+            vst1q_f32(outptr1+i+4, _sum1n);
+            vst1q_f32(outptr2+i+4, _sum2n);
+            vst1q_f32(outptr3+i+4, _sum3n);
+        }
+
+        for (; i+3<size; i+=4)
+        {
+            float32x4_t _sum0 = vdupq_n_f32(bias0);
+            float32x4_t _sum1 = vdupq_n_f32(bias1);
+            float32x4_t _sum2 = vdupq_n_f32(bias2);
+            float32x4_t _sum3 = vdupq_n_f32(bias3);
+
+            const float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+#if __aarch64__
+            const float* kptr = kernel.channel(p/8 + (p%8)/4);
+#else
+            const float* kptr = kernel.channel(p/4);
+#endif // __aarch64__
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p1 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p2 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p3 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #512] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_f32(kptr);
+                float32x4_t _k1 = vld1q_f32(kptr+4);
+                float32x4_t _k2 = vld1q_f32(kptr+8);
+                float32x4_t _k3 = vld1q_f32(kptr+12);
+                kptr += 16;
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p0, _k0, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p0, _k1, 0);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p0, _k2, 0);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p0, _k3, 0);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p1, _k0, 1);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p1, _k1, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p1, _k2, 1);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p1, _k3, 1);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p2, _k0, 2);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p2, _k1, 2);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p2, _k2, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p2, _k3, 2);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p3, _k0, 3);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p3, _k1, 3);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p3, _k2, 3);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p3, _k3, 3);
+            }
+
+            for (; q<inch; q++)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(kptr) :);
+                float32x4_t _k0123 = vld1q_f32(kptr);
+                kptr += 4;
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p0, _k0123, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _p0, _k0123, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _p0, _k0123, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _p0, _k0123, 3);
+            }
+
+            vst1q_f32(outptr0+i, _sum0);
+            vst1q_f32(outptr1+i, _sum1);
+            vst1q_f32(outptr2+i, _sum2);
+            vst1q_f32(outptr3+i, _sum3);
+        }
+
+        for (; i<size; i++)
+        {
+            float32x4_t _sum0 = vdupq_n_f32(0.f);
+            float32x4_t _sum1 = vdupq_n_f32(0.f);
+            float32x4_t _sum2 = vdupq_n_f32(0.f);
+            float32x4_t _sum3 = vdupq_n_f32(0.f);
+
+            const float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
+#if __aarch64__
+            const float* kptr = kernel.channel(p/8 + (p%8)/4);
+#else
+            const float* kptr = kernel.channel(p/4);
+#endif // __aarch64__
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #512] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_f32(kptr);
+                float32x4_t _k1 = vld1q_f32(kptr+4);
+                float32x4_t _k2 = vld1q_f32(kptr+8);
+                float32x4_t _k3 = vld1q_f32(kptr+12);
+                kptr += 16;
+
+                _sum0 = vfmaq_f32(_sum0, _p0, _k0);
+                _sum1 = vfmaq_f32(_sum1, _p0, _k1);
+                _sum2 = vfmaq_f32(_sum2, _p0, _k2);
+                _sum3 = vfmaq_f32(_sum3, _p0, _k3);
+            }
+
+            float32x4_t _sum0123 = vdupq_n_f32(0.f);
+
+            for (; q<inch; q++)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #32] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_dup_f32(tmpptr);
+                tmpptr += 1;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(kptr) :);
+                float32x4_t _k0123 = vld1q_f32(kptr);
+                kptr += 4;
+
+                _sum0123 = vfmaq_f32(_sum0123, _p0, _k0123);
+            }
+
+            float sum0 = bias0 + vaddvq_f32(_sum0) + vgetq_lane_f32(_sum0123, 0);
+            float sum1 = bias1 + vaddvq_f32(_sum1) + vgetq_lane_f32(_sum0123, 1);
+            float sum2 = bias2 + vaddvq_f32(_sum2) + vgetq_lane_f32(_sum0123, 2);
+            float sum3 = bias3 + vaddvq_f32(_sum3) + vgetq_lane_f32(_sum0123, 3);
+
+            outptr0[i] = sum0;
+            outptr1[i] = sum1;
+            outptr2[i] = sum2;
+            outptr3[i] = sum3;
+        }
+    }
+
+    for (; p<outch; p++)
+    {
+        Mat out0 = top_blob.channel(p);
+
+        const float bias0 = bias ? bias[p] : 0.f;
+
+        float* outptr0 = out0;
+
+        int i = 0;
+
+        for (; i+7<size; i+=8)
+        {
+            float32x4_t _sum0 = vdupq_n_f32(bias0);
+            float32x4_t _sum0n = vdupq_n_f32(bias0);
+
+            const float* tmpptr = tmp.channel(i/8);
+#if __aarch64__
+            const float* kptr = kernel.channel(p/8 + (p%8)/4 + p%4);
+#else
+            const float* kptr = kernel.channel(p/4 + p%4);
+#endif // __aarch64__
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                float32x4_t _p0n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+//                 asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p1 = vld1q_f32(tmpptr);
+                float32x4_t _p1n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+//                 asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p2 = vld1q_f32(tmpptr);
+                float32x4_t _p2n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+//                 asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p3 = vld1q_f32(tmpptr);
+                float32x4_t _p3n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_f32(kptr);
+                kptr += 4;
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p0, _k0, 0);
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p0n, _k0, 0);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p1, _k0, 1);
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p1n, _k0, 1);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p2, _k0, 2);
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p2n, _k0, 2);
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p3, _k0, 3);
+                _sum0n = vfmaq_laneq_f32(_sum0n, _p3n, _k0, 3);
+            }
+
+            for (; q<inch; q++)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #256] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                float32x4_t _p0n = vld1q_f32(tmpptr+4);
+                tmpptr += 8;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #32] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_dup_f32(kptr);
+                kptr += 1;
+
+                _sum0 = vfmaq_f32(_sum0, _p0, _k0);
+                _sum0n = vfmaq_f32(_sum0n, _p0n, _k0);
+            }
+
+            vst1q_f32(outptr0+i, _sum0);
+            vst1q_f32(outptr0+i+4, _sum0n);
+        }
+
+        for (; i+3<size; i+=4)
+        {
+            float32x4_t _sum0 = vdupq_n_f32(bias0);
+
+            const float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+#if __aarch64__
+            const float* kptr = kernel.channel(p/8 + (p%8)/4 + p%4);
+#else
+            const float* kptr = kernel.channel(p/4 + p%4);
+#endif // __aarch64__
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p1 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p2 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p3 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_f32(kptr);
+                kptr += 4;
+
+                _sum0 = vfmaq_laneq_f32(_sum0, _p0, _k0, 0);
+                _sum0 = vfmaq_laneq_f32(_sum0, _p1, _k0, 1);
+                _sum0 = vfmaq_laneq_f32(_sum0, _p2, _k0, 2);
+                _sum0 = vfmaq_laneq_f32(_sum0, _p3, _k0, 3);
+            }
+
+            for (; q<inch; q++)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #32] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_dup_f32(kptr);
+                kptr += 1;
+
+                _sum0 = vfmaq_f32(_sum0, _p0, _k0);
+            }
+
+            vst1q_f32(outptr0+i, _sum0);
+        }
+
+        for (; i<size; i++)
+        {
+            float32x4_t _sum0 = vdupq_n_f32(0.f);
+
+            const float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
+#if __aarch64__
+            const float* kptr = kernel.channel(p/8 + (p%8)/4 + p%4);
+#else
+            const float* kptr = kernel.channel(p/4 + p%4);
+#endif // __aarch64__
+
+            int q = 0;
+
+            for (; q+3<inch; q+=4)
+            {
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(tmpptr) :);
+                float32x4_t _p0 = vld1q_f32(tmpptr);
+                tmpptr += 4;
+
+//                 asm volatile("prfm   pldl1keep, [%0, #128] \n" : : "r"(kptr) :);
+                float32x4_t _k0 = vld1q_f32(kptr);
+                kptr += 4;
+
+                _sum0 = vfmaq_f32(_sum0, _p0, _k0);
+            }
+
+            float sum0 = bias0 + vaddvq_f32(_sum0);
+
+            for (; q<inch; q++)
+            {
+                sum0 += tmpptr[0] * kptr[0];
+                tmpptr++;
+                kptr++;
+            }
+
+            outptr0[i] = sum0;
+        }
+    }
+
+//     // NOTE sgemm
+//     for (; p<outch; p++)
+//     {
+//         Mat out0 = top_blob.channel(p);
+//
+//         const float bias0 = bias ? bias[p] : 0.f;
+//
+//         float* outptr0 = out0;
+//
+//         for (int i=0; i<size; i++)
+//         {
+//             float sum = bias0;
+//
+//             const float* kptr = _kernel.channel(p/8 + p%8);
+//
+//             for (int q=0; q<inch; q++)
+//             {
+//                 const float* img0 = bottom_blob.channel(q);
+//
+//                 sum += img0[i] * kptr[0];
+//                 kptr ++;
+//             }
+//
+//             outptr0[i] = sum;
+//         }
+//     }
+}
+
 static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
 {
     int inch = bottom_blob.c;
@@ -1426,7 +2662,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 "ld1        {v8.4s, v9.4s}, [%1]           \n"
                 "fmla       v8.4s, v6.4s, %12.4s           \n"
                 "fmla       v9.4s, v7.4s, %12.4s           \n"
-                
+
                 "prfm       pldl1keep, [%2, #256]          \n"
                 "ld1        {v10.4s, v11.4s}, [%2]         \n"
                 "fmla       v10.4s, v6.4s, %13.4s          \n"

@@ -8325,16 +8325,6 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w);
 }
 
-#if !__aarch64__
-// TODO drop it
-static inline float vaddvq_f32(float32x4_t _v)
-{
-    float32x2_t _ss = vadd_f32(vget_low_f32(_v), vget_high_f32(_v));
-    float32x2_t _ss2 = vpadd_f32(_ss, _ss);
-    return vget_lane_f32(_ss2, 0);
-}
-#endif // !__aarch64__
-
 static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
 {
     int w = bottom_blob.w;
@@ -10268,10 +10258,21 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     }
 
                     // TODO transpose and acc
+#if __aarch64__
                     float sum0 = vaddvq_f32(_sum0);
                     float sum1 = vaddvq_f32(_sum1);
                     float sum2 = vaddvq_f32(_sum2);
                     float sum3 = vaddvq_f32(_sum3);
+#else
+                    float32x2_t _ss0 = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
+                    float32x2_t _ss1 = vadd_f32(vget_low_f32(_sum1), vget_high_f32(_sum1));
+                    float32x2_t _ss2 = vadd_f32(vget_low_f32(_sum2), vget_high_f32(_sum2));
+                    float32x2_t _ss3 = vadd_f32(vget_low_f32(_sum3), vget_high_f32(_sum3));
+                    float sum0 = vget_lane_f32(vpadd_f32(_ss0, _ss0), 0);
+                    float sum1 = vget_lane_f32(vpadd_f32(_ss1, _ss1), 0);
+                    float sum2 = vget_lane_f32(vpadd_f32(_ss2, _ss2), 0);
+                    float sum3 = vget_lane_f32(vpadd_f32(_ss3, _ss3), 0);
+#endif // __aarch64__
 
                     for (; q<inch; q++)
                     {
@@ -10610,7 +10611,12 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         _sum0 = vmlaq_f32(_sum0, _bb2p0, _ktm0);
                     }
 
+#if __aarch64__
                     float sum0 = vaddvq_f32(_sum0);
+#else
+                    float32x2_t _ss0 = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
+                    float sum0 = vget_lane_f32(vpadd_f32(_ss0, _ss0), 0);
+#endif // __aarch64__
 
                     for (; q<inch; q++)
                     {

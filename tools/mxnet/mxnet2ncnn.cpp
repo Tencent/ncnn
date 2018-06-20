@@ -275,11 +275,33 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
     bool in_nodes_list = false;
     bool in_node_block = false;
     bool in_attr_block = false;
+    bool in_inputs_block = false;
     while (!feof(fp))
     {
         char* s = fgets(line, 1024, fp);
         if (!s)
             break;
+
+        if (in_inputs_block)
+        {
+            //      ]
+            if (memcmp(line, "      ]", 7) == 0)
+            {
+                in_inputs_block = false;
+                continue;
+            }
+
+            //        [439, 0, 0],
+            int id;
+            int subid;
+            int nscan = sscanf(line, "        [%d, %d", &id, &subid);
+            if (nscan == 2)
+            {
+                n.inputs.push_back(id);
+                n.subinputs.push_back(subid);
+                continue;
+            }
+        }
 
         if (in_attr_block)
         {
@@ -349,6 +371,13 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                 continue;
             }
 
+            //      "inputs": [
+            if (memcmp(line, "      \"inputs\": [\n", 18) == 0)
+            {
+                in_inputs_block = true;
+                continue;
+            }
+
             //      "inputs": []
             char inputs[256] = {0};
             nscan = sscanf(line, "      \"inputs\": %255[^\n]", inputs);
@@ -405,7 +434,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             }
 
             //      "attrs": {
-            if (memcmp(line, "      \"attrs\": {", 15) == 0)
+            if (memcmp(line, "      \"attrs\": {", 16) == 0)
             {
                 in_attr_block = true;
                 continue;
