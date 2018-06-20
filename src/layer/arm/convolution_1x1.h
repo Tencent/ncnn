@@ -207,10 +207,14 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     // interleave
     Mat tmp(8*4, inch/4+inch%4, size/8 + (size%8)/4 + size%4);
     {
-        int i = 0;
+        int nn_size = size >> 3;
+        int remain_size_start = nn_size << 3;
 
-        for (; i+7<size; i+=8)
+        #pragma omp parallel for
+        for (int ii=0; ii<nn_size; ii++)
         {
+            int i = ii * 8;
+
             const float* img0 = bottom_blob.channel(0);
             const float* img1 = bottom_blob.channel(1);
             const float* img2 = bottom_blob.channel(2);
@@ -261,8 +265,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             }
         }
 
-        for (; i+3<size; i+=4)
+        nn_size = (size - remain_size_start) >> 2;
+
+        #pragma omp parallel for
+        for (int ii=0; ii<nn_size; ii++)
         {
+            int i = remain_size_start + ii * 4;
+
             const float* img0 = bottom_blob.channel(0);
             const float* img1 = bottom_blob.channel(1);
             const float* img2 = bottom_blob.channel(2);
@@ -308,7 +317,10 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             }
         }
 
-        for (; i<size; i++)
+        remain_size_start += nn_size << 2;
+
+        #pragma omp parallel for
+        for (int i=remain_size_start; i<size; i++)
         {
             const float* img0 = bottom_blob.channel(0);
             const float* img1 = bottom_blob.channel(1);
@@ -350,10 +362,18 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
         }
     }
 
-    int p = 0;
+    int nn_outch = 0;
+    int remain_outch_start = 0;
+
 #if __aarch64__
-    for (; p+7<outch; p+=8)
+    nn_outch = outch >> 3;
+    remain_outch_start = nn_outch << 3;
+
+    #pragma omp parallel for
+    for (int pp=0; pp<nn_outch; pp++)
     {
+        int p = pp * 8;
+
         Mat out0 = top_blob.channel(p);
         Mat out1 = top_blob.channel(p+1);
         Mat out2 = top_blob.channel(p+2);
@@ -385,6 +405,9 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
         for (; i+7<size; i+=8)
         {
+            const float* tmpptr = tmp.channel(i/8);
+            const float* kptr = kernel.channel(p/8);
+
             float32x4_t _sum0 = vdupq_n_f32(bias0);
             float32x4_t _sum1 = vdupq_n_f32(bias1);
             float32x4_t _sum2 = vdupq_n_f32(bias2);
@@ -402,9 +425,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float32x4_t _sum5n = vdupq_n_f32(bias5);
             float32x4_t _sum6n = vdupq_n_f32(bias6);
             float32x4_t _sum7n = vdupq_n_f32(bias7);
-
-            const float* tmpptr = tmp.channel(i/8);
-            const float* kptr = kernel.channel(p/8);
 
             int q = 0;
 
@@ -553,27 +573,39 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 _sum7n = vfmaq_laneq_f32(_sum7n, _p0n, _k4567, 3);
             }
 
-            vst1q_f32(outptr0+i, _sum0);
-            vst1q_f32(outptr1+i, _sum1);
-            vst1q_f32(outptr2+i, _sum2);
-            vst1q_f32(outptr3+i, _sum3);
-            vst1q_f32(outptr4+i, _sum4);
-            vst1q_f32(outptr5+i, _sum5);
-            vst1q_f32(outptr6+i, _sum6);
-            vst1q_f32(outptr7+i, _sum7);
+            vst1q_f32(outptr0, _sum0);
+            vst1q_f32(outptr1, _sum1);
+            vst1q_f32(outptr2, _sum2);
+            vst1q_f32(outptr3, _sum3);
+            vst1q_f32(outptr4, _sum4);
+            vst1q_f32(outptr5, _sum5);
+            vst1q_f32(outptr6, _sum6);
+            vst1q_f32(outptr7, _sum7);
 
-            vst1q_f32(outptr0+i+4, _sum0n);
-            vst1q_f32(outptr1+i+4, _sum1n);
-            vst1q_f32(outptr2+i+4, _sum2n);
-            vst1q_f32(outptr3+i+4, _sum3n);
-            vst1q_f32(outptr4+i+4, _sum4n);
-            vst1q_f32(outptr5+i+4, _sum5n);
-            vst1q_f32(outptr6+i+4, _sum6n);
-            vst1q_f32(outptr7+i+4, _sum7n);
+            vst1q_f32(outptr0+4, _sum0n);
+            vst1q_f32(outptr1+4, _sum1n);
+            vst1q_f32(outptr2+4, _sum2n);
+            vst1q_f32(outptr3+4, _sum3n);
+            vst1q_f32(outptr4+4, _sum4n);
+            vst1q_f32(outptr5+4, _sum5n);
+            vst1q_f32(outptr6+4, _sum6n);
+            vst1q_f32(outptr7+4, _sum7n);
+
+            outptr0 += 8;
+            outptr1 += 8;
+            outptr2 += 8;
+            outptr3 += 8;
+            outptr4 += 8;
+            outptr5 += 8;
+            outptr6 += 8;
+            outptr7 += 8;
         }
 
         for (; i+3<size; i+=4)
         {
+            const float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+            const float* kptr = kernel.channel(p/8);
+
             float32x4_t _sum0 = vdupq_n_f32(bias0);
             float32x4_t _sum1 = vdupq_n_f32(bias1);
             float32x4_t _sum2 = vdupq_n_f32(bias2);
@@ -582,9 +614,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float32x4_t _sum5 = vdupq_n_f32(bias5);
             float32x4_t _sum6 = vdupq_n_f32(bias6);
             float32x4_t _sum7 = vdupq_n_f32(bias7);
-
-            const float* tmpptr = tmp.channel(i/8 + (i%8)/4);
-            const float* kptr = kernel.channel(p/8);
 
             int q = 0;
 
@@ -675,18 +704,30 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 _sum7 = vfmaq_laneq_f32(_sum7, _p0, _k4567, 3);
             }
 
-            vst1q_f32(outptr0+i, _sum0);
-            vst1q_f32(outptr1+i, _sum1);
-            vst1q_f32(outptr2+i, _sum2);
-            vst1q_f32(outptr3+i, _sum3);
-            vst1q_f32(outptr4+i, _sum4);
-            vst1q_f32(outptr5+i, _sum5);
-            vst1q_f32(outptr6+i, _sum6);
-            vst1q_f32(outptr7+i, _sum7);
+            vst1q_f32(outptr0, _sum0);
+            vst1q_f32(outptr1, _sum1);
+            vst1q_f32(outptr2, _sum2);
+            vst1q_f32(outptr3, _sum3);
+            vst1q_f32(outptr4, _sum4);
+            vst1q_f32(outptr5, _sum5);
+            vst1q_f32(outptr6, _sum6);
+            vst1q_f32(outptr7, _sum7);
+
+            outptr0 += 4;
+            outptr1 += 4;
+            outptr2 += 4;
+            outptr3 += 4;
+            outptr4 += 4;
+            outptr5 += 4;
+            outptr6 += 4;
+            outptr7 += 4;
         }
 
         for (; i<size; i++)
         {
+            const float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
+            const float* kptr = kernel.channel(p/8);
+
             float32x4_t _sum0 = vdupq_n_f32(0.f);
             float32x4_t _sum1 = vdupq_n_f32(0.f);
             float32x4_t _sum2 = vdupq_n_f32(0.f);
@@ -695,9 +736,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float32x4_t _sum5 = vdupq_n_f32(0.f);
             float32x4_t _sum6 = vdupq_n_f32(0.f);
             float32x4_t _sum7 = vdupq_n_f32(0.f);
-
-            const float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
-            const float* kptr = kernel.channel(p/8);
 
             int q = 0;
 
@@ -758,19 +796,34 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float sum6 = bias6 + vaddvq_f32(_sum6) + vgetq_lane_f32(_sum4567, 2);
             float sum7 = bias7 + vaddvq_f32(_sum7) + vgetq_lane_f32(_sum4567, 3);
 
-            outptr0[i] = sum0;
-            outptr1[i] = sum1;
-            outptr2[i] = sum2;
-            outptr3[i] = sum3;
-            outptr4[i] = sum4;
-            outptr5[i] = sum5;
-            outptr6[i] = sum6;
-            outptr7[i] = sum7;
+            outptr0[0] = sum0;
+            outptr1[0] = sum1;
+            outptr2[0] = sum2;
+            outptr3[0] = sum3;
+            outptr4[0] = sum4;
+            outptr5[0] = sum5;
+            outptr6[0] = sum6;
+            outptr7[0] = sum7;
+
+            outptr0++;
+            outptr1++;
+            outptr2++;
+            outptr3++;
+            outptr4++;
+            outptr5++;
+            outptr6++;
+            outptr7++;
         }
     }
 #endif // __aarch64__
-    for (; p+3<outch; p+=4)
+
+    nn_outch = (outch - remain_outch_start) >> 2;
+
+    #pragma omp parallel for
+    for (int pp=0; pp<nn_outch; pp++)
     {
+        int p = remain_outch_start + pp * 4;
+
         Mat out0 = top_blob.channel(p);
         Mat out1 = top_blob.channel(p+1);
         Mat out2 = top_blob.channel(p+2);
@@ -790,6 +843,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
         for (; i+7<size; i+=8)
         {
+            const float* tmpptr = tmp.channel(i/8);
+#if __aarch64__
+            const float* kptr = kernel.channel(p/8 + (p%8)/4);
+#else
+            const float* kptr = kernel.channel(p/4);
+#endif // __aarch64__
+
             float32x4_t _sum0 = vdupq_n_f32(bias0);
             float32x4_t _sum1 = vdupq_n_f32(bias1);
             float32x4_t _sum2 = vdupq_n_f32(bias2);
@@ -799,13 +859,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float32x4_t _sum1n = vdupq_n_f32(bias1);
             float32x4_t _sum2n = vdupq_n_f32(bias2);
             float32x4_t _sum3n = vdupq_n_f32(bias3);
-
-            const float* tmpptr = tmp.channel(i/8);
-#if __aarch64__
-            const float* kptr = kernel.channel(p/8 + (p%8)/4);
-#else
-            const float* kptr = kernel.channel(p/4);
-#endif // __aarch64__
 
             int q = 0;
 
@@ -898,30 +951,35 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 _sum3n = vfmaq_laneq_f32(_sum3n, _p0n, _k0123, 3);
             }
 
-            vst1q_f32(outptr0+i, _sum0);
-            vst1q_f32(outptr1+i, _sum1);
-            vst1q_f32(outptr2+i, _sum2);
-            vst1q_f32(outptr3+i, _sum3);
+            vst1q_f32(outptr0, _sum0);
+            vst1q_f32(outptr1, _sum1);
+            vst1q_f32(outptr2, _sum2);
+            vst1q_f32(outptr3, _sum3);
 
-            vst1q_f32(outptr0+i+4, _sum0n);
-            vst1q_f32(outptr1+i+4, _sum1n);
-            vst1q_f32(outptr2+i+4, _sum2n);
-            vst1q_f32(outptr3+i+4, _sum3n);
+            vst1q_f32(outptr0+4, _sum0n);
+            vst1q_f32(outptr1+4, _sum1n);
+            vst1q_f32(outptr2+4, _sum2n);
+            vst1q_f32(outptr3+4, _sum3n);
+
+            outptr0 += 8;
+            outptr1 += 8;
+            outptr2 += 8;
+            outptr3 += 8;
         }
 
         for (; i+3<size; i+=4)
         {
-            float32x4_t _sum0 = vdupq_n_f32(bias0);
-            float32x4_t _sum1 = vdupq_n_f32(bias1);
-            float32x4_t _sum2 = vdupq_n_f32(bias2);
-            float32x4_t _sum3 = vdupq_n_f32(bias3);
-
             const float* tmpptr = tmp.channel(i/8 + (i%8)/4);
 #if __aarch64__
             const float* kptr = kernel.channel(p/8 + (p%8)/4);
 #else
             const float* kptr = kernel.channel(p/4);
 #endif // __aarch64__
+
+            float32x4_t _sum0 = vdupq_n_f32(bias0);
+            float32x4_t _sum1 = vdupq_n_f32(bias1);
+            float32x4_t _sum2 = vdupq_n_f32(bias2);
+            float32x4_t _sum3 = vdupq_n_f32(bias3);
 
             int q = 0;
 
@@ -984,25 +1042,30 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 _sum3 = vfmaq_laneq_f32(_sum3, _p0, _k0123, 3);
             }
 
-            vst1q_f32(outptr0+i, _sum0);
-            vst1q_f32(outptr1+i, _sum1);
-            vst1q_f32(outptr2+i, _sum2);
-            vst1q_f32(outptr3+i, _sum3);
+            vst1q_f32(outptr0, _sum0);
+            vst1q_f32(outptr1, _sum1);
+            vst1q_f32(outptr2, _sum2);
+            vst1q_f32(outptr3, _sum3);
+
+            outptr0 += 4;
+            outptr1 += 4;
+            outptr2 += 4;
+            outptr3 += 4;
         }
 
         for (; i<size; i++)
         {
-            float32x4_t _sum0 = vdupq_n_f32(0.f);
-            float32x4_t _sum1 = vdupq_n_f32(0.f);
-            float32x4_t _sum2 = vdupq_n_f32(0.f);
-            float32x4_t _sum3 = vdupq_n_f32(0.f);
-
             const float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
 #if __aarch64__
             const float* kptr = kernel.channel(p/8 + (p%8)/4);
 #else
             const float* kptr = kernel.channel(p/4);
 #endif // __aarch64__
+
+            float32x4_t _sum0 = vdupq_n_f32(0.f);
+            float32x4_t _sum1 = vdupq_n_f32(0.f);
+            float32x4_t _sum2 = vdupq_n_f32(0.f);
+            float32x4_t _sum3 = vdupq_n_f32(0.f);
 
             int q = 0;
 
@@ -1045,14 +1108,22 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float sum2 = bias2 + vaddvq_f32(_sum2) + vgetq_lane_f32(_sum0123, 2);
             float sum3 = bias3 + vaddvq_f32(_sum3) + vgetq_lane_f32(_sum0123, 3);
 
-            outptr0[i] = sum0;
-            outptr1[i] = sum1;
-            outptr2[i] = sum2;
-            outptr3[i] = sum3;
+            outptr0[0] = sum0;
+            outptr1[0] = sum1;
+            outptr2[0] = sum2;
+            outptr3[0] = sum3;
+
+            outptr0++;
+            outptr1++;
+            outptr2++;
+            outptr3++;
         }
     }
 
-    for (; p<outch; p++)
+    remain_outch_start += nn_outch << 2;
+
+    #pragma omp parallel for
+    for (int p=remain_outch_start; p<outch; p++)
     {
         Mat out0 = top_blob.channel(p);
 
@@ -1064,15 +1135,15 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
         for (; i+7<size; i+=8)
         {
-            float32x4_t _sum0 = vdupq_n_f32(bias0);
-            float32x4_t _sum0n = vdupq_n_f32(bias0);
-
             const float* tmpptr = tmp.channel(i/8);
 #if __aarch64__
             const float* kptr = kernel.channel(p/8 + (p%8)/4 + p%4);
 #else
             const float* kptr = kernel.channel(p/4 + p%4);
 #endif // __aarch64__
+
+            float32x4_t _sum0 = vdupq_n_f32(bias0);
+            float32x4_t _sum0n = vdupq_n_f32(bias0);
 
             int q = 0;
 
@@ -1127,20 +1198,22 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 _sum0n = vfmaq_f32(_sum0n, _p0n, _k0);
             }
 
-            vst1q_f32(outptr0+i, _sum0);
-            vst1q_f32(outptr0+i+4, _sum0n);
+            vst1q_f32(outptr0, _sum0);
+            vst1q_f32(outptr0+4, _sum0n);
+
+            outptr0 += 8;
         }
 
         for (; i+3<size; i+=4)
         {
-            float32x4_t _sum0 = vdupq_n_f32(bias0);
-
             const float* tmpptr = tmp.channel(i/8 + (i%8)/4);
 #if __aarch64__
             const float* kptr = kernel.channel(p/8 + (p%8)/4 + p%4);
 #else
             const float* kptr = kernel.channel(p/4 + p%4);
 #endif // __aarch64__
+
+            float32x4_t _sum0 = vdupq_n_f32(bias0);
 
             int q = 0;
 
@@ -1182,19 +1255,21 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 _sum0 = vfmaq_f32(_sum0, _p0, _k0);
             }
 
-            vst1q_f32(outptr0+i, _sum0);
+            vst1q_f32(outptr0, _sum0);
+
+            outptr0 += 4;
         }
 
         for (; i<size; i++)
         {
-            float32x4_t _sum0 = vdupq_n_f32(0.f);
-
             const float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
 #if __aarch64__
             const float* kptr = kernel.channel(p/8 + (p%8)/4 + p%4);
 #else
             const float* kptr = kernel.channel(p/4 + p%4);
 #endif // __aarch64__
+
+            float32x4_t _sum0 = vdupq_n_f32(0.f);
 
             int q = 0;
 
@@ -1220,7 +1295,9 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 kptr++;
             }
 
-            outptr0[i] = sum0;
+            outptr0[0] = sum0;
+
+            outptr0++;
         }
     }
 
