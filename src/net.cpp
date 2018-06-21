@@ -39,6 +39,13 @@ Net::~Net()
     clear();
 }
 
+int Net::init()
+{
+    init_malloc_lock();
+
+    return 0;
+}
+
 #if NCNN_STRING
 int Net::register_custom_layer(const char* type, layer_creator_func creator)
 {

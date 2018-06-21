@@ -54,6 +54,7 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
 {
     ncnn::BenchNet net;
 
+    net.init();
     init(net);
 
     net.load_model();
