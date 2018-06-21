@@ -42,8 +42,6 @@ int Convolution_arm::load_param(const ParamDict& pd)
             use_winograd3x3 = true;
     }
 
-#if __aarch64__
-    // TODO armv7 compiler is foolish!
     // TODO assume more proper condition
     if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
@@ -51,7 +49,6 @@ int Convolution_arm::load_param(const ParamDict& pd)
         if (num_input >= 16 && num_output >= 16)
             use_sgemm1x1 = true;
     }
-#endif // __aarch64__
 
     return 0;
 }
