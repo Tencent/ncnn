@@ -44,6 +44,7 @@ static int detect_mobilenet(cv::Mat& raw_img, float show_threshold)
      */
     int img_h = raw_img.size().height;
     int img_w = raw_img.size().width;
+    mobilenet.init();
     mobilenet.load_param("mobilenet_ssd_voc_ncnn.param");
     mobilenet.load_model("mobilenet_ssd_voc_ncnn.bin");
     int input_size = 300;

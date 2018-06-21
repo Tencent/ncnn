@@ -19,8 +19,185 @@
 #endif // __ARM_NEON
 
 #include "cpu.h"
+#include <stdio.h>
+#include <pthread.h>
+#include "dlist.h"
+
+#define CHECK_EXPR(expr,ret) if (expr) { \
+        printf("%s:%d error!",__FUNCTION__,__LINE__); \
+		getchar(); \
+        return ret; \
+            } 
+            
+
+
+typedef struct 
+{
+    void *addr;
+    size_t size;
+    struct list_head list;
+}MEM_SLICES_t;
+
+static struct list_head H_free;
+static struct list_head H_malloc;
+
+static int malloc_cnt = 0;
+static int free_cnt = 0;
+
+static pthread_mutex_t lock_malloc;
+
+
+static inline size_t alignSize(size_t sz, int n)
+{
+    return (sz + n-1) & -n;
+}
+
+static void* alignPtr(void* ptr, int n=(int)sizeof(char))
+{
+    return (void *)(((size_t)ptr + n-1) & -n);
+}
+
+static int mem_init()
+{
+    pthread_mutex_init(&lock_malloc,NULL);
+    INIT_LIST_HEAD(&H_free);
+    INIT_LIST_HEAD(&H_malloc);
+	free_cnt = 0;
+	malloc_cnt = 0;
+	return 0;
+}
 
 namespace ncnn {
+
+void init_malloc_lock()
+{
+	malloc_cnt = 0;
+	mem_init();
+}
+
+void* __malloc(size_t size)
+{
+	
+    unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + MALLOC_ALIGN);
+    if (!udata)
+        return 0;
+    unsigned char** adata = (unsigned char**)alignPtr((unsigned char**)udata + 1, MALLOC_ALIGN);
+    adata[-1] = udata;
+    return adata;
+}
+
+int get_malloc_cnt()
+{
+	return malloc_cnt;
+}
+
+int get_free_cnt()
+{
+	return free_cnt;
+}
+
+#if 1
+void *fastMalloc(size_t size)
+{
+    void *mem_addr = NULL;
+    MEM_SLICES_t *pos = NULL;
+    unsigned char exist = 0;
+    struct list_head *from_free_to_malloc = NULL;
+	
+    pthread_mutex_lock(&lock_malloc);
+    //printf("malloc_cnt:%d\n",malloc_cnt);
+    list_for_each_entry(pos,&H_free,list) {
+        if (pos->size == size) {
+            mem_addr = pos->addr;
+            from_free_to_malloc = &pos->list;
+            //printf("[fastMalloc]Get from free\n");
+            break;
+        }
+    }
+    if (from_free_to_malloc == NULL) {
+        MEM_SLICES_t *slice = (MEM_SLICES_t *)__malloc(sizeof(MEM_SLICES_t));
+        CHECK_EXPR(slice == NULL,NULL);
+        slice->size = size;
+        slice->addr = (void *)__malloc(size);
+	
+        CHECK_EXPR(slice->addr == NULL,NULL);
+        mem_addr = slice->addr;
+        list_add_tail(&slice->list,&H_malloc);
+		malloc_cnt++;
+        
+    } else {
+        list_del(from_free_to_malloc);
+        list_add_tail(from_free_to_malloc,&H_malloc);
+		free_cnt--;
+		malloc_cnt++;
+    }
+    
+    pthread_mutex_unlock(&lock_malloc);
+    
+    return mem_addr;
+}
+
+void fastFree(void* ptr)
+{
+    MEM_SLICES_t *pos = NULL;
+
+    struct list_head *from_malloc_to_free = NULL;
+    pthread_mutex_lock(&lock_malloc);
+    list_for_each_entry(pos,&H_malloc,list){
+        if (pos->addr == ptr) {
+            from_malloc_to_free = &pos->list;
+            break;
+        }
+    }
+	if (from_malloc_to_free == NULL) {
+		printf("fastFree error\n");
+		return;
+	}
+    
+    list_del(from_malloc_to_free);
+    list_add_tail(from_malloc_to_free,&H_free);
+	free_cnt++;
+	malloc_cnt--;
+    pthread_mutex_unlock(&lock_malloc);
+}
+
+
+
+#else
+//static inline void* fastMalloc(size_t size)
+void* fastMalloc(size_t size)
+{
+	//printf("[fastMalloc]size:%ld",size);
+	pthread_mutex_lock(&lock_malloc);
+	malloc_cnt++;
+	//printf("[fastMalloc]malloc_cnt:%d\n",malloc_cnt);
+	//printf("size:%ld",size);
+	pthread_mutex_unlock(&lock_malloc);
+	
+    unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + MALLOC_ALIGN);
+    if (!udata)
+        return 0;
+    unsigned char** adata = (unsigned char**)alignPtr((unsigned char**)udata + 1, MALLOC_ALIGN);
+    adata[-1] = udata;
+    return adata;
+}
+
+
+//static inline void fastFree(void* ptr)
+void fastFree(void* ptr)
+{
+	pthread_mutex_lock(&lock_malloc);
+	malloc_cnt--;
+	//printf("[fastFree]malloc_cnt:%d\n",malloc_cnt);
+	pthread_mutex_unlock(&lock_malloc);
+	//printf("[fastFree]");
+    if (ptr)
+    {
+        unsigned char* udata = ((unsigned char**)ptr)[-1];
+        free(udata);
+    }
+}
+#endif
 
 void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_vals)
 {

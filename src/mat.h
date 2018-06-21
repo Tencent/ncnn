@@ -188,6 +188,19 @@ static inline size_t alignSize(size_t sz, int n)
     return (sz + n-1) & -n;
 }
 
+int get_malloc_cnt();
+	
+int get_free_cnt();
+
+void init_malloc_lock();
+
+//static inline void* fastMalloc(size_t size)
+void* fastMalloc(size_t size);
+
+//static inline void fastFree(void* ptr)
+void fastFree(void* ptr);
+
+/*
 static inline void* fastMalloc(size_t size)
 {
     unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + MALLOC_ALIGN);
@@ -206,6 +219,7 @@ static inline void fastFree(void* ptr)
         free(udata);
     }
 }
+*/
 
 // exchange-add operation for atomic operations on reference counters
 #if defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
