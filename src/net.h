@@ -72,6 +72,9 @@ public:
     // return bytes consumed
     int load_model(const unsigned char* mem);
 
+    //memory pool initial
+    int init();
+
     // unload network structure and weight data
     void clear();
 
