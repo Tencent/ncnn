@@ -58,16 +58,16 @@ HM2014812:/data/local/tmp # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   84.88  max =   99.62  avg =   91.00
-       mobilenet  min =  152.19  max =  176.29  avg =  162.21
-    mobilenet_v2  min =  142.31  max =  160.67  avg =  148.78
-      shufflenet  min =   62.32  max =   69.69  avg =   64.26
-       googlenet  min =  275.33  max =  293.44  avg =  284.08
-        resnet18  min =  322.60  max =  342.60  avg =  337.03
-         alexnet  min =  336.16  max =  377.78  avg =  362.75
-           vgg16  min = 2355.94  max = 2461.82  avg = 2397.03
-  squeezenet-ssd  min =  156.24  max =  166.70  avg =  161.97
-   mobilenet-ssd  min =  171.26  max =  182.79  avg =  176.83
+      squeezenet  min =   80.16  max =   97.73  avg =   89.13
+       mobilenet  min =  131.53  max =  151.08  avg =  140.42
+    mobilenet_v2  min =  132.14  max =  162.10  avg =  146.50
+      shufflenet  min =   57.88  max =   65.62  avg =   61.16
+       googlenet  min =  236.11  max =  248.62  avg =  244.74
+        resnet18  min =  271.75  max =  291.05  avg =  282.32
+         alexnet  min =  278.70  max =  296.65  avg =  285.61
+           vgg16  min = 1485.95  max = 1523.02  avg = 1504.54
+  squeezenet-ssd  min =  204.62  max =  222.92  avg =  212.41
+   mobilenet-ssd  min =  229.69  max =  236.50  avg =  233.48
 ```
 
 Rockchip RK3399 (Cortex-A72 1.8GHz x 2 + Cortex-A53 1.5GHz x 4)
@@ -148,14 +148,14 @@ imx7d_pico:/data/local/tmp # ./benchncnn 8 2 0
 loop_count = 8
 num_threads = 2
 powersave = 0
-      squeezenet  min =  376.69  max =  387.00  avg =  379.90
-       mobilenet  min =  621.43  max =  649.77  avg =  632.97
-    mobilenet_v2  min =  461.56  max =  476.45  avg =  469.34
-      shufflenet  min =  215.91  max =  224.06  avg =  218.38
-       googlenet  min = 1303.39  max = 1336.32  avg = 1311.89
-        resnet18  min = 1470.91  max = 2037.16  avg = 1546.38
-         alexnet  min = 1513.10  max = 1529.57  avg = 1517.92
+      squeezenet  min =  305.80  max =  312.74  avg =  308.57
+       mobilenet  min =  482.27  max =  489.59  avg =  485.70
+    mobilenet_v2  min =  386.86  max =  405.36  avg =  396.69
+      shufflenet  min =  199.23  max =  232.69  avg =  205.30
+       googlenet  min = 1078.63  max = 1098.36  avg = 1083.29
+        resnet18  min = 1156.38  max = 1176.98  avg = 1165.92
+         alexnet  min = 1273.29  max = 1283.62  avg = 1277.34
            vgg16  min =    0.00  max =    0.00  avg =    0.00 (FAIL due to out of memory)
-  squeezenet-ssd  min =  627.03  max =  634.16  avg =  628.70
-   mobilenet-ssd  min =  705.97  max =  749.82  avg =  716.50
+  squeezenet-ssd  min =  737.55  max =  773.54  avg =  746.79
+   mobilenet-ssd  min =  946.56  max =  957.85  avg =  952.96
 ```
