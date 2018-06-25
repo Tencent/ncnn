@@ -17,6 +17,7 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
+#include <math.h>
 
 #include "cpu.h"
 
@@ -623,10 +624,15 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, int w, int h)
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = fx;//cvFloor(fx);
+        sx = floor(fx);
         fx -= sx;
 
-        if( sx >= src.w-1 )
+        if (sx < 0)
+        {
+            sx = 0;
+            fx = 0.f;
+        }
+        if (sx >= src.w - 1)
         {
             sx = src.w - 2;
             fx = 1.f;
@@ -641,9 +647,14 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, int w, int h)
     for (int dy = 0; dy < h; dy++)
     {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = fy;//cvFloor(fy);
+        sy = floor(fy);
         fy -= sy;
 
+        if (sy < 0)
+        {
+            sy = 0;
+            fy = 0.f;
+        }
         if (sy >= src.h - 1)
         {
             sy = src.h - 2;

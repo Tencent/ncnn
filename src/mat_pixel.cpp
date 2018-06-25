@@ -14,6 +14,7 @@
 
 #include "mat.h"
 #include <limits.h>
+#include <math.h>
 #include <algorithm>
 #if __ARM_NEON
 #include <arm_neon.h>
@@ -1156,9 +1157,14 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = fx;//cvFloor(fx);
+        sx = floor(fx);
         fx -= sx;
 
+        if (sx < 0)
+        {
+            sx = 0;
+            fx = 0.f;
+        }
         if (sx >= srcw - 1)
         {
             sx = srcw - 2;
@@ -1177,9 +1183,14 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
     for (int dy = 0; dy < h; dy++)
     {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = fy;//cvFloor(fy);
+        sy = floor(fy);
         fy -= sy;
 
+        if (sy < 0)
+        {
+            sy = 0;
+            fy = 0.f;
+        }
         if (sy >= srch - 1)
         {
             sy = srch - 2;
@@ -1440,9 +1451,14 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = fx;//cvFloor(fx);
+        sx = floor(fx);
         fx -= sx;
 
+        if (sx < 0)
+        {
+            sx = 0;
+            fx = 0.f;
+        }
         if (sx >= srcw - 1)
         {
             sx = srcw - 2;
@@ -1461,9 +1477,14 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
     for (int dy = 0; dy < h; dy++)
     {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = fy;//cvFloor(fy);
+        sy = floor(fy);
         fy -= sy;
 
+        if (sy < 0)
+        {
+            sy = 0;
+            fy = 0.f;
+        }
         if (sy >= srch - 1)
         {
             sy = srch - 2;
@@ -1681,9 +1702,14 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = fx;//cvFloor(fx);
+        sx = floor(fx);
         fx -= sx;
 
+        if (sx < 0)
+        {
+            sx = 0;
+            fx = 0.f;
+        }
         if (sx >= srcw - 1)
         {
             sx = srcw - 2;
@@ -1702,9 +1728,14 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
     for (int dy = 0; dy < h; dy++)
     {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = fy;//cvFloor(fy);
+        sy = floor(fy);
         fy -= sy;
 
+        if (sy < 0)
+        {
+            sy = 0;
+            fy = 0.f;
+        }
         if (sy >= srch - 1)
         {
             sy = srch - 2;
