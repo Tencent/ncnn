@@ -18,9 +18,11 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
+#include "platform.h"
 
 namespace ncnn {
 
+#if NCNN_PIXEL
 static Mat from_rgb(const unsigned char* rgb, int w, int h)
 {
     Mat m(w, h, 3);
@@ -2080,5 +2082,6 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
         delete[] src;
     }
 }
+#endif // NCNN_PIXEL
 
 } // namespace ncnn
