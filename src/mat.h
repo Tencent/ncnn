@@ -20,6 +20,7 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif
+#include "platform.h"
 
 namespace ncnn {
 
@@ -88,6 +89,7 @@ public:
     float& operator[](int i);
     const float& operator[](int i) const;
 
+#if NCNN_PIXEL
     enum
     {
         PIXEL_CONVERT_SHIFT = 16,
@@ -121,6 +123,7 @@ public:
     void to_pixels(unsigned char* pixels, int type) const;
     // convenient export to pixel data and resize to specific size
     void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height) const;
+#endif // NCNN_PIXEL
 
     // substract channel-wise mean values, then multiply by normalize values, pass 0 to skip
     void substract_mean_normalize(const float* mean_vals, const float* norm_vals);
@@ -153,10 +156,12 @@ public:
 };
 
 // misc function
+#if NCNN_PIXEL
 // image pixel bilinear resize
 void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+#endif // NCNN_PIXEL
 
 // mat process
 enum

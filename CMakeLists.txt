@@ -25,6 +25,8 @@ option(NCNN_STDIO "load model from external file" ON)
 option(NCNN_STRING "plain and verbose string" ON)
 option(NCNN_OPENCV "minimal opencv structure emulation" OFF)
 option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
+option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
+option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)

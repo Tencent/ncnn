@@ -19,5 +19,7 @@
 #cmakedefine01 NCNN_STRING
 #cmakedefine01 NCNN_OPENCV
 #cmakedefine01 NCNN_BENCHMARK
+#cmakedefine01 NCNN_PIXEL
+#cmakedefine01 NCNN_PIXEL_ROTATE
 
 #endif // NCNN_PLATFORM_H

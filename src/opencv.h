@@ -255,7 +255,9 @@ struct Mat
 Mat imread(const std::string& path, int flags);
 void imwrite(const std::string& path, const Mat& m);
 
+#if NCNN_PIXEL
 void resize(const Mat& src, Mat& dst, const Size& size, float sw = 0.f, float sh = 0.f, int flags = 0);
+#endif // NCNN_PIXEL
 
 } // namespace cv
 
