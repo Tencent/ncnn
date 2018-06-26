@@ -22,16 +22,16 @@ root@msm8996:/data/local/tmp/ncnn # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   34.99  max =   35.49  avg =   35.21
-       mobilenet  min =   55.14  max =   66.88  avg =   56.87
-    mobilenet_v2  min =   42.42  max =   43.28  avg =   42.94
-      shufflenet  min =   24.02  max =   25.37  avg =   24.78
-       googlenet  min =  116.84  max =  134.88  avg =  123.13
-        resnet18  min =  113.23  max =  119.52  avg =  114.85
-         alexnet  min =  186.85  max =  207.04  avg =  193.54
-           vgg16  min =  616.64  max =  635.01  avg =  627.31
-  squeezenet-ssd  min =   83.07  max =   97.50  avg =   86.36
-   mobilenet-ssd  min =  105.19  max =  123.38  avg =  109.45
+      squeezenet  min =   37.02  max =   37.51  avg =   37.16
+       mobilenet  min =   50.18  max =   68.79  avg =   52.83
+    mobilenet_v2  min =   51.39  max =   52.37  avg =   51.83
+      shufflenet  min =   33.21  max =   33.84  avg =   33.47
+       googlenet  min =  117.56  max =  135.35  avg =  122.40
+        resnet18  min =  109.85  max =  126.95  avg =  114.74
+         alexnet  min =  154.68  max =  168.59  avg =  162.60
+           vgg16  min =  555.98  max =  586.12  avg =  572.90
+  squeezenet-ssd  min =  109.55  max =  120.25  avg =  112.04
+   mobilenet-ssd  min =  100.56  max =  117.62  avg =  103.67
 ```
 
 Qualcomm MSM8994 Snapdragon 810 (Cortex-A57 2.0GHz x 4 + Cortex-A53 1.55GHz x 4)
@@ -76,17 +76,47 @@ rk3399_firefly_box:/data/local/tmp/ncnn # ./benchncnn 8 6 0
 loop_count = 8
 num_threads = 6
 powersave = 0
-      squeezenet  min =   52.63  max =  143.31  avg =   64.81
-       mobilenet  min =   87.87  max =  189.37  avg =  105.93
-    mobilenet_v2  min =   79.99  max =  204.02  avg =   99.30
-      shufflenet  min =   39.34  max =   42.18  avg =   40.80
-       googlenet  min =  156.26  max =  228.16  avg =  175.04
-        resnet18  min =  208.08  max =  294.64  avg =  231.67
-        resnet50  min =  713.41  max =  862.93  avg =  796.93
-         alexnet  min =  501.34  max =  648.37  avg =  561.81
-           vgg16  min = 1265.89  max = 1387.90  avg = 1308.65
-  squeezenet-ssd  min =  128.86  max =  247.58  avg =  151.40
-   mobilenet-ssd  min =  174.78  max =  250.38  avg =  186.19
+      squeezenet  min =   62.11  max =   85.62  avg =   65.56
+       mobilenet  min =   80.87  max =  100.28  avg =   90.23
+    mobilenet_v2  min =   79.58  max =  108.56  avg =   89.35
+      shufflenet  min =   41.93  max =   55.57  avg =   45.02
+       googlenet  min =  180.45  max =  243.66  avg =  200.81
+        resnet18  min =  218.08  max =  355.22  avg =  249.49
+         alexnet  min =  224.04  max =  328.52  avg =  254.01
+           vgg16  min = 1103.06  max = 1244.06  avg = 1153.49
+  squeezenet-ssd  min =  178.21  max =  268.74  avg =  190.84
+   mobilenet-ssd  min =  150.63  max =  263.85  avg =  168.26
+
+   
+rk3399_firefly_box:/data/local/tmp/ncnn # ./benchncnn 8 1 2                    
+loop_count = 8
+num_threads = 1
+powersave = 2
+      squeezenet  min =   89.23  max =  100.22  avg =   92.44
+       mobilenet  min =  164.15  max =  169.14  avg =  167.07
+    mobilenet_v2  min =  129.67  max =  152.38  avg =  139.02
+      shufflenet  min =   50.48  max =   52.65  avg =   51.53
+       googlenet  min =  318.68  max =  335.91  avg =  324.63
+        resnet18  min =  363.30  max =  379.47  avg =  369.61
+         alexnet  min =  351.11  max =  378.56  avg =  362.13
+           vgg16  min = 1587.16  max = 1736.78  avg = 1658.48
+  squeezenet-ssd  min =  221.53  max =  241.31  avg =  227.60
+   mobilenet-ssd  min =  294.47  max =  304.44  avg =  298.55   
+   
+rk3399_firefly_box:/data/local/tmp/ncnn # ./benchncnn 8 1 1                    
+loop_count = 8
+num_threads = 1
+powersave = 1
+      squeezenet  min =  181.13  max =  192.09  avg =  187.33
+       mobilenet  min =  295.02  max =  308.79  avg =  300.07
+    mobilenet_v2  min =  249.80  max =  272.38  avg =  262.47
+      shufflenet  min =  117.77  max =  124.93  avg =  118.90
+       googlenet  min =  679.51  max =  700.42  avg =  689.34
+        resnet18  min =  770.68  max =  790.55  avg =  779.75
+         alexnet  min =  892.71  max = 1059.58  avg = 1014.26
+           vgg16  min = 3900.64  max = 3978.23  avg = 3950.21
+  squeezenet-ssd  min =  469.53  max =  487.11  avg =  476.50
+   mobilenet-ssd  min =  562.98  max =  581.68  avg =  569.61   
 ```
 
 Rockchip RK3288 (Cortex-A17 1.8GHz x 4)
@@ -95,33 +125,33 @@ root@rk3288:/data/local/tmp/ncnn # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   78.10  max =   78.89  avg =   78.35
-       mobilenet  min =  119.14  max =  120.19  avg =  119.66
-    mobilenet_v2  min =  145.50  max =  150.22  avg =  146.43
-      shufflenet  min =   47.96  max =   48.95  avg =   48.35
-       googlenet  min =  233.60  max =  241.46  avg =  234.85
-        resnet18  min =  260.83  max =  274.38  avg =  268.66
-         alexnet  min =  221.32  max =  246.93  avg =  226.54
-           vgg16  min = 2032.24  max = 2347.03  avg = 2152.34
-  squeezenet-ssd  min =  121.88  max =  242.83  avg =  141.04
-   mobilenet-ssd  min =  129.17  max =  130.86  avg =  129.87
+      squeezenet  min =   72.85  max =  105.05  avg =   79.92
+       mobilenet  min =   97.22  max =  101.05  avg =   97.99
+    mobilenet_v2  min =  105.60  max =  137.71  avg =  112.41
+      shufflenet  min =   45.82  max =   68.10  avg =   50.06
+       googlenet  min =  214.63  max =  337.57  avg =  250.70
+        resnet18  min =  220.41  max =  267.93  avg =  244.83
+         alexnet  min =  159.06  max =  222.84  avg =  180.12
+           vgg16  min = 1183.97  max = 1609.07  avg = 1361.01
+  squeezenet-ssd  min =  173.40  max =  258.01  avg =  198.69
+   mobilenet-ssd  min =  186.89  max =  257.15  avg =  215.70
 ```
 
 HiSilicon Hi3519V101 (Cortex-A17 1.2GHz x 1)
 ```
-root@Hi3519:/ncnn-benchmark # taskset 2 ./benchncnn 4 1 0 
-loop_count = 4
+root@Hi3519:/ncnn-benchmark # taskset 2 ./benchncnn 8 1 0 
+loop_count = 8
 num_threads = 1
 powersave = 0
-      squeezenet  min =  317.23  max =  317.81  avg =  317.47
-       mobilenet  min =  567.67  max =  569.52  avg =  568.43
-    mobilenet_v2  min =  390.11  max =  392.65  avg =  391.05
-      shufflenet  min =  173.85  max =  174.02  avg =  173.94
-       googlenet  min = 1190.73  max = 1193.02  avg = 1191.47
-        resnet18  min = 1171.72  max = 1173.36  avg = 1172.22
-         alexnet  min = 1216.17  max = 1217.52  avg = 1216.93
-  squeezenet-ssd  min =  631.80  max =  633.84  avg =  632.66
-   mobilenet-ssd  min = 1118.35  max = 1120.58  avg = 1119.41
+      squeezenet  min =  317.07  max =  318.17  avg =  317.62
+       mobilenet  min =  523.64  max =  524.64  avg =  524.07
+    mobilenet_v2  min =  401.34  max =  403.80  avg =  402.63
+      shufflenet  min =  182.06  max =  182.83  avg =  182.50
+       googlenet  min = 1158.43  max = 1159.29  avg = 1158.83
+        resnet18  min = 1095.06  max = 1098.53  avg = 1096.74
+         alexnet  min = 1035.96  max = 1039.39  avg = 1038.38
+  squeezenet-ssd  min =  667.85  max =  670.36  avg =  669.19
+   mobilenet-ssd  min = 1032.24  max = 1034.63  avg = 1033.69
 ```
 
 iPhone 5S (Apple A7 1.3GHz x 2)
