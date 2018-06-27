@@ -67,11 +67,12 @@ elseif(IOS)
 endif()
 
 ##############################################
-if(NCNN_BUILD_ARM_EXAMPLE)
-add_subdirectory(examples)
-else()
+if(NCNN_BUILD_ARM_EXAMPLE STREQUAL "OFF")
 #add_subdirectory(examples)
+else()
+add_subdirectory(examples)
 endif()
+
 
 # add_subdirectory(benchmark)
 add_subdirectory(src)
