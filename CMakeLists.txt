@@ -27,7 +27,6 @@ option(NCNN_OPENCV "minimal opencv structure emulation" OFF)
 option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
 option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
 option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
-option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
 option(NCNN_BUILD_ARM_EXAMPLE "notice:arm_example depends on the arm_opencv,If you want to build arm_example,you should be ready to arm_opencv in your host machine " OFF)
 
 if(NCNN_OPENMP)
