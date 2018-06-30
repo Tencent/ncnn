@@ -145,6 +145,8 @@ ncnn_add_layer(DeconvolutionDepthWise)
 ncnn_add_layer(ShuffleChannel)
 ncnn_add_layer(InstanceNorm)
 ncnn_add_layer(Clip)
+ncnn_add_layer(Reorg)
+ncnn_add_layer(YoloDetectionOutput)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
