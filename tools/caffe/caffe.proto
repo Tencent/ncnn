@@ -362,12 +362,14 @@ message LayerParameter {
   optional ArgMaxParameter argmax_param = 103;
   optional BatchNormParameter batch_norm_param = 139;
   optional BiasParameter bias_param = 141;
+  optional BNParameter bn_param = 45;
   optional ConcatParameter concat_param = 104;
   optional ContrastiveLossParameter contrastive_loss_param = 105;
   optional ConvolutionParameter convolution_param = 106;
   optional CropParameter crop_param = 144;
   optional DataParameter data_param = 107;
   optional DetectionOutputParameter detection_output_param = 204;
+  optional YoloDetectionOutputParameter yolo_detection_output_param = 601;
   optional DropoutParameter dropout_param = 108;
   optional DummyDataParameter dummy_data_param = 109;
   optional EltwiseParameter eltwise_param = 110;
@@ -394,8 +396,10 @@ message LayerParameter {
   optional PReLUParameter prelu_param = 131;
   optional PriorBoxParameter prior_box_param = 203;
   optional PythonParameter python_param = 130;
+  optional RecurrentParameter recurrent_param = 146;
   optional ReductionParameter reduction_param = 136;
   optional ReLUParameter relu_param = 123;
+  optional ReorgParameter reorg_param = 147;
   optional ReshapeParameter reshape_param = 133;
   optional ROIPoolingParameter roi_pooling_param = 8266711;
   optional ScaleParameter scale_param = 142;
@@ -587,6 +591,17 @@ message BiasParameter {
   optional FillerParameter filler = 3;
 }
 
+// Message that stores parameters used by BN (Batch Normalization)  layer
+message BNParameter {
+  enum BNMode {
+    LEARN = 0;
+    INFERENCE = 1;
+  }
+  optional BNMode bn_mode = 3 [default = LEARN];
+  optional FillerParameter scale_filler = 1;  // The filler for the scale
+  optional FillerParameter shift_filler = 2;  // The filler for the shift
+}
+
 message ContrastiveLossParameter {
   // margin for dissimilar pair
   optional float margin = 1 [default = 1.0];
@@ -769,6 +784,18 @@ message DetectionOutputParameter {
   optional float visualize_threshold = 11;
   // If provided, save outputs to video file.
   optional string save_file = 12;
+}
+
+message YoloDetectionOutputParameter {
+  // Yolo detection output layer
+  optional uint32 side = 1 [default = 13];
+  optional uint32 num_classes = 2 [default = 20];
+  optional uint32 num_box = 3 [default = 5];
+  optional uint32 coords = 4 [default = 4];
+  optional float confidence_threshold = 5 [default = 0.01];
+  optional float nms_threshold = 6 [default = 0.45];
+  repeated float biases = 7;
+  optional string label_map_file = 8;
 }
 
 message DropoutParameter {
@@ -1106,6 +1133,25 @@ message PythonParameter {
   optional bool share_in_parallel = 4 [default = false];
 }
 
+// Message that stores parameters used by RecurrentLayer
+message RecurrentParameter {
+  // The dimension of the output (and usually hidden state) representation --
+  // must be explicitly set to non-zero.
+  optional uint32 num_output = 1 [default = 0];
+
+  optional FillerParameter weight_filler = 2; // The filler for the weight
+  optional FillerParameter bias_filler = 3; // The filler for the bias
+
+  // Whether to enable displaying debug_info in the unrolled recurrent net.
+  optional bool debug_info = 4 [default = false];
+
+  // Whether to add as additional inputs (bottoms) the initial hidden state
+  // blobs, and add as additional outputs (tops) the final timestep hidden state
+  // blobs.  The number of additional bottom/top blobs required depends on the
+  // recurrent architecture -- e.g., 1 for RNNs, 2 for LSTMs.
+  optional bool expose_hidden = 5 [default = false];
+}
+
 // Message that stores parameters used by ReductionLayer
 message ReductionParameter {
   enum ReductionOp {
@@ -1149,6 +1195,11 @@ message ReLUParameter {
     CUDNN = 2;
   }
   optional Engine engine = 2 [default = DEFAULT];
+}
+
+message ReorgParameter {
+  optional uint32 stride = 1;
+  optional bool reverse = 2 [default = false];
 }
 
 message ReshapeParameter {

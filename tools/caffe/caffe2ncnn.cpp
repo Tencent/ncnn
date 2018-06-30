@@ -324,7 +324,11 @@ int main(int argc, char** argv)
 
         // layer definition line, repeated
         // [type] [name] [bottom blob count] [top blob count] [bottom blobs] [top blobs] [layer specific params]
-        if (layer.type() == "Convolution")
+        if (layer.type() == "BN")
+        {
+            fprintf(pp, "%-16s", "Scale");
+        }
+        else if (layer.type() == "Convolution")
         {
             const caffe::ConvolutionParameter& convolution_param = layer.convolution_param();
             if (convolution_param.group() != 1)
@@ -356,6 +360,10 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "Proposal");
             else
                 fprintf(pp, "%-16s", python_layer_name.c_str());
+        }
+        else if (layer.type() == "ReLU6")
+        {
+            fprintf(pp, "%-16s", "Clip");
         }
         else
         {
@@ -455,6 +463,18 @@ int main(int argc, char** argv)
 
             std::vector<float> zeros(mean_blob.data_size(), 0.f);
             fwrite(zeros.data(), sizeof(float), zeros.size(), bp);// bias
+        }
+        else if (layer.type() == "BN")
+        {
+            const caffe::LayerParameter& binlayer = net.layer(netidx);
+
+            const caffe::BlobProto& scale_blob = binlayer.blobs(0);
+            const caffe::BlobProto& shift_blob = binlayer.blobs(1);
+            fprintf(pp, " 0=%d", (int)scale_blob.data_size());
+            fprintf(pp, " 1=1");
+
+            fwrite(scale_blob.data().data(), sizeof(float), scale_blob.data_size(), bp);
+            fwrite(shift_blob.data().data(), sizeof(float), shift_blob.data_size(), bp);
         }
         else if (layer.type() == "Concat")
         {
@@ -696,6 +716,70 @@ int main(int argc, char** argv)
             const caffe::ELUParameter& elu_param = layer.elu_param();
             fprintf(pp, " 0=%f", elu_param.alpha());
         }
+        else if (layer.type() == "Embed")
+        {
+            const caffe::LayerParameter& binlayer = net.layer(netidx);
+
+            const caffe::BlobProto& weight_blob = binlayer.blobs(0);
+            const caffe::EmbedParameter& embed_param = layer.embed_param();
+            fprintf(pp, " 0=%d", embed_param.num_output());
+            fprintf(pp, " 1=%d", embed_param.input_dim());
+            fprintf(pp, " 2=%d", embed_param.bias_term());
+            fprintf(pp, " 3=%d", weight_blob.data_size());
+
+            for (int j=0; j<binlayer.blobs_size(); j++)
+            {
+                int quantize_tag = 0;
+                const caffe::BlobProto& blob = binlayer.blobs(j);
+
+                std::vector<float> quantize_table;
+                std::vector<unsigned char> quantize_index;
+
+                std::vector<unsigned short> float16_weights;
+
+                // we will not quantize the bias values
+                if (j == 0 && quantize_level != 0)
+                {
+                    if (quantize_level == 256)
+                    {
+                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
+                    }
+                    else if (quantize_level == 65536)
+                    {
+                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
+                    }
+                }
+
+                // write quantize tag first
+                if (j == 0)
+                    fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                if (quantize_tag)
+                {
+                    int p0 = ftell(bp);
+                    if (quantize_level == 256)
+                    {
+                        // write quantize table and index
+                        fwrite(quantize_table.data(), sizeof(float), quantize_table.size(), bp);
+                        fwrite(quantize_index.data(), sizeof(unsigned char), quantize_index.size(), bp);
+                    }
+                    else if (quantize_level == 65536)
+                    {
+                        fwrite(float16_weights.data(), sizeof(unsigned short), float16_weights.size(), bp);
+                    }
+                    // padding to 32bit align
+                    int nwrite = ftell(bp) - p0;
+                    int nalign = alignSize(nwrite, 4);
+                    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
+                    fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
+                }
+                else
+                {
+                    // write original data
+                    fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
+                }
+            }
+        }
         else if (layer.type() == "InnerProduct")
         {
             const caffe::LayerParameter& binlayer = net.layer(netidx);
@@ -798,6 +882,66 @@ int main(int argc, char** argv)
             fprintf(pp, " 1=%d", lrn_param.local_size());
             fprintf(pp, " 2=%f", lrn_param.alpha());
             fprintf(pp, " 3=%f", lrn_param.beta());
+        }
+        else if (layer.type() == "LSTM")
+        {
+            const caffe::LayerParameter& binlayer = net.layer(netidx);
+
+            const caffe::BlobProto& weight_blob = binlayer.blobs(0);
+            const caffe::RecurrentParameter& recurrent_param = layer.recurrent_param();
+            fprintf(pp, " 0=%d", recurrent_param.num_output());
+            fprintf(pp, " 1=%d", weight_blob.data_size());
+
+            for (int j=0; j<binlayer.blobs_size(); j++)
+            {
+                int quantize_tag = 0;
+                const caffe::BlobProto& blob = binlayer.blobs(j);
+
+                std::vector<float> quantize_table;
+                std::vector<unsigned char> quantize_index;
+
+                std::vector<unsigned short> float16_weights;
+
+                if (quantize_level != 0)
+                {
+                    if (quantize_level == 256)
+                    {
+                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
+                    }
+                    else if (quantize_level == 65536)
+                    {
+                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
+                    }
+                }
+
+                // write quantize tag first
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                if (quantize_tag)
+                {
+                    int p0 = ftell(bp);
+                    if (quantize_level == 256)
+                    {
+                        // write quantize table and index
+                        fwrite(quantize_table.data(), sizeof(float), quantize_table.size(), bp);
+                        fwrite(quantize_index.data(), sizeof(unsigned char), quantize_index.size(), bp);
+                    }
+                    else if (quantize_level == 65536)
+                    {
+                        fwrite(float16_weights.data(), sizeof(unsigned short), float16_weights.size(), bp);
+                    }
+                    // padding to 32bit align
+                    int nwrite = ftell(bp) - p0;
+                    int nalign = alignSize(nwrite, 4);
+                    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
+                    fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
+                }
+                else
+                {
+                    // write original data
+                    fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
+                }
+            }
         }
         else if (layer.type() == "MemoryData")
         {
@@ -1054,7 +1198,19 @@ int main(int argc, char** argv)
                 fprintf(pp, " 0=%f", relu_param.negative_slope());
             }
         }
-        else if (layer.type() == "Reshape")
+        else if (layer.type() == "ReLU6")
+        {
+            float min = 0.f;
+            float max = 6.f;
+            fprintf(pp, " 0=%f", min);
+            fprintf(pp, " 1=%f", max);
+        }
+        else if (layer.type() == "Reorg")
+        {
+            const caffe::ReorgParameter& reorg_param = layer.reorg_param();
+            fprintf(pp, " 0=%d", reorg_param.stride());
+        }
+        else if (layer.type() == "Reshape")// -1 1 512
         {
             const caffe::ReshapeParameter& reshape_param = layer.reshape_param();
             const caffe::BlobShape& bs = reshape_param.shape();
@@ -1109,8 +1265,7 @@ int main(int argc, char** argv)
         }
         else if (layer.type() == "ShuffleChannel")
         {
-            const caffe::ShuffleChannelParameter&
-                    shuffle_channel_param = layer.shuffle_channel_param();
+            const caffe::ShuffleChannelParameter& shuffle_channel_param = layer.shuffle_channel_param();
             fprintf(pp, " 0=%d", shuffle_channel_param.group());
         }
         else if (layer.type() == "Slice")
@@ -1151,6 +1306,22 @@ int main(int argc, char** argv)
         {
             const caffe::ThresholdParameter& threshold_param = layer.threshold_param();
             fprintf(pp, " 0=%f", threshold_param.threshold());
+        }
+        else if (layer.type() == "YoloDetectionOutput")
+        {
+            const caffe::YoloDetectionOutputParameter& yolo_detection_output_param = layer.yolo_detection_output_param();
+
+            fprintf(pp, " 0=%d", yolo_detection_output_param.num_classes());
+            fprintf(pp, " 1=%d", yolo_detection_output_param.num_box());
+            fprintf(pp, " 2=%f", yolo_detection_output_param.confidence_threshold());
+            fprintf(pp, " 3=%f", yolo_detection_output_param.nms_threshold());
+
+            int num_bias = yolo_detection_output_param.biases_size();
+            fprintf(pp, " -23304=%d", num_bias);
+            for (int j=0; j<num_bias; j++)
+            {
+                fprintf(pp, ",%f", yolo_detection_output_param.biases(j));
+            }
         }
 
         fprintf(pp, "\n");
