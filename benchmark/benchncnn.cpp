@@ -256,6 +256,24 @@ void mobilenet_ssd_run(const ncnn::Net& net)
     ex.extract("detection_out", out);
 }
 
+void mobilenet_yolo_init(ncnn::Net& net)
+{
+    net.load_param("mobilenet_yolo.param");
+}
+
+void mobilenet_yolo_run(const ncnn::Net& net)
+{
+    ncnn::Extractor ex = net.create_extractor();
+
+    // NOTE original model input is 416x416x3
+    // you may change to 300x300x3 for comparison with ssd
+    ncnn::Mat in(416, 416, 3);
+    ex.input("data", in);
+
+    ncnn::Mat out;
+    ex.extract("detection_out", out);
+}
+
 int main(int argc, char** argv)
 {
     int loop_count = 4;
@@ -306,6 +324,8 @@ int main(int argc, char** argv)
     benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
 
     benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
+
+    benchmark("mobilenet-yolo", mobilenet_yolo_init, mobilenet_yolo_run);
 
     return 0;
 }
