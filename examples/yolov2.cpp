@@ -38,6 +38,12 @@ static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
     yolov2.load_param("yolov2.param");
     yolov2.load_model("yolov2.bin");
 
+    // https://github.com/eric612/MobileNet-YOLO
+    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy%20.prototxt
+    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy_iter_57000.caffemodel
+//     yolov2.load_param("mobilenet_yolo.param");
+//     yolov2.load_model("mobilenet_yolo.bin");
+
     const int target_size = 416;
 
     int img_w = bgr.cols;
@@ -45,9 +51,12 @@ static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
 
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, target_size, target_size);
 
-    const float mean_vals[3] = {127.5f, 127.5f, 127.5f};
+    // the Caffe-YOLOv2-Windows style
+    // X' = X * scale - mean
+    const float mean_vals[3] = {0.5f, 0.5f, 0.5f};
     const float norm_vals[3] = {0.007843f, 0.007843f, 0.007843f};
-    in.substract_mean_normalize(mean_vals, norm_vals);
+    in.substract_mean_normalize(0, norm_vals);
+    in.substract_mean_normalize(mean_vals, 0);
 
     ncnn::Extractor ex = yolov2.create_extractor();
     ex.set_light_mode(true);
