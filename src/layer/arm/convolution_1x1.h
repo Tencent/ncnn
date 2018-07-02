@@ -146,8 +146,26 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             for (int q=0; q<inch; q++)
             {
 #if __ARM_NEON
+#if __aarch64__
                 vst1q_f32(tmpptr, vld1q_f32(img0));
                 vst1q_f32(tmpptr+4, vld1q_f32(img0+4));
+
+                tmpptr += 8;
+                img0 += bottom_blob.cstep;
+#else
+                asm volatile(
+                    "pld        [%0, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%0 :128]  \n"
+                    "vst1.f32   {d0-d3}, [%1 :128]! \n"
+                    : "=r"(img0),   // %0
+                      "=r"(tmpptr)  // %1
+                    : "0"(img0),
+                      "1"(tmpptr)
+                    : "memory", "q0", "q1"
+                );
+
+                img0 += bottom_blob.cstep;
+#endif // __aarch64__
 #else
                 tmpptr[0] = img0[0];
                 tmpptr[1] = img0[1];
@@ -157,9 +175,10 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 tmpptr[5] = img0[5];
                 tmpptr[6] = img0[6];
                 tmpptr[7] = img0[7];
-#endif // __ARM_NEON
+
                 tmpptr += 8;
                 img0 += bottom_blob.cstep;
+#endif // __ARM_NEON
             }
         }
 
@@ -178,15 +197,34 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             for (int q=0; q<inch; q++)
             {
 #if __ARM_NEON
+#if __aarch64__
                 vst1q_f32(tmpptr, vld1q_f32(img0));
+
+                tmpptr += 4;
+                img0 += bottom_blob.cstep;
+#else
+                asm volatile(
+                    "pld        [%0, #128]          \n"
+                    "vld1.f32   {d0-d1}, [%0 :128]  \n"
+                    "vst1.f32   {d0-d1}, [%1 :128]! \n"
+                    : "=r"(img0),   // %0
+                      "=r"(tmpptr)  // %1
+                    : "0"(img0),
+                      "1"(tmpptr)
+                    : "memory", "q0"
+                );
+
+                img0 += bottom_blob.cstep;
+#endif // __aarch64__
 #else
                 tmpptr[0] = img0[0];
                 tmpptr[1] = img0[1];
                 tmpptr[2] = img0[2];
                 tmpptr[3] = img0[3];
-#endif // __ARM_NEON
+
                 tmpptr += 4;
                 img0 += bottom_blob.cstep;
+#endif // __ARM_NEON
             }
         }
 
@@ -338,6 +376,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v29.4s, v13.4s, v5.s[2] \n"
                 "fmla   v31.4s, v13.4s, v5.s[3] \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v16.4s, v14.4s, v6.s[0] \n"
                 "fmla   v18.4s, v14.4s, v6.s[1] \n"
                 "fmla   v20.4s, v14.4s, v6.s[2] \n"
@@ -358,7 +398,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v29.4s, v15.4s, v7.s[2] \n"
                 "fmla   v31.4s, v15.4s, v7.s[3] \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    0b                      \n"
 
                 "1:                             \n"
@@ -386,6 +425,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v21.4s, v9.4s, v0.s[2]  \n"
                 "fmla   v23.4s, v9.4s, v0.s[3]  \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v24.4s, v8.4s, v1.s[0]  \n"
                 "fmla   v26.4s, v8.4s, v1.s[1]  \n"
                 "fmla   v28.4s, v8.4s, v1.s[2]  \n"
@@ -396,7 +437,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v29.4s, v9.4s, v1.s[2]  \n"
                 "fmla   v31.4s, v9.4s, v1.s[3]  \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    2b                      \n"
 
                 "3:                             \n"
@@ -465,9 +505,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "prfm   pldl1keep, [%9, #512]   \n"
                 "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%9], #64     \n"
 
-                "prfm   pldl1keep, [%9, #512]   \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%9], #64     \n"
-
                 "fmla   v16.4s, v8.4s, v0.s[0]  \n"
                 "fmla   v17.4s, v8.4s, v0.s[1]  \n"
                 "fmla   v18.4s, v8.4s, v0.s[2]  \n"
@@ -477,6 +514,9 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v22.4s, v8.4s, v1.s[2]  \n"
                 "fmla   v23.4s, v8.4s, v1.s[3]  \n"
 
+                "prfm   pldl1keep, [%9, #512]   \n"
+                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%9], #64     \n"
+
                 "fmla   v16.4s, v9.4s, v2.s[0]  \n"
                 "fmla   v17.4s, v9.4s, v2.s[1]  \n"
                 "fmla   v18.4s, v9.4s, v2.s[2]  \n"
@@ -485,6 +525,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v21.4s, v9.4s, v3.s[1]  \n"
                 "fmla   v22.4s, v9.4s, v3.s[2]  \n"
                 "fmla   v23.4s, v9.4s, v3.s[3]  \n"
+
+                "subs   w4, w4, #1              \n"
 
                 "fmla   v16.4s, v10.4s, v4.s[0] \n"
                 "fmla   v17.4s, v10.4s, v4.s[1] \n"
@@ -504,7 +546,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v22.4s, v11.4s, v7.s[2] \n"
                 "fmla   v23.4s, v11.4s, v7.s[3] \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    0b                      \n"
 
                 "1:                             \n"
@@ -526,12 +567,14 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v17.4s, v8.4s, v0.s[1]  \n"
                 "fmla   v18.4s, v8.4s, v0.s[2]  \n"
                 "fmla   v19.4s, v8.4s, v0.s[3]  \n"
+
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v20.4s, v8.4s, v1.s[0]  \n"
                 "fmla   v21.4s, v8.4s, v1.s[1]  \n"
                 "fmla   v22.4s, v8.4s, v1.s[2]  \n"
                 "fmla   v23.4s, v8.4s, v1.s[3]  \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    2b                      \n"
 
                 "3:                             \n"
@@ -601,19 +644,21 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "prfm   pldl1keep, [%9, #512]   \n"
                 "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%9], #64     \n"
 
-                "prfm   pldl1keep, [%9, #512]   \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%9], #64     \n"
-
                 "fmla   v16.4s, v0.4s, v8.s[0]  \n"
                 "fmla   v17.4s, v1.4s, v8.s[0]  \n"
                 "fmla   v18.4s, v2.4s, v8.s[1]  \n"
                 "fmla   v19.4s, v3.4s, v8.s[1]  \n"
+
+                "prfm   pldl1keep, [%9, #512]   \n"
+                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%9], #64     \n"
+
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v20.4s, v4.4s, v8.s[2]  \n"
                 "fmla   v21.4s, v5.4s, v8.s[2]  \n"
                 "fmla   v22.4s, v6.4s, v8.s[3]  \n"
                 "fmla   v23.4s, v7.4s, v8.s[3]  \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    0b                      \n"
 
                 "fadd   v16.4s, v16.4s, v18.4s  \n"
@@ -640,10 +685,11 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "prfm   pldl1keep, [%9, #256]   \n"
                 "ld1    {v0.4s, v1.4s}, [%9], #32   \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v24.4s, v8.4s, v0.4s    \n"
                 "fmla   v25.4s, v8.4s, v1.4s    \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    2b                      \n"
 
                 "3:                             \n"
@@ -760,6 +806,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v13.4s, v7.4s, v1.s[2]  \n"
                 "fmla   v15.4s, v7.4s, v1.s[3]  \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v8.4s, v16.4s, v2.s[0]  \n"
                 "fmla   v10.4s, v16.4s, v2.s[1] \n"
                 "fmla   v12.4s, v16.4s, v2.s[2] \n"
@@ -780,7 +828,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v13.4s, v19.4s, v3.s[2] \n"
                 "fmla   v15.4s, v19.4s, v3.s[3] \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    0b                      \n"
 
                 "1:                             \n"
@@ -803,12 +850,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v12.4s, v4.4s, v0.s[2]  \n"
                 "fmla   v14.4s, v4.4s, v0.s[3]  \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v9.4s, v5.4s, v0.s[0]   \n"
                 "fmla   v11.4s, v5.4s, v0.s[1]  \n"
                 "fmla   v13.4s, v5.4s, v0.s[2]  \n"
                 "fmla   v15.4s, v5.4s, v0.s[3]  \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    2b                      \n"
 
                 "3:                             \n"
@@ -854,14 +902,14 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "0:                             \n"
 
                 "pld        [%4, #512]          \n"
-//                 "vldm       %4!, {d8-d15}       \n"
-                "vld1.f32   {d8-d11}, [%4 :128]!    \n"
-                "vld1.f32   {d12-d15}, [%4 :128]!   \n"
+                "vldm       %4!, {d8-d15}       \n"
+//                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
+//                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
 
                 "pld        [%5, #512]          \n"
-//                 "vldm       %5!, {d0-d7}       \n"
-                "vld1.f32   {d0-d3}, [%5 :128]! \n"
-                "vld1.f32   {d4-d7}, [%5 :128]! \n"
+                "vldm       %5!, {d0-d7}       \n"
+//                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
+//                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q10, q4, d0[1]      \n"
@@ -884,9 +932,9 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vmla.f32   q15, q7, d3[1]      \n"
 
                 "pld        [%4, #512]          \n"
-//                 "vldm       %4!, {d8-d15}       \n"
-                "vld1.f32   {d8-d11}, [%4 :128]!    \n"
-                "vld1.f32   {d12-d15}, [%4 :128]!   \n"
+                "vldm       %4!, {d8-d15}       \n"
+//                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
+//                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
 
                 "vmla.f32   q8, q4, d4[0]       \n"
                 "vmla.f32   q10, q4, d4[1]      \n"
@@ -898,6 +946,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vmla.f32   q13, q5, d5[0]      \n"
                 "vmla.f32   q15, q5, d5[1]      \n"
 
+                "subs       r4, r4, #1          \n"
+
                 "vmla.f32   q8, q6, d6[0]       \n"
                 "vmla.f32   q10, q6, d6[1]      \n"
                 "vmla.f32   q12, q6, d7[0]      \n"
@@ -908,7 +958,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vmla.f32   q13, q7, d7[0]      \n"
                 "vmla.f32   q15, q7, d7[1]      \n"
 
-                "subs       r4, r4, #1          \n"
                 "bne        0b                  \n"
 
                 "1:                             \n"
@@ -931,12 +980,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vmla.f32   q12, q4, d1[0]      \n"
                 "vmla.f32   q14, q4, d1[1]      \n"
 
+                "subs       r4, r4, #1          \n"
+
                 "vmla.f32   q9, q5, d0[0]       \n"
                 "vmla.f32   q11, q5, d0[1]      \n"
                 "vmla.f32   q13, q5, d1[0]      \n"
                 "vmla.f32   q15, q5, d1[1]      \n"
 
-                "subs       r4, r4, #1          \n"
                 "bne        2b                  \n"
 
                 "3:                             \n"
@@ -1126,6 +1176,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v10.4s, v5.4s, v1.s[2]  \n"
                 "fmla   v11.4s, v5.4s, v1.s[3]  \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v8.4s, v6.4s, v2.s[0]   \n"
                 "fmla   v9.4s, v6.4s, v2.s[1]   \n"
                 "fmla   v10.4s, v6.4s, v2.s[2]  \n"
@@ -1136,7 +1188,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v10.4s, v7.4s, v3.s[2]  \n"
                 "fmla   v11.4s, v7.4s, v3.s[3]  \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    0b                      \n"
 
                 "1:                             \n"
@@ -1154,12 +1205,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "prfm   pldl1keep, [%5, #128]   \n"
                 "ld1    {v0.4s}, [%5], #16      \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v8.4s, v4.4s, v0.s[0]   \n"
                 "fmla   v9.4s, v4.4s, v0.s[1]   \n"
                 "fmla   v10.4s, v4.4s, v0.s[2]  \n"
                 "fmla   v11.4s, v4.4s, v0.s[3]  \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    2b                      \n"
 
                 "3:                             \n"
@@ -1201,14 +1253,14 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "0:                             \n"
 
                 "pld        [%4, #512]          \n"
-//                 "vldm       %4!, {d8-d15}       \n"
-                "vld1.f32   {d8-d11}, [%4 :128]!    \n"
-                "vld1.f32   {d12-d15}, [%4 :128]!   \n"
+                "vldm       %4!, {d8-d15}       \n"
+//                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
+//                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
 
                 "pld        [%5, #512]          \n"
-//                 "vldm       %5!, {d0-d7}       \n"
-                "vld1.f32   {d0-d3}, [%5 :128]! \n"
-                "vld1.f32   {d4-d7}, [%5 :128]! \n"
+                "vldm       %5!, {d0-d7}       \n"
+//                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
+//                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q9, q4, d0[1]       \n"
@@ -1220,6 +1272,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vmla.f32   q10, q5, d3[0]      \n"
                 "vmla.f32   q11, q5, d3[1]      \n"
 
+                "subs       r4, r4, #1          \n"
+
                 "vmla.f32   q8, q6, d4[0]       \n"
                 "vmla.f32   q9, q6, d4[1]       \n"
                 "vmla.f32   q10, q6, d5[0]      \n"
@@ -1230,7 +1284,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vmla.f32   q10, q7, d7[0]      \n"
                 "vmla.f32   q11, q7, d7[1]      \n"
 
-                "subs       r4, r4, #1          \n"
                 "bne        0b                  \n"
 
                 "1:                             \n"
@@ -1248,12 +1301,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "pld        [%5, #128]          \n"
                 "vld1.f32   {d0-d1}, [%5 :128]! \n"
 
+                "subs       r4, r4, #1          \n"
+
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q9, q4, d0[1]       \n"
                 "vmla.f32   q10, q4, d1[0]      \n"
                 "vmla.f32   q11, q4, d1[1]      \n"
 
-                "subs       r4, r4, #1          \n"
                 "bne        2b                  \n"
 
                 "3:                             \n"
@@ -1386,12 +1440,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "prfm   pldl1keep, [%5, #512]   \n"
                 "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%5], #64     \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v8.4s, v0.4s, v4.s[0]   \n"
                 "fmla   v9.4s, v1.4s, v4.s[1]   \n"
                 "fmla   v10.4s, v2.4s, v4.s[2]  \n"
                 "fmla   v11.4s, v3.4s, v4.s[3]  \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    0b                      \n"
 
                 "fadd   v8.4s, v8.4s, v9.4s     \n"
@@ -1414,9 +1469,10 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "prfm   pldl1keep, [%5, #128]   \n"
                 "ld1    {v0.4s}, [%5], #16      \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v12.4s, v4.4s, v0.4s    \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    2b                      \n"
 
                 "3:                             \n"
@@ -1462,16 +1518,17 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vld1.f32   {d8-d9}, [%4 :128]! \n"
 
                 "pld        [%5, #512]          \n"
-//                 "vldm       %5!, {d0-d7}       \n"
-                "vld1.f32   {d0-d3}, [%5 :128]! \n"
-                "vld1.f32   {d4-d7}, [%5 :128]! \n"
+                "vldm       %5!, {d0-d7}       \n"
+//                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
+//                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
+
+                "subs       r4, r4, #1          \n"
 
                 "vmla.f32   q8, q0, d8[0]       \n"
                 "vmla.f32   q9, q1, d8[1]       \n"
                 "vmla.f32   q10, q2, d9[0]      \n"
                 "vmla.f32   q11, q3, d9[1]      \n"
 
-                "subs       r4, r4, #1          \n"
                 "bne        0b                  \n"
 
                 "vadd.f32   q8, q8, q9          \n"
@@ -1494,9 +1551,10 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "pld        [%5, #128]          \n"
                 "vld1.f32   {d0-d1}, [%5 :128]! \n"
 
+                "subs       r4, r4, #1          \n"
+
                 "vmla.f32   q12, q4, q0         \n"
 
-                "subs       r4, r4, #1          \n"
                 "bne        2b                  \n"
 
                 "3:                             \n"
@@ -1603,13 +1661,14 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "fmla   v8.4s, v6.4s, v0.s[1]   \n"
                 "fmla   v9.4s, v7.4s, v0.s[1]   \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v8.4s, v12.4s, v0.s[2]  \n"
                 "fmla   v9.4s, v13.4s, v0.s[2]  \n"
 
                 "fmla   v8.4s, v14.4s, v0.s[3]  \n"
                 "fmla   v9.4s, v15.4s, v0.s[3]  \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    0b                      \n"
 
                 "1:                             \n"
@@ -1627,10 +1686,11 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "prfm   pldl1keep, [%2, #32]    \n"
                 "ld1r   {v0.4s}, [%2], #4       \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v8.4s, v4.4s, v0.4s     \n"
                 "fmla   v9.4s, v5.4s, v0.4s     \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    2b                      \n"
 
                 "3:                             \n"
@@ -1660,9 +1720,9 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "0:                             \n"
 
                 "pld        [%1, #512]          \n"
-//                 "vldm       %1!, {d8-d15}       \n"
-                "vld1.f32   {d8-d11}, [%1 :128]!    \n"
-                "vld1.f32   {d12-d15}, [%1 :128]!   \n"
+                "vldm       %1!, {d8-d15}       \n"
+//                 "vld1.f32   {d8-d11}, [%1 :128]!    \n"
+//                 "vld1.f32   {d12-d15}, [%1 :128]!   \n"
 
                 "pld        [%2, #128]          \n"
                 "vld1.f32   {d0-d1}, [%2 :128]! \n"
@@ -1671,12 +1731,14 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vmla.f32   q9, q5, d0[0]       \n"
 
                 "pld        [%1, #512]          \n"
-//                 "vldm       %1!, {d24-d31}      \n"
-                "vld1.f32   {d24-d27}, [%1 :128]!   \n"
-                "vld1.f32   {d28-d31}, [%1 :128]!   \n"
+                "vldm       %1!, {d24-d31}      \n"
+//                 "vld1.f32   {d24-d27}, [%1 :128]!   \n"
+//                 "vld1.f32   {d28-d31}, [%1 :128]!   \n"
 
                 "vmla.f32   q8, q6, d0[1]       \n"
                 "vmla.f32   q9, q7, d0[1]       \n"
+
+                "subs       r4, r4, #1          \n"
 
                 "vmla.f32   q8, q12, d1[0]      \n"
                 "vmla.f32   q9, q13, d1[0]      \n"
@@ -1684,7 +1746,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vmla.f32   q8, q14, d1[1]      \n"
                 "vmla.f32   q9, q15, d1[1]      \n"
 
-                "subs       r4, r4, #1          \n"
                 "bne        0b                  \n"
 
                 "1:                             \n"
@@ -1702,10 +1763,11 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "pld        [%2, #32]           \n"
                 "vld1.f32   {d0[],d1[]}, [%2]!  \n"
 
+                "subs       r4, r4, #1          \n"
+
                 "vmla.f32   q8, q4, q0          \n"
                 "vmla.f32   q9, q5, q0          \n"
 
-                "subs       r4, r4, #1          \n"
                 "bne        2b                  \n"
 
                 "3:                             \n"
@@ -1788,12 +1850,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "prfm   pldl1keep, [%2, #128]   \n"
                 "ld1    {v0.4s}, [%2], #16      \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v8.4s, v4.4s, v0.s[0]   \n"
                 "fmla   v8.4s, v5.4s, v0.s[1]   \n"
                 "fmla   v8.4s, v6.4s, v0.s[2]   \n"
                 "fmla   v8.4s, v7.4s, v0.s[3]   \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    0b                      \n"
 
                 "1:                             \n"
@@ -1811,9 +1874,10 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "prfm   pldl1keep, [%2, #32]    \n"
                 "ld1r   {v0.4s}, [%2], #4       \n"
 
+                "subs   w4, w4, #1              \n"
+
                 "fmla   v8.4s, v4.4s, v0.4s     \n"
 
-                "subs   w4, w4, #1              \n"
                 "bne    2b                      \n"
 
                 "3:                             \n"
@@ -1842,19 +1906,20 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "0:                             \n"
 
                 "pld        [%1, #512]          \n"
-//                 "vldm       %1!, {d8-d15}       \n"
-                "vld1.f32   {d8-d11}, [%1 :128]!    \n"
-                "vld1.f32   {d12-d15}, [%1 :128]!   \n"
+                "vldm       %1!, {d8-d15}       \n"
+//                 "vld1.f32   {d8-d11}, [%1 :128]!    \n"
+//                 "vld1.f32   {d12-d15}, [%1 :128]!   \n"
 
                 "pld        [%2, #128]          \n"
                 "vld1.f32   {d0-d1}, [%2]!      \n"
+
+                "subs       r4, r4, #1          \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q8, q5, d0[1]       \n"
                 "vmla.f32   q8, q6, d1[0]       \n"
                 "vmla.f32   q8, q7, d1[1]       \n"
 
-                "subs       r4, r4, #1          \n"
                 "bne        0b                  \n"
 
                 "1:                             \n"
@@ -1872,9 +1937,10 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "pld        [%2, #32]           \n"
                 "vld1.f32   {d0[],d1[]}, [%2]!  \n"
 
+                "subs       r4, r4, #1          \n"
+
                 "vmla.f32   q8, q4, q0          \n"
 
-                "subs       r4, r4, #1          \n"
                 "bne        2b                  \n"
 
                 "3:                             \n"

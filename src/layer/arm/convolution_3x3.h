@@ -9759,14 +9759,14 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "0:                         \n"
 
                         "pld        [%4, #512]      \n"
-//                         "vldm       %4!, {d8-d15}   \n"
-                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
-                        "vld1.f32   {d12-d15}, [%4 :128]! \n"
+                        "vldm       %4!, {d8-d15}   \n"
+//                         "vld1.f32   {d8-d11}, [%4 :128]! \n"
+//                         "vld1.f32   {d12-d15}, [%4 :128]! \n"
 
                         "pld        [%5, #512]      \n"
-//                         "vldm       %5!, {d0-d7}    \n"
-                        "vld1.f32   {d0-d3}, [%5 :128]!  \n"
-                        "vld1.f32   {d4-d7}, [%5 :128]!  \n"
+                        "vldm       %5!, {d0-d7}    \n"
+//                         "vld1.f32   {d0-d3}, [%5 :128]!  \n"
+//                         "vld1.f32   {d4-d7}, [%5 :128]!  \n"
 
                         "vmla.f32   q8, q4, d0[0]   \n"
                         "vmla.f32   q9, q5, d0[0]   \n"
@@ -9787,9 +9787,9 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vmla.f32   q15, q7, d3[1]  \n"
 
                         "pld        [%4, #512]      \n"
-//                         "vldm       %4!, {d8-d15}   \n"
-                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
-                        "vld1.f32   {d12-d15}, [%4 :128]! \n"
+                        "vldm       %4!, {d8-d15}   \n"
+//                         "vld1.f32   {d8-d11}, [%4 :128]! \n"
+//                         "vld1.f32   {d12-d15}, [%4 :128]! \n"
 
                         "vmla.f32   q8, q4, d4[0]   \n"
                         "vmla.f32   q9, q5, d4[0]   \n"
@@ -9800,6 +9800,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vmla.f32   q14, q4, d5[1]  \n"
                         "vmla.f32   q15, q5, d5[1]  \n"
 
+                        "subs       r4, r4, #1      \n"
+
                         "vmla.f32   q8, q6, d6[0]   \n"
                         "vmla.f32   q9, q7, d6[0]   \n"
                         "vmla.f32   q10, q6, d6[1]  \n"
@@ -9809,7 +9811,6 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vmla.f32   q14, q6, d7[1]  \n"
                         "vmla.f32   q15, q7, d7[1]  \n"
 
-                        "subs       r4, r4, #1      \n"
                         "bne        0b              \n"
 
                         "1:                         \n"
@@ -9831,12 +9832,14 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vmla.f32   q9, q5, d0[0]   \n"
                         "vmla.f32   q10, q4, d0[1]  \n"
                         "vmla.f32   q11, q5, d0[1]  \n"
+
+                        "subs       r4, r4, #1      \n"
+
                         "vmla.f32   q12, q4, d1[0]  \n"
                         "vmla.f32   q13, q5, d1[0]  \n"
                         "vmla.f32   q14, q4, d1[1]  \n"
                         "vmla.f32   q15, q5, d1[1]  \n"
 
-                        "subs       r4, r4, #1      \n"
                         "bne        2b              \n"
 
                         "3:                         \n"
@@ -10092,14 +10095,14 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "0:                         \n"
 
                         "pld        [%4, #512]      \n"
-//                         "vldm       %4!, {d8-d15}   \n"
-                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
-                        "vld1.f32   {d12-d15}, [%4 :128]! \n"
+                        "vldm       %4!, {d8-d15}   \n"
+//                         "vld1.f32   {d8-d11}, [%4 :128]! \n"
+//                         "vld1.f32   {d12-d15}, [%4 :128]! \n"
 
                         "pld        [%5, #512]      \n"
-//                         "vldm       %5!, {d0-d7}    \n"
-                        "vld1.f32   {d0-d3}, [%5 :128]!  \n"
-                        "vld1.f32   {d4-d7}, [%5 :128]!  \n"
+                        "vldm       %5!, {d0-d7}    \n"
+//                         "vld1.f32   {d0-d3}, [%5 :128]!  \n"
+//                         "vld1.f32   {d4-d7}, [%5 :128]!  \n"
 
                         "vmla.f32   q8, q4, d0[0]   \n"
                         "vmla.f32   q9, q4, d0[1]   \n"
@@ -10111,6 +10114,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vmla.f32   q10, q5, d3[0]  \n"
                         "vmla.f32   q11, q5, d3[1]  \n"
 
+                        "subs       r4, r4, #1      \n"
+
                         "vmla.f32   q8, q6, d4[0]   \n"
                         "vmla.f32   q9, q6, d4[1]   \n"
                         "vmla.f32   q10, q6, d5[0]  \n"
@@ -10121,7 +10126,6 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vmla.f32   q10, q7, d7[0]  \n"
                         "vmla.f32   q11, q7, d7[1]  \n"
 
-                        "subs       r4, r4, #1      \n"
                         "bne        0b              \n"
 
                         "1:                         \n"
@@ -10139,12 +10143,13 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "pld        [%5, #128]      \n"
                         "vld1.f32   {d0-d1}, [%5 :128]!  \n"
 
+                        "subs       r4, r4, #1      \n"
+
                         "vmla.f32   q8, q4, d0[0]   \n"
                         "vmla.f32   q9, q4, d0[1]   \n"
                         "vmla.f32   q10, q4, d1[0]  \n"
                         "vmla.f32   q11, q4, d1[1]  \n"
 
-                        "subs       r4, r4, #1      \n"
                         "bne        2b              \n"
 
                         "3:                         \n"
@@ -10432,9 +10437,9 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "0:                             \n"
 
                         "pld        [%1, #512]          \n"
-//                         "vldm       %1!, {d8-d15}       \n"
-                        "vld1.f32   {d8-d11}, [%1 :128]! \n"
-                        "vld1.f32   {d12-d15}, [%1 :128]! \n"
+                        "vldm       %1!, {d8-d15}       \n"
+//                         "vld1.f32   {d8-d11}, [%1 :128]! \n"
+//                         "vld1.f32   {d12-d15}, [%1 :128]! \n"
 
                         "pld        [%2, #128]          \n"
                         "vld1.f32   {d0-d1}, [%2 :128]! \n"
@@ -10445,16 +10450,17 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vmla.f32   q9, q7, d0[1]       \n"
 
                         "pld        [%1, #512]          \n"
-//                         "vldm       %1!, {d24-d31}      \n"
-                        "vld1.f32   {d24-d27}, [%1 :128]! \n"
-                        "vld1.f32   {d28-d31}, [%1 :128]! \n"
+                        "vldm       %1!, {d24-d31}      \n"
+//                         "vld1.f32   {d24-d27}, [%1 :128]! \n"
+//                         "vld1.f32   {d28-d31}, [%1 :128]! \n"
+
+                        "subs       r4, r4, #1          \n"
 
                         "vmla.f32   q8, q12, d1[0]      \n"
                         "vmla.f32   q9, q13, d1[0]      \n"
                         "vmla.f32   q8, q14, d1[1]      \n"
                         "vmla.f32   q9, q15, d1[1]      \n"
 
-                        "subs       r4, r4, #1          \n"
                         "bne        0b                  \n"
 
                         "1:                             \n"
@@ -10472,10 +10478,11 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "pld        [%2, #32]           \n"
                         "vld1.f32   {d0[],d1[]}, [%2]!  \n"
 
+                        "subs       r4, r4, #1          \n"
+
                         "vmla.f32   q8, q4, q0          \n"
                         "vmla.f32   q9, q5, q0          \n"
 
-                        "subs       r4, r4, #1          \n"
                         "bne        2b                  \n"
 
                         "3:                             \n"
@@ -10605,19 +10612,20 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "0:                             \n"
 
                         "pld        [%4, #512]          \n"
-//                         "vldm       %4!, {d8-d15}       \n"
-                        "vld1.f32   {d8-d11}, [%4 :128]! \n"
-                        "vld1.f32   {d12-d15}, [%4 :128]! \n"
+                        "vldm       %4!, {d8-d15}       \n"
+//                         "vld1.f32   {d8-d11}, [%4 :128]! \n"
+//                         "vld1.f32   {d12-d15}, [%4 :128]! \n"
 
                         "pld        [%5, #128]          \n"
                         "vld1.f32   {d0-d1}, [%5 :128]! \n"
+
+                        "subs       r4, r4, #1          \n"
 
                         "vmla.f32   q8, q4, d0[0]       \n"
                         "vmla.f32   q8, q5, d0[1]       \n"
                         "vmla.f32   q8, q6, d1[0]       \n"
                         "vmla.f32   q8, q7, d1[1]       \n"
 
-                        "subs       r4, r4, #1          \n"
                         "bne        0b                  \n"
 
                         "1:                             \n"
@@ -10635,9 +10643,10 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "pld        [%5, #32]           \n"
                         "vld1.f32   {d0[],d1[]}, [%5]!  \n"
 
+                        "subs       r4, r4, #1          \n"
+
                         "vmla.f32   q8, q4, q0          \n"
 
-                        "subs       r4, r4, #1          \n"
                         "bne        2b                  \n"
 
                         "3:                             \n"
