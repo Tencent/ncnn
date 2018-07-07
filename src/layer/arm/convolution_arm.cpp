@@ -312,9 +312,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 //         conv3x3s1_winograd64_neon4(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
         conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data);
     }
-    else if (use_sgemm1x1 && w <= 120 && h <= 120)
+    else if (use_sgemm1x1)
     {
-        // TODO assume more proper condition
         conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data);
     }
     else
