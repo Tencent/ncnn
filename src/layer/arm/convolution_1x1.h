@@ -128,648 +128,43 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     const float* bias = _bias;
 
     // interleave
-    Mat tmp(8, inch, size/8 + (size%8)/4 + size%4);
+    Mat tmp(8*4, inch/4+inch%4, size/8 + (size%8)/4 + size%4);
     {
-        int nn_inch = 0;
-        int remain_inch_start = 0;
-
-        nn_inch = inch >> 3;
+        int nn_size = size >> 3;
+        int remain_size_start = nn_size << 3;
 
         #pragma omp parallel for
-        for (int qq=0; qq<nn_inch; qq++)
+        for (int ii=0; ii<nn_size; ii++)
         {
-            int q = qq * 8;
+            int i = ii * 8;
 
-            const float* img0 = bottom_blob.channel(q);
-            const float* img1 = bottom_blob.channel(q+1);
-            const float* img2 = bottom_blob.channel(q+2);
-            const float* img3 = bottom_blob.channel(q+3);
-            const float* img4 = bottom_blob.channel(q+4);
-            const float* img5 = bottom_blob.channel(q+5);
-            const float* img6 = bottom_blob.channel(q+6);
-            const float* img7 = bottom_blob.channel(q+7);
+            const float* img0 = bottom_blob.channel(0);
+            img0 += i;
 
-            int i=0;
-            for (; i+7<size; i+=8)
+            float* tmpptr = tmp.channel(i/8);
+
+            for (int q=0; q<inch; q++)
             {
-                float* tmpptr = tmp.channel(i/8).row(q);
-
 #if __ARM_NEON
 #if __aarch64__
-                asm volatile(
-                    "prfm   pldl1keep, [%1, #256]   \n"
-                    "ld1    {v0.4s, v1.4s}, [%1], #32   \n"
-                    "prfm   pldl1keep, [%2, #256]   \n"
-                    "ld1    {v2.4s, v3.4s}, [%2], #32   \n"
-                    "prfm   pldl1keep, [%3, #256]   \n"
-                    "ld1    {v4.4s, v5.4s}, [%3], #32   \n"
-                    "prfm   pldl1keep, [%4, #256]   \n"
-                    "ld1    {v6.4s, v7.4s}, [%4], #32   \n"
+                vst1q_f32(tmpptr, vld1q_f32(img0));
+                vst1q_f32(tmpptr+4, vld1q_f32(img0+4));
 
-                    "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-
-                    "prfm   pldl1keep, [%5, #256]   \n"
-                    "ld1    {v8.4s, v9.4s}, [%5], #32   \n"
-                    "prfm   pldl1keep, [%6, #256]   \n"
-                    "ld1    {v10.4s, v11.4s}, [%6], #32 \n"
-
-                    "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
-
-                    "prfm   pldl1keep, [%7, #256]   \n"
-                    "ld1    {v12.4s, v13.4s}, [%7], #32 \n"
-                    "prfm   pldl1keep, [%8, #256]   \n"
-                    "ld1    {v14.4s, v15.4s}, [%8], #32 \n"
-
-                    "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
-                    "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0]  \n"
-
-                    : "=r"(tmpptr),
-                      "=r"(img0),
-                      "=r"(img1),
-                      "=r"(img2),
-                      "=r"(img3),
-                      "=r"(img4),
-                      "=r"(img5),
-                      "=r"(img6),
-                      "=r"(img7)
-                    : "0"(tmpptr),
-                      "1"(img0),
-                      "2"(img1),
-                      "3"(img2),
-                      "4"(img3),
-                      "5"(img4),
-                      "6"(img5),
-                      "7"(img6),
-                      "8"(img7)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
-                );
+                tmpptr += 8;
+                img0 += bottom_blob.cstep;
 #else
                 asm volatile(
-                    "pld        [%1, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%1]!      \n"
-                    "pld        [%2, #256]          \n"
-                    "vld1.f32   {d4-d7}, [%2]!      \n"
-                    "pld        [%3, #256]          \n"
-                    "vld1.f32   {d8-d11}, [%3]!     \n"
-                    "pld        [%4, #256]          \n"
-                    "vld1.f32   {d12-d15}, [%4]!    \n"
-
-                    "vstm       %0!, {d0-d7}        \n"
-
-                    "pld        [%5, #256]          \n"
-                    "vld1.f32   {d16-d19}, [%5]!    \n"
-                    "pld        [%6, #256]          \n"
-                    "vld1.f32   {d20-d23}, [%6]!    \n"
-
-                    "vstm       %0!, {d8-d15}       \n"
-
-                    "pld        [%7, #256]          \n"
-                    "vld1.f32   {d24-d27}, [%7]!    \n"
-                    "pld        [%8, #256]          \n"
-                    "vld1.f32   {d28-d31}, [%8]!    \n"
-
-                    "vstm       %0!, {d16-d23}      \n"
-                    "vstm       %0, {d24-d31}       \n"
-
-                    : "=r"(tmpptr),
-                      "=r"(img0),
-                      "=r"(img1),
-                      "=r"(img2),
-                      "=r"(img3),
-                      "=r"(img4),
-                      "=r"(img5),
-                      "=r"(img6),
-                      "=r"(img7)
-                    : "0"(tmpptr),
-                      "1"(img0),
-                      "2"(img1),
-                      "3"(img2),
-                      "4"(img3),
-                      "5"(img4),
-                      "6"(img5),
-                      "7"(img6),
-                      "8"(img7)
-                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
-#endif // __aarch64__
-#else
-                tmpptr[0] = img0[0];
-                tmpptr[1] = img0[1];
-                tmpptr[2] = img0[2];
-                tmpptr[3] = img0[3];
-                tmpptr[4] = img0[4];
-                tmpptr[5] = img0[5];
-                tmpptr[6] = img0[6];
-                tmpptr[7] = img0[7];
-                tmpptr += 8;
-
-                tmpptr[0] = img1[0];
-                tmpptr[1] = img1[1];
-                tmpptr[2] = img1[2];
-                tmpptr[3] = img1[3];
-                tmpptr[4] = img1[4];
-                tmpptr[5] = img1[5];
-                tmpptr[6] = img1[6];
-                tmpptr[7] = img1[7];
-                tmpptr += 8;
-
-                tmpptr[0] = img2[0];
-                tmpptr[1] = img2[1];
-                tmpptr[2] = img2[2];
-                tmpptr[3] = img2[3];
-                tmpptr[4] = img2[4];
-                tmpptr[5] = img2[5];
-                tmpptr[6] = img2[6];
-                tmpptr[7] = img2[7];
-                tmpptr += 8;
-
-                tmpptr[0] = img3[0];
-                tmpptr[1] = img3[1];
-                tmpptr[2] = img3[2];
-                tmpptr[3] = img3[3];
-                tmpptr[4] = img3[4];
-                tmpptr[5] = img3[5];
-                tmpptr[6] = img3[6];
-                tmpptr[7] = img3[7];
-                tmpptr += 8;
-
-                tmpptr[0] = img4[0];
-                tmpptr[1] = img4[1];
-                tmpptr[2] = img4[2];
-                tmpptr[3] = img4[3];
-                tmpptr[4] = img4[4];
-                tmpptr[5] = img4[5];
-                tmpptr[6] = img4[6];
-                tmpptr[7] = img4[7];
-                tmpptr += 8;
-
-                tmpptr[0] = img5[0];
-                tmpptr[1] = img5[1];
-                tmpptr[2] = img5[2];
-                tmpptr[3] = img5[3];
-                tmpptr[4] = img5[4];
-                tmpptr[5] = img5[5];
-                tmpptr[6] = img5[6];
-                tmpptr[7] = img5[7];
-                tmpptr += 8;
-
-                tmpptr[0] = img6[0];
-                tmpptr[1] = img6[1];
-                tmpptr[2] = img6[2];
-                tmpptr[3] = img6[3];
-                tmpptr[4] = img6[4];
-                tmpptr[5] = img6[5];
-                tmpptr[6] = img6[6];
-                tmpptr[7] = img6[7];
-                tmpptr += 8;
-
-                tmpptr[0] = img7[0];
-                tmpptr[1] = img7[1];
-                tmpptr[2] = img7[2];
-                tmpptr[3] = img7[3];
-                tmpptr[4] = img7[4];
-                tmpptr[5] = img7[5];
-                tmpptr[6] = img7[6];
-                tmpptr[7] = img7[7];
-
-                img0 += 8;
-                img1 += 8;
-                img2 += 8;
-                img3 += 8;
-                img4 += 8;
-                img5 += 8;
-                img6 += 8;
-                img7 += 8;
-#endif // __ARM_NEON
-            }
-            for (; i+3<size; i+=4)
-            {
-                float* tmpptr = tmp.channel(i/8 + (i%8)/4).row(q/8*4);
-
-#if __ARM_NEON
-#if __aarch64__
-                asm volatile(
-                    "prfm   pldl1keep, [%1, #128]   \n"
-                    "ld1    {v0.4s}, [%1], #16      \n"
-                    "prfm   pldl1keep, [%2, #128]   \n"
-                    "ld1    {v1.4s}, [%2], #16      \n"
-                    "prfm   pldl1keep, [%3, #128]   \n"
-                    "ld1    {v2.4s}, [%3], #16      \n"
-                    "prfm   pldl1keep, [%4, #128]   \n"
-                    "ld1    {v3.4s}, [%4], #16      \n"
-
-                    "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-
-                    "prfm   pldl1keep, [%5, #128]   \n"
-                    "ld1    {v4.4s}, [%5], #16      \n"
-                    "prfm   pldl1keep, [%6, #128]   \n"
-                    "ld1    {v5.4s}, [%6], #16      \n"
-                    "prfm   pldl1keep, [%7, #128]   \n"
-                    "ld1    {v6.4s}, [%7], #16      \n"
-                    "prfm   pldl1keep, [%8, #128]   \n"
-                    "ld1    {v7.4s}, [%8], #16      \n"
-
-                    "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0]  \n"
-
-                    : "=r"(tmpptr),
-                      "=r"(img0),
-                      "=r"(img1),
-                      "=r"(img2),
-                      "=r"(img3),
-                      "=r"(img4),
-                      "=r"(img5),
-                      "=r"(img6),
-                      "=r"(img7)
-                    : "0"(tmpptr),
-                      "1"(img0),
-                      "2"(img1),
-                      "3"(img2),
-                      "4"(img3),
-                      "5"(img4),
-                      "6"(img5),
-                      "7"(img6),
-                      "8"(img7)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
-                );
-#else
-                asm volatile(
-                    "pld        [%1, #128]          \n"
-                    "vld1.f32   {d0-d1}, [%1]!      \n"
-                    "pld        [%2, #128]          \n"
-                    "vld1.f32   {d2-d3}, [%2]!      \n"
-                    "pld        [%3, #128]          \n"
-                    "vld1.f32   {d4-d5}, [%3]!      \n"
-                    "pld        [%4, #128]          \n"
-                    "vld1.f32   {d6-d7}, [%4]!      \n"
-
-                    "vstm       %0!, {d0-d7}        \n"
-
-                    "pld        [%5, #128]          \n"
-                    "vld1.f32   {d8-d9}, [%5]!      \n"
-                    "pld        [%6, #128]          \n"
-                    "vld1.f32   {d10-d11}, [%6]!    \n"
-                    "pld        [%7, #128]          \n"
-                    "vld1.f32   {d12-d13}, [%7]!    \n"
-                    "pld        [%8, #128]          \n"
-                    "vld1.f32   {d14-d15}, [%8]!    \n"
-
-                    "vstm       %0, {d8-d15}        \n"
-
-                    : "=r"(tmpptr),
-                      "=r"(img0),
-                      "=r"(img1),
-                      "=r"(img2),
-                      "=r"(img3),
-                      "=r"(img4),
-                      "=r"(img5),
-                      "=r"(img6),
-                      "=r"(img7)
-                    : "0"(tmpptr),
-                      "1"(img0),
-                      "2"(img1),
-                      "3"(img2),
-                      "4"(img3),
-                      "5"(img4),
-                      "6"(img5),
-                      "7"(img6),
-                      "8"(img7)
-                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7"
-                );
-#endif // __aarch64__
-#else
-                tmpptr[0] = img0[0];
-                tmpptr[1] = img0[1];
-                tmpptr[2] = img0[2];
-                tmpptr[3] = img0[3];
-                tmpptr += 4;
-
-                tmpptr[0] = img1[0];
-                tmpptr[1] = img1[1];
-                tmpptr[2] = img1[2];
-                tmpptr[3] = img1[3];
-                tmpptr += 4;
-
-                tmpptr[0] = img2[0];
-                tmpptr[1] = img2[1];
-                tmpptr[2] = img2[2];
-                tmpptr[3] = img2[3];
-                tmpptr += 4;
-
-                tmpptr[0] = img3[0];
-                tmpptr[1] = img3[1];
-                tmpptr[2] = img3[2];
-                tmpptr[3] = img3[3];
-                tmpptr += 4;
-
-                tmpptr[0] = img4[0];
-                tmpptr[1] = img4[1];
-                tmpptr[2] = img4[2];
-                tmpptr[3] = img4[3];
-                tmpptr += 4;
-
-                tmpptr[0] = img5[0];
-                tmpptr[1] = img5[1];
-                tmpptr[2] = img5[2];
-                tmpptr[3] = img5[3];
-                tmpptr += 4;
-
-                tmpptr[0] = img6[0];
-                tmpptr[1] = img6[1];
-                tmpptr[2] = img6[2];
-                tmpptr[3] = img6[3];
-                tmpptr += 4;
-
-                tmpptr[0] = img7[0];
-                tmpptr[1] = img7[1];
-                tmpptr[2] = img7[2];
-                tmpptr[3] = img7[3];
-
-                img0 += 4;
-                img1 += 4;
-                img2 += 4;
-                img3 += 4;
-                img4 += 4;
-                img5 += 4;
-                img6 += 4;
-                img7 += 4;
-#endif // __ARM_NEON
-            }
-            for (; i<size; i++)
-            {
-                float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4).row(q/8);
-
-                tmpptr[0] = img0[0];
-                tmpptr[1] = img1[0];
-                tmpptr[2] = img2[0];
-                tmpptr[3] = img3[0];
-                tmpptr[4] = img4[0];
-                tmpptr[5] = img5[0];
-                tmpptr[6] = img6[0];
-                tmpptr[7] = img7[0];
-
-                img0 += 1;
-                img1 += 1;
-                img2 += 1;
-                img3 += 1;
-                img4 += 1;
-                img5 += 1;
-                img6 += 1;
-                img7 += 1;
-            }
-        }
-
-        remain_inch_start += nn_inch << 3;
-        nn_inch = (inch - remain_inch_start) >> 2;
-
-        #pragma omp parallel for
-        for (int qq=0; qq<nn_inch; qq++)
-        {
-            int q = remain_inch_start + qq * 4;
-
-            const float* img0 = bottom_blob.channel(q);
-            const float* img1 = bottom_blob.channel(q+1);
-            const float* img2 = bottom_blob.channel(q+2);
-            const float* img3 = bottom_blob.channel(q+3);
-
-            int i=0;
-            for (; i+7<size; i+=8)
-            {
-                float* tmpptr = tmp.channel(i/8).row(q);
-
-#if __ARM_NEON
-#if __aarch64__
-                asm volatile(
-                    "prfm   pldl1keep, [%1, #256]   \n"
-                    "ld1    {v0.4s, v1.4s}, [%1], #32   \n"
-                    "prfm   pldl1keep, [%2, #256]   \n"
-                    "ld1    {v2.4s, v3.4s}, [%2], #32   \n"
-                    "prfm   pldl1keep, [%3, #256]   \n"
-                    "ld1    {v4.4s, v5.4s}, [%3], #32   \n"
-                    "prfm   pldl1keep, [%4, #256]   \n"
-                    "ld1    {v6.4s, v7.4s}, [%4], #32   \n"
-
-                    "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                    "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0]  \n"
-                    : "=r"(tmpptr),
-                      "=r"(img0),
-                      "=r"(img1),
-                      "=r"(img2),
-                      "=r"(img3)
-                    : "0"(tmpptr),
-                      "1"(img0),
-                      "2"(img1),
-                      "3"(img2),
-                      "4"(img3)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
-                );
-#else
-                asm volatile(
-                    "pld        [%1, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%1]!      \n"
-                    "pld        [%2, #256]          \n"
-                    "vld1.f32   {d4-d7}, [%2]!      \n"
-                    "pld        [%3, #256]          \n"
-                    "vld1.f32   {d8-d11}, [%3]!     \n"
-                    "pld        [%4, #256]          \n"
-                    "vld1.f32   {d12-d15}, [%4]!    \n"
-
-                    "vstm       %0!, {d0-d7}        \n"
-                    "vstm       %0, {d8-d15}        \n"
-
-                    : "=r"(tmpptr),
-                      "=r"(img0),
-                      "=r"(img1),
-                      "=r"(img2),
-                      "=r"(img3)
-                    : "0"(tmpptr),
-                      "1"(img0),
-                      "2"(img1),
-                      "3"(img2),
-                      "4"(img3)
-                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7"
-                );
-#endif // __aarch64__
-#else
-                tmpptr[0] = img0[0];
-                tmpptr[1] = img0[1];
-                tmpptr[2] = img0[2];
-                tmpptr[3] = img0[3];
-                tmpptr[4] = img0[4];
-                tmpptr[5] = img0[5];
-                tmpptr[6] = img0[6];
-                tmpptr[7] = img0[7];
-                tmpptr += 8;
-
-                tmpptr[0] = img1[0];
-                tmpptr[1] = img1[1];
-                tmpptr[2] = img1[2];
-                tmpptr[3] = img1[3];
-                tmpptr[4] = img1[4];
-                tmpptr[5] = img1[5];
-                tmpptr[6] = img1[6];
-                tmpptr[7] = img1[7];
-                tmpptr += 8;
-
-                tmpptr[0] = img2[0];
-                tmpptr[1] = img2[1];
-                tmpptr[2] = img2[2];
-                tmpptr[3] = img2[3];
-                tmpptr[4] = img2[4];
-                tmpptr[5] = img2[5];
-                tmpptr[6] = img2[6];
-                tmpptr[7] = img2[7];
-                tmpptr += 8;
-
-                tmpptr[0] = img3[0];
-                tmpptr[1] = img3[1];
-                tmpptr[2] = img3[2];
-                tmpptr[3] = img3[3];
-                tmpptr[4] = img3[4];
-                tmpptr[5] = img3[5];
-                tmpptr[6] = img3[6];
-                tmpptr[7] = img3[7];
-
-                img0 += 8;
-                img1 += 8;
-                img2 += 8;
-                img3 += 8;
-#endif // __ARM_NEON
-            }
-            for (; i+3<size; i+=4)
-            {
-                float* tmpptr = tmp.channel(i/8 + (i%8)/4).row(q/8*4 + (q%8)/4*2);
-
-#if __ARM_NEON
-#if __aarch64__
-                asm volatile(
-                    "prfm   pldl1keep, [%1, #128]   \n"
-                    "ld1    {v0.4s}, [%1], #16      \n"
-                    "prfm   pldl1keep, [%2, #128]   \n"
-                    "ld1    {v1.4s}, [%2], #16      \n"
-                    "prfm   pldl1keep, [%3, #128]   \n"
-                    "ld1    {v2.4s}, [%3], #16      \n"
-                    "prfm   pldl1keep, [%4, #128]   \n"
-                    "ld1    {v3.4s}, [%4], #16      \n"
-
-                    "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0]  \n"
-                    : "=r"(tmpptr),
-                      "=r"(img0),
-                      "=r"(img1),
-                      "=r"(img2),
-                      "=r"(img3)
-                    : "0"(tmpptr),
-                      "1"(img0),
-                      "2"(img1),
-                      "3"(img2),
-                      "4"(img3)
-                    : "memory", "v0", "v1", "v2", "v3"
-                );
-#else
-                asm volatile(
-                    "pld        [%1, #128]          \n"
-                    "vld1.f32   {d0-d1}, [%1]!      \n"
-                    "pld        [%2, #128]          \n"
-                    "vld1.f32   {d2-d3}, [%2]!      \n"
-                    "pld        [%3, #128]          \n"
-                    "vld1.f32   {d4-d5}, [%3]!      \n"
-                    "pld        [%4, #128]          \n"
-                    "vld1.f32   {d6-d7}, [%4]!      \n"
-
-                    "vstm       %0!, {d0-d7}        \n"
-                    : "=r"(tmpptr),
-                      "=r"(img0),
-                      "=r"(img1),
-                      "=r"(img2),
-                      "=r"(img3)
-                    : "0"(tmpptr),
-                      "1"(img0),
-                      "2"(img1),
-                      "3"(img2),
-                      "4"(img3)
-                    : "memory", "q0", "q1", "q2", "q3"
-                );
-#endif // __aarch64__
-#else
-                tmpptr[0] = img0[0];
-                tmpptr[1] = img0[1];
-                tmpptr[2] = img0[2];
-                tmpptr[3] = img0[3];
-                tmpptr += 4;
-
-                tmpptr[0] = img1[0];
-                tmpptr[1] = img1[1];
-                tmpptr[2] = img1[2];
-                tmpptr[3] = img1[3];
-                tmpptr += 4;
-
-                tmpptr[0] = img2[0];
-                tmpptr[1] = img2[1];
-                tmpptr[2] = img2[2];
-                tmpptr[3] = img2[3];
-                tmpptr += 4;
-
-                tmpptr[0] = img3[0];
-                tmpptr[1] = img3[1];
-                tmpptr[2] = img3[2];
-                tmpptr[3] = img3[3];
-
-                img0 += 4;
-                img1 += 4;
-                img2 += 4;
-                img3 += 4;
-#endif // __ARM_NEON
-            }
-            for (; i<size; i++)
-            {
-                float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4).row(q/8) + (q%8)/4*4;
-
-                tmpptr[0] = img0[0];
-                tmpptr[1] = img1[0];
-                tmpptr[2] = img2[0];
-                tmpptr[3] = img3[0];
-
-                img0 += 1;
-                img1 += 1;
-                img2 += 1;
-                img3 += 1;
-            }
-        }
-
-        remain_inch_start += nn_inch << 2;
-
-        #pragma omp parallel for
-        for (int q=remain_inch_start; q<inch; q++)
-        {
-            const float* img0 = bottom_blob.channel(q);
-
-            int i=0;
-            for (; i+7<size; i+=8)
-            {
-                float* tmpptr = tmp.channel(i/8).row(q);
-
-#if __ARM_NEON
-#if __aarch64__
-                asm volatile(
-                    "prfm   pldl1keep, [%1, #256]   \n"
-                    "ld1    {v0.4s, v1.4s}, [%1], #32   \n"
-                    "st1    {v0.4s, v1.4s}, [%0]    \n"
-                    : "=r"(tmpptr),
-                      "=r"(img0)
-                    : "0"(tmpptr),
-                      "1"(img0)
-                    : "memory", "v0", "v1"
-                );
-#else
-                asm volatile(
-                    "pld        [%1, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%1]!      \n"
-                    "vst1.f32   {d0-d3}, [%0]       \n"
-                    : "=r"(tmpptr),
-                      "=r"(img0)
-                    : "0"(tmpptr),
-                      "1"(img0)
+                    "pld        [%0, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%0 :128]  \n"
+                    "vst1.f32   {d0-d3}, [%1 :128]! \n"
+                    : "=r"(img0),   // %0
+                      "=r"(tmpptr)  // %1
+                    : "0"(img0),
+                      "1"(tmpptr)
                     : "memory", "q0", "q1"
                 );
+
+                img0 += bottom_blob.cstep;
 #endif // __aarch64__
 #else
                 tmpptr[0] = img0[0];
@@ -781,36 +176,45 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 tmpptr[6] = img0[6];
                 tmpptr[7] = img0[7];
 
-                img0 += 8;
+                tmpptr += 8;
+                img0 += bottom_blob.cstep;
 #endif // __ARM_NEON
             }
-            for (; i+3<size; i+=4)
-            {
-                float* tmpptr = tmp.channel(i/8 + (i%8)/4).row(q/8*4 + (q%8)/4*2) + q%4*4;
+        }
 
+        nn_size = (size - remain_size_start) >> 2;
+
+        #pragma omp parallel for
+        for (int ii=0; ii<nn_size; ii++)
+        {
+            int i = remain_size_start + ii * 4;
+
+            const float* img0 = bottom_blob.channel(0);
+            img0 += i;
+
+            float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+
+            for (int q=0; q<inch; q++)
+            {
 #if __ARM_NEON
 #if __aarch64__
-                asm volatile(
-                    "prfm   pldl1keep, [%1, #128]   \n"
-                    "ld1    {v0.4s}, [%1], #16      \n"
-                    "st1    {v0.4s}, [%0]           \n"
-                    : "=r"(tmpptr),
-                      "=r"(img0)
-                    : "0"(tmpptr),
-                      "1"(img0)
-                    : "memory", "v0"
-                );
+                vst1q_f32(tmpptr, vld1q_f32(img0));
+
+                tmpptr += 4;
+                img0 += bottom_blob.cstep;
 #else
                 asm volatile(
-                    "pld        [%1, #128]          \n"
-                    "vld1.f32   {d0-d1}, [%1]!      \n"
-                    "vst1.f32   {d0-d1}, [%0]       \n"
-                    : "=r"(tmpptr),
-                      "=r"(img0)
-                    : "0"(tmpptr),
-                      "1"(img0)
+                    "pld        [%0, #128]          \n"
+                    "vld1.f32   {d0-d1}, [%0 :128]  \n"
+                    "vst1.f32   {d0-d1}, [%1 :128]! \n"
+                    : "=r"(img0),   // %0
+                      "=r"(tmpptr)  // %1
+                    : "0"(img0),
+                      "1"(tmpptr)
                     : "memory", "q0"
                 );
+
+                img0 += bottom_blob.cstep;
 #endif // __aarch64__
 #else
                 tmpptr[0] = img0[0];
@@ -818,16 +222,27 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 tmpptr[2] = img0[2];
                 tmpptr[3] = img0[3];
 
-                img0 += 4;
+                tmpptr += 4;
+                img0 += bottom_blob.cstep;
 #endif // __ARM_NEON
             }
-            for (; i<size; i++)
+        }
+
+        remain_size_start += nn_size << 2;
+
+        #pragma omp parallel for
+        for (int i=remain_size_start; i<size; i++)
+        {
+            const float* img0 = bottom_blob.channel(0);
+            img0 += i;
+
+            float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
+
+            for (int q=0; q<inch; q++)
             {
-                float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4).row(q/8) + (q%8)/4*4 + q%4;
-
                 tmpptr[0] = img0[0];
-
-                img0 += 1;
+                tmpptr++;
+                img0 += bottom_blob.cstep;
             }
         }
     }
