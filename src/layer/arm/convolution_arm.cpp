@@ -46,7 +46,7 @@ int Convolution_arm::load_param(const ParamDict& pd)
     if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int num_input = weight_data_size / num_output;
-        if (num_input >= 16 && num_output >= 16)
+        if (num_input >= 64 && num_output >= 64)
             use_sgemm1x1 = true;
     }
 
