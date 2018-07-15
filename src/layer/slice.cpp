@@ -30,7 +30,7 @@ int Slice::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int dims = bottom_blob.dims;
@@ -51,7 +51,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(slice, elemsize);
+            top_blob.create(slice, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -80,7 +80,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(w, slice, elemsize);
+            top_blob.create(w, slice, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -111,11 +111,11 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(slice, h, elemsize);
+            top_blob.create(slice, h, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int j=0; j<h; j++)
             {
                 float* outptr = top_blob.row(j);
@@ -145,7 +145,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(w, h, slice, elemsize);
+            top_blob.create(w, h, slice, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -177,11 +177,11 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(w, slice, channels, elemsize);
+            top_blob.create(w, slice, channels, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int p=0; p<channels; p++)
             {
                 int size = w * slice;
@@ -213,11 +213,11 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(slice, h, channels, elemsize);
+            top_blob.create(slice, h, channels, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int p=0; p<channels; p++)
             {
                 float* outptr = top_blob.channel(p);

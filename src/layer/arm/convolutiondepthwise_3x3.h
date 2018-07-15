@@ -16,7 +16,7 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
-static void convdw3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
+static void convdw3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
 
@@ -28,7 +28,7 @@ static void convdw3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
     const float* kernel = _kernel;
     const float* bias = _bias;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int g=0; g<group; g++)
     {
         Mat out = top_blob.channel(g);
@@ -577,7 +577,7 @@ static void convdw3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
     }
 }
 
-static void convdw3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
+static void convdw3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
 
@@ -591,7 +591,7 @@ static void convdw3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
     const float* kernel = _kernel;
     const float* bias = _bias;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int g=0; g<group; g++)
     {
         Mat out = top_blob.channel(g);

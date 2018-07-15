@@ -33,7 +33,7 @@ int Input::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Input::forward_inplace(Mat& /*bottom_top_blob*/) const
+int Input::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) const
 {
     return 0;
 }

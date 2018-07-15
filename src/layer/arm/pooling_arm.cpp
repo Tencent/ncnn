@@ -21,14 +21,14 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Pooling_arm)
 
-int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // max value in NxN window
     // avg value in NxN window
 
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
-        return Pooling::forward(bottom_blob, top_blob);
+        return Pooling::forward(bottom_blob, top_blob, opt);
     }
 
     const int kernel_size = kernel_w;
@@ -36,17 +36,18 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     if (pooling_type != PoolMethod_MAX || stride != 2 || global_pooling == 1)
     {
-        return Pooling::forward(bottom_blob, top_blob);
+        return Pooling::forward(bottom_blob, top_blob, opt);
     }
 
     if (kernel_size != 2 && kernel_size != 3)
     {
-        return Pooling::forward(bottom_blob, top_blob);
+        return Pooling::forward(bottom_blob, top_blob, opt);
     }
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
     Mat bottom_blob_bordered = bottom_blob;
 
@@ -73,7 +74,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
         if (htail != 0)
             htailpad = stride_h - htail;
 
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -82,7 +83,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
     else if (pad_mode == 1) // valid padding
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -95,7 +96,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
         int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value);
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -107,14 +108,14 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     int outw = (w - kernel_w) / stride_w + 1;
     int outh = (h - kernel_h) / stride_h + 1;
 
-    top_blob.create(outw, outh, channels);
+    top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     if (kernel_size == 2)
-        pooling2x2s2_max_neon(bottom_blob_bordered, top_blob);
+        pooling2x2s2_max_neon(bottom_blob_bordered, top_blob, opt);
     if (kernel_size == 3)
-        pooling3x3s2_max_neon(bottom_blob_bordered, top_blob);
+        pooling3x3s2_max_neon(bottom_blob_bordered, top_blob, opt);
 
     return 0;
 }

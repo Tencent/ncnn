@@ -160,7 +160,7 @@ static inline float sigmoid(float x)
     return 1.f / (1.f + exp(-x));
 }
 
-int YoloDetectionOutput::forward_inplace(Mat& bottom_top_blob) const
+int YoloDetectionOutput::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -177,7 +177,7 @@ int YoloDetectionOutput::forward_inplace(Mat& bottom_top_blob) const
     all_box_bbox_rects.resize(num_box);
     all_box_bbox_scores.resize(num_box);
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < num_box; pp++)
     {
         int p = pp * channels_per_box;
@@ -194,7 +194,7 @@ int YoloDetectionOutput::forward_inplace(Mat& bottom_top_blob) const
 
         // softmax class scores
         Mat scores(w, h, num_class, (void*)((const float*)bottom_top_blob.channel(p+5)));
-        softmax->forward_inplace(scores);
+        softmax->forward_inplace(scores, opt);
 
         for (int i = 0; i < h; i++)
         {
@@ -281,7 +281,7 @@ int YoloDetectionOutput::forward_inplace(Mat& bottom_top_blob) const
     // fill result
     int num_detected = bbox_rects.size();
 
-    bottom_top_blob.create(6, num_detected);
+    bottom_top_blob.create(6, num_detected, 4u, opt.blob_allocator);
     if (bottom_top_blob.empty())
         return -100;
 

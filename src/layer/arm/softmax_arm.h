@@ -22,7 +22,7 @@ namespace ncnn {
 class Softmax_arm : public Softmax
 {
 public:
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

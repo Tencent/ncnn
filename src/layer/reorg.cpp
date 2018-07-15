@@ -31,21 +31,22 @@ int Reorg::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Reorg::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Reorg::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
     int outw = w / stride;
     int outh = h / stride;
     int outc = channels * stride * stride;
 
-    top_blob.create(outw, outh, outc);
+    top_blob.create(outw, outh, outc, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         const Mat m = bottom_blob.channel(q);

@@ -16,7 +16,7 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
-static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob)
+static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -26,7 +26,7 @@ static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob)
     
     const int tailstep = w - 2*outw + w;
     
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<inch; q++)
     {
         const float* img0 = bottom_blob.channel(q);

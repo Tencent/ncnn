@@ -113,7 +113,7 @@ static void conv1x1s1_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& kerne
     }
 }
 
-static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias)
+static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -128,12 +128,12 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     const float* bias = _bias;
 
     // interleave
-    Mat tmp(8*4, inch/4+inch%4, size/8 + (size%8)/4 + size%4);
+    Mat tmp(8*4, inch/4+inch%4, size/8 + (size%8)/4 + size%4, 4u, opt.workspace_allocator);
     {
         int nn_size = size >> 3;
         int remain_size_start = nn_size << 3;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii=0; ii<nn_size; ii++)
         {
             int i = ii * 8;
@@ -184,7 +184,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
         nn_size = (size - remain_size_start) >> 2;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii=0; ii<nn_size; ii++)
         {
             int i = remain_size_start + ii * 4;
@@ -230,7 +230,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
         remain_size_start += nn_size << 2;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i=remain_size_start; i<size; i++)
         {
             const float* img0 = bottom_blob.channel(0);
@@ -254,7 +254,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     nn_outch = outch >> 3;
     remain_outch_start = nn_outch << 3;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_outch; pp++)
     {
         int p = pp * 8;
@@ -733,7 +733,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
     nn_outch = (outch - remain_outch_start) >> 2;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_outch; pp++)
     {
         int p = remain_outch_start + pp * 4;
@@ -1613,7 +1613,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
     remain_outch_start += nn_outch << 2;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=remain_outch_start; p<outch; p++)
     {
         Mat out0 = top_blob.channel(p);
@@ -2064,7 +2064,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 //     }
 }
 
-static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
+static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
     int inch = bottom_blob.c;
 
@@ -2083,7 +2083,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     nn_outch = outch >> 3;
     remain_outch_start = nn_outch << 3;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_outch; pp++)
     {
         int p = pp * 8;
@@ -2710,7 +2710,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     nn_outch = outch / 6;
     remain_outch_start = nn_outch * 6;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_outch; pp++)
     {
         int p = pp * 6;
@@ -3101,7 +3101,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
     nn_outch = (outch - remain_outch_start) >> 2;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_outch; pp++)
     {
         int p = remain_outch_start + pp * 4;
@@ -3605,7 +3605,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
     remain_outch_start += nn_outch << 2;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=remain_outch_start; p<outch; p++)
     {
         Mat out = top_blob.channel(p);
@@ -3863,7 +3863,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 }
 
-static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
+static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -3880,7 +3880,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     int nn_outch = outch >> 2;
     int remain_outch_start = nn_outch << 2;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_outch; pp++)
     {
         int p = pp * 4;
@@ -4409,7 +4409,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
         }
     }
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=remain_outch_start; p<outch; p++)
     {
         Mat out = top_blob.channel(p);

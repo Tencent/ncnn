@@ -22,7 +22,7 @@ namespace ncnn {
 class ConvolutionDepthWise_x86 : public ConvolutionDepthWise
 {
 public:
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

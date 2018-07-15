@@ -46,7 +46,7 @@ int InstanceNorm::load_model(const ModelBin& mb)
     return 0;
 }
 
-int InstanceNorm::forward_inplace(Mat& bottom_top_blob) const
+int InstanceNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     // x = (x - mean) / (sqrt(var) + eps) * gamma + beta
 
@@ -54,7 +54,7 @@ int InstanceNorm::forward_inplace(Mat& bottom_top_blob) const
     int h = bottom_top_blob.h;
     int size = w * h;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);

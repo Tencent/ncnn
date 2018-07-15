@@ -39,7 +39,7 @@ int Crop::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Crop::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -56,14 +56,14 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob) const
     int left = woffset;
     int right = w - _outw - woffset;
 
-    copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right);
+    copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right, opt.blob_allocator, opt.num_threads);
     if (top_blob.empty())
         return -100;
 
     return 0;
 }
 
-int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& reference_blob = bottom_blobs[1];
@@ -85,7 +85,7 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     Mat& top_blob = top_blobs[0];
 
-    copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right);
+    copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right, opt.blob_allocator, opt.num_threads);
     if (top_blob.empty())
         return -100;
 

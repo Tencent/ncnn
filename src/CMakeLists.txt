@@ -8,6 +8,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/layer)
 
 set(ncnn_SRCS
+    allocator.cpp
     blob.cpp
     cpu.cpp
     layer.cpp

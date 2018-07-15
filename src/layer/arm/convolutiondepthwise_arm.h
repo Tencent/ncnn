@@ -27,7 +27,7 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     std::vector<ncnn::Layer*> group_ops;

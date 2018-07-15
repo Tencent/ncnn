@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
+static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -25,7 +25,7 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
     const float* kernel = _kernel;
     const float* bias = _bias;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=0; p<outch; p++)
     {
         Mat out = top_blob.channel(p);
@@ -108,7 +108,7 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
 }
 
-static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
+static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -122,7 +122,7 @@ static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
     const float* kernel = _kernel;
     const float* bias = _bias;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=0; p<outch; p++)
     {
         Mat out = top_blob.channel(p);

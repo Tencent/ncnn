@@ -46,7 +46,7 @@ int PriorBox::load_param(const ParamDict& pd)
     return 0;
 }
 
-int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int w = bottom_blobs[0].w;
     int h = bottom_blobs[0].h;
@@ -74,9 +74,9 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         num_prior += num_min_size * num_aspect_ratio;
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(4 * w * h * num_prior, 2);
+    top_blob.create(4 * w * h * num_prior, 2, 4u, opt.blob_allocator);
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < h; i++)
     {
         float* box = (float*)top_blob + i * w * num_prior * 4;

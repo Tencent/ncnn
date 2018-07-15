@@ -22,11 +22,11 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Scale_arm)
 
-int Scale_arm::forward_inplace(Mat& bottom_top_blob) const
+int Scale_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
     if (dims != 3)
-        return Scale::forward_inplace(bottom_top_blob);
+        return Scale::forward_inplace(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -37,7 +37,7 @@ int Scale_arm::forward_inplace(Mat& bottom_top_blob) const
     {
         const float* scale_ptr = scale_data;
         const float* bias_ptr = bias_data;
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -76,7 +76,7 @@ int Scale_arm::forward_inplace(Mat& bottom_top_blob) const
     else
     {
         const float* scale_ptr = scale_data;
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);

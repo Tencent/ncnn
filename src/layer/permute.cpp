@@ -31,11 +31,12 @@ int Permute::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Permute::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
     // order_type
     // 0 = w h c
@@ -51,11 +52,11 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
     else if (order_type == 1)
     {
-        top_blob.create(h, w, channels);
+        top_blob.create(h, w, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
@@ -72,11 +73,11 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
     else if (order_type == 2)
     {
-        top_blob.create(w, channels, h);
+        top_blob.create(w, channels, h, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<h; q++)
         {
             float* outptr = top_blob.channel(q);
@@ -94,11 +95,11 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
     else if (order_type == 3)
     {
-        top_blob.create(channels, w, h);
+        top_blob.create(channels, w, h, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<h; q++)
         {
             float* outptr = top_blob.channel(q);
@@ -116,11 +117,11 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
     else if (order_type == 4)
     {
-        top_blob.create(h, channels, w);
+        top_blob.create(h, channels, w, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<w; q++)
         {
             float* outptr = top_blob.channel(q);
@@ -138,11 +139,11 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
     else if (order_type == 5)
     {
-        top_blob.create(channels, h, w);
+        top_blob.create(channels, h, w, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<w; q++)
         {
             float* outptr = top_blob.channel(q);

@@ -22,10 +22,11 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
 
-int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv) const
+int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    size_t elemsize = bottom_blob.elemsize;
 
     const int kernel_size = kernel_w;
     const int stride = stride_w;
@@ -35,7 +36,7 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
     Mat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -48,7 +49,7 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
         int hpad = kernel_extent + (h - 1) / stride * stride - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -60,7 +61,7 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
     int outw = (w - kernel_extent) / stride + 1;
     int outh = (h - kernel_extent) / stride + 1;
 
-    top_blob.create(outw, outh, num_output);
+    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -79,7 +80,7 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
 
             if (inner_bottom_blob.w != inner_w || inner_bottom_blob.h != inner_h)
             {
-                inner_bottom_blob.create(inner_w, inner_h, bottom_blob.c);
+                inner_bottom_blob.create(inner_w, inner_h, bottom_blob.c, elemsize, opt.workspace_allocator);
 
                 if (inner_bottom_blob.empty())
                 {
@@ -89,7 +90,7 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
 
             if (inner_top_blob.w != inner_outw || inner_top_blob.h != inner_outh)
             {
-                inner_top_blob.create(inner_outw, inner_outh, num_output);
+                inner_top_blob.create(inner_outw, inner_outh, num_output, elemsize, opt.workspace_allocator);
 
                 if (inner_top_blob.empty())
                 {
@@ -97,7 +98,7 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
                 }
             }
 
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < bottom_blob.c; c ++)
             {
                 float *outptr = inner_bottom_blob.channel(c);
@@ -113,9 +114,9 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
                 }
             }
 
-            conv(inner_bottom_blob, inner_top_blob, weight_data, bias_data);
+            conv(inner_bottom_blob, inner_top_blob, weight_data, bias_data, opt);
 
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < num_output; c ++)
             {
                 float *outptr = (float *)top_blob.channel(c) + x * outw + y;
@@ -136,19 +137,19 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
 }
 
 
-int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // convolv with NxN kernel
     // value = value + bias
 
     if (bottom_blob.dims != 3)
     {
-        return Convolution::forward(bottom_blob, top_blob);
+        return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
-        return Convolution::forward(bottom_blob, top_blob);
+        return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
     const int kernel_size = kernel_w;
@@ -156,10 +157,10 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     if (kernel_size > 5 || stride > 5 || dilation_w != dilation_h)
     {
-        return Convolution::forward(bottom_blob, top_blob);
+        return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
-    typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&);
+    typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&, const Option&);
 
     // kernel_size x stride
     conv_func conv_func_table[5][5] =
@@ -204,20 +205,21 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
     conv_func conv = conv_func_table[kernel_size-1][stride-1];
     if (!conv)
     {
-        return Convolution::forward(bottom_blob, top_blob);
+        return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
     if (dilation_w != 1) {
-        return forwardDilation(bottom_blob, top_blob, conv);
+        return forwardDilation(bottom_blob, top_blob, conv, opt);
     }
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    size_t elemsize = bottom_blob.elemsize;
 
     Mat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -230,7 +232,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
         int hpad = kernel_size + (h - 1) / stride * stride - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -242,11 +244,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob) const
     int outw = (w - kernel_size) / stride + 1;
     int outh = (h - kernel_size) / stride + 1;
 
-    top_blob.create(outw, outh, num_output);
+    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    conv(bottom_blob_bordered, top_blob, weight_data, bias_data);
+    conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
     return 0;
 }
