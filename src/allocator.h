@@ -96,13 +96,13 @@ static inline void NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += d
 class Mutex
 {
 public:
-    Mutex() { InitializeSRWLock(&lock); }
-    ~Mutex() { }
-    void lock() { AcquireSRWLockExclusive(&lock); }
-    void unlock() { ReleaseSRWLockExclusive(&lock); }
+    Mutex() { InitializeSRWLock(&srwlock); }
+    ~Mutex() {}
+    void lock() { AcquireSRWLockExclusive(&srwlock); }
+    void unlock() { ReleaseSRWLockExclusive(&srwlock); }
 private:
     // NOTE SRWLock is available from windows vista
-    SRWLOCK lock;
+    SRWLOCK srwlock;
 };
 #else // _WIN32
 class Mutex
