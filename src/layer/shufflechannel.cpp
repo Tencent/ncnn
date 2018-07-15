@@ -31,7 +31,7 @@ int ShuffleChannel::load_param(const ParamDict& pd)
     return 0;
 }
 
-int ShuffleChannel::forward(const Mat& bottom_blob, Mat& top_blob) const
+int ShuffleChannel::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -45,7 +45,7 @@ int ShuffleChannel::forward(const Mat& bottom_blob, Mat& top_blob) const
         return -100;
     }
 
-    top_blob.create(w, h, c, elemsize);
+    top_blob.create(w, h, c, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 

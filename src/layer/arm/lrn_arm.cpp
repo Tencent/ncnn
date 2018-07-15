@@ -24,20 +24,21 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(LRN_arm)
 
-int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
+int LRN_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
+    size_t elemsize = bottom_top_blob.elemsize;
     int size = w * h;
 
     // squared values with local_size padding
     Mat square_blob;
-    square_blob.create(w, h, channels);
+    square_blob.create(w, h, channels, elemsize, opt.workspace_allocator);
     if (square_blob.empty())
         return -100;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         const float* ptr = bottom_top_blob.channel(q);
@@ -73,14 +74,14 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
     if (region_type == NormRegion_ACROSS_CHANNELS)
     {
         Mat square_sum;
-        square_sum.create(w, h, channels);
+        square_sum.create(w, h, channels, elemsize, opt.workspace_allocator);
         if (square_sum.empty())
             return -100;
         square_sum.fill(0.f);
 
         const float alpha_div_size = alpha / local_size;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             // square sum
@@ -165,7 +166,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
         int pad = local_size / 2;
         if (pad > 0)
         {
-            copy_make_border(square_blob, square_blob_bordered, pad, local_size - pad - 1, pad, local_size - pad - 1, BORDER_CONSTANT, 0.f);
+            copy_make_border(square_blob, square_blob_bordered, pad, local_size - pad - 1, pad, local_size - pad - 1, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
             if (square_blob_bordered.empty())
                 return -100;
 
@@ -196,7 +197,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
             }
         }
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);

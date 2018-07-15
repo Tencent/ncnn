@@ -64,7 +64,7 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
     return 0;
 }
 
-int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
+int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // convolv with NxN kernel
     // value = value + bias
@@ -72,6 +72,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
     if (channels % group != 0 || num_output % group != 0)
     {
@@ -87,7 +88,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     Mat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -100,7 +101,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -112,7 +113,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    top_blob.create(outw, outh, num_output);
+    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -140,7 +141,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     // depth-wise
     if (channels == group && group == num_output)
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
             float* outptr = top_blob.channel(g);
@@ -179,9 +180,9 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     const int num_output_g = num_output / group;
 
 #ifdef _WIN32
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
 #else // _WIN32
-    #pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
 #endif // _WIN32
     for (int g=0; g<group; g++)
     {

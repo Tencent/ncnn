@@ -622,7 +622,7 @@ Layer* Net::create_custom_layer(int index)
     return layer_creator();
 }
 
-int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode) const
+int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt) const
 {
     const Layer* layer = layers[layer_index];
 
@@ -636,14 +636,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
 
         if (blob_mats[bottom_blob_index].dims == 0)
         {
-            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, lightmode);
+            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, opt);
             if (ret != 0)
                 return ret;
         }
 
         Mat bottom_blob = blob_mats[bottom_blob_index];
 
-        if (lightmode)
+        if (opt.lightmode)
         {
             // delete after taken in light mode
             blob_mats[bottom_blob_index].release();
@@ -655,16 +655,16 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         }
 
         // forward
-        if (lightmode && layer->support_inplace)
+        if (opt.lightmode && layer->support_inplace)
         {
             Mat& bottom_top_blob = bottom_blob;
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward_inplace(bottom_top_blob);
+            int ret = layer->forward_inplace(bottom_top_blob, opt);
             double end = get_current_time();
             benchmark(layer, bottom_top_blob, bottom_top_blob, start, end);
 #else
-            int ret = layer->forward_inplace(bottom_top_blob);
+            int ret = layer->forward_inplace(bottom_top_blob, opt);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -677,11 +677,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
             Mat top_blob;
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward(bottom_blob, top_blob);
+            int ret = layer->forward(bottom_blob, top_blob, opt);
             double end = get_current_time();
             benchmark(layer, bottom_blob, top_blob, start, end);
 #else
-            int ret = layer->forward(bottom_blob, top_blob);
+            int ret = layer->forward(bottom_blob, top_blob, opt);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -702,14 +702,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
 
             if (blob_mats[bottom_blob_index].dims == 0)
             {
-                int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, lightmode);
+                int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, opt);
                 if (ret != 0)
                     return ret;
             }
 
             bottom_blobs[i] = blob_mats[bottom_blob_index];
 
-            if (lightmode)
+            if (opt.lightmode)
             {
                 // delete after taken in light mode
                 blob_mats[bottom_blob_index].release();
@@ -722,16 +722,16 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
         }
 
         // forward
-        if (lightmode && layer->support_inplace)
+        if (opt.lightmode && layer->support_inplace)
         {
             std::vector<Mat>& bottom_top_blobs = bottom_blobs;
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward_inplace(bottom_top_blobs);
+            int ret = layer->forward_inplace(bottom_top_blobs, opt);
             double end = get_current_time();
             benchmark(layer, start, end);
 #else
-            int ret = layer->forward_inplace(bottom_top_blobs);
+            int ret = layer->forward_inplace(bottom_top_blobs, opt);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -750,11 +750,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
             top_blobs.resize(layer->tops.size());
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward(bottom_blobs, top_blobs);
+            int ret = layer->forward(bottom_blobs, top_blobs, opt);
             double end = get_current_time();
             benchmark(layer, start, end);
 #else
-            int ret = layer->forward(bottom_blobs, top_blobs);
+            int ret = layer->forward(bottom_blobs, top_blobs, opt);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -779,18 +779,27 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightm
 Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 {
     blob_mats.resize(blob_count);
-    lightmode = true;
-    num_threads = 0;
+    opt = get_default_option();
 }
 
 void Extractor::set_light_mode(bool enable)
 {
-    lightmode = enable;
+    opt.lightmode = enable;
 }
 
-void Extractor::set_num_threads(int _num_threads)
+void Extractor::set_num_threads(int num_threads)
 {
-    num_threads = _num_threads;
+    opt.num_threads = num_threads;
+}
+
+void Extractor::set_blob_allocator(Allocator* allocator)
+{
+    opt.blob_allocator = allocator;
+}
+
+void Extractor::set_workspace_allocator(Allocator* allocator)
+{
+    opt.workspace_allocator = allocator;
 }
 
 int Extractor::input(int blob_index, const Mat& in)
@@ -813,28 +822,7 @@ int Extractor::extract(int blob_index, Mat& feat)
     if (blob_mats[blob_index].dims == 0)
     {
         int layer_index = net->blobs[blob_index].producer;
-
-#ifdef _OPENMP
-        int dynamic_current = 0;
-        int num_threads_current = 1;
-        if (num_threads)
-        {
-            dynamic_current = omp_get_dynamic();
-            num_threads_current = omp_get_num_threads();
-            omp_set_dynamic(0);
-            omp_set_num_threads(num_threads);
-        }
-#endif
-
-        ret = net->forward_layer(layer_index, blob_mats, lightmode);
-
-#ifdef _OPENMP
-        if (num_threads)
-        {
-            omp_set_dynamic(dynamic_current);
-            omp_set_num_threads(num_threads_current);
-        }
-#endif
+        ret = net->forward_layer(layer_index, blob_mats, opt);
     }
 
     feat = blob_mats[blob_index];
@@ -865,28 +853,7 @@ int Extractor::extract(const char* blob_name, Mat& feat)
     if (blob_mats[blob_index].dims == 0)
     {
         int layer_index = net->blobs[blob_index].producer;
-
-#ifdef _OPENMP
-        int dynamic_current = 0;
-        int num_threads_current = 1;
-        if (num_threads)
-        {
-            dynamic_current = omp_get_dynamic();
-            num_threads_current = omp_get_num_threads();
-            omp_set_dynamic(0);
-            omp_set_num_threads(num_threads);
-        }
-#endif
-
-        ret = net->forward_layer(layer_index, blob_mats, lightmode);
-
-#ifdef _OPENMP
-        if (num_threads)
-        {
-            omp_set_dynamic(dynamic_current);
-            omp_set_num_threads(num_threads_current);
-        }
-#endif
+        ret = net->forward_layer(layer_index, blob_mats, opt);
     }
 
     feat = blob_mats[blob_index];

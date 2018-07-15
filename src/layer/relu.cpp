@@ -31,7 +31,7 @@ int ReLU::load_param(const ParamDict& pd)
     return 0;
 }
 
-int ReLU::forward_inplace(Mat& bottom_top_blob) const
+int ReLU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -40,7 +40,7 @@ int ReLU::forward_inplace(Mat& bottom_top_blob) const
 
     if (slope == 0.f)
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -54,7 +54,7 @@ int ReLU::forward_inplace(Mat& bottom_top_blob) const
     }
     else
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);

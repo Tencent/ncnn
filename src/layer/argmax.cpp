@@ -33,14 +33,14 @@ int ArgMax::load_param(const ParamDict& pd)
     return 0;
 }
 
-int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob) const
+int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int size = bottom_blob.total();
 
     if (out_max_val)
-        top_blob.create(topk, 2);
+        top_blob.create(topk, 2, 4u, opt.blob_allocator);
     else
-        top_blob.create(topk, 1);
+        top_blob.create(topk, 1, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 

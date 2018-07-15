@@ -16,7 +16,7 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
-static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
+static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -31,7 +31,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     int nn_outch = outch >> 1;
     int remain_outch_start = nn_outch << 1;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_outch; pp++)
     {
         int p = pp * 2;
@@ -654,7 +654,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
         }
     }
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=remain_outch_start; p<outch; p++)
     {
         Mat out = top_blob.channel(p);
@@ -5427,7 +5427,7 @@ static void conv3x3s1_winograd64_neon3(const Mat& bottom_blob, Mat& top_blob, co
 }
 #endif
 
-static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
+static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -5445,7 +5445,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 
     w = outw + 2;
     h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f);
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);
 
     const float* bias = _bias;
 
@@ -5454,7 +5454,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
     {
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
-        bottom_blob_tm.create(4, 16 * w_tm/8 * h_tm/8, inch);
+        bottom_blob_tm.create(4, 16 * w_tm/8 * h_tm/8, inch, 4u, opt.workspace_allocator);
         const int tiles = w_tm/8 * h_tm/8;
 
 //         const float itm[8][8] = {
@@ -5495,7 +5495,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
         float32x4_t _coeff1 = vld1q_f32(coeff+4);
 #endif // __ARM_NEON
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q<inch; q++)
         {
             const Mat img0 = bottom_blob_bordered.channel(q);
@@ -6263,14 +6263,14 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
     {
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
-        top_blob_tm.create(4, 16 * w_tm/8 * h_tm/8, outch);
+        top_blob_tm.create(4, 16 * w_tm/8 * h_tm/8, outch, 4u, opt.workspace_allocator);
 
         const int tiles = h_tm/8 * w_tm/8;
 
         int nn_outch = outch >> 2;
         int remain_outch_start = nn_outch << 2;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp=0; pp<nn_outch; pp++)
         {
             int p = pp * 4;
@@ -7439,7 +7439,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
             }
         }
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = remain_outch_start; p<outch; p++)
         {
             Mat out0_tm = top_blob_tm.channel(p);
@@ -7526,7 +7526,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    top_blob_bordered.create(outw, outh, outch);
+    top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
     {
 //         const float otm[6][8] = {
 //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
@@ -7553,7 +7553,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
         int h_tm = outh / 6 * 8;
         const int tiles = w_tm/8 * h_tm/8;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p<outch; p++)
         {
             const Mat out0_tm = top_blob_tm.channel(p);
@@ -8157,10 +8157,10 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
     // END transform output
 
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w);
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);
 }
 
-static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias)
+static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -8178,7 +8178,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
     w = outw + 2;
     h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f);
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);
 
     const float* bias = _bias;
 
@@ -8188,7 +8188,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
         const int tiles = w_tm/8 * h_tm/8;
-        bottom_blob_tm.create(1, 64 * tiles, inch);
+        bottom_blob_tm.create(1, 64 * tiles, inch, 4u, opt.workspace_allocator);
 //         bottom_blob_tm.create(inch, tiles, 64);
 
 //         const float itm[8][8] = {
@@ -8229,7 +8229,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         float32x4_t _coeff1 = vld1q_f32(coeff+4);
 #endif // __ARM_NEON
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q<inch; q++)
         {
             const Mat img0 = bottom_blob_bordered.channel(q);
@@ -9054,9 +9054,9 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         // permute
         // bottom_blob_tm.create(1, 64 * tiles, inch);
 //         Mat bottom_blob_tm2(inch, tiles, 64);
-        Mat bottom_blob_tm2(8*inch, tiles/8 + (tiles%8)/4 + tiles%4, 64);
+        Mat bottom_blob_tm2(8*inch, tiles/8 + (tiles%8)/4 + tiles%4, 64, 4u, opt.workspace_allocator);
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int r=0; r<64; r++)
         {
             Mat tm2 = bottom_blob_tm2.channel(r);
@@ -9147,7 +9147,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         nn_outch = outch >> 3;
         remain_outch_start = nn_outch << 3;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp=0; pp<nn_outch; pp++)
         {
             int p = pp * 8;
@@ -9592,7 +9592,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
         nn_outch = (outch - remain_outch_start) >> 2;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp=0; pp<nn_outch; pp++)
         {
             int p = remain_outch_start + pp * 4;
@@ -10332,6 +10332,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
         remain_outch_start += nn_outch << 2;
 
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=remain_outch_start; p<outch; p++)
         {
 #if __ARM_NEON && __aarch64__
@@ -10738,7 +10739,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    top_blob_bordered.create(outw, outh, outch);
+    top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
     {
 //         const float otm[6][8] = {
 //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
@@ -10765,7 +10766,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         int h_tm = outh / 6 * 8;
         const int tiles = w_tm/8 * h_tm/8;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p<outch; p++)
         {
             const Mat out0_tm = top_blob_tm.channel(p);
@@ -11514,10 +11515,10 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
     // END transform output
 
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w);
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);
 }
 
-static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias)
+static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -11534,7 +11535,7 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     int nn_outch = outch >> 1;
     int remain_outch_start = nn_outch << 1;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_outch; pp++)
     {
         int p = pp * 2;
@@ -11858,7 +11859,7 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
         }
     }
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=remain_outch_start; p<outch; p++)
     {
         Mat out = top_blob.channel(p);

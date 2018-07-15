@@ -33,17 +33,18 @@ int ROIPooling::load_param(const ParamDict& pd)
     return 0;
 }
 
-int ROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int ROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    size_t elemsize = bottom_blob.elemsize;
     int channels = bottom_blob.c;
 
     const Mat& roi_blob = bottom_blobs[1];
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(pooled_width, pooled_height, channels);
+    top_blob.create(pooled_width, pooled_height, channels, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -61,7 +62,7 @@ int ROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     float bin_size_w = (float)roi_w / (float)pooled_width;
     float bin_size_h = (float)roi_h / (float)pooled_height;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         const float* ptr = bottom_blob.channel(q);

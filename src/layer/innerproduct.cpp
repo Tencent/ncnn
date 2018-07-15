@@ -49,19 +49,20 @@ int InnerProduct::load_model(const ModelBin& mb)
     return 0;
 }
 
-int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob) const
+int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
 
-    top_blob.create(num_output);
+    top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     // num_output
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=0; p<num_output; p++)
     {
         float sum = 0.f;

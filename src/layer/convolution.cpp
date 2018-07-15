@@ -59,7 +59,7 @@ int Convolution::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // convolv with NxN kernel
     // value = value + bias
@@ -89,7 +89,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
             op->load_model(ModelBinFromMatArray(weights));
 
             // forward
-            op->forward(bottom_blob, top_blob);
+            op->forward(bottom_blob, top_blob, opt);
 
             delete op;
 
@@ -100,6 +100,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
 //     fprintf(stderr, "Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
@@ -109,7 +110,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     Mat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -122,7 +123,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f);
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -134,7 +135,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    top_blob.create(outw, outh, num_output);
+    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -160,7 +161,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
 
     // num_output
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=0; p<num_output; p++)
     {
         float* outptr = top_blob.channel(p);

@@ -54,7 +54,7 @@ int Scale::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
+int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
 {
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
@@ -69,7 +69,7 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
 
         if (bias_term)
         {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i=0; i<w; i++)
             {
                 ptr[i] = ptr[i] * scale_blob[i] + bias_data[i];
@@ -77,7 +77,7 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
         }
         else
         {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i=0; i<w; i++)
             {
                 ptr[i] *= scale_blob[i];
@@ -92,7 +92,7 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
 
         if (bias_term)
         {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i=0; i<h; i++)
             {
                 float* ptr = bottom_top_blob.row(i);
@@ -107,7 +107,7 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
         }
         else
         {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i=0; i<h; i++)
             {
                 float* ptr = bottom_top_blob.row(i);
@@ -130,7 +130,7 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
 
         if (bias_term)
         {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
@@ -146,7 +146,7 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
         }
         else
         {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
@@ -164,13 +164,13 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs) const
     return 0;
 }
 
-int Scale::forward_inplace(Mat& bottom_top_blob) const
+int Scale::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     std::vector<Mat> bottom_top_blobs(2);
     bottom_top_blobs[0] = bottom_top_blob;
     bottom_top_blobs[1] = scale_data;
 
-    return forward_inplace(bottom_top_blobs);
+    return forward_inplace(bottom_top_blobs, opt);
 }
 
 } // namespace ncnn

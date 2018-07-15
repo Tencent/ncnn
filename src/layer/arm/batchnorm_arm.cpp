@@ -22,11 +22,11 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(BatchNorm_arm)
 
-int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob) const
+int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
     if (dims != 3)
-        return BatchNorm::forward_inplace(bottom_top_blob);
+        return BatchNorm::forward_inplace(bottom_top_blob, opt);
 
     // a = bias - slope * mean / sqrt(var)
     // b = slope / sqrt(var)
@@ -38,7 +38,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob) const
 
     const float* a_data_ptr = a_data;
     const float* b_data_ptr = b_data;
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);

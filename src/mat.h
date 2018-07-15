@@ -20,6 +20,7 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif
+#include "allocator.h"
 #include "platform.h"
 
 namespace ncnn {
@@ -31,19 +32,19 @@ public:
     // empty
     Mat();
     // vec
-    Mat(int w, size_t elemsize = 4);
+    Mat(int w, size_t elemsize = 4u, Allocator* allocator = 0);
     // image
-    Mat(int w, int h, size_t elemsize = 4);
+    Mat(int w, int h, size_t elemsize = 4u, Allocator* allocator = 0);
     // dim
-    Mat(int w, int h, int c, size_t elemsize = 4);
+    Mat(int w, int h, int c, size_t elemsize = 4u, Allocator* allocator = 0);
     // copy
     Mat(const Mat& m);
     // external vec
-    Mat(int w, void* data, size_t elemsize = 4);
+    Mat(int w, void* data, size_t elemsize = 4u);
     // external image
-    Mat(int w, int h, void* data, size_t elemsize = 4);
+    Mat(int w, int h, void* data, size_t elemsize = 4u);
     // external dim
-    Mat(int w, int h, int c, void* data, size_t elemsize = 4);
+    Mat(int w, int h, int c, void* data, size_t elemsize = 4u);
     // release
     ~Mat();
     // assign
@@ -52,19 +53,19 @@ public:
     void fill(float v);
     template <typename T> void fill(T v);
     // deep copy
-    Mat clone() const;
+    Mat clone(Allocator* allocator = 0) const;
     // reshape vec
-    Mat reshape(int w) const;
+    Mat reshape(int w, Allocator* allocator = 0) const;
     // reshape image
-    Mat reshape(int w, int h) const;
+    Mat reshape(int w, int h, Allocator* allocator = 0) const;
     // reshape dim
-    Mat reshape(int w, int h, int c) const;
+    Mat reshape(int w, int h, int c, Allocator* allocator = 0) const;
     // allocate vec
-    void create(int w, size_t elemsize = 4);
+    void create(int w, size_t elemsize = 4u, Allocator* allocator = 0);
     // allocate image
-    void create(int w, int h, size_t elemsize = 4);
+    void create(int w, int h, size_t elemsize = 4u, Allocator* allocator = 0);
     // allocate dim
-    void create(int w, int h, int c, size_t elemsize = 4);
+    void create(int w, int h, int c, size_t elemsize = 4u, Allocator* allocator = 0);
     // refcount++
     void addref();
     // refcount--
@@ -115,9 +116,9 @@ public:
         PIXEL_RGBA2GRAY = PIXEL_RGBA | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
     };
     // convenient construct from pixel data
-    static Mat from_pixels(const unsigned char* pixels, int type, int w, int h);
+    static Mat from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator = 0);
     // convenient construct from pixel data and resize to specific size
-    static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height);
+    static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height, Allocator* allocator = 0);
 
     // convenient export to pixel data
     void to_pixels(unsigned char* pixels, int type) const;
@@ -145,6 +146,9 @@ public:
     // 0 = empty
     size_t elemsize;
 
+    // the allocator
+    Allocator* allocator;
+
     // the dimensionality
     int dims;
 
@@ -169,100 +173,35 @@ enum
     BORDER_CONSTANT = 0,
     BORDER_REPLICATE = 1,
 };
-void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v);
-void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right);
-void resize_bilinear(const Mat& src, Mat& dst, int w, int h);
-
-// the alignment of all the allocated buffers
-#define MALLOC_ALIGN    16
-
-// Aligns a pointer to the specified number of bytes
-// ptr Aligned pointer
-// n Alignment size that must be a power of two
-template<typename _Tp> static inline _Tp* alignPtr(_Tp* ptr, int n=(int)sizeof(_Tp))
-{
-    return (_Tp*)(((size_t)ptr + n-1) & -n);
-}
-
-// Aligns a buffer size to the specified number of bytes
-// The function returns the minimum number that is greater or equal to sz and is divisible by n
-// sz Buffer size to align
-// n Alignment size that must be a power of two
-static inline size_t alignSize(size_t sz, int n)
-{
-    return (sz + n-1) & -n;
-}
-
-static inline void* fastMalloc(size_t size)
-{
-    unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + MALLOC_ALIGN);
-    if (!udata)
-        return 0;
-    unsigned char** adata = alignPtr((unsigned char**)udata + 1, MALLOC_ALIGN);
-    adata[-1] = udata;
-    return adata;
-}
-
-static inline void fastFree(void* ptr)
-{
-    if (ptr)
-    {
-        unsigned char* udata = ((unsigned char**)ptr)[-1];
-        free(udata);
-    }
-}
-
-// exchange-add operation for atomic operations on reference counters
-#if defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
-// atomic increment on the linux version of the Intel(tm) compiler
-#  define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
-#elif defined __GNUC__
-#  if defined __clang__ && __clang_major__ >= 3 && !defined __ANDROID__ && !defined __EMSCRIPTEN__ && !defined(__CUDACC__)
-#    ifdef __ATOMIC_ACQ_REL
-#      define NCNN_XADD(addr, delta) __c11_atomic_fetch_add((_Atomic(int)*)(addr), delta, __ATOMIC_ACQ_REL)
-#    else
-#      define NCNN_XADD(addr, delta) __atomic_fetch_add((_Atomic(int)*)(addr), delta, 4)
-#    endif
-#  else
-#    if defined __ATOMIC_ACQ_REL && !defined __clang__
-// version for gcc >= 4.7
-#      define NCNN_XADD(addr, delta) (int)__atomic_fetch_add((unsigned*)(addr), (unsigned)(delta), __ATOMIC_ACQ_REL)
-#    else
-#      define NCNN_XADD(addr, delta) (int)__sync_fetch_and_add((unsigned*)(addr), (unsigned)(delta))
-#    endif
-#  endif
-#elif defined _MSC_VER && !defined RC_INVOKED
-#  include <intrin.h>
-#  define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
-#else
-static inline void NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += delta; return tmp; }
-#endif
+void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, Allocator* allocator = 0, int num_threads = 1);
+void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, Allocator* allocator = 0, int num_threads = 1);
+void resize_bilinear(const Mat& src, Mat& dst, int w, int h, Allocator* allocator = 0, int num_threads = 1);
 
 inline Mat::Mat()
-    : data(0), refcount(0), elemsize(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
 }
 
-inline Mat::Mat(int _w, size_t _elemsize)
+inline Mat::Mat(int _w, size_t _elemsize, Allocator* allocator)
     : data(0), refcount(0), dims(0)
 {
-    create(_w, _elemsize);
+    create(_w, _elemsize, allocator);
 }
 
-inline Mat::Mat(int _w, int _h, size_t _elemsize)
+inline Mat::Mat(int _w, int _h, size_t _elemsize, Allocator* allocator)
     : data(0), refcount(0), dims(0)
 {
-    create(_w, _h, _elemsize);
+    create(_w, _h, _elemsize, allocator);
 }
 
-inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize)
+inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize, Allocator* allocator)
     : data(0), refcount(0), dims(0)
 {
-    create(_w, _h, _c, _elemsize);
+    create(_w, _h, _c, _elemsize, allocator);
 }
 
 inline Mat::Mat(const Mat& m)
-    : data(m.data), refcount(m.refcount), elemsize(m.elemsize), dims(m.dims)
+    : data(m.data), refcount(m.refcount), elemsize(m.elemsize), allocator(m.allocator), dims(m.dims)
 {
     if (refcount)
         NCNN_XADD(refcount, 1);
@@ -275,7 +214,7 @@ inline Mat::Mat(const Mat& m)
 }
 
 inline Mat::Mat(int _w, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(1)
+    : data(_data), refcount(0), elemsize(_elemsize), allocator(0), dims(1)
 {
     w = _w;
     h = 1;
@@ -285,7 +224,7 @@ inline Mat::Mat(int _w, void* _data, size_t _elemsize)
 }
 
 inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(2)
+    : data(_data), refcount(0), elemsize(_elemsize), allocator(0), dims(2)
 {
     w = _w;
     h = _h;
@@ -295,7 +234,7 @@ inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
 }
 
 inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(3)
+    : data(_data), refcount(0), elemsize(_elemsize), allocator(0), dims(3)
 {
     w = _w;
     h = _h;
@@ -322,6 +261,7 @@ inline Mat& Mat::operator=(const Mat& m)
     data = m.data;
     refcount = m.refcount;
     elemsize = m.elemsize;
+    allocator = m.allocator;
 
     dims = m.dims;
     w = m.w;
@@ -398,18 +338,18 @@ inline void Mat::fill(T _v)
     }
 }
 
-inline Mat Mat::clone() const
+inline Mat Mat::clone(Allocator* allocator) const
 {
     if (empty())
         return Mat();
 
     Mat m;
     if (dims == 1)
-        m.create(w, elemsize);
+        m.create(w, elemsize, allocator);
     else if (dims == 2)
-        m.create(w, h, elemsize);
+        m.create(w, h, elemsize, allocator);
     else if (dims == 3)
-        m.create(w, h, c, elemsize);
+        m.create(w, h, c, elemsize, allocator);
 
     if (total() > 0)
     {
@@ -419,7 +359,7 @@ inline Mat Mat::clone() const
     return m;
 }
 
-inline Mat Mat::reshape(int _w) const
+inline Mat Mat::reshape(int _w, Allocator* allocator) const
 {
     if (w * h * c != _w)
         return Mat();
@@ -427,7 +367,7 @@ inline Mat Mat::reshape(int _w) const
     if (dims == 3 && cstep != (size_t)w * h)
     {
         Mat m;
-        m.create(_w, elemsize);
+        m.create(_w, elemsize, allocator);
 
         // flatten
         for (int i=0; i<c; i++)
@@ -452,7 +392,7 @@ inline Mat Mat::reshape(int _w) const
     return m;
 }
 
-inline Mat Mat::reshape(int _w, int _h) const
+inline Mat Mat::reshape(int _w, int _h, Allocator* allocator) const
 {
     if (w * h * c != _w * _h)
         return Mat();
@@ -460,7 +400,7 @@ inline Mat Mat::reshape(int _w, int _h) const
     if (dims == 3 && cstep != (size_t)w * h)
     {
         Mat m;
-        m.create(_w, _h, elemsize);
+        m.create(_w, _h, elemsize, allocator);
 
         // flatten
         for (int i=0; i<c; i++)
@@ -485,7 +425,7 @@ inline Mat Mat::reshape(int _w, int _h) const
     return m;
 }
 
-inline Mat Mat::reshape(int _w, int _h, int _c) const
+inline Mat Mat::reshape(int _w, int _h, int _c, Allocator* allocator) const
 {
     if (w * h * c != _w * _h * _c)
         return Mat();
@@ -495,7 +435,7 @@ inline Mat Mat::reshape(int _w, int _h, int _c) const
         if ((size_t)_w * _h != alignSize(_w * _h * elemsize, 16) / elemsize)
         {
             Mat m;
-            m.create(_w, _h, _c, elemsize);
+            m.create(_w, _h, _c, elemsize, allocator);
 
             // align channel
             for (int i=0; i<_c; i++)
@@ -511,8 +451,8 @@ inline Mat Mat::reshape(int _w, int _h, int _c) const
     else if (c != _c)
     {
         // flatten and then align
-        Mat tmp = reshape(_w * _h * _c);
-        return tmp.reshape(_w, _h, _c);
+        Mat tmp = reshape(_w * _h * _c, allocator);
+        return tmp.reshape(_w, _h, _c, allocator);
     }
 
     Mat m = *this;
@@ -527,14 +467,15 @@ inline Mat Mat::reshape(int _w, int _h, int _c) const
     return m;
 }
 
-inline void Mat::create(int _w, size_t _elemsize)
+inline void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
 {
-    if (dims == 1 && w == _w && elemsize == _elemsize)
+    if (dims == 1 && w == _w && elemsize == _elemsize && allocator == _allocator)
         return;
 
     release();
 
     elemsize = _elemsize;
+    allocator = _allocator;
 
     dims = 1;
     w = _w;
@@ -546,20 +487,24 @@ inline void Mat::create(int _w, size_t _elemsize)
     if (total() > 0)
     {
         size_t totalsize = total() * elemsize;
-        data = fastMalloc(totalsize + (int)sizeof(*refcount));
+        if (allocator)
+            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
+        else
+            data = fastMalloc(totalsize + (int)sizeof(*refcount));
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
 }
 
-inline void Mat::create(int _w, int _h, size_t _elemsize)
+inline void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
 {
-    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize)
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && allocator == _allocator)
         return;
 
     release();
 
     elemsize = _elemsize;
+    allocator = _allocator;
 
     dims = 2;
     w = _w;
@@ -571,20 +516,24 @@ inline void Mat::create(int _w, int _h, size_t _elemsize)
     if (total() > 0)
     {
         size_t totalsize = total() * elemsize;
-        data = fastMalloc(totalsize + (int)sizeof(*refcount));
+        if (allocator)
+            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
+        else
+            data = fastMalloc(totalsize + (int)sizeof(*refcount));
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
 }
 
-inline void Mat::create(int _w, int _h, int _c, size_t _elemsize)
+inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator)
 {
-    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize)
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && allocator == _allocator)
         return;
 
     release();
 
     elemsize = _elemsize;
+    allocator = _allocator;
 
     dims = 3;
     w = _w;
@@ -596,7 +545,10 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize)
     if (total() > 0)
     {
         size_t totalsize = total() * elemsize;
-        data = fastMalloc(totalsize + (int)sizeof(*refcount));
+        if (allocator)
+            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
+        else
+            data = fastMalloc(totalsize + (int)sizeof(*refcount));
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
@@ -611,7 +563,12 @@ inline void Mat::addref()
 inline void Mat::release()
 {
     if (refcount && NCNN_XADD(refcount, -1) == 1)
-        fastFree(data);
+    {
+        if (allocator)
+            allocator->fastFree(data);
+        else
+            fastFree(data);
+    }
 
     data = 0;
 

@@ -36,9 +36,9 @@ int Padding::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Padding::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    copy_make_border(bottom_blob, top_blob, top, bottom, left, right, type, value);
+    copy_make_border(bottom_blob, top_blob, top, bottom, left, right, type, value, opt.blob_allocator, opt.num_threads);
 
     if (top_blob.empty())
         return -100;

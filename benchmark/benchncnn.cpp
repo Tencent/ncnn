@@ -52,6 +52,9 @@ public:
 
 static int g_loop_count = 4;
 
+static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
+static ncnn::PoolAllocator g_workspace_pool_allocator;
+
 void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const ncnn::Net&))
 {
     ncnn::BenchNet net;
@@ -59,6 +62,9 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
     init(net);
 
     net.load_model();
+
+    g_blob_pool_allocator.clear();
+    g_workspace_pool_allocator.clear();
 
     // sleep 10 seconds for cooling down SOC  :(
 #ifdef _WIN32
@@ -265,8 +271,6 @@ void mobilenet_yolo_run(const ncnn::Net& net)
 {
     ncnn::Extractor ex = net.create_extractor();
 
-    // NOTE original model input is 416x416x3
-    // you may change to 300x300x3 for comparison with ssd
     ncnn::Mat in(416, 416, 3);
     ex.input("data", in);
 
@@ -294,6 +298,17 @@ int main(int argc, char** argv)
     }
 
     g_loop_count = loop_count;
+
+    g_blob_pool_allocator.set_size_compare_ratio(0.0f);
+    g_workspace_pool_allocator.set_size_compare_ratio(0.5f);
+
+    ncnn::Option opt;
+    opt.lightmode = true;
+    opt.num_threads = num_threads;
+    opt.blob_allocator = &g_blob_pool_allocator;
+    opt.workspace_allocator = &g_workspace_pool_allocator;
+
+    ncnn::set_default_option(opt);
 
     ncnn::set_cpu_powersave(powersave);
 

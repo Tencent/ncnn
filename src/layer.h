@@ -25,6 +25,22 @@
 
 namespace ncnn {
 
+class Allocator;
+class Option
+{
+public:
+    Option();
+
+public:
+    bool lightmode;
+    int num_threads;
+    Allocator* blob_allocator;
+    Allocator* workspace_allocator;
+};
+
+const Option& get_default_option();
+int set_default_option(const Option& opt);
+
 class Layer
 {
 public:
@@ -51,13 +67,13 @@ public:
 public:
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt = get_default_option()) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt = get_default_option()) const;
 
     // implement inplace inference
     // return 0 if success
-    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs) const;
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
+    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt = get_default_option()) const;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt = get_default_option()) const;
 
 public:
 #if NCNN_STRING

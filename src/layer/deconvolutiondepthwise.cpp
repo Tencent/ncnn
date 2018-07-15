@@ -58,7 +58,7 @@ int DeconvolutionDepthWise::load_model(const ModelBin& mb)
     return 0;
 }
 
-int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
+int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // deconvolv with NxN kernel
     // value = value + bias
@@ -66,6 +66,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
     if (channels % group != 0 || num_output % group != 0)
     {
@@ -79,10 +80,20 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     int outw = (w - 1) * stride_w + kernel_extent_w;
     int outh = (h - 1) * stride_h + kernel_extent_h;
 
-    Mat top_blob_bordered = top_blob;
-    top_blob_bordered.create(outw, outh, num_output);
-    if (top_blob_bordered.empty())
-        return -100;
+    Mat top_blob_bordered;
+    if (pad_w > 0 || pad_h > 0)
+    {
+        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
 
     const int maxk = kernel_w * kernel_h;
 
@@ -108,7 +119,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     // depth-wise
     if (channels == group && group == num_output)
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
             const float* inptr = bottom_blob.channel(g);
@@ -141,7 +152,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         const int channels_g = channels / group;
         const int num_output_g = num_output / group;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
             const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
@@ -180,16 +191,18 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         }
     }
 
-    top_blob = top_blob_bordered;
-
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w);
+        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w, opt.blob_allocator, opt.num_threads);
         if (top_blob.empty())
             return -100;
 
         outw = top_blob.w;
         outh = top_blob.h;
+    }
+    else
+    {
+        top_blob = top_blob_bordered;
     }
 
     return 0;

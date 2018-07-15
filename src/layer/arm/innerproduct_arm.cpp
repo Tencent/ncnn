@@ -22,14 +22,15 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(InnerProduct_arm)
 
-int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
+int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
 
-    top_blob.create(num_output);
+    top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -38,7 +39,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     int nn_num_output = num_output >> 2;
     int remain_num_output_start = nn_num_output << 2;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_num_output; pp++)
     {
         int p = pp * 4;
@@ -143,7 +144,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
 
     // num_output
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=remain_num_output_start; p<num_output; p++)
     {
         float sum = 0.f;

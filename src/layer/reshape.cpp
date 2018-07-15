@@ -42,8 +42,9 @@ int Reshape::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Reshape::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    size_t elemsize = bottom_blob.elemsize;
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.c;
 
     if (ndim == 1)
@@ -58,7 +59,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob) const
 
         if (permute == 1)
         {
-            top_blob.create(_w);
+            top_blob.create(_w, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -78,7 +79,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob) const
         }
         else
         {
-            top_blob = bottom_blob.reshape(_w);
+            top_blob = bottom_blob.reshape(_w, opt.blob_allocator);
         }
     }
     else if (ndim == 2)
@@ -96,7 +97,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob) const
         if (_h == -1)
             _h = total / _w;
 
-        top_blob = bottom_blob.reshape(_w, _h);
+        top_blob = bottom_blob.reshape(_w, _h, opt.blob_allocator);
     }
     else if (ndim == 3)
     {
@@ -118,7 +119,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob) const
         if (_c == -1)
             _c = total / _h / _w;
 
-        top_blob = bottom_blob.reshape(_w, _h, _c);
+        top_blob = bottom_blob.reshape(_w, _h, _c, opt.blob_allocator);
     }
 
     if (top_blob.empty())

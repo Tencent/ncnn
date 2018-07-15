@@ -141,7 +141,7 @@ static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<i
     }
 }
 
-int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& location = bottom_blobs[0];
     const Mat& confidence = bottom_blobs[1];
@@ -151,7 +151,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
     // apply location with priorbox
     Mat bboxes;
-    bboxes.create(4, num_prior);
+    bboxes.create(4, num_prior, 4u, opt.workspace_allocator);
     if (bboxes.empty())
         return -100;
 
@@ -159,7 +159,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     const float* priorbox_ptr = priorbox.row(0);
     const float* variance_ptr = priorbox.row(1);
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_prior; i++)
     {
         const float* loc = location_ptr + i * 4;
@@ -192,7 +192,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     all_class_bbox_scores.resize(num_class);
 
     // start from 1 to ignore background class
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 1; i < num_class; i++)
     {
         // filter by confidence_threshold
@@ -262,7 +262,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     int num_detected = bbox_rects.size();
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(6, num_detected);
+    top_blob.create(6, num_detected, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
