@@ -153,6 +153,7 @@ add_library(ncnn STATIC ${ncnn_SRCS})
 
 install(TARGETS ncnn ARCHIVE DESTINATION lib)
 install(FILES
+    allocator.h
     blob.h
     cpu.h
     layer.h
