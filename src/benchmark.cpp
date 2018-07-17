@@ -15,7 +15,6 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <stdint.h> // portable: uint64_t   MSVC: __int64
 #else // _WIN32
 #include <sys/time.h>
 #endif // _WIN32
@@ -32,24 +31,12 @@ namespace ncnn {
 #ifdef _WIN32
 double get_current_time()
 {
-    // Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
-    // This magic number is the number of 100 nanosecond intervals since January 1, 1601 (UTC)
-    // until 00:00:00 January 1, 1970
-    static const uint64_t EPOCH = ((uint64_t) 116444736000000000ULL);
+    LARGE_INTEGER freq;
+    LARGE_INTEGER pc;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&pc);
 
-    SYSTEMTIME  system_time;
-    FILETIME    file_time;
-    uint64_t    time;
-
-    GetSystemTime( &system_time );
-    SystemTimeToFileTime( &system_time, &file_time );
-    time =  ((uint64_t)file_time.dwLowDateTime )      ;
-    time += ((uint64_t)file_time.dwHighDateTime) << 32;
-
-    long tv_sec  = (long) ((time - EPOCH) / 10000000L);
-    long tv_usec = (long) (system_time.wMilliseconds * 1000);
-
-    return tv_sec * 1000.0 + tv_usec / 1000.0;
+    return pc.QuadPart * 1000.0 / freq.QuadPart;
 }
 #else // _WIN32
 double get_current_time()
