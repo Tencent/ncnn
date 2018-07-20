@@ -58,10 +58,8 @@ endif()
 
 if(ANDROID)
     # disable shared library on android
-    set(OpenCV_DIR /home/OpenCV-android-sdk/sdk/native/jni)
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
 elseif(IOS)
     # disable shared library on xcode ios
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
@@ -70,7 +68,7 @@ endif()
 
 ##############################################
 
-add_subdirectory(examples)
+# add_subdirectory(examples)
 # add_subdirectory(benchmark)
 add_subdirectory(src)
 if(NOT ANDROID AND NOT IOS)
