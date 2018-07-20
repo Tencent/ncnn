@@ -19,6 +19,7 @@ namespace ncnn {
 #include "convolution_1x1.h"
 #include "convolution_3x3.h"
 #include "convolution_5x5.h"
+#include "../convolution_quantize.h"
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
 
@@ -216,6 +217,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     int h = bottom_blob.h;
     size_t elemsize = bottom_blob.elemsize;
 
+
     Mat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
     {
@@ -247,8 +249,53 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
+    const float bottom_scale = bottom_blob.int8_scale; 
+    top_blob.int8_scale = top_scale; 
 
-    conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+    if(use_quantizeInt8 && !(kernel_size == 1 && stride == 2))
+    {
+        //printf("quantize x86\n");
+        //create the temp blob to save the int8 data transform from bottom_blob
+        Mat bottom_blob_s8_data;
+        bottom_blob_s8_data.create(bottom_blob_bordered.w, bottom_blob_bordered.h, bottom_blob_bordered.c, 1);
+
+        //Quantize Float32 to Int8
+        conv_quantize(bottom_blob_bordered, bottom_blob_s8_data, bottom_scale);
+
+        //Convolution with Int8
+        if(kernel_size == 3 && stride == 1)
+        {
+#if NCNN_INT8_INFO            
+	        fprintf(stderr, "conv3x3s1 quantize x86\n");
+#endif            
+            conv3x3s1_s8(bottom_blob_s8_data, top_blob, weight_quantize_Int8_data);
+        }
+        else if(kernel_size == 1 && stride == 1)
+        {
+#if NCNN_INT8_INFO            
+            fprintf(stderr, "conv1x1s1 quantize x86\n");
+#endif            
+            conv1x1s1_s8(bottom_blob_s8_data, top_blob, weight_quantize_Int8_data);
+        }
+        else if(kernel_size == 1 && stride == 2)
+        {
+#if NCNN_INT8_INFO            
+            fprintf(stderr, "conv1x1s2 quantize x86\n");
+#endif            
+            conv1x1s2_s8(bottom_blob_s8_data, top_blob, weight_quantize_Int8_data);
+        }        
+        else
+        {
+            fprintf(stderr, "The kernel_size of convolution does not be supported Int8 quantized!\n");
+        }
+
+        //Dequantize Int8 to Float32
+        conv_dequantize(top_blob, bias_data, bottom_scale, scaleValue.weightScale);          
+    }
+    else
+    {
+        conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+    } 
 
     return 0;
 }

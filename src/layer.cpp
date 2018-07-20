@@ -68,6 +68,90 @@ int Layer::load_model(const ModelBin& /*mb*/)
     return 0;
 }
 
+int Layer::load_scale(const char* scalepath)
+{
+    std::ifstream in(scalepath);
+    std::string line;
+    
+    std::vector<std::string> objectLine;
+    std::vector<std::string> objects;
+
+    // read the file line to strings
+    if (in)
+    {
+        while (getline(in, line))
+        {
+            objectLine.push_back(line);
+        }
+    }
+    else
+    {
+        std::cout << "no such file " << scalepath << std::endl;
+        return -1;
+    }
+
+    for (std::vector<std::string>::iterator iter = objectLine.begin(); iter != objectLine.end(); iter++)
+    {
+        std::istringstream temp((*iter));
+
+        std::string str1,str2;
+        temp >> str1 >> str2;
+        objects.push_back(str1);
+        objects.push_back(str2);
+    }
+
+    //find the layer scales
+    std::string layer_name = name;
+    bool flag = false;
+
+    //initial the default value of scaleValue in this layer
+    scaleValue.name = layer_name;
+    scaleValue.dataScale = 1.0f;
+    scaleValue.weightScale = 1.0f;
+
+    for (std::vector<std::string>::iterator iter = objects.begin(); iter != objects.end(); iter++)
+    {
+        if(layer_name == *iter)
+        {
+            if (flag == false)
+            {
+                scaleValue.dataScale = stringToNum<float>(*(iter + 1));
+                flag = true;
+            }
+        }
+
+        //weight scale
+        std::string param_name = layer_name+"_param_0";
+        if(param_name == *iter)
+        {
+            scaleValue.weightScale = stringToNum<float>(*(iter + 1));
+        }
+    }    
+#if NCNN_INT8_INFO
+    fprintf(stderr, "%-28s dataScale:%-12f weightScale:%-12f\n", \
+                scaleValue.name.c_str(), scaleValue.dataScale, scaleValue.weightScale);                
+#endif
+    top_scale = scaleValue.dataScale;
+
+    return 0;
+}
+
+int Layer::load_scale_bin(const unsigned char* mem)
+{
+    stQuantizeParamsBin *scaleBin = (stQuantizeParamsBin*)mem;
+
+    scaleValue.dataScale = scaleBin->dataScale;
+    scaleValue.weightScale = scaleBin->weightScale;
+#if NCNN_INT8_INFO
+    fprintf(stderr, "name_index:%-16d dataScale:%-12f weightScale:%-12f\n", \
+                scaleBin->index, scaleValue.dataScale, scaleValue.weightScale);    
+#endif
+    top_scale = scaleValue.dataScale;
+
+    return 0;
+}
+
+
 int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (!support_inplace)

@@ -45,6 +45,8 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     if (top_blob.empty())
         return -100;
 
+    top_blobs[0].int8_scale = top_scale;
+
     if (op_type == Operation_PROD)
     {
         // first blob

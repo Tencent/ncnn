@@ -10,5 +10,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_executable(ssdmobilenet ssdmobilenet.cpp)
 target_link_libraries(ssdmobilenet ncnn ${OpenCV_LIBS})
 
+add_executable(ssdmobilenet-int8 ssdmobilenet-int8.cpp)
+target_link_libraries(ssdmobilenet-int8 ncnn ${OpenCV_LIBS})
+
 add_executable(ssdsqueezenet ssdsqueezenet.cpp)
 target_link_libraries(ssdsqueezenet ncnn ${OpenCV_LIBS})

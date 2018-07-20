@@ -34,6 +34,8 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (top_blob.empty())
         return -100;
 
+    top_blob.int8_scale = top_scale;
+
     const float* weight_data_ptr = weight_data;
 
     int nn_num_output = num_output >> 2;

@@ -44,7 +44,9 @@ static int detect_mobilenet(cv::Mat& raw_img, float show_threshold)
      */
     int img_h = raw_img.size().height;
     int img_w = raw_img.size().width;
+    mobilenet.set_conv_model(CONV_INT8);
     mobilenet.load_param("mobilenet_ssd_voc_ncnn.param");
+    mobilenet.load_scale("mobilenet_ssd_voc_ncnn.table");
     mobilenet.load_model("mobilenet_ssd_voc_ncnn.bin");
     int input_size = 300;
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(raw_img.data, ncnn::Mat::PIXEL_BGR, raw_img.cols, raw_img.rows, input_size, input_size);
@@ -93,7 +95,7 @@ static int detect_mobilenet(cv::Mat& raw_img, float show_threshold)
                       cv::Scalar(255, 255, 255), CV_FILLED);
             cv::putText(raw_img, label, cv::Point(object.rec.x, object.rec.y),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
-            fprintf(stderr, "%-18s [%d,%d,%d,%d]\n", label.c_str(), object.rec.x, object.rec.y, object.rec.x+object.rec.width, object.rec.y+object.rec.height);
+            fprintf(stderr, "%-18s [%d,%d,%d,%d]\n", label.c_str(), object.rec.x, object.rec.y, object.rec.x+object.rec.width, object.rec.y+object.rec.height);                    
         }
     }
     cv::imshow("result",raw_img);
@@ -104,6 +106,8 @@ static int detect_mobilenet(cv::Mat& raw_img, float show_threshold)
 
 int main(int argc, char** argv)
 {
+    std::cout << "--- NCNN Int8 MobileNet SSD Demo --- " << __TIME__ << " " << __DATE__ << std::endl;
+
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);

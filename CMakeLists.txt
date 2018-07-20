@@ -27,6 +27,7 @@ option(NCNN_OPENCV "minimal opencv structure emulation" OFF)
 option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
 option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
 option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
+option(NCNN_INT8_INFO "print int8 information for quantize layer" OFF)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
