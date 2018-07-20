@@ -72,11 +72,31 @@ public:
     // return bytes consumed
     int load_model(const unsigned char* mem);
 
+    // load quantize scale data from file
+    // return 0 if success
+    int load_scale(const char* scalepath);
+
+    // load quantize scale data from binary file
+    // return 0 if success
+    int load_scale_bin(FILE* fp);
+    int load_scale_bin(const char* scalepath);
+
+    // load quantize scale data from external memory
+    // memory pointer must be 32-bit aligned
+    // return bytes consumed    
+    int load_scale_bin(const unsigned char* mem);
+
+    // set convolution process model
+    void set_conv_model(enConvModel model);
+
     // unload network structure and weight data
     void clear();
 
     // construct an Extractor from network
     Extractor create_extractor() const;
+
+    // 0:Float32  1:Int8
+    enConvModel conv_model;    
 
 protected:
     friend class Extractor;
@@ -113,7 +133,7 @@ public:
     void set_blob_allocator(Allocator* allocator);
 
     // set workspace memory allocator
-    void set_workspace_allocator(Allocator* allocator);
+    void set_workspace_allocator(Allocator* allocator);    
 
 #if NCNN_STRING
     // set input by blob name

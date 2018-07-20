@@ -48,6 +48,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
+    top_blob.int8_scale = top_scale;
 
     Mat bottom_blob_bordered = bottom_blob;
 

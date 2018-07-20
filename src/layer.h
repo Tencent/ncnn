@@ -22,6 +22,7 @@
 #include "modelbin.h"
 #include "paramdict.h"
 #include "platform.h"
+#include "quantize.h"
 
 namespace ncnn {
 
@@ -57,6 +58,11 @@ public:
     // return 0 if success
     virtual int load_model(const ModelBin& mb);
 
+    // load layer specific quantized scale data from file
+    // return 0 if success
+    virtual int load_scale(const char* scalepath);
+    virtual int load_scale_bin(const unsigned char* mem);
+
 public:
     // one input and one output blob
     bool one_blob_only;
@@ -86,6 +92,18 @@ public:
     std::vector<int> bottoms;
     // blob index which this layer produces as output
     std::vector<int> tops;
+
+    // quantize params
+    stQuantizeParams scaleValue;
+
+    // bottom blob calibration scale value
+    float top_scale;
+
+    // 0:Float32 1:Int8
+    enConvModel conv_model;
+
+    int index;
+    int type_index;
 };
 
 // layer factory function

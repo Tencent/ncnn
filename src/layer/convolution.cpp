@@ -18,6 +18,8 @@
 
 namespace ncnn {
 
+#include "convolution_quantize.h"
+
 DEFINE_LAYER_CREATOR(Convolution)
 
 Convolution::Convolution()
@@ -39,7 +41,19 @@ int Convolution::load_param(const ParamDict& pd)
     pad_h = pd.get(14, pad_w);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
+    quantize_disable = pd.get(7, 0); 
 
+    use_quantizeInt8 = false;
+
+    // convolution processing model set Direct or Quantized int8
+    if(conv_model == CONV_INT8 && (kernel_w == 3 || kernel_w == 1) && (quantize_disable == 0))
+    {
+        use_quantizeInt8 = true;
+    }
+    else
+    {
+        use_quantizeInt8 = false;
+    }    
     return 0;
 }
 
@@ -54,6 +68,33 @@ int Convolution::load_model(const ModelBin& mb)
         bias_data = mb.load(num_output, 1);
         if (bias_data.empty())
             return -100;
+    }
+
+    const int kernel_size = kernel_w;
+
+    // Pre-Processing kernel when it's used quantized int8 model
+    if(use_quantizeInt8 == true)
+    {
+        switch(kernel_size)
+        {
+            case 1:
+                {
+                    int num_input = weight_data_size / 1 / num_output;
+                    conv1x1_quantize_int8_transform_kernel(weight_data, weight_quantize_Int8_data, num_input, num_output, scaleValue);   
+                }     
+                break;
+
+            case 3:
+                {
+                    int num_input = weight_data_size / 9 / num_output;
+                    conv3x3_quantize_int8_transform_kernel(weight_data, weight_quantize_Int8_data, num_input, num_output, scaleValue); 
+                }       
+                break;
+
+            default:
+                printf("The kernel_size of convolution does not be supported Int8 quantized!\n");
+                break;
+        }    
     }
 
     return 0;
@@ -140,63 +181,93 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return -100;
 
     const int maxk = kernel_w * kernel_h;
-
-    // kernel offsets
-    std::vector<int> _space_ofs(maxk);
-    int* space_ofs = &_space_ofs[0];
+    const float bottom_scale = bottom_blob.int8_scale;    
+    top_blob.int8_scale = top_scale;     
+    if(use_quantizeInt8)
     {
-        int p1 = 0;
-        int p2 = 0;
-        int gap = w * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++)
+        //printf("quantize\n");
+        //create the temp blob to save the int8 data transform from bottom_blob
+        Mat bottom_blob_s8_data;
+        bottom_blob_s8_data.create(bottom_blob_bordered.w, bottom_blob_bordered.h, bottom_blob_bordered.c, 1);
+
+        //Quantize Float32 to Int8
+        conv_quantize(bottom_blob_bordered, bottom_blob_s8_data, bottom_scale);
+
+        //Convolution with Int8
+        if(kernel_w == 3 && stride_w == 2)
         {
-            for (int j = 0; j < kernel_w; j++)
-            {
-                space_ofs[p1] = p2;
-                p1++;
-                p2 += dilation_w;
-            }
-            p2 += gap;
+#if NCNN_INT8_INFO            
+            fprintf(stderr, "conv3x3s2 quantize\n");
+#endif            
+            conv3x3s2_s8(bottom_blob_s8_data, top_blob, weight_quantize_Int8_data);
         }
-    }
-
-    // num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<num_output; p++)
-    {
-        float* outptr = top_blob.channel(p);
-
-        for (int i = 0; i < outh; i++)
+        else
         {
-            for (int j = 0; j < outw; j++)
+            fprintf(stderr, "The kernel_size of convolution does not be supported Int8 quantized!\n");
+        }
+
+        //Dequantize Int8 to Float32
+        conv_dequantize(top_blob, bias_data, bottom_scale, scaleValue.weightScale);
+    }
+    else
+    {
+        // kernel offsets
+        std::vector<int> _space_ofs(maxk);
+        int* space_ofs = &_space_ofs[0];
+        {
+            int p1 = 0;
+            int p2 = 0;
+            int gap = w * dilation_h - kernel_w * dilation_w;
+            for (int i = 0; i < kernel_h; i++)
             {
-                float sum = 0.f;
-
-                if (bias_term)
-                    sum = bias_data[p];
-
-                const float* kptr = (const float*)weight_data + maxk * channels * p;
-
-                // channels
-                for (int q=0; q<channels; q++)
+                for (int j = 0; j < kernel_w; j++)
                 {
-                    const Mat m = bottom_blob_bordered.channel(q);
-                    const float* sptr = m.row(i*stride_h) + j*stride_w;
+                    space_ofs[p1] = p2;
+                    p1++;
+                    p2 += dilation_w;
+                }
+                p2 += gap;
+            }
+        }
 
-                    for (int k = 0; k < maxk; k++) // 29.23
+    	// num_output
+    	#pragma omp parallel for num_threads(opt.num_threads)
+    	for (int p=0; p<num_output; p++)
+    	{
+        	float* outptr = top_blob.channel(p);
+
+            for (int i = 0; i < outh; i++)
+            {
+                for (int j = 0; j < outw; j++)
+                {
+                    float sum = 0.f;
+
+                    if (bias_term)
+                        sum = bias_data[p];
+
+                    const float* kptr = (const float*)weight_data + maxk * channels * p;
+
+                    // channels
+                    for (int q=0; q<channels; q++)
                     {
-                        float val = sptr[ space_ofs[k] ]; // 20.72
-                        float w = kptr[k];
-                        sum += val * w; // 41.45
+                        const Mat m = bottom_blob_bordered.channel(q);
+                        const float* sptr = m.row(i*stride_h) + j*stride_w;
+
+                        for (int k = 0; k < maxk; k++) // 29.23
+                        {
+                            float val = sptr[ space_ofs[k] ]; // 20.72
+                            float w = kptr[k];
+                            sum += val * w; // 41.45
+                        }
+
+                        kptr += maxk;
                     }
 
-                    kptr += maxk;
+                    outptr[j] = sum;
                 }
 
-                outptr[j] = sum;
+                outptr += outw;
             }
-
-            outptr += outw;
         }
     }
 

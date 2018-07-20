@@ -23,6 +23,13 @@ namespace ncnn {
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
 
+#if __aarch64__
+
+#else
+    #include "convolution_quantize_arm.h"
+    #include "convolution_1x1_int8.h"
+#endif
+
 DEFINE_LAYER_CREATOR(Convolution_arm)
 
 int Convolution_arm::load_param(const ParamDict& pd)
@@ -275,7 +282,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
+	size_t elemsize = bottom_blob.elemsize;
 
     Mat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
@@ -308,18 +315,31 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
+	float bottom_scale = bottom_blob.int8_scale;    
+    top_blob.int8_scale = top_scale;      		
 
     if (use_winograd3x3 && w <= 120 && h <= 120)
     {
-//         conv3x3s1_winograd64_neon4(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
         conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
     }
-    else if (use_sgemm1x1)
+    else if (use_sgemm1x1 && use_quantizeInt8 == false)
     {
+        // TODO assume more proper condition    
         conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data, opt);
     }
+#if __aarch64__
+
+#else    
+    else if (kernel_size == 1 && stride == 1 && use_quantizeInt8 == true)
+    {            
+        conv1x1s1_neon_s8_inter(bottom_blob_bordered, top_blob, weight_quantize_Int8_data, \
+                        bias_data, bottom_scale, scaleValue.weightScale, opt);
+    }
+#endif    
     else
+    {
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+    }
 
     return 0;
 }

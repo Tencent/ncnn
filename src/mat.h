@@ -132,6 +132,8 @@ public:
     // convenient construct from half precisoin floating point data
     static Mat from_float16(const unsigned short* data, int size);
 
+	// store the int8 quantize sacle of this mat
+	float int8_scale;
     // pointer to the data
     void* data;
 
@@ -264,6 +266,7 @@ inline Mat& Mat::operator=(const Mat& m)
     allocator = m.allocator;
 
     dims = m.dims;
+    int8_scale = m.int8_scale;
     w = m.w;
     h = m.h;
     c = m.c;

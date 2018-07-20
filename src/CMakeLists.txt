@@ -164,6 +164,7 @@ install(FILES
     opencv.h
     paramdict.h
     benchmark.h
+    quantize.h
     ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
     ${CMAKE_CURRENT_BINARY_DIR}/platform.h
     DESTINATION include

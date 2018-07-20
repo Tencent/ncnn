@@ -10,6 +10,9 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src)
 add_executable(squeezenet squeezenet.cpp)
 target_link_libraries(squeezenet ncnn ${OpenCV_LIBS})
 
+add_executable(squeezenet-int8 squeezenet-int8.cpp)
+target_link_libraries(squeezenet-int8 ncnn ${OpenCV_LIBS})
+
 add_executable(fasterrcnn fasterrcnn.cpp)
 target_link_libraries(fasterrcnn ncnn ${OpenCV_LIBS})
 

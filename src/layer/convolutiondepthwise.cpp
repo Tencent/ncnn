@@ -16,6 +16,8 @@
 
 namespace ncnn {
 
+#include "convolution_quantize.h"
+
 DEFINE_LAYER_CREATOR(ConvolutionDepthWise)
 
 ConvolutionDepthWise::ConvolutionDepthWise()
@@ -38,12 +40,25 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
     group = pd.get(7, 1);
+    quantize_disable = pd.get(8, 0);
+
+    use_quantizeInt8 = false;
 
     if (num_output % group != 0)
     {
         // reject invalid group
         return -100;
     }
+	
+    // convolution processing model set Direct or Quantized int8
+    if(conv_model == CONV_INT8 && kernel_w == 3 && quantize_disable == 0)
+    {
+        use_quantizeInt8 = true;
+    }
+    else
+    {
+        use_quantizeInt8 = false;
+    }     	
 
     return 0;
 }
@@ -60,6 +75,12 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
         if (bias_data.empty())
             return -100;
     }
+
+    // Pre-Processing kernel when it's used quantized int8 model
+    if(use_quantizeInt8 == true)
+    {
+        convdw3x3_quantize_int8_transform_kernel(weight_data, weight_quantize_Int8_data, group, scaleValue); 
+    }    
 
     return 0;
 }
@@ -116,6 +137,8 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
     top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
+		
+	top_blob.int8_scale = top_scale; 		
 
     const int maxk = kernel_w * kernel_h;
 

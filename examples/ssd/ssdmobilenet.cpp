@@ -93,6 +93,7 @@ static int detect_mobilenet(cv::Mat& raw_img, float show_threshold)
                       cv::Scalar(255, 255, 255), CV_FILLED);
             cv::putText(raw_img, label, cv::Point(object.rec.x, object.rec.y),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+            fprintf(stderr, "%-18s [%d,%d,%d,%d]\n", label.c_str(), object.rec.x, object.rec.y, object.rec.x+object.rec.width, object.rec.y+object.rec.height);
         }
     }
     cv::imshow("result",raw_img);

@@ -152,6 +152,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
+    top_blob.int8_scale = top_scale;        
 
     const int maxk = kernel_w * kernel_h;
 

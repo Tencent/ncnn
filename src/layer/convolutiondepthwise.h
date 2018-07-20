@@ -49,6 +49,15 @@ public:
     // model
     Mat weight_data;
     Mat bias_data;
+
+    // quantize disable
+    int quantize_disable;
+
+    // quantize Int8 members
+    bool use_quantizeInt8;
+  
+    // pre-alloc-mem
+    Mat weight_quantize_Int8_data;          //pre-process weight data when load the model
 };
 
 } // namespace ncnn

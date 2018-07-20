@@ -32,6 +32,7 @@ namespace ncnn {
 
 Net::Net()
 {
+    conv_model = CONV_FP32;
 }
 
 Net::~Net()
@@ -149,6 +150,12 @@ int Net::load_param(FILE* fp)
 //         fprintf(stderr, "new layer %d %s\n", layer_index, layer_name);
 
         layer->bottoms.resize(bottom_count);
+
+        if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise")
+        {
+            layer->conv_model = conv_model;
+        }
+
         for (int i=0; i<bottom_count; i++)
         {
             char bottom_name[257];
@@ -288,6 +295,11 @@ int Net::load_param_bin(FILE* fp)
 //         layer->type = std::string(layer_type);
 //         layer->name = std::string(layer_name);
 //         fprintf(stderr, "new layer %d\n", typeindex);
+
+        if(6 == typeindex || 42 == typeindex)
+        {
+            layer->conv_model = conv_model;
+        }
 
         layer->bottoms.resize(bottom_count);
         for (int j=0; j<bottom_count; j++)
@@ -458,6 +470,10 @@ int Net::load_param(const unsigned char* _mem)
 //         layer->type = std::string(layer_type);
 //         layer->name = std::string(layer_name);
 //         fprintf(stderr, "new layer %d\n", typeindex);
+        if(6 == typeindex || 42 == typeindex)
+        {
+            layer->conv_model = conv_model;
+        }
 
         layer->bottoms.resize(bottom_count);
         for (int j=0; j<bottom_count; j++)
@@ -539,6 +555,154 @@ int Net::load_model(const unsigned char* _mem)
     }
 
     return mem - _mem;
+}
+
+int Net::load_scale(const char* scalepath)
+{
+    // load file
+    int ret = 0;
+    
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        Layer* layer = layers[i];
+        int lret = layer->load_scale(scalepath);
+        if (lret != 0)
+        {
+            fprintf(stderr, "layer load_scale %d failed\n", (int)i);
+            ret = -1;
+            break;
+        }
+    }
+
+    printf("load scaleparam file data done.\n");
+
+    return ret;
+}
+
+int Net::load_scale_bin(FILE *fp)
+{
+    int ret = 0;
+    
+    int total_size = 0;
+    ret = fread(&total_size, sizeof(total_size), 1, fp);
+    if (ret != 1)
+    {
+        printf("read scalebin size error\n");
+
+       return -1;
+    }   
+    
+    std::vector<stQuantizeParamsBin> ParamBins;
+    stQuantizeParamsBin ParamBinTemp;
+    int loop = total_size / sizeof(stQuantizeParamsBin);
+    for (int i = 0; i < loop; i++)
+    {
+        ret = fread(&ParamBinTemp, sizeof(stQuantizeParamsBin), 1, fp);
+        if (ret != 1)
+        {
+            printf("read scalebin file error\n");
+
+            return -1;
+        }
+        ParamBins.push_back(ParamBinTemp);
+    }
+    
+    if(layers.size() != ParamBins.size())
+    {
+        printf("scale file is not fit layer param!\n");
+
+        return -1;
+    }
+
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        Layer* layer = layers[i];
+        const unsigned char *mem = (unsigned char *)(&ParamBins[i]);
+        int lret = layer->load_scale_bin(mem);
+        if (lret != 0)
+        {
+            fprintf(stderr, "layer load_scale_bin %d failed\n", (int)i);
+            ret = -1;
+            break;
+        }
+    }
+
+    printf("load scaleparam binary file data done.\n");
+
+    return ret;
+}
+
+int Net::load_scale_bin(const char* protopath)
+{
+    FILE* fp = fopen(protopath, "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "fopen %s failed\n", protopath);
+        return -1;
+    }
+
+    int ret = load_scale_bin(fp);
+
+    fclose(fp);
+
+    return ret;
+}
+
+int Net::load_scale_bin(const unsigned char* _mem)
+{
+    if ((unsigned long)_mem & 0x3)
+    {
+        // reject unaligned memory
+        fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
+        return 0;
+    }
+
+    const unsigned char* mem = _mem;
+
+    int total_size = *(int*)mem;
+    mem += 4;
+    //printf("scaleparam data size %d\n", total_size);
+    
+    std::vector<stQuantizeParamsBin> ParamBins;
+    stQuantizeParamsBin ParamBinTemp;
+    int ParamBinSize = sizeof(stQuantizeParamsBin);
+    int loop = total_size / ParamBinSize;
+    
+    //printf("ParamBin Size %d\n", ParamBinSize);
+    for (int i = 0; i < loop; i++)
+    {
+        memcpy(&ParamBinTemp, mem, ParamBinSize);
+        ParamBins.push_back(ParamBinTemp);
+        mem += ParamBinSize;
+    }
+
+    if(layers.size() != ParamBins.size())
+    {
+        printf("scale file is not fit layer param!\n");
+
+        return -1;
+    }
+                    
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        Layer* layer = layers[i];
+        const unsigned char *mem1 = (unsigned char *)(&ParamBins[i]);
+        int lret = layer->load_scale_bin(mem1);
+        if (lret != 0)
+        {
+            fprintf(stderr, "layer load_scale_bin %d failed\n", (int)i);
+            break;
+        }
+    }
+
+    printf("load scaleparam binary mem data done.\n");
+
+    return mem - _mem;
+}
+
+void Net::set_conv_model(enConvModel model)
+{
+    conv_model = model;
 }
 
 void Net::clear()
@@ -642,6 +806,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
         }
 
         Mat bottom_blob = blob_mats[bottom_blob_index];
+               bottom_blob.int8_scale = blob_mats[bottom_blob_index].int8_scale;
 
         if (opt.lightmode)
         {
@@ -807,7 +972,9 @@ int Extractor::input(int blob_index, const Mat& in)
     if (blob_index < 0 || blob_index >= (int)blob_mats.size())
         return -1;
 
+	int layer_index = net->blobs[blob_index].producer;
     blob_mats[blob_index] = in;
+	blob_mats[blob_index].int8_scale = net->layers[layer_index]->top_scale;    
 
     return 0;
 }
@@ -834,10 +1001,12 @@ int Extractor::extract(int blob_index, Mat& feat)
 int Extractor::input(const char* blob_name, const Mat& in)
 {
     int blob_index = net->find_blob_index_by_name(blob_name);
+    int layer_index = net->blobs[blob_index].producer;
     if (blob_index == -1)
         return -1;
 
     blob_mats[blob_index] = in;
+    blob_mats[blob_index].int8_scale = net->layers[layer_index]->top_scale;    
 
     return 0;
 }
