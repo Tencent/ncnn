@@ -89,6 +89,43 @@ Mat ModelBinFromStdio::load(int w, int type) const
 
             return Mat::from_float16(float16_weights.data(), w);
         }
+        else if (flag_struct.tag == 0x000D4B38)
+        {
+            // int8 data
+            int align_data_size = alignSize(w, 4);
+            std::vector<signed char> int8_weights;
+            int8_weights.resize(align_data_size);
+            nread = fread(int8_weights.data(), align_data_size, 1, binfp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "ModelBin read int8_weights failed %d\n", nread);
+                return Mat();
+            }
+
+            Mat m(w, (size_t)1u);
+            if (m.empty())
+                return m;
+
+            memcpy(m.data, int8_weights.data(), w);
+
+            return m;
+        }
+        else if (flag_struct.tag == 0x0002C056)
+        {
+            Mat m(w);
+            if (m.empty())
+                return m;
+
+            // raw data with extra scaling
+            nread = fread(m, w * sizeof(float), 1, binfp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "ModelBin read weight_data failed %d\n", nread);
+                return Mat();
+            }
+
+            return m;
+        }
 
         Mat m(w);
         if (m.empty())
@@ -193,6 +230,20 @@ Mat ModelBinFromMemory::load(int w, int type) const
             // half-precision data
             Mat m = Mat::from_float16((unsigned short*)mem, w);
             mem += alignSize(w * sizeof(unsigned short), 4);
+            return m;
+        }
+        else if (flag_struct.tag == 0x000D4B38)
+        {
+            // int8 data
+            Mat m = Mat(w, (signed char*)mem, 1u);
+            mem += alignSize(w, 4);
+            return m;
+        }
+        else if (flag_struct.tag == 0x0002C056)
+        {
+            // raw data with extra scaling
+            Mat m = Mat(w, (float*)mem);
+            mem += w * sizeof(float);
             return m;
         }
 

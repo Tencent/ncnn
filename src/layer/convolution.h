@@ -23,6 +23,7 @@ class Convolution : public Layer
 {
 public:
     Convolution();
+    ~Convolution();
 
     virtual int load_param(const ParamDict& pd);
 
@@ -44,10 +45,16 @@ public:
     int bias_term;
 
     int weight_data_size;
+    float weight_data_int8_scale;
 
     // model
     Mat weight_data;
     Mat bias_data;
+
+    bool use_int8_inference;
+
+    ncnn::Layer* quantize;
+    ncnn::Layer* dequantize;
 };
 
 } // namespace ncnn

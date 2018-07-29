@@ -24,6 +24,12 @@ DEFINE_LAYER_CREATOR(InnerProduct_arm)
 
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    if (use_int8_inference)
+    {
+        // TODO
+        return InnerProduct::forward(bottom_blob, top_blob, opt);
+    }
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;

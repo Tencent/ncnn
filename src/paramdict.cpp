@@ -20,6 +20,10 @@ namespace ncnn {
 
 ParamDict::ParamDict()
 {
+    use_winograd_convolution = 1;
+    use_sgemm_convolution = 1;
+    use_int8_inference = 1;
+
     clear();
 }
 

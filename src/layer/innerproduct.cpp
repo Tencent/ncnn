@@ -14,6 +14,8 @@
 
 #include "innerproduct.h"
 
+#include "layer_type.h"
+
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(InnerProduct)
@@ -22,6 +24,15 @@ InnerProduct::InnerProduct()
 {
     one_blob_only = true;
     support_inplace = false;
+
+    quantize = 0;
+    dequantize = 0;
+}
+
+InnerProduct::~InnerProduct()
+{
+    delete quantize;
+    delete dequantize;
 }
 
 int InnerProduct::load_param(const ParamDict& pd)
@@ -29,6 +40,9 @@ int InnerProduct::load_param(const ParamDict& pd)
     num_output = pd.get(0, 0);
     bias_term = pd.get(1, 0);
     weight_data_size = pd.get(2, 0);
+    weight_data_int8_scale = pd.get(8, 0.f);
+
+    use_int8_inference = pd.use_int8_inference;
 
     return 0;
 }
@@ -46,6 +60,46 @@ int InnerProduct::load_model(const ModelBin& mb)
             return -100;
     }
 
+    bool weight_data_is_int8 = (weight_data.elemsize == (size_t)1u);
+    bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
+
+    if (weight_data_is_int8 && !use_int8_inference)
+    {
+        fprintf(stderr, "quantized int8 weight loaded but use_int8_inference disabled\n");
+        return -1;
+    }
+
+    if (use_int8_inference)
+    {
+        quantize = ncnn::create_layer(ncnn::LayerType::Quantize);
+        dequantize = ncnn::create_layer(ncnn::LayerType::Dequantize);
+    }
+
+    if (weight_data_is_float32 && use_int8_inference)
+    {
+        if (weight_data_int8_scale != 0.f)
+        {
+            // quantize weight to int8
+            ncnn::ParamDict pd;
+            pd.set(0, weight_data_int8_scale);// scale
+
+            quantize->load_param(pd);
+
+            Mat int8_weight_data;
+            quantize->forward(weight_data, int8_weight_data);
+
+            if (int8_weight_data.empty())
+                return -100;
+
+            weight_data = int8_weight_data;
+        }
+        else
+        {
+            // plain float32 weight, fallback to float32 inference
+            use_int8_inference = false;
+        }
+    }
+
     return 0;
 }
 
@@ -60,6 +114,69 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
+
+    if (use_int8_inference)
+    {
+        Mat bottom_blob_int8;
+        bottom_blob_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
+        if (bottom_blob_int8.empty())
+            return -100;
+
+        float bottom_scale = opt.int8_scales[0];
+//         fprintf(stderr, "bottom_scale = %f\n", bottom_scale);
+
+        // quantize, scale and round to nearest
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, bottom_scale);// scale
+
+            quantize->load_param(pd);
+
+            quantize->forward(bottom_blob, bottom_blob_int8, opt);
+        }
+
+        // num_output
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p=0; p<num_output; p++)
+        {
+            int sum = 0;
+
+            // channels
+            for (int q=0; q<channels; q++)
+            {
+                const signed char* w = (const signed char*)weight_data + size * channels * p + size * q;
+                const signed char* m = bottom_blob_int8.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    sum += m[i] * w[i];
+                }
+            }
+
+            top_blob[p] = sum;
+        }
+
+        // dequantize, reverse scale inplace
+        {
+            float top_rescale = 1.f / (bottom_scale * weight_data_int8_scale);
+
+            ncnn::ParamDict pd;
+            pd.set(0, top_rescale);// scale
+            pd.set(1, bias_term);// bias_term
+            pd.set(2, num_output);// bias_data_size
+
+            dequantize->load_param(pd);
+
+            ncnn::Mat weights[1];
+            weights[0] = bias_data;
+
+            dequantize->load_model(ModelBinFromMatArray(weights));
+
+            dequantize->forward_inplace(top_blob, opt);
+        }
+
+        return 0;
+    }
 
     // num_output
     #pragma omp parallel for num_threads(opt.num_threads)

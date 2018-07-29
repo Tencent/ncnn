@@ -194,6 +194,12 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     // convolv with NxN kernel
     // value = value + bias
 
+    if (use_int8_inference)
+    {
+        // TODO
+        return Convolution::forward(bottom_blob, top_blob, opt);
+    }
+
     if (bottom_blob.dims != 3)
     {
         return Convolution::forward(bottom_blob, top_blob, opt);
