@@ -36,6 +36,9 @@ public:
     int num_threads;
     Allocator* blob_allocator;
     Allocator* workspace_allocator;
+
+public:
+    std::vector<float> int8_scales;
 };
 
 const Option& get_default_option();

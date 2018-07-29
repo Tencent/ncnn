@@ -78,6 +78,11 @@ public:
     // construct an Extractor from network
     Extractor create_extractor() const;
 
+public:
+    int use_winograd_convolution;
+    int use_sgemm_convolution;
+    int use_int8_inference;
+
 protected:
     friend class Extractor;
 #if NCNN_STRING

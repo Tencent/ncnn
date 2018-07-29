@@ -31,6 +31,12 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     // convolv with NxN kernel
     // value = value + bias
 
+    if (use_int8_inference)
+    {
+        // TODO
+        return ConvolutionDepthWise::forward(bottom_blob, top_blob, opt);
+    }
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;

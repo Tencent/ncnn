@@ -19,6 +19,7 @@
 #include <fstream>
 #include <set>
 #include <limits>
+#include <map>
 #include <algorithm>
 
 #include <google/protobuf/io/coded_stream.h>
@@ -98,6 +99,64 @@ static unsigned short float2half(float value)
     return fp16;
 }
 
+// round to nearest
+static signed char float2int8(float value)
+{
+    float tmp;
+    if (value >= 0.f) tmp = value + 0.5;
+    else tmp = value - 0.5;
+
+    if (tmp > 127)
+        return 127;
+    if (tmp < -128)
+        return -128;
+
+    return tmp;
+}
+
+static bool read_int8scale_table(const char* filepath, std::map<std::string, float>& blob_int8scale_table, std::map<std::string, float>& weight_int8scale_table)
+{
+    blob_int8scale_table.clear();
+    weight_int8scale_table.clear();
+
+    FILE* fp = fopen(filepath, "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "fopen %s failed\n", filepath);
+        return false;
+    }
+
+    char line[1024];
+    while (!feof(fp))
+    {
+        char* s = fgets(line, 1024, fp);
+        if (!s)
+            break;
+
+        char key[256];
+        float scale = 1.f;
+        int nscan = sscanf(line, "%255s %f", key, &scale);
+        if (nscan != 2)
+            continue;
+
+        std::string keystr = key;
+
+        // XYZ_param_N pattern
+        if (strstr(key, "_param_"))
+        {
+            weight_int8scale_table[ keystr ] = scale;
+        }
+        else
+        {
+            blob_int8scale_table[ keystr ] = scale;
+        }
+    }
+
+    fclose(fp);
+
+    return true;
+}
+
 static int quantize_weight(float *data, size_t data_length, std::vector<unsigned short>& float16_weights)
 {
     float16_weights.resize(data_length);
@@ -113,6 +172,23 @@ static int quantize_weight(float *data, size_t data_length, std::vector<unsigned
 
     // magic tag for half-precision floating point
     return 0x01306B47;
+}
+
+static int quantize_weight(float *data, size_t data_length, float scale, std::vector<signed char>& int8_weights)
+{
+    int8_weights.resize(data_length);
+
+    for (size_t i = 0; i < data_length; i++)
+    {
+        float f = data[i];
+
+        signed char int8 = float2int8(f * scale);
+
+        int8_weights[i] = int8;
+    }
+
+    // magic tag for int8
+    return 0x000D4B38;
 }
 
 static bool quantize_weight(float *data, size_t data_length, int quantize_level, std::vector<float> &quantize_table, std::vector<unsigned char> &quantize_index) {
@@ -206,9 +282,9 @@ static bool read_proto_from_binary(const char* filepath, google::protobuf::Messa
 
 int main(int argc, char** argv)
 {
-    if (!(argc == 3 || argc == 5 || argc == 6))
+    if (!(argc == 3 || argc == 5 || argc == 6 || argc == 7))
     {
-        fprintf(stderr, "Usage: %s [caffeproto] [caffemodel] [ncnnproto] [ncnnbin] [quantizelevel]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [caffeproto] [caffemodel] [ncnnproto] [ncnnbin] [quantizelevel] [int8scaletable]\n", argv[0]);
         return -1;
     }
 
@@ -216,7 +292,8 @@ int main(int argc, char** argv)
     const char* caffemodel = argv[2];
     const char* ncnn_prototxt = argc >= 5 ? argv[3] : "ncnn.proto";
     const char* ncnn_modelbin = argc >= 5 ? argv[4] : "ncnn.bin";
-    const char* quantize_param = argc == 6 ? argv[5] : "0";
+    const char* quantize_param = argc >= 6 ? argv[5] : "0";
+    const char* int8scale_table_path = argc == 7 ? argv[6] : NULL;
     int quantize_level = atoi(quantize_param);
 
     if (quantize_level != 0 && quantize_level != 256 && quantize_level != 65536) {
@@ -240,6 +317,18 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "read_proto_from_binary failed\n");
         return -1;
+    }
+
+    std::map<std::string, float> blob_int8scale_table;
+    std::map<std::string, float> weight_int8scale_table;
+    if (int8scale_table_path)
+    {
+        bool s2 = read_int8scale_table(int8scale_table_path, blob_int8scale_table, weight_int8scale_table);
+        if (!s2)
+        {
+            fprintf(stderr, "read_int8scale_table failed\n");
+            return -1;
+        }
     }
 
     FILE* pp = fopen(ncnn_prototxt, "wb");
@@ -538,42 +627,87 @@ int main(int argc, char** argv)
                 std::vector<unsigned char> quantize_index;
 
                 std::vector<unsigned short> float16_weights;
+                std::vector<signed char> int8_weights;
+
+                bool has_int8scale = false;
+                float int8scale = 1.f;
 
                 // we will not quantize the bias values
-                if (j == 0 && quantize_level != 0)
+                if (j == 0)
                 {
-                    if (quantize_level == 256)
+                    if (int8scale_table_path)
                     {
-                    quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
+                        char key[256];
+                        sprintf(key, "%s_param_%d", layer.name().c_str(), j);
+                        if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
+                        {
+                            has_int8scale = true;
+                            int8scale = weight_int8scale_table[std::string(key)];
+                        }
+                    }
+
+                    if (has_int8scale)
+                    {
+                        fprintf(pp, " 8=%.8e", int8scale);
+
+                        if (quantize_level == 0)
+                        {
+                            quantize_tag = 0x0002C056;
+                        }
+                        else if (quantize_level == 256)
+                        {
+                            quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), int8scale, int8_weights);
+                        }
+                    }
+                    else if (quantize_level == 256)
+                    {
+                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
                     }
                     else if (quantize_level == 65536)
                     {
-                    quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
+                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
                     }
-                }
 
-                // write quantize tag first
-                if (j == 0)
+                    // write quantize tag first
                     fwrite(&quantize_tag, sizeof(int), 1, bp);
 
-                if (quantize_tag)
-                {
-                    int p0 = ftell(bp);
-                    if (quantize_level == 256)
+                    if (quantize_tag)
                     {
-                    // write quantize table and index
-                    fwrite(quantize_table.data(), sizeof(float), quantize_table.size(), bp);
-                    fwrite(quantize_index.data(), sizeof(unsigned char), quantize_index.size(), bp);
+                        int p0 = ftell(bp);
+                        if (has_int8scale)
+                        {
+                            if (quantize_level == 0)
+                            {
+                                // write original data and int8scale
+                                fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
+                            }
+                            else if (quantize_level == 256)
+                            {
+                                fwrite(int8_weights.data(), sizeof(signed char), int8_weights.size(), bp);
+                            }
+                        }
+                        else if (quantize_level == 256)
+                        {
+                            // write quantize table and index
+                            fwrite(quantize_table.data(), sizeof(float), quantize_table.size(), bp);
+                            fwrite(quantize_index.data(), sizeof(unsigned char), quantize_index.size(), bp);
+                        }
+                        else if (quantize_level == 65536)
+                        {
+                            fwrite(float16_weights.data(), sizeof(unsigned short), float16_weights.size(), bp);
+                        }
+
+                        // padding to 32bit align
+                        int nwrite = ftell(bp) - p0;
+                        int nalign = alignSize(nwrite, 4);
+                        unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
+                        fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                     }
-                    else if (quantize_level == 65536)
+                    else
                     {
-                    fwrite(float16_weights.data(), sizeof(unsigned short), float16_weights.size(), bp);
+                        // write original data
+                        fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
                     }
-                    // padding to 32bit align
-                    int nwrite = ftell(bp) - p0;
-                    int nalign = alignSize(nwrite, 4);
-                    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
-                    fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                 }
                 else
                 {
@@ -799,45 +933,90 @@ int main(int argc, char** argv)
                 std::vector<unsigned char> quantize_index;
 
                 std::vector<unsigned short> float16_weights;
+                std::vector<signed char> int8_weights;
+
+                bool has_int8scale = false;
+                float int8scale = 1.f;
 
                 // we will not quantize the bias values
-                if (j == 0 && quantize_level != 0)
+                if (j == 0)
                 {
-                    if (quantize_level == 256)
+                    if (int8scale_table_path)
                     {
-                    quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
+                        char key[256];
+                        sprintf(key, "%s_param_%d", layer.name().c_str(), j);
+                        if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
+                        {
+                            has_int8scale = true;
+                            int8scale = weight_int8scale_table[std::string(key)];
+                        }
+                    }
+
+                    if (has_int8scale)
+                    {
+                        fprintf(pp, " 8=%.8e", int8scale);
+
+                        if (quantize_level == 0)
+                        {
+                            quantize_tag = 0x0002C056;
+                        }
+                        else if (quantize_level == 256)
+                        {
+                            quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), int8scale, int8_weights);
+                        }
+                    }
+                    else if (quantize_level == 256)
+                    {
+                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
                     }
                     else if (quantize_level == 65536)
                     {
-                    quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
+                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
                     }
-                }
 
-                // write quantize tag first
-                if (j == 0)
+                    // write quantize tag first
                     fwrite(&quantize_tag, sizeof(int), 1, bp);
 
-                if (quantize_tag)
-				{
-                    int p0 = ftell(bp);
-                    if (quantize_level == 256)
+                    if (quantize_tag)
                     {
-                    // write quantize table and index
-                    fwrite(quantize_table.data(), sizeof(float), quantize_table.size(), bp);
-                    fwrite(quantize_index.data(), sizeof(unsigned char), quantize_index.size(), bp);
+                        int p0 = ftell(bp);
+                        if (has_int8scale)
+                        {
+                            if (quantize_level == 0)
+                            {
+                                // write original data and int8scale
+                                fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
+                            }
+                            else if (quantize_level == 256)
+                            {
+                                fwrite(int8_weights.data(), sizeof(signed char), int8_weights.size(), bp);
+                            }
+                        }
+                        else if (quantize_level == 256)
+                        {
+                            // write quantize table and index
+                            fwrite(quantize_table.data(), sizeof(float), quantize_table.size(), bp);
+                            fwrite(quantize_index.data(), sizeof(unsigned char), quantize_index.size(), bp);
+                        }
+                        else if (quantize_level == 65536)
+                        {
+                            fwrite(float16_weights.data(), sizeof(unsigned short), float16_weights.size(), bp);
+                        }
+
+                        // padding to 32bit align
+                        int nwrite = ftell(bp) - p0;
+                        int nalign = alignSize(nwrite, 4);
+                        unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
+                        fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                     }
-                    else if (quantize_level == 65536)
+                    else
                     {
-                    fwrite(float16_weights.data(), sizeof(unsigned short), float16_weights.size(), bp);
+                        // write original data
+                        fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
                     }
-                    // padding to 32bit align
-                    int nwrite = ftell(bp) - p0;
-                    int nalign = alignSize(nwrite, 4);
-                    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
-                    fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                 }
                 else
-				{
+                {
                     // write original data
                     fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
                 }
@@ -1377,6 +1556,12 @@ int main(int argc, char** argv)
             }
         }
 
+    }
+
+    // concat blob_int8scale_table
+    for (std::map<std::string, float>::const_iterator it = blob_int8scale_table.begin(); it != blob_int8scale_table.end(); it++)
+    {
+        fprintf(pp, "%-16s 0=%.8e\n", it->first.c_str(), it->second);
     }
 
     fclose(pp);
