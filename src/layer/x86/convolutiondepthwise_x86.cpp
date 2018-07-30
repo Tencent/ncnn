@@ -24,18 +24,14 @@ namespace ncnn {
 
 #include "convolutiondepthwise_3x3.h"
 
+#include "convolutiondepthwise_3x3_int8.h"
+
 DEFINE_LAYER_CREATOR(ConvolutionDepthWise_x86)
 
 int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // convolv with NxN kernel
     // value = value + bias
-
-    if (use_int8_inference)
-    {
-        // TODO
-        return ConvolutionDepthWise::forward(bottom_blob, top_blob, opt);
-    }
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -88,17 +84,76 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     // depth-wise
     if (channels == group && group == num_output)
     {
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
+        if (use_int8_inference)
         {
-            if (stride_w == 1 && stride_h == 1)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
             {
-                convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-                return 0;
+                if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
+                {
+                    Mat bottom_blob_bordered_int8;
+                    bottom_blob_bordered_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
+                    if (bottom_blob_bordered_int8.empty())
+                        return -100;
+
+                    float bottom_scale = opt.int8_scales[0];
+//                     fprintf(stderr, "bottom_scale = %f\n", bottom_scale);
+
+                    // quantize, scale and round to nearest
+                    {
+                        ncnn::ParamDict pd;
+                        pd.set(0, bottom_scale);// scale
+
+                        quantize->load_param(pd);
+
+                        quantize->forward(bottom_blob_bordered, bottom_blob_bordered_int8, opt);
+                    }
+
+                    if (stride_w == 1 && stride_h == 1)
+                    {
+                        convdw3x3s1_int8_sse(bottom_blob_bordered_int8, top_blob, weight_data, opt);
+                    }
+                    else if (stride_w == 2 && stride_h == 2)
+                    {
+                        convdw3x3s2_int8_sse(bottom_blob_bordered_int8, top_blob, weight_data, opt);
+                    }
+
+                    // dequantize, reverse scale inplace
+                    {
+                        float top_rescale = 1.f / (bottom_scale * weight_data_int8_scale);
+
+                        ncnn::ParamDict pd;
+                        pd.set(0, top_rescale);// scale
+                        pd.set(1, bias_term);// bias_term
+                        pd.set(2, num_output);// bias_data_size
+
+                        dequantize->load_param(pd);
+
+                        ncnn::Mat weights[1];
+                        weights[0] = bias_data;
+
+                        dequantize->load_model(ModelBinFromMatArray(weights));
+
+                        dequantize->forward_inplace(top_blob, opt);
+                    }
+
+                    return 0;
+                }
             }
-            else if (stride_w == 2 && stride_h == 2)
+        }
+        else
+        {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
             {
-                convdw3x3s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-                return 0;
+                if (stride_w == 1 && stride_h == 1)
+                {
+                    convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+                    return 0;
+                }
+                else if (stride_w == 2 && stride_h == 2)
+                {
+                    convdw3x3s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+                    return 0;
+                }
             }
         }
 
@@ -112,7 +167,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         {
             Mat bottom_blob_bordered_g(w, h, 1, bottom_blob_bordered.channel(g));
             Mat top_blob_g(outw, outh, 1, top_blob.channel(g));
-            Mat weight_data_g(maxk, (void*)((const float*)weight_data + maxk * g));
+            Mat weight_data_g(maxk, (void*)((const unsigned char*)weight_data + maxk * g * weight_data.elemsize), weight_data.elemsize);
             Mat bias_data_g;
             if (bias_term)
                 bias_data_g = Mat(1, (void*)((const float*)bias_data + g));
@@ -133,6 +188,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             pd.set(14, 0);// pad_h
             pd.set(5, bias_term);
             pd.set(6, maxk);// weight_data_size
+            pd.set(8, weight_data_int8_scale);
 
             op->load_param(pd);
 
@@ -162,7 +218,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     {
         Mat bottom_blob_bordered_g(w, h, channels_g, bottom_blob_bordered.channel(channels_g * g));
         Mat top_blob_g(outw, outh, num_output_g, top_blob.channel(num_output_g * g));
-        Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const float*)weight_data + maxk * channels_g * num_output_g * g));
+        Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const unsigned char*)weight_data + maxk * channels_g * num_output_g * g * weight_data.elemsize), weight_data.elemsize);
         Mat bias_data_g;
         if (bias_term)
             bias_data_g = Mat(num_output_g, (void*)((const float*)bias_data + num_output_g * g));
@@ -183,6 +239,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         pd.set(14, 0);// pad_h
         pd.set(5, bias_term);
         pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
+        pd.set(8, weight_data_int8_scale);
 
         op->load_param(pd);
 
