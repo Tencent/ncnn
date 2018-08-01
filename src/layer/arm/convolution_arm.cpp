@@ -38,12 +38,7 @@ int Convolution_arm::load_param(const ParamDict& pd)
     use_winograd3x3 = false;
     use_sgemm1x1 = false;
 
-    if (use_int8_inference)
-    {
-        return 0;
-    }
-
-    if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    if (pd.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int num_input = weight_data_size / 9 / num_output;
         // winograd is slow on small channel count
@@ -52,7 +47,7 @@ int Convolution_arm::load_param(const ParamDict& pd)
     }
 
     // TODO assume more proper condition
-    if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    if (pd.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int num_input = weight_data_size / num_output;
         if (num_input >= 64 && num_output >= 64)
