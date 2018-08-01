@@ -193,7 +193,7 @@ int YoloDetectionOutput::forward_inplace(Mat& bottom_top_blob, const Option& opt
         const float* box_score_ptr = bottom_top_blob.channel(p+4);
 
         // softmax class scores
-        Mat scores(w, h, num_class, (void*)((const float*)bottom_top_blob.channel(p+5)));
+        Mat scores(w, h, num_class, (void*)((const float*)bottom_top_blob.channel(p+5)), bottom_top_blob.elemsize, bottom_top_blob.allocator);
         softmax->forward_inplace(scores, opt);
 
         for (int i = 0; i < h; i++)
