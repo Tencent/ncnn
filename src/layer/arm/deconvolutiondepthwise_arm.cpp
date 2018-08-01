@@ -75,7 +75,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
         for (int g=0; g<group; g++)
         {
             Mat bottom_blob_g(w, h, 1, bottom_blob.channel(g).data);
-            Mat top_blob_bordered_g(outw, outh, 1, top_blob_bordered.channel(g));
+            Mat top_blob_bordered_g(outw, outh, 1, top_blob_bordered.channel(g), top_blob.elemsize, top_blob.allocator);
             Mat weight_data_g(maxk, (void*)((const float*)weight_data + maxk * g));
 
             Mat bias_data_g;
@@ -126,7 +126,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
         for (int g=0; g<group; g++)
         {
             Mat bottom_blob_g(w, h, channels_g, bottom_blob.channel(channels_g * g).data);
-            Mat top_blob_bordered_g(outw, outh, num_output_g, top_blob_bordered.channel(num_output_g * g));
+            Mat top_blob_bordered_g(outw, outh, num_output_g, top_blob_bordered.channel(num_output_g * g), top_blob.elemsize, top_blob.allocator);
             Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const float*)weight_data + maxk * channels_g * num_output_g * g));
             Mat bias_data_g;
             if (bias_term)

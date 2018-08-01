@@ -40,11 +40,11 @@ public:
     // copy
     Mat(const Mat& m);
     // external vec
-    Mat(int w, void* data, size_t elemsize = 4u);
+    Mat(int w, void* data, size_t elemsize = 4u, Allocator* allocator = 0);
     // external image
-    Mat(int w, int h, void* data, size_t elemsize = 4u);
+    Mat(int w, int h, void* data, size_t elemsize = 4u, Allocator* allocator = 0);
     // external dim
-    Mat(int w, int h, int c, void* data, size_t elemsize = 4u);
+    Mat(int w, int h, int c, void* data, size_t elemsize = 4u, Allocator* allocator = 0);
     // release
     ~Mat();
     // assign
@@ -213,8 +213,8 @@ inline Mat::Mat(const Mat& m)
     cstep = m.cstep;
 }
 
-inline Mat::Mat(int _w, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), allocator(0), dims(1)
+inline Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), allocator(_allocator), dims(1)
 {
     w = _w;
     h = 1;
@@ -223,8 +223,8 @@ inline Mat::Mat(int _w, void* _data, size_t _elemsize)
     cstep = w;
 }
 
-inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), allocator(0), dims(2)
+inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), allocator(_allocator), dims(2)
 {
     w = _w;
     h = _h;
@@ -233,8 +233,8 @@ inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
     cstep = w * h;
 }
 
-inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), allocator(0), dims(3)
+inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), allocator(_allocator), dims(3)
 {
     w = _w;
     h = _h;
@@ -596,12 +596,12 @@ inline size_t Mat::total() const
 
 inline Mat Mat::channel(int c)
 {
-    return Mat(w, h, (unsigned char*)data + cstep * c * elemsize, elemsize);
+    return Mat(w, h, (unsigned char*)data + cstep * c * elemsize, elemsize, allocator);
 }
 
 inline const Mat Mat::channel(int c) const
 {
-    return Mat(w, h, (unsigned char*)data + cstep * c * elemsize, elemsize);
+    return Mat(w, h, (unsigned char*)data + cstep * c * elemsize, elemsize, allocator);
 }
 
 inline float* Mat::row(int y)
