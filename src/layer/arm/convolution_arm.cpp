@@ -23,6 +23,10 @@ namespace ncnn {
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
 
+#if !__aarch64__
+#include "convolution_1x1_int8.h"
+#endif // !__aarch64__
+
 DEFINE_LAYER_CREATOR(Convolution_arm)
 
 int Convolution_arm::load_param(const ParamDict& pd)
@@ -33,6 +37,11 @@ int Convolution_arm::load_param(const ParamDict& pd)
 
     use_winograd3x3 = false;
     use_sgemm1x1 = false;
+
+    if (use_int8_inference)
+    {
+        return 0;
+    }
 
     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
@@ -58,6 +67,11 @@ int Convolution_arm::load_model(const ModelBin& mb)
     int ret = Convolution::load_model(mb);
     if (ret != 0)
         return ret;
+
+    if (use_int8_inference)
+    {
+        return 0;
+    }
 
     if (use_winograd3x3)
     {
@@ -194,12 +208,6 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     // convolv with NxN kernel
     // value = value + bias
 
-    if (use_int8_inference)
-    {
-        // TODO
-        return Convolution::forward(bottom_blob, top_blob, opt);
-    }
-
     if (bottom_blob.dims != 3)
     {
         return Convolution::forward(bottom_blob, top_blob, opt);
@@ -217,6 +225,19 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         return Convolution::forward(bottom_blob, top_blob, opt);
     }
+
+#if __aarch64__
+    if (use_int8_inference)
+    {
+        // TODO
+        return Convolution::forward(bottom_blob, top_blob, opt);
+    }
+#else
+    if (use_int8_inference && (kernel_size != 1 || stride != 1))
+    {
+        return Convolution::forward(bottom_blob, top_blob, opt);
+    }
+#endif
 
     typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&, const Option&);
 
@@ -267,15 +288,23 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }  // kernel_size = 7
     };
 
-    conv_func conv = conv_func_table[kernel_size-1][stride-1];
-    if (!conv)
-    {
-        return Convolution::forward(bottom_blob, top_blob, opt);
-    }
+    conv_func conv = 0;
 
-    if (dilation_w != 1)
+    if (use_int8_inference)
     {
-        return forwardDilation(bottom_blob, top_blob, conv, opt);
+    }
+    else
+    {
+        conv = conv_func_table[kernel_size-1][stride-1];
+        if (!conv)
+        {
+            return Convolution::forward(bottom_blob, top_blob, opt);
+        }
+
+        if (dilation_w != 1)
+        {
+            return forwardDilation(bottom_blob, top_blob, conv, opt);
+        }
     }
 
     int w = bottom_blob.w;
@@ -314,6 +343,54 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
+
+#if !__aarch64__
+    if (use_int8_inference)
+    {
+        // kernel_size = 1
+        // stride = 1
+        Mat bottom_blob_bordered_int8;
+        bottom_blob_bordered_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
+        if (bottom_blob_bordered_int8.empty())
+            return -100;
+
+        float bottom_scale = opt.int8_scales[0];
+//         fprintf(stderr, "bottom_scale = %f\n", bottom_scale);
+
+        // quantize, scale and round to nearest
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, bottom_scale);// scale
+
+            quantize->load_param(pd);
+
+            quantize->forward(bottom_blob_bordered, bottom_blob_bordered_int8, opt);
+        }
+
+        conv1x1s1_neon_s8_inter(bottom_blob_bordered_int8, top_blob, weight_data, opt);
+
+        // dequantize, reverse scale inplace
+        {
+            float top_rescale = 1.f / (bottom_scale * weight_data_int8_scale);
+
+            ncnn::ParamDict pd;
+            pd.set(0, top_rescale);// scale
+            pd.set(1, bias_term);// bias_term
+            pd.set(2, num_output);// bias_data_size
+
+            dequantize->load_param(pd);
+
+            ncnn::Mat weights[1];
+            weights[0] = bias_data;
+
+            dequantize->load_model(ModelBinFromMatArray(weights));
+
+            dequantize->forward_inplace(top_blob, opt);
+        }
+
+        return 0;
+    }
+#endif
 
     if (use_winograd3x3 && w <= 120 && h <= 120)
     {
