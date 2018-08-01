@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -27,44 +27,33 @@ struct Object
     float prob;
 };
 
-static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
+static int detect_squeezenet(const cv::Mat& bgr, std::vector<Object>& objects)
 {
-    ncnn::Net yolov2;
+    ncnn::Net squeezenet;
 
-    // original pretrained model from https://github.com/eric612/Caffe-YOLOv2-Windows
-    // yolov2_deploy.prototxt
-    // yolov2_deploy_iter_30000.caffemodel
-    // https://drive.google.com/file/d/17w7oZBbTHPI5TMuD9DKQzkPhSVDaTlC9/view?usp=sharing
-    yolov2.load_param("yolov2.param");
-    yolov2.load_model("yolov2.bin");
+    // original pretrained model from https://github.com/chuanqi305/SqueezeNet-SSD
+    // squeezenet_ssd_voc_deploy.prototxt
+    // https://drive.google.com/open?id=0B3gersZ2cHIxdGpyZlZnbEQ5Snc
+    squeezenet.load_param("squeezenet_ssd_voc.param");
+    squeezenet.load_model("squeezenet_ssd_voc.bin");
 
-    // https://github.com/eric612/MobileNet-YOLO
-    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy%20.prototxt
-    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy_iter_57000.caffemodel
-//     yolov2.load_param("mobilenet_yolo.param");
-//     yolov2.load_model("mobilenet_yolo.bin");
-
-    const int target_size = 416;
+    const int target_size = 300;
 
     int img_w = bgr.cols;
     int img_h = bgr.rows;
 
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, target_size, target_size);
 
-    // the Caffe-YOLOv2-Windows style
-    // X' = X * scale - mean
-    const float mean_vals[3] = {0.5f, 0.5f, 0.5f};
-    const float norm_vals[3] = {0.007843f, 0.007843f, 0.007843f};
-    in.substract_mean_normalize(0, norm_vals);
+    const float mean_vals[3] = {104.f, 117.f, 123.f};
     in.substract_mean_normalize(mean_vals, 0);
 
-    ncnn::Extractor ex = yolov2.create_extractor();
+    ncnn::Extractor ex = squeezenet.create_extractor();
     ex.set_num_threads(4);
 
     ex.input("data", in);
 
     ncnn::Mat out;
-    ex.extract("detection_out", out);
+    ex.extract("detection_out",out);
 
 //     printf("%d %d %d\n", out.w, out.h, out.c);
     objects.clear();
@@ -149,7 +138,7 @@ int main(int argc, char** argv)
     }
 
     std::vector<Object> objects;
-    detect_yolov2(m, objects);
+    detect_squeezenet(m, objects);
 
     draw_objects(m, objects);
 

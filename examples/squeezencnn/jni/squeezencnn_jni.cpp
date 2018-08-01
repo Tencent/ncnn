@@ -135,7 +135,6 @@ JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv
         in.substract_mean_normalize(mean_vals, 0);
 
         ncnn::Extractor ex = squeezenet.create_extractor();
-        ex.set_light_mode(true);
         ex.set_num_threads(4);
 
         ex.input(squeezenet_v1_1_param_id::BLOB_data, in);

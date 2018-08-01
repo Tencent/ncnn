@@ -20,6 +20,9 @@
 
 #include "net.h"
 
+class Noop : public ncnn::Layer {};
+DEFINE_LAYER_CREATOR(Noop)
+
 struct Object
 {
     cv::Rect_<float> rect;
@@ -27,44 +30,36 @@ struct Object
     float prob;
 };
 
-static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
+static int detect_mobilenetv2(const cv::Mat& bgr, std::vector<Object>& objects)
 {
-    ncnn::Net yolov2;
+    ncnn::Net mobilenetv2;
 
-    // original pretrained model from https://github.com/eric612/Caffe-YOLOv2-Windows
-    // yolov2_deploy.prototxt
-    // yolov2_deploy_iter_30000.caffemodel
-    // https://drive.google.com/file/d/17w7oZBbTHPI5TMuD9DKQzkPhSVDaTlC9/view?usp=sharing
-    yolov2.load_param("yolov2.param");
-    yolov2.load_model("yolov2.bin");
+    mobilenetv2.register_custom_layer("Silence", Noop_layer_creator);
 
-    // https://github.com/eric612/MobileNet-YOLO
-    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy%20.prototxt
-    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy_iter_57000.caffemodel
-//     yolov2.load_param("mobilenet_yolo.param");
-//     yolov2.load_model("mobilenet_yolo.bin");
+    // original pretrained model from https://github.com/chuanqi305/MobileNetv2-SSDLite
+    // https://github.com/chuanqi305/MobileNetv2-SSDLite/blob/master/ssdlite/voc/deploy.prototxt
+    mobilenetv2.load_param("mobilenetv2_ssdlite_voc.param");
+    mobilenetv2.load_model("mobilenetv2_ssdlite_voc.bin");
 
-    const int target_size = 416;
+    const int target_size = 300;
 
     int img_w = bgr.cols;
     int img_h = bgr.rows;
 
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, target_size, target_size);
 
-    // the Caffe-YOLOv2-Windows style
-    // X' = X * scale - mean
-    const float mean_vals[3] = {0.5f, 0.5f, 0.5f};
-    const float norm_vals[3] = {0.007843f, 0.007843f, 0.007843f};
-    in.substract_mean_normalize(0, norm_vals);
-    in.substract_mean_normalize(mean_vals, 0);
+    const float mean_vals[3] = {127.5f, 127.5f, 127.5f};
+    const float norm_vals[3] = {1.0/127.5,1.0/127.5,1.0/127.5};
+    in.substract_mean_normalize(mean_vals, norm_vals);
 
-    ncnn::Extractor ex = yolov2.create_extractor();
+    ncnn::Extractor ex = mobilenetv2.create_extractor();
+    ex.set_light_mode(true);
     ex.set_num_threads(4);
 
     ex.input("data", in);
 
     ncnn::Mat out;
-    ex.extract("detection_out", out);
+    ex.extract("detection_out",out);
 
 //     printf("%d %d %d\n", out.w, out.h, out.c);
     objects.clear();
@@ -149,7 +144,7 @@ int main(int argc, char** argv)
     }
 
     std::vector<Object> objects;
-    detect_yolov2(m, objects);
+    detect_mobilenetv2(m, objects);
 
     draw_objects(m, objects);
 

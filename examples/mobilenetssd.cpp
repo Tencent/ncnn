@@ -27,15 +27,14 @@ struct Object
     float prob;
 };
 
-static int detect_squeezenet(const cv::Mat& bgr, std::vector<Object>& objects)
+static int detect_mobilenet(const cv::Mat& bgr, std::vector<Object>& objects)
 {
-    ncnn::Net squeezenet;
+    ncnn::Net mobilenet;
 
-    // original pretrained model from https://github.com/chuanqi305/SqueezeNet-SSD
-    // squeezenet_ssd_voc_deploy.prototxt
-    // https://drive.google.com/open?id=0B3gersZ2cHIxdGpyZlZnbEQ5Snc
-    squeezenet.load_param("squeezenet_ssd_voc.param");
-    squeezenet.load_model("squeezenet_ssd_voc.bin");
+    // model is converted from https://github.com/chuanqi305/MobileNet-SSD
+    // and can be downloaded from https://drive.google.com/open?id=0ByaKLD9QaPtucWk0Y0dha1VVY0U
+    mobilenet.load_param("mobilenet_ssd_voc_ncnn.param");
+    mobilenet.load_model("mobilenet_ssd_voc_ncnn.bin");
 
     const int target_size = 300;
 
@@ -44,12 +43,12 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<Object>& objects)
 
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, target_size, target_size);
 
-    const float mean_vals[3] = {104.f, 117.f, 123.f};
-    in.substract_mean_normalize(mean_vals, 0);
+    const float mean_vals[3] = {127.5f, 127.5f, 127.5f};
+    const float norm_vals[3] = {1.0/127.5,1.0/127.5,1.0/127.5};
+    in.substract_mean_normalize(mean_vals, norm_vals);
 
-    ncnn::Extractor ex = squeezenet.create_extractor();
-    ex.set_light_mode(true);
-    ex.set_num_threads(4);
+    ncnn::Extractor ex = mobilenet.create_extractor();
+//     ex.set_num_threads(4);
 
     ex.input("data", in);
 
@@ -123,6 +122,12 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
 int main(int argc, char** argv)
 {
+    if (argc != 2)
+    {
+        fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
+        return -1;
+    }
+
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);
@@ -133,7 +138,7 @@ int main(int argc, char** argv)
     }
 
     std::vector<Object> objects;
-    detect_squeezenet(m, objects);
+    detect_mobilenet(m, objects);
 
     draw_objects(m, objects);
 
