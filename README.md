@@ -72,7 +72,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 https://github.com/Tencent/ncnn/tree/master/examples/squeezencnn
 
-### 技术交流QQ群：637093648  答案：卷卷卷卷卷
+### 技术交流QQ群：637093648(已满qaq) 853969140  答案：卷卷卷卷卷
 
 ---
 
