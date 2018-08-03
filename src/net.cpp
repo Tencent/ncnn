@@ -847,8 +847,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
     {
         // load bottom blobs
         std::vector<Mat> bottom_blobs;
+        std::vector<float> int8_scales;
         bottom_blobs.resize(layer->bottoms.size());
-        opt.int8_scales.resize(layer->bottoms.size());
+        int8_scales.resize(layer->bottoms.size());
         for (size_t i=0; i<layer->bottoms.size(); i++)
         {
             int bottom_blob_index = layer->bottoms[i];
@@ -862,7 +863,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
 
             bottom_blobs[i] = blob_mats[bottom_blob_index];
 
-            opt.int8_scales[i] = blobs[bottom_blob_index].int8_scale;
+            int8_scales[i] = blobs[bottom_blob_index].int8_scale;
 
             if (opt.lightmode)
             {
@@ -875,6 +876,8 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
                 }
             }
         }
+
+        opt.int8_scales = int8_scales;
 
         // forward
         if (opt.lightmode && layer->support_inplace)
