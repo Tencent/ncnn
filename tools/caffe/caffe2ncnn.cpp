@@ -335,7 +335,14 @@ int main(int argc, char** argv)
     FILE* bp = fopen(ncnn_modelbin, "wb");
 
     // magic
-    fprintf(pp, "7767517\n");
+    if (int8scale_table_path)
+    {
+        fprintf(pp, "7767518\n");
+    }
+    else
+    {
+        fprintf(pp, "7767517\n");
+    }
 
     // rename mapping for identical bottom top style
     std::map<std::string, std::string> blob_name_decorated;

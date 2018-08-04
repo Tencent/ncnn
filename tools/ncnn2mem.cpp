@@ -102,9 +102,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     layer_names.resize(layer_count);
     blob_names.resize(blob_count);
 
-    int layer_index = 0;
     int blob_index = 0;
-    while (!feof(fp))
+    for (int i=0; i<layer_count; i++)
     {
         int nscan = 0;
 
@@ -126,7 +125,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         fwrite(&bottom_count, sizeof(int), 1, mp);
         fwrite(&top_count, sizeof(int), 1, mp);
 
-        fprintf(ip, "const int LAYER_%s = %d;\n", layer_name, layer_index);
+        fprintf(ip, "const int LAYER_%s = %d;\n", layer_name, i);
 
 //         layer->bottoms.resize(bottom_count);
         for (int i=0; i<bottom_count; i++)
@@ -227,9 +226,92 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         int EOP = -233;
         fwrite(&EOP, sizeof(int), 1, mp);
 
-        layer_names[layer_index] = std::string(layer_name);
+        layer_names[i] = std::string(layer_name);
+    }
 
-        layer_index++;
+    if (magic == 7767518)
+    {
+        while (!feof(fp))
+        {
+            int nscan = 0;
+
+            char blob_name[257];
+            nscan = fscanf(fp, "%256s", blob_name);
+            if (nscan != 1)
+            {
+                continue;
+            }
+
+            sanitize_name(blob_name);
+
+            int blob_index = find_blob_index_by_name(blob_name);
+
+            fwrite(&blob_index, sizeof(int), 1, mp);
+
+            // dump blob specific params
+            // parse each key=value pair
+            int id = 0;
+            while (fscanf(fp, "%d=", &id) == 1)
+            {
+                fwrite(&id, sizeof(int), 1, mp);
+
+                bool is_array = id <= -23300;
+
+                if (is_array)
+                {
+                    int len = 0;
+                    fscanf(fp, "%d", &len);
+                    fwrite(&len, sizeof(int), 1, mp);
+
+                    for (int j = 0; j < len; j++)
+                    {
+                        char vstr[16];
+                        fscanf(fp, ",%15[^,\n ]", vstr);
+
+                        bool is_float = vstr_is_float(vstr);
+
+                        if (is_float)
+                        {
+                            float vf;
+                            sscanf(vstr, "%f", &vf);
+                            fwrite(&vf, sizeof(float), 1, mp);
+                        }
+                        else
+                        {
+                            int v;
+                            sscanf(vstr, "%d", &v);
+                            fwrite(&v, sizeof(int), 1, mp);
+                        }
+                    }
+                }
+                else
+                {
+                    char vstr[16];
+                    fscanf(fp, "%15s", vstr);
+
+                    bool is_float = vstr_is_float(vstr);
+
+                    if (is_float)
+                    {
+                        float vf;
+                        sscanf(vstr, "%f", &vf);
+                        fwrite(&vf, sizeof(float), 1, mp);
+                    }
+                    else
+                    {
+                        int v;
+                        sscanf(vstr, "%d", &v);
+                        fwrite(&v, sizeof(int), 1, mp);
+                    }
+                }
+            }
+
+            int EOP = -233;
+            fwrite(&EOP, sizeof(int), 1, mp);
+        }
+
+        int EOP = -233;
+        fwrite(&EOP, sizeof(int), 1, mp);
     }
 
     fprintf(ip, "} // namespace %s_id\n", param_var.c_str());
