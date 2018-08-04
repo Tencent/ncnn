@@ -103,7 +103,7 @@ int Net::load_param(FILE* fp)
 {
     int magic = 0;
     fscanf(fp, "%d", &magic);
-    if (magic != 7767517)
+    if (magic != 7767517 || magic != 7767518)
     {
         fprintf(stderr, "param is too old, please regenerate\n");
         return -1;
@@ -224,6 +224,9 @@ int Net::load_param(FILE* fp)
         layers[i] = layer;
     }
 
+    if (magic == 7767517)
+        return 0;
+
     while (!feof(fp))
     {
         int nscan = 0;
@@ -302,7 +305,7 @@ int Net::load_param_bin(FILE* fp)
 {
     int magic = 0;
     fread(&magic, sizeof(int), 1, fp);
-    if (magic != 7767517)
+    if (magic != 7767517 || magic != 7767518)
     {
         fprintf(stderr, "param is too old, please regenerate\n");
         return -1;
@@ -396,6 +399,9 @@ int Net::load_param_bin(FILE* fp)
 
         layers[i] = layer;
     }
+
+    if (magic == 7767517)
+        return 0;
 
     int blob_index;
     fread(&blob_index, sizeof(int), 1, fp);
@@ -517,7 +523,7 @@ int Net::load_param(const unsigned char* _mem)
     int magic = *(int*)(mem);
     mem += 4;
 
-    if (magic != 7767517)
+    if (magic != 7767517 || magic != 7767518)
     {
         fprintf(stderr, "param is too old, please regenerate\n");
         return 0;
@@ -611,6 +617,9 @@ int Net::load_param(const unsigned char* _mem)
 
         layers[i] = layer;
     }
+
+    if (magic == 7767517)
+        return mem - _mem;
 
     int blob_index = *(int*)mem;
     mem += 4;
