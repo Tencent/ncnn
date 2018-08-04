@@ -38,6 +38,7 @@ public:
 
     int weight_data_size;
     float weight_data_int8_scale;
+    float bottom_blob_int8_scale;
 
     // model
     Mat weight_data;

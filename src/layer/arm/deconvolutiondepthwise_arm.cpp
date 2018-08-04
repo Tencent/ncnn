@@ -66,11 +66,6 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
     // depth-wise
     if (channels == group && group == num_output)
     {
-#ifdef _OPENMP
-        int nested_current = omp_get_nested();
-        omp_set_nested(0);
-#endif
-
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
@@ -108,15 +103,15 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
             op->load_model(ModelBinFromMatArray(weights));
 
+            ncnn::Option opt_g = opt;
+            opt_g.num_threads = 1;
+            opt_g.blob_allocator = top_blob_bordered.allocator;
+
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt);
+            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
 
             delete op;
         }
-
-#ifdef _OPENMP
-        omp_set_nested(nested_current);
-#endif
     }
     else
     {
@@ -158,8 +153,11 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
             op->load_model(ModelBinFromMatArray(weights));
 
+            ncnn::Option opt_g = opt;
+            opt_g.blob_allocator = top_blob_bordered.allocator;
+
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt);
+            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
 
             delete op;
         }

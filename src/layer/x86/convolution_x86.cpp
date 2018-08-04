@@ -315,13 +315,10 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         if (bottom_blob_bordered_int8.empty())
             return -100;
 
-        float bottom_scale = opt.int8_scales[0];
-//         fprintf(stderr, "bottom_scale = %f\n", bottom_scale);
-
         // quantize, scale and round to nearest
         {
             ncnn::ParamDict pd;
-            pd.set(0, bottom_scale);// scale
+            pd.set(0, bottom_blob_int8_scale);// scale
 
             quantize->load_param(pd);
 
@@ -332,7 +329,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         // dequantize, reverse scale inplace
         {
-            float top_rescale = 1.f / (bottom_scale * weight_data_int8_scale);
+            float top_rescale = 1.f / (bottom_blob_int8_scale * weight_data_int8_scale);
 
             ncnn::ParamDict pd;
             pd.set(0, top_rescale);// scale

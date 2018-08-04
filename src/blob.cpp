@@ -19,7 +19,6 @@ namespace ncnn {
 Blob::Blob()
 {
     producer = -1;
-    int8_scale = 0.f;
 }
 
 } // namespace ncnn

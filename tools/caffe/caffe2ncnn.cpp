@@ -335,14 +335,7 @@ int main(int argc, char** argv)
     FILE* bp = fopen(ncnn_modelbin, "wb");
 
     // magic
-    if (int8scale_table_path)
-    {
-        fprintf(pp, "7767518\n");
-    }
-    else
-    {
-        fprintf(pp, "7767517\n");
-    }
+    fprintf(pp, "7767517\n");
 
     // rename mapping for identical bottom top style
     std::map<std::string, std::string> blob_name_decorated;
@@ -616,13 +609,55 @@ int main(int argc, char** argv)
             fprintf(pp, " 5=%d", convolution_param.bias_term());
             fprintf(pp, " 6=%d", weight_blob.data_size());
 
+            int num_group = 1;
             if (layer.type() == "ConvolutionDepthwise")
             {
-                fprintf(pp, " 7=%d", convolution_param.num_output());
+                num_group = convolution_param.num_output();
             }
-            else if (convolution_param.group() != 1)
+            else
             {
-                fprintf(pp, " 7=%d", convolution_param.group());
+                num_group = convolution_param.group();
+            }
+
+            if (num_group != 1)
+            {
+                fprintf(pp, " 7=%d", num_group);
+            }
+
+            bool has_int8scale = false;
+            float weight_int8scale = 0.f;
+            float blob_int8scale = 0.f;
+
+            if (int8scale_table_path)
+            {
+                char key[256];
+                sprintf(key, "%s_param_0", layer.name().c_str());
+                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
+                {
+                    weight_int8scale = weight_int8scale_table[std::string(key)];
+                }
+
+                std::string bottom_blob_name = layer.bottom(0);
+                if (blob_int8scale_table.find(bottom_blob_name) != blob_int8scale_table.end())
+                {
+                    blob_int8scale = blob_int8scale_table[bottom_blob_name];
+                }
+
+                has_int8scale = weight_int8scale != 0.f && blob_int8scale != 0.f;
+            }
+
+            if (has_int8scale)
+            {
+                if (num_group != 1)
+                {
+                    fprintf(pp, " -23308=1,%.8e", weight_int8scale);
+                    fprintf(pp, " -23309=1,%.8e", blob_int8scale);
+                }
+                else
+                {
+                    fprintf(pp, " 8=%.8e", weight_int8scale);
+                    fprintf(pp, " 9=%.8e", blob_int8scale);
+                }
             }
 
             for (int j = 0; j < binlayer.blobs_size(); j++)
@@ -636,34 +671,18 @@ int main(int argc, char** argv)
                 std::vector<unsigned short> float16_weights;
                 std::vector<signed char> int8_weights;
 
-                bool has_int8scale = false;
-                float int8scale = 1.f;
-
                 // we will not quantize the bias values
                 if (j == 0)
                 {
-                    if (int8scale_table_path)
-                    {
-                        char key[256];
-                        sprintf(key, "%s_param_%d", layer.name().c_str(), j);
-                        if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
-                        {
-                            has_int8scale = true;
-                            int8scale = weight_int8scale_table[std::string(key)];
-                        }
-                    }
-
                     if (has_int8scale)
                     {
-                        fprintf(pp, " 8=%.8e", int8scale);
-
                         if (quantize_level == 0)
                         {
                             quantize_tag = 0x0002C056;
                         }
                         else if (quantize_level == 256)
                         {
-                            quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), int8scale, int8_weights);
+                            quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), weight_int8scale, int8_weights);
                         }
                     }
                     else if (quantize_level == 256)
@@ -931,6 +950,34 @@ int main(int argc, char** argv)
             fprintf(pp, " 1=%d", inner_product_param.bias_term());
             fprintf(pp, " 2=%d", weight_blob.data_size());
 
+            bool has_int8scale = false;
+            float weight_int8scale = 0.f;
+            float blob_int8scale = 0.f;
+
+            if (int8scale_table_path)
+            {
+                char key[256];
+                sprintf(key, "%s_param_0", layer.name().c_str());
+                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
+                {
+                    weight_int8scale = weight_int8scale_table[std::string(key)];
+                }
+
+                std::string bottom_blob_name = layer.bottom(0);
+                if (blob_int8scale_table.find(bottom_blob_name) != blob_int8scale_table.end())
+                {
+                    blob_int8scale = blob_int8scale_table[bottom_blob_name];
+                }
+
+                has_int8scale = weight_int8scale != 0.f && blob_int8scale != 0.f;
+
+                if (has_int8scale)
+                {
+                    fprintf(pp, " 8=%.8e", weight_int8scale);
+                    fprintf(pp, " 9=%.8e", blob_int8scale);
+                }
+            }
+
             for (int j=0; j<binlayer.blobs_size(); j++)
             {
                 int quantize_tag = 0;
@@ -942,34 +989,18 @@ int main(int argc, char** argv)
                 std::vector<unsigned short> float16_weights;
                 std::vector<signed char> int8_weights;
 
-                bool has_int8scale = false;
-                float int8scale = 1.f;
-
                 // we will not quantize the bias values
                 if (j == 0)
                 {
-                    if (int8scale_table_path)
-                    {
-                        char key[256];
-                        sprintf(key, "%s_param_%d", layer.name().c_str(), j);
-                        if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
-                        {
-                            has_int8scale = true;
-                            int8scale = weight_int8scale_table[std::string(key)];
-                        }
-                    }
-
                     if (has_int8scale)
                     {
-                        fprintf(pp, " 8=%.8e", int8scale);
-
                         if (quantize_level == 0)
                         {
                             quantize_tag = 0x0002C056;
                         }
                         else if (quantize_level == 256)
                         {
-                            quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), int8scale, int8_weights);
+                            quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), weight_int8scale, int8_weights);
                         }
                     }
                     else if (quantize_level == 256)
@@ -1563,12 +1594,6 @@ int main(int argc, char** argv)
             }
         }
 
-    }
-
-    // concat blob_int8scale_table
-    for (std::map<std::string, float>::const_iterator it = blob_int8scale_table.begin(); it != blob_int8scale_table.end(); it++)
-    {
-        fprintf(pp, "%-16s 0=%.8e\n", it->first.c_str(), it->second);
     }
 
     fclose(pp);

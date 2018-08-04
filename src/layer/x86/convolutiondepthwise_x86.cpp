@@ -95,17 +95,22 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                     if (bottom_blob_bordered_int8.empty())
                         return -100;
 
-                    float bottom_scale = opt.int8_scales[0];
-//                     fprintf(stderr, "bottom_scale = %f\n", bottom_scale);
-
                     // quantize, scale and round to nearest
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int g=0; g<group; g++)
                     {
                         ncnn::ParamDict pd;
-                        pd.set(0, bottom_scale);// scale
+                        pd.set(0, bottom_blob_int8_scales[g]);// scale
 
-                        quantize->load_param(pd);
+                        quantize_ops[g]->load_param(pd);
 
-                        quantize->forward(bottom_blob_bordered, bottom_blob_bordered_int8, opt);
+                        ncnn::Option opt_g = opt;
+                        opt_g.num_threads = 1;
+                        opt_g.blob_allocator = bottom_blob_bordered_int8.allocator;
+
+                        const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel(g);
+                        Mat bottom_blob_bordered_int8_g = bottom_blob_bordered_int8.channel(g);
+                        quantize_ops[g]->forward(bottom_blob_bordered_g, bottom_blob_bordered_int8_g, opt_g);
                     }
 
                     if (stride_w == 1 && stride_h == 1)
@@ -118,22 +123,29 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                     }
 
                     // dequantize, reverse scale inplace
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int g=0; g<group; g++)
                     {
-                        float top_rescale = 1.f / (bottom_scale * weight_data_int8_scale);
+                        float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
 
                         ncnn::ParamDict pd;
                         pd.set(0, top_rescale);// scale
                         pd.set(1, bias_term);// bias_term
-                        pd.set(2, num_output);// bias_data_size
+                        pd.set(2, 1);// bias_data_size
 
-                        dequantize->load_param(pd);
+                        dequantize_ops[g]->load_param(pd);
 
                         ncnn::Mat weights[1];
-                        weights[0] = bias_data;
+                        weights[0] = Mat(1, (void*)((const float*)bias_data + g));
 
-                        dequantize->load_model(ModelBinFromMatArray(weights));
+                        dequantize_ops[g]->load_model(ModelBinFromMatArray(weights));
 
-                        dequantize->forward_inplace(top_blob, opt);
+                        ncnn::Option opt_g = opt;
+                        opt_g.num_threads = 1;
+                        opt_g.blob_allocator = top_blob.allocator;
+
+                        Mat top_blob_g = top_blob.channel(g);
+                        dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
                     }
 
                     return 0;
@@ -156,11 +168,6 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-
-#ifdef _OPENMP
-        int nested_current = omp_get_nested();
-        omp_set_nested(0);
-#endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
@@ -188,7 +195,8 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             pd.set(14, 0);// pad_h
             pd.set(5, bias_term);
             pd.set(6, maxk);// weight_data_size
-            pd.set(8, weight_data_int8_scale);
+            pd.set(8, weight_data_int8_scales[g]);
+            pd.set(9, bottom_blob_int8_scales[g]);
 
             op->load_param(pd);
 
@@ -199,15 +207,16 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
             op->load_model(ModelBinFromMatArray(weights));
 
+            ncnn::Option opt_g = opt;
+            opt_g.num_threads = 1;
+            opt_g.blob_allocator = top_blob.allocator;
+
             // forward
-            op->forward(bottom_blob_bordered_g, top_blob_g, opt);
+            op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
 
             delete op;
         }
 
-#ifdef _OPENMP
-        omp_set_nested(nested_current);
-#endif
         return 0;
     }
 
@@ -239,7 +248,8 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         pd.set(14, 0);// pad_h
         pd.set(5, bias_term);
         pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
-        pd.set(8, weight_data_int8_scale);
+        pd.set(8, weight_data_int8_scales[g]);
+        pd.set(9, bottom_blob_int8_scales[g]);
 
         op->load_param(pd);
 
@@ -250,8 +260,11 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         op->load_model(ModelBinFromMatArray(weights));
 
+        ncnn::Option opt_g = opt;
+        opt_g.blob_allocator = top_blob.allocator;
+
         // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, opt);
+        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
 
         delete op;
     }
