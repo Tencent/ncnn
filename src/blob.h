@@ -36,10 +36,6 @@ public:
     int producer;
     // layer index which need this blob as input
     std::vector<int> consumers;
-
-public:
-    // int8 quantize scale of this blob
-    float int8_scale;
 };
 
 } // namespace ncnn

@@ -46,7 +46,8 @@ public:
 
     int weight_data_size;
     int group;
-    float weight_data_int8_scale;
+    Mat weight_data_int8_scales;
+    Mat bottom_blob_int8_scales;
 
     // model
     Mat weight_data;
@@ -54,8 +55,8 @@ public:
 
     bool use_int8_inference;
 
-    ncnn::Layer* quantize;
-    ncnn::Layer* dequantize;
+    std::vector<ncnn::Layer*> quantize_ops;
+    std::vector<ncnn::Layer*> dequantize_ops;
 };
 
 } // namespace ncnn
