@@ -317,33 +317,20 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         // quantize, scale and round to nearest
         {
-            ncnn::ParamDict pd;
-            pd.set(0, bottom_blob_int8_scale);// scale
+            ncnn::Option opt_g = opt;
+            opt_g.blob_allocator = bottom_blob_bordered_int8.allocator;
 
-            quantize->load_param(pd);
-
-            quantize->forward(bottom_blob_bordered, bottom_blob_bordered_int8, opt);
+            quantize->forward(bottom_blob_bordered, bottom_blob_bordered_int8, opt_g);
         }
 
         conv_int8(bottom_blob_bordered_int8, top_blob, weight_data, opt);
 
         // dequantize, reverse scale inplace
         {
-            float top_rescale = 1.f / (bottom_blob_int8_scale * weight_data_int8_scale);
+            ncnn::Option opt_g = opt;
+            opt_g.blob_allocator = top_blob.allocator;
 
-            ncnn::ParamDict pd;
-            pd.set(0, top_rescale);// scale
-            pd.set(1, bias_term);// bias_term
-            pd.set(2, num_output);// bias_data_size
-
-            dequantize->load_param(pd);
-
-            ncnn::Mat weights[1];
-            weights[0] = bias_data;
-
-            dequantize->load_model(ModelBinFromMatArray(weights));
-
-            dequantize->forward_inplace(top_blob, opt);
+            dequantize->forward_inplace(top_blob, opt_g);
         }
 
         return 0;
