@@ -146,7 +146,9 @@ public class MainActivity extends Activity
                     // resize to 227x227
                     yourSelectedImage = Bitmap.createScaledBitmap(rgba, 227, 227, false);
 
-                    imageView.setImageBitmap(yourSelectedImage);
+                    rgba.recycle();
+
+                    imageView.setImageBitmap(bitmap);
                 }
             }
             catch (FileNotFoundException e)
