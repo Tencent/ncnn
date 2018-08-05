@@ -64,6 +64,9 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
         return -100;
     }
 
+    if (weight_data_int8_scales.empty() || bottom_blob_int8_scales.empty())
+        use_int8_inference = false;
+
     // extend group if only one provided
     if (weight_data_int8_scales.w == 1)
     {
@@ -121,7 +124,30 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
         for (int g=0; g<group; g++)
         {
             quantize_ops[g] = ncnn::create_layer(ncnn::LayerType::Quantize);
+
+            ncnn::ParamDict pd;
+            pd.set(0, bottom_blob_int8_scales[g]);// scale
+
+            quantize_ops[g]->load_param(pd);
+        }
+
+        for (int g=0; g<group; g++)
+        {
             dequantize_ops[g] = ncnn::create_layer(ncnn::LayerType::Dequantize);
+
+            float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+            ncnn::ParamDict pd;
+            pd.set(0, top_rescale);// scale
+            pd.set(1, bias_term);// bias_term
+            pd.set(2, 1);// bias_data_size
+
+            dequantize_ops[g]->load_param(pd);
+
+            ncnn::Mat weights[1];
+            weights[0] = Mat(1, (void*)((const float*)bias_data + g));
+
+            dequantize_ops[g]->load_model(ModelBinFromMatArray(weights));
         }
     }
 
@@ -252,11 +278,6 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
             {
                 // quantize, scale and round to nearest
                 {
-                    ncnn::ParamDict pd;
-                    pd.set(0, bottom_blob_int8_scales[g]);// scale
-
-                    quantize_ops[g]->load_param(pd);
-
                     ncnn::Option opt_g = opt;
                     opt_g.num_threads = 1;
                     opt_g.blob_allocator = bottom_blob_bordered_int8.allocator;
@@ -293,20 +314,6 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                 // dequantize, reverse scale inplace
                 {
-                    float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-
-                    ncnn::ParamDict pd;
-                    pd.set(0, top_rescale);// scale
-                    pd.set(1, bias_term);// bias_term
-                    pd.set(2, 1);// bias_data_size
-
-                    dequantize_ops[g]->load_param(pd);
-
-                    ncnn::Mat weights[1];
-                    weights[0] = Mat(1, (void*)((const float*)bias_data + g));
-
-                    dequantize_ops[g]->load_model(ModelBinFromMatArray(weights));
-
                     ncnn::Option opt_g = opt;
                     opt_g.num_threads = 1;
                     opt_g.blob_allocator = top_blob.allocator;
@@ -325,11 +332,6 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int g=0; g<group; g++)
             {
-                ncnn::ParamDict pd;
-                pd.set(0, bottom_blob_int8_scales[g]);// scale
-
-                quantize_ops[g]->load_param(pd);
-
                 ncnn::Option opt_g = opt;
                 opt_g.num_threads = 1;
                 opt_g.blob_allocator = bottom_blob_bordered_int8.allocator;
@@ -387,20 +389,6 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int g=0; g<group; g++)
             {
-                float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-
-                ncnn::ParamDict pd;
-                pd.set(0, top_rescale);// scale
-                pd.set(1, bias_term);// bias_term
-                pd.set(2, num_output_g);// bias_data_size
-
-                dequantize_ops[g]->load_param(pd);
-
-                ncnn::Mat weights[1];
-                weights[0] = Mat(num_output_g, (void*)((const float*)bias_data + num_output_g * g));
-
-                dequantize_ops[g]->load_model(ModelBinFromMatArray(weights));
-
                 ncnn::Option opt_g = opt;
                 opt_g.num_threads = 1;
                 opt_g.blob_allocator = top_blob.allocator;

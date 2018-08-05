@@ -16,6 +16,91 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#if __aarch64__
+static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
+{
+    int inch = bottom_blob.c;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    const float *kernel = _kernel;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = 0; p < outch; p++)
+    {
+        Mat out0 = top_blob.channel(p);
+
+        out0.fill(0);
+
+        int q = 0;
+
+        for (; q+7<inch; q+=8)
+        {
+            int* outptr0 = out0;
+
+            const signed char *kernel0 = (const signed char *)kernel + p * inch + q;
+
+            const signed char *r0 = bottom_blob.channel(q);
+            const signed char *r1 = bottom_blob.channel(q + 1);
+            const signed char *r2 = bottom_blob.channel(q + 2);
+            const signed char *r3 = bottom_blob.channel(q + 3);
+            const signed char *r4 = bottom_blob.channel(q + 4);
+            const signed char *r5 = bottom_blob.channel(q + 5);
+            const signed char *r6 = bottom_blob.channel(q + 6);
+            const signed char *r7 = bottom_blob.channel(q + 7);
+
+            int size = outw * outh;
+            int remain = size;
+
+            for (; remain > 0; remain--)
+            {
+                //ToDo Neon
+                int sum0 = (int)*r0 * (int)kernel0[0] + (int)*r1 * (int)kernel0[1] +
+                           (int)*r2 * (int)kernel0[2] + (int)*r3 * (int)kernel0[3] +
+                           (int)*r4 * (int)kernel0[4] + (int)*r5 * (int)kernel0[5] +
+                           (int)*r6 * (int)kernel0[6] + (int)*r7 * (int)kernel0[7];
+
+                *outptr0 += sum0;
+
+                r0++;
+                r1++;
+                r2++;
+                r3++;
+                r4++;
+                r5++;
+                r6++;
+                r7++;
+                outptr0++;
+            }
+        }
+
+        for (; q<inch; q++)
+        {
+            int* outptr0 = out0;
+
+            const signed char *r0 = bottom_blob.channel(q);
+
+            const signed char *kernel0 = (const signed char *)kernel + p * inch + q;
+            const signed char k0 = kernel0[0];
+
+            int size = outw * outh;
+            int remain = size;
+
+            for (; remain > 0; remain--)
+            {
+                int sum0 = (int)(*r0) * (int)k0;
+
+                *outptr0 += sum0;
+
+                r0++;
+                outptr0++;
+            }
+        }
+    }
+}
+#else // __aarch64__
 /*
  * Convolution 1x1 quantized with int8,unroll 8 x 4
  */
@@ -1366,7 +1451,7 @@ static void conv1x1s1_neon_s8_left4(const Mat& bottom_blob, Mat& top_blob, const
     }
 }
 
-static void conv1x1s1_neon_s8_inter(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)
+static void conv1x1s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)
 {
     int size = top_blob.h * top_blob.w;
     int remain = size & 7;
@@ -1390,4 +1475,106 @@ static void conv1x1s1_neon_s8_inter(const Mat& bottom_blob, Mat& top_blob, const
     conv(bottom_blob, top_blob, _kernel, opt);
 
     return;
+}
+#endif // __aarch64__
+
+static void conv1x1s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
+{
+    int w = bottom_blob.w;
+    int inch = bottom_blob.c;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    const int tailstep = w - 2*outw + w;
+    const signed char *kernel = _kernel;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = 0; p < outch; p++)
+    {
+        Mat out0 = top_blob.channel(p);
+
+        out0.fill(0);
+
+        int q = 0;
+
+        for (; q+7<inch; q+=8)
+        {
+            int* outptr0 = out0;
+
+            const signed char *kernel0 = (const signed char *)kernel + p * inch + q;
+
+            const signed char *r0 = bottom_blob.channel(q);
+            const signed char *r1 = bottom_blob.channel(q + 1);
+            const signed char *r2 = bottom_blob.channel(q + 2);
+            const signed char *r3 = bottom_blob.channel(q + 3);
+            const signed char *r4 = bottom_blob.channel(q + 4);
+            const signed char *r5 = bottom_blob.channel(q + 5);
+            const signed char *r6 = bottom_blob.channel(q + 6);
+            const signed char *r7 = bottom_blob.channel(q + 7);
+
+            for(int i = 0; i < outh; i++)
+            {
+                int remain = outw;
+
+                for (; remain > 0; remain--)
+                {
+                    //ToDo Neon
+                    int sum0 = (int)*r0 * (int)kernel0[0] + (int)*r1 * (int)kernel0[1] +
+                            (int)*r2 * (int)kernel0[2] + (int)*r3 * (int)kernel0[3] +
+                            (int)*r4 * (int)kernel0[4] + (int)*r5 * (int)kernel0[5] +
+                            (int)*r6 * (int)kernel0[6] + (int)*r7 * (int)kernel0[7];
+
+                    *outptr0 += sum0;
+
+                    r0 += 2;
+                    r1 += 2;
+                    r2 += 2;
+                    r3 += 2;
+                    r4 += 2;
+                    r5 += 2;
+                    r6 += 2;
+                    r7 += 2;
+                    outptr0++;
+                }
+
+                r0 += tailstep;
+                r1 += tailstep;
+                r2 += tailstep;
+                r3 += tailstep;
+                r4 += tailstep;
+                r5 += tailstep;
+                r6 += tailstep;
+                r7 += tailstep;
+            }
+        }
+
+        for (; q<inch; q++)
+        {
+            int* outptr0 = out0;
+
+            const signed char *r0 = bottom_blob.channel(q);
+
+            const signed char *kernel0 = (const signed char *)kernel + p * inch + q;
+
+            for(int i = 0; i < outh; i++)
+            {
+                int remain = outw;
+
+                for (; remain > 0; remain--)
+                {
+                    //ToDo Neon
+                    int sum0 = (int)*r0 * (int)kernel0[0];
+
+                    *outptr0 += sum0;
+
+                    r0 += 2;
+                    outptr0++;
+                }
+
+                r0 += tailstep;
+            }
+        }
+    }
 }
