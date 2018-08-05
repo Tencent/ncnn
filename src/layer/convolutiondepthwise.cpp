@@ -116,6 +116,45 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
         return -1;
     }
 
+    if (weight_data_is_float32 && use_int8_inference)
+    {
+        if (!weight_data_int8_scales.empty() && !bottom_blob_int8_scales.empty())
+        {
+            // quantize weight to int8
+            Mat int8_weight_data(weight_data_size, (size_t)1u);
+            if (int8_weight_data.empty())
+                return -100;
+
+            const int weight_data_size_g = weight_data_size / group;
+
+            for (int g=0; g<group; g++)
+            {
+                Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
+
+                ncnn::ParamDict pd;
+                pd.set(0, weight_data_int8_scales[g]);// scale
+
+                op->load_param(pd);
+
+                ncnn::Option opt = ncnn::get_default_option();
+                opt.blob_allocator = int8_weight_data.allocator;
+
+                const Mat weight_data_g(weight_data_size_g, (void*)((float*)weight_data + weight_data_size_g * g), (size_t)4u, weight_data.allocator);
+                Mat int8_weight_data_g(weight_data_size_g, (void*)((signed char*)int8_weight_data + weight_data_size_g * g), (size_t)1u, int8_weight_data.allocator);
+                op->forward(weight_data_g, int8_weight_data_g, opt);
+
+                delete op;
+            }
+
+            weight_data = int8_weight_data;
+        }
+        else
+        {
+            // plain float32 weight, fallback to float32 inference
+            use_int8_inference = false;
+        }
+    }
+
     if (use_int8_inference)
     {
         quantize_ops.resize(group);
@@ -148,41 +187,6 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
             weights[0] = Mat(1, (void*)((const float*)bias_data + g));
 
             dequantize_ops[g]->load_model(ModelBinFromMatArray(weights));
-        }
-    }
-
-    if (weight_data_is_float32 && use_int8_inference)
-    {
-        if (!weight_data_int8_scales.empty() && !bottom_blob_int8_scales.empty())
-        {
-            // quantize weight to int8
-            Mat int8_weight_data(weight_data_size, (size_t)1u);
-            if (int8_weight_data.empty())
-                return -100;
-
-            const int weight_data_size_g = weight_data_size / group;
-
-            for (int g=0; g<group; g++)
-            {
-                ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[g]);// scale
-
-                quantize_ops[g]->load_param(pd);
-
-                ncnn::Option opt = ncnn::get_default_option();
-                opt.blob_allocator = int8_weight_data.allocator;
-
-                const Mat weight_data_g(weight_data_size_g, (void*)((float*)weight_data + weight_data_size_g * g), (size_t)4u, weight_data.allocator);
-                Mat int8_weight_data_g(weight_data_size_g, (void*)((signed char*)int8_weight_data + weight_data_size_g * g), (size_t)1u, int8_weight_data.allocator);
-                quantize_ops[g]->forward(weight_data_g, int8_weight_data_g, opt);
-            }
-
-            weight_data = int8_weight_data;
-        }
-        else
-        {
-            // plain float32 weight, fallback to float32 inference
-            use_int8_inference = false;
         }
     }
 
