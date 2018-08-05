@@ -53,6 +53,9 @@ int Convolution::load_param(const ParamDict& pd)
 
     use_int8_inference = pd.use_int8_inference;
 
+    if (weight_data_int8_scale == 0.f || bottom_blob_int8_scale == 0.f)
+        use_int8_inference = false;
+
     return 0;
 }
 

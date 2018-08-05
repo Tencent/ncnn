@@ -24,6 +24,8 @@ namespace ncnn {
 
 #include "convolutiondepthwise_3x3.h"
 
+#include "convolutiondepthwise_3x3_int8.h"
+
 DEFINE_LAYER_CREATOR(ConvolutionDepthWise_arm)
 
 ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
@@ -56,7 +58,13 @@ int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
     if (channels == group && group == num_output)
     {
         // depth-wise specific
-        return 0;
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
+        {
+            if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
+            {
+                return 0;
+            }
+        }
     }
 
     const int channels_g = channels / group;
@@ -66,7 +74,7 @@ int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
 
     for (int g=0; g<group; g++)
     {
-        Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const float*)weight_data + maxk * channels_g * num_output_g * g));
+        Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const unsigned char*)weight_data + maxk * channels_g * num_output_g * g * weight_data.elemsize), weight_data.elemsize);
         Mat bias_data_g;
         if (bias_term)
             bias_data_g = Mat(num_output_g, (void*)((const float*)bias_data + num_output_g * g));
@@ -87,6 +95,12 @@ int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
         pd.set(5, bias_term);
         pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
 
+        if (use_int8_inference)
+        {
+            pd.set(8, weight_data_int8_scales[g]);
+            pd.set(9, bottom_blob_int8_scales[g]);
+        }
+
         op->load_param(pd);
 
         // set weights
@@ -106,12 +120,6 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 {
     // convolv with NxN kernel
     // value = value + bias
-
-    if (use_int8_inference)
-    {
-        // TODO
-        return ConvolutionDepthWise::forward(bottom_blob, top_blob, opt);
-    }
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -159,75 +167,91 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob.empty())
         return -100;
 
-    const int maxk = kernel_w * kernel_h;
-
     // depth-wise
     if (channels == group && group == num_output)
     {
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
+        if (use_int8_inference)
         {
-            if (stride_w == 1 && stride_h == 1)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
             {
-                convdw3x3s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-                return 0;
-            }
-            else if (stride_w == 2 && stride_h == 2)
-            {
-                convdw3x3s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-                return 0;
+                if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
+                {
+                    Mat bottom_blob_bordered_int8;
+                    bottom_blob_bordered_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
+                    if (bottom_blob_bordered_int8.empty())
+                        return -100;
+
+                    // quantize, scale and round to nearest
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int g=0; g<group; g++)
+                    {
+                        ncnn::Option opt_g = opt;
+                        opt_g.num_threads = 1;
+                        opt_g.blob_allocator = bottom_blob_bordered_int8.allocator;
+
+                        const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel(g);
+                        Mat bottom_blob_bordered_int8_g = bottom_blob_bordered_int8.channel(g);
+                        quantize_ops[g]->forward(bottom_blob_bordered_g, bottom_blob_bordered_int8_g, opt_g);
+                    }
+
+                    if (stride_w == 1 && stride_h == 1)
+                    {
+                        convdw3x3s1_int8_neon(bottom_blob_bordered_int8, top_blob, weight_data, opt);
+                    }
+                    else if (stride_w == 2 && stride_h == 2)
+                    {
+                        convdw3x3s2_int8_neon(bottom_blob_bordered_int8, top_blob, weight_data, opt);
+                    }
+
+                    // dequantize, reverse scale inplace
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int g=0; g<group; g++)
+                    {
+                        ncnn::Option opt_g = opt;
+                        opt_g.num_threads = 1;
+                        opt_g.blob_allocator = top_blob.allocator;
+
+                        Mat top_blob_g = top_blob.channel(g);
+                        dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
+                    }
+
+                    return 0;
+                }
             }
         }
-
-#ifdef _OPENMP
-        int nested_current = omp_get_nested();
-        omp_set_nested(0);
-#endif
+        else
+        {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
+            {
+                if (stride_w == 1 && stride_h == 1)
+                {
+                    convdw3x3s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+                    return 0;
+                }
+                else if (stride_w == 2 && stride_h == 2)
+                {
+                    convdw3x3s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+                    return 0;
+                }
+            }
+        }
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
             Mat bottom_blob_bordered_g(w, h, 1, bottom_blob_bordered.channel(g));
             Mat top_blob_g(outw, outh, 1, top_blob.channel(g), top_blob.elemsize, top_blob.allocator);
-            Mat weight_data_g(maxk, (void*)((const float*)weight_data + maxk * g));
-            Mat bias_data_g;
-            if (bias_term)
-                bias_data_g = Mat(1, (void*)((const float*)bias_data + g));
 
-            // call Convolution
-            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+            const ncnn::Layer* op = group_ops[g];
 
-            // set param
-            ncnn::ParamDict pd;
-            pd.set(0, 1);// num_output
-            pd.set(1, kernel_w);
-            pd.set(11, kernel_h);
-            pd.set(2, dilation_w);
-            pd.set(12, dilation_h);
-            pd.set(3, stride_w);
-            pd.set(13, stride_h);
-            pd.set(4, 0);// pad_w
-            pd.set(14, 0);// pad_h
-            pd.set(5, bias_term);
-            pd.set(6, maxk);// weight_data_size
-
-            op->load_param(pd);
-
-            // set weights
-            ncnn::Mat weights[2];
-            weights[0] = weight_data_g;
-            weights[1] = bias_data_g;
-
-            op->load_model(ModelBinFromMatArray(weights));
+            ncnn::Option opt_g = opt;
+            opt_g.num_threads = 1;
+            opt_g.blob_allocator = top_blob.allocator;
 
             // forward
-            op->forward(bottom_blob_bordered_g, top_blob_g, opt);
-
-            delete op;
+            op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
         }
 
-#ifdef _OPENMP
-        omp_set_nested(nested_current);
-#endif
         return 0;
     }
 
@@ -241,8 +265,11 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         const ncnn::Layer* op = group_ops[g];
 
+        ncnn::Option opt_g = opt;
+        opt_g.blob_allocator = top_blob.allocator;
+
         // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, opt);
+        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
     }
 
     return 0;
