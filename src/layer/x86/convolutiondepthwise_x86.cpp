@@ -195,8 +195,12 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             pd.set(14, 0);// pad_h
             pd.set(5, bias_term);
             pd.set(6, maxk);// weight_data_size
-            pd.set(8, weight_data_int8_scales[g]);
-            pd.set(9, bottom_blob_int8_scales[g]);
+
+            if (use_int8_inference)
+            {
+                pd.set(8, weight_data_int8_scales[g]);
+                pd.set(9, bottom_blob_int8_scales[g]);
+            }
 
             op->load_param(pd);
 
@@ -248,8 +252,12 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         pd.set(14, 0);// pad_h
         pd.set(5, bias_term);
         pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
-        pd.set(8, weight_data_int8_scales[g]);
-        pd.set(9, bottom_blob_int8_scales[g]);
+
+        if (use_int8_inference)
+        {
+            pd.set(8, weight_data_int8_scales[g]);
+            pd.set(9, bottom_blob_int8_scales[g]);
+        }
 
         op->load_param(pd);
 
