@@ -45,8 +45,11 @@ static void bench_end(const char* comment)
     __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "%.2fms   %s", elasped, comment);
 }
 
-static std::vector<unsigned char> squeezenet_param;
-static std::vector<unsigned char> squeezenet_bin;
+static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
+static ncnn::PoolAllocator g_workspace_pool_allocator;
+
+static ncnn::Mat squeezenet_param;
+static ncnn::Mat squeezenet_bin;
 static std::vector<std::string> squeezenet_words;
 static ncnn::Net squeezenet;
 
@@ -76,18 +79,18 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv*
     // init param
     {
         int len = env->GetArrayLength(param);
-        squeezenet_param.resize(len);
-        env->GetByteArrayRegion(param, 0, len, (jbyte*)squeezenet_param.data());
-        int ret = squeezenet.load_param(squeezenet_param.data());
+        squeezenet_param.create(len, (size_t)1u);
+        env->GetByteArrayRegion(param, 0, len, (jbyte*)squeezenet_param);
+        int ret = squeezenet.load_param((const unsigned char*)squeezenet_param);
         __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_param %d %d", ret, len);
     }
 
     // init bin
     {
         int len = env->GetArrayLength(bin);
-        squeezenet_bin.resize(len);
-        env->GetByteArrayRegion(bin, 0, len, (jbyte*)squeezenet_bin.data());
-        int ret = squeezenet.load_model(squeezenet_bin.data());
+        squeezenet_bin.create(len, (size_t)1u);
+        env->GetByteArrayRegion(bin, 0, len, (jbyte*)squeezenet_bin);
+        int ret = squeezenet.load_model((const unsigned char*)squeezenet_bin);
         __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "load_model %d %d", ret, len);
     }
 
@@ -99,6 +102,14 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv*
         env->GetByteArrayRegion(words, 0, len, (jbyte*)words_buffer.data());
         squeezenet_words = split_string(words_buffer, "\n");
     }
+
+    ncnn::Option opt;
+    opt.lightmode = true;
+    opt.num_threads = 4;
+    opt.blob_allocator = &g_blob_pool_allocator;
+    opt.workspace_allocator = &g_workspace_pool_allocator;
+
+    ncnn::set_default_option(opt);
 
     return JNI_TRUE;
 }
@@ -135,7 +146,6 @@ JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv
         in.substract_mean_normalize(mean_vals, 0);
 
         ncnn::Extractor ex = squeezenet.create_extractor();
-        ex.set_num_threads(4);
 
         ex.input(squeezenet_v1_1_param_id::BLOB_data, in);
 
