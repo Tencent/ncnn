@@ -366,8 +366,22 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             nscan = sscanf(line, "      \"name\": \"%255[^\"]\",", name);
             if (nscan == 1)
             {
+                int Cu_node_count = nodes.size(),i;
+                for(i=0; i<Cu_node_count; i++)
+                {
+                    if(strcmp(name, nodes[i].name.c_str()) != 0)
+                        continue;
+                    else
+                        break;
+//                  fprintf(stderr, "name = %s\n", name);
+                }
+                if(Cu_node_count != i)    
+                {
+                    char namecat[15];
+                    sprintf(namecat, "repeat_%d", internal_unknown);
+                    strcat(name, namecat);
+                }
                 n.name = name;
-//                 fprintf(stderr, "name = %s\n", name);
                 continue;
             }
 
@@ -600,7 +614,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             p.name = std::string(p.name.c_str() + 4);
         }
 
-//         fprintf(stderr, "%s read\n", p.name.c_str());
+       fprintf(stderr, "%s read\n", p.name.c_str());
     }
 
     fclose(fp);
@@ -617,6 +631,7 @@ int main(int argc, char** argv)
 
     std::vector<MXNetNode> nodes;
     std::vector<MXNetParam> params;
+    std::vector<int> weightwrited;
 
     read_mxnet_json(jsonpath, nodes);
     read_mxnet_param(parampath, params);
@@ -628,7 +643,11 @@ int main(int argc, char** argv)
     fprintf(pp, "7767517\n");
 
     int node_count = nodes.size();
-
+    weightwrited.resize(node_count);
+    for(int i=0; i<node_count; i++)
+    {
+        weightwrited[i]=0;
+    }
     // node reference
     std::map<int, int> node_reference;
 
@@ -1525,15 +1544,20 @@ int main(int argc, char** argv)
 
             std::vector<float> weight_data = n.weight(0);
             std::vector<float> bias_data = n.weight(1);
-
+            
             fprintf(pp, " 0=%d", num_hidden);
             fprintf(pp, " 1=%d", no_bias == 1 ? 0 : 1);
             fprintf(pp, " 2=%d", (int)weight_data.size());
-
+            
+           if(weightwrited[n.weights[0]] == 0)
+           {
             int quantize_tag = 0;
+            fprintf(stderr,"%d:%d\n",weight_data.size(),bias_data.size());
             fwrite(&quantize_tag, sizeof(int), 1, bp);
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+            weightwrited[n.weights[0]] = 1;
+           }
         }
         else if (n.op == "InstanceNorm")
         {
