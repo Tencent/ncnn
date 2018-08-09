@@ -25,6 +25,7 @@
 #ifdef __ANDROID__
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <stdint.h>
 #endif
 
 #if __APPLE__
@@ -52,8 +53,13 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
 
 #define AT_HWCAP 16
 #define AT_HWCAP2 26
+#if __aarch64__
 
+    struct { uint64_t tag; uint64_t value; } entry;
+#else
     struct { unsigned int tag; unsigned int value; } entry;
+
+#endif
 
     unsigned int result = 0;
     while (!feof(fp))
@@ -302,7 +308,7 @@ typedef struct
   memset((cpusetp), 0, sizeof(cpu_set_t))
 
     // set affinity for thread
-    pid_t pid = gettid();
+    pid_t pid = syscall(SYS_gettid);
 
     cpu_set_t mask;
     CPU_ZERO(&mask);
