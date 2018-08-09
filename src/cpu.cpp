@@ -308,8 +308,11 @@ typedef struct
   memset((cpusetp), 0, sizeof(cpu_set_t))
 
     // set affinity for thread
+#ifdef __GLIBC__
     pid_t pid = syscall(SYS_gettid);
-
+#else
+    pid_t pid = gettid();
+#endif
     cpu_set_t mask;
     CPU_ZERO(&mask);
     for (int i=0; i<(int)cpuids.size(); i++)
