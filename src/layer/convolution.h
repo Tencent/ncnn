@@ -45,12 +45,15 @@ public:
     int bias_term;
 
     int weight_data_size;
-    float weight_data_int8_scale;
-    float bottom_blob_int8_scale;
+
+    int int8_scale_term;
 
     // model
     Mat weight_data;
     Mat bias_data;
+
+    float weight_data_int8_scale;
+    float bottom_blob_int8_scale;
 
     bool use_int8_inference;
 
