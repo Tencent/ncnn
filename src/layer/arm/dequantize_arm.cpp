@@ -90,8 +90,8 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                     "vdup.f32   q12, %7             \n" //q12 bias
 
                     "0:                             \n"
-                    "vcvtr.f32.s32 q0, q0           \n"
-                    "vcvtr.f32.s32 q1, q1           \n"
+                    "vcvt.f32.s32 q0, q0           \n"
+                    "vcvt.f32.s32 q1, q1           \n"
 
                     "vmul.f32   q0,q0,q10           \n"
                     "vmul.f32   q1,q1,q10           \n"
@@ -156,8 +156,8 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                     "vdup.f32   q10, %6             \n" //q10 scale
 
                     "0:                             \n"
-                    "vcvtr.f32.s32 q0, q0           \n"
-                    "vcvtr.f32.s32 q1, q1           \n"
+                    "vcvt.f32.s32 q0, q0           \n"
+                    "vcvt.f32.s32 q1, q1           \n"
 
                     "vmul.f32   q0,q0,q10           \n"
                     "vmul.f32   q1,q1,q10           \n"
