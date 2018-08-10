@@ -40,10 +40,12 @@ int InnerProduct::load_param(const ParamDict& pd)
     num_output = pd.get(0, 0);
     bias_term = pd.get(1, 0);
     weight_data_size = pd.get(2, 0);
-    weight_data_int8_scale = pd.get(8, 0.f);
-    bottom_blob_int8_scale = pd.get(9, 0.f);
+    int8_scale_term = pd.get(8, 0);
 
     use_int8_inference = pd.use_int8_inference;
+
+    if (int8_scale_term == 0)
+        use_int8_inference = false;
 
     return 0;
 }
@@ -59,6 +61,12 @@ int InnerProduct::load_model(const ModelBin& mb)
         bias_data = mb.load(num_output, 1);
         if (bias_data.empty())
             return -100;
+    }
+
+    if (int8_scale_term)
+    {
+        weight_data_int8_scale = mb.load(1, 1)[0];
+        bottom_blob_int8_scale = mb.load(1, 1)[0];
     }
 
     bool weight_data_is_int8 = (weight_data.elemsize == (size_t)1u);

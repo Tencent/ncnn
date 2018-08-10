@@ -94,19 +94,23 @@ int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
         pd.set(14, 0);// pad_h
         pd.set(5, bias_term);
         pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
-
-        if (use_int8_inference)
-        {
-            pd.set(8, weight_data_int8_scales[g]);
-            pd.set(9, bottom_blob_int8_scales[g]);
-        }
+        pd.set(8, int8_scale_term);
 
         op->load_param(pd);
 
         // set weights
-        ncnn::Mat weights[2];
+        ncnn::Mat weights[4];
         weights[0] = weight_data_g;
         weights[1] = bias_data_g;
+
+        if (int8_scale_term)
+        {
+            float weight_data_int8_scale = weight_data_int8_scales[g];
+            float bottom_blob_int8_scale = bottom_blob_int8_scales[g];
+
+            weights[2] = Mat(1, (size_t)4u, (void*)&weight_data_int8_scale);
+            weights[3] = Mat(1, (size_t)4u, (void*)&bottom_blob_int8_scale);
+        }
 
         op->load_model(ModelBinFromMatArray(weights));
 
