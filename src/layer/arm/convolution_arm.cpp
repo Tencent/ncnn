@@ -80,6 +80,12 @@ int Convolution_arm::load_model(const ModelBin& mb)
         conv1x1s1_sgemm_transform_kernel_neon(weight_data, weight_1x1_sgemm_data, num_input, num_output);
     }
 
+    if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+    {
+        int num_input = weight_data_size / 9 / num_output;
+        conv3x3s2_transform_kernel_neon(weight_data, weight_3x3s2_data, num_input, num_output);
+    }
+
     return 0;
 }
 
@@ -409,6 +415,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     else if (use_sgemm1x1)
     {
         conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data, opt);
+    }
+    else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+    {
+        conv(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
     }
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
