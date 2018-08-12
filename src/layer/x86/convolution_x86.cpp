@@ -81,25 +81,13 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
             int inner_outw = (inner_w - kernel_size) / stride + 1;
             int inner_outh = (inner_h - kernel_size) / stride + 1;
 
-            if (inner_bottom_blob.w != inner_w || inner_bottom_blob.h != inner_h)
-            {
-                inner_bottom_blob.create(inner_w, inner_h, bottom_blob.c, elemsize, opt.workspace_allocator);
+            inner_bottom_blob.create(inner_w, inner_h, bottom_blob.c, elemsize, opt.workspace_allocator);
+            if (inner_bottom_blob.empty())
+                return -100;
 
-                if (inner_bottom_blob.empty())
-                {
-                    return -100;
-                }
-            }
-
-            if (inner_top_blob.w != inner_outw || inner_top_blob.h != inner_outh)
-            {
-                inner_top_blob.create(inner_outw, inner_outh, num_output, elemsize, opt.workspace_allocator);
-
-                if (inner_top_blob.empty())
-                {
-                    return -100;
-                }
-            }
+            inner_top_blob.create(inner_outw, inner_outh, num_output, elemsize, opt.workspace_allocator);
+            if (inner_top_blob.empty())
+                return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < bottom_blob.c; c ++)
@@ -117,7 +105,9 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
                 }
             }
 
-            conv(inner_bottom_blob, inner_top_blob, weight_data, bias_data, opt);
+            ncnn::Option opt_g = opt;
+            opt_g.blob_allocator = inner_top_blob.allocator;
+            conv(inner_bottom_blob, inner_top_blob, weight_data, bias_data, opt_g);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < num_output; c ++)
@@ -138,7 +128,6 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
 
     return 0;
 }
-
 
 int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -266,7 +255,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             return Convolution::forward(bottom_blob, top_blob, opt);
         }
 
-        if (dilation_w != 1) {
+        if (dilation_w != 1)
+        {
+            if (stride != 1)
+                return Convolution::forward(bottom_blob, top_blob, opt);
+
             return forwardDilation(bottom_blob, top_blob, conv, opt);
         }
     }

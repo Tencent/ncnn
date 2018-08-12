@@ -145,30 +145,18 @@ int Convolution_arm::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
             int inner_outw = (inner_w - kernel_size) / stride + 1;
             int inner_outh = (inner_h - kernel_size) / stride + 1;
 
-            if (inner_bottom_blob.w != inner_w || inner_bottom_blob.h != inner_h)
-            {
-                inner_bottom_blob.create(inner_w, inner_h, bottom_blob.c, elemsize, opt.workspace_allocator);
+            inner_bottom_blob.create(inner_w, inner_h, bottom_blob.c, elemsize, opt.workspace_allocator);
+            if (inner_bottom_blob.empty())
+                return -100;
 
-                if (inner_bottom_blob.empty())
-                {
-                    return -100;
-                }
-            }
-
-            if (inner_top_blob.w != inner_outw || inner_top_blob.h != inner_outh)
-            {
-                inner_top_blob.create(inner_outw, inner_outh, num_output, elemsize, opt.workspace_allocator);
-
-                if (inner_top_blob.empty())
-                {
-                    return -100;
-                }
-            }
+            inner_top_blob.create(inner_outw, inner_outh, num_output, elemsize, opt.workspace_allocator);
+            if (inner_top_blob.empty())
+                return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < bottom_blob.c; c ++)
             {
-                float *outptr = (float *) inner_bottom_blob.channel(c);
+                float *outptr = inner_bottom_blob.channel(c);
 
                 for (int i = 0; i < inner_h; i ++)
                 {
@@ -181,7 +169,9 @@ int Convolution_arm::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
                 }
             }
 
-            conv(inner_bottom_blob, inner_top_blob, weight_data, bias_data, opt);
+            ncnn::Option opt_g = opt;
+            opt_g.blob_allocator = inner_top_blob.allocator;
+            conv(inner_bottom_blob, inner_top_blob, weight_data, bias_data, opt_g);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < num_output; c ++)
@@ -338,6 +328,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         if (dilation_w != 1)
         {
+            if (stride != 1)
+                return Convolution::forward(bottom_blob, top_blob, opt);
+
             return forwardDilation(bottom_blob, top_blob, conv, opt);
         }
     }
@@ -418,7 +411,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
     else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
     {
-        conv(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
+        conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
     }
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
