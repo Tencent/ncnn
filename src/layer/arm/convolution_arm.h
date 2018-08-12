@@ -36,6 +36,7 @@ public:
     bool use_sgemm1x1;
     Mat weight_3x3_winograd64_data;
     Mat weight_1x1_sgemm_data;
+    Mat weight_3x3s2_data;
 };
 
 } // namespace ncnn
