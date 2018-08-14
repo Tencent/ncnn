@@ -53,8 +53,7 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
     group = pd.get(7, 1);
-    weight_data_int8_scales = pd.get(8, Mat());
-    bottom_blob_int8_scales = pd.get(9, Mat());
+    int8_scale_term = pd.get(8, 0);
 
     use_int8_inference = pd.use_int8_inference;
 
@@ -64,22 +63,8 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
         return -100;
     }
 
-    if (weight_data_int8_scales.empty() || bottom_blob_int8_scales.empty())
+    if (int8_scale_term == 0)
         use_int8_inference = false;
-
-    // extend group if only one provided
-    if (weight_data_int8_scales.w == 1)
-    {
-        float scale = weight_data_int8_scales[0];
-        weight_data_int8_scales = Mat(group);
-        weight_data_int8_scales.fill(scale);
-    }
-    if (bottom_blob_int8_scales.w == 1)
-    {
-        float scale = bottom_blob_int8_scales[0];
-        bottom_blob_int8_scales = Mat(group);
-        bottom_blob_int8_scales.fill(scale);
-    }
 
     return 0;
 }
@@ -95,6 +80,26 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
         bias_data = mb.load(num_output, 1);
         if (bias_data.empty())
             return -100;
+    }
+
+    if (int8_scale_term == 1)
+    {
+        weight_data_int8_scales = mb.load(group, 1);
+        bottom_blob_int8_scales = mb.load(group, 1);
+    }
+    else if (int8_scale_term == 2)
+    {
+        weight_data_int8_scales = mb.load(1, 1);
+        bottom_blob_int8_scales = mb.load(1, 1);
+
+        // extend group if only one provided
+        float weight_data_int8_scale = weight_data_int8_scales[0];
+        weight_data_int8_scales = Mat(group);
+        weight_data_int8_scales.fill(weight_data_int8_scale);
+
+        float bottom_blob_int8_scale = bottom_blob_int8_scales[0];
+        bottom_blob_int8_scales = Mat(group);
+        bottom_blob_int8_scales.fill(bottom_blob_int8_scale);
     }
 
     for (int i=0; i<(int)quantize_ops.size(); i++)

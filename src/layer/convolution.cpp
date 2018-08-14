@@ -48,12 +48,11 @@ int Convolution::load_param(const ParamDict& pd)
     pad_h = pd.get(14, pad_w);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
-    weight_data_int8_scale = pd.get(8, 0.f);
-    bottom_blob_int8_scale = pd.get(9, 0.f);
+    int8_scale_term = pd.get(8, 0);
 
     use_int8_inference = pd.use_int8_inference;
 
-    if (weight_data_int8_scale == 0.f || bottom_blob_int8_scale == 0.f)
+    if (int8_scale_term == 0)
         use_int8_inference = false;
 
     return 0;
@@ -70,6 +69,12 @@ int Convolution::load_model(const ModelBin& mb)
         bias_data = mb.load(num_output, 1);
         if (bias_data.empty())
             return -100;
+    }
+
+    if (int8_scale_term)
+    {
+        weight_data_int8_scale = mb.load(1, 1)[0];
+        bottom_blob_int8_scale = mb.load(1, 1)[0];
     }
 
     bool weight_data_is_int8 = (weight_data.elemsize == (size_t)1u);
@@ -160,17 +165,22 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             pd.set(0, num_output);
             pd.set(1, bias_term);
             pd.set(2, weight_data_size);
-            pd.set(8, weight_data_int8_scale);
-            pd.set(9, bottom_blob_int8_scale);
+            pd.set(8, int8_scale_term);
 
             pd.use_int8_inference = use_int8_inference;
 
             op->load_param(pd);
 
             // set weights
-            ncnn::Mat weights[2];
+            ncnn::Mat weights[4];
             weights[0] = weight_data;
             weights[1] = bias_data;
+
+            if (int8_scale_term)
+            {
+                weights[2] = Mat(1, (size_t)4u, (void*)&weight_data_int8_scale);
+                weights[3] = Mat(1, (size_t)4u, (void*)&bottom_blob_int8_scale);
+            }
 
             op->load_model(ModelBinFromMatArray(weights));
 
