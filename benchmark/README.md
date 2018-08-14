@@ -69,6 +69,25 @@ powersave = 0
   squeezenet-ssd  min =  204.62  max =  222.92  avg =  212.41
    mobilenet-ssd  min =  229.69  max =  236.50  avg =  233.48
 ```
+Raspberry Pi 3 Model B+ Broadcom BCM2837B0, Cortex-A53 (ARMv8) (1.4GHz x 4 )
+```
+pi@raspberrypi:~ $ ./benchncnn 8 4 0
+loop_count = 8
+num_threads = 4
+powersave = 0
+      squeezenet  min =  108.66  max =  109.24  avg =  108.96
+       mobilenet  min =  151.78  max =  152.92  avg =  152.31
+    mobilenet_v2  min =  193.14  max =  195.56  avg =  194.50
+      shufflenet  min =   91.41  max =   92.19  avg =   91.75
+       googlenet  min =  302.02  max =  304.08  avg =  303.24
+        resnet18  min =  411.93  max =  423.14  avg =  416.54
+         alexnet  min =  275.54  max =  276.50  avg =  276.13
+           vgg16  min = 1845.36  max = 1925.95  avg = 1902.28
+  squeezenet-ssd  min =  313.86  max =  317.35  avg =  315.28
+   mobilenet-ssd  min =  262.91  max =  264.92  avg =  263.85
+  mobilenet-yolo  min =  638.73  max =  641.27  avg =  639.87
+
+```
 
 Rockchip RK3399 (Cortex-A72 1.8GHz x 2 + Cortex-A53 1.5GHz x 4)
 ```
