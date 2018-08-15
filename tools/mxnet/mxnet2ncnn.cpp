@@ -57,6 +57,7 @@ public:
 public:
     std::string op;
     std::string name;
+    int output_size;
     std::map<std::string, std::string> attrs;
     std::vector<int> inputs;
     std::vector<int> subinputs;
@@ -608,6 +609,21 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
     return true;
 }
 
+static int find_next_chain_node_by_op(const std::vector<MXNetNode>& nodes, const std::vector<int>& one_blob_only_nodes, const std::string& op, const std::string& input_name)
+{
+    int one_blob_only_node_count = (int)one_blob_only_nodes.size();
+    for (int i=0; i<one_blob_only_node_count; i++)
+    {
+        const MXNetNode& n = nodes[one_blob_only_nodes[i]];
+
+        if (n.op == op && nodes[n.inputs[0]].name == input_name)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int main(int argc, char** argv)
 {
     const char* jsonpath = argv[1];
@@ -647,7 +663,7 @@ int main(int argc, char** argv)
         n.params = &params;
 
         const std::string& output_name = n.name;
-        int output_size = 1;
+        n.output_size = 1;
 
         if (n.op == "null")
         {
@@ -676,7 +692,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "SliceChannel")
         {
-            output_size = n.attr("num_outputs");
+            n.output_size = n.attr("num_outputs");
         }
 
         // distinguish weights and inputs
@@ -729,12 +745,88 @@ int main(int argc, char** argv)
 //         fprintf(stderr, "output = %s\n", output_name.c_str());
         blob_names.insert(output_name);
 
-        for (int j=1; j<output_size; j++)
+        for (int j=1; j<n.output_size; j++)
         {
             char subinputsuffix[256];
             sprintf(subinputsuffix, "_%d", j);
             std::string output_name_j = output_name + subinputsuffix;
             blob_names.insert(output_name_j);
+        }
+    }
+
+    // op chain fusion
+    int reduced_node_count = 0;
+    for (int i=0; i<node_count; i++)
+    {
+        const MXNetNode& n = nodes[i];
+
+        if (n.is_weight())
+            continue;
+
+        // ShuffleChannel <= Reshape - SwapAxis - Reshape
+        if (n.op == "Reshape")
+        {
+            if (node_reference[i] != 1)
+                continue;
+
+            // "shape": "(0, -4, X, -1, -2)"
+            std::vector<int> shape = n.attr("shape");
+            if (shape.size() != 5)
+                continue;
+            if (shape[0] != 0 || shape[1] != -4 || shape[3] != -1 || shape[4] != -2)
+                continue;
+
+            if (i+2 >= node_count)
+                continue;
+
+            const MXNetNode& n2 = nodes[i+1];
+            const MXNetNode& n3 = nodes[i+2];
+
+            if (n2.op != "SwapAxis" || n3.op != "Reshape")
+                continue;
+
+            if (node_reference[i+1] != 1)
+                continue;
+
+            // "dim1": "1", "dim2": "2"
+            int dim1 = n2.attr("dim1");
+            int dim2 = n2.attr("dim2");
+            if (dim1 != 1 || dim2 != 2)
+                continue;
+
+            // "shape": "(0, -3, -2)"
+            std::vector<int> shape3 = n3.attr("shape");
+            if (shape3.size() != 3)
+                continue;
+            if (shape3[0] != 0 || shape3[1] != -3 || shape3[2] != -2)
+                continue;
+
+            // reduce
+            nodes[i].op = "noop_reducedncnn";
+            nodes[i+1].op = "noop_reducedncnn";
+
+            node_reference.erase(node_reference.find(i));
+            node_reference.erase(node_reference.find(i+1));
+            blob_names.erase(n.name);
+            blob_names.erase(n2.name);
+
+            MXNetNode new_node;
+            new_node.nodes = &nodes;
+            new_node.params = &params;
+            new_node.op = "ShuffleChannel";
+//             new_node.name = n.name + "_" + n2.name + "_" + n3.name;
+            new_node.name = n3.name;
+            new_node.output_size = n3.output_size;
+            char group[16];
+            sprintf(group, "%d", shape[2]);
+            new_node.attrs["group"] = group;
+            new_node.inputs = n.inputs;
+            new_node.subinputs = n.subinputs;
+
+            nodes[i+2] = new_node;
+
+            reduced_node_count += 2;
+            i += 2;
         }
     }
 
@@ -755,7 +847,7 @@ int main(int argc, char** argv)
         }
     }
 
-    fprintf(pp, "%lu %lu\n", node_count + node_reference.size() - weight_nodes.size(), blob_names.size() + splitncnn_blob_count);
+    fprintf(pp, "%lu %lu\n", node_count - reduced_node_count + node_reference.size() - weight_nodes.size(), blob_names.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 
@@ -763,7 +855,10 @@ int main(int argc, char** argv)
     {
         const MXNetNode& n = nodes[i];
 
-        int output_size = 1;
+        if (n.op == "noop_reducedncnn")
+        {
+            continue;
+        }
 
         if (n.op == "null")
         {
@@ -1016,6 +1111,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Reshape");
         }
+        else if (n.op == "ShuffleChannel")
+        {
+            fprintf(pp, "%-16s", "ShuffleChannel");
+        }
         else if (n.op == "sigmoid")
         {
             fprintf(pp, "%-16s", "Sigmoid");
@@ -1027,7 +1126,6 @@ int main(int argc, char** argv)
         else if (n.op == "SliceChannel")
         {
             fprintf(pp, "%-16s", "Slice");
-            output_size = n.attr("num_outputs");
         }
         else if (n.op == "SoftmaxOutput")
         {
@@ -1083,7 +1181,7 @@ int main(int argc, char** argv)
             input_size--;
         }
 
-        fprintf(pp, " %-32s %d %d", n.name.c_str(), input_size, output_size);
+        fprintf(pp, " %-32s %d %d", n.name.c_str(), input_size, n.output_size);
 
         for (int j=0; j<(int)n.inputs.size(); j++)
         {
@@ -1125,7 +1223,7 @@ int main(int argc, char** argv)
         }
 
         fprintf(pp, " %s", n.name.c_str());
-        for (int j=1; j<output_size; j++)
+        for (int j=1; j<n.output_size; j++)
         {
             fprintf(pp, " %s_subncnn_%d", n.name.c_str(), j);
         }
@@ -1716,6 +1814,11 @@ int main(int argc, char** argv)
                 fprintf(pp, " 2=%d", shape[1]);
             }
         }
+        else if (n.op == "ShuffleChannel")
+        {
+            int group = n.attr("group");
+            fprintf(pp, " 0=%d", group);
+        }
         else if (n.op == "sigmoid")
         {
         }
@@ -1808,7 +1911,7 @@ int main(int argc, char** argv)
 
         fprintf(pp, "\n");
 
-        for (int j=0; j<output_size; j++)
+        for (int j=0; j<n.output_size; j++)
         {
             int input_uid = i | (j << 16);
             if (node_reference.find(input_uid) != node_reference.end())
