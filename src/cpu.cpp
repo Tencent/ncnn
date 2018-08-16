@@ -229,7 +229,11 @@ static int get_cpucount()
 
     return count;
 #else
+#ifdef _OPENMP
+    return omp_get_max_threads();
+#else
     return 1;
+#endif // _OPENMP
 #endif
 }
 
