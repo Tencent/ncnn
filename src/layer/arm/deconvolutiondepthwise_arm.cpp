@@ -14,10 +14,6 @@
 
 #include "deconvolutiondepthwise_arm.h"
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
 #include "layer_type.h"
 
 namespace ncnn {
