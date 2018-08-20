@@ -74,10 +74,10 @@ int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
 
     for (int g=0; g<group; g++)
     {
-        Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const unsigned char*)weight_data + maxk * channels_g * num_output_g * g * weight_data.elemsize), weight_data.elemsize);
+        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
         Mat bias_data_g;
         if (bias_term)
-            bias_data_g = Mat(num_output_g, (void*)((const float*)bias_data + num_output_g * g));
+            bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
         ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
 
@@ -105,11 +105,8 @@ int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
 
         if (int8_scale_term)
         {
-            float weight_data_int8_scale = weight_data_int8_scales[g];
-            float bottom_blob_int8_scale = bottom_blob_int8_scales[g];
-
-            weights[2] = Mat(1, (size_t)4u, (void*)&weight_data_int8_scale);
-            weights[3] = Mat(1, (size_t)4u, (void*)&bottom_blob_int8_scale);
+            weights[2] = weight_data_int8_scales.range(g, 1);
+            weights[3] = bottom_blob_int8_scales.range(g, 1);
         }
 
         op->load_model(ModelBinFromMatArray(weights));
@@ -139,10 +136,36 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    Mat bottom_blob_bordered = bottom_blob;
+    Mat bottom_blob_unbordered = bottom_blob;
+    if (use_int8_inference && elemsize != 1)
+    {
+        Mat bottom_blob_int8;
+        bottom_blob_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
+        if (bottom_blob_int8.empty())
+            return -100;
+
+        const int channels_g = channels / group;
+
+        // quantize, scale and round to nearest
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g=0; g<group; g++)
+        {
+            ncnn::Option opt_g = opt;
+            opt_g.num_threads = 1;
+            opt_g.blob_allocator = bottom_blob_int8.allocator;
+
+            const Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
+            Mat bottom_blob_int8_g = bottom_blob_int8.channel_range(channels_g * g, channels_g);
+            quantize_ops[g]->forward(bottom_blob_g, bottom_blob_int8_g, opt_g);
+        }
+
+        bottom_blob_unbordered = bottom_blob_int8;
+    }
+
+    Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -155,7 +178,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -180,31 +203,13 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
             {
                 if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
                 {
-                    Mat bottom_blob_bordered_int8;
-                    bottom_blob_bordered_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
-                    if (bottom_blob_bordered_int8.empty())
-                        return -100;
-
-                    // quantize, scale and round to nearest
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int g=0; g<group; g++)
-                    {
-                        ncnn::Option opt_g = opt;
-                        opt_g.num_threads = 1;
-                        opt_g.blob_allocator = bottom_blob_bordered_int8.allocator;
-
-                        const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel(g);
-                        Mat bottom_blob_bordered_int8_g = bottom_blob_bordered_int8.channel(g);
-                        quantize_ops[g]->forward(bottom_blob_bordered_g, bottom_blob_bordered_int8_g, opt_g);
-                    }
-
                     if (stride_w == 1 && stride_h == 1)
                     {
-                        convdw3x3s1_int8_neon(bottom_blob_bordered_int8, top_blob, weight_data, opt);
+                        convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
                     }
                     else if (stride_w == 2 && stride_h == 2)
                     {
-                        convdw3x3s2_int8_neon(bottom_blob_bordered_int8, top_blob, weight_data, opt);
+                        convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
                     }
 
                     // dequantize, reverse scale inplace
@@ -243,8 +248,8 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
-            Mat bottom_blob_bordered_g(w, h, 1, bottom_blob_bordered.channel(g));
-            Mat top_blob_g(outw, outh, 1, top_blob.channel(g), top_blob.elemsize, top_blob.allocator);
+            Mat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(g, 1);
+            Mat top_blob_g = top_blob.channel_range(g, 1);
 
             const ncnn::Layer* op = group_ops[g];
 
@@ -264,8 +269,8 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     for (int g=0; g<group; g++)
     {
-        Mat bottom_blob_bordered_g(w, h, channels_g, bottom_blob_bordered.channel(channels_g * g));
-        Mat top_blob_g(outw, outh, num_output_g, top_blob.channel(num_output_g * g), top_blob.elemsize, top_blob.allocator);
+        Mat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(channels_g * g, channels_g);
+        Mat top_blob_g = top_blob.channel_range(num_output_g * g, num_output_g);
 
         const ncnn::Layer* op = group_ops[g];
 
