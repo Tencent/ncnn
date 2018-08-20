@@ -82,6 +82,14 @@ public:
     template<typename T> T* row(int y);
     template<typename T> const T* row(int y) const;
 
+    // range reference
+    Mat channel_range(int c, int channels);
+    const Mat channel_range(int c, int channels) const;
+    Mat row_range(int y, int rows);
+    const Mat row_range(int y, int rows) const;
+    Mat range(int x, int n);
+    const Mat range(int x, int n) const;
+
     // access raw data
     template<typename T> operator T*();
     template<typename T> operator const T*() const;
@@ -624,6 +632,36 @@ template <typename T>
 inline const T* Mat::row(int y) const
 {
     return (const T*)data + w * y;
+}
+
+inline Mat Mat::channel_range(int _c, int channels)
+{
+    return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, allocator);
+}
+
+inline const Mat Mat::channel_range(int _c, int channels) const
+{
+    return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, allocator);
+}
+
+inline Mat Mat::row_range(int y, int rows)
+{
+    return Mat(w, rows, (unsigned char*)data + w * y * elemsize, elemsize, allocator);
+}
+
+inline const Mat Mat::row_range(int y, int rows) const
+{
+    return Mat(w, rows, (unsigned char*)data + w * y * elemsize, elemsize, allocator);
+}
+
+inline Mat Mat::range(int x, int n)
+{
+    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, allocator);
+}
+
+inline const Mat Mat::range(int x, int n) const
+{
+    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, allocator);
 }
 
 template <typename T>
