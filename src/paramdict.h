@@ -16,6 +16,8 @@
 #define NCNN_PARAMDICT_H
 
 #include <stdio.h>
+#include <sstream>
+
 #include "mat.h"
 #include "platform.h"
 
@@ -25,6 +27,13 @@
 namespace ncnn {
 
 class Net;
+
+struct Param {
+    int loaded;
+    union { int i; float f; };
+    Mat v;
+};
+
 class ParamDict
 {
 public:
@@ -50,21 +59,16 @@ protected:
 
     void clear();
 
+    int load_param(std::stringstream &ss);
 #if NCNN_STDIO
 #if NCNN_STRING
-    int load_param(FILE* fp);
 #endif // NCNN_STRING
     int load_param_bin(FILE* fp);
 #endif // NCNN_STDIO
     int load_param(const unsigned char*& mem);
 
 protected:
-    struct
-    {
-        int loaded;
-        union { int i; float f; };
-        Mat v;
-    } params[NCNN_MAX_PARAM_COUNT];
+    Param params[NCNN_MAX_PARAM_COUNT];
 };
 
 } // namespace ncnn

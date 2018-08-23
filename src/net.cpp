@@ -94,12 +94,10 @@ int Net::register_custom_layer(int index, layer_creator_func creator)
     return 0;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Net::load_param(FILE* fp)
+int Net::load_param(std::stringstream &ss)
 {
     int magic = 0;
-    fscanf(fp, "%d", &magic);
+    ss >> magic;
     if (magic != 7767517)
     {
         fprintf(stderr, "param is too old, please regenerate\n");
@@ -109,7 +107,7 @@ int Net::load_param(FILE* fp)
     // parse
     int layer_count = 0;
     int blob_count = 0;
-    fscanf(fp, "%d %d", &layer_count, &blob_count);
+    ss >> layer_count >> blob_count;
 
     layers.resize(layer_count);
     blobs.resize(blob_count);
@@ -118,55 +116,59 @@ int Net::load_param(FILE* fp)
 
     int layer_index = 0;
     int blob_index = 0;
-    while (!feof(fp))
+    while (true)
     {
-        int nscan = 0;
-
-        char layer_type[257];
-        char layer_name[257];
+        std::string layer_type;
+        std::string layer_name;
         int bottom_count = 0;
         int top_count = 0;
-        nscan = fscanf(fp, "%256s %256s %d %d", layer_type, layer_name, &bottom_count, &top_count);
-        if (nscan != 4)
+        ss >> layer_type >> layer_name >> bottom_count >> top_count;
+        if (ss.eof()) {
+            break;
+        }
+        if (!ss.good())
         {
+            ss.clear();
             continue;
         }
+        // fprintf(stderr, "new %s %s \n", layer_type.c_str(), layer_name.c_str());
 
-        Layer* layer = create_layer(layer_type);
+        Layer* layer = create_layer(layer_type.c_str());
         if (!layer)
         {
-            layer = create_custom_layer(layer_type);
+            layer = create_custom_layer(layer_type.c_str());
         }
         if (!layer)
         {
-            fprintf(stderr, "layer %s not exists or registered\n", layer_type);
+            fprintf(stderr, "layer %s not exists or registered\n", layer_type.c_str());
             clear();
             return -1;
         }
 
-        layer->type = std::string(layer_type);
-        layer->name = std::string(layer_name);
+        layer->type = layer_type;
+        layer->name = layer_name;
 //         fprintf(stderr, "new layer %d %s\n", layer_index, layer_name);
 
         layer->bottoms.resize(bottom_count);
         for (int i=0; i<bottom_count; i++)
         {
-            char bottom_name[257];
-            nscan = fscanf(fp, "%256s", bottom_name);
-            if (nscan != 1)
+            std::string bottom_name;
+            ss >> bottom_name;
+            if (!ss.good())
             {
                 continue;
             }
+            // fprintf(stderr, "new  bottom %s\n", bottom_name.c_str());
 
-            int bottom_blob_index = find_blob_index_by_name(bottom_name);
+            int bottom_blob_index = find_blob_index_by_name(bottom_name.c_str());
             if (bottom_blob_index == -1)
             {
                 Blob& blob = blobs[blob_index];
 
                 bottom_blob_index = blob_index;
 
-                blob.name = std::string(bottom_name);
-//                 fprintf(stderr, "new blob %s\n", bottom_name);
+                blob.name = bottom_name;
+                // fprintf(stderr, "new blob %s\n", bottom_name.c_str());
 
                 blob_index++;
             }
@@ -183,15 +185,16 @@ int Net::load_param(FILE* fp)
         {
             Blob& blob = blobs[blob_index];
 
-            char blob_name[257];
-            nscan = fscanf(fp, "%256s", blob_name);
-            if (nscan != 1)
+            std::string blob_name;
+            ss >> blob_name;
+            if (!ss.good())
             {
+                ss.clear();
                 continue;
             }
+            // fprintf(stderr, "new blob %s\n", blob_name.c_str());
 
-            blob.name = std::string(blob_name);
-//             fprintf(stderr, "new blob %s\n", blob_name);
+            blob.name = blob_name;
 
             blob.producer = layer_index;
 
@@ -201,7 +204,11 @@ int Net::load_param(FILE* fp)
         }
 
         // layer specific params
-        int pdlr = pd.load_param(fp);
+
+        std::string params;
+        std::getline(ss, params);
+        params.push_back(' ');
+        int pdlr = pd.load_param(std::stringstream(params));
         if (pdlr != 0)
         {
             fprintf(stderr, "ParamDict load_param failed\n");
@@ -223,19 +230,29 @@ int Net::load_param(FILE* fp)
     return 0;
 }
 
+#if NCNN_STDIO
+#if NCNN_STRING
+
+std::string Net::read_file(const char* path)
+{
+    FILE *f = fopen(path, "rb");
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);  //same as rewind(f);
+
+    std::string str;
+    str.resize(fsize + 1);
+    fread((void*)str.data(), 1, fsize, f);
+    fclose(f);
+
+    str[fsize] = 0;
+    return std::move(str);
+}
+
 int Net::load_param(const char* protopath)
 {
-    FILE* fp = fopen(protopath, "rb");
-    if (!fp)
-    {
-        fprintf(stderr, "fopen %s failed\n", protopath);
-        return -1;
-    }
-
-    int ret = load_param(fp);
-
-    fclose(fp);
-
+    std::string str = read_file(protopath);
+    int ret = load_param(std::stringstream(str));
     return ret;
 }
 #endif // NCNN_STRING

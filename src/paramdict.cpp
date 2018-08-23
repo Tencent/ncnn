@@ -15,6 +15,7 @@
 #include <ctype.h>
 #include "paramdict.h"
 #include "platform.h"
+#include <sstream>
 
 namespace ncnn {
 
@@ -65,33 +66,53 @@ void ParamDict::clear()
     }
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-static bool vstr_is_float(const char vstr[16])
+static int read_v_str(const std::string &vstr, int &iValue, float &fValue)
 {
+    bool is_float = false;
     // look ahead for determine isfloat
-    for (int j=0; j<16; j++)
+    for (int j=0; j<vstr.size(); j++)
     {
         if (vstr[j] == '\0')
             break;
 
-        if (vstr[j] == '.' || tolower(vstr[j]) == 'e')
-            return true;
+        if (vstr[j] == '.' || tolower(vstr[j]) == 'e') {
+            is_float = true;
+            break;
+        }
     }
+    int nscan = 0;
 
-    return false;
+    if (is_float)
+        nscan = sscanf(vstr.c_str(), "%f", &fValue);
+    else
+        nscan = sscanf(vstr.c_str(), "%d", &iValue);
+    if (nscan != 1)
+    {
+        fprintf(stderr, "ParamDict parse value fail\n");
+        return -1;
+    }
+    return 0;
 }
 
-int ParamDict::load_param(FILE* fp)
+int ParamDict::load_param(std::stringstream &ss)
 {
     clear();
 
 //     0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0
 
     // parse each key=value pair
-    int id = 0;
-    while (fscanf(fp, "%d=", &id) == 1)
+    while (true)
     {
+        char c;
+        int id = 0;
+        ss >>id;
+        if (!ss.good()) {
+            break;
+        };
+        ss.get(c);
+        if (!ss.good() || c != '=') {
+            break;
+        }
         bool is_array = id <= -23300;
         if (is_array)
         {
@@ -101,8 +122,8 @@ int ParamDict::load_param(FILE* fp)
         if (is_array)
         {
             int len = 0;
-            int nscan = fscanf(fp, "%d", &len);
-            if (nscan != 1)
+            ss >> len;
+            if (!ss.good())
             {
                 fprintf(stderr, "ParamDict read array length fail\n");
                 return -1;
@@ -110,54 +131,30 @@ int ParamDict::load_param(FILE* fp)
 
             params[id].v.create(len);
 
+            std::string array_vstr;
+            std::getline(ss, array_vstr, ' ');
+            array_vstr.push_back(',');
+            std::stringstream vss(array_vstr);
             for (int j = 0; j < len; j++)
             {
-                char vstr[16];
-                nscan = fscanf(fp, ",%15[^,\n ]", vstr);
-                if (nscan != 1)
-                {
-                    fprintf(stderr, "ParamDict read array element fail\n");
-                    return -1;
-                }
-
-                bool is_float = vstr_is_float(vstr);
-
-                if (is_float)
-                {
-                    float* ptr = params[id].v;
-                    nscan = sscanf(vstr, "%f", &ptr[j]);
-                }
-                else
-                {
-                    int* ptr = params[id].v;
-                    nscan = sscanf(vstr, "%d", &ptr[j]);
-                }
-                if (nscan != 1)
-                {
-                    fprintf(stderr, "ParamDict parse array element fail\n");
+                std::string vstr;
+                std::getline(vss, vstr, ',');
+                if (read_v_str(vstr, ((int*)params[id].v.data)[j], ((float*)params[id].v.data)[j]) < 0) {
                     return -1;
                 }
             }
         }
         else
         {
-            char vstr[16];
-            int nscan = fscanf(fp, "%15s", vstr);
-            if (nscan != 1)
+            std::string vstr;
+            std::getline(ss, vstr, ' ');
+            // fprintf(stderr, "vstr:%s", vstr.c_str());
+            if (!ss.good())
             {
                 fprintf(stderr, "ParamDict read value fail\n");
                 return -1;
             }
-
-            bool is_float = vstr_is_float(vstr);
-
-            if (is_float)
-                nscan = sscanf(vstr, "%f", &params[id].f);
-            else
-                nscan = sscanf(vstr, "%d", &params[id].i);
-            if (nscan != 1)
-            {
-                fprintf(stderr, "ParamDict parse value fail\n");
+            if (read_v_str(vstr, params[id].i, params[id].f) < 0) {
                 return -1;
             }
         }
@@ -167,7 +164,8 @@ int ParamDict::load_param(FILE* fp)
 
     return 0;
 }
-#endif // NCNN_STRING
+
+#if NCNN_STDIO
 
 int ParamDict::load_param_bin(FILE* fp)
 {

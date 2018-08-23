@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <vector>
+#include <sstream>
 #include "blob.h"
 #include "layer.h"
 #include "mat.h"
@@ -42,11 +43,18 @@ public:
     // return 0 if success
     int register_custom_layer(int index, layer_creator_func creator);
 
+    int load_param(std::stringstream &ss);
+    int load_param_str(const std::string &str)
+    {
+        std::stringstream ss(str);
+        return load_param(ss);
+    }
+
 #if NCNN_STDIO
 #if NCNN_STRING
+    static std::string read_file(const char* path);
     // load network structure from plain param file
     // return 0 if success
-    int load_param(FILE* fp);
     int load_param(const char* protopath);
 #endif // NCNN_STRING
     // load network structure from binary param file
