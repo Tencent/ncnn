@@ -638,7 +638,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 6=%d", weight_blob.data_size());
 
             int num_group = 1;
-            if (layer.type() == "ConvolutionDepthwise")
+            if (layer.type() == "ConvolutionDepthwise" || layer.type() == "DepthwiseConvolution")
             {
                 num_group = convolution_param.num_output();
             }
