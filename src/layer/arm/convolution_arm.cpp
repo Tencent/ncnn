@@ -64,6 +64,13 @@ int Convolution_arm::load_model(const ModelBin& mb)
 
     if (use_int8_inference)
     {
+#if !__aarch64__
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            int num_input = weight_data_size / 9 / num_output;
+            conv3x3s1_transform_kernel_int8_neon(weight_data, weight_3x3s1_int8_data, num_input, num_output);
+        }
+#endif // !__aarch64__
         return 0;
     }
 
@@ -393,7 +400,16 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (use_int8_inference)
     {
+#if !__aarch64__
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+        conv3x3s1_packed_int8_neon(bottom_blob_bordered, top_blob, weight_3x3s1_int8_data, opt);
+        }
+        else
+#endif // !__aarch64__
+        {
         conv_int8(bottom_blob_bordered, top_blob, weight_data, opt);
+        }
 
         // dequantize, reverse scale inplace
         {
