@@ -14,10 +14,6 @@
 
 #include "deconvolutiondepthwise_arm.h"
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
 #include "layer_type.h"
 
 namespace ncnn {
@@ -69,13 +65,13 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
-            Mat bottom_blob_g(w, h, 1, bottom_blob.channel(g).data);
-            Mat top_blob_bordered_g(outw, outh, 1, top_blob_bordered.channel(g), top_blob.elemsize, top_blob.allocator);
-            Mat weight_data_g(maxk, (void*)((const float*)weight_data + maxk * g));
+            Mat bottom_blob_g = bottom_blob.channel_range(g, 1);
+            Mat top_blob_bordered_g = top_blob_bordered.channel_range(g, 1);
+            Mat weight_data_g = weight_data.range(maxk * g, maxk);
 
             Mat bias_data_g;
             if (bias_term)
-                bias_data_g = Mat(1, (void*)((const float*)bias_data + g));
+                bias_data_g = bias_data.range(g, 1);
 
             // call Deconvolution
             ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
@@ -120,12 +116,12 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
         for (int g=0; g<group; g++)
         {
-            Mat bottom_blob_g(w, h, channels_g, bottom_blob.channel(channels_g * g).data);
-            Mat top_blob_bordered_g(outw, outh, num_output_g, top_blob_bordered.channel(num_output_g * g), top_blob.elemsize, top_blob.allocator);
-            Mat weight_data_g(maxk * channels_g * num_output_g, (void*)((const float*)weight_data + maxk * channels_g * num_output_g * g));
+            Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
+            Mat top_blob_bordered_g = top_blob_bordered.channel_range(num_output_g * g, num_output_g);
+            Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
             Mat bias_data_g;
             if (bias_term)
-                bias_data_g = Mat(num_output_g, (void*)((const float*)bias_data + num_output_g * g));
+                bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
             // call Deconvolution
             ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);

@@ -219,10 +219,36 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    Mat bottom_blob_bordered = bottom_blob;
+    Mat bottom_blob_unbordered = bottom_blob;
+    if (use_int8_inference && elemsize != 1)
+    {
+        Mat bottom_blob_int8;
+        bottom_blob_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
+        if (bottom_blob_int8.empty())
+            return -100;
+
+        const int channels_g = channels / group;
+
+        // quantize, scale and round to nearest
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g=0; g<group; g++)
+        {
+            ncnn::Option opt_g = opt;
+            opt_g.num_threads = 1;
+            opt_g.blob_allocator = bottom_blob_int8.allocator;
+
+            const Mat bottom_blob_g(w, h, channels_g, (void*)((const float*)bottom_blob.channel(channels_g * g)));
+            Mat bottom_blob_int8_g(w, h, channels_g, (void*)((signed char*)bottom_blob_int8.channel(channels_g * g)));
+            quantize_ops[g]->forward(bottom_blob_g, bottom_blob_int8_g, opt_g);
+        }
+
+        bottom_blob_unbordered = bottom_blob_int8;
+    }
+
+    Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -235,7 +261,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -274,31 +300,15 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
     if (use_int8_inference)
     {
-        Mat bottom_blob_bordered_int8;
-        bottom_blob_bordered_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
-        if (bottom_blob_bordered_int8.empty())
-            return -100;
-
         // depth-wise
         if (channels == group && group == num_output)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int g=0; g<group; g++)
             {
-                // quantize, scale and round to nearest
-                {
-                    ncnn::Option opt_g = opt;
-                    opt_g.num_threads = 1;
-                    opt_g.blob_allocator = bottom_blob_bordered_int8.allocator;
-
-                    const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel(g);
-                    Mat bottom_blob_bordered_int8_g = bottom_blob_bordered_int8.channel(g);
-                    quantize_ops[g]->forward(bottom_blob_bordered_g, bottom_blob_bordered_int8_g, opt_g);
-                }
-
                 int* outptr = top_blob.channel(g);
                 const signed char* kptr = (const signed char*)weight_data + maxk * g;
-                const Mat m = bottom_blob_bordered_int8.channel(g);
+                const Mat m = bottom_blob_bordered.channel(g);
 
                 for (int i = 0; i < outh; i++)
                 {
@@ -337,19 +347,6 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
             const int channels_g = channels / group;
             const int num_output_g = num_output / group;
 
-            // quantize, scale and round to nearest
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int g=0; g<group; g++)
-            {
-                ncnn::Option opt_g = opt;
-                opt_g.num_threads = 1;
-                opt_g.blob_allocator = bottom_blob_bordered_int8.allocator;
-
-                const Mat bottom_blob_bordered_g(w, h, channels_g, (void*)((float*)bottom_blob_bordered.channel(channels_g * g)));
-                Mat bottom_blob_bordered_int8_g(w, h, channels_g, (void*)((signed char*)bottom_blob_bordered_int8.channel(channels_g * g)));
-                quantize_ops[g]->forward(bottom_blob_bordered_g, bottom_blob_bordered_int8_g, opt_g);
-            }
-
 #ifdef _WIN32
             #pragma omp parallel for num_threads(opt.num_threads)
 #else // _WIN32
@@ -373,7 +370,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             // channels_g
                             for (int q=0; q<channels_g; q++)
                             {
-                                const Mat m = bottom_blob_bordered_int8.channel(channels_g * g + q);
+                                const Mat m = bottom_blob_bordered.channel(channels_g * g + q);
                                 const signed char* sptr = m.row<signed char>(i*stride_h) + j*stride_w;
 
                                 for (int k = 0; k < maxk; k++)

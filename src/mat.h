@@ -51,6 +51,7 @@ public:
     Mat& operator=(const Mat& m);
     // set all
     void fill(float v);
+    void fill(int v);
     template <typename T> void fill(T v);
     // deep copy
     Mat clone(Allocator* allocator = 0) const;
@@ -81,6 +82,14 @@ public:
     const float* row(int y) const;
     template<typename T> T* row(int y);
     template<typename T> const T* row(int y) const;
+
+    // range reference
+    Mat channel_range(int c, int channels);
+    const Mat channel_range(int c, int channels) const;
+    Mat row_range(int y, int rows);
+    const Mat row_range(int y, int rows) const;
+    Mat range(int x, int n);
+    const Mat range(int x, int n) const;
 
     // access raw data
     template<typename T> operator T*();
@@ -310,6 +319,60 @@ inline void Mat::fill(float _v)
         "0:                             \n"
         "subs       %0, #1              \n"
         "vst1.f32   {%e4-%f4}, [%1 :128]!\n"
+        "bne        0b                  \n"
+        : "=r"(nn),     // %0
+          "=r"(ptr)     // %1
+        : "0"(nn),
+          "1"(ptr),
+          "w"(_c)       // %4
+        : "cc", "memory"
+    );
+    }
+#endif // __aarch64__
+#endif // __ARM_NEON
+    for (; remain>0; remain--)
+    {
+        *ptr++ = _v;
+    }
+}
+
+inline void Mat::fill(int _v)
+{
+    int size = total();
+    int* ptr = (int*)data;
+
+#if __ARM_NEON
+    int nn = size >> 2;
+    int remain = size - (nn << 2);
+#else
+    int remain = size;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+    int32x4_t _c = vdupq_n_s32(_v);
+#if __aarch64__
+    if (nn > 0)
+    {
+    asm volatile (
+        "0:                             \n"
+        "subs       %w0, %w0, #1        \n"
+        "st1        {%4.4s}, [%1], #16  \n"
+        "bne        0b                  \n"
+        : "=r"(nn),     // %0
+          "=r"(ptr)     // %1
+        : "0"(nn),
+          "1"(ptr),
+          "w"(_c)       // %4
+        : "cc", "memory"
+    );
+    }
+#else
+    if (nn > 0)
+    {
+    asm volatile(
+        "0:                             \n"
+        "subs       %0, #1              \n"
+        "vst1.s32   {%e4-%f4}, [%1 :128]!\n"
         "bne        0b                  \n"
         : "=r"(nn),     // %0
           "=r"(ptr)     // %1
@@ -624,6 +687,36 @@ template <typename T>
 inline const T* Mat::row(int y) const
 {
     return (const T*)data + w * y;
+}
+
+inline Mat Mat::channel_range(int _c, int channels)
+{
+    return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, allocator);
+}
+
+inline const Mat Mat::channel_range(int _c, int channels) const
+{
+    return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, allocator);
+}
+
+inline Mat Mat::row_range(int y, int rows)
+{
+    return Mat(w, rows, (unsigned char*)data + w * y * elemsize, elemsize, allocator);
+}
+
+inline const Mat Mat::row_range(int y, int rows) const
+{
+    return Mat(w, rows, (unsigned char*)data + w * y * elemsize, elemsize, allocator);
+}
+
+inline Mat Mat::range(int x, int n)
+{
+    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, allocator);
+}
+
+inline const Mat Mat::range(int x, int n) const
+{
+    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, allocator);
 }
 
 template <typename T>
