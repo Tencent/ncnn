@@ -89,7 +89,8 @@ static inline void fastFree(void* ptr)
 #  include <intrin.h>
 #  define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
 #else
-static inline void NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += delta; return tmp; }
+// thread-unsafe branch
+static inline int NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += delta; return tmp; }
 #endif
 
 #ifdef _WIN32
