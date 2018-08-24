@@ -88,31 +88,23 @@ int Convolution::load_model(const ModelBin& mb)
 
     if (weight_data_is_float32 && use_int8_inference)
     {
-        if (weight_data_int8_scale != 0.f && bottom_blob_int8_scale != 0.f)
-        {
-            // quantize weight to int8
-            Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
+        // quantize weight to int8
+        Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
 
-            ncnn::ParamDict pd;
-            pd.set(0, weight_data_int8_scale);// scale
+        ncnn::ParamDict pd;
+        pd.set(0, weight_data_int8_scale);// scale
 
-            op->load_param(pd);
+        op->load_param(pd);
 
-            Mat int8_weight_data;
-            op->forward(weight_data, int8_weight_data);
+        Mat int8_weight_data;
+        op->forward(weight_data, int8_weight_data);
 
-            delete op;
+        delete op;
 
-            if (int8_weight_data.empty())
-                return -100;
+        if (int8_weight_data.empty())
+            return -100;
 
-            weight_data = int8_weight_data;
-        }
-        else
-        {
-            // plain float32 weight, fallback to float32 inference
-            use_int8_inference = false;
-        }
+        weight_data = int8_weight_data;
     }
 
     if (use_int8_inference)
