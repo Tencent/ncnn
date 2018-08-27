@@ -29,15 +29,27 @@ class Allocator;
 class Option
 {
 public:
+    // default option
     Option();
 
 public:
+    // light mode
+    // intermediate blob will be recycled when enabled
+    // enabled by default
     bool lightmode;
+
+    // thread count
+    // default value is the one returned by get_cpu_count()
     int num_threads;
+
+    // blob memory allocator
     Allocator* blob_allocator;
+
+    // workspace memory allocator
     Allocator* workspace_allocator;
 };
 
+// the global default option
 const Option& get_default_option();
 int set_default_option(const Option& opt);
 

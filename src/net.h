@@ -79,8 +79,22 @@ public:
     Extractor create_extractor() const;
 
 public:
+    // enable winograd convolution optimization
+    // improve convolution 3x3 stride1 performace, may consume more memory
+    // changes should be applied before loading network structure and weight
+    // enabled by default
     int use_winograd_convolution;
+
+    // enable sgemm convolution optimization
+    // improve convolution 1x1 stride1 performace, may consume more memory
+    // changes should be applied before loading network structure and weight
+    // enabled by default
     int use_sgemm_convolution;
+
+    // enable quantized int8 inference
+    // use low-precision int8 path for quantized model
+    // changes should be applied before loading network structure and weight
+    // enabled by default
     int use_int8_inference;
 
 protected:
