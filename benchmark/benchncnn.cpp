@@ -278,6 +278,22 @@ void mobilenet_yolo_run(const ncnn::Net& net)
     ex.extract("detection_out", out);
 }
 
+void mnasnet_init(ncnn::Net& net)
+{
+    net.load_param("mnasnet.param");
+}
+
+void mnasnet_run(const ncnn::Net& net)
+{
+    ncnn::Extractor ex = net.create_extractor();
+
+    ncnn::Mat in(224, 224, 3);
+    ex.input("data", in);
+
+    ncnn::Mat out;
+    ex.extract("dense0_fwd", out);
+}
+
 int main(int argc, char** argv)
 {
     int loop_count = 4;
@@ -327,6 +343,8 @@ int main(int argc, char** argv)
     benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
 
     benchmark("shufflenet", shufflenet_init, shufflenet_run);
+
+    benchmark("mnasnet", mnasnet_init, mnasnet_run);
 
     benchmark("googlenet", googlenet_init, googlenet_run);
 
