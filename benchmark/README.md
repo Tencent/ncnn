@@ -60,16 +60,18 @@ HM2014812:/data/local/tmp # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   80.16  max =   97.73  avg =   89.13
-       mobilenet  min =  131.53  max =  151.08  avg =  140.42
-    mobilenet_v2  min =  132.14  max =  162.10  avg =  146.50
-      shufflenet  min =   57.88  max =   65.62  avg =   61.16
-       googlenet  min =  236.11  max =  248.62  avg =  244.74
-        resnet18  min =  271.75  max =  291.05  avg =  282.32
-         alexnet  min =  278.70  max =  296.65  avg =  285.61
-           vgg16  min = 1485.95  max = 1523.02  avg = 1504.54
-  squeezenet-ssd  min =  204.62  max =  222.92  avg =  212.41
-   mobilenet-ssd  min =  229.69  max =  236.50  avg =  233.48
+      squeezenet  min =   79.70  max =   85.42  avg =   82.22
+       mobilenet  min =  119.87  max =  125.63  avg =  123.46
+    mobilenet_v2  min =  125.65  max =  131.16  avg =  128.20
+      shufflenet  min =   60.95  max =   66.03  avg =   63.03
+         mnasnet  min =   92.60  max =   98.38  avg =   96.00
+       googlenet  min =  237.47  max =  256.79  avg =  245.65
+        resnet18  min =  239.73  max =  250.41  avg =  245.87
+         alexnet  min =  248.66  max =  279.08  avg =  267.41
+           vgg16  min = 1429.50  max = 1510.46  avg = 1465.25
+  squeezenet-ssd  min =  203.33  max =  213.85  avg =  209.81
+   mobilenet-ssd  min =  215.26  max =  224.23  avg =  219.73
+  mobilenet-yolo  min =  506.41  max =  520.50  avg =  513.30
 ```
 Raspberry Pi 3 Model B+ Broadcom BCM2837B0, Cortex-A53 (ARMv8) (1.4GHz x 4 )
 ```
@@ -201,14 +203,16 @@ imx7d_pico:/data/local/tmp # ./benchncnn 8 2 0
 loop_count = 8
 num_threads = 2
 powersave = 0
-      squeezenet  min =  305.80  max =  312.74  avg =  308.57
-       mobilenet  min =  482.27  max =  489.59  avg =  485.70
-    mobilenet_v2  min =  386.86  max =  405.36  avg =  396.69
-      shufflenet  min =  199.23  max =  232.69  avg =  205.30
-       googlenet  min = 1078.63  max = 1098.36  avg = 1083.29
-        resnet18  min = 1156.38  max = 1176.98  avg = 1165.92
-         alexnet  min = 1273.29  max = 1283.62  avg = 1277.34
+      squeezenet  min =  269.26  max =  278.84  avg =  273.10
+       mobilenet  min =  442.79  max =  445.82  avg =  444.46
+    mobilenet_v2  min =  362.19  max =  364.58  avg =  363.33
+      shufflenet  min =  171.30  max =  190.63  avg =  177.52
+         mnasnet  min =  291.79  max =  303.68  avg =  298.00
+       googlenet  min =  975.95  max =  986.11  avg =  980.51
+        resnet18  min = 1016.60  max = 1035.50  avg = 1021.75
+         alexnet  min = 1240.54  max = 1254.86  avg = 1247.18
            vgg16  min =    0.00  max =    0.00  avg =    0.00 (FAIL due to out of memory)
-  squeezenet-ssd  min =  737.55  max =  773.54  avg =  746.79
-   mobilenet-ssd  min =  946.56  max =  957.85  avg =  952.96
+  squeezenet-ssd  min =  614.93  max =  623.15  avg =  619.56
+   mobilenet-ssd  min =  842.83  max =  884.64  avg =  855.40
+  mobilenet-yolo  min = 1772.24  max = 1924.37  avg = 1805.75
 ```
