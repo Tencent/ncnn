@@ -40,16 +40,18 @@ angler:/data/local/tmp $ ./benchncnn 8 8 0
 loop_count = 8
 num_threads = 8
 powersave = 0
-      squeezenet  min =   57.82  max =   60.46  avg =   58.79
-       mobilenet  min =   62.17  max =   65.12  avg =   62.97
-    mobilenet_v2  min =   73.92  max =   77.14  avg =   74.54
-      shufflenet  min =   50.36  max =   51.03  avg =   50.65
-       googlenet  min =  163.27  max =  190.46  avg =  175.74
-        resnet18  min =  167.31  max =  191.60  avg =  180.75
-         alexnet  min =  113.60  max =  124.58  avg =  117.97
-           vgg16  min =  940.28  max = 1050.45  avg = 1004.43
-  squeezenet-ssd  min =  169.12  max =  200.12  avg =  184.83
-   mobilenet-ssd  min =  122.38  max =  165.38  avg =  142.36
+      squeezenet  min =   35.57  max =   36.56  avg =   36.13
+       mobilenet  min =   44.80  max =   56.80  avg =   47.91
+    mobilenet_v2  min =   46.80  max =   64.64  avg =   50.34
+      shufflenet  min =   28.24  max =   30.27  avg =   29.36
+         mnasnet  min =   37.91  max =   41.75  avg =   39.01
+       googlenet  min =  118.82  max =  132.80  avg =  123.74
+        resnet18  min =  119.55  max =  141.99  avg =  126.78
+         alexnet  min =  104.52  max =  125.98  avg =  110.17
+           vgg16  min =  815.12  max =  930.98  avg =  878.57
+  squeezenet-ssd  min =  111.05  max =  130.23  avg =  119.43
+   mobilenet-ssd  min =   88.88  max =  108.96  avg =   98.38
+  mobilenet-yolo  min =  220.57  max =  263.42  avg =  241.03
 ```
 
 Qualcomm MSM8916 Snapdragon 410 (Cortex-A53 1.2GHz x 4)
@@ -179,16 +181,18 @@ iPhone:~ root# ./benchncnn 8 2 0
 loop_count = 8
 num_threads = 2
 powersave = 0
-      squeezenet  min =  154.75  max =  160.97  avg =  158.21
-       mobilenet  min =  170.67  max =  179.59  avg =  175.29
-    mobilenet_v2  min =  214.20  max =  220.40  avg =  218.17
-      shufflenet  min =  128.01  max =  132.98  avg =  130.91
-       googlenet  min =  451.22  max =  461.26  avg =  456.23
-        resnet18  min =  414.69  max =  431.77  avg =  422.70
-         alexnet  min =  365.50  max =  372.15  avg =  368.19
-           vgg16  min = 4786.62  max = 4953.06  avg = 4886.71
-  squeezenet-ssd  min =  420.91  max =  446.68  avg =  435.90
-   mobilenet-ssd  min =  334.42  max =  358.08  avg =  345.02
+      squeezenet  min =   70.94  max =   72.40  avg =   71.75
+       mobilenet  min =   89.24  max =   92.21  avg =   90.60
+    mobilenet_v2  min =   71.70  max =   74.43  avg =   73.68
+      shufflenet  min =   35.48  max =   41.40  avg =   38.94
+         mnasnet  min =   59.28  max =   64.81  avg =   61.78
+       googlenet  min =  282.76  max =  295.00  avg =  289.64
+        resnet18  min =  251.99  max =  260.40  avg =  255.23
+         alexnet  min =  329.07  max =  337.75  avg =  333.24
+           vgg16  min = 4547.25  max = 4706.56  avg = 4647.60
+  squeezenet-ssd  min =  171.23  max =  180.49  avg =  175.54
+   mobilenet-ssd  min =  174.56  max =  192.69  avg =  179.60
+  mobilenet-yolo  min =  357.90  max =  363.93  avg =  360.97
 ```
 
 Freescale i.MX7 Dual (Cortex A7 1.0GHz x 2)
