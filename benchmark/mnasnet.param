@@ -1,0 +1,166 @@
+7767517
+164 174
+Input            data                             0 1 data
+Convolution      stage1_conv0_conv0_fwd           1 1 data stage1_conv0_conv0_fwd 0=32 1=3 11=3 2=1 12=1 3=2 13=2 4=1 14=1 5=0 6=864
+BatchNorm        stage1_conv0_batchnorm0_fwd      1 1 stage1_conv0_conv0_fwd stage1_conv0_batchnorm0_fwd 0=32
+ReLU             stage1_conv0_relu0_fwd           1 1 stage1_conv0_batchnorm0_fwd stage1_conv0_relu0_fwd
+ConvolutionDepthWise stage1_sepconv0_conv0_fwd        1 1 stage1_conv0_relu0_fwd stage1_sepconv0_conv0_fwd 0=32 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=288 7=32
+BatchNorm        stage1_sepconv0_batchnorm0_fwd   1 1 stage1_sepconv0_conv0_fwd stage1_sepconv0_batchnorm0_fwd 0=32
+ReLU             stage1_sepconv0_relu0_fwd        1 1 stage1_sepconv0_batchnorm0_fwd stage1_sepconv0_relu0_fwd
+Convolution      stage1_sepconv0_conv1_fwd        1 1 stage1_sepconv0_relu0_fwd stage1_sepconv0_conv1_fwd 0=16 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=512
+BatchNorm        stage1_sepconv0_batchnorm1_fwd   1 1 stage1_sepconv0_conv1_fwd stage1_sepconv0_batchnorm1_fwd 0=16
+ReLU             stage1_sepconv0_relu1_fwd        1 1 stage1_sepconv0_batchnorm1_fwd stage1_sepconv0_relu1_fwd
+Convolution      stage2_expandedconv0_expand_conv0_fwd 1 1 stage1_sepconv0_relu1_fwd stage2_expandedconv0_expand_conv0_fwd 0=48 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=768
+BatchNorm        stage2_expandedconv0_expand_batchnorm0_fwd 1 1 stage2_expandedconv0_expand_conv0_fwd stage2_expandedconv0_expand_batchnorm0_fwd 0=48
+ReLU             stage2_expandedconv0_expand_relu0_fwd 1 1 stage2_expandedconv0_expand_batchnorm0_fwd stage2_expandedconv0_expand_relu0_fwd
+ConvolutionDepthWise stage2_expandedconv0_dwise_conv0_fwd 1 1 stage2_expandedconv0_expand_relu0_fwd stage2_expandedconv0_dwise_conv0_fwd 0=48 1=3 11=3 2=1 12=1 3=2 13=2 4=1 14=1 5=0 6=432 7=48
+BatchNorm        stage2_expandedconv0_dwise_batchnorm0_fwd 1 1 stage2_expandedconv0_dwise_conv0_fwd stage2_expandedconv0_dwise_batchnorm0_fwd 0=48
+ReLU             stage2_expandedconv0_dwise_relu0_fwd 1 1 stage2_expandedconv0_dwise_batchnorm0_fwd stage2_expandedconv0_dwise_relu0_fwd
+Convolution      stage2_expandedconv0_linear_conv0_fwd 1 1 stage2_expandedconv0_dwise_relu0_fwd stage2_expandedconv0_linear_conv0_fwd 0=24 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1152
+BatchNorm        stage2_expandedconv0_linear_batchnorm0_fwd 1 1 stage2_expandedconv0_linear_conv0_fwd stage2_expandedconv0_linear_batchnorm0_fwd 0=24
+Split            splitncnn_0                      1 2 stage2_expandedconv0_linear_batchnorm0_fwd stage2_expandedconv0_linear_batchnorm0_fwd_splitncnn_0 stage2_expandedconv0_linear_batchnorm0_fwd_splitncnn_1
+Convolution      stage2_expandedconv1_expand_conv0_fwd 1 1 stage2_expandedconv0_linear_batchnorm0_fwd_splitncnn_1 stage2_expandedconv1_expand_conv0_fwd 0=72 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1728
+BatchNorm        stage2_expandedconv1_expand_batchnorm0_fwd 1 1 stage2_expandedconv1_expand_conv0_fwd stage2_expandedconv1_expand_batchnorm0_fwd 0=72
+ReLU             stage2_expandedconv1_expand_relu0_fwd 1 1 stage2_expandedconv1_expand_batchnorm0_fwd stage2_expandedconv1_expand_relu0_fwd
+ConvolutionDepthWise stage2_expandedconv1_dwise_conv0_fwd 1 1 stage2_expandedconv1_expand_relu0_fwd stage2_expandedconv1_dwise_conv0_fwd 0=72 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=648 7=72
+BatchNorm        stage2_expandedconv1_dwise_batchnorm0_fwd 1 1 stage2_expandedconv1_dwise_conv0_fwd stage2_expandedconv1_dwise_batchnorm0_fwd 0=72
+ReLU             stage2_expandedconv1_dwise_relu0_fwd 1 1 stage2_expandedconv1_dwise_batchnorm0_fwd stage2_expandedconv1_dwise_relu0_fwd
+Convolution      stage2_expandedconv1_linear_conv0_fwd 1 1 stage2_expandedconv1_dwise_relu0_fwd stage2_expandedconv1_linear_conv0_fwd 0=24 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1728
+BatchNorm        stage2_expandedconv1_linear_batchnorm0_fwd 1 1 stage2_expandedconv1_linear_conv0_fwd stage2_expandedconv1_linear_batchnorm0_fwd 0=24
+BinaryOp         stage2_expandedconv1_elemwise_add0 2 1 stage2_expandedconv1_linear_batchnorm0_fwd stage2_expandedconv0_linear_batchnorm0_fwd_splitncnn_0 stage2_expandedconv1_elemwise_add0 0=0
+Split            splitncnn_1                      1 2 stage2_expandedconv1_elemwise_add0 stage2_expandedconv1_elemwise_add0_splitncnn_0 stage2_expandedconv1_elemwise_add0_splitncnn_1
+Convolution      stage2_expandedconv2_expand_conv0_fwd 1 1 stage2_expandedconv1_elemwise_add0_splitncnn_1 stage2_expandedconv2_expand_conv0_fwd 0=72 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1728
+BatchNorm        stage2_expandedconv2_expand_batchnorm0_fwd 1 1 stage2_expandedconv2_expand_conv0_fwd stage2_expandedconv2_expand_batchnorm0_fwd 0=72
+ReLU             stage2_expandedconv2_expand_relu0_fwd 1 1 stage2_expandedconv2_expand_batchnorm0_fwd stage2_expandedconv2_expand_relu0_fwd
+ConvolutionDepthWise stage2_expandedconv2_dwise_conv0_fwd 1 1 stage2_expandedconv2_expand_relu0_fwd stage2_expandedconv2_dwise_conv0_fwd 0=72 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=648 7=72
+BatchNorm        stage2_expandedconv2_dwise_batchnorm0_fwd 1 1 stage2_expandedconv2_dwise_conv0_fwd stage2_expandedconv2_dwise_batchnorm0_fwd 0=72
+ReLU             stage2_expandedconv2_dwise_relu0_fwd 1 1 stage2_expandedconv2_dwise_batchnorm0_fwd stage2_expandedconv2_dwise_relu0_fwd
+Convolution      stage2_expandedconv2_linear_conv0_fwd 1 1 stage2_expandedconv2_dwise_relu0_fwd stage2_expandedconv2_linear_conv0_fwd 0=24 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1728
+BatchNorm        stage2_expandedconv2_linear_batchnorm0_fwd 1 1 stage2_expandedconv2_linear_conv0_fwd stage2_expandedconv2_linear_batchnorm0_fwd 0=24
+BinaryOp         stage2_expandedconv2_elemwise_add0 2 1 stage2_expandedconv2_linear_batchnorm0_fwd stage2_expandedconv1_elemwise_add0_splitncnn_0 stage2_expandedconv2_elemwise_add0 0=0
+Convolution      stage3_expandedconv0_expand_conv0_fwd 1 1 stage2_expandedconv2_elemwise_add0 stage3_expandedconv0_expand_conv0_fwd 0=72 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1728
+BatchNorm        stage3_expandedconv0_expand_batchnorm0_fwd 1 1 stage3_expandedconv0_expand_conv0_fwd stage3_expandedconv0_expand_batchnorm0_fwd 0=72
+ReLU             stage3_expandedconv0_expand_relu0_fwd 1 1 stage3_expandedconv0_expand_batchnorm0_fwd stage3_expandedconv0_expand_relu0_fwd
+ConvolutionDepthWise stage3_expandedconv0_dwise_conv0_fwd 1 1 stage3_expandedconv0_expand_relu0_fwd stage3_expandedconv0_dwise_conv0_fwd 0=72 1=5 11=5 2=1 12=1 3=2 13=2 4=2 14=2 5=0 6=1800 7=72
+BatchNorm        stage3_expandedconv0_dwise_batchnorm0_fwd 1 1 stage3_expandedconv0_dwise_conv0_fwd stage3_expandedconv0_dwise_batchnorm0_fwd 0=72
+ReLU             stage3_expandedconv0_dwise_relu0_fwd 1 1 stage3_expandedconv0_dwise_batchnorm0_fwd stage3_expandedconv0_dwise_relu0_fwd
+Convolution      stage3_expandedconv0_linear_conv0_fwd 1 1 stage3_expandedconv0_dwise_relu0_fwd stage3_expandedconv0_linear_conv0_fwd 0=40 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=2880
+BatchNorm        stage3_expandedconv0_linear_batchnorm0_fwd 1 1 stage3_expandedconv0_linear_conv0_fwd stage3_expandedconv0_linear_batchnorm0_fwd 0=40
+Split            splitncnn_2                      1 2 stage3_expandedconv0_linear_batchnorm0_fwd stage3_expandedconv0_linear_batchnorm0_fwd_splitncnn_0 stage3_expandedconv0_linear_batchnorm0_fwd_splitncnn_1
+Convolution      stage3_expandedconv1_expand_conv0_fwd 1 1 stage3_expandedconv0_linear_batchnorm0_fwd_splitncnn_1 stage3_expandedconv1_expand_conv0_fwd 0=120 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=4800
+BatchNorm        stage3_expandedconv1_expand_batchnorm0_fwd 1 1 stage3_expandedconv1_expand_conv0_fwd stage3_expandedconv1_expand_batchnorm0_fwd 0=120
+ReLU             stage3_expandedconv1_expand_relu0_fwd 1 1 stage3_expandedconv1_expand_batchnorm0_fwd stage3_expandedconv1_expand_relu0_fwd
+ConvolutionDepthWise stage3_expandedconv1_dwise_conv0_fwd 1 1 stage3_expandedconv1_expand_relu0_fwd stage3_expandedconv1_dwise_conv0_fwd 0=120 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=1080 7=120
+BatchNorm        stage3_expandedconv1_dwise_batchnorm0_fwd 1 1 stage3_expandedconv1_dwise_conv0_fwd stage3_expandedconv1_dwise_batchnorm0_fwd 0=120
+ReLU             stage3_expandedconv1_dwise_relu0_fwd 1 1 stage3_expandedconv1_dwise_batchnorm0_fwd stage3_expandedconv1_dwise_relu0_fwd
+Convolution      stage3_expandedconv1_linear_conv0_fwd 1 1 stage3_expandedconv1_dwise_relu0_fwd stage3_expandedconv1_linear_conv0_fwd 0=40 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=4800
+BatchNorm        stage3_expandedconv1_linear_batchnorm0_fwd 1 1 stage3_expandedconv1_linear_conv0_fwd stage3_expandedconv1_linear_batchnorm0_fwd 0=40
+BinaryOp         stage3_expandedconv1_elemwise_add0 2 1 stage3_expandedconv1_linear_batchnorm0_fwd stage3_expandedconv0_linear_batchnorm0_fwd_splitncnn_0 stage3_expandedconv1_elemwise_add0 0=0
+Split            splitncnn_3                      1 2 stage3_expandedconv1_elemwise_add0 stage3_expandedconv1_elemwise_add0_splitncnn_0 stage3_expandedconv1_elemwise_add0_splitncnn_1
+Convolution      stage3_expandedconv2_expand_conv0_fwd 1 1 stage3_expandedconv1_elemwise_add0_splitncnn_1 stage3_expandedconv2_expand_conv0_fwd 0=120 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=4800
+BatchNorm        stage3_expandedconv2_expand_batchnorm0_fwd 1 1 stage3_expandedconv2_expand_conv0_fwd stage3_expandedconv2_expand_batchnorm0_fwd 0=120
+ReLU             stage3_expandedconv2_expand_relu0_fwd 1 1 stage3_expandedconv2_expand_batchnorm0_fwd stage3_expandedconv2_expand_relu0_fwd
+ConvolutionDepthWise stage3_expandedconv2_dwise_conv0_fwd 1 1 stage3_expandedconv2_expand_relu0_fwd stage3_expandedconv2_dwise_conv0_fwd 0=120 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=1080 7=120
+BatchNorm        stage3_expandedconv2_dwise_batchnorm0_fwd 1 1 stage3_expandedconv2_dwise_conv0_fwd stage3_expandedconv2_dwise_batchnorm0_fwd 0=120
+ReLU             stage3_expandedconv2_dwise_relu0_fwd 1 1 stage3_expandedconv2_dwise_batchnorm0_fwd stage3_expandedconv2_dwise_relu0_fwd
+Convolution      stage3_expandedconv2_linear_conv0_fwd 1 1 stage3_expandedconv2_dwise_relu0_fwd stage3_expandedconv2_linear_conv0_fwd 0=40 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=4800
+BatchNorm        stage3_expandedconv2_linear_batchnorm0_fwd 1 1 stage3_expandedconv2_linear_conv0_fwd stage3_expandedconv2_linear_batchnorm0_fwd 0=40
+BinaryOp         stage3_expandedconv2_elemwise_add0 2 1 stage3_expandedconv2_linear_batchnorm0_fwd stage3_expandedconv1_elemwise_add0_splitncnn_0 stage3_expandedconv2_elemwise_add0 0=0
+Convolution      stage4_1_expandedconv0_expand_conv0_fwd 1 1 stage3_expandedconv2_elemwise_add0 stage4_1_expandedconv0_expand_conv0_fwd 0=240 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=9600
+BatchNorm        stage4_1_expandedconv0_expand_batchnorm0_fwd 1 1 stage4_1_expandedconv0_expand_conv0_fwd stage4_1_expandedconv0_expand_batchnorm0_fwd 0=240
+ReLU             stage4_1_expandedconv0_expand_relu0_fwd 1 1 stage4_1_expandedconv0_expand_batchnorm0_fwd stage4_1_expandedconv0_expand_relu0_fwd
+ConvolutionDepthWise stage4_1_expandedconv0_dwise_conv0_fwd 1 1 stage4_1_expandedconv0_expand_relu0_fwd stage4_1_expandedconv0_dwise_conv0_fwd 0=240 1=5 11=5 2=1 12=1 3=2 13=2 4=2 14=2 5=0 6=6000 7=240
+BatchNorm        stage4_1_expandedconv0_dwise_batchnorm0_fwd 1 1 stage4_1_expandedconv0_dwise_conv0_fwd stage4_1_expandedconv0_dwise_batchnorm0_fwd 0=240
+ReLU             stage4_1_expandedconv0_dwise_relu0_fwd 1 1 stage4_1_expandedconv0_dwise_batchnorm0_fwd stage4_1_expandedconv0_dwise_relu0_fwd
+Convolution      stage4_1_expandedconv0_linear_conv0_fwd 1 1 stage4_1_expandedconv0_dwise_relu0_fwd stage4_1_expandedconv0_linear_conv0_fwd 0=80 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=19200
+BatchNorm        stage4_1_expandedconv0_linear_batchnorm0_fwd 1 1 stage4_1_expandedconv0_linear_conv0_fwd stage4_1_expandedconv0_linear_batchnorm0_fwd 0=80
+Split            splitncnn_4                      1 2 stage4_1_expandedconv0_linear_batchnorm0_fwd stage4_1_expandedconv0_linear_batchnorm0_fwd_splitncnn_0 stage4_1_expandedconv0_linear_batchnorm0_fwd_splitncnn_1
+Convolution      stage4_1_expandedconv1_expand_conv0_fwd 1 1 stage4_1_expandedconv0_linear_batchnorm0_fwd_splitncnn_1 stage4_1_expandedconv1_expand_conv0_fwd 0=480 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=38400
+BatchNorm        stage4_1_expandedconv1_expand_batchnorm0_fwd 1 1 stage4_1_expandedconv1_expand_conv0_fwd stage4_1_expandedconv1_expand_batchnorm0_fwd 0=480
+ReLU             stage4_1_expandedconv1_expand_relu0_fwd 1 1 stage4_1_expandedconv1_expand_batchnorm0_fwd stage4_1_expandedconv1_expand_relu0_fwd
+ConvolutionDepthWise stage4_1_expandedconv1_dwise_conv0_fwd 1 1 stage4_1_expandedconv1_expand_relu0_fwd stage4_1_expandedconv1_dwise_conv0_fwd 0=480 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=4320 7=480
+BatchNorm        stage4_1_expandedconv1_dwise_batchnorm0_fwd 1 1 stage4_1_expandedconv1_dwise_conv0_fwd stage4_1_expandedconv1_dwise_batchnorm0_fwd 0=480
+ReLU             stage4_1_expandedconv1_dwise_relu0_fwd 1 1 stage4_1_expandedconv1_dwise_batchnorm0_fwd stage4_1_expandedconv1_dwise_relu0_fwd
+Convolution      stage4_1_expandedconv1_linear_conv0_fwd 1 1 stage4_1_expandedconv1_dwise_relu0_fwd stage4_1_expandedconv1_linear_conv0_fwd 0=80 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=38400
+BatchNorm        stage4_1_expandedconv1_linear_batchnorm0_fwd 1 1 stage4_1_expandedconv1_linear_conv0_fwd stage4_1_expandedconv1_linear_batchnorm0_fwd 0=80
+BinaryOp         stage4_1_expandedconv1_elemwise_add0 2 1 stage4_1_expandedconv1_linear_batchnorm0_fwd stage4_1_expandedconv0_linear_batchnorm0_fwd_splitncnn_0 stage4_1_expandedconv1_elemwise_add0 0=0
+Split            splitncnn_5                      1 2 stage4_1_expandedconv1_elemwise_add0 stage4_1_expandedconv1_elemwise_add0_splitncnn_0 stage4_1_expandedconv1_elemwise_add0_splitncnn_1
+Convolution      stage4_1_expandedconv2_expand_conv0_fwd 1 1 stage4_1_expandedconv1_elemwise_add0_splitncnn_1 stage4_1_expandedconv2_expand_conv0_fwd 0=480 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=38400
+BatchNorm        stage4_1_expandedconv2_expand_batchnorm0_fwd 1 1 stage4_1_expandedconv2_expand_conv0_fwd stage4_1_expandedconv2_expand_batchnorm0_fwd 0=480
+ReLU             stage4_1_expandedconv2_expand_relu0_fwd 1 1 stage4_1_expandedconv2_expand_batchnorm0_fwd stage4_1_expandedconv2_expand_relu0_fwd
+ConvolutionDepthWise stage4_1_expandedconv2_dwise_conv0_fwd 1 1 stage4_1_expandedconv2_expand_relu0_fwd stage4_1_expandedconv2_dwise_conv0_fwd 0=480 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=4320 7=480
+BatchNorm        stage4_1_expandedconv2_dwise_batchnorm0_fwd 1 1 stage4_1_expandedconv2_dwise_conv0_fwd stage4_1_expandedconv2_dwise_batchnorm0_fwd 0=480
+ReLU             stage4_1_expandedconv2_dwise_relu0_fwd 1 1 stage4_1_expandedconv2_dwise_batchnorm0_fwd stage4_1_expandedconv2_dwise_relu0_fwd
+Convolution      stage4_1_expandedconv2_linear_conv0_fwd 1 1 stage4_1_expandedconv2_dwise_relu0_fwd stage4_1_expandedconv2_linear_conv0_fwd 0=80 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=38400
+BatchNorm        stage4_1_expandedconv2_linear_batchnorm0_fwd 1 1 stage4_1_expandedconv2_linear_conv0_fwd stage4_1_expandedconv2_linear_batchnorm0_fwd 0=80
+BinaryOp         stage4_1_expandedconv2_elemwise_add0 2 1 stage4_1_expandedconv2_linear_batchnorm0_fwd stage4_1_expandedconv1_elemwise_add0_splitncnn_0 stage4_1_expandedconv2_elemwise_add0 0=0
+Convolution      stage4_2_expandedconv0_expand_conv0_fwd 1 1 stage4_1_expandedconv2_elemwise_add0 stage4_2_expandedconv0_expand_conv0_fwd 0=480 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=38400
+BatchNorm        stage4_2_expandedconv0_expand_batchnorm0_fwd 1 1 stage4_2_expandedconv0_expand_conv0_fwd stage4_2_expandedconv0_expand_batchnorm0_fwd 0=480
+ReLU             stage4_2_expandedconv0_expand_relu0_fwd 1 1 stage4_2_expandedconv0_expand_batchnorm0_fwd stage4_2_expandedconv0_expand_relu0_fwd
+ConvolutionDepthWise stage4_2_expandedconv0_dwise_conv0_fwd 1 1 stage4_2_expandedconv0_expand_relu0_fwd stage4_2_expandedconv0_dwise_conv0_fwd 0=480 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=4320 7=480
+BatchNorm        stage4_2_expandedconv0_dwise_batchnorm0_fwd 1 1 stage4_2_expandedconv0_dwise_conv0_fwd stage4_2_expandedconv0_dwise_batchnorm0_fwd 0=480
+ReLU             stage4_2_expandedconv0_dwise_relu0_fwd 1 1 stage4_2_expandedconv0_dwise_batchnorm0_fwd stage4_2_expandedconv0_dwise_relu0_fwd
+Convolution      stage4_2_expandedconv0_linear_conv0_fwd 1 1 stage4_2_expandedconv0_dwise_relu0_fwd stage4_2_expandedconv0_linear_conv0_fwd 0=96 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=46080
+BatchNorm        stage4_2_expandedconv0_linear_batchnorm0_fwd 1 1 stage4_2_expandedconv0_linear_conv0_fwd stage4_2_expandedconv0_linear_batchnorm0_fwd 0=96
+Split            splitncnn_6                      1 2 stage4_2_expandedconv0_linear_batchnorm0_fwd stage4_2_expandedconv0_linear_batchnorm0_fwd_splitncnn_0 stage4_2_expandedconv0_linear_batchnorm0_fwd_splitncnn_1
+Convolution      stage4_2_expandedconv1_expand_conv0_fwd 1 1 stage4_2_expandedconv0_linear_batchnorm0_fwd_splitncnn_1 stage4_2_expandedconv1_expand_conv0_fwd 0=576 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=55296
+BatchNorm        stage4_2_expandedconv1_expand_batchnorm0_fwd 1 1 stage4_2_expandedconv1_expand_conv0_fwd stage4_2_expandedconv1_expand_batchnorm0_fwd 0=576
+ReLU             stage4_2_expandedconv1_expand_relu0_fwd 1 1 stage4_2_expandedconv1_expand_batchnorm0_fwd stage4_2_expandedconv1_expand_relu0_fwd
+ConvolutionDepthWise stage4_2_expandedconv1_dwise_conv0_fwd 1 1 stage4_2_expandedconv1_expand_relu0_fwd stage4_2_expandedconv1_dwise_conv0_fwd 0=576 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=5184 7=576
+BatchNorm        stage4_2_expandedconv1_dwise_batchnorm0_fwd 1 1 stage4_2_expandedconv1_dwise_conv0_fwd stage4_2_expandedconv1_dwise_batchnorm0_fwd 0=576
+ReLU             stage4_2_expandedconv1_dwise_relu0_fwd 1 1 stage4_2_expandedconv1_dwise_batchnorm0_fwd stage4_2_expandedconv1_dwise_relu0_fwd
+Convolution      stage4_2_expandedconv1_linear_conv0_fwd 1 1 stage4_2_expandedconv1_dwise_relu0_fwd stage4_2_expandedconv1_linear_conv0_fwd 0=96 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=55296
+BatchNorm        stage4_2_expandedconv1_linear_batchnorm0_fwd 1 1 stage4_2_expandedconv1_linear_conv0_fwd stage4_2_expandedconv1_linear_batchnorm0_fwd 0=96
+BinaryOp         stage4_2_expandedconv1_elemwise_add0 2 1 stage4_2_expandedconv1_linear_batchnorm0_fwd stage4_2_expandedconv0_linear_batchnorm0_fwd_splitncnn_0 stage4_2_expandedconv1_elemwise_add0 0=0
+Convolution      stage5_1_expandedconv0_expand_conv0_fwd 1 1 stage4_2_expandedconv1_elemwise_add0 stage5_1_expandedconv0_expand_conv0_fwd 0=576 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=55296
+BatchNorm        stage5_1_expandedconv0_expand_batchnorm0_fwd 1 1 stage5_1_expandedconv0_expand_conv0_fwd stage5_1_expandedconv0_expand_batchnorm0_fwd 0=576
+ReLU             stage5_1_expandedconv0_expand_relu0_fwd 1 1 stage5_1_expandedconv0_expand_batchnorm0_fwd stage5_1_expandedconv0_expand_relu0_fwd
+ConvolutionDepthWise stage5_1_expandedconv0_dwise_conv0_fwd 1 1 stage5_1_expandedconv0_expand_relu0_fwd stage5_1_expandedconv0_dwise_conv0_fwd 0=576 1=5 11=5 2=1 12=1 3=2 13=2 4=2 14=2 5=0 6=14400 7=576
+BatchNorm        stage5_1_expandedconv0_dwise_batchnorm0_fwd 1 1 stage5_1_expandedconv0_dwise_conv0_fwd stage5_1_expandedconv0_dwise_batchnorm0_fwd 0=576
+ReLU             stage5_1_expandedconv0_dwise_relu0_fwd 1 1 stage5_1_expandedconv0_dwise_batchnorm0_fwd stage5_1_expandedconv0_dwise_relu0_fwd
+Convolution      stage5_1_expandedconv0_linear_conv0_fwd 1 1 stage5_1_expandedconv0_dwise_relu0_fwd stage5_1_expandedconv0_linear_conv0_fwd 0=192 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=110592
+BatchNorm        stage5_1_expandedconv0_linear_batchnorm0_fwd 1 1 stage5_1_expandedconv0_linear_conv0_fwd stage5_1_expandedconv0_linear_batchnorm0_fwd 0=192
+Split            splitncnn_7                      1 2 stage5_1_expandedconv0_linear_batchnorm0_fwd stage5_1_expandedconv0_linear_batchnorm0_fwd_splitncnn_0 stage5_1_expandedconv0_linear_batchnorm0_fwd_splitncnn_1
+Convolution      stage5_1_expandedconv1_expand_conv0_fwd 1 1 stage5_1_expandedconv0_linear_batchnorm0_fwd_splitncnn_1 stage5_1_expandedconv1_expand_conv0_fwd 0=1152 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
+BatchNorm        stage5_1_expandedconv1_expand_batchnorm0_fwd 1 1 stage5_1_expandedconv1_expand_conv0_fwd stage5_1_expandedconv1_expand_batchnorm0_fwd 0=1152
+ReLU             stage5_1_expandedconv1_expand_relu0_fwd 1 1 stage5_1_expandedconv1_expand_batchnorm0_fwd stage5_1_expandedconv1_expand_relu0_fwd
+ConvolutionDepthWise stage5_1_expandedconv1_dwise_conv0_fwd 1 1 stage5_1_expandedconv1_expand_relu0_fwd stage5_1_expandedconv1_dwise_conv0_fwd 0=1152 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=10368 7=1152
+BatchNorm        stage5_1_expandedconv1_dwise_batchnorm0_fwd 1 1 stage5_1_expandedconv1_dwise_conv0_fwd stage5_1_expandedconv1_dwise_batchnorm0_fwd 0=1152
+ReLU             stage5_1_expandedconv1_dwise_relu0_fwd 1 1 stage5_1_expandedconv1_dwise_batchnorm0_fwd stage5_1_expandedconv1_dwise_relu0_fwd
+Convolution      stage5_1_expandedconv1_linear_conv0_fwd 1 1 stage5_1_expandedconv1_dwise_relu0_fwd stage5_1_expandedconv1_linear_conv0_fwd 0=192 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
+BatchNorm        stage5_1_expandedconv1_linear_batchnorm0_fwd 1 1 stage5_1_expandedconv1_linear_conv0_fwd stage5_1_expandedconv1_linear_batchnorm0_fwd 0=192
+BinaryOp         stage5_1_expandedconv1_elemwise_add0 2 1 stage5_1_expandedconv1_linear_batchnorm0_fwd stage5_1_expandedconv0_linear_batchnorm0_fwd_splitncnn_0 stage5_1_expandedconv1_elemwise_add0 0=0
+Split            splitncnn_8                      1 2 stage5_1_expandedconv1_elemwise_add0 stage5_1_expandedconv1_elemwise_add0_splitncnn_0 stage5_1_expandedconv1_elemwise_add0_splitncnn_1
+Convolution      stage5_1_expandedconv2_expand_conv0_fwd 1 1 stage5_1_expandedconv1_elemwise_add0_splitncnn_1 stage5_1_expandedconv2_expand_conv0_fwd 0=1152 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
+BatchNorm        stage5_1_expandedconv2_expand_batchnorm0_fwd 1 1 stage5_1_expandedconv2_expand_conv0_fwd stage5_1_expandedconv2_expand_batchnorm0_fwd 0=1152
+ReLU             stage5_1_expandedconv2_expand_relu0_fwd 1 1 stage5_1_expandedconv2_expand_batchnorm0_fwd stage5_1_expandedconv2_expand_relu0_fwd
+ConvolutionDepthWise stage5_1_expandedconv2_dwise_conv0_fwd 1 1 stage5_1_expandedconv2_expand_relu0_fwd stage5_1_expandedconv2_dwise_conv0_fwd 0=1152 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=10368 7=1152
+BatchNorm        stage5_1_expandedconv2_dwise_batchnorm0_fwd 1 1 stage5_1_expandedconv2_dwise_conv0_fwd stage5_1_expandedconv2_dwise_batchnorm0_fwd 0=1152
+ReLU             stage5_1_expandedconv2_dwise_relu0_fwd 1 1 stage5_1_expandedconv2_dwise_batchnorm0_fwd stage5_1_expandedconv2_dwise_relu0_fwd
+Convolution      stage5_1_expandedconv2_linear_conv0_fwd 1 1 stage5_1_expandedconv2_dwise_relu0_fwd stage5_1_expandedconv2_linear_conv0_fwd 0=192 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
+BatchNorm        stage5_1_expandedconv2_linear_batchnorm0_fwd 1 1 stage5_1_expandedconv2_linear_conv0_fwd stage5_1_expandedconv2_linear_batchnorm0_fwd 0=192
+BinaryOp         stage5_1_expandedconv2_elemwise_add0 2 1 stage5_1_expandedconv2_linear_batchnorm0_fwd stage5_1_expandedconv1_elemwise_add0_splitncnn_0 stage5_1_expandedconv2_elemwise_add0 0=0
+Split            splitncnn_9                      1 2 stage5_1_expandedconv2_elemwise_add0 stage5_1_expandedconv2_elemwise_add0_splitncnn_0 stage5_1_expandedconv2_elemwise_add0_splitncnn_1
+Convolution      stage5_1_expandedconv3_expand_conv0_fwd 1 1 stage5_1_expandedconv2_elemwise_add0_splitncnn_1 stage5_1_expandedconv3_expand_conv0_fwd 0=1152 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
+BatchNorm        stage5_1_expandedconv3_expand_batchnorm0_fwd 1 1 stage5_1_expandedconv3_expand_conv0_fwd stage5_1_expandedconv3_expand_batchnorm0_fwd 0=1152
+ReLU             stage5_1_expandedconv3_expand_relu0_fwd 1 1 stage5_1_expandedconv3_expand_batchnorm0_fwd stage5_1_expandedconv3_expand_relu0_fwd
+ConvolutionDepthWise stage5_1_expandedconv3_dwise_conv0_fwd 1 1 stage5_1_expandedconv3_expand_relu0_fwd stage5_1_expandedconv3_dwise_conv0_fwd 0=1152 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=10368 7=1152
+BatchNorm        stage5_1_expandedconv3_dwise_batchnorm0_fwd 1 1 stage5_1_expandedconv3_dwise_conv0_fwd stage5_1_expandedconv3_dwise_batchnorm0_fwd 0=1152
+ReLU             stage5_1_expandedconv3_dwise_relu0_fwd 1 1 stage5_1_expandedconv3_dwise_batchnorm0_fwd stage5_1_expandedconv3_dwise_relu0_fwd
+Convolution      stage5_1_expandedconv3_linear_conv0_fwd 1 1 stage5_1_expandedconv3_dwise_relu0_fwd stage5_1_expandedconv3_linear_conv0_fwd 0=192 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
+BatchNorm        stage5_1_expandedconv3_linear_batchnorm0_fwd 1 1 stage5_1_expandedconv3_linear_conv0_fwd stage5_1_expandedconv3_linear_batchnorm0_fwd 0=192
+BinaryOp         stage5_1_expandedconv3_elemwise_add0 2 1 stage5_1_expandedconv3_linear_batchnorm0_fwd stage5_1_expandedconv2_elemwise_add0_splitncnn_0 stage5_1_expandedconv3_elemwise_add0 0=0
+Convolution      stage5_2_expandedconv0_expand_conv0_fwd 1 1 stage5_1_expandedconv3_elemwise_add0 stage5_2_expandedconv0_expand_conv0_fwd 0=1152 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
+BatchNorm        stage5_2_expandedconv0_expand_batchnorm0_fwd 1 1 stage5_2_expandedconv0_expand_conv0_fwd stage5_2_expandedconv0_expand_batchnorm0_fwd 0=1152
+ReLU             stage5_2_expandedconv0_expand_relu0_fwd 1 1 stage5_2_expandedconv0_expand_batchnorm0_fwd stage5_2_expandedconv0_expand_relu0_fwd
+ConvolutionDepthWise stage5_2_expandedconv0_dwise_conv0_fwd 1 1 stage5_2_expandedconv0_expand_relu0_fwd stage5_2_expandedconv0_dwise_conv0_fwd 0=1152 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=10368 7=1152
+BatchNorm        stage5_2_expandedconv0_dwise_batchnorm0_fwd 1 1 stage5_2_expandedconv0_dwise_conv0_fwd stage5_2_expandedconv0_dwise_batchnorm0_fwd 0=1152
+ReLU             stage5_2_expandedconv0_dwise_relu0_fwd 1 1 stage5_2_expandedconv0_dwise_batchnorm0_fwd stage5_2_expandedconv0_dwise_relu0_fwd
+Convolution      stage5_2_expandedconv0_linear_conv0_fwd 1 1 stage5_2_expandedconv0_dwise_relu0_fwd stage5_2_expandedconv0_linear_conv0_fwd 0=320 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=368640
+BatchNorm        stage5_2_expandedconv0_linear_batchnorm0_fwd 1 1 stage5_2_expandedconv0_linear_conv0_fwd stage5_2_expandedconv0_linear_batchnorm0_fwd 0=320
+Convolution      stage5_3_conv0_fwd               1 1 stage5_2_expandedconv0_linear_batchnorm0_fwd stage5_3_conv0_fwd 0=1280 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=409600
+BatchNorm        stage5_3_batchnorm0_fwd          1 1 stage5_3_conv0_fwd stage5_3_batchnorm0_fwd 0=1280
+ReLU             stage5_3_relu0_fwd               1 1 stage5_3_batchnorm0_fwd stage5_3_relu0_fwd
+Pooling          pool0_fwd                        1 1 stage5_3_relu0_fwd pool0_fwd 0=1 1=1 2=1 3=0 4=1 5=0
+Reshape          flatten0_reshape0                1 1 pool0_fwd flatten0_reshape0 0=-1
+InnerProduct     dense0_fwd                       1 1 flatten0_reshape0 dense0_fwd 0=1000 1=1 2=1280000
