@@ -40,16 +40,18 @@ angler:/data/local/tmp $ ./benchncnn 8 8 0
 loop_count = 8
 num_threads = 8
 powersave = 0
-      squeezenet  min =   57.82  max =   60.46  avg =   58.79
-       mobilenet  min =   62.17  max =   65.12  avg =   62.97
-    mobilenet_v2  min =   73.92  max =   77.14  avg =   74.54
-      shufflenet  min =   50.36  max =   51.03  avg =   50.65
-       googlenet  min =  163.27  max =  190.46  avg =  175.74
-        resnet18  min =  167.31  max =  191.60  avg =  180.75
-         alexnet  min =  113.60  max =  124.58  avg =  117.97
-           vgg16  min =  940.28  max = 1050.45  avg = 1004.43
-  squeezenet-ssd  min =  169.12  max =  200.12  avg =  184.83
-   mobilenet-ssd  min =  122.38  max =  165.38  avg =  142.36
+      squeezenet  min =   35.57  max =   36.56  avg =   36.13
+       mobilenet  min =   44.80  max =   56.80  avg =   47.91
+    mobilenet_v2  min =   46.80  max =   64.64  avg =   50.34
+      shufflenet  min =   28.24  max =   30.27  avg =   29.36
+         mnasnet  min =   37.91  max =   41.75  avg =   39.01
+       googlenet  min =  118.82  max =  132.80  avg =  123.74
+        resnet18  min =  119.55  max =  141.99  avg =  126.78
+         alexnet  min =  104.52  max =  125.98  avg =  110.17
+           vgg16  min =  815.12  max =  930.98  avg =  878.57
+  squeezenet-ssd  min =  111.05  max =  130.23  avg =  119.43
+   mobilenet-ssd  min =   88.88  max =  108.96  avg =   98.38
+  mobilenet-yolo  min =  220.57  max =  263.42  avg =  241.03
 ```
 
 Qualcomm MSM8916 Snapdragon 410 (Cortex-A53 1.2GHz x 4)
@@ -58,16 +60,18 @@ HM2014812:/data/local/tmp # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   80.16  max =   97.73  avg =   89.13
-       mobilenet  min =  131.53  max =  151.08  avg =  140.42
-    mobilenet_v2  min =  132.14  max =  162.10  avg =  146.50
-      shufflenet  min =   57.88  max =   65.62  avg =   61.16
-       googlenet  min =  236.11  max =  248.62  avg =  244.74
-        resnet18  min =  271.75  max =  291.05  avg =  282.32
-         alexnet  min =  278.70  max =  296.65  avg =  285.61
-           vgg16  min = 1485.95  max = 1523.02  avg = 1504.54
-  squeezenet-ssd  min =  204.62  max =  222.92  avg =  212.41
-   mobilenet-ssd  min =  229.69  max =  236.50  avg =  233.48
+      squeezenet  min =   79.70  max =   85.42  avg =   82.22
+       mobilenet  min =  119.87  max =  125.63  avg =  123.46
+    mobilenet_v2  min =  125.65  max =  131.16  avg =  128.20
+      shufflenet  min =   60.95  max =   66.03  avg =   63.03
+         mnasnet  min =   92.60  max =   98.38  avg =   96.00
+       googlenet  min =  237.47  max =  256.79  avg =  245.65
+        resnet18  min =  239.73  max =  250.41  avg =  245.87
+         alexnet  min =  248.66  max =  279.08  avg =  267.41
+           vgg16  min = 1429.50  max = 1510.46  avg = 1465.25
+  squeezenet-ssd  min =  203.33  max =  213.85  avg =  209.81
+   mobilenet-ssd  min =  215.26  max =  224.23  avg =  219.73
+  mobilenet-yolo  min =  506.41  max =  520.50  avg =  513.30
 ```
 Raspberry Pi 3 Model B+ Broadcom BCM2837B0, Cortex-A53 (ARMv8) (1.4GHz x 4 )
 ```
@@ -179,16 +183,18 @@ iPhone:~ root# ./benchncnn 8 2 0
 loop_count = 8
 num_threads = 2
 powersave = 0
-      squeezenet  min =  154.75  max =  160.97  avg =  158.21
-       mobilenet  min =  170.67  max =  179.59  avg =  175.29
-    mobilenet_v2  min =  214.20  max =  220.40  avg =  218.17
-      shufflenet  min =  128.01  max =  132.98  avg =  130.91
-       googlenet  min =  451.22  max =  461.26  avg =  456.23
-        resnet18  min =  414.69  max =  431.77  avg =  422.70
-         alexnet  min =  365.50  max =  372.15  avg =  368.19
-           vgg16  min = 4786.62  max = 4953.06  avg = 4886.71
-  squeezenet-ssd  min =  420.91  max =  446.68  avg =  435.90
-   mobilenet-ssd  min =  334.42  max =  358.08  avg =  345.02
+      squeezenet  min =   70.94  max =   72.40  avg =   71.75
+       mobilenet  min =   89.24  max =   92.21  avg =   90.60
+    mobilenet_v2  min =   71.70  max =   74.43  avg =   73.68
+      shufflenet  min =   35.48  max =   41.40  avg =   38.94
+         mnasnet  min =   59.28  max =   64.81  avg =   61.78
+       googlenet  min =  282.76  max =  295.00  avg =  289.64
+        resnet18  min =  251.99  max =  260.40  avg =  255.23
+         alexnet  min =  329.07  max =  337.75  avg =  333.24
+           vgg16  min = 4547.25  max = 4706.56  avg = 4647.60
+  squeezenet-ssd  min =  171.23  max =  180.49  avg =  175.54
+   mobilenet-ssd  min =  174.56  max =  192.69  avg =  179.60
+  mobilenet-yolo  min =  357.90  max =  363.93  avg =  360.97
 ```
 
 Freescale i.MX7 Dual (Cortex A7 1.0GHz x 2)
@@ -197,14 +203,16 @@ imx7d_pico:/data/local/tmp # ./benchncnn 8 2 0
 loop_count = 8
 num_threads = 2
 powersave = 0
-      squeezenet  min =  305.80  max =  312.74  avg =  308.57
-       mobilenet  min =  482.27  max =  489.59  avg =  485.70
-    mobilenet_v2  min =  386.86  max =  405.36  avg =  396.69
-      shufflenet  min =  199.23  max =  232.69  avg =  205.30
-       googlenet  min = 1078.63  max = 1098.36  avg = 1083.29
-        resnet18  min = 1156.38  max = 1176.98  avg = 1165.92
-         alexnet  min = 1273.29  max = 1283.62  avg = 1277.34
+      squeezenet  min =  269.26  max =  278.84  avg =  273.10
+       mobilenet  min =  442.79  max =  445.82  avg =  444.46
+    mobilenet_v2  min =  362.19  max =  364.58  avg =  363.33
+      shufflenet  min =  171.30  max =  190.63  avg =  177.52
+         mnasnet  min =  291.79  max =  303.68  avg =  298.00
+       googlenet  min =  975.95  max =  986.11  avg =  980.51
+        resnet18  min = 1016.60  max = 1035.50  avg = 1021.75
+         alexnet  min = 1240.54  max = 1254.86  avg = 1247.18
            vgg16  min =    0.00  max =    0.00  avg =    0.00 (FAIL due to out of memory)
-  squeezenet-ssd  min =  737.55  max =  773.54  avg =  746.79
-   mobilenet-ssd  min =  946.56  max =  957.85  avg =  952.96
+  squeezenet-ssd  min =  614.93  max =  623.15  avg =  619.56
+   mobilenet-ssd  min =  842.83  max =  884.64  avg =  855.40
+  mobilenet-yolo  min = 1772.24  max = 1924.37  avg = 1805.75
 ```

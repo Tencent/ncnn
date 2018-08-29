@@ -123,41 +123,33 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
 
     if (weight_data_is_float32 && use_int8_inference)
     {
-        if (!weight_data_int8_scales.empty() && !bottom_blob_int8_scales.empty())
+        // quantize weight to int8
+        Mat int8_weight_data(weight_data_size, (size_t)1u);
+        if (int8_weight_data.empty())
+            return -100;
+
+        const int weight_data_size_g = weight_data_size / group;
+
+        for (int g=0; g<group; g++)
         {
-            // quantize weight to int8
-            Mat int8_weight_data(weight_data_size, (size_t)1u);
-            if (int8_weight_data.empty())
-                return -100;
+            Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
 
-            const int weight_data_size_g = weight_data_size / group;
+            ncnn::ParamDict pd;
+            pd.set(0, weight_data_int8_scales[g]);// scale
 
-            for (int g=0; g<group; g++)
-            {
-                Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
+            op->load_param(pd);
 
-                ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[g]);// scale
+            ncnn::Option opt = ncnn::get_default_option();
+            opt.blob_allocator = int8_weight_data.allocator;
 
-                op->load_param(pd);
+            const Mat weight_data_g(weight_data_size_g, (void*)((float*)weight_data + weight_data_size_g * g), (size_t)4u, weight_data.allocator);
+            Mat int8_weight_data_g(weight_data_size_g, (void*)((signed char*)int8_weight_data + weight_data_size_g * g), (size_t)1u, int8_weight_data.allocator);
+            op->forward(weight_data_g, int8_weight_data_g, opt);
 
-                ncnn::Option opt = ncnn::get_default_option();
-                opt.blob_allocator = int8_weight_data.allocator;
-
-                const Mat weight_data_g(weight_data_size_g, (void*)((float*)weight_data + weight_data_size_g * g), (size_t)4u, weight_data.allocator);
-                Mat int8_weight_data_g(weight_data_size_g, (void*)((signed char*)int8_weight_data + weight_data_size_g * g), (size_t)1u, int8_weight_data.allocator);
-                op->forward(weight_data_g, int8_weight_data_g, opt);
-
-                delete op;
-            }
-
-            weight_data = int8_weight_data;
+            delete op;
         }
-        else
-        {
-            // plain float32 weight, fallback to float32 inference
-            use_int8_inference = false;
-        }
+
+        weight_data = int8_weight_data;
     }
 
     if (use_int8_inference)
