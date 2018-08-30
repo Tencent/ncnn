@@ -61,7 +61,6 @@ powersave = 0
        mobilenet  min =   44.80  max =   56.80  avg =   47.91
     mobilenet_v2  min =   46.80  max =   64.64  avg =   50.34
       shufflenet  min =   28.24  max =   30.27  avg =   29.36
-         mnasnet  min =   37.91  max =   41.75  avg =   39.01
        googlenet  min =  118.82  max =  132.80  avg =  123.74
         resnet18  min =  119.55  max =  141.99  avg =  126.78
          alexnet  min =  104.52  max =  125.98  avg =  110.17
@@ -81,7 +80,6 @@ powersave = 0
        mobilenet  min =  119.87  max =  125.63  avg =  123.46
     mobilenet_v2  min =  125.65  max =  131.16  avg =  128.20
       shufflenet  min =   60.95  max =   66.03  avg =   63.03
-         mnasnet  min =   92.60  max =   98.38  avg =   96.00
        googlenet  min =  237.47  max =  256.79  avg =  245.65
         resnet18  min =  239.73  max =  250.41  avg =  245.87
          alexnet  min =  248.66  max =  279.08  avg =  267.41
@@ -241,7 +239,6 @@ powersave = 0
        mobilenet  min =   89.24  max =   92.21  avg =   90.60
     mobilenet_v2  min =   71.70  max =   74.43  avg =   73.68
       shufflenet  min =   35.48  max =   41.40  avg =   38.94
-         mnasnet  min =   59.28  max =   64.81  avg =   61.78
        googlenet  min =  282.76  max =  295.00  avg =  289.64
         resnet18  min =  251.99  max =  260.40  avg =  255.23
          alexnet  min =  329.07  max =  337.75  avg =  333.24
@@ -261,7 +258,6 @@ powersave = 0
        mobilenet  min =  442.79  max =  445.82  avg =  444.46
     mobilenet_v2  min =  362.19  max =  364.58  avg =  363.33
       shufflenet  min =  171.30  max =  190.63  avg =  177.52
-         mnasnet  min =  291.79  max =  303.68  avg =  298.00
        googlenet  min =  975.95  max =  986.11  avg =  980.51
         resnet18  min = 1016.60  max = 1035.50  avg = 1021.75
          alexnet  min = 1240.54  max = 1254.86  avg = 1247.18
