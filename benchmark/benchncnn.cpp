@@ -344,7 +344,7 @@ int main(int argc, char** argv)
 
     benchmark("shufflenet", shufflenet_init, shufflenet_run);
 
-    benchmark("mnasnet", mnasnet_init, mnasnet_run);
+//     benchmark("mnasnet", mnasnet_init, mnasnet_run); FIXME the mnasnet.param is wrong
 
     benchmark("googlenet", googlenet_init, googlenet_run);
 
