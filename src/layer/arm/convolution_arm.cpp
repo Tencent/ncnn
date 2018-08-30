@@ -23,8 +23,10 @@ namespace ncnn {
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
 
+#if __ARM_NEON
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
+#endif // __ARM_NEON
 
 DEFINE_LAYER_CREATOR(Convolution_arm)
 
@@ -64,6 +66,7 @@ int Convolution_arm::load_model(const ModelBin& mb)
 
     if (use_int8_inference)
     {
+#if __ARM_NEON
 #if !__aarch64__
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -71,6 +74,7 @@ int Convolution_arm::load_model(const ModelBin& mb)
             conv3x3s1_transform_kernel_int8_neon(weight_data, weight_3x3s1_int8_data, num_input, num_output);
         }
 #endif // !__aarch64__
+#endif // __ARM_NEON
         return 0;
     }
 
@@ -274,6 +278,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     typedef void (*conv_int8_func)(const Mat&, Mat&, const Mat&, const Option&);
 
+#if __ARM_NEON
     // kernel_size x stride
     conv_int8_func conv_int8_func_table[5][5] =
     {
@@ -313,17 +318,22 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             0
         }  // kernel_size = 5
     };
+#endif // __ARM_NEON
 
     conv_func conv = 0;
     conv_int8_func conv_int8 = 0;
 
     if (use_int8_inference)
     {
+#if __ARM_NEON
         conv_int8 = conv_int8_func_table[kernel_size-1][stride-1];
         if (!conv_int8)
         {
             return Convolution::forward(bottom_blob, top_blob, opt);
         }
+#else
+        return Convolution::forward(bottom_blob, top_blob, opt);
+#endif // __ARM_NEON
     }
     else
     {
@@ -400,6 +410,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (use_int8_inference)
     {
+#if __ARM_NEON
 #if !__aarch64__
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -407,6 +418,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
 #endif // !__aarch64__
+#endif // __ARM_NEON
         {
         conv_int8(bottom_blob_bordered, top_blob, weight_data, opt);
         }
