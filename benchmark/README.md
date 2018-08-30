@@ -22,33 +22,33 @@ root@msm8996:/data/local/tmp/ncnn # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =   23.33  max =   23.95  avg =   23.54
-       mobilenet  min =   35.92  max =   36.57  avg =   36.30
-    mobilenet_v2  min =   27.31  max =   27.96  avg =   27.56
-      shufflenet  min =   13.60  max =   14.54  avg =   14.01
-       googlenet  min =   85.01  max =   88.27  avg =   86.65
-        resnet18  min =   81.25  max =   89.75  avg =   85.56
-         alexnet  min =  150.73  max =  157.03  avg =  154.68
-           vgg16  min =  496.15  max =  511.96  avg =  504.89
-  squeezenet-ssd  min =   54.78  max =   58.96  avg =   57.39
-   mobilenet-ssd  min =   73.30  max =   74.93  avg =   74.04
-  mobilenet-yolo  min =  151.30  max =  154.48  avg =  152.48
+      squeezenet  min =   23.20  max =   24.06  avg =   23.63
+       mobilenet  min =   35.89  max =   36.41  avg =   36.09
+    mobilenet_v2  min =   27.04  max =   28.62  avg =   27.39
+      shufflenet  min =   15.47  max =   16.45  avg =   16.00
+       googlenet  min =   85.42  max =   86.15  avg =   85.81
+        resnet18  min =   76.82  max =   79.63  avg =   78.50
+         alexnet  min =  147.66  max =  156.92  avg =  152.95
+           vgg16  min =  493.50  max =  515.03  avg =  507.34
+  squeezenet-ssd  min =   56.31  max =   59.35  avg =   57.49
+   mobilenet-ssd  min =   68.95  max =   74.24  avg =   71.39
+  mobilenet-yolo  min =  142.52  max =  149.72  avg =  148.23
 
 root@msm8996:/data/local/tmp/ncnn # ./benchncnn 8 1 2            
 loop_count = 8
 num_threads = 1
 powersave = 2
-      squeezenet  min =   52.38  max =   52.85  avg =   52.54
-       mobilenet  min =   95.34  max =   95.84  avg =   95.66
-    mobilenet_v2  min =   61.36  max =   61.64  avg =   61.52
-      shufflenet  min =   28.72  max =   28.99  avg =   28.79
-       googlenet  min =  228.24  max =  230.34  avg =  229.36
-        resnet18  min =  200.91  max =  202.77  avg =  201.89
-         alexnet  min =  443.80  max =  447.21  avg =  444.65
-           vgg16  min = 1429.39  max = 1440.31  avg = 1437.21
-  squeezenet-ssd  min =  119.01  max =  119.53  avg =  119.36
-   mobilenet-ssd  min =  182.88  max =  185.92  avg =  184.08
-  mobilenet-yolo  min =  368.79  max =  370.31  avg =  369.41
+      squeezenet  min =   53.26  max =   53.37  avg =   53.31
+       mobilenet  min =   96.37  max =   97.09  avg =   96.63
+    mobilenet_v2  min =   63.00  max =   63.25  avg =   63.09
+      shufflenet  min =   28.22  max =   28.88  avg =   28.48
+       googlenet  min =  226.21  max =  228.31  avg =  227.22
+        resnet18  min =  197.35  max =  198.55  avg =  197.84
+         alexnet  min =  445.32  max =  449.62  avg =  446.65
+           vgg16  min = 1416.39  max = 1450.95  avg = 1440.63
+  squeezenet-ssd  min =  119.37  max =  119.77  avg =  119.56
+   mobilenet-ssd  min =  183.04  max =  185.12  avg =  183.59
+  mobilenet-yolo  min =  366.91  max =  369.87  avg =  368.40
 ```
 
 Qualcomm MSM8994 Snapdragon 810 (Cortex-A57 2.0GHz x 4 + Cortex-A53 1.55GHz x 4)
@@ -120,7 +120,6 @@ powersave = 0
        mobilenet  min =   68.74  max =  176.25  avg =   82.80
     mobilenet_v2  min =   71.72  max =  180.24  avg =   86.19
       shufflenet  min =   34.90  max =   36.14  avg =   35.54
-         mnasnet  min =   53.66  max =   70.54  avg =   59.14
        googlenet  min =  158.35  max =  301.30  avg =  191.26
         resnet18  min =  190.96  max =  274.38  avg =  214.78
          alexnet  min =  199.21  max =  334.18  avg =  227.98
@@ -137,7 +136,6 @@ powersave = 2
        mobilenet  min =   88.23  max =   91.07  avg =   88.89
     mobilenet_v2  min =   84.98  max =   86.21  avg =   85.74
       shufflenet  min =   36.04  max =   38.40  avg =   36.82
-         mnasnet  min =   60.90  max =   61.48  avg =   61.17
        googlenet  min =  185.42  max =  188.76  avg =  186.77
         resnet18  min =  202.72  max =  212.27  avg =  206.91
          alexnet  min =  203.89  max =  222.28  avg =  215.28
@@ -154,7 +152,6 @@ powersave = 2
        mobilenet  min =  142.90  max =  147.71  avg =  144.64
     mobilenet_v2  min =  119.18  max =  132.26  avg =  123.92
       shufflenet  min =   52.81  max =   55.84  avg =   53.63
-         mnasnet  min =   92.57  max =   94.75  avg =   92.98
        googlenet  min =  316.69  max =  324.03  avg =  319.34
         resnet18  min =  318.96  max =  331.31  avg =  322.68
          alexnet  min =  340.86  max =  365.09  avg =  348.99
@@ -171,7 +168,6 @@ powersave = 1
        mobilenet  min =  272.88  max =  278.71  avg =  274.73
     mobilenet_v2  min =  235.35  max =  239.87  avg =  237.05
       shufflenet  min =  111.79  max =  127.11  avg =  114.13
-         mnasnet  min =  184.41  max =  186.11  avg =  185.28
        googlenet  min =  669.47  max =  673.68  avg =  671.23
         resnet18  min =  701.96  max =  714.85  avg =  708.56
          alexnet  min =  989.36  max =  990.63  avg =  989.96
@@ -191,7 +187,6 @@ powersave = 0
        mobilenet  min =  102.06  max =  125.67  avg =  106.02
     mobilenet_v2  min =   80.09  max =   99.23  avg =   85.40
       shufflenet  min =   34.91  max =   35.75  avg =   35.25
-         mnasnet  min =   64.65  max =   88.29  avg =   71.12
        googlenet  min =  181.72  max =  252.12  avg =  210.67
         resnet18  min =  198.86  max =  240.69  avg =  214.87
          alexnet  min =  154.68  max =  208.60  avg =  168.75
@@ -208,7 +203,6 @@ powersave = 0
        mobilenet  min =  244.01  max =  248.27  avg =  246.24
     mobilenet_v2  min =  177.94  max =  181.57  avg =  179.24
       shufflenet  min =   77.61  max =   78.30  avg =   77.94
-         mnasnet  min =  148.23  max =  150.12  avg =  148.96
        googlenet  min =  548.75  max =  559.40  avg =  553.00
         resnet18  min =  493.66  max =  510.55  avg =  500.37
          alexnet  min =  564.20  max =  604.87  avg =  581.30
@@ -229,7 +223,6 @@ powersave = 0
        mobilenet  min =  480.90  max =  482.16  avg =  481.64
     mobilenet_v2  min =  350.01  max =  352.39  avg =  350.81
       shufflenet  min =  152.40  max =  153.17  avg =  152.80
-         mnasnet  min =  298.42  max =  300.20  avg =  299.29
        googlenet  min = 1096.65  max = 1101.35  avg = 1099.21
         resnet18  min =  983.92  max =  987.00  avg =  985.25
          alexnet  min = 1140.30  max = 1141.55  avg = 1140.92
