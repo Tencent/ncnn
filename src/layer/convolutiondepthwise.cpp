@@ -142,8 +142,8 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
             ncnn::Option opt = ncnn::get_default_option();
             opt.blob_allocator = int8_weight_data.allocator;
 
-            const Mat weight_data_g(weight_data_size_g, (void*)((float*)weight_data + weight_data_size_g * g), (size_t)4u, weight_data.allocator);
-            Mat int8_weight_data_g(weight_data_size_g, (void*)((signed char*)int8_weight_data + weight_data_size_g * g), (size_t)1u, int8_weight_data.allocator);
+            const Mat weight_data_g = weight_data.range(weight_data_size_g * g, weight_data_size_g);
+            Mat int8_weight_data_g = int8_weight_data.range(weight_data_size_g * g, weight_data_size_g);
             op->forward(weight_data_g, int8_weight_data_g, opt);
 
             delete op;
@@ -181,7 +181,7 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
             dequantize_ops[g]->load_param(pd);
 
             ncnn::Mat weights[1];
-            weights[0] = Mat(1, (void*)((const float*)bias_data + g));
+            weights[0] = bias_data.range(g, 1);
 
             dequantize_ops[g]->load_model(ModelBinFromMatArray(weights));
         }
@@ -229,8 +229,8 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
             opt_g.num_threads = 1;
             opt_g.blob_allocator = bottom_blob_int8.allocator;
 
-            const Mat bottom_blob_g(w, h, channels_g, (void*)((const float*)bottom_blob.channel(channels_g * g)));
-            Mat bottom_blob_int8_g(w, h, channels_g, (void*)((signed char*)bottom_blob_int8.channel(channels_g * g)));
+            const Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
+            Mat bottom_blob_int8_g = bottom_blob_int8.channel_range(channels_g * g, channels_g);
             quantize_ops[g]->forward(bottom_blob_g, bottom_blob_int8_g, opt_g);
         }
 
@@ -329,7 +329,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     opt_g.num_threads = 1;
                     opt_g.blob_allocator = top_blob.allocator;
 
-                    Mat top_blob_g = top_blob.channel(g);
+                    Mat top_blob_g = top_blob.channel_range(g, 1);
                     dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
                 }
             }
@@ -391,7 +391,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 opt_g.num_threads = 1;
                 opt_g.blob_allocator = top_blob.allocator;
 
-                Mat top_blob_g(outw, outh, num_output_g, (void*)((signed int*)top_blob.channel(g * num_output_g)));
+                Mat top_blob_g = top_blob.channel_range(num_output_g * g, num_output_g);
                 dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
             }
         }

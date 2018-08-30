@@ -220,7 +220,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                         opt_g.num_threads = 1;
                         opt_g.blob_allocator = top_blob.allocator;
 
-                        Mat top_blob_g = top_blob.channel(g);
+                        Mat top_blob_g = top_blob.channel_range(g, 1);
                         dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
                     }
 
