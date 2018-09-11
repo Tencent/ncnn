@@ -3061,8 +3061,8 @@ static void conv3x3s2_neon_s8(const Mat& bottom_blob, Mat& top_blob, const Mat& 
                         "subs       %0, #1              \n"
                         "bne        0b                  \n"
                         : "=r"(nn),             // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(outptr1),    // %2
+                          "=r"(outptr0),        // %1
+                          "=r"(outptr1),        // %2
                           "=r"(r0),             // %3
                           "=r"(r1),             // %4
                           "=r"(r2)              // %5
@@ -3075,6 +3075,96 @@ static void conv3x3s2_neon_s8(const Mat& bottom_blob, Mat& top_blob, const Mat& 
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q13", "q14", "q15"
                     );
                 }           
+
+                if (remain >= 4)
+                {
+                    remain -= 4;
+                    asm volatile(
+                        "pld        [%3, #192]          \n"
+                        "vld2.s8    {d0-d1}, [%3]!      \n" // r0
+                        "vld2.s8    {d2-d3}, [%3]       \n"
+                        "vext.8     d3, d0, d2, #1      \n"
+            
+                        "vdup.s8    d26, d22[0]         \n"
+                        "vdup.s8    d27, d22[1]         \n"
+                        "vdup.s8    d28, d22[2]         \n"
+                        "vmull.s8   q2, d0, d26         \n" // k00
+                        "vmlal.s8   q2, d1, d27         \n" // k01
+                        "vmlal.s8   q2, d3, d28         \n" // k02
+                        
+                        "pld        [%4, #192]          \n"
+                        "vld2.s8    {d6-d7}, [%4]!      \n" // r1
+                        "vld2.s8    {d8-d9}, [%4]       \n"
+                        "vext.8     d9, d6, d8, #1      \n"
+                        
+                        "vdup.s8    d26, d22[3]         \n"
+                        "vdup.s8    d27, d22[4]         \n"
+                        "vdup.s8    d28, d22[5]         \n"
+                        "vmlal.s8   q2, d6, d26         \n" // k03
+                        "vmlal.s8   q2, d7, d27         \n" // k04
+                        "vmlal.s8   q2, d9, d28         \n" // k05
+
+                        "pld        [%5, #192]          \n" 
+                        "vld2.s8    {d10-d11}, [%5]!    \n" // r2
+                        "vld2.s8    {d12-d13}, [%5]     \n"
+                        "vext.8     d13, d10, d12, #1   \n"
+                        
+                        "sub        %3, #8              \n"
+                        "sub        %4, #8              \n"
+                        "sub        %5, #8              \n"
+                        
+                        "vdup.s8    d26, d22[6]         \n"
+                        "vdup.s8    d27, d22[7]         \n"
+                        "vdup.s8    d28, d23[0]         \n"
+                        "vmlal.s8   q2, d10, d26        \n" // k06
+                        "vmlal.s8   q2, d11, d27        \n" // k07
+                        "vmlal.s8   q2, d13, d28        \n" // k08
+
+                        "pld        [%1, #128]          \n"
+                        "vld1.32    {d14-d15}, [%1]     \n" //sum0
+                        "vaddw.s16   q7, q7, d4         \n"
+                        "vst1.32    {d14-d15}, [%1]!    \n"
+                        
+                        "vdup.s8    d26, d24[0]         \n"
+                        "vdup.s8    d27, d24[1]         \n"
+                        "vdup.s8    d28, d24[2]         \n"
+                        "vmull.s8   q2, d0, d26         \n" // k00
+                        "vmlal.s8   q2, d1, d27         \n" // k01
+                        "vmlal.s8   q2, d3, d28         \n" // k02
+                        
+                        "vdup.s8    d26, d24[3]         \n"
+                        "vdup.s8    d27, d24[4]         \n"
+                        "vdup.s8    d28, d24[5]         \n"
+                        "vmlal.s8   q2, d6, d26         \n" // k03
+                        "vmlal.s8   q2, d7, d27         \n" // k04
+                        "vmlal.s8   q2, d9, d28         \n" // k05
+                        
+                        "vdup.s8    d26, d24[6]         \n"
+                        "vdup.s8    d27, d24[7]         \n"
+                        "vdup.s8    d28, d25[0]         \n"
+                        "vmlal.s8   q2, d10, d26        \n" // k06
+                        "vmlal.s8   q2, d11, d27        \n" // k07
+                        "vmlal.s8   q2, d13, d28        \n" // k08
+
+                        "pld        [%2, #128]          \n"
+                        "vld1.32    {d14-d15}, [%2]     \n" //sum1
+                        "vaddw.s16   q7, q7, d4         \n"
+                        "vst1.32    {d14-d15}, [%2]!    \n"
+                        : "=r"(nn),             // %0
+                          "=r"(outptr0),        // %1
+                          "=r"(outptr1),        // %2
+                          "=r"(r0),             // %3
+                          "=r"(r1),             // %4
+                          "=r"(r2)              // %5
+                        : "0"(nn),
+                          "1"(outptr0),
+                          "2"(outptr1),
+                          "3"(r0),
+                          "4"(r1),
+                          "5"(r2)
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q13", "q14", "q15"
+                    );                    
+                }
 
                 for (; remain>0; remain--)
                 {
@@ -3218,7 +3308,69 @@ static void conv3x3s2_neon_s8(const Mat& bottom_blob, Mat& top_blob, const Mat& 
                           "4"(r2)
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q12", "q13", "q14"
                     );
-                }           
+                }
+                
+                if (remain >= 4)
+                {
+                    remain -= 4;
+                    asm volatile(
+                        "pld        [%2, #192]          \n"
+                        "vld2.s8    {d0-d1}, [%2]!      \n" // r0
+                        "vld2.s8    {d2-d3}, [%2]       \n"
+                        "vext.8     d3, d0, d2, #1      \n"
+            
+                        "vdup.s8    d26, d22[0]         \n"
+                        "vdup.s8    d27, d22[1]         \n"
+                        "vdup.s8    d28, d22[2]         \n"
+                        "vmull.s8   q2, d0, d26         \n" // k00
+                        "vmlal.s8   q2, d1, d27         \n" // k01
+                        "vmlal.s8   q2, d3, d28         \n" // k02
+                        
+                        "pld        [%3, #192]          \n"
+                        "vld2.s8    {d6-d7}, [%3]!      \n" // r1
+                        "vld2.s8    {d8-d9}, [%3]       \n"
+                        "vext.8     d9, d6, d8, #1      \n"
+                        
+                        "vdup.s8    d26, d22[3]         \n"
+                        "vdup.s8    d27, d22[4]         \n"
+                        "vdup.s8    d28, d22[5]         \n"
+                        "vmlal.s8   q2, d6, d26         \n" // k03
+                        "vmlal.s8   q2, d7, d27         \n" // k04
+                        "vmlal.s8   q2, d9, d28         \n" // k05
+
+                        "pld        [%4, #192]          \n"
+                        "vld2.s8    {d10-d11}, [%4]!    \n" // r2
+                        "vld2.s8    {d12-d13}, [%4]     \n"
+                        "vext.8     d13, d10, d12, #1   \n"
+
+                        "sub        %2, #8              \n"
+                        "sub        %3, #8              \n"
+                        "sub        %4, #8              \n"	                        
+                        
+                        "vdup.s8    d26, d22[6]         \n"
+                        "vdup.s8    d27, d22[7]         \n"
+                        "vdup.s8    d28, d23[0]         \n"
+                        "vmlal.s8   q2, d10, d26        \n" // k06
+                        "vmlal.s8   q2, d11, d27        \n" // k07
+                        "vmlal.s8   q2, d13, d28        \n" // k08
+
+                        "pld        [%1, #128]          \n"
+                        "vld1.32    {d14-d15}, [%1]     \n" //sum0
+                        "vaddw.s16   q7, q7, d4         \n"
+                        "vst1.32    {d14-d15}, [%1]!    \n"
+                        : "=r"(nn),             // %0
+                          "=r"(outptr0),    // %1
+                          "=r"(r0),             // %2
+                          "=r"(r1),             // %3
+                          "=r"(r2)              // %4
+                        : "0"(nn),
+                          "1"(outptr0),
+                          "2"(r0),
+                          "3"(r1),
+                          "4"(r2)
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q12", "q13", "q14"
+                    );                    
+                }
 
                 for (; remain>0; remain--)
                 {
