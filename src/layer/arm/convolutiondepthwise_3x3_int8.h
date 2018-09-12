@@ -20,23 +20,17 @@
 static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
 {
     int w = bottom_blob.w;
-    //int h = bottom_blob.h;
-    //int inch = bottom_blob.c;
 
     int outw = top_blob.w;
     int outh = top_blob.h;
     int outch = top_blob.c;
-
-    const signed char *kernel = _kernel;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         Mat out = top_blob.channel(p);
 
-        out.fill(0);
-
-        const signed char *kernel0 = (const signed char *)kernel + p * 9;
+        const signed char *kernel0 = (const signed char *)_kernel + p * 9;
 
         int *outptr = out;
 
@@ -53,7 +47,6 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 
             for (; remain > 0; remain--)
             {
-
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -66,7 +59,7 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                 sum += (int)r2[1] * (int)kernel0[7];
                 sum += (int)r2[2] * (int)kernel0[8];
 
-                *outptr += sum;
+                *outptr = sum;
 
                 r0++;
                 r1++;
@@ -84,8 +77,6 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
 {
     int w = bottom_blob.w;
-    //int h = bottom_blob.h;
-    //int inch = bottom_blob.c;
 
     int outw = top_blob.w;
     int outh = top_blob.h;
@@ -93,15 +84,12 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 
     const int tailstep = w - 2 * outw + w;
 
-    const signed char *kernel = _kernel;
-
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         Mat out = top_blob.channel(p);
-        out.fill(0);
 
-        const signed char *kernel0 = (const signed char *)kernel + p * 9;
+        const signed char *kernel0 = (const signed char *)_kernel + p * 9;
 
         int *outptr = out;
 
@@ -131,7 +119,7 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                 sum += (int)r2[1] * (int)kernel0[7];
                 sum += (int)r2[2] * (int)kernel0[8];
 
-                *outptr += sum;
+                *outptr = sum;
 
                 r0 += 2;
                 r1 += 2;
@@ -160,8 +148,6 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
     for (int p=0; p<outch; p++)
     {
         Mat out0 = top_blob.channel(p);
-
-        out0.fill(0);
 
         const signed char* kernel = (const signed char *)_kernel + p*9;
         
@@ -314,8 +300,8 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
                 sum0n += (int)r3[1] * kernel[7];
                 sum0n += (int)r3[2] * kernel[8];
 
-                *outptr0_s32 += sum0;
-                *outptr0n_s32 += sum0n;
+                *outptr0_s32 = sum0;
+                *outptr0n_s32 = sum0n;
 
                 r0++;
                 r1++;
@@ -423,7 +409,7 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
                 sum += (int)r2[1] * kernel[7];
                 sum += (int)r2[2] * kernel[8];
 
-                *outptr0_s32 += sum;
+                *outptr0_s32 = sum;
 
                 r0++;
                 r1++;
@@ -454,8 +440,6 @@ static void convdw3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
     for (int p=0; p<outch; p++)
     {
         Mat out = top_blob.channel(p);
-
-        out.fill(0.f);
 
         const signed char* kernel = (const signed char*)_kernel + p*9;
 
@@ -524,7 +508,7 @@ static void convdw3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
                     "vaddw.s16  q7, q7, d4          \n"
                     "vaddw.s16  q8, q8, d5          \n"
 
-                    "vst1.32    {d14-d17}, [%1]!    \n"
+                    "vst1.32    {d14-d17}, [%1]!    \n" // sum
 
                     "subs       %0, #1              \n"
                     "bne        0b                  \n"
@@ -565,7 +549,7 @@ static void convdw3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
                 sum += (int)r2[1] * kernel[7];
                 sum += (int)r2[2] * kernel[8];
                 
-                *outptr_s32 += sum;
+                *outptr_s32 = sum;
 
                 r0 += 2;
                 r1 += 2;
