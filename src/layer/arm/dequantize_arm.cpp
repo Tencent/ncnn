@@ -196,8 +196,8 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                     "vcvt.f32.s32 q0, q0           \n"
                     "vcvt.f32.s32 q1, q1           \n"
 
-                    "vmul.f32   q0,q0,q10           \n"
-                    "vmul.f32   q1,q1,q10           \n"
+                    "vmul.f32   q2,q0,q10           \n"
+                    "vmul.f32   q3,q1,q10           \n"
 
                     "pld        [%1, #256]          \n"
                     "vld1.s32   {d0-d3}, [%1]!      \n"
@@ -215,7 +215,7 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                       "2"(ptr),
                       "r"(scale)        // %6
                     : "cc", "memory", "q0", "q1", "q2", "q4", "q10", "q12"
-                );
+                );              
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
@@ -227,7 +227,7 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                     ptr++;
                 }
             }
-        }
+        }   
     }
 
     return 0;
