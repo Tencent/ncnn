@@ -138,6 +138,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         for (int p=0; p<num_output; p++)
         {
             int sum = 0;
+            int* out = top_blob;
 
             // channels
             for (int q=0; q<channels; q++)
@@ -151,7 +152,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
             }
 
-            top_blob[p] = sum;
+            out[p] = sum;
         }
 
         // dequantize, reverse scale inplace
