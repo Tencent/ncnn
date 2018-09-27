@@ -227,6 +227,135 @@ int Net::load_param(FILE* fp)
     return 0;
 }
 
+#define mem_sscanf(ptr, format, ...)  ({int _b=0; int _n = sscanf(ptr, format "%n", __VA_ARGS__, &_b); ptr+=_b;_b>0?_n:0;})
+
+int Net::load_param_mem(const char* _mem){
+    int magic = 0;
+    const char* mem = _mem;
+    mem_sscanf(mem, "%d", &magic);
+    if (magic != 7767517)
+    {
+        fprintf(stderr, "param is too old, please regenerate\n");
+        return -1;
+    }
+
+    // parse
+    int layer_count = 0;
+    int blob_count = 0;
+    mem_sscanf(mem, "%d %d", &layer_count, &blob_count);
+
+    layers.resize(layer_count);
+    blobs.resize(blob_count);
+
+    ParamDict pd;
+    pd.use_winograd_convolution = use_winograd_convolution;
+    pd.use_sgemm_convolution = use_sgemm_convolution;
+    pd.use_int8_inference = use_int8_inference;
+
+    int blob_index = 0;
+    for (int i=0; i<layer_count; i++)
+    {
+        int nscan = 0;
+
+        char layer_type[257];
+        char layer_name[257];
+        int bottom_count = 0;
+        int top_count = 0;
+        nscan = mem_sscanf(mem, "%256s %256s %d %d", layer_type, layer_name, &bottom_count, &top_count);
+        if (nscan != 4)
+        {
+            continue;
+        }
+
+        Layer* layer = create_layer(layer_type);
+        if (!layer)
+        {
+            layer = create_custom_layer(layer_type);
+        }
+        if (!layer)
+        {
+            fprintf(stderr, "layer %s not exists or registered\n", layer_type);
+            clear();
+            return -1;
+        }
+
+        layer->type = std::string(layer_type);
+        layer->name = std::string(layer_name);
+//         fprintf(stderr, "new layer %d %s\n", i, layer_name);
+
+        layer->bottoms.resize(bottom_count);
+
+        for (int j=0; j<bottom_count; j++)
+        {
+            char bottom_name[257];
+            nscan = mem_sscanf(mem, "%256s", bottom_name);
+            if (nscan != 1)
+            {
+                continue;
+            }
+
+            int bottom_blob_index = find_blob_index_by_name(bottom_name);
+            if (bottom_blob_index == -1)
+            {
+                Blob& blob = blobs[blob_index];
+
+                bottom_blob_index = blob_index;
+
+                blob.name = std::string(bottom_name);
+//                 fprintf(stderr, "new blob %s\n", bottom_name);
+
+                blob_index++;
+            }
+
+            Blob& blob = blobs[bottom_blob_index];
+
+            blob.consumers.push_back(i);
+
+            layer->bottoms[j] = bottom_blob_index;
+        }
+
+        layer->tops.resize(top_count);
+        for (int j=0; j<top_count; j++)
+        {
+            Blob& blob = blobs[blob_index];
+
+            char blob_name[257];
+            nscan = mem_sscanf(mem, "%256s", blob_name);
+            if (nscan != 1)
+            {
+                continue;
+            }
+
+            blob.name = std::string(blob_name);
+//             fprintf(stderr, "new blob %s\n", blob_name);
+
+            blob.producer = i;
+
+            layer->tops[j] = blob_index;
+
+            blob_index++;
+        }
+
+        // layer specific params
+        int pdlr = pd.load_param_mem(mem);
+        if (pdlr != 0)
+        {
+            fprintf(stderr, "ParamDict load_param failed\n");
+            continue;
+        }
+
+        int lr = layer->load_param(pd);
+        if (lr != 0)
+        {
+            fprintf(stderr, "layer load_param failed\n");
+            continue;
+        }
+
+        layers[i] = layer;
+    }
+
+    return 0;
+}
 int Net::load_param(const char* protopath)
 {
     FILE* fp = fopen(protopath, "rb");
