@@ -48,6 +48,7 @@ public:
     // return 0 if success
     int load_param(FILE* fp);
     int load_param(const char* protopath);
+    int load_param_mem(const char* mem);
 #endif // NCNN_STRING
     // load network structure from binary param file
     // return 0 if success
