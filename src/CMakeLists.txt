@@ -11,6 +11,7 @@ set(ncnn_SRCS
     allocator.cpp
     blob.cpp
     cpu.cpp
+    gpu.cpp
     layer.cpp
     mat.cpp
     mat_pixel.cpp

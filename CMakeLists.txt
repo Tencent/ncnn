@@ -27,6 +27,7 @@ option(NCNN_OPENCV "minimal opencv structure emulation" OFF)
 option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
 option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
 option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
+option(NCNN_VULKAN "vulkan compute support" ON)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
@@ -34,6 +35,10 @@ if(NCNN_OPENMP)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     endif()
+endif()
+
+if(NCNN_VULKAN)
+    find_package(Vulkan REQUIRED)
 endif()
 
 if(WIN32)
@@ -68,7 +73,7 @@ endif()
 ##############################################
 
 # add_subdirectory(examples)
-# add_subdirectory(benchmark)
+add_subdirectory(benchmark)
 add_subdirectory(src)
 if(NOT ANDROID AND NOT IOS)
 add_subdirectory(tools)
