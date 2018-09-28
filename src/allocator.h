@@ -24,6 +24,12 @@
 
 #include <stdlib.h>
 #include <list>
+#include <vector>
+#include "platform.h"
+
+#if NCNN_VULKAN
+#include <vulkan/vulkan.h>
+#endif // NCNN_VULKAN
 
 namespace ncnn {
 
@@ -170,6 +176,53 @@ private:
     std::list< std::pair<size_t, void*> > budgets;
     std::list< std::pair<size_t, void*> > payouts;
 };
+
+#if NCNN_VULKAN
+class VkAllocator
+{
+public:
+    // i = device index
+    // type 0 = device local
+    // type 1 = host visible
+    VkAllocator(int i, int type);
+    virtual ~VkAllocator();
+
+    virtual VkImage create_image(VkImageType imageType, int w, int h, int c);
+    virtual VkImageView create_imageview(VkImageViewType viewType, VkImage image);
+    virtual VkBuffer create_buffer(VkBufferUsageFlags usage, int size);
+
+    virtual void destroy_image(VkImage image);
+    virtual void destroy_imageview(VkImageView imageview);
+    virtual void destroy_buffer(VkBuffer buffer);
+
+public:
+    const VkDevice device;
+    const int type;
+    const uint32_t compute_queue_index;
+    const uint32_t memory_type_index;
+
+private:
+    std::vector<VkImage> images_to_destroy;
+    std::vector<VkImageView> imageviews_to_destroy;
+    std::vector<VkBuffer> buffers_to_destroy;
+
+public:
+    // ratio range 0 ~ 1
+    // default cr = 0.75
+    void set_size_compare_ratio(float scr);
+
+    // release all budgets immediately
+    void clear();
+
+    virtual VkDeviceMemory fastMalloc(size_t size);
+    virtual void fastFree(VkDeviceMemory ptr);
+
+private:
+    unsigned int size_compare_ratio;// 0~256
+    std::list< std::pair<size_t, VkDeviceMemory> > budgets;
+    std::list< std::pair<size_t, VkDeviceMemory> > payouts;
+};
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
 

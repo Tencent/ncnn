@@ -20,8 +20,13 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif
-#include "allocator.h"
 #include "platform.h"
+#include "allocator.h"
+#include "gpu.h"
+
+#if NCNN_VULKAN
+#include <vulkan/vulkan.h>
+#endif // NCNN_VULKAN
 
 namespace ncnn {
 
@@ -740,6 +745,264 @@ inline const float& Mat::operator[](int i) const
 {
     return ((const float*)data)[i];
 }
+
+#if NCNN_VULKAN
+
+// the three dimension matrix, vulkan version
+class VkMat
+{
+public:
+    // empty
+    VkMat();
+    // vec
+    VkMat(int w, size_t elemsize, VkAllocator* allocator);
+    // image
+    VkMat(int w, int h, size_t elemsize, VkAllocator* allocator);
+    // dim
+    VkMat(int w, int h, int c, size_t elemsize, VkAllocator* allocator);
+    // release
+    ~VkMat();
+    // assign
+    VkMat& operator=(const VkMat& m);
+    // allocate vec
+    void create(int w, size_t elemsize, VkAllocator* allocator);
+    // allocate image
+    void create(int w, int h, size_t elemsize, VkAllocator* allocator);
+    // allocate dim
+    void create(int w, int h, int c, size_t elemsize, VkAllocator* allocator);
+    // refcount++
+    void addref();
+    // refcount--
+    void release();
+
+    bool empty() const;
+    size_t total() const;
+
+    // TODO vulkan
+    VkDeviceMemory memory;
+    VkImage image;// ?
+    VkImageView imageview;// for GLSL shader
+
+    // pointer to the reference counter
+    // when points to user-allocated data, the pointer is NULL
+    int* refcount;
+
+    // element size in bytes
+    // 4 = float32/int32
+    // 2 = float16
+    // 1 = int8/uint8
+    // 0 = empty
+    size_t elemsize;
+
+    // the allocator
+    VkAllocator* allocator;
+
+    // the dimensionality
+    int dims;
+
+    int w;
+    int h;
+    int c;
+};
+
+inline VkMat::VkMat()
+    : memory(0), image(0), imageview(0), refcount(0), elemsize(0), allocator(0), dims(0), w(0), h(0), c(0)
+{
+}
+
+inline VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* allocator)
+    : memory(0), image(0), imageview(0), refcount(0)
+{
+    create(_w, _elemsize, allocator);
+}
+
+inline VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* allocator)
+    : memory(0), image(0), imageview(0), refcount(0)
+{
+    create(_w, _h, _elemsize, allocator);
+}
+
+inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* allocator)
+    : memory(0), image(0), imageview(0), refcount(0)
+{
+    create(_w, _h, _c, _elemsize, allocator);
+}
+
+inline VkMat::~VkMat()
+{
+    release();
+}
+
+inline VkMat& VkMat::operator=(const VkMat& m)
+{
+    if (this == &m)
+        return *this;
+
+    if (m.refcount)
+        NCNN_XADD(m.refcount, 1);
+
+    release();
+
+    memory = m.memory;
+    image = m.image;
+    imageview = m.imageview;
+    refcount = m.refcount;
+    elemsize = m.elemsize;
+    allocator = m.allocator;
+
+    dims = m.dims;
+    w = m.w;
+    h = m.h;
+    c = m.c;
+
+    return *this;
+}
+
+inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
+{
+    if (dims == 1 && w == _w && elemsize == _elemsize && allocator == _allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    allocator = _allocator;
+
+    dims = 1;
+    w = _w;
+    h = 1;
+    c = 1;
+
+    if (total() > 0)
+    {
+        image = allocator->create_image(VK_IMAGE_TYPE_1D, w, 1, 1);
+
+        VkMemoryRequirements memoryRequirements;
+        vkGetImageMemoryRequirements(allocator->device, image, &memoryRequirements);
+
+        memory = allocator->fastMalloc(memoryRequirements.size);
+
+        vkBindImageMemory(allocator->device, image, memory, 0);
+
+        imageview = allocator->create_imageview(VK_IMAGE_VIEW_TYPE_1D, image);
+
+        refcount = new int;
+        *refcount = 1;
+    }
+}
+
+inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
+{
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && allocator == _allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    allocator = _allocator;
+
+    dims = 2;
+    w = _w;
+    h = _h;
+    c = 1;
+
+    if (total() > 0)
+    {
+        image = allocator->create_image(VK_IMAGE_TYPE_2D, w, h, 1);
+
+        VkMemoryRequirements memoryRequirements;
+        vkGetImageMemoryRequirements(allocator->device, image, &memoryRequirements);
+
+        memory = allocator->fastMalloc(memoryRequirements.size);
+
+        vkBindImageMemory(allocator->device, image, memory, 0);
+
+        imageview = allocator->create_imageview(VK_IMAGE_VIEW_TYPE_2D, image);
+
+        refcount = new int;
+        *refcount = 1;
+    }
+}
+
+inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator)
+{
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && allocator == _allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    allocator = _allocator;
+
+    dims = 3;
+    w = _w;
+    h = _h;
+    c = _c;
+
+    if (total() > 0)
+    {
+        image = allocator->create_image(VK_IMAGE_TYPE_3D, w, h, c);
+
+        VkMemoryRequirements memoryRequirements;
+        vkGetImageMemoryRequirements(allocator->device, image, &memoryRequirements);
+
+        memory = allocator->fastMalloc(memoryRequirements.size);
+
+        vkBindImageMemory(allocator->device, image, memory, 0);
+
+        imageview = allocator->create_imageview(VK_IMAGE_VIEW_TYPE_3D, image);
+
+        refcount = new int;
+        *refcount = 1;
+    }
+}
+
+inline void VkMat::addref()
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+}
+
+inline void VkMat::release()
+{
+    if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
+        if (allocator)
+        {
+            allocator->destroy_imageview(imageview);
+
+            allocator->destroy_image(image);
+
+            allocator->fastFree(memory);
+
+            delete refcount;
+        }
+    }
+
+    memory = 0;
+    image = 0;
+    imageview = 0;
+
+    elemsize = 0;
+
+    dims = 0;
+    w = 0;
+    h = 0;
+    c = 0;
+
+    refcount = 0;
+}
+
+inline bool VkMat::empty() const
+{
+    return memory == 0 || total() == 0;
+}
+
+inline size_t VkMat::total() const
+{
+    return w * h * c;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
 
