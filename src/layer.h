@@ -23,7 +23,15 @@
 #include "paramdict.h"
 #include "platform.h"
 
+#if NCNN_VULKAN
+#include <vulkan/vulkan.h>
+#endif // NCNN_VULKAN
+
 namespace ncnn {
+
+#if NCNN_VULKAN
+class VkAllocator;
+#endif // NCNN_VULKAN
 
 class Allocator;
 class Option
@@ -47,6 +55,14 @@ public:
 
     // workspace memory allocator
     Allocator* workspace_allocator;
+
+#if NCNN_VULKAN
+    // blob memory allocator
+    VkAllocator* blob_vkallocator;
+
+    // workspace memory allocator
+    VkAllocator* workspace_vkallocator;
+#endif // NCNN_VULKAN
 };
 
 // the global default option
@@ -69,12 +85,23 @@ public:
     // return 0 if success
     virtual int load_model(const ModelBin& mb);
 
+#if NCNN_VULKAN
+
+    // get shader module
+    // init descriptor layout
+    virtual int setup_pipeline();
+
+#endif // NCNN_VULKAN
+
 public:
     // one input and one output blob
     bool one_blob_only;
 
     // support inplace inference
     bool support_inplace;
+
+    // support vulkan compute
+    bool support_vulkan;
 
 public:
     // implement inference
@@ -86,6 +113,45 @@ public:
     // return 0 if success
     virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt = get_default_option()) const;
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt = get_default_option()) const;
+
+#if NCNN_VULKAN
+
+    // implement inference
+    // return 0 if success
+    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, const Option& opt = get_default_option()) const;
+    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, const Option& opt = get_default_option()) const;
+
+    // implement inplace inference
+    // return 0 if success
+    virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, const Option& opt = get_default_option()) const;
+    virtual int forward_inplace(VkMat& bottom_top_blob, const Option& opt = get_default_option()) const;
+
+public:
+//     // shared among all layer instance
+//     VkShaderModule shaderModule;
+//     VkDescriptorSetLayout descriptorSetLayout;
+//     VkPipelineLayout pipelineLayout;
+//
+//     // though the layout of a specific layer is identical
+//     // we don't know how many layer instances will be created
+//     // as different model differs
+//     // it is more flexible to create separate pool
+//     VkDescriptorPool descriptorPool;
+//
+//     // op forward
+//     VkPipeline pipeline;
+//
+//     // op command dispatch
+//     VkDescriptorSet descriptorSet;
+
+public:
+    // TODO encode dispatch param as buffer
+//     // dispatch group count
+//     uint32_t group_count_x;
+//     uint32_t group_count_y;
+//     uint32_t group_count_z;
+
+#endif // NCNN_VULKAN
 
 public:
 #if NCNN_STRING
