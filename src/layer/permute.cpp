@@ -132,7 +132,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                 for (int j = 0; j < h; j++)
                 {
-                    outptr[i*channels + j] = ptr[j*w + q];
+                    outptr[i*h + j] = ptr[j*w + q];
                 }
             }
         }
