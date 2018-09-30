@@ -128,7 +128,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff, co
         for (int q=0; q<channels; q++)
         {
             const float* ptr = a.channel(q);
-            float* outptr = b.channel(q);
+            float* outptr = b.row(q);
 
             for (int i=0; i<h; i++)
             {
