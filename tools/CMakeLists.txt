@@ -11,3 +11,8 @@ include_directories(${CMAKE_SOURCE_DIR}/src)
 add_executable(ncnn2mem ncnn2mem.cpp)
 
 target_link_libraries(ncnn2mem ncnn)
+
+add_executable(ncnnfuse ncnnfuse.cpp)
+
+target_link_libraries(ncnnfuse ncnn)
+

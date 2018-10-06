@@ -26,6 +26,10 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
+#if NCNN_SAVER
+    virtual int save_param(ParamDict& pd) const;
+#endif
+
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
     enum { Operation_PROD = 0, Operation_SUM = 1, Operation_MAX = 2 };

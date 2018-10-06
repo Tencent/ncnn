@@ -26,6 +26,10 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
+#if NCNN_SAVER
+    virtual int save_param(ParamDict& pd) const;
+#endif
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
     enum { PoolMethod_MAX = 0, PoolMethod_AVE = 1 };

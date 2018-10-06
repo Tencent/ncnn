@@ -33,6 +33,17 @@ int Input::load_param(const ParamDict& pd)
     return 0;
 }
 
+#if NCNN_SAVER
+int Input::save_param(ParamDict& pd) const
+{
+    pd.set(0, w);
+    pd.set(1, h);
+    pd.set(2, c);
+
+    return 0;
+}
+#endif
+
 int Input::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) const
 {
     return 0;

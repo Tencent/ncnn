@@ -31,6 +31,16 @@ int Eltwise::load_param(const ParamDict& pd)
     return 0;
 }
 
+#if NCNN_SAVER
+int Eltwise::save_param(ParamDict& pd) const
+{
+    pd.set(0, op_type);
+    pd.set(1, coeffs);
+
+    return 0;
+}
+#endif
+
 int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];

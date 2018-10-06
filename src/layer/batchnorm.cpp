@@ -25,6 +25,26 @@ BatchNorm::BatchNorm()
     support_inplace = true;
 }
 
+#if NCNN_SAVER
+int BatchNorm::save_param(ParamDict& pd) const
+{
+    pd.set(0, channels);
+    pd.set(1, eps);
+
+    return 0;
+}
+
+int BatchNorm::save_model(ModelBinSaver &mbs) const 
+{
+    mbs.save(slope_data, 1);
+    mbs.save(mean_data, 1);
+    mbs.save(var_data, 1);
+    mbs.save(bias_data, 1);
+
+    return 0;
+}
+
+#endif
 int BatchNorm::load_param(const ParamDict& pd)
 {
     channels = pd.get(0, 0);

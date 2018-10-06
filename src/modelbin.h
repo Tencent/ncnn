@@ -76,6 +76,17 @@ protected:
     mutable const Mat* weights;
 };
 
+#if NCNN_SAVER
+class ModelBinSaver {
+public:
+    ModelBinSaver(FILE *fp);
+    virtual int save(const Mat &weight, int type);
+
+protected:
+    FILE *binfp;
+};
+#endif
+
 } // namespace ncnn
 
 #endif // NCNN_MODELBIN_H

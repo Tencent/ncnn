@@ -31,6 +31,14 @@ int ReLU::load_param(const ParamDict& pd)
     return 0;
 }
 
+#if NCNN_SAVER
+int ReLU::save_param(ParamDict& pd) const
+{
+    pd.set(0, slope);
+    return 0;
+}
+#endif
+
 int ReLU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;

@@ -29,34 +29,34 @@ ParamDict::ParamDict()
 
 int ParamDict::get(int id, int def) const
 {
-    return params[id].loaded ? params[id].i : def;
+    return params[id].type ? params[id].i : def;
 }
 
 float ParamDict::get(int id, float def) const
 {
-    return params[id].loaded ? params[id].f : def;
+    return params[id].type ? params[id].f : def;
 }
 
 Mat ParamDict::get(int id, const Mat& def) const
 {
-    return params[id].loaded ? params[id].v : def;
+    return params[id].type ? params[id].v : def;
 }
 
 void ParamDict::set(int id, int i)
 {
-    params[id].loaded = 1;
+    params[id].type = PARAM_TYPE_INT;
     params[id].i = i;
 }
 
 void ParamDict::set(int id, float f)
 {
-    params[id].loaded = 1;
+    params[id].type = PARAM_TYPE_FLOAT;
     params[id].f = f;
 }
 
 void ParamDict::set(int id, const Mat& v)
 {
-    params[id].loaded = 1;
+    params[id].type = PARAM_TYPE_FLOAT_MAT;     // TODO: Set it float for the time being
     params[id].v = v;
 }
 
@@ -64,7 +64,7 @@ void ParamDict::clear()
 {
     for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
     {
-        params[i].loaded = 0;
+        params[i].type = PARAM_TYPE_NULL;
         params[i].v = Mat();
     }
 }
@@ -130,11 +130,13 @@ int ParamDict::load_param(FILE* fp)
                 {
                     float* ptr = params[id].v;
                     nscan = sscanf(vstr, "%f", &ptr[j]);
+                    params[id].type = PARAM_TYPE_FLOAT_MAT;
                 }
                 else
                 {
                     int* ptr = params[id].v;
                     nscan = sscanf(vstr, "%d", &ptr[j]);
+                    params[id].type = PARAM_TYPE_INT_MAT;
                 }
                 if (nscan != 1)
                 {
@@ -155,10 +157,15 @@ int ParamDict::load_param(FILE* fp)
 
             bool is_float = vstr_is_float(vstr);
 
-            if (is_float)
+            if (is_float) {
                 nscan = sscanf(vstr, "%f", &params[id].f);
+                params[id].type = PARAM_TYPE_FLOAT;
+            }
             else
+            {
                 nscan = sscanf(vstr, "%d", &params[id].i);
+                params[id].type = PARAM_TYPE_INT;
+            }
             if (nscan != 1)
             {
                 fprintf(stderr, "ParamDict parse value fail\n");
@@ -166,7 +173,6 @@ int ParamDict::load_param(FILE* fp)
             }
         }
 
-        params[id].loaded = 1;
     }
 
     return 0;
@@ -210,13 +216,14 @@ int ParamDict::load_param_bin(FILE* fp)
 
             float* ptr = params[id].v;
             fread(ptr, sizeof(float), len, fp);
+            params[id].type = PARAM_TYPE_FLOAT_MAT;
         }
         else
         {
             fread(&params[id].f, sizeof(float), 1, fp);
+            params[id].type = PARAM_TYPE_FLOAT;
         }
 
-        params[id].loaded = 1;
 
         fread(&id, sizeof(int), 1, fp);
     }
@@ -249,14 +256,17 @@ int ParamDict::load_param(const unsigned char*& mem)
 
             memcpy(params[id].v.data, mem, len * 4);
             mem += len * 4;
+
+            params[id].type = PARAM_TYPE_FLOAT_MAT;     // TODO: Set it float for the time being
         }
         else
         {
             params[id].f = *(float*)(mem);
             mem += 4;
+
+            params[id].type = PARAM_TYPE_FLOAT;
         }
 
-        params[id].loaded = 1;
 
         id = *(int*)(mem);
         mem += 4;
@@ -264,5 +274,34 @@ int ParamDict::load_param(const unsigned char*& mem)
 
     return 0;
 }
+
+#if NCNN_SAVER
+int ParamDictSaver::save_param(FILE* pp)
+{
+    for (int id = 0; id < NCNN_MAX_PARAM_COUNT; id++) {
+        if (params[id].type == PARAM_TYPE_FLOAT) {
+            fprintf(pp, " %d=%f", id, params[id].f);
+        } else if (params[id].type == PARAM_TYPE_INT) {
+            fprintf(pp, " %d=%d", id, params[id].i);
+        } else if (params[id].type == PARAM_TYPE_FLOAT_MAT) {
+            int saved_id = -id - 23300;
+            size_t len = params[id].v.total();
+            fprintf(pp, " %d=%lu", saved_id, len);
+            for (size_t i = 0; i < len; i++) {
+                fprintf(pp, ",%f", *(static_cast<float *>(params[id].v) + i));
+            }
+        } else if (params[id].type == PARAM_TYPE_INT_MAT) {
+            int saved_id = -id - 23300;
+            size_t len = params[id].v.total();
+            fprintf(pp, " %d=%lu", saved_id, len);
+            for (size_t i = 0; i < len; i++) {
+                fprintf(pp, ",%d", *(static_cast<int *>(params[id].v) + i));
+            }
+        }
+    }
+
+    return 0;
+}
+#endif
 
 } // namespace ncnn

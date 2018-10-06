@@ -43,6 +43,25 @@ int Pooling::load_param(const ParamDict& pd)
     return 0;
 }
 
+#if NCNN_SAVER
+int Pooling::save_param(ParamDict& pd) const
+{
+    pd.set(0, pooling_type);
+    pd.set(1, kernel_w);
+    pd.set(11, kernel_h);
+    pd.set(2, stride_w);
+    pd.set(12, stride_h);
+    pd.set(3, pad_left);
+    pd.set(14, pad_right);
+    pd.set(13, pad_top);
+    pd.set(15, pad_bottom);
+    pd.set(4, global_pooling);
+    pd.set(5, pad_mode);
+
+    return 0;
+}
+#endif
+
 int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // max value in NxN window

@@ -34,6 +34,14 @@ int Softmax::load_param(const ParamDict& pd)
     return 0;
 }
 
+#if NCNN_SAVER
+int Softmax::save_param(ParamDict& pd) const
+{
+    pd.set(0, axis);
+    return 0;
+}
+#endif
+
 int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     // value = exp( value - global max value )

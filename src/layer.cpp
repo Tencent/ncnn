@@ -68,6 +68,18 @@ int Layer::load_model(const ModelBin& /*mb*/)
     return 0;
 }
 
+#if NCNN_SAVER
+int Layer::save_param(ParamDict &pd) const 
+{
+    return 0; 
+}
+
+int Layer::save_model(ModelBinSaver &mbs) const 
+{
+    return 0; 
+}
+#endif
+
 int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (!support_inplace)

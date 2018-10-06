@@ -35,6 +35,27 @@ InnerProduct::~InnerProduct()
     delete dequantize;
 }
 
+#if NCNN_SAVER
+int InnerProduct::save_param(ParamDict& pd) const
+{
+    pd.set(0, num_output);
+    pd.set(1, bias_term);
+    pd.set(2, weight_data_size);
+    pd.set(8, int8_scale_term);
+
+    return 0;
+}
+
+int InnerProduct::save_model(ModelBinSaver &mbs) const 
+{
+    mbs.save(weight_data, 0);
+    if (bias_term)
+    {
+        mbs.save(bias_data, 1);
+    }
+}
+#endif
+
 int InnerProduct::load_param(const ParamDict& pd)
 {
     num_output = pd.get(0, 0);

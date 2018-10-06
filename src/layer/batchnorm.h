@@ -28,6 +28,12 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
+#if NCNN_SAVER
+    virtual int save_param(ParamDict& pd) const;
+
+    virtual int save_model(ModelBinSaver& mbs) const;
+#endif
+
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 public:

@@ -99,6 +99,40 @@ int Net::register_custom_layer(int index, layer_creator_func creator)
 
 #if NCNN_STDIO
 #if NCNN_STRING
+
+#if NCNN_SAVER
+int Net::save_model(FILE *fp)
+{
+    ModelBinSaver mbs(fp);
+    for (const auto *layer : layers) {
+        // printf("%s\n", layer->name.c_str());
+        layer->save_model(mbs);
+    }
+    return 0;
+}
+
+int Net::save_param(FILE *fp)
+{
+    fprintf(fp, "7767517\n");
+    fprintf(fp, "%lu %lu\n", layers.size(), blobs.size());
+    for (size_t i = 0; i < layers.size(); i++) {
+        auto layer = layers[i];
+        fprintf(fp, "%-16s %-16s %lu %lu", layer->type.c_str(), layer->name.c_str(), layer->bottoms.size(), layer->tops.size());
+        for (const auto &bottom : layer->bottoms) {
+            fprintf(fp, " %s", blobs[bottom].name.c_str());
+        }
+        for (const auto &top : layer->tops) {
+            fprintf(fp, " %s", blobs[top].name.c_str());
+        }
+        ParamDictSaver pd;
+        layer->save_param(pd);
+        pd.save_param(fp);
+        fprintf(fp, "\n");
+    }
+    return 0;
+}
+#endif
+
 int Net::load_param(FILE* fp)
 {
     int magic = 0;

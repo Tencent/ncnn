@@ -35,6 +35,37 @@ Convolution::~Convolution()
     delete dequantize;
 }
 
+#if NCNN_SAVER
+int Convolution::save_param(ParamDict& pd) const
+{
+    pd.set(0, num_output);
+    pd.set(1, kernel_w);
+    pd.set(11, kernel_h);
+    pd.set(2, dilation_w);
+    pd.set(12, dilation_h);
+    pd.set(3, stride_w);
+    pd.set(13, stride_h);
+    pd.set(4, pad_w);
+    pd.set(14, pad_h);
+    pd.set(5, bias_term);
+    pd.set(6, weight_data_size);
+    pd.set(8, int8_scale_term);
+    
+    return 0;
+}
+
+int Convolution::save_model(ModelBinSaver &mbs) const 
+{
+    mbs.save(weight_data, 0);
+    if (bias_term)
+    {
+        mbs.save(bias_data, 1);
+    }
+
+    return 0;
+}
+#endif
+
 int Convolution::load_param(const ParamDict& pd)
 {
     num_output = pd.get(0, 0);

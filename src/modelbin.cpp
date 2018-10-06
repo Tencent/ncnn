@@ -306,4 +306,21 @@ Mat ModelBinFromMatArray::load(int /*w*/, int /*type*/) const
     return m;
 }
 
+#if NCNN_SAVER
+ModelBinSaver::ModelBinSaver(FILE* fp)
+{
+    this->binfp = fp;
+}
+
+int ModelBinSaver::save(const Mat &weight, int type)
+{
+    if (type == 0) {
+        int quantize_tag = 0;
+        fwrite(&quantize_tag, sizeof(int), 1, binfp);
+    }
+    fwrite(static_cast<unsigned char *>(weight.data), sizeof(unsigned char), weight.total() * weight.elemsize, binfp);
+    return 0;
+}
+#endif
+
 } // namespace ncnn

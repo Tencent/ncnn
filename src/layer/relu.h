@@ -26,6 +26,10 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
+#if NCNN_SAVER
+    virtual int save_param(ParamDict& pd) const;
+#endif
+
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 public:

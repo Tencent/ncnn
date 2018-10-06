@@ -64,14 +64,26 @@ protected:
     int load_param(const unsigned char*& mem);
 
 protected:
+    const int PARAM_TYPE_NULL = 0;
+    const int PARAM_TYPE_INT = 1;
+    const int PARAM_TYPE_FLOAT = 2;
+    const int PARAM_TYPE_INT_MAT = 3;
+    const int PARAM_TYPE_FLOAT_MAT = 4;
     struct
     {
-        int loaded;
+        int type;
         union { int i; float f; };
         Mat v;
     } params[NCNN_MAX_PARAM_COUNT];
 };
 
+#if NCNN_SAVER
+class ParamDictSaver : public ParamDict
+{
+public:
+    int save_param(FILE* pp);
+};
+#endif
 } // namespace ncnn
 
 #endif // NCNN_PARAMDICT_H

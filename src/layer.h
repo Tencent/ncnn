@@ -69,7 +69,12 @@ public:
     // return 0 if success
     virtual int load_model(const ModelBin& mb);
 
-public:
+#if NCNN_SAVER
+    virtual int save_param(ParamDict &pd) const;
+    virtual int save_model(ModelBinSaver &mbs) const;
+#endif
+
+  public:
     // one input and one output blob
     bool one_blob_only;
 

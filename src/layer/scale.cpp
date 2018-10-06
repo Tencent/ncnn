@@ -24,6 +24,27 @@ Scale::Scale()
     support_inplace = true;
 }
 
+#if NCNN_SAVER
+int Scale::save_param(ParamDict& pd) const
+{
+    pd.set(0, scale_data_size);
+    pd.set(1, bias_term);
+
+    return 0;
+}
+
+int Scale::save_model(ModelBinSaver &mbs) const 
+{
+    mbs.save(scale_data, 1);
+    if (bias_term) 
+    {
+        mbs.save(bias_data, 1);
+    }
+
+    return 0;
+}
+#endif
+
 int Scale::load_param(const ParamDict& pd)
 {
     scale_data_size = pd.get(0, 0);

@@ -58,6 +58,11 @@ public:
     // return 0 if success
     int load_model(FILE* fp);
     int load_model(const char* modelpath);
+
+#if NCNN_SAVER
+    int save_param(FILE *fp);
+    int save_model(FILE *fp);
+#endif // NCNN_SAVER
 #endif // NCNN_STDIO
 
     // load network structure from external memory
@@ -99,6 +104,7 @@ public:
 
 protected:
     friend class Extractor;
+    friend class OpFuser;
 #if NCNN_STRING
     int find_blob_index_by_name(const char* name) const;
     int find_layer_index_by_name(const char* name) const;
