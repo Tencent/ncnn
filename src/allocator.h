@@ -121,6 +121,7 @@ private:
 class Allocator
 {
 public:
+    virtual ~Allocator();
     virtual void* fastMalloc(size_t size) = 0;
     virtual void fastFree(void* ptr) = 0;
 };
