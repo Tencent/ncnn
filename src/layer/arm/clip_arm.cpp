@@ -4,9 +4,6 @@
 
 #include "clip_arm.h"
 
-
-#define __ARM_NEON
-
 #ifdef __ARM_NEON
 
 #include <arm_neon.h>
