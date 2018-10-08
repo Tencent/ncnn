@@ -17,6 +17,11 @@
 #include <stdio.h>
 
 namespace ncnn {
+    
+Allocator::~Allocator() 
+{
+
+}
 
 PoolAllocator::PoolAllocator()
 {
