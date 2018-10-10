@@ -72,23 +72,6 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
             int* outptr6 = out6;
             int* outptr7 = out7;
 
-            const signed char* img0 = bottom_blob.channel(q);
-            const signed char* img1 = bottom_blob.channel(q+1);
-            const signed char* img2 = bottom_blob.channel(q+2);
-            const signed char* img3 = bottom_blob.channel(q+3);
-            const signed char* img4 = bottom_blob.channel(q+4);
-            const signed char* img5 = bottom_blob.channel(q+5);
-            const signed char* img6 = bottom_blob.channel(q+6);
-            const signed char* img7 = bottom_blob.channel(q+7);
-            const signed char* img8 = bottom_blob.channel(q+8);
-            const signed char* img9 = bottom_blob.channel(q+9);
-            const signed char* img10 = bottom_blob.channel(q+10);
-            const signed char* img11 = bottom_blob.channel(q+11);
-            const signed char* img12 = bottom_blob.channel(q+12);
-            const signed char* img13 = bottom_blob.channel(q+13);
-            const signed char* img14 = bottom_blob.channel(q+14);
-            const signed char* img15 = bottom_blob.channel(q+15);
-
             const signed char* kernel0 = (const signed char*)kernel + p*inch + q;
             const signed char* kernel1 = (const signed char*)kernel + (p+1)*inch + q;
             const signed char* kernel2 = (const signed char*)kernel + (p+2)*inch + q;
@@ -98,435 +81,1829 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
             const signed char* kernel6 = (const signed char*)kernel + (p+6)*inch + q;
             const signed char* kernel7 = (const signed char*)kernel + (p+7)*inch + q;
 
-            const signed char* r0 = img0;
-            const signed char* r1 = img1;
-            const signed char* r2 = img2;
-            const signed char* r3 = img3;
-            const signed char* r4 = img4;
-            const signed char* r5 = img5;
-            const signed char* r6 = img6;
-            const signed char* r7 = img7;
-            const signed char* r8 = img8;
-            const signed char* r9 = img9;
-            const signed char* r10 = img10;
-            const signed char* r11 = img11;
-            const signed char* r12 = img12;
-            const signed char* r13 = img13;
-            const signed char* r14 = img14;
-            const signed char* r15 = img15;
+            const signed char* r0 = bottom_blob.channel(q);
+            const signed char* r1 = bottom_blob.channel(q+1);
+            const signed char* r2 = bottom_blob.channel(q+2);
+            const signed char* r3 = bottom_blob.channel(q+3);
+            const signed char* r4 = bottom_blob.channel(q+4);
+            const signed char* r5 = bottom_blob.channel(q+5);
+            const signed char* r6 = bottom_blob.channel(q+6);
+            const signed char* r7 = bottom_blob.channel(q+7);
+            const signed char* r8 = bottom_blob.channel(q+8);
+            const signed char* r9 = bottom_blob.channel(q+9);
+            const signed char* r10 = bottom_blob.channel(q+10);
+            const signed char* r11 = bottom_blob.channel(q+11);
+            const signed char* r12 = bottom_blob.channel(q+12);
+            const signed char* r13 = bottom_blob.channel(q+13);
+            const signed char* r14 = bottom_blob.channel(q+14);
+            const signed char* r15 = bottom_blob.channel(q+15);
 
             int size = outw * outh;
 
-            int nn = size >> 3;
-            int remain = size & 7;
+            int nn = size >> 4;
+            int remain = size & 15;
 
-            int8x8_t _k_low = vld1_s8(kernel0);
-            int8x8_t _k_high = vld1_s8(kernel0+8);
-            int8x16_t _k0 = vcombine_s8(_k_low, _k_high);
-
-            _k_low = vld1_s8(kernel1);
-            _k_high = vld1_s8(kernel1+8);
-            int8x16_t _k1 = vcombine_s8(_k_low, _k_high);
-
-            _k_low = vld1_s8(kernel2);
-            _k_high = vld1_s8(kernel2+8);
-            int8x16_t _k2 = vcombine_s8(_k_low, _k_high);
-
-            _k_low = vld1_s8(kernel3);
-            _k_high = vld1_s8(kernel3+8);
-            int8x16_t _k3 = vcombine_s8(_k_low, _k_high);
-
-            _k_low = vld1_s8(kernel4);
-            _k_high = vld1_s8(kernel4+8);
-            int8x16_t _k4 = vcombine_s8(_k_low, _k_high);
-
-            _k_low = vld1_s8(kernel5);
-            _k_high = vld1_s8(kernel5+8);
-            int8x16_t _k5 = vcombine_s8(_k_low, _k_high);
-
-            _k_low = vld1_s8(kernel6);
-            _k_high = vld1_s8(kernel6+8);
-            int8x16_t _k6 = vcombine_s8(_k_low, _k_high);
-
-            _k_low = vld1_s8(kernel7);
-            _k_high = vld1_s8(kernel7+8);
-            int8x16_t _k7 = vcombine_s8(_k_low, _k_high);
+            int8x16_t _k0 = vld1q_s8(kernel0);
+            int8x16_t _k1 = vld1q_s8(kernel1);
+            int8x16_t _k2 = vld1q_s8(kernel2);
+            int8x16_t _k3 = vld1q_s8(kernel3);
+            int8x16_t _k4 = vld1q_s8(kernel4);
+            int8x16_t _k5 = vld1q_s8(kernel5);
+            int8x16_t _k6 = vld1q_s8(kernel6);
+            int8x16_t _k7 = vld1q_s8(kernel7);
 
             if (nn > 0)
             {
             asm volatile(
-                "0:                                   \n"
-                "prfm   pldl1keep, [%9, #128]         \n"
-                "ld1    {v8.8b}, [%9], #8             \n" // r0"
-                "prfm   pldl1keep, [%10, #128]        \n"
-                "ld1    {v9.8b}, [%10], #8            \n" // r1"
-                "prfm   pldl1keep, [%11, #128]        \n"
-                "ld1    {v10.8b}, [%11], #8           \n" // r2"
-                "prfm   pldl1keep, [%12, #128]        \n"
-                "ld1    {v11.8b}, [%12], #8           \n" // r3"
-                "prfm   pldl1keep, [%13, #128]        \n"
-                "ld1    {v12.8b}, [%13], #8           \n" // r4"
-                "prfm   pldl1keep, [%14, #128]        \n"
-                "ld1    {v13.8b}, [%14], #8           \n" // r5"
-                "prfm   pldl1keep, [%15, #128]        \n"
-                "ld1    {v14.8b}, [%15], #8           \n" // r6"
-                "prfm   pldl1keep, [%16, #128]        \n"
-                "ld1    {v15.8b}, [%16], #8           \n" // r7"
-                "prfm   pldl1keep, [%17, #128]        \n"
-                "ld1    {v16.8b}, [%17], #8           \n" // r8"
-                "prfm   pldl1keep, [%18, #128]        \n"
-                "ld1    {v17.8b}, [%18], #8           \n" // r9"
-                "prfm   pldl1keep, [%19, #128]        \n"
-                "ld1    {v18.8b}, [%19], #8           \n" // r10"
-                "prfm   pldl1keep, [%20, #128]        \n"
-                "ld1    {v19.8b}, [%20], #8           \n" // r11"
-                "prfm   pldl1keep, [%21, #128]        \n"
-                "ld1    {v20.8b}, [%21], #8           \n" // r12"
-                "prfm   pldl1keep, [%22, #128]        \n"
-                "ld1    {v21.8b}, [%22], #8           \n" // r13"
-                "prfm   pldl1keep, [%23, #128]        \n"
-                "ld1    {v22.8b}, [%23], #8           \n" // r14"
-                "prfm   pldl1keep, [%24, #128]        \n"
-                "ld1    {v23.8b}, [%24], #8           \n" // r15"
+                "prfm   pldl1keep, [%9, #128]        \n"
+                "prfm   pldl1keep, [%10, #128]       \n"
+                "prfm   pldl1keep, [%11, #128]       \n"
+                "prfm   pldl1keep, [%12, #128]       \n"
+                "ld1    {v8.16b}, [%9], #16          \n" // r0"
+                "ld1    {v9.16b}, [%10], #16         \n" // r1"
+                "ld1    {v10.16b}, [%11], #16        \n" // r2"
+                "ld1    {v11.16b}, [%12], #16        \n" // r3"
 
-                "dup    v24.8b, %50.b[0]              \n" // k00
-                "dup    v25.8b, %50.b[1]              \n" // k01
-                "dup    v26.8b, %50.b[2]              \n" // k02
-                "dup    v27.8b, %50.b[3]              \n" // k03
-                "smull  v28.8h, v8.8b, v24.8b         \n"
-                "smlal  v28.8h, v9.8b, v25.8b         \n"
-                "smlal  v28.8h, v10.8b, v26.8b        \n"
-                "smlal  v28.8h, v11.8b, v27.8b        \n"
+                "dup    v24.16b, %50.b[0]            \n" // k00
+                "dup    v25.16b, %50.b[1]            \n" // k01
+                "dup    v26.16b, %50.b[2]            \n" // k02
+                "dup    v27.16b, %50.b[3]            \n" // k03
 
-                "dup    v24.8b, %50.b[4]              \n" // k04
-                "dup    v25.8b, %50.b[5]              \n" // k05
-                "dup    v26.8b, %50.b[6]              \n" // k06
-                "dup    v27.8b, %50.b[7]              \n" // k07
-                "smlal  v28.8h, v12.8b, v24.8b        \n"
-                "smlal  v28.8h, v13.8b, v25.8b        \n"
-                "smlal  v28.8h, v14.8b, v26.8b        \n"
-                "smlal  v28.8h, v15.8b, v27.8b        \n"
+                "0:                                  \n"
+                "smull  v28.8h, v8.8b, v24.8b        \n" // r0 * k0
+                "smull2  v31.8h, v8.16b, v24.16b     \n" // r0n * k0
+                "prfm   pldl1keep, [%13, #128]       \n"
+                "prfm   pldl1keep, [%14, #128]       \n"
+                "prfm   pldl1keep, [%15, #128]       \n"
 
-                "dup    v24.8b, %50.b[8]              \n" // k08
-                "dup    v25.8b, %50.b[9]              \n" // k09
-                "dup    v26.8b, %50.b[10]             \n" // k10
-                "dup    v27.8b, %50.b[11]             \n" // k11
-                "smlal  v28.8h, v16.8b, v24.8b        \n"
-                "smlal  v28.8h, v17.8b, v25.8b        \n"
-                "smlal  v28.8h, v18.8b, v26.8b        \n"
-                "smlal  v28.8h, v19.8b, v27.8b        \n"
+                "smlal  v28.8h, v9.8b, v25.8b        \n" // r0 * k1
+                "smlal2  v31.8h, v9.16b, v25.16b     \n" // r0n * k1
+                "prfm   pldl1keep, [%16, #128]       \n"
+                "ld1    {v12.16b}, [%13], #16        \n" // r4"   
+                "ld1    {v13.16b}, [%14], #16        \n" // r5"
 
-                "dup    v24.8b, %50.b[12]             \n" // k12
-                "dup    v25.8b, %50.b[13]             \n" // k13
-                "dup    v26.8b, %50.b[14]             \n" // k14
-                "dup    v27.8b, %50.b[15]             \n" // k15
-                "smlal  v28.8h, v20.8b, v24.8b        \n"
-                "smlal  v28.8h, v21.8b, v25.8b        \n"
-                "smlal  v28.8h, v22.8b, v26.8b        \n"
-                "smlal  v28.8h, v23.8b, v27.8b        \n"
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "smlal2  v31.8h, v10.16b, v26.16b    \n"
+                "ld1    {v14.16b}, [%15], #16        \n" // r6"
+                "ld1    {v15.16b}, [%16], #16        \n" // r7"                               
+                "dup    v24.16b, %50.b[4]            \n" // k04
 
-                "prfm   pldl1keep, [%1, #128]         \n"
-                "ld1    {v29.4s, v30.4s}, [%1]        \n" // sum0
-                "saddw  v29.4s, v29.4s, v28.4h        \n"
-                "saddw2 v30.4s, v30.4s, v28.8h        \n"
-                "st1    {v29.4s, v30.4s}, [%1], #32   \n"
-                //###########################################
-                "dup    v24.8b, %51.b[0]              \n" // k00
-                "dup    v25.8b, %51.b[1]              \n" // k01
-                "dup    v26.8b, %51.b[2]              \n" // k02
-                "dup    v27.8b, %51.b[3]              \n" // k03
-                "smull  v28.8h, v8.8b, v24.8b         \n"
-                "smlal  v28.8h, v9.8b, v25.8b         \n"
-                "smlal  v28.8h, v10.8b, v26.8b        \n"
-                "smlal  v28.8h, v11.8b, v27.8b        \n"
+                "smlal  v28.8h, v11.8b, v27.8b       \n"
+                "smlal2  v31.8h, v11.16b, v27.16b    \n"
+                "dup    v25.16b, %50.b[5]            \n" // k05
+                "dup    v26.16b, %50.b[6]            \n" // k06
+                "dup    v27.16b, %50.b[7]            \n" // k07
 
-                "dup    v24.8b, %51.b[4]              \n" // k04
-                "dup    v25.8b, %51.b[5]              \n" // k05
-                "dup    v26.8b, %51.b[6]              \n" // k06
-                "dup    v27.8b, %51.b[7]              \n" // k07
-                "smlal  v28.8h, v12.8b, v24.8b        \n"
-                "smlal  v28.8h, v13.8b, v25.8b        \n"
-                "smlal  v28.8h, v14.8b, v26.8b        \n"
-                "smlal  v28.8h, v15.8b, v27.8b        \n"
+                "smlal  v28.8h, v12.8b, v24.8b       \n" // r4
+                "smlal2  v31.8h, v12.16b, v24.16b    \n" // r4
+                "prfm   pldl1keep, [%1, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%1]       \n" // sum0  
+                "prfm   pldl1keep, [%17, #128]       \n"
 
-                "dup    v24.8b, %51.b[8]              \n" // k08
-                "dup    v25.8b, %51.b[9]              \n" // k09
-                "dup    v26.8b, %51.b[10]             \n" // k10
-                "dup    v27.8b, %51.b[11]             \n" // k11
-                "smlal  v28.8h, v16.8b, v24.8b        \n"
-                "smlal  v28.8h, v17.8b, v25.8b        \n"
-                "smlal  v28.8h, v18.8b, v26.8b        \n"
-                "smlal  v28.8h, v19.8b, v27.8b        \n"
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "smlal2  v31.8h, v13.16b, v25.16b    \n"
+                "prfm   pldl1keep, [%18, #128]       \n"
+                "prfm   pldl1keep, [%19, #128]       \n"
+                "prfm   pldl1keep, [%20, #128]       \n"
+                "ld1    {v16.16b}, [%17], #16        \n" // r8"   
 
-                "dup    v24.8b, %51.b[12]             \n" // k12
-                "dup    v25.8b, %51.b[13]             \n" // k13
-                "dup    v26.8b, %51.b[14]             \n" // k14
-                "dup    v27.8b, %51.b[15]             \n" // k15
-                "smlal  v28.8h, v20.8b, v24.8b        \n"
-                "smlal  v28.8h, v21.8b, v25.8b        \n"
-                "smlal  v28.8h, v22.8b, v26.8b        \n"
-                "smlal  v28.8h, v23.8b, v27.8b        \n"
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "smlal2  v31.8h, v14.16b, v26.16b    \n"
+                "ld1    {v17.16b}, [%18], #16        \n" // r9"
+                "ld1    {v18.16b}, [%19], #16        \n" // r10"
+                "ld1    {v19.16b}, [%20], #16        \n" // r11"             
 
-                "prfm   pldl1keep, [%2, #128]         \n"
-                "ld1    {v29.4s, v30.4s}, [%2]        \n" // sum1
-                "saddw  v29.4s, v29.4s, v28.4h        \n"
-                "saddw2 v30.4s, v30.4s, v28.8h        \n"
-                "st1    {v29.4s, v30.4s}, [%2], #32   \n"
-                //###########################################
-                "dup    v24.8b, %52.b[0]              \n" // k00
-                "dup    v25.8b, %52.b[1]              \n" // k01
-                "dup    v26.8b, %52.b[2]              \n" // k02
-                "dup    v27.8b, %52.b[3]              \n" // k03
-                "smull  v28.8h, v8.8b, v24.8b         \n"
-                "smlal  v28.8h, v9.8b, v25.8b         \n"
-                "smlal  v28.8h, v10.8b, v26.8b        \n"
-                "smlal  v28.8h, v11.8b, v27.8b        \n"
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "smlal2  v31.8h, v15.16b, v27.16b    \n"
+                "dup    v24.16b, %50.b[8]            \n" // k08
+                "dup    v25.16b, %50.b[9]            \n" // k09
+                "dup    v26.16b, %50.b[10]           \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n" // r8
+                "smlal2  v31.8h, v16.16b, v24.16b    \n" // r8
+                "dup    v27.16b, %50.b[11]           \n" // k11
+                "prfm   pldl1keep, [%21, #128]       \n"
+                "prfm   pldl1keep, [%22, #128]       \n"
 
-                "dup    v24.8b, %52.b[4]              \n" // k04
-                "dup    v25.8b, %52.b[5]              \n" // k05
-                "dup    v26.8b, %52.b[6]              \n" // k06
-                "dup    v27.8b, %52.b[7]              \n" // k07
-                "smlal  v28.8h, v12.8b, v24.8b        \n"
-                "smlal  v28.8h, v13.8b, v25.8b        \n"
-                "smlal  v28.8h, v14.8b, v26.8b        \n"
-                "smlal  v28.8h, v15.8b, v27.8b        \n"
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "smlal2  v31.8h, v17.16b, v25.16b    \n"
+                "prfm   pldl1keep, [%23, #128]       \n"
+                "prfm   pldl1keep, [%24, #128]       \n"
+                "ld1    {v20.16b}, [%21], #16        \n" // r12"
 
-                "dup    v24.8b, %52.b[8]              \n" // k08
-                "dup    v25.8b, %52.b[9]              \n" // k09
-                "dup    v26.8b, %52.b[10]             \n" // k10
-                "dup    v27.8b, %52.b[11]             \n" // k11
-                "smlal  v28.8h, v16.8b, v24.8b        \n"
-                "smlal  v28.8h, v17.8b, v25.8b        \n"
-                "smlal  v28.8h, v18.8b, v26.8b        \n"
-                "smlal  v28.8h, v19.8b, v27.8b        \n"
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "smlal2  v31.8h, v18.16b, v26.16b    \n"
+                "ld1    {v21.16b}, [%22], #16        \n" // r13"
+                "ld1    {v22.16b}, [%23], #16        \n" // r14"
+                "ld1    {v23.16b}, [%24], #16        \n" // r15"              
 
-                "dup    v24.8b, %52.b[12]             \n" // k12
-                "dup    v25.8b, %52.b[13]             \n" // k13
-                "dup    v26.8b, %52.b[14]             \n" // k14
-                "dup    v27.8b, %52.b[15]             \n" // k15
-                "smlal  v28.8h, v20.8b, v24.8b        \n"
-                "smlal  v28.8h, v21.8b, v25.8b        \n"
-                "smlal  v28.8h, v22.8b, v26.8b        \n"
-                "smlal  v28.8h, v23.8b, v27.8b        \n"
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "smlal2  v31.8h, v19.16b, v27.16b    \n"
+                "dup    v24.16b, %50.b[12]           \n" // k12
+                "dup    v25.16b, %50.b[13]           \n" // k13
+                "dup    v26.16b, %50.b[14]           \n" // k14
 
-                "prfm   pldl1keep, [%3, #128]         \n"
-                "ld1    {v29.4s, v30.4s}, [%3]        \n" // sum2
-                "saddw  v29.4s, v29.4s, v28.4h        \n"
-                "saddw2 v30.4s, v30.4s, v28.8h        \n"
-                "st1    {v29.4s, v30.4s}, [%3], #32   \n"
-                //###########################################
-                "dup    v24.8b, %53.b[0]              \n" // k00
-                "dup    v25.8b, %53.b[1]              \n" // k01
-                "dup    v26.8b, %53.b[2]              \n" // k02
-                "dup    v27.8b, %53.b[3]              \n" // k03
-                "smull  v28.8h, v8.8b, v24.8b         \n"
-                "smlal  v28.8h, v9.8b, v25.8b         \n"
-                "smlal  v28.8h, v10.8b, v26.8b        \n"
-                "smlal  v28.8h, v11.8b, v27.8b        \n"
+                "smlal  v28.8h, v20.8b, v24.8b       \n" // r12
+                "smlal2  v31.8h, v20.16b, v24.16b    \n" // r12
+                "dup    v27.16b, %50.b[15]           \n" // k15
 
-                "dup    v24.8b, %53.b[4]              \n" // k04
-                "dup    v25.8b, %53.b[5]              \n" // k05
-                "dup    v26.8b, %53.b[6]              \n" // k06
-                "dup    v27.8b, %53.b[7]              \n" // k07
-                "smlal  v28.8h, v12.8b, v24.8b        \n"
-                "smlal  v28.8h, v13.8b, v25.8b        \n"
-                "smlal  v28.8h, v14.8b, v26.8b        \n"
-                "smlal  v28.8h, v15.8b, v27.8b        \n"
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "smlal2  v31.8h, v21.16b, v25.16b    \n"
+                "dup    v24.16b, %51.b[0]            \n" // k00
 
-                "dup    v24.8b, %53.b[8]              \n" // k08
-                "dup    v25.8b, %53.b[9]              \n" // k09
-                "dup    v26.8b, %53.b[10]             \n" // k10
-                "dup    v27.8b, %53.b[11]             \n" // k11
-                "smlal  v28.8h, v16.8b, v24.8b        \n"
-                "smlal  v28.8h, v17.8b, v25.8b        \n"
-                "smlal  v28.8h, v18.8b, v26.8b        \n"
-                "smlal  v28.8h, v19.8b, v27.8b        \n"
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "smlal2  v31.8h, v22.16b, v26.16b    \n"
+                "dup    v25.16b, %51.b[1]            \n" // k01
 
-                "dup    v24.8b, %53.b[12]             \n" // k12
-                "dup    v25.8b, %53.b[13]             \n" // k13
-                "dup    v26.8b, %53.b[14]             \n" // k14
-                "dup    v27.8b, %53.b[15]             \n" // k15
-                "smlal  v28.8h, v20.8b, v24.8b        \n"
-                "smlal  v28.8h, v21.8b, v25.8b        \n"
-                "smlal  v28.8h, v22.8b, v26.8b        \n"
-                "smlal  v28.8h, v23.8b, v27.8b        \n"
+                "smlal  v28.8h, v23.8b, v27.8b       \n"
+                "smlal2  v31.8h, v23.16b, v27.16b    \n"             
+                "dup    v26.16b, %51.b[2]            \n" // k02
 
-                "prfm   pldl1keep, [%4, #128]         \n"
-                "ld1    {v29.4s, v30.4s}, [%4]        \n" // sum3
-                "saddw  v29.4s, v29.4s, v28.4h        \n"
-                "saddw2 v30.4s, v30.4s, v28.8h        \n"
-                "st1    {v29.4s, v30.4s}, [%4], #32   \n"
-                //###########################################
-                "dup    v24.8b, %54.b[0]              \n" // k00
-                "dup    v25.8b, %54.b[1]              \n" // k01
-                "dup    v26.8b, %54.b[2]              \n" // k02
-                "dup    v27.8b, %54.b[3]              \n" // k03
-                "smull  v28.8h, v8.8b, v24.8b         \n"
-                "smlal  v28.8h, v9.8b, v25.8b         \n"
-                "smlal  v28.8h, v10.8b, v26.8b        \n"
-                "smlal  v28.8h, v11.8b, v27.8b        \n"
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
 
-                "dup    v24.8b, %54.b[4]              \n" // k04
-                "dup    v25.8b, %54.b[5]              \n" // k05
-                "dup    v26.8b, %54.b[6]              \n" // k06
-                "dup    v27.8b, %54.b[7]              \n" // k07
-                "smlal  v28.8h, v12.8b, v24.8b        \n"
-                "smlal  v28.8h, v13.8b, v25.8b        \n"
-                "smlal  v28.8h, v14.8b, v26.8b        \n"
-                "smlal  v28.8h, v15.8b, v27.8b        \n"
+                "dup    v27.16b, %51.b[3]            \n" // k03
 
-                "dup    v24.8b, %54.b[8]              \n" // k08
-                "dup    v25.8b, %54.b[9]              \n" // k09
-                "dup    v26.8b, %54.b[10]             \n" // k10
-                "dup    v27.8b, %54.b[11]             \n" // k11
-                "smlal  v28.8h, v16.8b, v24.8b        \n"
-                "smlal  v28.8h, v17.8b, v25.8b        \n"
-                "smlal  v28.8h, v18.8b, v26.8b        \n"
-                "smlal  v28.8h, v19.8b, v27.8b        \n"
+                "st1    {v29.4s, v30.4s}, [%1], #32  \n" // sum0
 
-                "dup    v24.8b, %54.b[12]             \n" // k12
-                "dup    v25.8b, %54.b[13]             \n" // k13
-                "dup    v26.8b, %54.b[14]             \n" // k14
-                "dup    v27.8b, %54.b[15]             \n" // k15
-                "smlal  v28.8h, v20.8b, v24.8b        \n"
-                "smlal  v28.8h, v21.8b, v25.8b        \n"
-                "smlal  v28.8h, v22.8b, v26.8b        \n"
-                "smlal  v28.8h, v23.8b, v27.8b        \n"
+                "ld1    {v29.4s, v30.4s}, [%1]       \n" // sum0
+                "saddw  v29.4s, v29.4s, v31.4h       \n"
+                "saddw2 v30.4s, v30.4s, v31.8h       \n" 
+                "st1    {v29.4s, v30.4s}, [%1], #32  \n" // sum0             
+                //########################################### 
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "smull2  v31.8h, v8.16b, v24.16b     \n"
+                "dup    v24.16b, %51.b[4]            \n" // k04
 
-                "prfm   pldl1keep, [%5, #128]         \n"
-                "ld1    {v29.4s, v30.4s}, [%5]        \n" // sum4
-                "saddw  v29.4s, v29.4s, v28.4h        \n"
-                "saddw2 v30.4s, v30.4s, v28.8h        \n"
-                "st1    {v29.4s, v30.4s}, [%5], #32   \n"
-                //###########################################
-                "dup    v24.8b, %55.b[0]              \n" // k00
-                "dup    v25.8b, %55.b[1]              \n" // k01
-                "dup    v26.8b, %55.b[2]              \n" // k02
-                "dup    v27.8b, %55.b[3]              \n" // k03
-                "smull  v28.8h, v8.8b, v24.8b         \n"
-                "smlal  v28.8h, v9.8b, v25.8b         \n"
-                "smlal  v28.8h, v10.8b, v26.8b        \n"
-                "smlal  v28.8h, v11.8b, v27.8b        \n"
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "smlal2  v31.8h, v9.16b, v25.16b     \n"
+                "dup    v25.16b, %51.b[5]            \n" // k05
 
-                "dup    v24.8b, %55.b[4]              \n" // k04
-                "dup    v25.8b, %55.b[5]              \n" // k05
-                "dup    v26.8b, %55.b[6]              \n" // k06
-                "dup    v27.8b, %55.b[7]              \n" // k07
-                "smlal  v28.8h, v12.8b, v24.8b        \n"
-                "smlal  v28.8h, v13.8b, v25.8b        \n"
-                "smlal  v28.8h, v14.8b, v26.8b        \n"
-                "smlal  v28.8h, v15.8b, v27.8b        \n"
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "smlal2  v31.8h, v10.16b, v26.16b    \n"
+                "dup    v26.16b, %51.b[6]            \n" // k06
 
-                "dup    v24.8b, %55.b[8]              \n" // k08
-                "dup    v25.8b, %55.b[9]              \n" // k09
-                "dup    v26.8b, %55.b[10]             \n" // k10
-                "dup    v27.8b, %55.b[11]             \n" // k11
-                "smlal  v28.8h, v16.8b, v24.8b        \n"
-                "smlal  v28.8h, v17.8b, v25.8b        \n"
-                "smlal  v28.8h, v18.8b, v26.8b        \n"
-                "smlal  v28.8h, v19.8b, v27.8b        \n"
+                "smlal  v28.8h, v11.8b, v27.8b       \n"    
+                "smlal2  v31.8h, v11.16b, v27.16b    \n"         
+                "dup    v27.16b, %51.b[7]            \n" // k07
 
-                "dup    v24.8b, %55.b[12]             \n" // k12
-                "dup    v25.8b, %55.b[13]             \n" // k13
-                "dup    v26.8b, %55.b[14]             \n" // k14
-                "dup    v27.8b, %55.b[15]             \n" // k15
-                "smlal  v28.8h, v20.8b, v24.8b        \n"
-                "smlal  v28.8h, v21.8b, v25.8b        \n"
-                "smlal  v28.8h, v22.8b, v26.8b        \n"
-                "smlal  v28.8h, v23.8b, v27.8b        \n"
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "smlal2  v31.8h, v12.16b, v24.16b    \n"
+                "prfm   pldl1keep, [%2, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%2]       \n" // sum1
 
-                "prfm   pldl1keep, [%6, #128]         \n"
-                "ld1    {v29.4s, v30.4s}, [%6]        \n" // sum5
-                "saddw  v29.4s, v29.4s, v28.4h        \n"
-                "saddw2 v30.4s, v30.4s, v28.8h        \n"
-                "st1    {v29.4s, v30.4s}, [%6], #32   \n"
-                //###########################################
-                "dup    v24.8b, %56.b[0]              \n" // k00
-                "dup    v25.8b, %56.b[1]              \n" // k01
-                "dup    v26.8b, %56.b[2]              \n" // k02
-                "dup    v27.8b, %56.b[3]              \n" // k03
-                "smull  v28.8h, v8.8b, v24.8b         \n"
-                "smlal  v28.8h, v9.8b, v25.8b         \n"
-                "smlal  v28.8h, v10.8b, v26.8b        \n"
-                "smlal  v28.8h, v11.8b, v27.8b        \n"
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "smlal2  v31.8h, v13.16b, v25.16b    \n"
+                "dup    v24.16b, %51.b[8]            \n" // k08
 
-                "dup    v24.8b, %56.b[4]              \n" // k04
-                "dup    v25.8b, %56.b[5]              \n" // k05
-                "dup    v26.8b, %56.b[6]              \n" // k06
-                "dup    v27.8b, %56.b[7]              \n" // k07
-                "smlal  v28.8h, v12.8b, v24.8b        \n"
-                "smlal  v28.8h, v13.8b, v25.8b        \n"
-                "smlal  v28.8h, v14.8b, v26.8b        \n"
-                "smlal  v28.8h, v15.8b, v27.8b        \n"
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "smlal2  v31.8h, v14.16b, v26.16b    \n"
+                "dup    v25.16b, %51.b[9]            \n" // k09
 
-                "dup    v24.8b, %56.b[8]              \n" // k08
-                "dup    v25.8b, %56.b[9]              \n" // k09
-                "dup    v26.8b, %56.b[10]             \n" // k10
-                "dup    v27.8b, %56.b[11]             \n" // k11
-                "smlal  v28.8h, v16.8b, v24.8b        \n"
-                "smlal  v28.8h, v17.8b, v25.8b        \n"
-                "smlal  v28.8h, v18.8b, v26.8b        \n"
-                "smlal  v28.8h, v19.8b, v27.8b        \n"
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "smlal2  v31.8h, v15.16b, v27.16b    \n"
+                "dup    v26.16b, %51.b[10]           \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "smlal2  v31.8h, v16.16b, v24.16b    \n"
+                "dup    v27.16b, %51.b[11]           \n" // k11
 
-                "dup    v24.8b, %56.b[12]             \n" // k12
-                "dup    v25.8b, %56.b[13]             \n" // k13
-                "dup    v26.8b, %56.b[14]             \n" // k14
-                "dup    v27.8b, %56.b[15]             \n" // k15
-                "smlal  v28.8h, v20.8b, v24.8b        \n"
-                "smlal  v28.8h, v21.8b, v25.8b        \n"
-                "smlal  v28.8h, v22.8b, v26.8b        \n"
-                "smlal  v28.8h, v23.8b, v27.8b        \n"
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "smlal2  v31.8h, v17.16b, v25.16b    \n"
+                "dup    v24.16b, %51.b[12]           \n" // k12
 
-                "prfm   pldl1keep, [%7, #128]         \n"
-                "ld1    {v29.4s, v30.4s}, [%7]        \n" // sum6
-                "saddw  v29.4s, v29.4s, v28.4h        \n"
-                "saddw2 v30.4s, v30.4s, v28.8h        \n"
-                "st1    {v29.4s, v30.4s}, [%7], #32   \n"
-                //###########################################
-                "dup    v24.8b, %57.b[0]              \n" // k00
-                "dup    v25.8b, %57.b[1]              \n" // k01
-                "dup    v26.8b, %57.b[2]              \n" // k02
-                "dup    v27.8b, %57.b[3]              \n" // k03
-                "smull  v28.8h, v8.8b, v24.8b         \n"
-                "smlal  v28.8h, v9.8b, v25.8b         \n"
-                "smlal  v28.8h, v10.8b, v26.8b        \n"
-                "smlal  v28.8h, v11.8b, v27.8b        \n"
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "smlal2  v31.8h, v18.16b, v26.16b    \n"
+                "dup    v25.16b, %51.b[13]           \n" // k13
 
-                "dup    v24.8b, %57.b[4]              \n" // k04
-                "dup    v25.8b, %57.b[5]              \n" // k05
-                "dup    v26.8b, %57.b[6]              \n" // k06
-                "dup    v27.8b, %57.b[7]              \n" // k07
-                "smlal  v28.8h, v12.8b, v24.8b        \n"
-                "smlal  v28.8h, v13.8b, v25.8b        \n"
-                "smlal  v28.8h, v14.8b, v26.8b        \n"
-                "smlal  v28.8h, v15.8b, v27.8b        \n"
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "smlal2  v31.8h, v19.16b, v27.16b    \n"
+                "dup    v26.16b, %51.b[14]           \n" // k14
 
-                "dup    v24.8b, %57.b[8]              \n" // k08
-                "dup    v25.8b, %57.b[9]              \n" // k09
-                "dup    v26.8b, %57.b[10]             \n" // k10
-                "dup    v27.8b, %57.b[11]             \n" // k11
-                "smlal  v28.8h, v16.8b, v24.8b        \n"
-                "smlal  v28.8h, v17.8b, v25.8b        \n"
-                "smlal  v28.8h, v18.8b, v26.8b        \n"
-                "smlal  v28.8h, v19.8b, v27.8b        \n"
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "smlal2  v31.8h, v20.16b, v24.16b    \n"
+                "dup    v27.16b, %51.b[15]           \n" // k15
 
-                "dup    v24.8b, %57.b[12]             \n" // k12
-                "dup    v25.8b, %57.b[13]             \n" // k13
-                "dup    v26.8b, %57.b[14]             \n" // k14
-                "dup    v27.8b, %57.b[15]             \n" // k15
-                "smlal  v28.8h, v20.8b, v24.8b        \n"
-                "smlal  v28.8h, v21.8b, v25.8b        \n"
-                "smlal  v28.8h, v22.8b, v26.8b        \n"
-                "smlal  v28.8h, v23.8b, v27.8b        \n"
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "smlal2  v31.8h, v21.16b, v25.16b    \n"
+                "dup    v24.16b, %52.b[0]            \n" // k00
 
-                "prfm   pldl1keep, [%8, #128]         \n"
-                "ld1    {v29.4s, v30.4s}, [%8]        \n" // sum7
-                "saddw  v29.4s, v29.4s, v28.4h        \n"
-                "saddw2 v30.4s, v30.4s, v28.8h        \n"
-                "st1    {v29.4s, v30.4s}, [%8], #32   \n"
-                //###########################################
-                "subs   %w0, %w0, #1                  \n"
-                "bne    0b                            \n"
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "smlal2  v31.8h, v22.16b, v26.16b    \n"
+                "dup    v25.16b, %52.b[1]            \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"        
+                "smlal2  v31.8h, v23.16b, v27.16b    \n"     
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+
+                "dup    v26.16b, %52.b[2]            \n" // k02
+                "dup    v27.16b, %52.b[3]            \n" // k03  
+
+                "st1    {v29.4s, v30.4s}, [%2], #32  \n"
+
+                "ld1    {v29.4s, v30.4s}, [%2]       \n" // sum1
+                "saddw  v29.4s, v29.4s, v31.4h       \n"
+                "saddw2 v30.4s, v30.4s, v31.8h       \n"   
+                "st1    {v29.4s, v30.4s}, [%2], #32  \n"             
+                //########################################### // sum1
+
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "smull2  v31.8h, v8.16b, v24.16b     \n"
+                "dup    v24.16b, %52.b[4]            \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "smlal2  v31.8h, v9.16b, v25.16b     \n"
+                "dup    v25.16b, %52.b[5]            \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "smlal2  v31.8h, v10.16b, v26.16b    \n"
+                "dup    v26.16b, %52.b[6]            \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"
+                "smlal2  v31.8h, v11.16b, v27.16b    \n"             
+                "dup    v27.16b, %52.b[7]            \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "smlal2  v31.8h, v12.16b, v24.16b    \n"
+                "prfm   pldl1keep, [%3, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%3]       \n" // sum2 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "smlal2  v31.8h, v13.16b, v25.16b    \n"
+                "dup    v24.16b, %52.b[8]            \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "smlal2  v31.8h, v14.16b, v26.16b    \n"
+                "dup    v25.16b, %52.b[9]            \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "smlal2  v31.8h, v15.16b, v27.16b    \n"
+                "dup    v26.16b, %52.b[10]           \n" // k10
+
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "smlal2  v31.8h, v16.16b, v24.16b    \n"
+                "dup    v27.16b, %52.b[11]           \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "smlal2  v31.8h, v17.16b, v25.16b    \n"
+                "dup    v24.16b, %52.b[12]           \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "smlal2  v31.8h, v18.16b, v26.16b    \n"
+                "dup    v25.16b, %52.b[13]           \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "smlal2  v31.8h, v19.16b, v27.16b    \n"
+                "dup    v26.16b, %52.b[14]           \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "smlal2  v31.8h, v20.16b, v24.16b    \n"
+                "dup    v27.16b, %52.b[15]           \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "smlal2  v31.8h, v21.16b, v25.16b    \n"
+                "dup    v24.16b, %53.b[0]            \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "smlal2  v31.8h, v22.16b, v26.16b    \n"
+                "dup    v25.16b, %53.b[1]            \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"
+                "smlal2  v31.8h, v23.16b, v27.16b    \n"             
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v26.16b, %53.b[2]            \n" // k02
+
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+                "dup    v27.16b, %53.b[3]            \n" // k03
+
+                "st1    {v29.4s, v30.4s}, [%3], #32  \n"
+
+                "ld1    {v29.4s, v30.4s}, [%3]       \n" // sum2 
+                "saddw  v29.4s, v29.4s, v31.4h       \n"
+                "saddw2 v30.4s, v30.4s, v31.8h       \n"
+                "st1    {v29.4s, v30.4s}, [%3], #32  \n"
+                //########################################### //sum 2
+
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "smull2  v31.8h, v8.16b, v24.16b     \n"
+                "dup    v24.16b, %53.b[4]            \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "smlal2  v31.8h, v9.16b, v25.16b     \n"
+                "dup    v25.16b, %53.b[5]            \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "smlal2  v31.8h, v10.16b, v26.16b    \n"
+                "dup    v26.16b, %53.b[6]            \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"
+                "smlal2  v31.8h, v11.16b, v27.16b    \n"             
+                "dup    v27.16b, %53.b[7]            \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "smlal2  v31.8h, v12.16b, v24.16b    \n"
+                "prfm   pldl1keep, [%4, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%4]       \n" // sum3 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "smlal2  v31.8h, v13.16b, v25.16b    \n"
+                "dup    v24.16b, %53.b[8]            \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "smlal2  v31.8h, v14.16b, v26.16b    \n"
+                "dup    v25.16b, %53.b[9]            \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "smlal2  v31.8h, v15.16b, v27.16b    \n"
+                "dup    v26.16b, %53.b[10]           \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "smlal2  v31.8h, v16.16b, v24.16b    \n"
+                "dup    v27.16b, %53.b[11]           \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "smlal2  v31.8h, v17.16b, v25.16b    \n"
+                "dup    v24.16b, %53.b[12]           \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "smlal2  v31.8h, v18.16b, v26.16b    \n"
+                "dup    v25.16b, %53.b[13]           \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "smlal2  v31.8h, v19.16b, v27.16b    \n"
+                "dup    v26.16b, %53.b[14]           \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "smlal2  v31.8h, v20.16b, v24.16b    \n"
+                "dup    v27.16b, %53.b[15]           \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "smlal2  v31.8h, v21.16b, v25.16b    \n"
+                "dup    v24.16b, %54.b[0]            \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "smlal2  v31.8h, v22.16b, v26.16b    \n"
+                "dup    v25.16b, %54.b[1]            \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"    
+                "smlal2  v31.8h, v23.16b, v27.16b    \n"         
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v26.16b, %54.b[2]            \n" // k02
+
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+
+                "dup    v27.16b, %54.b[3]            \n" // k03
+
+                "st1    {v29.4s, v30.4s}, [%4], #32  \n"
+
+                "ld1    {v29.4s, v30.4s}, [%4]       \n" // sum3 
+                "saddw  v29.4s, v29.4s, v31.4h       \n"
+                "saddw2 v30.4s, v30.4s, v31.8h       \n"
+                "st1    {v29.4s, v30.4s}, [%4], #32  \n"
+                //########################################### // sum3
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "smull2  v31.8h, v8.16b, v24.16b     \n"
+                "dup    v24.16b, %54.b[4]            \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "smlal2  v31.8h, v9.16b, v25.16b     \n"
+                "dup    v25.16b, %54.b[5]            \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "smlal2  v31.8h, v10.16b, v26.16b    \n"
+                "dup    v26.16b, %54.b[6]            \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"    
+                "smlal2  v31.8h, v11.16b, v27.16b    \n"         
+                "dup    v27.16b, %54.b[7]            \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "smlal2  v31.8h, v12.16b, v24.16b    \n"
+                "prfm   pldl1keep, [%5, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%5]       \n" // sum4
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "smlal2  v31.8h, v13.16b, v25.16b    \n"
+                "dup    v24.16b, %54.b[8]            \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "smlal2  v31.8h, v14.16b, v26.16b    \n"
+                "dup    v25.16b, %54.b[9]            \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"    
+                "smlal2  v31.8h, v15.16b, v27.16b    \n"
+                "dup    v26.16b, %54.b[10]           \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "smlal2  v31.8h, v16.16b, v24.16b    \n"
+                "dup    v27.16b, %54.b[11]           \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "smlal2  v31.8h, v17.16b, v25.16b    \n"
+                "dup    v24.16b, %54.b[12]           \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "smlal2  v31.8h, v18.16b, v26.16b    \n"
+                "dup    v25.16b, %54.b[13]           \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "smlal2  v31.8h, v19.16b, v27.16b    \n"
+                "dup    v26.16b, %54.b[14]           \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "smlal2  v31.8h, v20.16b, v24.16b    \n"
+                "dup    v27.16b, %54.b[15]           \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "smlal2  v31.8h, v21.16b, v25.16b    \n"
+                "dup    v24.16b, %55.b[0]            \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "smlal2  v31.8h, v22.16b, v26.16b    \n"
+                "dup    v25.16b, %55.b[1]            \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"
+                "smlal2  v31.8h, v23.16b, v27.16b    \n"
+                "dup    v26.16b, %55.b[2]            \n" // k02    
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v27.16b, %55.b[3]            \n" // k03
+
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+                
+                "st1    {v29.4s, v30.4s}, [%5], #32  \n"
+
+                "ld1    {v29.4s, v30.4s}, [%5]       \n" // sum4
+                "saddw  v29.4s, v29.4s, v31.4h       \n"
+                "saddw2 v30.4s, v30.4s, v31.8h       \n"
+                "st1    {v29.4s, v30.4s}, [%5], #32  \n"
+                //########################################### // sum4
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "smull2  v31.8h, v8.16b, v24.16b     \n"
+                "dup    v24.16b, %55.b[4]            \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "smlal2  v31.8h, v9.16b, v25.16b     \n"
+                "dup    v25.16b, %55.b[5]            \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "smlal2  v31.8h, v10.16b, v26.16b    \n"
+                "dup    v26.16b, %55.b[6]            \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"
+                "smlal2  v31.8h, v11.16b, v27.16b    \n"             
+                "dup    v27.16b, %55.b[7]            \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "smlal2  v31.8h, v12.16b, v24.16b    \n"
+                "prfm   pldl1keep, [%6, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%6]       \n" // sum5  
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "smlal2  v31.8h, v13.16b, v25.16b    \n"
+                "dup    v24.16b, %55.b[8]            \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "smlal2  v31.8h, v14.16b, v26.16b    \n"
+                "dup    v25.16b, %55.b[9]            \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "smlal2  v31.8h, v15.16b, v27.16b    \n"
+                "dup    v26.16b, %55.b[10]           \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "smlal2  v31.8h, v16.16b, v24.16b    \n"
+                "dup    v27.16b, %55.b[11]           \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "smlal2  v31.8h, v17.16b, v25.16b    \n"
+                "dup    v24.16b, %55.b[12]           \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "smlal2  v31.8h, v18.16b, v26.16b    \n"
+                "dup    v25.16b, %55.b[13]           \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "smlal2  v31.8h, v19.16b, v27.16b    \n"
+                "dup    v26.16b, %55.b[14]           \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "smlal2  v31.8h, v20.16b, v24.16b    \n"
+                "dup    v27.16b, %55.b[15]           \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "smlal2  v31.8h, v21.16b, v25.16b    \n"
+                "dup    v24.16b, %56.b[0]            \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "smlal2  v31.8h, v22.16b, v26.16b    \n"
+                "dup    v25.16b, %56.b[1]            \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"
+                "smlal2  v31.8h, v23.16b, v27.16b    \n"             
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v26.16b, %56.b[2]            \n" // k02
+
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+                "dup    v27.16b, %56.b[3]            \n" // k03
+
+                "st1    {v29.4s, v30.4s}, [%6], #32  \n"
+
+                "ld1    {v29.4s, v30.4s}, [%6]       \n" // sum5 
+                "saddw  v29.4s, v29.4s, v31.4h       \n"
+                "saddw2 v30.4s, v30.4s, v31.8h       \n"
+                "st1    {v29.4s, v30.4s}, [%6], #32  \n"
+                //########################################### // sum5
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "smull2  v31.8h, v8.16b, v24.16b     \n"
+                "dup    v24.16b, %56.b[4]            \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "smlal2  v31.8h, v9.16b, v25.16b     \n"
+                "dup    v25.16b, %56.b[5]            \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "smlal2  v31.8h, v10.16b, v26.16b    \n"
+                "dup    v26.16b, %56.b[6]            \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"    
+                "smlal2  v31.8h, v11.16b, v27.16b    \n"         
+                "dup    v27.16b, %56.b[7]            \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "smlal2  v31.8h, v12.16b, v24.16b    \n"
+                "prfm   pldl1keep, [%7, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%7]       \n" // sum6 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "smlal2  v31.8h, v13.16b, v25.16b    \n"
+                "dup    v24.16b, %56.b[8]            \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "smlal2  v31.8h, v14.16b, v26.16b    \n"
+                "dup    v25.16b, %56.b[9]            \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "smlal2  v31.8h, v15.16b, v27.16b    \n"     
+                "dup    v26.16b, %56.b[10]           \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "smlal2  v31.8h, v16.16b, v24.16b    \n"
+                "dup    v27.16b, %56.b[11]           \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "smlal2  v31.8h, v17.16b, v25.16b    \n"
+                "dup    v24.16b, %56.b[12]           \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "smlal2  v31.8h, v18.16b, v26.16b    \n"
+                "dup    v25.16b, %56.b[13]           \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "smlal2  v31.8h, v19.16b, v27.16b    \n"
+                "dup    v26.16b, %56.b[14]           \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "smlal2  v31.8h, v20.16b, v24.16b    \n"
+                "dup    v27.16b, %56.b[15]           \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "smlal2  v31.8h, v21.16b, v25.16b    \n"
+                "dup    v24.16b, %57.b[0]            \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "smlal2  v31.8h, v22.16b, v26.16b    \n"
+                "dup    v25.16b, %57.b[1]            \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"
+                "smlal2  v31.8h, v23.16b, v27.16b    \n"             
+                "dup    v26.16b, %57.b[2]            \n" // k02
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+
+                "dup    v27.16b, %57.b[3]            \n" // k03
+
+                "st1    {v29.4s, v30.4s}, [%7], #32  \n"
+
+                "ld1    {v29.4s, v30.4s}, [%7]       \n" // sum6 
+                "saddw  v29.4s, v29.4s, v31.4h       \n"
+                "saddw2 v30.4s, v30.4s, v31.8h       \n"     
+                "st1    {v29.4s, v30.4s}, [%7], #32  \n"                           
+                //########################################### // sum6
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "smull2  v31.8h, v8.16b, v24.16b     \n"
+                "dup    v24.16b, %57.b[4]            \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "smlal2  v31.8h, v9.16b, v25.16b     \n"
+                "dup    v25.16b, %57.b[5]            \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "smlal2  v31.8h, v10.16b, v26.16b    \n"
+                "dup    v26.16b, %57.b[6]            \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"
+                "smlal2  v31.8h, v11.16b, v27.16b    \n"             
+                "dup    v27.16b, %57.b[7]            \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "smlal2  v31.8h, v12.16b, v24.16b    \n"
+                "prfm   pldl1keep, [%8, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%8]       \n" // sum7 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "smlal2  v31.8h, v13.16b, v25.16b    \n"
+                "dup    v24.16b, %57.b[8]            \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "smlal2  v31.8h, v14.16b, v26.16b    \n"
+                "dup    v25.16b, %57.b[9]            \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "smlal2  v31.8h, v15.16b, v27.16b    \n"
+                "dup    v26.16b, %57.b[10]           \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "smlal2  v31.8h, v16.16b, v24.16b    \n"
+                "dup    v27.16b, %57.b[11]           \n" // k11
+                
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "smlal2  v31.8h, v17.16b, v25.16b    \n"
+                "dup    v24.16b, %57.b[12]           \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "smlal2  v31.8h, v18.16b, v26.16b    \n"
+                "dup    v25.16b, %57.b[13]           \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "smlal2  v31.8h, v19.16b, v27.16b    \n"
+                "dup    v26.16b, %57.b[14]           \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "smlal2  v31.8h, v20.16b, v24.16b    \n"
+                "dup    v27.16b, %57.b[15]           \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "smlal2  v31.8h, v21.16b, v25.16b    \n"
+                "prfm   pldl1keep, [%9, #128]        \n"
+                "prfm   pldl1keep, [%10, #128]       \n"
+                "ld1    {v8.16b}, [%9], #16          \n" // r0"
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "smlal2  v31.8h, v22.16b, v26.16b    \n"
+                "ld1    {v9.16b}, [%10], #16         \n" // r1"
+                "prfm   pldl1keep, [%11, #128]       \n"
+                "prfm   pldl1keep, [%12, #128]       \n"
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"    
+                "smlal2  v31.8h, v23.16b, v27.16b    \n"         
+                "ld1    {v10.16b}, [%11], #16        \n" // r2"
+                "ld1    {v11.16b}, [%12], #16        \n" // r3"
+                "dup    v24.16b, %50.b[0]            \n" // k00                    
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v25.16b, %50.b[1]            \n" // k01
+
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+                "dup    v26.16b, %50.b[2]            \n" // k02
+                "dup    v27.16b, %50.b[3]            \n" // k03                
+
+                "st1    {v29.4s, v30.4s}, [%8], #32  \n"
+
+                "ld1    {v29.4s, v30.4s}, [%8]       \n" // sum7 
+                "saddw  v29.4s, v29.4s, v31.4h       \n"
+                "saddw2 v30.4s, v30.4s, v31.8h       \n"
+                "st1    {v29.4s, v30.4s}, [%8], #32  \n"
+                //########################################### // sum7
+                "subs   %w0, %w0, #1                 \n"
+                "bne    0b                           \n"
+                "sub    %9, %9, #16                  \n"
+                "sub    %10, %10, #16                \n"
+                "sub    %11, %11, #16                \n"
+                "sub    %12, %12, #16                \n"
+                : "=r"(nn),     // %0
+                  "=r"(outptr0),// %1
+                  "=r"(outptr1),// %2
+                  "=r"(outptr2),// %3
+                  "=r"(outptr3),// %4
+                  "=r"(outptr4),// %5
+                  "=r"(outptr5),// %6
+                  "=r"(outptr6),// %7
+                  "=r"(outptr7),// %8
+                  "=r"(r0),     // %9
+                  "=r"(r1),     // %10
+                  "=r"(r2),     // %11
+                  "=r"(r3),     // %12
+                  "=r"(r4),     // %13
+                  "=r"(r5),     // %14
+                  "=r"(r6),     // %15
+                  "=r"(r7),     // %16
+                  "=r"(r8),     // %17
+                  "=r"(r9),     // %18
+                  "=r"(r10),    // %19
+                  "=r"(r11),    // %20
+                  "=r"(r12),    // %21
+                  "=r"(r13),    // %22
+                  "=r"(r14),    // %23
+                  "=r"(r15)     // %24
+                : "0"(nn),
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(outptr2),
+                  "4"(outptr3),
+                  "5"(outptr4),
+                  "6"(outptr5),
+                  "7"(outptr6),
+                  "8"(outptr7),
+                  "9"(r0),
+                  "10"(r1),
+                  "11"(r2),
+                  "12"(r3),
+                  "13"(r4),
+                  "14"(r5),
+                  "15"(r6),
+                  "16"(r7),
+                  "17"(r8),
+                  "18"(r9),
+                  "19"(r10),
+                  "20"(r11),
+                  "21"(r12),
+                  "22"(r13),
+                  "23"(r14),
+                  "24"(r15),
+                  "w"(_k0),     // %50
+                  "w"(_k1),     // %51
+                  "w"(_k2),     // %52
+                  "w"(_k3),     // %53
+                  "w"(_k4),     // %54
+                  "w"(_k5),     // %55
+                  "w"(_k6),     // %56
+                  "w"(_k7)      // %57
+                : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+            );                     
+            }
+
+            if (remain >= 8)
+            {
+                remain -= 8;
+
+            asm volatile(
+                "prfm   pldl1keep, [%9, #128]        \n"
+                "prfm   pldl1keep, [%10, #128]       \n"
+                "prfm   pldl1keep, [%11, #128]       \n"
+                "prfm   pldl1keep, [%12, #128]       \n"
+                "ld1    {v8.8b}, [%9], #8            \n" // r0"
+                "ld1    {v9.8b}, [%10], #8           \n" // r1"
+                "ld1    {v10.8b}, [%11], #8          \n" // r2"
+                "ld1    {v11.8b}, [%12], #8          \n" // r3"
+
+                "dup    v24.8b, %50.b[0]             \n" // k00
+                "dup    v25.8b, %50.b[1]             \n" // k01
+                "dup    v26.8b, %50.b[2]             \n" // k02
+                "dup    v27.8b, %50.b[3]             \n" // k03
+
+                "smull  v28.8h, v8.8b, v24.8b        \n" // r0
+                "prfm   pldl1keep, [%13, #128]       \n"
+                "prfm   pldl1keep, [%14, #128]       \n"
+                "prfm   pldl1keep, [%15, #128]       \n"
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "prfm   pldl1keep, [%16, #128]       \n"
+                "ld1    {v12.8b}, [%13], #8          \n" // r4" 
+                "ld1    {v13.8b}, [%14], #8          \n" // r5"
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "ld1    {v14.8b}, [%15], #8          \n" // r6"
+                "ld1    {v15.8b}, [%16], #8          \n" // r7"                         
+                "dup    v24.8b, %50.b[4]             \n" // k04
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"
+                "dup    v25.8b, %50.b[5]             \n" // k05
+                "dup    v26.8b, %50.b[6]             \n" // k06
+                "dup    v27.8b, %50.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n" // r4
+                "prfm   pldl1keep, [%1, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%1]       \n" // sum0  
+                "prfm   pldl1keep, [%17, #128]       \n"
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "prfm   pldl1keep, [%18, #128]       \n"
+                "prfm   pldl1keep, [%19, #128]       \n"
+                "prfm   pldl1keep, [%20, #128]       \n"
+                "ld1    {v16.8b}, [%17], #8          \n" // r8" 
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "ld1    {v17.8b}, [%18], #8          \n" // r9"
+                "ld1    {v18.8b}, [%19], #8          \n" // r10"
+                "ld1    {v19.8b}, [%20], #8          \n" // r11"
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v24.8b, %50.b[8]             \n" // k08
+                "dup    v25.8b, %50.b[9]             \n" // k09
+                "dup    v26.8b, %50.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n" // r8
+                "dup    v27.8b, %50.b[11]            \n" // k11
+                "prfm   pldl1keep, [%21, #128]       \n"
+                "prfm   pldl1keep, [%22, #128]       \n"
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "prfm   pldl1keep, [%23, #128]       \n"
+                "prfm   pldl1keep, [%24, #128]       \n"
+                "ld1    {v20.8b}, [%21], #8          \n" // r12"
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "ld1    {v21.8b}, [%22], #8          \n" // r13"
+                "ld1    {v22.8b}, [%23], #8          \n" // r14"
+                "ld1    {v23.8b}, [%24], #8          \n" // r15" 
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v24.8b, %50.b[12]            \n" // k12
+                "dup    v25.8b, %50.b[13]            \n" // k13
+                "dup    v26.8b, %50.b[14]            \n" // k14
+
+                "smlal  v28.8h, v20.8b, v24.8b       \n" // r12
+                "dup    v27.8b, %50.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                 "dup    v24.8b, %51.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %51.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+                "dup    v26.8b, %51.b[2]             \n" // k02
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+
+                "dup    v27.8b, %51.b[3]             \n" // k03
+
+                "st1    {v29.4s, v30.4s}, [%1], #32  \n" // sum0
+                //########################################### 
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %51.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %51.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %51.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %51.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%2, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%2]       \n" // sum1
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %51.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %51.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v26.8b, %51.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %51.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %51.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %51.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %51.b[14]            \n" // k14
+
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %51.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %52.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %52.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+
+                "dup    v26.8b, %52.b[2]             \n" // k02
+                "dup    v27.8b, %52.b[3]             \n" // k03  
+
+                "st1    {v29.4s, v30.4s}, [%2], #32  \n"
+                //########################################### // sum1
+
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %52.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %52.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %52.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %52.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%3, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%3]       \n" // sum2 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %52.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %52.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v26.8b, %52.b[10]            \n" // k10
+
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %52.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %52.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %52.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %52.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %52.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %53.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %53.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v26.8b, %53.b[2]             \n" // k02
+
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+                "dup    v27.8b, %53.b[3]             \n" // k03
+
+                "st1    {v29.4s, v30.4s}, [%3], #32  \n"
+                //########################################### //sum 2
+
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %53.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %53.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %53.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %53.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%4, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%4]       \n" // sum3 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %53.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %53.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v26.8b, %53.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %53.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %53.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %53.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %53.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %53.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %54.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %54.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v26.8b, %54.b[2]             \n" // k02
+
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+
+                "dup    v27.8b, %54.b[3]             \n" // k03
+
+                "st1    {v29.4s, v30.4s}, [%4], #32  \n"
+                //########################################### // sum3
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %54.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %54.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %54.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %54.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%5, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%5]       \n" // sum4
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %54.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %54.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"    
+                "dup    v26.8b, %54.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %54.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %54.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %54.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %54.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %54.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %55.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %55.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"
+                "dup    v26.8b, %55.b[2]             \n" // k02 
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v27.8b, %55.b[3]             \n" // k03
+
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+                
+                "st1    {v29.4s, v30.4s}, [%5], #32  \n"
+                //########################################### // sum4
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %55.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %55.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %55.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %55.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%6, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%6]       \n" // sum5  
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %55.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %55.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v26.8b, %55.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %55.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %55.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %55.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %55.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %55.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %56.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %56.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v26.8b, %56.b[2]             \n" // k02
+
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+                "dup    v27.8b, %56.b[3]             \n" // k03
+
+                "st1    {v29.4s, v30.4s}, [%6], #32  \n"
+                //########################################### // sum5
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %56.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %56.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %56.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %56.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%7, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%7]       \n" // sum6 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %56.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %56.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"        
+                "dup    v26.8b, %56.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %56.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %56.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %56.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %56.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %56.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %57.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %57.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+                "dup    v26.8b, %57.b[2]             \n" // k02
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+
+                "dup    v27.8b, %57.b[3]             \n" // k03
+
+                "st1    {v29.4s, v30.4s}, [%7], #32  \n"
+                //########################################### // sum6
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %57.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %57.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %57.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %57.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%8, #128]        \n"
+                "ld1    {v29.4s, v30.4s}, [%8]       \n" // sum7 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %57.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %57.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v26.8b, %57.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %57.b[11]            \n" // k11
+                
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %57.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %57.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %57.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %57.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "prfm   pldl1keep, [%9, #128]        \n"
+                "prfm   pldl1keep, [%10, #128]       \n"
+                "ld1    {v8.8b}, [%9], #8            \n" // r0"
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "ld1    {v9.8b}, [%10], #8           \n" // r1"
+                "prfm   pldl1keep, [%11, #128]       \n"
+                "prfm   pldl1keep, [%12, #128]       \n"
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+                "ld1    {v10.8b}, [%11], #8          \n" // r2"
+                "ld1    {v11.8b}, [%12], #8          \n" // r3"
+                "dup    v24.8b, %50.b[0]             \n" // k00                     
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v25.8b, %50.b[1]             \n" // k01
+
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+                "dup    v26.8b, %50.b[2]             \n" // k02
+                "dup    v27.8b, %50.b[3]             \n" // k03                
+
+                "st1    {v29.4s, v30.4s}, [%8], #32  \n"   
+                //########################################### // sum7
+                : "=r"(nn),     // %0
+                  "=r"(outptr0),// %1
+                  "=r"(outptr1),// %2
+                  "=r"(outptr2),// %3
+                  "=r"(outptr3),// %4
+                  "=r"(outptr4),// %5
+                  "=r"(outptr5),// %6
+                  "=r"(outptr6),// %7
+                  "=r"(outptr7),// %8
+                  "=r"(r0),     // %9
+                  "=r"(r1),     // %10
+                  "=r"(r2),     // %11
+                  "=r"(r3),     // %12
+                  "=r"(r4),     // %13
+                  "=r"(r5),     // %14
+                  "=r"(r6),     // %15
+                  "=r"(r7),     // %16
+                  "=r"(r8),     // %17
+                  "=r"(r9),     // %18
+                  "=r"(r10),    // %19
+                  "=r"(r11),    // %20
+                  "=r"(r12),    // %21
+                  "=r"(r13),    // %22
+                  "=r"(r14),    // %23
+                  "=r"(r15)     // %24
+                : "0"(nn),
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(outptr2),
+                  "4"(outptr3),
+                  "5"(outptr4),
+                  "6"(outptr5),
+                  "7"(outptr6),
+                  "8"(outptr7),
+                  "9"(r0),
+                  "10"(r1),
+                  "11"(r2),
+                  "12"(r3),
+                  "13"(r4),
+                  "14"(r5),
+                  "15"(r6),
+                  "16"(r7),
+                  "17"(r8),
+                  "18"(r9),
+                  "19"(r10),
+                  "20"(r11),
+                  "21"(r12),
+                  "22"(r13),
+                  "23"(r14),
+                  "24"(r15),
+                  "w"(_k0),     // %50
+                  "w"(_k1),     // %51
+                  "w"(_k2),     // %52
+                  "w"(_k3),     // %53
+                  "w"(_k4),     // %54
+                  "w"(_k5),     // %55
+                  "w"(_k6),     // %56
+                  "w"(_k7)      // %57
+                : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+            );                             
+            }
+
+            if (remain >= 4)
+            {
+                remain -= 4;
+
+            asm volatile(
+                "prfm   pldl1keep, [%9, #128]        \n"
+                "prfm   pldl1keep, [%10, #128]       \n"
+                "prfm   pldl1keep, [%11, #128]       \n"
+                "prfm   pldl1keep, [%12, #128]       \n"
+                "ld1    {v8.8b}, [%9], #8            \n" // r0"
+                "ld1    {v9.8b}, [%10], #8           \n" // r1"
+                "ld1    {v10.8b}, [%11], #8          \n" // r2"
+                "ld1    {v11.8b}, [%12], #8          \n" // r3"
+
+                "dup    v24.8b, %50.b[0]             \n" // k00
+                "dup    v25.8b, %50.b[1]             \n" // k01
+                "dup    v26.8b, %50.b[2]             \n" // k02
+                "dup    v27.8b, %50.b[3]             \n" // k03
+
+                "smull  v28.8h, v8.8b, v24.8b        \n" // r0
+                "prfm   pldl1keep, [%13, #128]       \n"
+                "prfm   pldl1keep, [%14, #128]       \n"
+                "prfm   pldl1keep, [%15, #128]       \n"
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "prfm   pldl1keep, [%16, #128]       \n"
+                "ld1    {v12.8b}, [%13], #8          \n" // r4" 
+                "ld1    {v13.8b}, [%14], #8          \n" // r5"
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "ld1    {v14.8b}, [%15], #8          \n" // r6"
+                "ld1    {v15.8b}, [%16], #8          \n" // r7"                         
+                "dup    v24.8b, %50.b[4]             \n" // k04
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"
+                "dup    v25.8b, %50.b[5]             \n" // k05
+                "dup    v26.8b, %50.b[6]             \n" // k06
+                "dup    v27.8b, %50.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n" // r4
+                "prfm   pldl1keep, [%1, #128]        \n"
+                "ld1    {v29.4s}, [%1]               \n" // sum0  
+                "prfm   pldl1keep, [%17, #128]       \n"
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "prfm   pldl1keep, [%18, #128]       \n"
+                "prfm   pldl1keep, [%19, #128]       \n"
+                "prfm   pldl1keep, [%20, #128]       \n"
+                "ld1    {v16.8b}, [%17], #8          \n" // r8" 
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "ld1    {v17.8b}, [%18], #8          \n" // r9"
+                "ld1    {v18.8b}, [%19], #8          \n" // r10"
+                "ld1    {v19.8b}, [%20], #8          \n" // r11"
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v24.8b, %50.b[8]             \n" // k08
+                "dup    v25.8b, %50.b[9]             \n" // k09
+                "dup    v26.8b, %50.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n" // r8
+                "dup    v27.8b, %50.b[11]            \n" // k11
+                "prfm   pldl1keep, [%21, #128]       \n"
+                "prfm   pldl1keep, [%22, #128]       \n"
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "prfm   pldl1keep, [%23, #128]       \n"
+                "prfm   pldl1keep, [%24, #128]       \n"
+                "ld1    {v20.8b}, [%21], #8          \n" // r12"
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "ld1    {v21.8b}, [%22], #8          \n" // r13"
+                "ld1    {v22.8b}, [%23], #8          \n" // r14"
+                "ld1    {v23.8b}, [%24], #8          \n" // r15" 
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v24.8b, %50.b[12]            \n" // k12
+                "dup    v25.8b, %50.b[13]            \n" // k13
+                "dup    v26.8b, %50.b[14]            \n" // k14
+
+                "smlal  v28.8h, v20.8b, v24.8b       \n" // r12
+                "dup    v27.8b, %50.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %51.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %51.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+                "dup    v26.8b, %51.b[2]             \n" // k02
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v27.8b, %51.b[3]             \n" // k03
+
+                "st1    {v29.4s}, [%1], #16          \n" // sum0
+                //########################################### 
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %51.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %51.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %51.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %51.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%2, #128]        \n"
+                "ld1    {v29.4s}, [%2]               \n" // sum1
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %51.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %51.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v26.8b, %51.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %51.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %51.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %51.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %51.b[14]            \n" // k14
+
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %51.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %52.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %52.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+                "dup    v26.8b, %52.b[2]             \n" // k02
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v27.8b, %52.b[3]             \n" // k03  
+
+                "st1    {v29.4s}, [%2], #16          \n"
+                //########################################### // sum1
+
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %52.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %52.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %52.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %52.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%3, #128]        \n"
+                "ld1    {v29.4s}, [%3]               \n" // sum2 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %52.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %52.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v26.8b, %52.b[10]            \n" // k10
+
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %52.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %52.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %52.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %52.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %52.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %53.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %53.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+                "dup    v26.8b, %53.b[2]             \n" // k02
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v27.8b, %53.b[3]             \n" // k03
+
+                "st1    {v29.4s}, [%3], #16          \n"
+                //########################################### //sum 2
+
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %53.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %53.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %53.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %53.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%4, #128]        \n"
+                "ld1    {v29.4s}, [%4]               \n" // sum3 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %53.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %53.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v26.8b, %53.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %53.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %53.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %53.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %53.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %53.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %54.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %54.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+                "dup    v26.8b, %54.b[2]             \n" // k02
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v27.8b, %54.b[3]             \n" // k03
+
+                "st1    {v29.4s}, [%4], #16          \n"
+                //########################################### // sum3
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %54.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %54.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %54.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %54.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%5, #128]        \n"
+                "ld1    {v29.4s}, [%5]               \n" // sum4
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %54.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %54.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"    
+                "dup    v26.8b, %54.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %54.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %54.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %54.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %54.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %54.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %55.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %55.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"
+                "dup    v26.8b, %55.b[2]             \n" // k02 
+            
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v27.8b, %55.b[3]             \n" // k03
+                
+                "st1    {v29.4s}, [%5], #16          \n"
+                //########################################### // sum4
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %55.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %55.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %55.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %55.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%6, #128]        \n"
+                "ld1    {v29.4s}, [%6]               \n" // sum5  
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %55.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %55.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v26.8b, %55.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %55.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %55.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %55.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %55.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %55.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %56.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %56.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+                "dup    v26.8b, %56.b[2]             \n" // k02
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "dup    v27.8b, %56.b[3]             \n" // k03
+
+                "st1    {v29.4s}, [%6], #16          \n"
+                //########################################### // sum5
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %56.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %56.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %56.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %56.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%7, #128]        \n"
+                "ld1    {v29.4s}, [%7]               \n" // sum6 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %56.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %56.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"        
+                "dup    v26.8b, %56.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %56.b[11]            \n" // k11
+
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %56.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %56.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %56.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %56.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "dup    v24.8b, %57.b[0]             \n" // k00
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "dup    v25.8b, %57.b[1]             \n" // k01
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"                
+                "dup    v26.8b, %57.b[2]             \n" // k02
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "saddw2 v30.4s, v30.4s, v28.8h       \n"
+
+                "dup    v27.8b, %57.b[3]             \n" // k03
+
+                "st1    {v29.4s}, [%7], #16          \n"
+                //########################################### // sum6
+                "smull  v28.8h, v8.8b, v24.8b        \n"
+                "dup    v24.8b, %57.b[4]             \n" // k04
+
+                "smlal  v28.8h, v9.8b, v25.8b        \n"
+                "dup    v25.8b, %57.b[5]             \n" // k05
+
+                "smlal  v28.8h, v10.8b, v26.8b       \n"
+                "dup    v26.8b, %57.b[6]             \n" // k06
+
+                "smlal  v28.8h, v11.8b, v27.8b       \n"                
+                "dup    v27.8b, %57.b[7]             \n" // k07
+
+                "smlal  v28.8h, v12.8b, v24.8b       \n"
+                "prfm   pldl1keep, [%8, #128]        \n"
+                "ld1    {v29.4s}, [%8]               \n" // sum7 
+
+                "smlal  v28.8h, v13.8b, v25.8b       \n"
+                "dup    v24.8b, %57.b[8]             \n" // k08
+
+                "smlal  v28.8h, v14.8b, v26.8b       \n"
+                "dup    v25.8b, %57.b[9]             \n" // k09
+
+                "smlal  v28.8h, v15.8b, v27.8b       \n"
+                "dup    v26.8b, %57.b[10]            \n" // k10
+                
+                "smlal  v28.8h, v16.8b, v24.8b       \n"
+                "dup    v27.8b, %57.b[11]            \n" // k11
+                
+                "smlal  v28.8h, v17.8b, v25.8b       \n"
+                "dup    v24.8b, %57.b[12]            \n" // k12
+
+                "smlal  v28.8h, v18.8b, v26.8b       \n"
+                "dup    v25.8b, %57.b[13]            \n" // k13
+
+                "smlal  v28.8h, v19.8b, v27.8b       \n"
+                "dup    v26.8b, %57.b[14]            \n" // k14
+                
+                "smlal  v28.8h, v20.8b, v24.8b       \n"
+                "dup    v27.8b, %57.b[15]            \n" // k15
+
+                "smlal  v28.8h, v21.8b, v25.8b       \n"
+                "sub    %9, %9, #4                   \n"
+
+                "smlal  v28.8h, v22.8b, v26.8b       \n"
+                "sub    %10, %10, #4                 \n"
+                "sub    %11, %11, #4                 \n"
+                "sub    %12, %12, #4                 \n"
+
+                "smlal  v28.8h, v23.8b, v27.8b       \n"    
+                "sub    %13, %13, #4                 \n"
+                "sub    %14, %14, #4                 \n"
+                "sub    %15, %15, #4                 \n"
+                "sub    %16, %16, #4                 \n"
+
+                "saddw  v29.4s, v29.4s, v28.4h       \n"
+                "sub    %17, %17, #4                 \n"
+                "sub    %18, %18, #4                 \n"
+                "sub    %19, %19, #4                 \n"
+                "sub    %20, %20, #4                 \n"
+
+                "st1    {v29.4s}, [%8], #16          \n"
+                //########################################### // sum7
+                "sub    %21, %21, #4                 \n"
+                "sub    %22, %22, #4                 \n"
+                "sub    %23, %23, #4                 \n"
+                "sub    %24, %24, #4                 \n" 
                 : "=r"(nn),     // %0
                   "=r"(outptr0),// %1
                   "=r"(outptr1),// %2
@@ -585,452 +1962,8 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                   "w"(_k5),     // %55
                   "w"(_k6),     // %56
                   "w"(_k7)      // %57
-                : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30"
-            );                    
-            }
-            
-            if (remain >= 4)
-            {
-                remain -= 4;
-
-                asm volatile(
-                    "prfm   pldl1keep, [%9, #128]        \n"
-                    "ld1    {v8.8b}, [%9], #8            \n" // r0"
-                    "prfm   pldl1keep, [%10, #128]       \n"
-                    "ld1    {v9.8b}, [%10], #8           \n" // r1"
-                    "prfm   pldl1keep, [%11, #128]       \n"
-                    "ld1    {v10.8b}, [%11], #8          \n" // r2"
-                    "prfm   pldl1keep, [%12, #128]       \n"
-                    "ld1    {v11.8b}, [%12], #8          \n" // r3"
-                    "prfm   pldl1keep, [%13, #128]       \n"
-                    "ld1    {v12.8b}, [%13], #8          \n" // r4"
-                    "prfm   pldl1keep, [%14, #128]       \n"
-                    "ld1    {v13.8b}, [%14], #8          \n" // r5"
-                    "prfm   pldl1keep, [%15, #128]       \n"
-                    "ld1    {v14.8b}, [%15], #8          \n" // r6"
-                    "prfm   pldl1keep, [%16, #128]       \n"
-                    "ld1    {v15.8b}, [%16], #8          \n" // r7"
-                    "prfm   pldl1keep, [%17, #128]       \n"
-                    "ld1    {v16.8b}, [%17], #8          \n" // r8"
-                    "prfm   pldl1keep, [%18, #128]       \n"
-                    "ld1    {v17.8b}, [%18], #8          \n" // r9"
-                    "prfm   pldl1keep, [%19, #128]       \n"
-                    "ld1    {v18.8b}, [%19], #8          \n" // r10"
-                    "prfm   pldl1keep, [%20, #128]       \n"
-                    "ld1    {v19.8b}, [%20], #8          \n" // r11"
-                    "prfm   pldl1keep, [%21, #128]       \n"
-                    "ld1    {v20.8b}, [%21], #8          \n" // r12"
-                    "prfm   pldl1keep, [%22, #128]       \n"
-                    "ld1    {v21.8b}, [%22], #8          \n" // r13"
-                    "prfm   pldl1keep, [%23, #128]       \n"
-                    "ld1    {v22.8b}, [%23], #8          \n" // r14"
-                    "prfm   pldl1keep, [%24, #128]       \n"
-                    "ld1    {v23.8b}, [%24], #8          \n" // r15"
-
-                    "dup    v24.8b, %50.b[0]             \n" // k00
-                    "dup    v25.8b, %50.b[1]             \n" // k01
-                    "dup    v26.8b, %50.b[2]             \n" // k02
-                    "dup    v27.8b, %50.b[3]             \n" // k03
-                    "smull  v28.8h, v8.8b, v24.8b        \n"
-                    "smlal  v28.8h, v9.8b, v25.8b        \n"
-                    "smlal  v28.8h, v10.8b, v26.8b       \n"
-                    "smlal  v28.8h, v11.8b, v27.8b       \n"                
-
-                    "dup    v24.8b, %50.b[4]             \n" // k04
-                    "dup    v25.8b, %50.b[5]             \n" // k05
-                    "dup    v26.8b, %50.b[6]             \n" // k06
-                    "dup    v27.8b, %50.b[7]             \n" // k07
-                    "smlal  v28.8h, v12.8b, v24.8b       \n"
-                    "smlal  v28.8h, v13.8b, v25.8b       \n"
-                    "smlal  v28.8h, v14.8b, v26.8b       \n"
-                    "smlal  v28.8h, v15.8b, v27.8b       \n"
-
-                    "dup    v24.8b, %50.b[8]             \n" // k08
-                    "dup    v25.8b, %50.b[9]             \n" // k09
-                    "dup    v26.8b, %50.b[10]            \n" // k10
-                    "dup    v27.8b, %50.b[11]            \n" // k11
-                    "smlal  v28.8h, v16.8b, v24.8b       \n"
-                    "smlal  v28.8h, v17.8b, v25.8b       \n"
-                    "smlal  v28.8h, v18.8b, v26.8b       \n"
-                    "smlal  v28.8h, v19.8b, v27.8b       \n"
-
-                    "dup    v24.8b, %50.b[12]            \n" // k12
-                    "dup    v25.8b, %50.b[13]            \n" // k13
-                    "dup    v26.8b, %50.b[14]            \n" // k14
-                    "dup    v27.8b, %50.b[15]            \n" // k15
-                    "smlal  v28.8h, v20.8b, v24.8b       \n"
-                    "smlal  v28.8h, v21.8b, v25.8b       \n"
-                    "smlal  v28.8h, v22.8b, v26.8b       \n"
-                    "smlal  v28.8h, v23.8b, v27.8b       \n"                
-
-                    "prfm   pldl1keep, [%1, #128]        \n"
-                    "ld1    {v29.4s}, [%1]               \n" // sum0
-                    "saddw  v29.4s, v29.4s, v28.4h       \n"
-                    "st1    {v29.4s}, [%1], #16          \n"
-                    //###########################################
-                    "dup    v24.8b, %51.b[0]             \n" // k00
-                    "dup    v25.8b, %51.b[1]             \n" // k01
-                    "dup    v26.8b, %51.b[2]             \n" // k02
-                    "dup    v27.8b, %51.b[3]             \n" // k03
-                    "smull  v28.8h, v8.8b, v24.8b        \n"
-                    "smlal  v28.8h, v9.8b, v25.8b        \n"
-                    "smlal  v28.8h, v10.8b, v26.8b       \n"
-                    "smlal  v28.8h, v11.8b, v27.8b       \n"                
-
-                    "dup    v24.8b, %51.b[4]             \n" // k04
-                    "dup    v25.8b, %51.b[5]             \n" // k05
-                    "dup    v26.8b, %51.b[6]             \n" // k06
-                    "dup    v27.8b, %51.b[7]             \n" // k07
-                    "smlal  v28.8h, v12.8b, v24.8b       \n"
-                    "smlal  v28.8h, v13.8b, v25.8b       \n"
-                    "smlal  v28.8h, v14.8b, v26.8b       \n"
-                    "smlal  v28.8h, v15.8b, v27.8b       \n"
-
-                    "dup    v24.8b, %51.b[8]             \n" // k08
-                    "dup    v25.8b, %51.b[9]             \n" // k09
-                    "dup    v26.8b, %51.b[10]            \n" // k10
-                    "dup    v27.8b, %51.b[11]            \n" // k11
-                    "smlal  v28.8h, v16.8b, v24.8b       \n"
-                    "smlal  v28.8h, v17.8b, v25.8b       \n"
-                    "smlal  v28.8h, v18.8b, v26.8b       \n"
-                    "smlal  v28.8h, v19.8b, v27.8b       \n"
-
-                    "dup    v24.8b, %51.b[12]            \n" // k12
-                    "dup    v25.8b, %51.b[13]            \n" // k13
-                    "dup    v26.8b, %51.b[14]            \n" // k14
-                    "dup    v27.8b, %51.b[15]            \n" // k15
-                    "smlal  v28.8h, v20.8b, v24.8b       \n"
-                    "smlal  v28.8h, v21.8b, v25.8b       \n"
-                    "smlal  v28.8h, v22.8b, v26.8b       \n"
-                    "smlal  v28.8h, v23.8b, v27.8b       \n"                
-
-                    "prfm   pldl1keep, [%2, #128]        \n"
-                    "ld1    {v29.4s}, [%2]               \n" // sum1
-                    "saddw  v29.4s, v29.4s, v28.4h       \n"
-                    "st1    {v29.4s}, [%2], #16          \n"
-                    //###########################################
-                    "dup    v24.8b, %52.b[0]            \n" // k00
-                    "dup    v25.8b, %52.b[1]            \n" // k01
-                    "dup    v26.8b, %52.b[2]            \n" // k02
-                    "dup    v27.8b, %52.b[3]            \n" // k03
-                    "smull  v28.8h, v8.8b, v24.8b       \n"
-                    "smlal  v28.8h, v9.8b, v25.8b       \n"
-                    "smlal  v28.8h, v10.8b, v26.8b      \n"
-                    "smlal  v28.8h, v11.8b, v27.8b      \n"                
-
-                    "dup    v24.8b, %52.b[4]            \n" // k04
-                    "dup    v25.8b, %52.b[5]            \n" // k05
-                    "dup    v26.8b, %52.b[6]            \n" // k06
-                    "dup    v27.8b, %52.b[7]            \n" // k07
-                    "smlal  v28.8h, v12.8b, v24.8b      \n"
-                    "smlal  v28.8h, v13.8b, v25.8b      \n"
-                    "smlal  v28.8h, v14.8b, v26.8b      \n"
-                    "smlal  v28.8h, v15.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %52.b[8]            \n" // k08
-                    "dup    v25.8b, %52.b[9]            \n" // k09
-                    "dup    v26.8b, %52.b[10]           \n" // k10
-                    "dup    v27.8b, %52.b[11]           \n" // k11
-                    "smlal  v28.8h, v16.8b, v24.8b      \n"
-                    "smlal  v28.8h, v17.8b, v25.8b      \n"
-                    "smlal  v28.8h, v18.8b, v26.8b      \n"
-                    "smlal  v28.8h, v19.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %52.b[12]           \n" // k12
-                    "dup    v25.8b, %52.b[13]           \n" // k13
-                    "dup    v26.8b, %52.b[14]           \n" // k14
-                    "dup    v27.8b, %52.b[15]           \n" // k15
-                    "smlal  v28.8h, v20.8b, v24.8b      \n"
-                    "smlal  v28.8h, v21.8b, v25.8b      \n"
-                    "smlal  v28.8h, v22.8b, v26.8b      \n"
-                    "smlal  v28.8h, v23.8b, v27.8b      \n"                
-
-                    "prfm   pldl1keep, [%3, #128]       \n"
-                    "ld1    {v29.4s}, [%3]              \n" // sum2
-                    "saddw  v29.4s, v29.4s, v28.4h      \n"
-                    "st1    {v29.4s}, [%3], #16         \n"
-                    //###########################################
-                    "dup    v24.8b, %53.b[0]            \n" // k00
-                    "dup    v25.8b, %53.b[1]            \n" // k01
-                    "dup    v26.8b, %53.b[2]            \n" // k02
-                    "dup    v27.8b, %53.b[3]            \n" // k03
-                    "smull  v28.8h, v8.8b, v24.8b       \n"
-                    "smlal  v28.8h, v9.8b, v25.8b       \n"
-                    "smlal  v28.8h, v10.8b, v26.8b      \n"
-                    "smlal  v28.8h, v11.8b, v27.8b      \n"                
-
-                    "dup    v24.8b, %53.b[4]            \n" // k04
-                    "dup    v25.8b, %53.b[5]            \n" // k05
-                    "dup    v26.8b, %53.b[6]            \n" // k06
-                    "dup    v27.8b, %53.b[7]            \n" // k07
-                    "smlal  v28.8h, v12.8b, v24.8b      \n"
-                    "smlal  v28.8h, v13.8b, v25.8b      \n"
-                    "smlal  v28.8h, v14.8b, v26.8b      \n"
-                    "smlal  v28.8h, v15.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %53.b[8]            \n" // k08
-                    "dup    v25.8b, %53.b[9]            \n" // k09
-                    "dup    v26.8b, %53.b[10]           \n" // k10
-                    "dup    v27.8b, %53.b[11]           \n" // k11
-                    "smlal  v28.8h, v16.8b, v24.8b      \n"
-                    "smlal  v28.8h, v17.8b, v25.8b      \n"
-                    "smlal  v28.8h, v18.8b, v26.8b      \n"
-                    "smlal  v28.8h, v19.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %53.b[12]           \n" // k12
-                    "dup    v25.8b, %53.b[13]           \n" // k13
-                    "dup    v26.8b, %53.b[14]           \n" // k14
-                    "dup    v27.8b, %53.b[15]           \n" // k15
-                    "smlal  v28.8h, v20.8b, v24.8b      \n"
-                    "smlal  v28.8h, v21.8b, v25.8b      \n"
-                    "smlal  v28.8h, v22.8b, v26.8b      \n"
-                    "smlal  v28.8h, v23.8b, v27.8b      \n"                
-
-                    "prfm   pldl1keep, [%4, #128]       \n"
-                    "ld1    {v29.4s}, [%4]              \n" // sum3
-                    "saddw  v29.4s, v29.4s, v28.4h      \n"
-                    "st1    {v29.4s}, [%4], #16         \n"
-                    //###########################################
-                    "dup    v24.8b, %54.b[0]            \n" // k00
-                    "dup    v25.8b, %54.b[1]            \n" // k01
-                    "dup    v26.8b, %54.b[2]            \n" // k02
-                    "dup    v27.8b, %54.b[3]            \n" // k03
-                    "smull  v28.8h, v8.8b, v24.8b       \n"
-                    "smlal  v28.8h, v9.8b, v25.8b       \n"
-                    "smlal  v28.8h, v10.8b, v26.8b      \n"
-                    "smlal  v28.8h, v11.8b, v27.8b      \n"                
-
-                    "dup    v24.8b, %54.b[4]            \n" // k04
-                    "dup    v25.8b, %54.b[5]            \n" // k05
-                    "dup    v26.8b, %54.b[6]            \n" // k06
-                    "dup    v27.8b, %54.b[7]            \n" // k07
-                    "smlal  v28.8h, v12.8b, v24.8b      \n"
-                    "smlal  v28.8h, v13.8b, v25.8b      \n"
-                    "smlal  v28.8h, v14.8b, v26.8b      \n"
-                    "smlal  v28.8h, v15.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %54.b[8]            \n" // k08
-                    "dup    v25.8b, %54.b[9]            \n" // k09
-                    "dup    v26.8b, %54.b[10]           \n" // k10
-                    "dup    v27.8b, %54.b[11]           \n" // k11
-                    "smlal  v28.8h, v16.8b, v24.8b      \n"
-                    "smlal  v28.8h, v17.8b, v25.8b      \n"
-                    "smlal  v28.8h, v18.8b, v26.8b      \n"
-                    "smlal  v28.8h, v19.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %54.b[12]           \n" // k12
-                    "dup    v25.8b, %54.b[13]           \n" // k13
-                    "dup    v26.8b, %54.b[14]           \n" // k14
-                    "dup    v27.8b, %54.b[15]           \n" // k15
-                    "smlal  v28.8h, v20.8b, v24.8b      \n"
-                    "smlal  v28.8h, v21.8b, v25.8b      \n"
-                    "smlal  v28.8h, v22.8b, v26.8b      \n"
-                    "smlal  v28.8h, v23.8b, v27.8b      \n"                
-
-                    "prfm   pldl1keep, [%5, #128]       \n"
-                    "ld1    {v29.4s}, [%5]              \n" // sum4
-                    "saddw  v29.4s, v29.4s, v28.4h      \n"
-                    "st1    {v29.4s}, [%5], #16         \n"
-                    //###########################################
-                    "dup    v24.8b, %55.b[0]            \n" // k00
-                    "dup    v25.8b, %55.b[1]            \n" // k01
-                    "dup    v26.8b, %55.b[2]            \n" // k02
-                    "dup    v27.8b, %55.b[3]            \n" // k03
-                    "smull  v28.8h, v8.8b, v24.8b       \n"
-                    "smlal  v28.8h, v9.8b, v25.8b       \n"
-                    "smlal  v28.8h, v10.8b, v26.8b      \n"
-                    "smlal  v28.8h, v11.8b, v27.8b      \n"                
-
-                    "dup    v24.8b, %55.b[4]            \n" // k04
-                    "dup    v25.8b, %55.b[5]            \n" // k05
-                    "dup    v26.8b, %55.b[6]            \n" // k06
-                    "dup    v27.8b, %55.b[7]            \n" // k07
-                    "smlal  v28.8h, v12.8b, v24.8b      \n"
-                    "smlal  v28.8h, v13.8b, v25.8b      \n"
-                    "smlal  v28.8h, v14.8b, v26.8b      \n"
-                    "smlal  v28.8h, v15.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %55.b[8]            \n" // k08
-                    "dup    v25.8b, %55.b[9]            \n" // k09
-                    "dup    v26.8b, %55.b[10]           \n" // k10
-                    "dup    v27.8b, %55.b[11]           \n" // k11
-                    "smlal  v28.8h, v16.8b, v24.8b      \n"
-                    "smlal  v28.8h, v17.8b, v25.8b      \n"
-                    "smlal  v28.8h, v18.8b, v26.8b      \n"
-                    "smlal  v28.8h, v19.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %55.b[12]           \n" // k12
-                    "dup    v25.8b, %55.b[13]           \n" // k13
-                    "dup    v26.8b, %55.b[14]           \n" // k14
-                    "dup    v27.8b, %55.b[15]           \n" // k15
-                    "smlal  v28.8h, v20.8b, v24.8b      \n"
-                    "smlal  v28.8h, v21.8b, v25.8b      \n"
-                    "smlal  v28.8h, v22.8b, v26.8b      \n"
-                    "smlal  v28.8h, v23.8b, v27.8b      \n"                
-
-                    "prfm   pldl1keep, [%6, #128]       \n"
-                    "ld1    {v29.4s}, [%6]              \n" // sum5
-                    "saddw  v29.4s, v29.4s, v28.4h      \n"
-                    "st1    {v29.4s}, [%6], #16         \n"
-                    //###########################################
-                    "dup    v24.8b, %56.b[0]            \n" // k00
-                    "dup    v25.8b, %56.b[1]            \n" // k01
-                    "dup    v26.8b, %56.b[2]            \n" // k02
-                    "dup    v27.8b, %56.b[3]            \n" // k03
-                    "smull  v28.8h, v8.8b, v24.8b       \n"
-                    "smlal  v28.8h, v9.8b, v25.8b       \n"
-                    "smlal  v28.8h, v10.8b, v26.8b      \n"
-                    "smlal  v28.8h, v11.8b, v27.8b      \n"                
-
-                    "dup    v24.8b, %56.b[4]            \n" // k04
-                    "dup    v25.8b, %56.b[5]            \n" // k05
-                    "dup    v26.8b, %56.b[6]            \n" // k06
-                    "dup    v27.8b, %56.b[7]            \n" // k07
-                    "smlal  v28.8h, v12.8b, v24.8b      \n"
-                    "smlal  v28.8h, v13.8b, v25.8b      \n"
-                    "smlal  v28.8h, v14.8b, v26.8b      \n"
-                    "smlal  v28.8h, v15.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %56.b[8]            \n" // k08
-                    "dup    v25.8b, %56.b[9]            \n" // k09
-                    "dup    v26.8b, %56.b[10]           \n" // k10
-                    "dup    v27.8b, %56.b[11]           \n" // k11
-                    "smlal  v28.8h, v16.8b, v24.8b      \n"
-                    "smlal  v28.8h, v17.8b, v25.8b      \n"
-                    "smlal  v28.8h, v18.8b, v26.8b      \n"
-                    "smlal  v28.8h, v19.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %56.b[12]           \n" // k12
-                    "dup    v25.8b, %56.b[13]           \n" // k13
-                    "dup    v26.8b, %56.b[14]           \n" // k14
-                    "dup    v27.8b, %56.b[15]           \n" // k15
-                    "smlal  v28.8h, v20.8b, v24.8b      \n"
-                    "smlal  v28.8h, v21.8b, v25.8b      \n"
-                    "smlal  v28.8h, v22.8b, v26.8b      \n"
-                    "smlal  v28.8h, v23.8b, v27.8b      \n"                
-
-                    "prfm   pldl1keep, [%7, #128]       \n"
-                    "ld1    {v29.4s}, [%7]              \n" // sum6
-                    "saddw  v29.4s, v29.4s, v28.4h      \n"
-                    "st1    {v29.4s}, [%7], #16         \n"
-                    //###########################################
-                    "dup    v24.8b, %57.b[0]            \n" // k00
-                    "dup    v25.8b, %57.b[1]            \n" // k01
-                    "dup    v26.8b, %57.b[2]            \n" // k02
-                    "dup    v27.8b, %57.b[3]            \n" // k03
-                    "smull  v28.8h, v8.8b, v24.8b       \n"
-                    "smlal  v28.8h, v9.8b, v25.8b       \n"
-                    "smlal  v28.8h, v10.8b, v26.8b      \n"
-                    "smlal  v28.8h, v11.8b, v27.8b      \n"                
-
-                    "dup    v24.8b, %57.b[4]            \n" // k04
-                    "dup    v25.8b, %57.b[5]            \n" // k05
-                    "dup    v26.8b, %57.b[6]            \n" // k06
-                    "dup    v27.8b, %57.b[7]            \n" // k07
-                    "smlal  v28.8h, v12.8b, v24.8b      \n"
-                    "smlal  v28.8h, v13.8b, v25.8b      \n"
-                    "smlal  v28.8h, v14.8b, v26.8b      \n"
-                    "smlal  v28.8h, v15.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %57.b[8]            \n" // k08
-                    "dup    v25.8b, %57.b[9]            \n" // k09
-                    "dup    v26.8b, %57.b[10]           \n" // k10
-                    "dup    v27.8b, %57.b[11]           \n" // k11
-                    "smlal  v28.8h, v16.8b, v24.8b      \n"
-                    "smlal  v28.8h, v17.8b, v25.8b      \n"
-                    "smlal  v28.8h, v18.8b, v26.8b      \n"
-                    "smlal  v28.8h, v19.8b, v27.8b      \n"
-
-                    "dup    v24.8b, %57.b[12]           \n" // k12
-                    "dup    v25.8b, %57.b[13]           \n" // k13
-                    "dup    v26.8b, %57.b[14]           \n" // k14
-                    "dup    v27.8b, %57.b[15]           \n" // k15
-                    "smlal  v28.8h, v20.8b, v24.8b      \n"
-                    "smlal  v28.8h, v21.8b, v25.8b      \n"
-                    "smlal  v28.8h, v22.8b, v26.8b      \n"
-                    "smlal  v28.8h, v23.8b, v27.8b      \n"                
-
-                    "prfm   pldl1keep, [%8, #128]       \n"
-                    "ld1    {v29.4s}, [%8]              \n" // sum7
-                    "saddw  v29.4s, v29.4s, v28.4h      \n"
-                    "st1    {v29.4s}, [%8], #16         \n"
-                    //###########################################
-                    "sub    %w9, %w9, #4                \n"
-                    "sub    %w10, %w10, #4              \n"
-                    "sub    %w11, %w11, #4              \n"
-                    "sub    %w12, %w12, #4              \n"
-                    "sub    %w13, %w13, #4              \n"
-                    "sub    %w14, %w14, #4              \n"
-                    "sub    %w15, %w15, #4              \n"
-                    "sub    %w16, %w16, #4              \n"
-                    "sub    %w17, %w17, #4              \n"
-                    "sub    %w18, %w18, #4              \n"
-                    "sub    %w19, %w19, #4              \n"
-                    "sub    %w20, %w20, #4              \n"
-                    "sub    %w21, %w21, #4              \n"
-                    "sub    %w22, %w22, #4              \n"
-                    "sub    %w23, %w23, #4              \n"
-                    "sub    %w24, %w24, #4              \n"                    
-                    : "=r"(nn),     // %0
-                      "=r"(outptr0),// %1
-                      "=r"(outptr1),// %2
-                      "=r"(outptr2),// %3
-                      "=r"(outptr3),// %4
-                      "=r"(outptr4),// %5
-                      "=r"(outptr5),// %6
-                      "=r"(outptr6),// %7
-                      "=r"(outptr7),// %8
-                      "=r"(r0),     // %9
-                      "=r"(r1),     // %10
-                      "=r"(r2),     // %11
-                      "=r"(r3),     // %12
-                      "=r"(r4),     // %13
-                      "=r"(r5),     // %14
-                      "=r"(r6),     // %15
-                      "=r"(r7),     // %16
-                      "=r"(r8),     // %17
-                      "=r"(r9),     // %18
-                      "=r"(r10),     // %19
-                      "=r"(r11),     // %20
-                      "=r"(r12),     // %21
-                      "=r"(r13),     // %22
-                      "=r"(r14),     // %23
-                      "=r"(r15)      // %24
-                    : "0"(nn),
-                      "1"(outptr0),
-                      "2"(outptr1),
-                      "3"(outptr2),
-                      "4"(outptr3),
-                      "5"(outptr4),
-                      "6"(outptr5),
-                      "7"(outptr6),
-                      "8"(outptr7),
-                      "9"(r0),
-                      "10"(r1),
-                      "11"(r2),
-                      "12"(r3),
-                      "13"(r4),
-                      "14"(r5),
-                      "15"(r6),
-                      "16"(r7),
-                      "17"(r8),
-                      "18"(r9),
-                      "19"(r10),
-                      "20"(r11),
-                      "21"(r12),
-                      "22"(r13),
-                      "23"(r14),
-                      "24"(r15),
-                      "w"(_k0),     // %50
-                      "w"(_k1),     // %51
-                      "w"(_k2),     // %52
-                      "w"(_k3),     // %53
-                      "w"(_k4),     // %54
-                      "w"(_k5),     // %55
-                      "w"(_k6),     // %56
-                      "w"(_k7)      // %57
-                    : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30"
-                );
+                : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+            ); 
             }
 
             for (; remain>0; remain--)
@@ -1077,7 +2010,7 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                 outptr4++;
                 outptr5++;
                 outptr6++;
-                outptr7++;
+                outptr7++;          
             }
         }
 
