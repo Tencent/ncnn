@@ -13,6 +13,8 @@
 // specific language governing permissions and limitations under the License.
 
 #include <ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include "paramdict.h"
 #include "platform.h"
 
@@ -172,9 +174,24 @@ int ParamDict::load_param(FILE* fp)
     return 0;
 }
 
-#define mem_sscanf(ptr, format, ...)  ({int _b=0; int _n = sscanf(ptr, format "%n", __VA_ARGS__, &_b); ptr+=_b;_b>0?_n:0;}) 
+static inline int mem_sscanf_pn(const char*& ptr, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
 
-int ParamDict::load_param_mem(const char*& mem){
+    int nconsumed = 0;
+    int nscan = sscanf(ptr, format, args, &nconsumed);
+    ptr += nconsumed;
+
+    va_end(args);
+
+    return nconsumed > 0 ? nscan : 0;
+}
+
+#define mem_sscanf(ptr, format, ...) mem_sscanf_pn(ptr, format "%n", __VA_ARGS__)
+
+int ParamDict::load_param_mem(const char*& mem)
+{
     clear();
 
 //     0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0
