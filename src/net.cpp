@@ -17,6 +17,7 @@
 #include "modelbin.h"
 #include "paramdict.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -227,9 +228,24 @@ int Net::load_param(FILE* fp)
     return 0;
 }
 
-#define mem_sscanf(ptr, format, ...)  ({int _b=0; int _n = sscanf(ptr, format "%n", __VA_ARGS__, &_b); ptr+=_b;_b>0?_n:0;})
+static inline int mem_sscanf_pn(const char*& ptr, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
 
-int Net::load_param_mem(const char* _mem){
+    int nconsumed = 0;
+    int nscan = sscanf(ptr, format, args, &nconsumed);
+    ptr += nconsumed;
+
+    va_end(args);
+
+    return nconsumed > 0 ? nscan : 0;
+}
+
+#define mem_sscanf(ptr, format, ...) mem_sscanf_pn(ptr, format "%n", __VA_ARGS__)
+
+int Net::load_param_mem(const char* _mem)
+{
     int magic = 0;
     const char* mem = _mem;
     mem_sscanf(mem, "%d", &magic);
