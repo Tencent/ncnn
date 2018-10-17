@@ -29,4 +29,4 @@ script:
   - popd
 
 after_success:
-  - coveralls --root . -E ".*CMakeFiles.*"
+  - coveralls --root . -E ".*build.*" -E ".*protobuf.*"
