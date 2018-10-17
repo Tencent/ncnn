@@ -22,11 +22,8 @@ install:
   - pushd protobuf-3.5.1 && ./autogen.sh && ./configure --prefix=/usr && make -j2 && sudo make install && sudo ldconfig && popd
 
 script:
-  - mkdir build
-  - pushd build
-  - cmake -DCOVERAGE=1 ..
+  - cmake -DCOVERAGE=1 .
   - make -j2
-  - popd
 
 after_success:
   - coveralls --root . -E ".*build.*" -E ".*protobuf.*"
