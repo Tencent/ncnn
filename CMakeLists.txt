@@ -18,6 +18,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
 endif()
 
+set(COVERAGE OFF CACHE BOOL "Coverage")
+
 project(ncnn)
 
 option(NCNN_OPENMP "openmp support" ON)
