@@ -23,9 +23,10 @@ install:
 
 script:
   - mkdir build
-  - cd build
+  - pushd build
   - cmake -DCOVERAGE=1 ..
   - make -j2
+  - popd
 
 after_success:
   - coveralls --root . -E ".*CMakeFiles.*"
