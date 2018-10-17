@@ -13,6 +13,9 @@ addons:
     packages:
     - cmake
 
+before_install:
+  - pip install --user cpp-coveralls
+
 install:
   - wget https://github.com/google/protobuf/archive/v3.5.1.tar.gz
   - tar -xzvf v3.5.1.tar.gz
@@ -21,5 +24,8 @@ install:
 script:
   - mkdir build
   - cd build
-  - cmake ..
+  - cmake -DCOVERAGE=1 ..
   - make -j2
+
+after_success:
+  - coveralls --root . -E ".*CMakeFiles.*"
