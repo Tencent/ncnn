@@ -22,6 +22,11 @@ set(ncnn_SRCS
     benchmark.cpp
 )
 
+if(NCNN_VULKAN)
+    find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator)
+    message(STATUS "GLSLANGVALIDATOR_EXECUTABLE = ${GLSLANGVALIDATOR_EXECUTABLE}")
+endif()
+
 macro(ncnn_add_layer class)
     string(TOLOWER ${class} name)
 
@@ -54,6 +59,20 @@ macro(ncnn_add_layer class)
             if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/layer/x86/${name}_x86.cpp")
                 list(APPEND ncnn_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/layer/x86/${name}_x86.cpp")
                 set(WITH_LAYER_${name}_x86 1)
+            endif()
+        endif()
+
+        # look for vulkan compute shader and compile
+        if(NCNN_VULKAN)
+            if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/layer/shader/${name}.comp")
+                execute_process(COMMAND ${GLSLANGVALIDATOR_EXECUTABLE} -V ${CMAKE_CURRENT_SOURCE_DIR}/layer/shader/${name}.comp -x -o ${CMAKE_CURRENT_BINARY_DIR}/${name}.comp.spv.hex.h)
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h
+                    "static const uint32_t ${class}_comp_spv_data[] = {\n#include \"${name}.comp.spv.hex.h\"\n};\n")
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h
+                    "{${class}_comp_spv_data,sizeof(${class}_comp_spv_data)},\n")
+            else()
+                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h
+                    "{0,0},\n")
             endif()
         endif()
     endif()
@@ -89,6 +108,8 @@ endmacro()
 file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
 file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
 file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h)
 set(__LAYER_TYPE_ENUM_INDEX 0)
 
 # layer implementation

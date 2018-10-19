@@ -29,6 +29,7 @@
 
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>
+#include "gpu.h"
 #endif // NCNN_VULKAN
 
 namespace ncnn {
@@ -181,22 +182,24 @@ private:
 class VkAllocator
 {
 public:
-    // i = device index
+    // vkdev = the device
     // type 0 = device local
     // type 1 = host visible
-    VkAllocator(int i, int type);
+    VkAllocator(VulkanDevice vkdev, int type);
     virtual ~VkAllocator();
 
     virtual VkImage create_image(VkImageType imageType, int w, int h, int c);
     virtual VkImageView create_imageview(VkImageViewType viewType, VkImage image);
     virtual VkBuffer create_buffer(VkBufferUsageFlags usage, int size);
+    virtual VkEvent create_event();
 
     virtual void destroy_image(VkImage image);
     virtual void destroy_imageview(VkImageView imageview);
     virtual void destroy_buffer(VkBuffer buffer);
+    virtual void destroy_event(VkEvent event);
 
 public:
-    const VkDevice device;
+    const VulkanDevice vkdev;
     const int type;
     const uint32_t compute_queue_index;
     const uint32_t memory_type_index;
@@ -205,6 +208,7 @@ private:
     std::vector<VkImage> images_to_destroy;
     std::vector<VkImageView> imageviews_to_destroy;
     std::vector<VkBuffer> buffers_to_destroy;
+    std::vector<VkEvent> events_to_destroy;
 
 public:
     // ratio range 0 ~ 1

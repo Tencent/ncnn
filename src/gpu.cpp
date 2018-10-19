@@ -23,6 +23,8 @@
 
 #include <vector>
 
+#include "mat.h"
+
 #define ENABLE_VALIDATION_LAYER 1
 
 namespace ncnn {
@@ -33,7 +35,6 @@ static int g_gpu_count = 0;
 
 // NOTE 8 is large enough i think ...
 static GpuInfo g_gpu_infos[8];
-static VkDevice g_gpu_devices[8] = {0};
 
 #if ENABLE_VALIDATION_LAYER
 static VkDebugUtilsMessengerEXT callback;
@@ -397,12 +398,27 @@ int get_gpu_count()
     return g_gpu_count;
 }
 
-const GpuInfo& get_gpu_info(int i)
+const GpuInfo& get_gpu_info(int device_index)
 {
-    return g_gpu_infos[i];
+    return g_gpu_infos[device_index];
 }
 
-int create_gpu_device(int i)
+struct layer_shader_registry_entry
+{
+    const uint32_t* spv_data;
+    size_t spv_data_size;
+};
+
+#include "layer_shader_spv_data.h"
+
+static const layer_shader_registry_entry layer_shader_registry[] =
+{
+#include "layer_shader_registry.h"
+};
+
+static const int layer_shader_registry_entry_count = sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry);
+
+VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
 {
     const float queuePriorities[1] = { 1.f };// 0.f ~ 1.f
 
@@ -410,7 +426,7 @@ int create_gpu_device(int i)
     deviceQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     deviceQueueCreateInfo.pNext = 0;
     deviceQueueCreateInfo.flags = 0;
-    deviceQueueCreateInfo.queueFamilyIndex = g_gpu_infos[i].compute_queue_index;
+    deviceQueueCreateInfo.queueFamilyIndex = info.compute_queue_index;
     deviceQueueCreateInfo.queueCount = 1;
     deviceQueueCreateInfo.pQueuePriorities = queuePriorities;
 
@@ -426,28 +442,65 @@ int create_gpu_device(int i)
     deviceCreateInfo.ppEnabledExtensionNames = 0;
     deviceCreateInfo.pEnabledFeatures = 0;// VkPhysicalDeviceFeatures pointer
 
-    VkDevice device;
-    VkResult ret = vkCreateDevice(g_gpu_infos[i].physical_device, &deviceCreateInfo, 0, &device);
+    VkResult ret = vkCreateDevice(info.physical_device, &deviceCreateInfo, 0, &device);
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkCreateDevice failed %d\n", ret);
     }
 
-    g_gpu_devices[i] = device;
+    create_shader_module();
+}
+
+VulkanDevice::~VulkanDevice()
+{
+    destroy_shader_module();
+
+    vkDestroyDevice(device, 0);
+}
+
+int VulkanDevice::create_shader_module()
+{
+    shader_modules.resize(layer_shader_registry_entry_count, VK_NULL_HANDLE);
+
+    for (int i=0; i<layer_shader_registry_entry_count; i++)
+    {
+        if (layer_shader_registry[i].spv_data_size == 0)
+            continue;
+
+        VkShaderModuleCreateInfo shaderModuleCreateInfo;
+        shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        shaderModuleCreateInfo.pNext = 0;
+        shaderModuleCreateInfo.flags = 0;
+        shaderModuleCreateInfo.codeSize = layer_shader_registry[i].spv_data_size;
+        shaderModuleCreateInfo.pCode = layer_shader_registry[i].spv_data;
+
+        VkResult ret = vkCreateShaderModule(device, &shaderModuleCreateInfo, 0, &shader_modules[i]);
+        if (ret != VK_SUCCESS)
+        {
+            fprintf(stderr, "vkCreateShaderModule failed %d\n", ret);
+            return -1;
+        }
+    }
 
     return 0;
 }
 
-void destroy_gpu_device(int i)
+void VulkanDevice::destroy_shader_module()
 {
-    vkDestroyDevice(g_gpu_devices[i], 0);
+    for (int i=0; i<(int)shader_modules.size(); i++)
+    {
+        vkDestroyShaderModule(device, shader_modules[i], 0);
+    }
 
-    g_gpu_devices[i] = 0;
+    shader_modules.clear();
 }
 
-VkDevice get_gpu_device(int i)
+VkShaderModule VulkanDevice::get_shader_module(int type_index)
 {
-    return g_gpu_devices[i];
+    if (type_index < 0 || type_index >= (int)shader_modules.size())
+        return 0;
+
+    return shader_modules[type_index];
 }
 
 } // namespace ncnn

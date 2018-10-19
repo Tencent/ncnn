@@ -57,6 +57,9 @@ public:
     Allocator* workspace_allocator;
 
 #if NCNN_VULKAN
+    // vulkan device
+    VulkanDevice* vkdev;
+
     // blob memory allocator
     VkAllocator* blob_vkallocator;
 
@@ -85,14 +88,6 @@ public:
     // return 0 if success
     virtual int load_model(const ModelBin& mb);
 
-#if NCNN_VULKAN
-
-    // get shader module
-    // init descriptor layout
-    virtual int setup_pipeline();
-
-#endif // NCNN_VULKAN
-
 public:
     // one input and one output blob
     bool one_blob_only;
@@ -116,6 +111,14 @@ public:
 
 #if NCNN_VULKAN
 
+    // init descriptor layout
+    virtual int setup_pipeline(VkAllocator* vkallocator);
+
+    int create_pipeline(VkDevice device);
+    int destroy_pipeline();
+
+    int record(VkCommandBuffer commandBuffer);
+
     // implement inference
     // return 0 if success
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, const Option& opt = get_default_option()) const;
@@ -127,26 +130,48 @@ public:
     virtual int forward_inplace(VkMat& bottom_top_blob, const Option& opt = get_default_option()) const;
 
 public:
-//     // shared among all layer instance
-//     VkShaderModule shaderModule;
-//     VkDescriptorSetLayout descriptorSetLayout;
-//     VkPipelineLayout pipelineLayout;
-//
-//     // though the layout of a specific layer is identical
-//     // we don't know how many layer instances will be created
-//     // as different model differs
-//     // it is more flexible to create separate pool
-//     VkDescriptorPool descriptorPool;
-//
-//     // op forward
-//     VkPipeline pipeline;
-//
-//     // op command dispatch
-//     VkDescriptorSet descriptorSet;
+    // shared among each layer type instance
+    VkShaderModule shader_module;
+
+    VkDescriptorSetLayout descriptorset_layout;
+    VkPipelineLayout pipeline_layout;
+
+    // though the layout of a specific layer is identical
+    // we don't know how many layer instances will be created
+    // as different model differs
+    // it is more flexible to create separate pool
+    VkDescriptorPool descriptor_pool;
+
+    // op forward
+    VkPipeline pipeline;
+
+    // op command dispatch
+    VkDescriptorSet descriptorset;
+
+protected:
+    // misc routine for creating things when creating pipeline
+    // TODO use pipeline cache ?
+    int create_descriptorset_layout();
+    int create_pipeline_layout();
+    int create_pipeline();
+    int create_descriptor_pool();
+    int create_descriptorset();
+
+    // called from forward
+    void update_descriptorset(const std::vector<VkMat>& bindings) const;
+
+public:
+    VkDevice device;
+
+    std::vector<int> specializations;
+    int binding_count;
+
+    // weight data to upload
+    std::vector< std::pair<Mat, VkMat> > weight_data_upload;
 
 public:
     // TODO encode dispatch param as buffer
-//     // dispatch group count
+    // dispatch group count
 //     uint32_t group_count_x;
 //     uint32_t group_count_y;
 //     uint32_t group_count_z;

@@ -1,0 +1,19 @@
+#version 450
+
+layout (local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+
+layout (binding = 0, r32f) uniform image3D bottom_top_blob;
+
+void main()
+{
+    ivec3 outshape = imageSize(bottom_top_blob);
+
+    if (gl_GlobalInvocationID.x >= outshape[0] || gl_GlobalInvocationID.y >= outshape[1] || gl_GlobalInvocationID.z >= outshape[2])
+        return;
+
+    float v = imageLoad(bottom_top_blob, ivec3(gl_GlobalInvocationID.xyz)).r;
+
+    v = max(v, 0.0);
+
+    imageStore(bottom_top_blob, ivec3(gl_GlobalInvocationID.xyz), vec4(v));
+}

@@ -360,4 +360,79 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     return 0;
 }
 
+#if NCNN_VULKAN
+int Convolution::setup_pipeline(VkAllocator* vkallocator)
+{
+//     shader_module = vkdev.get_shader_module();
+
+    specializations.resize(9);
+
+    specializations[0] = kernel_w;
+    specializations[1] = kernel_h;
+    specializations[2] = dilation_w;
+    specializations[3] = dilation_h;
+    specializations[4] = stride_w;
+    specializations[5] = stride_h;
+    specializations[6] = pad_w;
+    specializations[7] = pad_h;
+    specializations[8] = bias_term;
+
+    binding_count = 4;
+
+    // FIXME allocate weight data with internal allocator
+
+    // upload weight data
+    int num_input = weight_data_size / kernel_w * kernel_h / num_output;
+
+    weight_data_gpu.create(kernel_w * kernel_h, num_input, num_output, 4u, vkallocator);
+
+    bias_data_gpu.create(bias_data.w, 4u, vkallocator);
+
+    weight_data_upload.resize(2);
+
+    weight_data_upload[0] = std::make_pair(weight_data, weight_data_gpu);
+    weight_data_upload[1] = std::make_pair(bias_data, bias_data_gpu);
+
+    return 0;
+}
+
+int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    int outw = (w + pad_w * 2 - kernel_extent_w) / stride_w + 1;
+    int outh = (h + pad_h * 2 - kernel_extent_h) / stride_h + 1;
+
+//     fprintf(stderr, "%d %d %d\n", outw, outh, num_output);
+
+    top_blob.create(outw, outh, num_output, 4u, opt.blob_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    // update descriptor set FIXME TODO
+    std::vector<VkMat> bindings;
+    bindings.resize(4);
+
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+    bindings[2] = weight_data_gpu;
+    bindings[3] = bias_data_gpu;
+
+    update_descriptorset(bindings);
+
+//     group_count_x = (top_blob.w + 3) / 4;
+//     group_count_y = (top_blob.h + 3) / 4;
+//     group_count_z = (top_blob.c + 3) / 4;
+
+    return 0;
+}
+
+#endif // NCNN_VULKAN
+
 } // namespace ncnn

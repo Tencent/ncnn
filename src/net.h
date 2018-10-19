@@ -98,6 +98,9 @@ public:
     // enabled by default
     int use_int8_inference;
 
+    // enable vulkan compute
+    int use_vulkan_compute;
+
 protected:
     friend class Extractor;
 #if NCNN_STRING
@@ -108,6 +111,13 @@ protected:
 #endif // NCNN_STRING
     Layer* create_custom_layer(int index);
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt) const;
+
+#if NCNN_VULKAN
+    int upload_weight_data();
+
+    int forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Option& opt) const;
+    int record_command(int layer_index, std::vector<VkMat>& blob_mats, Option& opt, std::vector<VkEvent>& events, VkCommandBuffer command_buffer) const;
+#endif // NCNN_VULKAN
 
 protected:
     std::vector<Blob> blobs;
@@ -161,6 +171,11 @@ private:
     const Net* net;
     std::vector<Mat> blob_mats;
     Option opt;
+
+#if NCNN_VULKAN
+    std::vector<VkMat> blob_mats_gpu;
+    std::vector<VkEvent> events;
+#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

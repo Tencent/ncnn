@@ -14,6 +14,7 @@
 
 #include "layer.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include "cpu.h"
@@ -52,6 +53,7 @@ Layer::Layer()
 {
     one_blob_only = false;
     support_inplace = false;
+    support_vulkan = false;
 }
 
 Layer::~Layer()
@@ -105,6 +107,299 @@ int Layer::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) cons
 {
     return -1;
 }
+
+#if NCNN_VULKAN
+int Layer::setup_pipeline(VkAllocator* vkallocator)
+{
+    return 0;
+}
+
+int Layer::create_pipeline(VkDevice _device)
+{
+    // set vulkan device
+    device = _device;
+
+    create_descriptorset_layout();
+
+    create_pipeline_layout();
+
+    create_pipeline();
+
+    create_descriptor_pool();
+
+    create_descriptorset();
+
+    return 0;
+}
+
+int Layer::destroy_pipeline()
+{
+    vkFreeDescriptorSets(device, descriptor_pool, 1, &descriptorset);
+
+    vkDestroyDescriptorPool(device, descriptor_pool, 0);
+
+    vkDestroyPipeline(device, pipeline, 0);
+
+    vkDestroyPipelineLayout(device, pipeline_layout, 0);
+
+    vkDestroyDescriptorSetLayout(device, descriptorset_layout, 0);
+
+    return 0;
+}
+
+int Layer::record(VkCommandBuffer commandBuffer)
+{
+    // wait weight upload
+    {
+    std::vector<VkImageMemoryBarrier> imageBarriers;
+    imageBarriers.resize(weight_data_upload.size());
+
+    for (int i=0; i<(int)weight_data_upload.size(); i++)
+    {
+        const VkMat& m = weight_data_upload[i].second;
+
+        imageBarriers[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        imageBarriers[i].pNext = 0;
+        imageBarriers[i].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        imageBarriers[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        imageBarriers[i].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        imageBarriers[i].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        imageBarriers[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imageBarriers[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imageBarriers[i].image = m.image;
+        imageBarriers[i].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageBarriers[i].subresourceRange.baseMipLevel = 0;
+        imageBarriers[i].subresourceRange.levelCount = 1;
+        imageBarriers[i].subresourceRange.baseArrayLayer = 0;
+        imageBarriers[i].subresourceRange.layerCount = 1;
+    }
+
+//     // TODO create event
+//     vkCmdWaitEvents(commandBuffer, 1, &event,
+//         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+//         0, 0, 0, 0, imageBarriers.size(), imageBarriers.data());
+
+//     VkMemoryBarrier memoryBarrier;
+//     memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+//     memoryBarrier.pNext = 0;
+//     memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+//     memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+//
+//     vkCmdWaitEvents(commandBuffer, events.size(), events.data(),
+//         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+//         1, &memoryBarrier, 0, 0, 0, 0);
+    }
+
+    // command
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_layout, 0, 1, &descriptorset, 0, 0);
+
+//     vkCmdPushConstants(commandBuffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc_data), &pcdata);
+
+//     vkCmdDispatch(commandBuffer, group_count_x, group_count_y, group_count_z);
+
+//     VkDispatchIndirectCommand dispatch_param;
+//     dispatch_param.x = group_x;
+//     dispatch_param.y = group_y;
+//     dispatch_param.z = group_z;
+
+//     vkCmdDispatchIndirect(commandBuffer, buffer, offset);
+
+    return 0;
+}
+
+int Layer::forward(const std::vector<VkMat>& /*bottom_blobs*/, std::vector<VkMat>& /*top_blobs*/, const Option& /*opt*/) const
+{
+    return -1;
+}
+
+int Layer::forward(const VkMat& /*bottom_blob*/, VkMat& /*top_blob*/, const Option& /*opt*/) const
+{
+    return -1;
+}
+
+int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, const Option& /*opt*/) const
+{
+    return -1;
+}
+
+int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, const Option& /*opt*/) const
+{
+    return -1;
+}
+
+int Layer::create_descriptorset_layout()
+{
+    std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings;
+    descriptorSetLayoutBindings.resize(binding_count);
+
+    for (int i=0; i<binding_count; i++)
+    {
+        descriptorSetLayoutBindings[i].binding = i;
+        descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        descriptorSetLayoutBindings[i].descriptorCount = 1;
+        descriptorSetLayoutBindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+    }
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
+    descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutCreateInfo.pNext = 0;
+    descriptorSetLayoutCreateInfo.flags = 0;
+    descriptorSetLayoutCreateInfo.bindingCount = binding_count;
+    descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBindings.data();
+
+    VkResult ret = vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateDescriptorSetLayout failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int Layer::create_pipeline_layout()
+{
+    // TODO use push constant ?
+//     VkPushConstantRange pushConstantRange;
+//     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+//     pushConstantRange.offset = 0;
+//     pushConstantRange.size = sizeof(int) * push_constant_count;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+    pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutCreateInfo.pNext = 0;
+    pipelineLayoutCreateInfo.flags = 0;
+    pipelineLayoutCreateInfo.setLayoutCount = 1;
+    pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout;
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+    pipelineLayoutCreateInfo.pPushConstantRanges = 0;
+//     pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+//     pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
+
+    VkResult ret = vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, 0, &pipeline_layout);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreatePipelineLayout failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int Layer::create_pipeline()
+{
+    std::vector<VkSpecializationMapEntry> specializationMapEntries;
+    specializationMapEntries.resize(specializations.size());
+
+    VkSpecializationInfo specializationInfo;
+    specializationInfo.mapEntryCount = specializations.size();
+    specializationInfo.pMapEntries = specializationMapEntries.data();
+    specializationInfo.dataSize = specializations.size() * sizeof(int);
+    specializationInfo.pData = specializations.data();
+
+    VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo;
+    pipelineShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineShaderStageCreateInfo.pNext = 0;
+    pipelineShaderStageCreateInfo.flags = 0;
+    pipelineShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineShaderStageCreateInfo.module = shader_module;
+    pipelineShaderStageCreateInfo.pName = "main";
+    pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
+
+    VkComputePipelineCreateInfo computePipelineCreateInfo;
+    computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCreateInfo.pNext = 0;
+    computePipelineCreateInfo.flags = 0;
+    computePipelineCreateInfo.stage = pipelineShaderStageCreateInfo;
+    computePipelineCreateInfo.layout = pipeline_layout;
+    computePipelineCreateInfo.basePipelineHandle = 0;
+    computePipelineCreateInfo.basePipelineIndex = 0;
+
+    VkResult ret = vkCreateComputePipelines(device, 0, 1, &computePipelineCreateInfo, 0, &pipeline);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateComputePipelines failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int Layer::create_descriptor_pool()
+{
+    VkDescriptorPoolSize poolSize;
+    poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    poolSize.descriptorCount = binding_count;//4
+
+    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
+    descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    descriptorPoolCreateInfo.pNext = 0;
+    descriptorPoolCreateInfo.flags = 0;
+    descriptorPoolCreateInfo.maxSets = 1;
+    descriptorPoolCreateInfo.poolSizeCount = 1;
+    descriptorPoolCreateInfo.pPoolSizes = &poolSize;
+
+    VkResult ret = vkCreateDescriptorPool(device, &descriptorPoolCreateInfo, 0, &descriptor_pool);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateDescriptorPool failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int Layer::create_descriptorset()
+{
+    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo;
+    descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    descriptorSetAllocateInfo.pNext = 0;
+    descriptorSetAllocateInfo.descriptorPool = descriptor_pool;
+    descriptorSetAllocateInfo.descriptorSetCount = 1;
+    descriptorSetAllocateInfo.pSetLayouts = &descriptorset_layout;
+
+    VkResult ret = vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &descriptorset);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkAllocateDescriptorSets failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+void Layer::update_descriptorset(const std::vector<VkMat>& bindings) const
+{
+    std::vector<VkDescriptorImageInfo> descriptorImageInfos;
+    descriptorImageInfos.resize(bindings.size());
+
+    std::vector<VkWriteDescriptorSet> writeDescriptorSets;
+    writeDescriptorSets.resize(bindings.size());
+
+    for (int i=0; i<(int)bindings.size(); i++)
+    {
+        descriptorImageInfos[i].sampler = 0;
+        descriptorImageInfos[i].imageView = bindings[i].imageview;
+        descriptorImageInfos[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSets[i].pNext = 0;
+        writeDescriptorSets[i].dstSet = descriptorset;
+        writeDescriptorSets[i].dstBinding = i;
+        writeDescriptorSets[i].dstArrayElement = 0;
+        writeDescriptorSets[i].descriptorCount = 1;
+        writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        writeDescriptorSets[i].pImageInfo = &descriptorImageInfos[i];
+        writeDescriptorSets[i].pBufferInfo = 0;
+        writeDescriptorSets[i].pTexelBufferView = 0;
+    }
+
+    vkUpdateDescriptorSets(device, bindings.size(), writeDescriptorSets.data(), 0, 0);
+}
+#endif // NCNN_VULKAN
 
 #include "layer_declaration.h"
 

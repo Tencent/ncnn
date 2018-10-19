@@ -20,6 +20,7 @@
 #if NCNN_VULKAN
 
 #include <vulkan/vulkan.h>
+#include <vector>
 
 namespace ncnn {
 
@@ -61,19 +62,38 @@ public:
     uint32_t host_visible_memory_index;
 };
 
-const GpuInfo& get_gpu_info(int i);
+const GpuInfo& get_gpu_info(int device_index);
 
-// device
-int create_gpu_device(int i);
-void destroy_gpu_device(int i);
+class VkAllocator;
+class VkMat;
+class VulkanDevice
+{
+public:
+    VulkanDevice(int device_index);
+    ~VulkanDevice();
 
-// get device
-VkDevice get_gpu_device(int i);
+    const GpuInfo& info;
 
-// TODO shader management
-// VkShaderModule shaderModule;
+    operator VkDevice() const { return device; }
+
+    VkShaderModule get_shader_module(int type_index);
+
+protected:
+    // shader management
+    int create_shader_module();
+    void destroy_shader_module();
+
+private:
+    VkDevice device;
+
+    std::vector<VkShaderModule> shader_modules;
+};
+
 // VkDescriptorSetLayout descriptorSetLayout;
 // VkPipelineLayout pipelineLayout;
+
+// VkDescriptorSetLayout create_descriptorset_layout(int binding_count);
+// VkPipelineLayout create_pipeline_layout(const VkDescriptorSetLayout& descriptorSetLayout, int push_constant_count);
 
 } // namespace ncnn
 

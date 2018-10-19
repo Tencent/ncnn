@@ -35,6 +35,7 @@ Net::Net()
     use_winograd_convolution = 1;
     use_sgemm_convolution = 1;
     use_int8_inference = 1;
+    use_vulkan_compute = 1;
 }
 
 Net::~Net()
@@ -914,6 +915,381 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int Net::upload_weight_data()
+{
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        Layer* layer = layers[i];
+
+//         std::vector< std::pair<Mat, VkMat> > layer->weight_data_upload;
+#if 0
+        {
+            // image layout
+            VkImageMemoryBarrier imageBarrier;
+            imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            imageBarrier.pNext = 0;
+            imageBarrier.srcAccessMask = 0;
+            imageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            imageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            imageBarrier.image = layer->weight.image;
+            imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imageBarrier.subresourceRange.baseMipLevel = 0;
+            imageBarrier.subresourceRange.levelCount = 1;
+            imageBarrier.subresourceRange.baseArrayLayer = 0;
+            imageBarrier.subresourceRange.layerCount = 1;
+
+            vkCmdPipelineBarrier(commandBuffer,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // srcStageMask
+                VK_PIPELINE_STAGE_TRANSFER_BIT, // dstStageMask
+                0,
+                0, 0, 0, 0,
+                1, &imageBarrier);
+        }
+
+        {
+            // alloc staging buffer
+            // upload to gpu via staging buffer
+            VkBuffer sbbuffer = g_vulkan_hostvisible_allocator->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, weight_ref.w * sizeof(float));
+
+            VkMemoryRequirements memoryRequirements;
+            vkGetBufferMemoryRequirements(device, sbbuffer, &memoryRequirements);
+
+            // memoryRequirements.size
+            // memoryRequirements.alignment
+            // memoryRequirements.memoryTypeBits
+
+            VkDeviceMemory memory = g_vulkan_hostvisible_allocator->fastMalloc(memoryRequirements.size);
+
+            VkResult ret = vkBindBufferMemory(device, sbbuffer, memory, 0);
+            if (ret != VK_SUCCESS)
+            {
+                fprintf(stderr, "vkBindBufferMemory failed %d\n", ret);
+            }
+
+            // copy
+            {
+            void* mapped_ptr = 0;
+            VkResult ret = vkMapMemory(device, memory, 0, VK_WHOLE_SIZE, 0, &mapped_ptr);
+            if (ret != VK_SUCCESS)
+            {
+                fprintf(stderr, "vkMapMemory failed %d\n", ret);
+            }
+
+            memcpy(mapped_ptr, weight_ref.data, weight_ref.w * sizeof(float));
+
+            // TODO hold mapped ptr
+            vkUnmapMemory(device, memory);
+            }
+
+            // staging buffer to image
+            VkBufferImageCopy region;
+            region.bufferOffset = 0;
+            region.bufferRowLength = 0;
+            region.bufferImageHeight = 0;
+            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            region.imageSubresource.mipLevel = 0;
+            region.imageSubresource.baseArrayLayer = 0;
+            region.imageSubresource.layerCount = 1;
+            region.imageOffset.x = 0;
+            region.imageOffset.y = 0;
+            region.imageOffset.z = 0;
+            region.imageExtent.width = kw*kh;
+            region.imageExtent.height = inch;
+            region.imageExtent.depth = outch;
+
+            vkCmdCopyBufferToImage(commandBuffer, sbbuffer, layer->weight.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        }
+#endif
+    }
+
+    return 0;
+}
+
+int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Option& opt) const
+{
+    const Layer* layer = layers[layer_index];
+
+//     fprintf(stderr, "forward_layer %d %s\n", layer_index, layer->name.c_str());
+
+    if (layer->one_blob_only)
+    {
+        // load bottom blob
+        int bottom_blob_index = layer->bottoms[0];
+        int top_blob_index = layer->tops[0];
+
+        if (blob_mats[bottom_blob_index].dims == 0)
+        {
+            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, opt);
+            if (ret != 0)
+                return ret;
+        }
+
+        VkMat bottom_blob = blob_mats[bottom_blob_index];
+
+        if (opt.lightmode)
+        {
+            // delete after taken in light mode
+            blob_mats[bottom_blob_index].release();
+            // deep copy for inplace forward if data is shared
+            if (layer->support_inplace && *bottom_blob.refcount != 1)
+            {
+                // FIXME TODO create new bottom_blob, then issue copy command
+//                 bottom_blob = bottom_blob.clone();
+            }
+        }
+
+        // forward
+        if (opt.lightmode && layer->support_inplace)
+        {
+            VkMat& bottom_top_blob = bottom_blob;
+            int ret = layer->forward_inplace(bottom_top_blob, opt);
+            if (ret != 0)
+                return ret;
+
+            // store top blob
+            blob_mats[top_blob_index] = bottom_top_blob;
+        }
+        else
+        {
+            VkMat top_blob;
+            int ret = layer->forward(bottom_blob, top_blob, opt);
+            if (ret != 0)
+                return ret;
+
+            // store top blob
+            blob_mats[top_blob_index] = top_blob;
+        }
+
+    }
+    else
+    {
+        // load bottom blobs
+        std::vector<VkMat> bottom_blobs;
+        bottom_blobs.resize(layer->bottoms.size());
+        for (size_t i=0; i<layer->bottoms.size(); i++)
+        {
+            int bottom_blob_index = layer->bottoms[i];
+
+            if (blob_mats[bottom_blob_index].dims == 0)
+            {
+                int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, opt);
+                if (ret != 0)
+                    return ret;
+            }
+
+            bottom_blobs[i] = blob_mats[bottom_blob_index];
+
+            if (opt.lightmode)
+            {
+                // delete after taken in light mode
+                blob_mats[bottom_blob_index].release();
+                // deep copy for inplace forward if data is shared
+                if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                {
+                    // FIXME TODO create new bottom_blob, then issue copy command
+//                     bottom_blobs[i] = bottom_blobs[i].clone();
+                }
+            }
+        }
+
+        // forward
+        if (opt.lightmode && layer->support_inplace)
+        {
+            std::vector<VkMat>& bottom_top_blobs = bottom_blobs;
+            int ret = layer->forward_inplace(bottom_top_blobs, opt);
+            if (ret != 0)
+                return ret;
+
+            // store top blobs
+            for (size_t i=0; i<layer->tops.size(); i++)
+            {
+                int top_blob_index = layer->tops[i];
+
+                blob_mats[top_blob_index] = bottom_top_blobs[i];
+            }
+        }
+        else
+        {
+            std::vector<VkMat> top_blobs;
+            top_blobs.resize(layer->tops.size());
+            int ret = layer->forward(bottom_blobs, top_blobs, opt);
+            if (ret != 0)
+                return ret;
+
+            // store top blobs
+            for (size_t i=0; i<layer->tops.size(); i++)
+            {
+                int top_blob_index = layer->tops[i];
+
+                blob_mats[top_blob_index] = top_blobs[i];
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Option& opt, std::vector<VkEvent>& events, VkCommandBuffer command_buffer) const
+{
+    const Layer* layer = layers[layer_index];
+
+//     fprintf(stderr, "record_command %d %s\n", layer_index, layer->name.c_str());
+
+    if (layer->one_blob_only)
+    {
+        // load bottom blob
+        int bottom_blob_index = layer->bottoms[0];
+        int top_blob_index = layer->tops[0];
+
+        if (blob_mats[bottom_blob_index].dims == 0)
+        {
+            int ret = record_command(blobs[bottom_blob_index].producer, blob_mats, opt, events, command_buffer);
+            if (ret != 0)
+                return ret;
+        }
+
+        // wait bottom blob
+        {
+            VkMemoryBarrier memoryBarrier;
+            memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            memoryBarrier.pNext = 0;
+            memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+            vkCmdWaitEvents(command_buffer, 1, &events[bottom_blob_index],
+                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                1, &memoryBarrier, 0, 0, 0, 0);
+        }
+
+        VkMat bottom_blob = blob_mats[bottom_blob_index];
+
+        if (opt.lightmode)
+        {
+            // delete after taken in light mode
+            blob_mats[bottom_blob_index].release();
+            // deep copy for inplace forward if data is shared
+            if (layer->support_inplace && *bottom_blob.refcount != 1)
+            {
+                // FIXME TODO create new bottom_blob, then issue copy command
+//                 bottom_blob = bottom_blob.clone();
+            }
+        }
+
+        const VkMat& top_blob = blob_mats[top_blob_index];
+        uint32_t group_count_x = (top_blob.w + 3) / 4;
+        uint32_t group_count_y = (top_blob.h + 3) / 4;
+        uint32_t group_count_z = (top_blob.c + 3) / 4;
+
+        // record command
+        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline);
+
+        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline_layout, 0, 1, &layer->descriptorset, 0, 0);
+
+//         vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc_data), &pcdata);
+
+        vkCmdDispatch(command_buffer, group_count_x, group_count_y, group_count_z);
+
+//     VkDispatchIndirectCommand dispatch_param;
+//     dispatch_param.x = group_x;
+//     dispatch_param.y = group_y;
+//     dispatch_param.z = group_z;
+
+//     vkCmdDispatchIndirect(commandBuffer, buffer, offset);
+
+        vkCmdSetEvent(command_buffer, events[top_blob_index], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+
+    }
+    else
+    {
+        // load bottom blobs
+        std::vector<VkMat> bottom_blobs;
+        bottom_blobs.resize(layer->bottoms.size());
+        for (size_t i=0; i<layer->bottoms.size(); i++)
+        {
+            int bottom_blob_index = layer->bottoms[i];
+
+            if (blob_mats[bottom_blob_index].dims == 0)
+            {
+                int ret = record_command(blobs[bottom_blob_index].producer, blob_mats, opt, events, command_buffer);
+                if (ret != 0)
+                    return ret;
+            }
+
+            // wait bottom blob
+            {
+                VkMemoryBarrier memoryBarrier;
+                memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+                memoryBarrier.pNext = 0;
+                memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+                memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+                vkCmdWaitEvents(command_buffer, 1, &events[bottom_blob_index],
+                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    1, &memoryBarrier, 0, 0, 0, 0);
+            }
+
+            bottom_blobs[i] = blob_mats[bottom_blob_index];
+
+            if (opt.lightmode)
+            {
+                // delete after taken in light mode
+                blob_mats[bottom_blob_index].release();
+                // deep copy for inplace forward if data is shared
+                if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                {
+                    // FIXME TODO create new bottom_blob, then issue copy command
+//                     bottom_blobs[i] = bottom_blobs[i].clone();
+                }
+            }
+        }
+
+        uint32_t group_count_x = 1;
+        uint32_t group_count_y = 1;
+        uint32_t group_count_z = 1;
+        for (size_t i=0; i<layer->tops.size(); i++)
+        {
+            int top_blob_index = layer->tops[i];
+
+            const VkMat& top_blob = blob_mats[top_blob_index];
+
+            group_count_x = std::max((int)group_count_x, (top_blob.w + 3) / 4);
+            group_count_y = std::max((int)group_count_y, (top_blob.h + 3) / 4);
+            group_count_z = std::max((int)group_count_z, (top_blob.c + 3) / 4);
+        }
+
+        // record command
+        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline);
+
+        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline_layout, 0, 1, &layer->descriptorset, 0, 0);
+
+//         vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc_data), &pcdata);
+
+        vkCmdDispatch(command_buffer, group_count_x, group_count_y, group_count_z);
+
+//     VkDispatchIndirectCommand dispatch_param;
+//     dispatch_param.x = group_x;
+//     dispatch_param.y = group_y;
+//     dispatch_param.z = group_z;
+
+//     vkCmdDispatchIndirect(commandBuffer, buffer, offset);
+
+        // store top blobs
+        for (size_t i=0; i<layer->tops.size(); i++)
+        {
+            int top_blob_index = layer->tops[i];
+
+            vkCmdSetEvent(command_buffer, events[top_blob_index], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 {

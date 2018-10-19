@@ -1,0 +1,61 @@
+#version 450
+
+layout (local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+
+layout (constant_id = 1) const int kernel_w = 1;
+layout (constant_id = 2) const int kernel_h = 1;
+layout (constant_id = 3) const int dilation_w = 1;
+layout (constant_id = 4) const int dilation_h = 1;
+layout (constant_id = 5) const int stride_w = 1;
+layout (constant_id = 6) const int stride_h = 1;
+layout (constant_id = 7) const int pad_w = 0;
+layout (constant_id = 8) const int pad_h = 0;
+layout (constant_id = 9) const int bias_term = 0;
+
+layout (binding = 0, r32f) uniform readonly image3D bottom_blob;
+layout (binding = 1, r32f) uniform writeonly image3D top_blob;
+layout (binding = 2, r32f) uniform readonly image3D weight;
+layout (binding = 3, r32f) uniform readonly image1D bias;
+
+void main()
+{
+    ivec3 inshape = imageSize(bottom_blob);
+    ivec3 outshape = imageSize(top_blob);
+
+    if (gl_GlobalInvocationID.x >= outshape[0] || gl_GlobalInvocationID.y >= outshape[1] || gl_GlobalInvocationID.z >= outshape[2])
+        return;
+
+    float sum = 0;
+
+    if (bias_term == 1)
+    {
+        sum = imageLoad(bias, int(gl_GlobalInvocationID.z)).r;
+    }
+
+    for (int p = 0; p < inshape[2]; p++)
+    {
+        for (int y = 0; y < kernel_h; y++)
+        {
+            for (int x = 0; x < kernel_w; x++)
+            {
+                ivec3 vpos;
+                vpos.x = int(gl_GlobalInvocationID.x) * stride_w + x * dilation_w - pad_w;
+                vpos.y = int(gl_GlobalInvocationID.y) * stride_h + y * dilation_h - pad_h;
+                vpos.z = p;
+
+                float v = imageLoad(bottom_blob, vpos).r;
+
+                ivec3 kpos;
+                kpos.x = y * kernel_w + x;
+                kpos.y = p;
+                kpos.z = int(gl_GlobalInvocationID.z);
+
+                float k = imageLoad(weight, kpos).r;
+
+                sum += v * k;
+            }
+        }
+    }
+
+    imageStore(top_blob, ivec3(gl_GlobalInvocationID.xyz), vec4(sum));
+}

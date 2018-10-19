@@ -236,10 +236,10 @@ void UnlockedPoolAllocator::fastFree(void* ptr)
 }
 
 #if NCNN_VULKAN
-VkAllocator::VkAllocator(int i, int _type)
-    : device(get_gpu_device(i)), type(_type),
-      compute_queue_index(get_gpu_info(i).compute_queue_index),
-      memory_type_index(_type == 0 ? get_gpu_info(i).device_local_memory_index : get_gpu_info(i).host_visible_memory_index)
+VkAllocator::VkAllocator(VulkanDevice _vkdev, int _type)
+    : vkdev(_vkdev), type(_type),
+      compute_queue_index(_vkdev.info.compute_queue_index),
+      memory_type_index(_type == 0 ? _vkdev.info.device_local_memory_index : _vkdev.info.host_visible_memory_index)
 {
     size_compare_ratio = 192;// 0.75f * 256
 }
@@ -248,19 +248,24 @@ VkAllocator::~VkAllocator()
 {
     for (int i=0; i<(int)images_to_destroy.size(); i++)
     {
-        vkDestroyImage(device, images_to_destroy[i], 0);
+        vkDestroyImage(vkdev, images_to_destroy[i], 0);
     }
     images_to_destroy.clear();
     for (int i=0; i<(int)imageviews_to_destroy.size(); i++)
     {
-        vkDestroyImageView(device, imageviews_to_destroy[i], 0);
+        vkDestroyImageView(vkdev, imageviews_to_destroy[i], 0);
     }
     imageviews_to_destroy.clear();
     for (int i=0; i<(int)buffers_to_destroy.size(); i++)
     {
-        vkDestroyBuffer(device, buffers_to_destroy[i], 0);
+        vkDestroyBuffer(vkdev, buffers_to_destroy[i], 0);
     }
     buffers_to_destroy.clear();
+    for (int i=0; i<(int)events_to_destroy.size(); i++)
+    {
+        vkDestroyEvent(vkdev, events_to_destroy[i], 0);
+    }
+    events_to_destroy.clear();
 
     clear();
 
@@ -298,7 +303,7 @@ VkImage VkAllocator::create_image(VkImageType imageType, int w, int h, int c)
     imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     VkImage image;
-    VkResult ret = vkCreateImage(device, &imageCreateInfo, 0, &image);
+    VkResult ret = vkCreateImage(vkdev, &imageCreateInfo, 0, &image);
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkCreateImage failed %d\n", ret);
@@ -334,7 +339,7 @@ VkImageView VkAllocator::create_imageview(VkImageViewType viewType, VkImage imag
     imageViewCreateInfo.subresourceRange = subresourceRange;
 
     VkImageView imageView;
-    VkResult ret = vkCreateImageView(device, &imageViewCreateInfo, 0, &imageView);
+    VkResult ret = vkCreateImageView(vkdev, &imageViewCreateInfo, 0, &imageView);
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkCreateImageView failed %d\n", ret);
@@ -357,7 +362,7 @@ VkBuffer VkAllocator::create_buffer(VkBufferUsageFlags usage, int size)
     bufferCreateInfo.pQueueFamilyIndices = 0;
 
     VkBuffer buffer;
-    VkResult ret = vkCreateBuffer(device, &bufferCreateInfo, 0, &buffer);
+    VkResult ret = vkCreateBuffer(vkdev, &bufferCreateInfo, 0, &buffer);
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkCreateBuffer failed %d\n", ret);
@@ -365,6 +370,24 @@ VkBuffer VkAllocator::create_buffer(VkBufferUsageFlags usage, int size)
     }
 
     return buffer;
+}
+
+VkEvent VkAllocator::create_event()
+{
+    VkEventCreateInfo eventCreateInfo;
+    eventCreateInfo.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO;
+    eventCreateInfo.pNext = 0;
+    eventCreateInfo.flags = 0;
+
+    VkEvent event;
+    VkResult ret = vkCreateEvent(vkdev, &eventCreateInfo, 0, &event);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateEvent failed %d\n", ret);
+        return 0;
+    }
+
+    return event;
 }
 
 void VkAllocator::destroy_image(VkImage image)
@@ -382,6 +405,11 @@ void VkAllocator::destroy_buffer(VkBuffer buffer)
     buffers_to_destroy.push_back(buffer);
 }
 
+void VkAllocator::destroy_event(VkEvent event)
+{
+    events_to_destroy.push_back(event);
+}
+
 void VkAllocator::clear()
 {
     std::list< std::pair<size_t, VkDeviceMemory> >::iterator it = budgets.begin();
@@ -389,7 +417,7 @@ void VkAllocator::clear()
     {
         VkDeviceMemory ptr = it->second;
 
-        vkFreeMemory(device, ptr, 0);
+        vkFreeMemory(vkdev, ptr, 0);
     }
     budgets.clear();
 }
@@ -436,7 +464,7 @@ VkDeviceMemory VkAllocator::fastMalloc(size_t size)
     memoryAllocateInfo.memoryTypeIndex = memory_type_index;
 
     VkDeviceMemory ptr = 0;
-    VkResult ret = vkAllocateMemory(device, &memoryAllocateInfo, 0, &ptr);
+    VkResult ret = vkAllocateMemory(vkdev, &memoryAllocateInfo, 0, &ptr);
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
@@ -469,7 +497,7 @@ void VkAllocator::fastFree(VkDeviceMemory ptr)
 
     fprintf(stderr, "FATAL ERROR! unlocked vulkan pool allocator get wild %p\n", ptr);
 
-    vkFreeMemory(device, ptr, 0);
+    vkFreeMemory(vkdev, ptr, 0);
 }
 #endif // NCNN_VULKAN
 
