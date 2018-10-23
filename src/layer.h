@@ -25,6 +25,7 @@
 
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>
+#include "command.h"
 #endif // NCNN_VULKAN
 
 namespace ncnn {
@@ -65,6 +66,9 @@ public:
 
     // workspace memory allocator
     VkAllocator* workspace_vkallocator;
+
+    // staging buffer memory allocator
+    VkAllocator* staging_vkallocator;
 #endif // NCNN_VULKAN
 };
 
@@ -110,15 +114,6 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt = get_default_option()) const;
 
 #if NCNN_VULKAN
-
-    // init descriptor layout
-    virtual int setup_pipeline(VkAllocator* vkallocator);
-
-    int create_pipeline(VkDevice device);
-    int destroy_pipeline();
-
-    int record(VkCommandBuffer commandBuffer);
-
     // implement inference
     // return 0 if success
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, const Option& opt = get_default_option()) const;
@@ -148,6 +143,10 @@ public:
     // op command dispatch
     VkDescriptorSet descriptorset;
 
+public:
+    int create_pipeline(VkDevice device);
+    int destroy_pipeline();
+
 protected:
     // misc routine for creating things when creating pipeline
     // TODO use pipeline cache ?
@@ -166,8 +165,8 @@ public:
     std::vector<int> specializations;
     int binding_count;
 
-    // weight data to upload
-    std::vector< std::pair<Mat, VkMat> > weight_data_upload;
+    // vulkan model upload events
+    std::vector<UploadEvent> weight_upload_events;
 
 public:
     // TODO encode dispatch param as buffer

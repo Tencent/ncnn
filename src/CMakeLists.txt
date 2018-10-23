@@ -10,6 +10,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/layer)
 set(ncnn_SRCS
     allocator.cpp
     blob.cpp
+    command.cpp
     cpu.cpp
     gpu.cpp
     layer.cpp

@@ -135,6 +135,38 @@ int Convolution::load_model(const ModelBin& mb)
         }
     }
 
+#if NCNN_VULKAN
+    if (mb.vk_model_loader)
+    {
+        // setup pipeline specializations
+        specializations.resize(9);
+
+        specializations[0] = kernel_w;
+        specializations[1] = kernel_h;
+        specializations[2] = dilation_w;
+        specializations[3] = dilation_h;
+        specializations[4] = stride_w;
+        specializations[5] = stride_h;
+        specializations[6] = pad_w;
+        specializations[7] = pad_h;
+        specializations[8] = bias_term;
+
+        binding_count = 4;
+
+        // upload weight data
+        int num_input = weight_data_size / kernel_w * kernel_h / num_output;
+
+        weight_data_gpu.create(kernel_w * kernel_h, num_input, num_output, 4u, mb.weight_vkallocator);
+
+        bias_data_gpu.create(bias_data.w, 4u, mb.weight_vkallocator);
+
+        weight_upload_events.resize(2);
+
+        weight_upload_events[0] = mb.vk_model_loader->record_upload(weight_data, weight_data_gpu);
+        weight_upload_events[1] = mb.vk_model_loader->record_upload(bias_data, bias_data_gpu);
+    }
+#endif // NCNN_VULKAN
+
     return 0;
 }
 
@@ -361,41 +393,6 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 }
 
 #if NCNN_VULKAN
-int Convolution::setup_pipeline(VkAllocator* vkallocator)
-{
-//     shader_module = vkdev.get_shader_module();
-
-    specializations.resize(9);
-
-    specializations[0] = kernel_w;
-    specializations[1] = kernel_h;
-    specializations[2] = dilation_w;
-    specializations[3] = dilation_h;
-    specializations[4] = stride_w;
-    specializations[5] = stride_h;
-    specializations[6] = pad_w;
-    specializations[7] = pad_h;
-    specializations[8] = bias_term;
-
-    binding_count = 4;
-
-    // FIXME allocate weight data with internal allocator
-
-    // upload weight data
-    int num_input = weight_data_size / kernel_w * kernel_h / num_output;
-
-    weight_data_gpu.create(kernel_w * kernel_h, num_input, num_output, 4u, vkallocator);
-
-    bias_data_gpu.create(bias_data.w, 4u, vkallocator);
-
-    weight_data_upload.resize(2);
-
-    weight_data_upload[0] = std::make_pair(weight_data, weight_data_gpu);
-    weight_data_upload[1] = std::make_pair(bias_data, bias_data_gpu);
-
-    return 0;
-}
-
 int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;

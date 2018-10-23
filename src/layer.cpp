@@ -27,6 +27,13 @@ Option::Option()
     num_threads = get_cpu_count();
     blob_allocator = 0;
     workspace_allocator = 0;
+
+#if NCNN_VULKAN
+    vkdev = 0;
+    blob_vkallocator = 0;
+    workspace_vkallocator = 0;
+    staging_vkallocator = 0;
+#endif // NCNN_VULKAN
 }
 
 static Option g_default_option;
@@ -109,11 +116,6 @@ int Layer::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) cons
 }
 
 #if NCNN_VULKAN
-int Layer::setup_pipeline(VkAllocator* vkallocator)
-{
-    return 0;
-}
-
 int Layer::create_pipeline(VkDevice _device)
 {
     // set vulkan device
@@ -143,68 +145,6 @@ int Layer::destroy_pipeline()
     vkDestroyPipelineLayout(device, pipeline_layout, 0);
 
     vkDestroyDescriptorSetLayout(device, descriptorset_layout, 0);
-
-    return 0;
-}
-
-int Layer::record(VkCommandBuffer commandBuffer)
-{
-    // wait weight upload
-    {
-    std::vector<VkImageMemoryBarrier> imageBarriers;
-    imageBarriers.resize(weight_data_upload.size());
-
-    for (int i=0; i<(int)weight_data_upload.size(); i++)
-    {
-        const VkMat& m = weight_data_upload[i].second;
-
-        imageBarriers[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        imageBarriers[i].pNext = 0;
-        imageBarriers[i].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        imageBarriers[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        imageBarriers[i].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        imageBarriers[i].newLayout = VK_IMAGE_LAYOUT_GENERAL;
-        imageBarriers[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        imageBarriers[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        imageBarriers[i].image = m.image;
-        imageBarriers[i].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        imageBarriers[i].subresourceRange.baseMipLevel = 0;
-        imageBarriers[i].subresourceRange.levelCount = 1;
-        imageBarriers[i].subresourceRange.baseArrayLayer = 0;
-        imageBarriers[i].subresourceRange.layerCount = 1;
-    }
-
-//     // TODO create event
-//     vkCmdWaitEvents(commandBuffer, 1, &event,
-//         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-//         0, 0, 0, 0, imageBarriers.size(), imageBarriers.data());
-
-//     VkMemoryBarrier memoryBarrier;
-//     memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-//     memoryBarrier.pNext = 0;
-//     memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-//     memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-//
-//     vkCmdWaitEvents(commandBuffer, events.size(), events.data(),
-//         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-//         1, &memoryBarrier, 0, 0, 0, 0);
-    }
-
-    // command
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
-
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_layout, 0, 1, &descriptorset, 0, 0);
-
-//     vkCmdPushConstants(commandBuffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc_data), &pcdata);
-
-//     vkCmdDispatch(commandBuffer, group_count_x, group_count_y, group_count_z);
-
-//     VkDispatchIndirectCommand dispatch_param;
-//     dispatch_param.x = group_x;
-//     dispatch_param.y = group_y;
-//     dispatch_param.z = group_z;
-
-//     vkCmdDispatchIndirect(commandBuffer, buffer, offset);
 
     return 0;
 }

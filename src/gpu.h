@@ -30,6 +30,7 @@ void destroy_gpu_instance();
 
 // get info
 int get_gpu_count();
+int get_default_gpu_index();
 
 class GpuInfo
 {
@@ -62,6 +63,7 @@ public:
     uint32_t host_visible_memory_index;
 };
 
+const GpuInfo& get_gpu_info();
 const GpuInfo& get_gpu_info(int device_index);
 
 class VkAllocator;
@@ -69,6 +71,7 @@ class VkMat;
 class VulkanDevice
 {
 public:
+    VulkanDevice();
     VulkanDevice(int device_index);
     ~VulkanDevice();
 
@@ -88,12 +91,6 @@ private:
 
     std::vector<VkShaderModule> shader_modules;
 };
-
-// VkDescriptorSetLayout descriptorSetLayout;
-// VkPipelineLayout pipelineLayout;
-
-// VkDescriptorSetLayout create_descriptorset_layout(int binding_count);
-// VkPipelineLayout create_pipeline_layout(const VkDescriptorSetLayout& descriptorSetLayout, int push_constant_count);
 
 } // namespace ncnn
 

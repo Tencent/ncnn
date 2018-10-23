@@ -21,6 +21,10 @@
 
 namespace ncnn {
 
+#if NCNN_VULKAN
+class Command;
+class VkAllocator;
+#endif // NCNN_VULKAN
 class Net;
 class ModelBin
 {
@@ -36,6 +40,12 @@ public:
     virtual Mat load(int w, int h, int type) const;
     // load dim
     virtual Mat load(int w, int h, int c, int type) const;
+
+public:
+#if NCNN_VULKAN
+    Command* vk_model_loader;
+    VkAllocator* weight_vkallocator;
+#endif // NCNN_VULKAN
 };
 
 #if NCNN_STDIO

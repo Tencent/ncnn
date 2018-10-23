@@ -185,7 +185,7 @@ public:
     // vkdev = the device
     // type 0 = device local
     // type 1 = host visible
-    VkAllocator(VulkanDevice vkdev, int type);
+    VkAllocator(VulkanDevice* vkdev, int type);
     virtual ~VkAllocator();
 
     virtual VkImage create_image(VkImageType imageType, int w, int h, int c);
@@ -199,10 +199,12 @@ public:
     virtual void destroy_event(VkEvent event);
 
 public:
-    const VulkanDevice vkdev;
+    const VulkanDevice* vkdev;
     const int type;
     const uint32_t compute_queue_index;
     const uint32_t memory_type_index;
+
+    VkDevice device;
 
 private:
     std::vector<VkImage> images_to_destroy;

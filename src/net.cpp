@@ -28,6 +28,10 @@
 #include "benchmark.h"
 #endif // NCNN_BENCHMARK
 
+#if NCNN_VULKAN
+#include "command.h"
+#endif // NCNN_VULKAN
+
 namespace ncnn {
 
 Net::Net()
@@ -36,6 +40,10 @@ Net::Net()
     use_sgemm_convolution = 1;
     use_int8_inference = 1;
     use_vulkan_compute = 1;
+
+#if NCNN_VULKAN
+    vkdev = 0;
+#endif // NCNN_VULKAN
 }
 
 Net::~Net()
@@ -504,6 +512,20 @@ int Net::load_model(FILE* fp)
     int ret = 0;
 
     ModelBinFromStdio mb(fp);
+
+#if NCNN_VULKAN
+    mb.vk_model_loader = 0;
+    VkAllocator* staging_allocator = 0;
+    if (use_vulkan_compute)
+    {
+        staging_allocator = new VkAllocator(vkdev, 1);
+
+        mb.vk_model_loader = new Command(vkdev, staging_allocator);
+        mb.weight_vkallocator = weight_vkallocator;
+        mb.vk_model_loader->begin();
+    }
+#endif // NCNN_VULKAN
+
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
@@ -516,6 +538,21 @@ int Net::load_model(FILE* fp)
             break;
         }
     }
+
+#if NCNN_VULKAN
+    if (use_vulkan_compute)
+    {
+        mb.vk_model_loader->end();
+        mb.vk_model_loader->submit();
+
+//         mb.vk_model_loader->submit();
+
+        delete mb.vk_model_loader;
+
+        staging_allocator->clear();
+        delete staging_allocator;
+    }
+#endif // NCNN_VULKAN
 
     return ret;
 }
@@ -695,6 +732,19 @@ Extractor Net::create_extractor() const
 {
     return Extractor(this, blobs.size());
 }
+
+#if NCNN_VULKAN
+void Net::set_vulkan_device(VulkanDevice* _vkdev)
+{
+    vkdev = _vkdev;
+}
+
+void Net::set_weight_vkallocator(VkAllocator* _weight_vkallocator)
+{
+    weight_vkallocator = _weight_vkallocator;
+}
+
+#endif // NCNN_VULKAN
 
 #if NCNN_STRING
 int Net::find_blob_index_by_name(const char* name) const
@@ -917,99 +967,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
 }
 
 #if NCNN_VULKAN
-int Net::upload_weight_data()
-{
-    for (size_t i=0; i<layers.size(); i++)
-    {
-        Layer* layer = layers[i];
-
-//         std::vector< std::pair<Mat, VkMat> > layer->weight_data_upload;
-#if 0
-        {
-            // image layout
-            VkImageMemoryBarrier imageBarrier;
-            imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            imageBarrier.pNext = 0;
-            imageBarrier.srcAccessMask = 0;
-            imageBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            imageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            imageBarrier.image = layer->weight.image;
-            imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            imageBarrier.subresourceRange.baseMipLevel = 0;
-            imageBarrier.subresourceRange.levelCount = 1;
-            imageBarrier.subresourceRange.baseArrayLayer = 0;
-            imageBarrier.subresourceRange.layerCount = 1;
-
-            vkCmdPipelineBarrier(commandBuffer,
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // srcStageMask
-                VK_PIPELINE_STAGE_TRANSFER_BIT, // dstStageMask
-                0,
-                0, 0, 0, 0,
-                1, &imageBarrier);
-        }
-
-        {
-            // alloc staging buffer
-            // upload to gpu via staging buffer
-            VkBuffer sbbuffer = g_vulkan_hostvisible_allocator->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, weight_ref.w * sizeof(float));
-
-            VkMemoryRequirements memoryRequirements;
-            vkGetBufferMemoryRequirements(device, sbbuffer, &memoryRequirements);
-
-            // memoryRequirements.size
-            // memoryRequirements.alignment
-            // memoryRequirements.memoryTypeBits
-
-            VkDeviceMemory memory = g_vulkan_hostvisible_allocator->fastMalloc(memoryRequirements.size);
-
-            VkResult ret = vkBindBufferMemory(device, sbbuffer, memory, 0);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkBindBufferMemory failed %d\n", ret);
-            }
-
-            // copy
-            {
-            void* mapped_ptr = 0;
-            VkResult ret = vkMapMemory(device, memory, 0, VK_WHOLE_SIZE, 0, &mapped_ptr);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkMapMemory failed %d\n", ret);
-            }
-
-            memcpy(mapped_ptr, weight_ref.data, weight_ref.w * sizeof(float));
-
-            // TODO hold mapped ptr
-            vkUnmapMemory(device, memory);
-            }
-
-            // staging buffer to image
-            VkBufferImageCopy region;
-            region.bufferOffset = 0;
-            region.bufferRowLength = 0;
-            region.bufferImageHeight = 0;
-            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            region.imageSubresource.mipLevel = 0;
-            region.imageSubresource.baseArrayLayer = 0;
-            region.imageSubresource.layerCount = 1;
-            region.imageOffset.x = 0;
-            region.imageOffset.y = 0;
-            region.imageOffset.z = 0;
-            region.imageExtent.width = kw*kh;
-            region.imageExtent.height = inch;
-            region.imageExtent.depth = outch;
-
-            vkCmdCopyBufferToImage(commandBuffer, sbbuffer, layer->weight.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-        }
-#endif
-    }
-
-    return 0;
-}
-
 int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Option& opt) const
 {
     const Layer* layer = layers[layer_index];

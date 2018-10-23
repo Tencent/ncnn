@@ -101,6 +101,14 @@ public:
     // enable vulkan compute
     int use_vulkan_compute;
 
+#if NCNN_VULKAN
+
+    void set_vulkan_device(VulkanDevice* vkdev);
+
+    void set_weight_vkallocator(VkAllocator* weight_vkallocator);
+
+#endif // NCNN_VULKAN
+
 protected:
     friend class Extractor;
 #if NCNN_STRING
@@ -113,8 +121,6 @@ protected:
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt) const;
 
 #if NCNN_VULKAN
-    int upload_weight_data();
-
     int forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Option& opt) const;
     int record_command(int layer_index, std::vector<VkMat>& blob_mats, Option& opt, std::vector<VkEvent>& events, VkCommandBuffer command_buffer) const;
 #endif // NCNN_VULKAN
@@ -124,6 +130,12 @@ protected:
     std::vector<Layer*> layers;
 
     std::vector<layer_registry_entry> custom_layer_registry;
+
+#if NCNN_VULKAN
+    VulkanDevice* vkdev;
+
+    VkAllocator* weight_vkallocator;
+#endif // NCNN_VULKAN
 };
 
 class Extractor

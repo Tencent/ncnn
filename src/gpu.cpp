@@ -32,6 +32,7 @@ namespace ncnn {
 // global
 static VkInstance g_instance = 0;
 static int g_gpu_count = 0;
+static int g_default_gpu_index = -1;
 
 // NOTE 8 is large enough i think ...
 static GpuInfo g_gpu_infos[8];
@@ -191,6 +192,30 @@ static uint32_t find_host_visible_memory(VkPhysicalDeviceMemoryProperties physic
     }
 
     fprintf(stderr, "no host visible memory\n");
+    return -1;
+}
+
+static int find_default_vulkan_device_index()
+{
+    // first try, discrete gpu
+    for (int i=0; i<g_gpu_count; i++)
+    {
+        if (g_gpu_infos[i].type == 0)
+            return i;
+    }
+
+    // second try, integrated gpu
+    for (int i=0; i<g_gpu_count; i++)
+    {
+        if (g_gpu_infos[i].type == 1)
+            return i;
+    }
+
+    // third try, any probed device
+    if (g_gpu_count > 0)
+        return 0;
+
+    fprintf(stderr, "no vulkan device\n");
     return -1;
 }
 
@@ -381,6 +406,9 @@ int create_gpu_instance()
                 gpu_info.compute_queue_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
     }
 
+    // the default gpu device
+    g_default_gpu_index = find_default_vulkan_device_index();
+
     return 0;
 }
 
@@ -396,6 +424,16 @@ void destroy_gpu_instance()
 int get_gpu_count()
 {
     return g_gpu_count;
+}
+
+int get_default_gpu_index()
+{
+    return g_default_gpu_index;
+}
+
+const GpuInfo& get_gpu_info()
+{
+    return g_gpu_infos[g_default_gpu_index];
 }
 
 const GpuInfo& get_gpu_info(int device_index)
@@ -417,6 +455,10 @@ static const layer_shader_registry_entry layer_shader_registry[] =
 };
 
 static const int layer_shader_registry_entry_count = sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry);
+
+VulkanDevice::VulkanDevice() : VulkanDevice(g_default_gpu_index)
+{
+}
 
 VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
 {

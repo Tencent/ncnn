@@ -760,6 +760,8 @@ public:
     VkMat(int w, int h, size_t elemsize, VkAllocator* allocator);
     // dim
     VkMat(int w, int h, int c, size_t elemsize, VkAllocator* allocator);
+    // copy
+    VkMat(const VkMat& m);
     // release
     ~VkMat();
     // assign
@@ -828,6 +830,17 @@ inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* alloc
     create(_w, _h, _c, _elemsize, allocator);
 }
 
+inline VkMat::VkMat(const VkMat& m)
+    : memory(m.memory), image(m.image), imageview(m.imageview), refcount(m.refcount), elemsize(m.elemsize), allocator(m.allocator), dims(m.dims)
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+
+    w = m.w;
+    h = m.h;
+    c = m.c;
+}
+
 inline VkMat::~VkMat()
 {
     release();
@@ -878,11 +891,11 @@ inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
         image = allocator->create_image(VK_IMAGE_TYPE_1D, w, 1, 1);
 
         VkMemoryRequirements memoryRequirements;
-        vkGetImageMemoryRequirements(allocator->vkdev, image, &memoryRequirements);
+        vkGetImageMemoryRequirements(allocator->device, image, &memoryRequirements);
 
         memory = allocator->fastMalloc(memoryRequirements.size);
 
-        vkBindImageMemory(allocator->vkdev, image, memory, 0);
+        vkBindImageMemory(allocator->device, image, memory, 0);
 
         imageview = allocator->create_imageview(VK_IMAGE_VIEW_TYPE_1D, image);
 
@@ -911,11 +924,11 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _alloca
         image = allocator->create_image(VK_IMAGE_TYPE_2D, w, h, 1);
 
         VkMemoryRequirements memoryRequirements;
-        vkGetImageMemoryRequirements(allocator->vkdev, image, &memoryRequirements);
+        vkGetImageMemoryRequirements(allocator->device, image, &memoryRequirements);
 
         memory = allocator->fastMalloc(memoryRequirements.size);
 
-        vkBindImageMemory(allocator->vkdev, image, memory, 0);
+        vkBindImageMemory(allocator->device, image, memory, 0);
 
         imageview = allocator->create_imageview(VK_IMAGE_VIEW_TYPE_2D, image);
 
@@ -944,11 +957,11 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator*
         image = allocator->create_image(VK_IMAGE_TYPE_3D, w, h, c);
 
         VkMemoryRequirements memoryRequirements;
-        vkGetImageMemoryRequirements(allocator->vkdev, image, &memoryRequirements);
+        vkGetImageMemoryRequirements(allocator->device, image, &memoryRequirements);
 
         memory = allocator->fastMalloc(memoryRequirements.size);
 
-        vkBindImageMemory(allocator->vkdev, image, memory, 0);
+        vkBindImageMemory(allocator->device, image, memory, 0);
 
         imageview = allocator->create_imageview(VK_IMAGE_VIEW_TYPE_3D, image);
 
