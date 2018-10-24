@@ -165,9 +165,6 @@ public:
     std::vector<int> specializations;
     int binding_count;
 
-    // vulkan model upload events
-    std::vector<UploadEvent> weight_upload_events;
-
 public:
     // TODO encode dispatch param as buffer
     // dispatch group count

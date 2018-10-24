@@ -772,6 +772,12 @@ public:
     void create(int w, int h, size_t elemsize, VkAllocator* allocator);
     // allocate dim
     void create(int w, int h, int c, size_t elemsize, VkAllocator* allocator);
+    // staging buffer
+    void prepare_staging_buffer(VkAllocator* staging_allocator);
+    // copy to staging buffer
+    void staging_buffer_upload(const Mat& m);
+    // copy from staging buffer
+    void staging_buffer_download(Mat& m);
     // refcount++
     void addref();
     // refcount--
@@ -784,6 +790,11 @@ public:
     VkDeviceMemory memory;
     VkImage image;// ?
     VkImageView imageview;// for GLSL shader
+
+    // staging buffer
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_memory;
+    void* mapped_ptr;
 
     // pointer to the reference counter
     // when points to user-allocated data, the pointer is NULL
@@ -798,6 +809,7 @@ public:
 
     // the allocator
     VkAllocator* allocator;
+    VkAllocator* staging_allocator;
 
     // the dimensionality
     int dims;
@@ -808,30 +820,30 @@ public:
 };
 
 inline VkMat::VkMat()
-    : memory(0), image(0), imageview(0), refcount(0), elemsize(0), allocator(0), dims(0), w(0), h(0), c(0)
+    : memory(0), image(0), imageview(0), staging_buffer(0), staging_memory(0), mapped_ptr(0), refcount(0), elemsize(0), allocator(0), staging_allocator(0), dims(0), w(0), h(0), c(0)
 {
 }
 
 inline VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* allocator)
-    : memory(0), image(0), imageview(0), refcount(0)
+    : memory(0), image(0), imageview(0), staging_buffer(0), staging_memory(0), mapped_ptr(0), refcount(0), staging_allocator(0)
 {
     create(_w, _elemsize, allocator);
 }
 
 inline VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* allocator)
-    : memory(0), image(0), imageview(0), refcount(0)
+    : memory(0), image(0), imageview(0), staging_buffer(0), staging_memory(0), mapped_ptr(0), refcount(0), staging_allocator(0)
 {
     create(_w, _h, _elemsize, allocator);
 }
 
 inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* allocator)
-    : memory(0), image(0), imageview(0), refcount(0)
+    : memory(0), image(0), imageview(0), staging_buffer(0), staging_memory(0), mapped_ptr(0), refcount(0), staging_allocator(0)
 {
     create(_w, _h, _c, _elemsize, allocator);
 }
 
 inline VkMat::VkMat(const VkMat& m)
-    : memory(m.memory), image(m.image), imageview(m.imageview), refcount(m.refcount), elemsize(m.elemsize), allocator(m.allocator), dims(m.dims)
+    : memory(m.memory), image(m.image), imageview(m.imageview), staging_buffer(m.staging_buffer), staging_memory(m.staging_memory), mapped_ptr(m.mapped_ptr), refcount(m.refcount), elemsize(m.elemsize), allocator(m.allocator), dims(m.dims)
 {
     if (refcount)
         NCNN_XADD(refcount, 1);
@@ -859,9 +871,13 @@ inline VkMat& VkMat::operator=(const VkMat& m)
     memory = m.memory;
     image = m.image;
     imageview = m.imageview;
+    staging_buffer = m.staging_buffer;
+    staging_memory = m.staging_memory;
+    mapped_ptr = m.mapped_ptr;
     refcount = m.refcount;
     elemsize = m.elemsize;
     allocator = m.allocator;
+    staging_allocator = m.staging_allocator;
 
     dims = m.dims;
     w = m.w;
@@ -880,6 +896,7 @@ inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
 
     elemsize = _elemsize;
     allocator = _allocator;
+    staging_allocator = 0;
 
     dims = 1;
     w = _w;
@@ -913,6 +930,7 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _alloca
 
     elemsize = _elemsize;
     allocator = _allocator;
+    staging_allocator = 0;
 
     dims = 2;
     w = _w;
@@ -946,6 +964,7 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator*
 
     elemsize = _elemsize;
     allocator = _allocator;
+    staging_allocator = 0;
 
     dims = 3;
     w = _w;
@@ -970,6 +989,68 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator*
     }
 }
 
+inline void VkMat::prepare_staging_buffer(VkAllocator* _staging_allocator)
+{
+    if (staging_allocator)
+    {
+        vkUnmapMemory(staging_allocator->device, staging_memory);
+
+        staging_allocator->destroy_buffer(staging_buffer);
+
+        staging_allocator->fastFree(staging_memory);
+    }
+
+    staging_buffer = 0;
+    staging_memory = 0;
+    mapped_ptr = 0;
+
+    staging_allocator = _staging_allocator;
+
+    if (staging_allocator)
+    {
+        staging_buffer = staging_allocator->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, w * h * c * sizeof(float));
+
+        VkMemoryRequirements memoryRequirements;
+        vkGetBufferMemoryRequirements(staging_allocator->device, staging_buffer, &memoryRequirements);
+
+        staging_memory = staging_allocator->fastMalloc(memoryRequirements.size);
+
+        vkBindBufferMemory(staging_allocator->device, staging_buffer, staging_memory, 0);
+
+        vkMapMemory(staging_allocator->device, staging_memory, 0, VK_WHOLE_SIZE, 0, &mapped_ptr);
+    }
+}
+
+inline void VkMat::staging_buffer_upload(const Mat& m)
+{
+    // TODO check m param and mapped_ptr
+
+    int size = w * h;
+
+    for (int i=0; i<c; i++)
+    {
+        const float* ptr = m.channel(i);
+        float* outptr = (float*)mapped_ptr + size * i;
+
+        memcpy(outptr, ptr, size * sizeof(float));
+    }
+}
+
+inline void VkMat::staging_buffer_download(Mat& m)
+{
+    // TODO check m param and mapped_ptr
+
+    int size = w * h;
+
+    for (int i=0; i<c; i++)
+    {
+        const float* ptr = (const float*)mapped_ptr + size * i;
+        float* outptr = m.channel(i);
+
+        memcpy(outptr, ptr, size * sizeof(float));
+    }
+}
+
 inline void VkMat::addref()
 {
     if (refcount)
@@ -987,14 +1068,26 @@ inline void VkMat::release()
             allocator->destroy_image(image);
 
             allocator->fastFree(memory);
-
-            delete refcount;
         }
+
+        if (staging_allocator)
+        {
+            vkUnmapMemory(staging_allocator->device, staging_memory);
+
+            staging_allocator->destroy_buffer(staging_buffer);
+
+            staging_allocator->fastFree(staging_memory);
+        }
+
+        delete refcount;
     }
 
     memory = 0;
     image = 0;
     imageview = 0;
+    staging_buffer = 0;
+    staging_memory = 0;
+    mapped_ptr = 0;
 
     elemsize = 0;
 

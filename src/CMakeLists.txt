@@ -67,13 +67,7 @@ macro(ncnn_add_layer class)
         if(NCNN_VULKAN)
             if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/layer/shader/${name}.comp")
                 execute_process(COMMAND ${GLSLANGVALIDATOR_EXECUTABLE} -V ${CMAKE_CURRENT_SOURCE_DIR}/layer/shader/${name}.comp -x -o ${CMAKE_CURRENT_BINARY_DIR}/${name}.comp.spv.hex.h)
-                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h
-                    "static const uint32_t ${class}_comp_spv_data[] = {\n#include \"${name}.comp.spv.hex.h\"\n};\n")
-                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h
-                    "{${class}_comp_spv_data,sizeof(${class}_comp_spv_data)},\n")
-            else()
-                file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h
-                    "{0,0},\n")
+                set(WITH_LAYER_${name}_vulkan 1)
             endif()
         endif()
     endif()
@@ -96,8 +90,18 @@ macro(ncnn_add_layer class)
             file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h
                 "#if NCNN_STRING\n{\"${class}\",${class}_layer_creator},\n#else\n{${class}_layer_creator},\n#endif\n")
         endif()
+
+        if(WITH_LAYER_${name}_vulkan)
+            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h
+                "static const uint32_t ${class}_comp_spv_data[] = {\n#include \"${name}.comp.spv.hex.h\"\n};\n")
+            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h
+                "{${class}_comp_spv_data,sizeof(${class}_comp_spv_data)},\n")
+        else()
+            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h "{0,0},\n")
+        endif()
     else()
         file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h "#if NCNN_STRING\n{\"${class}\",0},\n#else\n{0},\n#endif\n")
+        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h "{0,0},\n")
     endif()
 
     # generate layer_type_enum file
@@ -180,7 +184,9 @@ install(TARGETS ncnn ARCHIVE DESTINATION lib)
 install(FILES
     allocator.h
     blob.h
+    command.h
     cpu.h
+    gpu.h
     layer.h
     layer_type.h
     mat.h

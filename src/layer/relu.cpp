@@ -28,6 +28,15 @@ int ReLU::load_param(const ParamDict& pd)
 {
     slope = pd.get(0, 0.f);
 
+#if NCNN_VULKAN
+    // setup pipeline specializations
+    specializations.resize(0);
+
+//     specializations[0] = kernel_w;
+
+    binding_count = 1;
+#endif // NCNN_VULKAN
+
     return 0;
 }
 
@@ -69,5 +78,28 @@ int ReLU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int ReLU::forward_inplace(VkMat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+
+    // update descriptor set FIXME TODO
+    std::vector<VkMat> bindings;
+    bindings.resize(1);
+
+    bindings[0] = bottom_top_blob;
+
+    update_descriptorset(bindings);
+
+//     group_count_x = (top_blob.w + 3) / 4;
+//     group_count_y = (top_blob.h + 3) / 4;
+//     group_count_z = (top_blob.c + 3) / 4;
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

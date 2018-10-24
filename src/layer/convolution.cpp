@@ -55,6 +55,23 @@ int Convolution::load_param(const ParamDict& pd)
     if (int8_scale_term == 0)
         use_int8_inference = false;
 
+#if NCNN_VULKAN
+    // setup pipeline specializations
+    specializations.resize(9);
+
+    specializations[0] = kernel_w;
+    specializations[1] = kernel_h;
+    specializations[2] = dilation_w;
+    specializations[3] = dilation_h;
+    specializations[4] = stride_w;
+    specializations[5] = stride_h;
+    specializations[6] = pad_w;
+    specializations[7] = pad_h;
+    specializations[8] = bias_term;
+
+    binding_count = 4;
+#endif // NCNN_VULKAN
+
     return 0;
 }
 
@@ -138,32 +155,21 @@ int Convolution::load_model(const ModelBin& mb)
 #if NCNN_VULKAN
     if (mb.vk_model_loader)
     {
-        // setup pipeline specializations
-        specializations.resize(9);
-
-        specializations[0] = kernel_w;
-        specializations[1] = kernel_h;
-        specializations[2] = dilation_w;
-        specializations[3] = dilation_h;
-        specializations[4] = stride_w;
-        specializations[5] = stride_h;
-        specializations[6] = pad_w;
-        specializations[7] = pad_h;
-        specializations[8] = bias_term;
-
-        binding_count = 4;
-
         // upload weight data
-        int num_input = weight_data_size / kernel_w * kernel_h / num_output;
+        int num_input = weight_data_size / kernel_w / kernel_h / num_output;
 
         weight_data_gpu.create(kernel_w * kernel_h, num_input, num_output, 4u, mb.weight_vkallocator);
 
         bias_data_gpu.create(bias_data.w, 4u, mb.weight_vkallocator);
 
-        weight_upload_events.resize(2);
+        mb.vk_model_loader->record_imagelayout_barrier(weight_data_gpu, 0);
+        mb.vk_model_loader->record_imagelayout_barrier(bias_data_gpu, 0);
 
-        weight_upload_events[0] = mb.vk_model_loader->record_upload(weight_data, weight_data_gpu);
-        weight_upload_events[1] = mb.vk_model_loader->record_upload(bias_data, bias_data_gpu);
+        mb.vk_model_loader->record_upload(weight_data, weight_data_gpu);
+        mb.vk_model_loader->record_upload(bias_data, bias_data_gpu);
+
+        mb.vk_model_loader->record_imagelayout_barrier(weight_data_gpu, 1);
+        mb.vk_model_loader->record_imagelayout_barrier(bias_data_gpu, 1);
     }
 #endif // NCNN_VULKAN
 
@@ -398,7 +404,6 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -429,7 +434,6 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option
 
     return 0;
 }
-
 #endif // NCNN_VULKAN
 
 } // namespace ncnn

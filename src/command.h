@@ -24,34 +24,7 @@
 
 namespace ncnn {
 
-class UploadEvent
-{
-public:
-    VkEvent event;
-    Mat src;
-    VkMat dst;
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_memory;
-};
-
-class DownloadEvent
-{
-public:
-    VkEvent event;
-    VkMat src;
-    Mat dst;
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_memory;
-};
-
 class Layer;
-class LayerEvent
-{
-public:
-    VkEvent event;
-    const Layer* layer;
-};
-
 class Command
 {
 public:
@@ -60,29 +33,25 @@ public:
 
     int begin();
 
-    UploadEvent record_upload(const Mat& src, const VkMat& dst);
-    std::vector<UploadEvent> record_upload(const std::vector<Mat>& srcs, const std::vector<VkMat>& dsts);
+    // 0 = undefined to transfer-dst-optimal
+    // 1 = transfer-dst-optimal to general
+    // 2 = undefined to general
+    // 3 = general to transfer-src-optimal
+    void record_imagelayout_barrier(VkMat& image, int type);
 
-    void wait_upload(UploadEvent& event);
-    void wait_upload(std::vector<UploadEvent>& events);
+    void record_upload(const Mat& src, VkMat& dst);
 
-    DownloadEvent record_download(const VkMat& src, const Mat& dst);
-    std::vector<DownloadEvent> record_download(const std::vector<VkMat>& srcs, const std::vector<Mat>& dsts);
+    void record_download(VkMat& src, const Mat& dst);
 
-    void wait_download(DownloadEvent& event);
-    void wait_download(std::vector<DownloadEvent>& events);
+    void record_layer(const Layer* layer, uint32_t group_count_xyz[3]);
 
-    LayerEvent record_layer(const Layer* layer, uint32_t group_count_xyz[3]);
-
-    void wait_layer(LayerEvent& event);
+    void record_compute_barrier();
 
     int end();
 
     int submit();
 
-public:
-    int copy_mat_to_staging(const Mat& src, VkDeviceMemory staging_memory);
-    int copy_staging_to_mat(VkDeviceMemory staging_memory, Mat& dst);
+    int wait();
 
 protected:
     int create_command_pool();
@@ -97,6 +66,8 @@ public:
 
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
+
+    VkFence fence;
 };
 
 } // namespace ncnn

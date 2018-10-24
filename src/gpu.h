@@ -63,16 +63,14 @@ public:
     uint32_t host_visible_memory_index;
 };
 
-const GpuInfo& get_gpu_info();
-const GpuInfo& get_gpu_info(int device_index);
+const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());
 
 class VkAllocator;
 class VkMat;
 class VulkanDevice
 {
 public:
-    VulkanDevice();
-    VulkanDevice(int device_index);
+    VulkanDevice(int device_index = get_default_gpu_index());
     ~VulkanDevice();
 
     const GpuInfo& info;

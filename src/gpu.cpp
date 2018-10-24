@@ -431,11 +431,6 @@ int get_default_gpu_index()
     return g_default_gpu_index;
 }
 
-const GpuInfo& get_gpu_info()
-{
-    return g_gpu_infos[g_default_gpu_index];
-}
-
 const GpuInfo& get_gpu_info(int device_index)
 {
     return g_gpu_infos[device_index];
@@ -455,10 +450,6 @@ static const layer_shader_registry_entry layer_shader_registry[] =
 };
 
 static const int layer_shader_registry_entry_count = sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry);
-
-VulkanDevice::VulkanDevice() : VulkanDevice(g_default_gpu_index)
-{
-}
 
 VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
 {
@@ -522,6 +513,8 @@ int VulkanDevice::create_shader_module()
             fprintf(stderr, "vkCreateShaderModule failed %d\n", ret);
             return -1;
         }
+
+        fprintf(stderr, "shader_module %d created\n", i);
     }
 
     return 0;
@@ -540,7 +533,10 @@ void VulkanDevice::destroy_shader_module()
 VkShaderModule VulkanDevice::get_shader_module(int type_index)
 {
     if (type_index < 0 || type_index >= (int)shader_modules.size())
+    {
+        fprintf(stderr, "type_index out of range\n");
         return 0;
+    }
 
     return shader_modules[type_index];
 }
