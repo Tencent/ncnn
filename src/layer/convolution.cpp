@@ -428,9 +428,9 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option
 
     update_descriptorset(bindings);
 
-//     group_count_x = (top_blob.w + 3) / 4;
-//     group_count_y = (top_blob.h + 3) / 4;
-//     group_count_z = (top_blob.c + 3) / 4;
+    group_count_x = (top_blob.w + 3) / 4;
+    group_count_y = (top_blob.h + 3) / 4;
+    group_count_z = (top_blob.c + 3) / 4;
 
     return 0;
 }

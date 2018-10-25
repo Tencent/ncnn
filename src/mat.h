@@ -991,6 +991,11 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator*
 
 inline void VkMat::prepare_staging_buffer(VkAllocator* _staging_allocator)
 {
+    if (mapped_ptr && staging_allocator == _staging_allocator)
+    {
+        return;
+    }
+
     if (staging_allocator)
     {
         vkUnmapMemory(staging_allocator->device, staging_memory);
@@ -1024,30 +1029,34 @@ inline void VkMat::prepare_staging_buffer(VkAllocator* _staging_allocator)
 inline void VkMat::staging_buffer_upload(const Mat& m)
 {
     // TODO check m param and mapped_ptr
+    // assert w * h * c == m.w * m.h * m.c
 
-    int size = w * h;
-
-    for (int i=0; i<c; i++)
+    int size = m.w * m.h;
+    float* outptr = (float*)mapped_ptr;
+    for (int i=0; i<m.c; i++)
     {
         const float* ptr = m.channel(i);
-        float* outptr = (float*)mapped_ptr + size * i;
 
         memcpy(outptr, ptr, size * sizeof(float));
+
+        outptr += size;
     }
 }
 
 inline void VkMat::staging_buffer_download(Mat& m)
 {
     // TODO check m param and mapped_ptr
+    // assert w * h * c == m.w * m.h * m.c
 
-    int size = w * h;
-
-    for (int i=0; i<c; i++)
+    int size = m.w * m.h;
+    const float* ptr = (const float*)mapped_ptr;
+    for (int i=0; i<m.c; i++)
     {
-        const float* ptr = (const float*)mapped_ptr + size * i;
         float* outptr = m.channel(i);
 
         memcpy(outptr, ptr, size * sizeof(float));
+
+        ptr += size;
     }
 }
 

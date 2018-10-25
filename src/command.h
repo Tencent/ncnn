@@ -43,7 +43,7 @@ public:
 
     void record_download(VkMat& src, const Mat& dst);
 
-    void record_layer(const Layer* layer, uint32_t group_count_xyz[3]);
+    void record_layer(const Layer* layer);
 
     void record_compute_barrier();
 

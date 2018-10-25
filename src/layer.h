@@ -168,9 +168,9 @@ public:
 public:
     // TODO encode dispatch param as buffer
     // dispatch group count
-//     uint32_t group_count_x;
-//     uint32_t group_count_y;
-//     uint32_t group_count_z;
+    mutable uint32_t group_count_x;
+    mutable uint32_t group_count_y;
+    mutable uint32_t group_count_z;
 
 #endif // NCNN_VULKAN
 

@@ -234,6 +234,14 @@ int Layer::create_pipeline()
     std::vector<VkSpecializationMapEntry> specializationMapEntries;
     specializationMapEntries.resize(specializations.size());
 
+    for (int i=0; i<(int)specializations.size(); i++)
+    {
+        // TODO start from 1 for workaround on nvidia driver ?
+        specializationMapEntries[i].constantID = i;
+        specializationMapEntries[i].offset = i * sizeof(int);
+        specializationMapEntries[i].size = sizeof(int);
+    }
+
     VkSpecializationInfo specializationInfo;
     specializationInfo.mapEntryCount = specializations.size();
     specializationInfo.pMapEntries = specializationMapEntries.data();
@@ -313,13 +321,15 @@ int Layer::create_descriptorset()
 
 void Layer::update_descriptorset(const std::vector<VkMat>& bindings) const
 {
+    // assert binding_count == bindings.size()
+
     std::vector<VkDescriptorImageInfo> descriptorImageInfos;
-    descriptorImageInfos.resize(bindings.size());
+    descriptorImageInfos.resize(binding_count);
 
     std::vector<VkWriteDescriptorSet> writeDescriptorSets;
-    writeDescriptorSets.resize(bindings.size());
+    writeDescriptorSets.resize(binding_count);
 
-    for (int i=0; i<(int)bindings.size(); i++)
+    for (int i=0; i<binding_count; i++)
     {
         descriptorImageInfos[i].sampler = 0;
         descriptorImageInfos[i].imageView = bindings[i].imageview;
@@ -337,7 +347,7 @@ void Layer::update_descriptorset(const std::vector<VkMat>& bindings) const
         writeDescriptorSets[i].pTexelBufferView = 0;
     }
 
-    vkUpdateDescriptorSets(device, bindings.size(), writeDescriptorSets.data(), 0, 0);
+    vkUpdateDescriptorSets(device, binding_count, writeDescriptorSets.data(), 0, 0);
 }
 #endif // NCNN_VULKAN
 

@@ -2,15 +2,15 @@
 
 layout (local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
 
-layout (constant_id = 1) const int kernel_w = 1;
-layout (constant_id = 2) const int kernel_h = 1;
-layout (constant_id = 3) const int dilation_w = 1;
-layout (constant_id = 4) const int dilation_h = 1;
-layout (constant_id = 5) const int stride_w = 1;
-layout (constant_id = 6) const int stride_h = 1;
-layout (constant_id = 7) const int pad_w = 0;
-layout (constant_id = 8) const int pad_h = 0;
-layout (constant_id = 9) const int bias_term = 0;
+layout (constant_id = 0) const int kernel_w = 1;
+layout (constant_id = 1) const int kernel_h = 1;
+layout (constant_id = 2) const int dilation_w = 1;
+layout (constant_id = 3) const int dilation_h = 1;
+layout (constant_id = 4) const int stride_w = 1;
+layout (constant_id = 5) const int stride_h = 1;
+layout (constant_id = 6) const int pad_w = 0;
+layout (constant_id = 7) const int pad_h = 0;
+layout (constant_id = 8) const int bias_term = 0;
 
 layout (binding = 0, r32f) uniform readonly image3D bottom_blob;
 layout (binding = 1, r32f) uniform writeonly image3D top_blob;
