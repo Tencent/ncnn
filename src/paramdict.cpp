@@ -13,6 +13,8 @@
 // specific language governing permissions and limitations under the License.
 
 #include <ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include "paramdict.h"
 #include "platform.h"
 
@@ -172,9 +174,32 @@ int ParamDict::load_param(FILE* fp)
     return 0;
 }
 
-#define mem_sscanf(ptr, format, ...)  ({int _b=0; int _n = sscanf(ptr, format "%n", __VA_ARGS__, &_b); ptr+=_b;_b>0?_n:0;}) 
+#if _MSC_VER
+static inline int mem_sscanf_with_n(int* _internal_nconsumed_ptr, const char*& ptr, const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
 
-int ParamDict::load_param_mem(const char*& mem){
+    int _n = vsscanf(ptr, format, args);
+
+    va_end(args);
+
+    ptr += *_internal_nconsumed_ptr;
+
+    return *_internal_nconsumed_ptr > 0 ? _n : 0;
+}
+#define mem_sscanf(ptr, format, ...)  mem_sscanf_with_n(&_internal_nconsumed, ptr, format "%n", __VA_ARGS__, &_internal_nconsumed)
+#else
+// return value from macro requires gcc extension https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html
+#define mem_sscanf(ptr, format, ...)  ({int _b=0; int _n = sscanf(ptr, format "%n", __VA_ARGS__, &_b); ptr+=_b;_b>0?_n:0;})
+#endif // _MSC_VER
+
+int ParamDict::load_param_mem(const char*& mem)
+{
+#if _MSC_VER
+    int _internal_nconsumed;
+#endif
+
     clear();
 
 //     0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0

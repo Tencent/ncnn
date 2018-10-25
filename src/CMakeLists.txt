@@ -153,6 +153,10 @@ ncnn_add_layer(Dequantize)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
+if(COVERAGE)
+    target_compile_options(ncnn PRIVATE --coverage)
+endif()
+
 install(TARGETS ncnn ARCHIVE DESTINATION lib)
 install(FILES
     allocator.h

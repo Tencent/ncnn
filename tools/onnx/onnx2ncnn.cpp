@@ -823,7 +823,7 @@ int main(int argc, char** argv)
         {
             const onnx::TensorProto& W = weights[node.input(1)];
 
-            int num_filter = W.dims(0);
+            int num_filter = W.dims(1);
             int has_bias = node.input_size() == 3 ? 1 : 0;
 
             std::string auto_pad = get_node_attr_s(node, "auto_pad");//TODO
