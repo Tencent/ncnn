@@ -15,6 +15,7 @@
 #include "convolution.h"
 
 #include "layer_type.h"
+#include <math.h>
 
 namespace ncnn {
 
@@ -57,37 +58,20 @@ int Convolution::load_param(const ParamDict& pd)
 
 #if NCNN_VULKAN
 
-    // TODO FIXME do not hardcode x * y * z = 256
-    if (num_output > 256)
+    local_size_z = pd.max_workgroup_size[2];
+    while (num_output < local_size_z)
     {
-        local_size_x = 1;
-        local_size_y = 1;
-        local_size_z = 256;
+        local_size_z /= 2;
     }
-    else if (num_output > 64)
+
+    int local_size_xy = sqrt(pd.max_workgroup_invocations / local_size_z);
+    int local_size_xy_prefer = 64;
+    while (local_size_xy < local_size_xy_prefer)
     {
-        local_size_x = 2;
-        local_size_y = 2;
-        local_size_z = 64;
+        local_size_xy_prefer /= 2;
     }
-    else if (num_output > 16)
-    {
-        local_size_x = 4;
-        local_size_y = 4;
-        local_size_z = 16;
-    }
-    else if (num_output > 4)
-    {
-        local_size_x = 8;
-        local_size_y = 8;
-        local_size_z = 4;
-    }
-    else // if (num_output > 1)
-    {
-        local_size_x = 16;
-        local_size_y = 16;
-        local_size_z = 1;
-    }
+    local_size_x = local_size_xy_prefer;
+    local_size_y = local_size_xy_prefer;
 
     // setup pipeline specializations
     specializations.resize(9);

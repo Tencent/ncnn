@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "relu.h"
+#include <math.h>
 
 namespace ncnn {
 
@@ -29,9 +30,17 @@ int ReLU::load_param(const ParamDict& pd)
     slope = pd.get(0, 0.f);
 
 #if NCNN_VULKAN
-    local_size_x = 4;
-    local_size_y = 4;
-    local_size_z = 16;
+
+    local_size_z = std::max(128, pd.max_workgroup_size[2]);
+
+    int local_size_xy = sqrt(pd.max_workgroup_invocations / local_size_z);
+    int local_size_xy_prefer = 256;
+    while (local_size_xy < local_size_xy_prefer)
+    {
+        local_size_xy_prefer /= 2;
+    }
+    local_size_x = local_size_xy_prefer;
+    local_size_y = local_size_xy_prefer;
 
     // setup pipeline specializations
     specializations.resize(0);
