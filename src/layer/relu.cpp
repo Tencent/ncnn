@@ -31,7 +31,7 @@ int ReLU::load_param(const ParamDict& pd)
 
 #if NCNN_VULKAN
 
-    local_size_z = std::max(128, pd.max_workgroup_size[2]);
+    local_size_z = std::min(128, pd.max_workgroup_size[2]);
 
     int local_size_xy = sqrt(pd.max_workgroup_invocations / local_size_z);
     int local_size_xy_prefer = 256;
