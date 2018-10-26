@@ -195,7 +195,7 @@ void Command::record_download(VkMat& src, const Mat& dst)
     vkCmdCopyImageToBuffer(command_buffer, src.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, src.staging_buffer, 1, &region);
 }
 
-void Command::record_layer(const Layer* layer)
+void Command::record_layer(const Layer* layer, const uint32_t* group_count_xyz)
 {
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline);
 
@@ -203,16 +203,9 @@ void Command::record_layer(const Layer* layer)
 
 //     vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc_data), &pcdata);
 
-    fprintf(stderr, "dispatch %d %d %d\n", layer->group_count_x, layer->group_count_y, layer->group_count_z);
+    fprintf(stderr, "dispatch %d %d %d\n", group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
 
-    vkCmdDispatch(command_buffer, layer->group_count_x, layer->group_count_y, layer->group_count_z);
-
-//     VkDispatchIndirectCommand dispatch_param;
-//     dispatch_param.x = group_x;
-//     dispatch_param.y = group_y;
-//     dispatch_param.z = group_z;
-
-//     vkCmdDispatchIndirect(commandBuffer, buffer, offset);
+    vkCmdDispatch(command_buffer, group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
 }
 
 void Command::record_compute_barrier()

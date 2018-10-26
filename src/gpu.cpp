@@ -25,7 +25,11 @@
 
 #include "mat.h"
 
+#if __ANDROID__
+#define ENABLE_VALIDATION_LAYER 0
+#else
 #define ENABLE_VALIDATION_LAYER 1
+#endif
 
 namespace ncnn {
 

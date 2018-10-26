@@ -162,15 +162,12 @@ protected:
 public:
     VkDevice device;
 
+    int local_size_x;
+    int local_size_y;
+    int local_size_z;
+
     std::vector<int> specializations;
     int binding_count;
-
-public:
-    // TODO encode dispatch param as buffer
-    // dispatch group count
-    mutable uint32_t group_count_x;
-    mutable uint32_t group_count_y;
-    mutable uint32_t group_count_z;
 
 #endif // NCNN_VULKAN
 

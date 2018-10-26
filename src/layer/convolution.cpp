@@ -56,6 +56,39 @@ int Convolution::load_param(const ParamDict& pd)
         use_int8_inference = false;
 
 #if NCNN_VULKAN
+
+    // TODO FIXME do not hardcode x * y * z = 256
+    if (num_output >= 256)
+    {
+        local_size_x = 1;
+        local_size_y = 1;
+        local_size_z = 256;
+    }
+    else if (num_output >= 64)
+    {
+        local_size_x = 2;
+        local_size_y = 2;
+        local_size_z = 64;
+    }
+    else if (num_output >= 16)
+    {
+        local_size_x = 4;
+        local_size_y = 4;
+        local_size_z = 16;
+    }
+    else if (num_output >= 4)
+    {
+        local_size_x = 8;
+        local_size_y = 8;
+        local_size_z = 4;
+    }
+    else // if (num_output >= 1)
+    {
+        local_size_x = 16;
+        local_size_y = 16;
+        local_size_z = 1;
+    }
+
     // setup pipeline specializations
     specializations.resize(9);
 
@@ -70,6 +103,7 @@ int Convolution::load_param(const ParamDict& pd)
     specializations[8] = bias_term;
 
     binding_count = 4;
+
 #endif // NCNN_VULKAN
 
     return 0;
@@ -427,10 +461,6 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option
     bindings[3] = bias_data_gpu;
 
     update_descriptorset(bindings);
-
-    group_count_x = (top_blob.w + 7) / 8;
-    group_count_y = (top_blob.h + 7) / 8;
-    group_count_z = (top_blob.c + 7) / 8;
 
     return 0;
 }

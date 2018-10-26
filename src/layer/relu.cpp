@@ -29,6 +29,10 @@ int ReLU::load_param(const ParamDict& pd)
     slope = pd.get(0, 0.f);
 
 #if NCNN_VULKAN
+    local_size_x = 4;
+    local_size_y = 4;
+    local_size_z = 16;
+
     // setup pipeline specializations
     specializations.resize(0);
 
@@ -93,10 +97,6 @@ int ReLU::forward_inplace(VkMat& bottom_top_blob, const Option& opt) const
     bindings[0] = bottom_top_blob;
 
     update_descriptorset(bindings);
-
-    group_count_x = (bottom_top_blob.w + 7) / 8;
-    group_count_y = (bottom_top_blob.h + 7) / 8;
-    group_count_z = (bottom_top_blob.c + 7) / 8;
 
     return 0;
 }
