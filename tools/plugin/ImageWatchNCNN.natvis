@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <UIVisualizer ServiceId="{A452AFEA-3DF6-46BB-9177-C0B08F318025}" Id="1" MenuName="Add to Image Watch"/>
+
+  <!-- Tencent NCNN ncnn::Mat support -->
+
+  <Type Name="ncnn::Mat">
+    <UIVisualizer ServiceId="{A452AFEA-3DF6-46BB-9177-C0B08F318025}" Id="1" />
+  </Type>
+
+  <Type Name="ncnn::Mat">
+    <DisplayString Condition="elemsize==4">{{FLOAT32, {c} x {w} x {h}}}</DisplayString>
+    <DisplayString Condition="elemsize==2">{{FLOAT16, {c} x {w} x {h}}}</DisplayString>
+    <DisplayString Condition="elemsize==1">{{INT8, {c} x {w} x {h}}}</DisplayString>
+    <Expand>
+      <Synthetic Name="[type]" Condition="elemsize==4">
+        <DisplayString>FLOAT32</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[type]" Condition="elemsize==2">
+        <DisplayString>FLOAT16</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[type]" Condition="elemsize==1">
+        <DisplayString>INT8</DisplayString>
+      </Synthetic>
+      <Item Name="[channels]">c</Item>
+      <Item Name="[width]">w</Item>
+      <Item Name="[height]">h</Item>
+      <Item Name="[planes]">c</Item>
+      <Item Name="[data]" Condition="elemsize==4">((float*)(data))</Item>
+      <Item Name="[data]" Condition="elemsize==2">data</Item>
+      <Item Name="[data]" Condition="elemsize==1">data</Item>
+      <Item Name="[stride]" Condition="elemsize==1">w</Item>
+      <Item Name="[stride]" Condition="elemsize==2">w*2</Item>
+      <Item Name="[stride]" Condition="elemsize==4">w*4</Item>
+    </Expand>
+  </Type>
+</AutoVisualizer>
