@@ -94,9 +94,9 @@ int ReLU::forward_inplace(VkMat& bottom_top_blob, const Option& opt) const
 
     update_descriptorset(bindings);
 
-//     group_count_x = (top_blob.w + 3) / 4;
-//     group_count_y = (top_blob.h + 3) / 4;
-//     group_count_z = (top_blob.c + 3) / 4;
+    group_count_x = (bottom_top_blob.w + 7) / 8;
+    group_count_y = (bottom_top_blob.h + 7) / 8;
+    group_count_z = (bottom_top_blob.c + 7) / 8;
 
     return 0;
 }

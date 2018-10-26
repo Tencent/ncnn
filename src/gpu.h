@@ -51,16 +51,16 @@ public:
     int max_workgroup_invocations;
     int max_workgroup_size[3];
 
-    // TODO extension capability
-    int support_VK_KHR_descriptor_update_template;
-    int support_VK_KHR_push_descriptor;
-    int support_VK_AMD_gpu_shader_half_float;
-
     // runtime
     uint32_t compute_queue_index;
 
     uint32_t device_local_memory_index;
     uint32_t host_visible_memory_index;
+
+    // extension capability
+    int support_VK_KHR_descriptor_update_template;
+    int support_VK_KHR_push_descriptor;
+    int support_VK_AMD_gpu_shader_half_float;
 };
 
 const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());
@@ -79,10 +79,22 @@ public:
 
     VkShaderModule get_shader_module(int type_index);
 
+    // VK_KHR_descriptor_update_template
+    PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;
+    PFN_vkDestroyDescriptorUpdateTemplateKHR vkDestroyDescriptorUpdateTemplateKHR;
+    PFN_vkUpdateDescriptorSetWithTemplateKHR vkUpdateDescriptorSetWithTemplateKHR;
+    PFN_vkCmdPushDescriptorSetWithTemplateKHR vkCmdPushDescriptorSetWithTemplateKHR;
+
+    // support_VK_KHR_push_descriptor
+    PFN_vkCmdPushDescriptorSetKHR vkCmdPushDescriptorSetKHR;
+
 protected:
     // shader management
     int create_shader_module();
     void destroy_shader_module();
+
+    // device extension
+    int init_device_extension();
 
 private:
     VkDevice device;

@@ -40,35 +40,6 @@ static GpuInfo g_gpu_infos[8];
 #if ENABLE_VALIDATION_LAYER
 static VkDebugUtilsMessengerEXT callback;
 
-const char* validationLayers[] = {
-    "VK_LAYER_LUNARG_standard_validation"
-};
-
-const char* validationExtensions[] = {
-    VK_EXT_DEBUG_UTILS_EXTENSION_NAME
-};
-
-bool checkValidationLayerSupport()
-{
-    uint32_t layerCount;
-    vkEnumerateInstanceLayerProperties(&layerCount, NULL);
-
-    std::vector<VkLayerProperties> availableLayers(layerCount);
-    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-    const char* layerName = validationLayers[0];
-    for (size_t i=0; i<availableLayers.size(); i++)
-    {
-//         fprintf(stderr, "%s\n", availableLayers[i].layerName);
-        if (strcmp(layerName, availableLayers[i].layerName) == 0)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT /*messageSeverity*/,
     VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,
@@ -221,15 +192,77 @@ static int find_default_vulkan_device_index()
 
 int create_gpu_instance()
 {
-#if ENABLE_VALIDATION_LAYER
-    if (!checkValidationLayerSupport())
+    VkResult ret;
+
+    std::vector<const char*> enabledLayers;
+
+    uint32_t instanceLayerPropertyCount;
+    ret = vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, NULL);
+    if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "validation layers requested, but not available!\n");
+        fprintf(stderr, "vkEnumerateInstanceLayerProperties failed %d\n", ret);
         return -1;
     }
-#endif // ENABLE_VALIDATION_LAYER
 
-    VkResult ret;
+    std::vector<VkLayerProperties> instanceLayerProperties(instanceLayerPropertyCount);
+    ret = vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, instanceLayerProperties.data());
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkEnumerateInstanceLayerProperties failed %d\n", ret);
+        return -1;
+    }
+
+    for (int i=0; i<instanceLayerPropertyCount; i++)
+    {
+        const VkLayerProperties& lp = instanceLayerProperties[i];
+//         fprintf(stderr, "instance layer %s = %u\n", lp.layerName, lp.implementationVersion);
+
+#if ENABLE_VALIDATION_LAYER
+        if (strcmp(lp.layerName, "VK_LAYER_LUNARG_standard_validation") == 0)
+        {
+            enabledLayers.push_back("VK_LAYER_LUNARG_standard_validation");
+        }
+        if (strcmp(lp.layerName, "VK_LAYER_LUNARG_parameter_validation") == 0)
+        {
+            enabledLayers.push_back("VK_LAYER_LUNARG_parameter_validation");
+        }
+#endif // ENABLE_VALIDATION_LAYER
+    }
+
+    std::vector<const char*> enabledExtensions;
+
+    uint32_t instanceExtensionPropertyCount;
+    ret = vkEnumerateInstanceExtensionProperties(NULL, &instanceExtensionPropertyCount, NULL);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkEnumerateInstanceExtensionProperties failed %d\n", ret);
+        return -1;
+    }
+
+    std::vector<VkExtensionProperties> instanceExtensionProperties(instanceExtensionPropertyCount);
+    ret = vkEnumerateInstanceExtensionProperties(NULL, &instanceExtensionPropertyCount, instanceExtensionProperties.data());
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkEnumerateInstanceExtensionProperties failed %d\n", ret);
+        return -1;
+    }
+
+    for (int j=0; j<instanceExtensionPropertyCount; j++)
+    {
+        const VkExtensionProperties& exp = instanceExtensionProperties[j];
+//         fprintf(stderr, "instance extension %s = %u\n", exp.extensionName, exp.specVersion);
+
+        if (strcmp(exp.extensionName, "VK_KHR_get_physical_device_properties2") == 0)
+        {
+            enabledExtensions.push_back("VK_KHR_get_physical_device_properties2");
+        }
+#if ENABLE_VALIDATION_LAYER
+        if (strcmp(exp.extensionName, "VK_EXT_debug_utils") == 0)
+        {
+            enabledExtensions.push_back("VK_EXT_debug_utils");
+        }
+#endif // ENABLE_VALIDATION_LAYER
+    }
 
     VkApplicationInfo applicationInfo;
     applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -237,7 +270,7 @@ int create_gpu_instance()
     applicationInfo.pApplicationName = "ncnn";
     applicationInfo.applicationVersion = 0;
     applicationInfo.pEngineName = "ncnn";
-    applicationInfo.engineVersion = 20180927;
+    applicationInfo.engineVersion = 20181026;
     applicationInfo.apiVersion = VK_MAKE_VERSION(1, 0, 0);
 
     VkInstanceCreateInfo instanceCreateInfo;
@@ -245,17 +278,10 @@ int create_gpu_instance()
     instanceCreateInfo.pNext = 0;
     instanceCreateInfo.flags = 0;
     instanceCreateInfo.pApplicationInfo = &applicationInfo;
-#if ENABLE_VALIDATION_LAYER
-    instanceCreateInfo.enabledLayerCount = 1;
-    instanceCreateInfo.ppEnabledLayerNames = validationLayers;
-    instanceCreateInfo.enabledExtensionCount = 1;
-    instanceCreateInfo.ppEnabledExtensionNames = validationExtensions;
-#else
-    instanceCreateInfo.enabledLayerCount = 0;
-    instanceCreateInfo.ppEnabledLayerNames = 0;
-    instanceCreateInfo.enabledExtensionCount = 0;
-    instanceCreateInfo.ppEnabledExtensionNames = 0;
-#endif // ENABLE_VALIDATION_LAYER
+    instanceCreateInfo.enabledLayerCount = enabledLayers.size();
+    instanceCreateInfo.ppEnabledLayerNames = enabledLayers.data();
+    instanceCreateInfo.enabledExtensionCount = enabledExtensions.size();
+    instanceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
 
     ret = vkCreateInstance(&instanceCreateInfo, 0, &g_instance);
     if (ret != VK_SUCCESS)
@@ -377,30 +403,41 @@ int create_gpu_instance()
         gpu_info.device_local_memory_index = find_device_local_memory(physicalDeviceMemoryProperties);
         gpu_info.host_visible_memory_index = find_host_visible_memory(physicalDeviceMemoryProperties);
 
-//     // TODO get device extension
-//     uint32_t deviceExtensionPropertyCount = 0;
-//     ret = vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, &deviceExtensionPropertyCount, NULL);
-//     if (ret != VK_SUCCESS)
-//     {
-//         fprintf(stderr, "vkEnumerateDeviceExtensionProperties failed %d\n", ret);
-//         return -1;
-//     }
-//
-//     fprintf(stderr, "deviceExtensionPropertyCount = %d\n", deviceExtensionPropertyCount);
-//
-//     std::vector<VkExtensionProperties> deviceExtensionProperties(deviceExtensionPropertyCount);
-//     ret = vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, &deviceExtensionPropertyCount, deviceExtensionProperties.data());
-//     if (ret != VK_SUCCESS)
-//     {
-//         fprintf(stderr, "vkEnumerateDeviceExtensionProperties failed %d\n", ret);
-//         return -1;
-//     }
-//
-//     for (uint32_t i=0; i<deviceExtensionPropertyCount; i++)
-//     {
-//         const VkExtensionProperties exp = deviceExtensionProperties[i];
-//         fprintf(stderr, "%s = %u\n", exp.extensionName, exp.specVersion);
-//     }
+        // get device extension
+        uint32_t deviceExtensionPropertyCount = 0;
+        ret = vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, &deviceExtensionPropertyCount, NULL);
+        if (ret != VK_SUCCESS)
+        {
+            fprintf(stderr, "vkEnumerateDeviceExtensionProperties failed %d\n", ret);
+            return -1;
+        }
+
+        std::vector<VkExtensionProperties> deviceExtensionProperties(deviceExtensionPropertyCount);
+        ret = vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, &deviceExtensionPropertyCount, deviceExtensionProperties.data());
+        if (ret != VK_SUCCESS)
+        {
+            fprintf(stderr, "vkEnumerateDeviceExtensionProperties failed %d\n", ret);
+            return -1;
+        }
+
+        for (uint32_t i=0; i<deviceExtensionPropertyCount; i++)
+        {
+            const VkExtensionProperties& exp = deviceExtensionProperties[i];
+//             fprintf(stderr, "device extension %s = %u\n", exp.extensionName, exp.specVersion);
+
+            if (strcmp(exp.extensionName, "VK_KHR_descriptor_update_template") == 0)
+            {
+                gpu_info.support_VK_KHR_descriptor_update_template = exp.specVersion;
+            }
+            if (strcmp(exp.extensionName, "VK_KHR_push_descriptor") == 0)
+            {
+                gpu_info.support_VK_KHR_push_descriptor = exp.specVersion;
+            }
+            if (strcmp(exp.extensionName, "VK_AMD_gpu_shader_half_float") == 0)
+            {
+                gpu_info.support_VK_AMD_gpu_shader_half_float = exp.specVersion;
+            }
+        }
 
         fprintf(stderr, "[%u %s]  queue=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
@@ -455,6 +492,20 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
 {
     const float queuePriorities[1] = { 1.f };// 0.f ~ 1.f
 
+    std::vector<const char*> enabledExtensions;
+    if (info.support_VK_KHR_descriptor_update_template)
+    {
+        enabledExtensions.push_back("VK_KHR_descriptor_update_template");
+    }
+    if (info.support_VK_KHR_push_descriptor)
+    {
+        enabledExtensions.push_back("VK_KHR_push_descriptor");
+    }
+    if (info.support_VK_AMD_gpu_shader_half_float)
+    {
+        enabledExtensions.push_back("VK_AMD_gpu_shader_half_float");
+    }
+
     VkDeviceQueueCreateInfo deviceQueueCreateInfo;
     deviceQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     deviceQueueCreateInfo.pNext = 0;
@@ -471,8 +522,8 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
     deviceCreateInfo.enabledLayerCount = 0;
     deviceCreateInfo.ppEnabledLayerNames = 0;
-    deviceCreateInfo.enabledExtensionCount = 0;
-    deviceCreateInfo.ppEnabledExtensionNames = 0;
+    deviceCreateInfo.enabledExtensionCount = enabledExtensions.size();
+    deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
     deviceCreateInfo.pEnabledFeatures = 0;// VkPhysicalDeviceFeatures pointer
 
     VkResult ret = vkCreateDevice(info.physical_device, &deviceCreateInfo, 0, &device);
@@ -480,6 +531,8 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     {
         fprintf(stderr, "vkCreateDevice failed %d\n", ret);
     }
+
+    init_device_extension();
 
     create_shader_module();
 }
@@ -489,6 +542,17 @@ VulkanDevice::~VulkanDevice()
     destroy_shader_module();
 
     vkDestroyDevice(device, 0);
+}
+
+VkShaderModule VulkanDevice::get_shader_module(int type_index)
+{
+    if (type_index < 0 || type_index >= (int)shader_modules.size())
+    {
+        fprintf(stderr, "type_index out of range\n");
+        return 0;
+    }
+
+    return shader_modules[type_index];
 }
 
 int VulkanDevice::create_shader_module()
@@ -530,15 +594,29 @@ void VulkanDevice::destroy_shader_module()
     shader_modules.clear();
 }
 
-VkShaderModule VulkanDevice::get_shader_module(int type_index)
+int VulkanDevice::init_device_extension()
 {
-    if (type_index < 0 || type_index >= (int)shader_modules.size())
+    if (info.support_VK_KHR_descriptor_update_template)
     {
-        fprintf(stderr, "type_index out of range\n");
-        return 0;
+        vkCreateDescriptorUpdateTemplateKHR = (PFN_vkCreateDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkCreateDescriptorUpdateTemplateKHR");
+        vkDestroyDescriptorUpdateTemplateKHR = (PFN_vkDestroyDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkDestroyDescriptorUpdateTemplateKHR");
+        vkUpdateDescriptorSetWithTemplateKHR = (PFN_vkUpdateDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkUpdateDescriptorSetWithTemplateKHR");
+        vkCmdPushDescriptorSetWithTemplateKHR = (PFN_vkCmdPushDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetWithTemplateKHR");
+
+        fprintf(stderr, "vkCreateDescriptorUpdateTemplateKHR = %p\n", vkCreateDescriptorUpdateTemplateKHR);
+        fprintf(stderr, "vkDestroyDescriptorUpdateTemplateKHR = %p\n", vkDestroyDescriptorUpdateTemplateKHR);
+        fprintf(stderr, "vkUpdateDescriptorSetWithTemplateKHR = %p\n", vkUpdateDescriptorSetWithTemplateKHR);
+        fprintf(stderr, "vkCmdPushDescriptorSetWithTemplateKHR = %p\n", vkCmdPushDescriptorSetWithTemplateKHR);
     }
 
-    return shader_modules[type_index];
+    if (info.support_VK_KHR_push_descriptor)
+    {
+        vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetKHR");
+
+        fprintf(stderr, "vkCmdPushDescriptorSetKHR = %p\n", vkCmdPushDescriptorSetKHR);
+    }
+
+    return 0;
 }
 
 } // namespace ncnn
