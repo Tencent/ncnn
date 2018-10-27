@@ -678,7 +678,6 @@ static void conv3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
 static void conv3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)
 {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int inch = bottom_blob.c;
 
     int outw = top_blob.w;
