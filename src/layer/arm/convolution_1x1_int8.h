@@ -2070,7 +2070,7 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                 : "cc", "memory"
             );
 
-			if (nn > 0)
+	    if (nn > 0)
             {
             asm volatile(
                 "prfm   pldl1keep, [%18, #128]       \n"
@@ -2492,7 +2492,7 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                   "6"(outptr5),
                   "7"(outptr6),
                   "8"(outptr7),
-                  "r"(r0),      // %18
+                  "r"(r0),              // %18
                   "r"(r1),		// %19
                   "r"(r2),		// %20
                   "r"(r3),		// %21
@@ -2736,7 +2736,7 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                   "6"(outptr5),
                   "7"(outptr6),
                   "8"(outptr7),
-                  "r"(r0),      // %18
+                  "r"(r0),              // %18
                   "r"(r1),		// %19
                   "r"(r2),		// %20
                   "r"(r3),		// %21
@@ -2783,7 +2783,7 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                 "prfm   pldl1keep, [%1, #128]        \n"
                 "ld1    {v26.4s}, [%1]               \n" // sum0  
                 "saddw  v26.4s, v26.4s, v24.4h       \n"
-                "st1    {v26.4s}, [%1], #16  		 \n" 
+                "st1    {v26.4s}, [%1], #16  	     \n" 
                 //###########################################
                 "dup    v16.8b, v1.16b[0]            \n" // k00
                 "dup    v17.8b, v1.16b[1]            \n" // k01
@@ -2804,9 +2804,9 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                 "smlal  v24.8h, v15.8b, v23.8b       \n" // r0 * k7
                 
                 "prfm   pldl1keep, [%2, #128]        \n"
-                "ld1    {v26.4s}, [%2]       		 \n" // sum1
+                "ld1    {v26.4s}, [%2]               \n" // sum1
                 "saddw  v26.4s, v26.4s, v24.4h       \n"
-                "st1    {v26.4s}, [%2], #16  		 \n" 
+                "st1    {v26.4s}, [%2], #16  	     \n" 
                 //###########################################
                 "dup    v16.8b, v2.16b[0]            \n" // k00
                 "dup    v17.8b, v2.16b[1]            \n" // k01
@@ -2827,9 +2827,9 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                 "smlal  v24.8h, v15.8b, v23.8b       \n" // r0 * k7
                 
                 "prfm   pldl1keep, [%3, #128]        \n"
-                "ld1    {v26.4s}, [%3]       		 \n" // sum2
+                "ld1    {v26.4s}, [%3]       	     \n" // sum2
                 "saddw  v26.4s, v26.4s, v24.4h       \n"
-                "st1    {v26.4s}, [%3], #16  		 \n" 
+                "st1    {v26.4s}, [%3], #16  	     \n" 
                 //##########################################
                 "dup    v16.8b, v3.16b[0]            \n" // k00
                 "dup    v17.8b, v3.16b[1]            \n" // k01
@@ -2850,9 +2850,9 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                 "smlal  v24.8h, v15.8b, v23.8b       \n" // r0 * k7
                 
                 "prfm   pldl1keep, [%4, #128]        \n"
-                "ld1    {v26.4s}, [%4]       		 \n" // sum3
+                "ld1    {v26.4s}, [%4]       	     \n" // sum3
                 "saddw  v26.4s, v26.4s, v24.4h       \n"
-                "st1    {v26.4s}, [%4], #16  		 \n" 
+                "st1    {v26.4s}, [%4], #16  	     \n" 
                 //##########################################	
                 "dup    v16.8b, v4.16b[0]            \n" // k00
                 "dup    v17.8b, v4.16b[1]            \n" // k01
@@ -2873,9 +2873,9 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                 "smlal  v24.8h, v15.8b, v23.8b       \n" // r0 * k7
                 
                 "prfm   pldl1keep, [%5, #128]        \n"
-                "ld1    {v26.4s}, [%5]       		 \n" // sum4
+                "ld1    {v26.4s}, [%5]       	     \n" // sum4
                 "saddw  v26.4s, v26.4s, v24.4h       \n"
-                "st1    {v26.4s}, [%5], #16  		 \n" 
+                "st1    {v26.4s}, [%5], #16  	     \n" 
                 //##########################################	
                 "dup    v16.8b, v5.16b[0]            \n" // k00
                 "dup    v17.8b, v5.16b[1]            \n" // k01
@@ -2896,9 +2896,9 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                 "smlal  v24.8h, v15.8b, v23.8b       \n" // r0 * k7
                 
                 "prfm   pldl1keep, [%6, #128]        \n"
-                "ld1    {v26.4s}, [%6]       		 \n" // sum5
+                "ld1    {v26.4s}, [%6]       	     \n" // sum5
                 "saddw  v26.4s, v26.4s, v24.4h       \n"
-                "st1    {v26.4s}, [%6], #16  		 \n" 
+                "st1    {v26.4s}, [%6], #16  	     \n" 
                 //##########################################
                 "dup    v16.8b, v6.16b[0]            \n" // k00
                 "dup    v17.8b, v6.16b[1]            \n" // k01
@@ -2919,9 +2919,9 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                 "smlal  v24.8h, v15.8b, v23.8b       \n" // r0 * k7
                 
                 "prfm   pldl1keep, [%7, #128]        \n"
-                "ld1    {v26.4s}, [%7]       		 \n" // sum6
+                "ld1    {v26.4s}, [%7]       	     \n" // sum6
                 "saddw  v26.4s, v26.4s, v24.4h       \n"
-                "st1    {v26.4s}, [%7], #16  		 \n" 
+                "st1    {v26.4s}, [%7], #16  	     \n" 
                 //##########################################		
                 "dup    v16.8b, v7.16b[0]            \n" // k00
                 "dup    v17.8b, v7.16b[1]            \n" // k01
@@ -2942,9 +2942,9 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                 "smlal  v24.8h, v15.8b, v23.8b       \n" // r0 * k7
                 
                 "prfm   pldl1keep, [%8, #128]        \n"
-                "ld1    {v26.4s}, [%8]       		 \n" // sum7
+                "ld1    {v26.4s}, [%8]       	     \n" // sum7
                 "saddw  v26.4s, v26.4s, v24.4h       \n"
-                "st1    {v26.4s}, [%8], #16  		 \n" 
+                "st1    {v26.4s}, [%8], #16  	     \n" 
                 "sub    %18, %18, #4                 \n"
                 "sub    %19, %19, #4                 \n"
                 "sub    %20, %20, #4                 \n"
@@ -2972,7 +2972,7 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
                   "6"(outptr5),
                   "7"(outptr6),
                   "8"(outptr7),
-                  "r"(r0),      // %18
+                  "r"(r0),              // %18
                   "r"(r1),		// %19
                   "r"(r2),		// %20
                   "r"(r3),		// %21
@@ -2984,7 +2984,7 @@ static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat
             );                
             }
 	
-			for (; remain>0; remain--)
+	    for (; remain>0; remain--)
             {
                 // TODO neon optimize
                 int sum0 = (int)*r0 * kernel0[0] + *r1 * kernel0[1] + *r2 * kernel0[2] + *r3 * kernel0[3] + *r4 * kernel0[4] + *r5 * kernel0[5] + *r6 * kernel0[6] + *r7 * kernel0[7];
