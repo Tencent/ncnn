@@ -118,9 +118,6 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int inch = bottom_blob.c;
-
-    int outw = top_blob.w;
-    int outh = top_blob.h;
     int outch = top_blob.c;
 
     const int size = w * h;
