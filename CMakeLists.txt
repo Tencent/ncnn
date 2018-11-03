@@ -1,4 +1,3 @@
-
 if(CMAKE_TOOLCHAIN_FILE)
 set(LIBRARY_OUTPUT_PATH_ROOT ${CMAKE_BINARY_DIR} CACHE PATH "root for library output, set this to change where android libs are compiled to")
 # get absolute path, but get_filename_component ABSOLUTE only refer with source dir, so find_file here :(
@@ -50,10 +49,16 @@ else()
 
         add_definitions(-ffast-math)
     endif()
+
+    if(PI3)
+        add_definitions(-march=native)
+        add_definitions(-mfpu=neon)
+        add_definitions(-mfloat-abi=hard)
+        add_definitions(-D__ARM_NEON)
+        add_definitions(-D__ANDROID__)
+    endif()
     # add_definitions(-march=native)
-
     # add_definitions(-flto)
-
     add_definitions(-fvisibility=hidden -fvisibility-inlines-hidden)
 endif()
 
