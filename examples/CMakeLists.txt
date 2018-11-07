@@ -16,6 +16,9 @@ target_link_libraries(fasterrcnn ncnn ${OpenCV_LIBS})
 add_executable(yolov2 yolov2.cpp)
 target_link_libraries(yolov2 ncnn ${OpenCV_LIBS})
 
+add_executable(yolov3 yolov3.cpp)
+target_link_libraries(yolov3 ncnn ${OpenCV_LIBS})
+
 add_executable(mobilenetv2ssdlite mobilenetv2ssdlite.cpp)
 target_link_libraries(mobilenetv2ssdlite ncnn ${OpenCV_LIBS})
 
