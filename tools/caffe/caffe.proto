@@ -370,6 +370,7 @@ message LayerParameter {
   optional DataParameter data_param = 107;
   optional DetectionOutputParameter detection_output_param = 204;
   optional YoloDetectionOutputParameter yolo_detection_output_param = 601;
+  optional Yolov3DetectionOutputParameter yolov3_detection_output_param = 603;
   optional DropoutParameter dropout_param = 108;
   optional DummyDataParameter dummy_data_param = 109;
   optional EltwiseParameter eltwise_param = 110;
@@ -797,7 +798,18 @@ message YoloDetectionOutputParameter {
   repeated float biases = 7;
   optional string label_map_file = 8;
 }
-
+message Yolov3DetectionOutputParameter {
+  // Yolov3 detection output layer
+  // Yolo detection output layer
+  optional uint32 num_classes = 1 [default = 20];
+  optional uint32 num_box = 2 [default = 3];
+  optional float confidence_threshold = 3 [default = 0.01];
+  optional float nms_threshold = 4 [default = 0.45];
+  repeated float biases = 5;
+  repeated uint32 anchors_scale = 6 ;
+  optional uint32 mask_group_num = 7 [default = 2];
+  repeated uint32 mask = 8;
+}
 message DropoutParameter {
   optional float dropout_ratio = 1 [default = 0.5]; // dropout ratio
   optional bool scale_train = 2 [default = true];  // scale train or test phase
