@@ -1576,7 +1576,35 @@ int main(int argc, char** argv)
                 fprintf(pp, ",%f", yolo_detection_output_param.biases(j));
             }
         }
+		else if (layer.type() == "Yolov3DetectionOutput")
+		{
+			const caffe::Yolov3DetectionOutputParameter& yolov3_detection_output_param = layer.yolov3_detection_output_param();
 
+			fprintf(pp, " 0=%d", yolov3_detection_output_param.num_classes());
+			fprintf(pp, " 1=%d", yolov3_detection_output_param.num_box());
+			fprintf(pp, " 2=%f", yolov3_detection_output_param.confidence_threshold());
+			fprintf(pp, " 3=%f", yolov3_detection_output_param.nms_threshold());
+
+			int num_bias = yolov3_detection_output_param.biases_size();
+			fprintf(pp, " -23304=%d", num_bias);
+			for (int j = 0; j<num_bias; j++)
+			{
+				fprintf(pp, ",%f", yolov3_detection_output_param.biases(j));
+			}
+			int num_mask = yolov3_detection_output_param.mask_size();
+			fprintf(pp, " -23305=%d", num_mask);
+			for (int j = 0; j<num_mask; j++)
+			{
+				fprintf(pp, ",%f", (float)yolov3_detection_output_param.mask(j));
+			}
+			int num_anchors = yolov3_detection_output_param.anchors_scale_size();
+			fprintf(pp, " -23306=%d", num_anchors);
+			for (int j = 0; j<num_anchors; j++)
+			{
+				fprintf(pp, ",%f", (float)yolov3_detection_output_param.anchors_scale(j));
+			}
+			fprintf(pp, " 7=%d", yolov3_detection_output_param.mask_group_num());
+		}
         fprintf(pp, "\n");
 
         // add split layer if top reference larger than one
