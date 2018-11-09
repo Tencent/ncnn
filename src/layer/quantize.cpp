@@ -35,10 +35,14 @@ int Quantize::load_param(const ParamDict& pd)
 
 static inline signed char float2int8(float v)
 {
-    int int32 = round(v);
-    if (int32 > 127) return 127;
-    if (int32 < -128) return -128;
-    return (signed char)int32;
+    // round
+    int int32 = v+128.5f;
+    
+    // clip: > 255 or < 0
+    if (int32 & (~0xFF)) {
+        int32 = (-int32) >> 31;
+    }
+    return (signed char)(int32-128);
 }
 
 int Quantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
