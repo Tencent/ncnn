@@ -181,7 +181,7 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                       "2"(ptr),
                       "r"(scale),       // %6
                       "r"(bias)         // %7
-                    : "cc", "memory", "q0", "q1", "q2", "q4", "q10", "q12"
+                    : "cc", "memory", "q0", "q1", "q2", "q3", "q10", "q12"
                 );
                 }
 #endif // __aarch64__
@@ -271,7 +271,7 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                       "1"(intptr),
                       "2"(ptr),
                       "r"(scale)        // %6
-                    : "cc", "memory", "q0", "q1", "q2", "q4", "q10", "q12"
+                    : "cc", "memory", "q0", "q1", "q2", "q3", "q10", "q12"
                 );              
                 }
 #endif // __aarch64__
