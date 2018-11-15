@@ -38,7 +38,7 @@ int Clip_arm::forward_inplace(Mat &bottom_top_blob, const Option &opt) const
         int nn = size >> 2;
         int remain = size & 3;
 #else
-        int remian = size;
+        int remain = size;
 #endif
 
 #if __ARM_NEON
