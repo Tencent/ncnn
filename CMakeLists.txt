@@ -28,12 +28,19 @@ option(NCNN_OPENCV "minimal opencv structure emulation" OFF)
 option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
 option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
 option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
+option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
-    if(OpenMP_CXX_FOUND OR OPENMP_FOUND)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    # For CMake < 3.9, we need to make the target ourselves
+    if(NOT TARGET OpenMP::OpenMP_CXX)
+        find_package(Threads REQUIRED)
+        add_library(OpenMP::OpenMP_CXX IMPORTED INTERFACE)
+        set_property(TARGET OpenMP::OpenMP_CXX
+          PROPERTY INTERFACE_COMPILE_OPTIONS ${OpenMP_CXX_FLAGS})
+        # Only works if the same flag is passed to the linker; use CMake 3.9+ otherwise (Intel, AppleClang)
+        set_property(TARGET OpenMP::OpenMP_CXX
+          PROPERTY INTERFACE_LINK_LIBRARIES ${OpenMP_CXX_FLAGS} Threads::Threads)
     endif()
 endif()
 
