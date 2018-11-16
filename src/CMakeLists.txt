@@ -151,6 +151,7 @@ ncnn_add_layer(YoloDetectionOutput)
 ncnn_add_layer(Quantize)
 ncnn_add_layer(Dequantize)
 ncnn_add_layer(Yolov3DetectionOutput)
+ncnn_add_layer(PSROIPooling)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
