@@ -1419,6 +1419,14 @@ int main(int argc, char** argv)
             fprintf(pp, " 12=%f", step_height);
             fprintf(pp, " 13=%f", prior_box_param.offset());
         }
+        else if (layer.type() == "PSROIPooling")
+        {
+            const caffe::PSROIPoolingParameter& psroi_pooling_param = layer.psroi_pooling_param();
+            fprintf(pp, " 0=%d", psroi_pooling_param.group_size());
+            fprintf(pp, " 1=%d", psroi_pooling_param.group_size());
+            fprintf(pp, " 2=%f", psroi_pooling_param.spatial_scale());
+            fprintf(pp, " 3=%d", psroi_pooling_param.output_dim());
+        }
         else if (layer.type() == "Python")
         {
             const caffe::PythonParameter& python_param = layer.python_param();
