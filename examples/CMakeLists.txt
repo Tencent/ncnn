@@ -13,6 +13,9 @@ target_link_libraries(squeezenet ncnn ${OpenCV_LIBS})
 add_executable(fasterrcnn fasterrcnn.cpp)
 target_link_libraries(fasterrcnn ncnn ${OpenCV_LIBS})
 
+add_executable(rfcn rfcn.cpp)
+target_link_libraries(rfcn ncnn ${OpenCV_LIBS})
+
 add_executable(yolov2 yolov2.cpp)
 target_link_libraries(yolov2 ncnn ${OpenCV_LIBS})
 
