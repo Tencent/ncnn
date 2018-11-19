@@ -148,6 +148,8 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     const Mat& priorbox = bottom_blobs[2];
 
     const int num_prior = priorbox.w / 4;
+    if (num_class == -233)
+        num_class = priorbox.w / num_prior;
 
     // apply location with priorbox
     Mat bboxes;
