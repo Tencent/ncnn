@@ -69,6 +69,18 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     int num_max_size = max_sizes.w;
     int num_aspect_ratio = aspect_ratios.w;
 
+    Mat min_sizes_copy = min_sizes;
+    Mat max_sizes_copy = max_sizes;
+
+    if (min_sizes_copy[0] < 0.f)
+    {
+        min_sizes_copy[0] = -min_sizes_copy[0] * image_w;
+    }
+    if (max_sizes_copy[0] < 0.f)
+    {
+        max_sizes_copy[0] = -max_sizes_copy[0] * image_w;
+    }
+
     int num_prior = num_min_size * num_aspect_ratio + num_min_size + num_max_size;
     if (flip)
         num_prior += num_min_size * num_aspect_ratio;

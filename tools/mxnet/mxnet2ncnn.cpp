@@ -37,6 +37,7 @@ public:
         operator float() const { return _n->attr_f(_key); }
         operator std::string() const { return _n->attr_s(_key); }
         operator std::vector<int>() const { return _n->attr_ai(_key); }
+        operator std::vector<float>() const { return _n->attr_af(_key); }
     };
 
     AttrProxy attr(const char* key) const { return AttrProxy(this, key); }
@@ -45,6 +46,7 @@ public:
     float attr_f(const char* key) const;
     std::string attr_s(const char* key) const;
     std::vector<int> attr_ai(const char* key) const;
+    std::vector<float> attr_af(const char* key) const;
 
 public:
     bool is_weight() const;
@@ -142,6 +144,32 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
         i = 0;
         c += nconsumed;
         nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+    }
+
+    return list;
+}
+
+std::vector<float> MXNetNode::attr_af(const char* key) const
+{
+    const std::map<std::string, std::string>::const_iterator it = attrs.find(key);
+    if (it == attrs.end())
+        return std::vector<float>();
+
+    // (0.1,0.2,0.3)
+    std::vector<float> list;
+
+    float i = 0.f;
+    int c = 0;
+    int nconsumed = 0;
+    int nscan = sscanf(it->second.c_str() + c, "%*[(,]%f%n", &i, &nconsumed);
+    while (nscan == 1)
+    {
+        list.push_back(i);
+//         fprintf(stderr, "%f\n", i);
+
+        i = 0.f;
+        c += nconsumed;
+        nscan = sscanf(it->second.c_str() + c, "%*[(,]%f%n", &i, &nconsumed);
     }
 
     return list;
@@ -609,21 +637,6 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
     return true;
 }
 
-static int find_next_chain_node_by_op(const std::vector<MXNetNode>& nodes, const std::vector<int>& one_blob_only_nodes, const std::string& op, const std::string& input_name)
-{
-    int one_blob_only_node_count = (int)one_blob_only_nodes.size();
-    for (int i=0; i<one_blob_only_node_count; i++)
-    {
-        const MXNetNode& n = nodes[one_blob_only_nodes[i]];
-
-        if (n.op == op && nodes[n.inputs[0]].name == input_name)
-        {
-            return i;
-        }
-    }
-    return -1;
-}
-
 int main(int argc, char** argv)
 {
     const char* jsonpath = argv[1];
@@ -711,6 +724,14 @@ int main(int argc, char** argv)
         }
         n.inputs = inputs;
         n.weights = weights;
+
+        if (n.op == "_contrib_MultiBoxDetection")
+        {
+            // reorder input blob
+            int temp = inputs[0];
+            inputs[0] = inputs[1];
+            inputs[1] = temp;
+        }
 
         // input
         for (int j=0; j<(int)n.inputs.size(); j++)
@@ -847,6 +868,8 @@ int main(int argc, char** argv)
         }
     }
 
+//     fprintf(stderr, "%d %d %d %d, %d %d\n", node_count, reduced_node_count, node_reference.size(), weight_nodes.size(), blob_names.size(), splitncnn_blob_count);
+
     fprintf(pp, "%lu %lu\n", node_count - reduced_node_count + node_reference.size() - weight_nodes.size(), blob_names.size() + splitncnn_blob_count);
 
     int internal_split = 0;
@@ -868,6 +891,14 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, "%-16s", "Input");
+        }
+        else if (n.op == "_contrib_MultiBoxDetection")
+        {
+            fprintf(pp, "%-16s", "DetectionOutput");
+        }
+        else if (n.op == "_contrib_MultiBoxPrior")
+        {
+            fprintf(pp, "%-16s", "PriorBox");
         }
         else if (n.op == "_div_scalar")
         {
@@ -1155,7 +1186,7 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "TanH");
         }
-        else if (n.op == "Transpose")
+        else if (n.op == "Transpose" || n.op == "transpose")
         {
             fprintf(pp, "%-16s", "Permute");
         }
@@ -1232,6 +1263,87 @@ int main(int argc, char** argv)
         {
             // dummy input shape
 //             fprintf(pp, " 0 0 0");
+        }
+        else if (n.op == "_contrib_MultiBoxDetection")
+        {
+            float threshold = n.has_attr("threshold") ? n.attr("threshold") : 0.01f;
+            float nms_threshold = n.has_attr("nms_threshold") ? n.attr("nms_threshold") : 0.5f;
+            int nms_topk = n.has_attr("nms_topk") ? n.attr("nms_topk") : 300;
+
+            fprintf(pp, " 0=-233");
+            fprintf(pp, " 1=%f", nms_threshold);
+            fprintf(pp, " 2=%d", nms_topk);
+
+            int keep_top_k = 100;
+            fprintf(pp, " 3=%d", keep_top_k);
+            fprintf(pp, " 4=%f", threshold);
+        }
+        else if (n.op == "_contrib_MultiBoxPrior")
+        {
+            std::vector<float> sizes = n.attr("sizes");
+            float min_size = sizes[0];
+            float max_size = sizes[1];
+
+            // mxnet-ssd encode size as scale factor
+            fprintf(pp, " -23300=%d", 1);
+            fprintf(pp, ",%f", -min_size);
+
+            fprintf(pp, " -23301=%d", 1);
+            fprintf(pp, ",%f", -max_size);
+
+            // drop 1.0 ratio
+            std::vector<float> ratios = n.attr("ratios");
+            std::vector<float> aspect_ratios;
+            for (int j=0; j<ratios.size(); j++)
+            {
+                if (ratios[j] == 1.f)
+                    continue;
+                aspect_ratios.push_back(ratios[j]);
+            }
+
+            fprintf(pp, " -23302=%d", (int)aspect_ratios.size());
+            for (int j=0; j<(int)aspect_ratios.size(); j++)
+            {
+                fprintf(pp, ",%f", aspect_ratios[j]);
+            }
+
+            float variances[4] = {0.1f, 0.1f, 0.2f, 0.2f};
+            fprintf(pp, " 3=%f", variances[0]);
+            fprintf(pp, " 4=%f", variances[1]);
+            fprintf(pp, " 5=%f", variances[2]);
+            fprintf(pp, " 6=%f", variances[3]);
+
+            int flip = 0;
+            fprintf(pp, " 7=%d", flip);
+
+            int clip = n.attr("clip");
+            fprintf(pp, " 8=%d", clip);
+
+            // auto image size
+            fprintf(pp, " 9=-233");
+            fprintf(pp, " 10=-233");
+
+            std::vector<float> steps = n.attr("steps");
+            if (steps.empty() || (steps[0] == -1.f && steps[1] == -1.f))
+            {
+                // auto step
+                fprintf(pp, " 11=-233");
+                fprintf(pp, " 12=-233");
+            }
+            else
+            {
+                fprintf(stderr, "Unsupported steps param! %f %f\n", steps[0], steps[1]);
+            }
+
+            std::vector<float> offsets = n.attr("offsets");
+            if (offsets.empty() || (offsets[0] == 0.5f && offsets[1] == 0.5f))
+            {
+                fprintf(pp, " 13=0.5");
+            }
+            else
+            {
+                fprintf(stderr, "Unsupported offsets param! %f %f\n", offsets[0], offsets[1]);
+            }
         }
         else if (n.op == "_div_scalar")
         {
@@ -1864,11 +1976,17 @@ int main(int argc, char** argv)
         else if (n.op == "tanh")
         {
         }
-        else if (n.op == "Transpose")
+        else if (n.op == "Transpose" || n.op == "transpose")
         {
             std::vector<int> axes = n.attr("axes");
 
-            if (axes.size() == 4) {
+            if (axes.size() == 3) {
+                if (axes[1] == 2 && axes[2] == 1)
+                    fprintf(pp, " 0=1");// h w c
+                else
+                    fprintf(stderr, "Unsupported transpose type !\n");
+            }
+            else if (axes.size() == 4) {
                 if (axes[1] == 1 && axes[2] == 2 && axes[3] == 3)
                     fprintf(pp, " 0=0");// w h c
                 else if (axes[1] == 1 && axes[2] == 3 && axes[3] == 2)
@@ -1896,6 +2014,10 @@ int main(int argc, char** argv)
                     fprintf(pp, " 0=5");// c h wx
                 else
                     fprintf(stderr, "Unsupported transpose type !\n");
+            }
+            else
+            {
+                fprintf(stderr, "Unsupported transpose type !\n");
             }
         }
         else
