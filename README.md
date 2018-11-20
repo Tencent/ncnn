@@ -12,6 +12,27 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ---
 
+### Support most commonly used CNN network
+### 支持大部分常用的 CNN 网络
+
+Classical CNN Network: VGG/AlexNet/GoogleNet/Inception ...
+
+Pratical CNN Network: ResNet DenseNet SENet FPN ...
+
+Light-weight CNN Network: SqueezeNet MobileNetV1/V2 ShuffleNetV1/V2 MNasNet ...
+
+Detection Network: MTCNN facedetection ...
+
+Detection Network: VGG-SSD MobileNet-SSD SqueezeNet-SSD ...
+
+Detection Network: Faster-RCNN R-FCN ...
+
+Detection Network: YOLOV2 YOLOV3 MobileNet-YOLOV3 ...
+
+Segmentation Network: FCN PSPNet ...
+
+---
+
 ### HowTo
 
 [how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build)
