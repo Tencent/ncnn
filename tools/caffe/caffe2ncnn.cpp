@@ -133,10 +133,17 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
 
     while (!feof(fp))
     {
+        char key[256];
+        int nscan = fscanf(fp, "%255s", key);
+        if (nscan != 1)
+        {
+            break;
+        }
+
         if (in_scale_vector)
         {
             float scale = 1.f;
-            int nscan = fscanf(fp, "%f", &scale);
+            int nscan = sscanf(key, "%f", &scale);
             if (nscan == 1)
             {
                 scales.push_back(scale);
@@ -163,18 +170,9 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
 
         if (!in_scale_vector)
         {
-            char key[256];
-            int nscan = fscanf(fp, "%255s", key);
-            if (nscan == 1)
-            {
-                keystr = key;
+            keystr = key;
 
-                in_scale_vector = true;
-            }
-            else
-            {
-                break;
-            }
+            in_scale_vector = true;
         }
     }
 
