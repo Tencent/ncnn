@@ -146,6 +146,7 @@ ncnn_add_layer(Quantize)
 ncnn_add_layer(Dequantize)
 ncnn_add_layer(Yolov3DetectionOutput)
 ncnn_add_layer(PSROIPooling)
+ncnn_add_layer(ROIAlign OFF)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
