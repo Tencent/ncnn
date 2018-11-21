@@ -403,6 +403,7 @@ message LayerParameter {
   optional ReLUParameter relu_param = 123;
   optional ReorgParameter reorg_param = 147;
   optional ReshapeParameter reshape_param = 133;
+  optional ROIAlignParameter roi_align_param = 148;
   optional ROIPoolingParameter roi_pooling_param = 8266711;
   optional ScaleParameter scale_param = 142;
   optional ShuffleChannelParameter shuffle_channel_param = 145;
@@ -1283,6 +1284,16 @@ message ReshapeParameter {
   //
   optional int32 axis = 2 [default = 0];
   optional int32 num_axes = 3 [default = -1];
+}
+
+message ROIAlignParameter {
+  // Pad, kernel size, and stride are all given as a single value for equal
+  // dimensions in height and width or as Y, X pairs.
+  optional uint32 pooled_h = 1 [default = 0]; // The pooled output height
+  optional uint32 pooled_w = 2 [default = 0]; // The pooled output width
+  // Multiplicative spatial scale factor to translate ROI coords from their
+  // input scale to the scale used when pooling
+  optional float spatial_scale = 3 [default = 1];
 }
 
 // Message that stores parameters used by ROIPoolingLayer
