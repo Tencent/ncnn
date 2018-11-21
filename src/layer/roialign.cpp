@@ -40,15 +40,23 @@ static inline float bilinear_interpolate(const float* ptr, int w, int h, float x
     int y0 = y;
     int y1 = y0 + 1;
 
-    if (x1 >= w)
-        x1 = w-1;
-    if (y1 >= h)
-        y1 = h-1;
-
     float a0 = x1 - x;
     float a1 = x - x0;
     float b0 = y1 - y;
     float b1 = y - y0;
+
+    if (x1 >= w)
+    {
+        x1 = w-1;
+        a0 = 1.f;
+        a1 = 0.f;
+    }
+    if (y1 >= h)
+    {
+        y1 = h-1;
+        b0 = 1.f;
+        b1 = 0.f;
+    }
 
     float r0 = ptr[ y0 * w + x0 ] * a0 + ptr[ y0 * w + x1 ] * a1;
     float r1 = ptr[ y1 * w + x0 ] * a0 + ptr[ y1 * w + x1 ] * a1;
