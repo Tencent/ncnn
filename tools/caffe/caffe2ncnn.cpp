@@ -1493,6 +1493,13 @@ int main(int argc, char** argv)
             }
             fprintf(pp, " 3=0");// permute
         }
+        else if (layer.type() == "ROIAlign")
+        {
+            const caffe::ROIAlignParameter& roi_align_param = layer.roi_align_param();
+            fprintf(pp, " 0=%d", roi_align_param.pooled_w());
+            fprintf(pp, " 1=%d", roi_align_param.pooled_h());
+            fprintf(pp, " 2=%f", roi_align_param.spatial_scale());
+        }
         else if (layer.type() == "ROIPooling")
         {
             const caffe::ROIPoolingParameter& roi_pooling_param = layer.roi_pooling_param();
