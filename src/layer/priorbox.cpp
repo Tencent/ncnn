@@ -74,13 +74,13 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     for (int k = 0; k < num_min_size; k++)
     {
-        if (min_sizes_copy[0] < 0.f)
-            min_sizes_copy[0] = -min_sizes_copy[0] * image_w;
+        if (min_sizes_copy[k] < 0.f)
+            min_sizes_copy[k] = -min_sizes_copy[k] * image_w;
     }
     for (int k = 0; k < num_max_size; k++)
     {
-        if (max_sizes_copy[0] < 0.f)
-            max_sizes_copy[0] = -max_sizes_copy[0] * image_w;
+        if (max_sizes_copy[k] < 0.f)
+            max_sizes_copy[k] = -max_sizes_copy[k] * image_w;
     }
 
     int num_prior = num_min_size * num_aspect_ratio + num_min_size + num_max_size;
