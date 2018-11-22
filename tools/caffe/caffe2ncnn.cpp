@@ -176,6 +176,19 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
         }
     }
 
+    if (in_scale_vector)
+    {
+        // XYZ_param_N pattern
+        if (strstr(keystr.c_str(), "_param_"))
+        {
+            weight_int8scale_table[ keystr ] = scales;
+        }
+        else
+        {
+            blob_int8scale_table[ keystr ] = scales;
+        }
+    }
+
     fclose(fp);
 
     return true;
