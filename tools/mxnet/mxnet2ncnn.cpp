@@ -297,7 +297,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
     char line[1024];
 
     //{
-    fgets(line, 1024, fp);
+    (void)fgets(line, 1024, fp);
 
     MXNetNode n;
 
