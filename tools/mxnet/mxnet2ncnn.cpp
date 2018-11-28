@@ -728,9 +728,9 @@ int main(int argc, char** argv)
         if (n.op == "_contrib_MultiBoxDetection")
         {
             // reorder input blob
-            int temp = inputs[0];
-            inputs[0] = inputs[1];
-            inputs[1] = temp;
+            int temp = n.inputs[0];
+            n.inputs[0] = n.inputs[1];
+            n.inputs[1] = temp;
         }
 
         // input
@@ -1081,7 +1081,7 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, "%-16s", "ELU");
             }
-            else if (type == "leaky")
+            else if (type == "leaky" || type.empty())
             {
                 fprintf(pp, "%-16s", "ReLU");
             }
@@ -1801,7 +1801,7 @@ int main(int argc, char** argv)
                 float slope = n.has_attr("slope") ? n.attr("slope") : 0.25f;
                 fprintf(pp, " 0=%f", slope);
             }
-            else if (type == "leaky")
+            else if (type == "leaky" || type.empty())
             {
                 float slope = n.has_attr("slope") ? n.attr("slope") : 0.25f;
                 fprintf(pp, " 0=%f", slope);
