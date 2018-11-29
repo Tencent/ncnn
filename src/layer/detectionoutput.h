@@ -34,6 +34,7 @@ public:
     int nms_top_k;
     int keep_top_k;
     float confidence_threshold;
+    float variances[4];
 };
 
 } // namespace ncnn

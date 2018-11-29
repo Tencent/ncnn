@@ -38,6 +38,39 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
+    int dims = bottom_blob.dims;
+
+    if (dims == 2)
+    {
+        // order_type
+        // 0 = w h
+        // 1 = h w
+
+        if (order_type == 0)
+        {
+            top_blob = bottom_blob;
+        }
+        else if (order_type == 1)
+        {
+            top_blob.create(h, w, elemsize, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            const float* ptr = bottom_blob;
+            float* outptr = top_blob;
+
+            for (int i = 0; i < w; i++)
+            {
+                for (int j = 0; j < h; j++)
+                {
+                    outptr[i*h + j] = ptr[j*w + i];
+                }
+            }
+        }
+
+        return 0;
+    }
+
     // order_type
     // 0 = w h c
     // 1 = h w c

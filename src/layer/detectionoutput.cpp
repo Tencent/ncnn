@@ -33,6 +33,10 @@ int DetectionOutput::load_param(const ParamDict& pd)
     nms_top_k = pd.get(2, 300);
     keep_top_k = pd.get(3, 100);
     confidence_threshold = pd.get(4, 0.5f);
+    variances[0] = pd.get(5, 0.1f);
+    variances[1] = pd.get(6, 0.1f);
+    variances[2] = pd.get(7, 0.2f);
+    variances[3] = pd.get(8, 0.2f);
 
     return 0;
 }
@@ -161,14 +165,14 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
     const float* location_ptr = location;
     const float* priorbox_ptr = priorbox.row(0);
-    const float* variance_ptr = priorbox.row(1);
+    const float* variance_ptr = priorbox.h == 2 ? priorbox.row(1) : 0;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_prior; i++)
     {
         const float* loc = location_ptr + i * 4;
         const float* pb = priorbox_ptr + i * 4;
-        const float* var = variance_ptr + i * 4;
+        const float* var = variance_ptr ? variance_ptr + i * 4 : variances;
 
         float* bbox = bboxes.row(i);
 

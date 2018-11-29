@@ -703,6 +703,10 @@ int main(int argc, char** argv)
             }
             continue;
         }
+        else if (n.op == "_contrib_MultiBoxTarget")
+        {
+            n.output_size = 3;
+        }
         else if (n.op == "SliceChannel")
         {
             n.output_size = n.attr("num_outputs");
@@ -774,6 +778,11 @@ int main(int argc, char** argv)
             blob_names.insert(output_name_j);
         }
     }
+
+//     for (std::map<int, int>::iterator it = node_reference.begin(); it != node_reference.end(); it++)
+//     {
+//         fprintf(stderr, "ref %d %d\n", it->first, it->second);
+//     }
 
     // op chain fusion
     int reduced_node_count = 0;
@@ -1277,41 +1286,39 @@ int main(int argc, char** argv)
             int keep_top_k = 100;
             fprintf(pp, " 3=%d", keep_top_k);
             fprintf(pp, " 4=%f", threshold);
+
+            std::vector<float> variances = n.attr("variances");
+            if (variances.empty())
+            {
+                fprintf(pp, " 5=0.1");
+                fprintf(pp, " 6=0.1");
+                fprintf(pp, " 7=0.2");
+                fprintf(pp, " 8=0.2");
+            }
+            else
+            {
+                fprintf(pp, " 5=%f", variances[0]);
+                fprintf(pp, " 6=%f", variances[1]);
+                fprintf(pp, " 7=%f", variances[2]);
+                fprintf(pp, " 8=%f", variances[3]);
+            }
         }
         else if (n.op == "_contrib_MultiBoxPrior")
         {
+            // mxnet-ssd encode size as scale factor, fill min_size
             std::vector<float> sizes = n.attr("sizes");
-            float min_size = sizes[0];
-            float max_size = sizes[1];
-
-            // mxnet-ssd encode size as scale factor
-            fprintf(pp, " -23300=%d", 1);
-            fprintf(pp, ",%f", -min_size);
-
-            fprintf(pp, " -23301=%d", 1);
-            fprintf(pp, ",%f", -max_size);
-
-            // drop 1.0 ratio
-            std::vector<float> ratios = n.attr("ratios");
-            std::vector<float> aspect_ratios;
-            for (int j=0; j<ratios.size(); j++)
+            fprintf(pp, " -23300=%d", (int)sizes.size());
+            for (int j=0; j<(int)sizes.size(); j++)
             {
-                if (ratios[j] == 1.f)
-                    continue;
-                aspect_ratios.push_back(ratios[j]);
+                fprintf(pp, ",%f", sizes[j]);
             }
 
+            std::vector<float> aspect_ratios = n.attr("ratios");
             fprintf(pp, " -23302=%d", (int)aspect_ratios.size());
             for (int j=0; j<(int)aspect_ratios.size(); j++)
             {
                 fprintf(pp, ",%f", aspect_ratios[j]);
             }
-
-            float variances[4] = {0.1f, 0.1f, 0.2f, 0.2f};
-            fprintf(pp, " 3=%f", variances[0]);
-            fprintf(pp, " 4=%f", variances[1]);
-            fprintf(pp, " 5=%f", variances[2]);
-            fprintf(pp, " 6=%f", variances[3]);
 
             int flip = 0;
             fprintf(pp, " 7=%d", flip);
@@ -1327,8 +1334,8 @@ int main(int argc, char** argv)
             if (steps.empty() || (steps[0] == -1.f && steps[1] == -1.f))
             {
                 // auto step
-                fprintf(pp, " 11=-233");
-                fprintf(pp, " 12=-233");
+                fprintf(pp, " 11=-233.0");
+                fprintf(pp, " 12=-233.0");
             }
             else
             {
