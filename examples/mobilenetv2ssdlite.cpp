@@ -20,8 +20,6 @@
 
 #include "net.h"
 
-class Noop : public ncnn::Layer {};
-DEFINE_LAYER_CREATOR(Noop)
 
 struct Object
 {
@@ -33,8 +31,6 @@ struct Object
 static int detect_mobilenetv2(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net mobilenetv2;
-
-    mobilenetv2.register_custom_layer("Silence", Noop_layer_creator);
 
     // original pretrained model from https://github.com/chuanqi305/MobileNetv2-SSDLite
     // https://github.com/chuanqi305/MobileNetv2-SSDLite/blob/master/ssdlite/voc/deploy.prototxt
