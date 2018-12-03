@@ -1013,6 +1013,9 @@ int Extractor::extract(int blob_index, Mat& feat)
     if (blob_mats[blob_index].dims == 0)
     {
         int layer_index = net->blobs[blob_index].producer;
+        if (opt.num_threads == 0) {
+            opt.num_threads = 1;
+        }
         ret = net->forward_layer(layer_index, blob_mats, opt);
     }
 
