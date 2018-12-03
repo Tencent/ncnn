@@ -33,6 +33,10 @@ int DetectionOutput::load_param(const ParamDict& pd)
     nms_top_k = pd.get(2, 300);
     keep_top_k = pd.get(3, 100);
     confidence_threshold = pd.get(4, 0.5f);
+    variances[0] = pd.get(5, 0.1f);
+    variances[1] = pd.get(6, 0.1f);
+    variances[2] = pd.get(7, 0.2f);
+    variances[3] = pd.get(8, 0.2f);
 
     return 0;
 }
@@ -149,6 +153,10 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
     const int num_prior = priorbox.w / 4;
 
+    int num_class_copy = num_class;
+    if (num_class_copy == -233)
+        num_class_copy = priorbox.w / num_prior;
+
     // apply location with priorbox
     Mat bboxes;
     bboxes.create(4, num_prior, 4u, opt.workspace_allocator);
@@ -157,14 +165,14 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
     const float* location_ptr = location;
     const float* priorbox_ptr = priorbox.row(0);
-    const float* variance_ptr = priorbox.row(1);
+    const float* variance_ptr = priorbox.h == 2 ? priorbox.row(1) : 0;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_prior; i++)
     {
         const float* loc = location_ptr + i * 4;
         const float* pb = priorbox_ptr + i * 4;
-        const float* var = variance_ptr + i * 4;
+        const float* var = variance_ptr ? variance_ptr + i * 4 : variances;
 
         float* bbox = bboxes.row(i);
 
@@ -188,12 +196,12 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     // sort and nms for each class
     std::vector< std::vector<BBoxRect> > all_class_bbox_rects;
     std::vector< std::vector<float> > all_class_bbox_scores;
-    all_class_bbox_rects.resize(num_class);
-    all_class_bbox_scores.resize(num_class);
+    all_class_bbox_rects.resize(num_class_copy);
+    all_class_bbox_scores.resize(num_class_copy);
 
     // start from 1 to ignore background class
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 1; i < num_class; i++)
+    for (int i = 1; i < num_class_copy; i++)
     {
         // filter by confidence_threshold
         std::vector<BBoxRect> class_bbox_rects;
@@ -201,7 +209,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
         for (int j = 0; j < num_prior; j++)
         {
-            float score = confidence[j * num_class + i];
+            float score = confidence[j * num_class_copy + i];
 
             if (score > confidence_threshold)
             {
@@ -239,7 +247,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     std::vector<BBoxRect> bbox_rects;
     std::vector<float> bbox_scores;
 
-    for (int i = 1; i < num_class; i++)
+    for (int i = 1; i < num_class_copy; i++)
     {
         const std::vector<BBoxRect>& class_bbox_rects = all_class_bbox_rects[i];
         const std::vector<float>& class_bbox_scores = all_class_bbox_scores[i];
