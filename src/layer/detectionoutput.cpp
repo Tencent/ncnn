@@ -151,11 +151,14 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     const Mat& confidence = bottom_blobs[1];
     const Mat& priorbox = bottom_blobs[2];
 
-    const int num_prior = priorbox.w / 4;
+    bool mxnet_ssd_style = priorbox.dims == 2;
+
+    // mxnet-ssd _contrib_MultiBoxDetection
+    const int num_prior = mxnet_ssd_style ? priorbox.h : priorbox.w / 4;
 
     int num_class_copy = num_class;
     if (num_class_copy == -233)
-        num_class_copy = priorbox.w / num_prior;
+        num_class_copy = confidence.h;
 
     // apply location with priorbox
     Mat bboxes;
@@ -209,7 +212,10 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
         for (int j = 0; j < num_prior; j++)
         {
-            float score = confidence[j * num_class_copy + i];
+            // prob data layout
+            // caffe-ssd = num_class x num_prior
+            // mxnet-ssd = num_prior x num_class
+            float score = mxnet_ssd_style ? confidence[i * num_prior + j] : confidence[j * num_class_copy + i];
 
             if (score > confidence_threshold)
             {

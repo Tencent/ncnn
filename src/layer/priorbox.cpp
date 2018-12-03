@@ -54,8 +54,6 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes.empty())
     {
         // mxnet style _contrib_MultiBoxPrior
-        fprintf(stderr, "mxnet style _contrib_MultiBoxPrior\n");
-
         float step_w = step_width;
         float step_h = step_height;
         if (step_w == -233)
