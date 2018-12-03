@@ -59,29 +59,25 @@ macro(ncnn_add_layer class)
     # generate layer_declaration and layer_registry file
     if(WITH_LAYER_${name})
         if(WITH_LAYER_${name}_${arch})
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h
+            string(APPEND layer_declaration
                 "extern Layer* ${class}_${arch}_layer_creator();\n")
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h
+            string(APPEND layer_registry
                 "#if NCNN_STRING\n{\"${class}\",${class}_${arch}_layer_creator},\n#else\n{${class}_${arch}_layer_creator},\n#endif\n")
         else()
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h
+            string(APPEND layer_declaration
                 "extern Layer* ${class}_layer_creator();\n")
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h
+            string(APPEND layer_registry
                 "#if NCNN_STRING\n{\"${class}\",${class}_layer_creator},\n#else\n{${class}_layer_creator},\n#endif\n")
         endif()
     else()
-        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h "#if NCNN_STRING\n{\"${class}\",0},\n#else\n{0},\n#endif\n")
+        string(APPEND layer_registry "#if NCNN_STRING\n{\"${class}\",0},\n#else\n{0},\n#endif\n")
     endif()
 
     # generate layer_type_enum file
-    file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h "${class} = ${__LAYER_TYPE_ENUM_INDEX},\n")
+    string(APPEND layer_type_enum "${class} = ${__LAYER_TYPE_ENUM_INDEX},\n")
     math(EXPR __LAYER_TYPE_ENUM_INDEX "${__LAYER_TYPE_ENUM_INDEX}+1")
 endmacro()
 
-# create new
-file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
-file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
-file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
 set(__LAYER_TYPE_ENUM_INDEX 0)
 
 # layer implementation
@@ -147,6 +143,11 @@ ncnn_add_layer(Dequantize)
 ncnn_add_layer(Yolov3DetectionOutput)
 ncnn_add_layer(PSROIPooling)
 ncnn_add_layer(ROIAlign OFF)
+
+# create new
+configure_file(layer_declaration.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
+configure_file(layer_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
+configure_file(layer_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
