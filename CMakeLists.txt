@@ -11,7 +11,7 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Installation 
 endif()
 message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 
-cmake_minimum_required(VERSION 2.9.0)
+cmake_minimum_required(VERSION 2.8.10)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
@@ -32,6 +32,7 @@ option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     # For CMake < 3.9, we need to make the target ourselves
     if(NOT TARGET OpenMP::OpenMP_CXX)
         find_package(Threads REQUIRED)
