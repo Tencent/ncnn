@@ -11,7 +11,9 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Installation 
 endif()
 message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 
-cmake_minimum_required(VERSION 2.8.10)
+# This is the minimum cmake version supporting the modern cmake OpenMP module below
+# modern cmake requires 3.0 anyway and android cmake requires 3.6
+cmake_minimum_required(VERSION 3.1.3)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
