@@ -25,6 +25,34 @@
 
 namespace ncnn {
 
+class Allocator;
+class Option
+{
+public:
+    // default option
+    Option();
+
+public:
+    // light mode
+    // intermediate blob will be recycled when enabled
+    // enabled by default
+    bool lightmode;
+
+    // thread count
+    // default value is the one returned by get_cpu_count()
+    int num_threads;
+
+    // blob memory allocator
+    Allocator* blob_allocator;
+
+    // workspace memory allocator
+    Allocator* workspace_allocator;
+};
+
+// the global default option
+const Option& get_default_option();
+int set_default_option(const Option& opt);
+
 class Layer
 {
 public:
@@ -51,13 +79,13 @@ public:
 public:
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt = get_default_option()) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt = get_default_option()) const;
 
     // implement inplace inference
     // return 0 if success
-    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs) const;
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
+    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt = get_default_option()) const;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt = get_default_option()) const;
 
 public:
 #if NCNN_STRING

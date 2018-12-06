@@ -22,16 +22,17 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Eltwise_arm)
 
-int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(w, h, channels);
+    top_blob.create(w, h, channels, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -39,7 +40,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     {
         // first blob
         const Mat& bottom_blob1 = bottom_blobs[1];
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
@@ -55,16 +56,28 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
 #if __ARM_NEON
 #if __aarch64__
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4_t _ptr = vld1q_f32(ptr);
-                float32x4_t _ptr1 = vld1q_f32(ptr1);
-                float32x4_t _p = vmulq_f32(_ptr, _ptr1);
-                vst1q_f32(outptr, _p);
-
-                ptr += 4;
-                ptr1 += 4;
-                outptr += 4;
+            asm volatile(
+                "0:                               \n"
+                "prfm       pldl1keep, [%1, #128] \n"
+                "prfm       pldl1keep, [%2, #128] \n"
+                "ld1        {v0.4s}, [%1], #16    \n"
+                "ld1        {v1.4s}, [%2], #16    \n"
+                "fmul       v0.4s, v0.4s, v1.4s   \n"
+                "subs       %w0, %w0, #1          \n"
+                "st1        {v0.4s}, [%3], #16    \n"
+                "bne        0b                    \n"
+                : "=r"(nn),     // %0
+                  "=r"(ptr),    // %1
+                  "=r"(ptr1),   // %2
+                  "=r"(outptr)  // %3
+                : "0"(nn),
+                  "1"(ptr),
+                  "2"(ptr1),
+                  "3"(outptr)
+                : "cc", "memory", "v0", "v1"
+            );
             }
 #else
             if (nn > 0)
@@ -105,7 +118,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         for (size_t b=2; b<bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob1 = bottom_blobs[b];
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = bottom_blob1.channel(q);
@@ -120,15 +133,26 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
 #if __ARM_NEON
 #if __aarch64__
-                for (; nn>0; nn--)
+                if (nn > 0)
                 {
-                    float32x4_t _ptr = vld1q_f32(ptr);
-                    float32x4_t _p = vld1q_f32(outptr);
-                    _p = vmulq_f32(_ptr, _p);
-                    vst1q_f32(outptr, _p);
-
-                    ptr += 4;
-                    outptr += 4;
+                asm volatile(
+                    "0:                               \n"
+                    "prfm       pldl1keep, [%1, #128] \n"
+                    "prfm       pldl1keep, [%2, #128] \n"
+                    "ld1        {v0.4s}, [%1], #16    \n"
+                    "ld1        {v1.4s}, [%2]         \n"
+                    "fmul       v0.4s, v0.4s, v1.4s   \n"
+                    "subs       %w0, %w0, #1          \n"
+                    "st1        {v0.4s}, [%2], #16    \n"
+                    "bne        0b                    \n"
+                    : "=r"(nn),     // %0
+                      "=r"(ptr),    // %1
+                      "=r"(outptr)  // %2
+                    : "0"(nn),
+                      "1"(ptr),
+                      "2"(outptr)
+                    : "cc", "memory", "v0", "v1"
+                );
                 }
 #else
                 if (nn > 0)
@@ -170,7 +194,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         {
             // first blob
             const Mat& bottom_blob1 = bottom_blobs[1];
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -186,16 +210,28 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
 #if __ARM_NEON
 #if __aarch64__
-                for (; nn>0; nn--)
+                if (nn > 0)
                 {
-                    float32x4_t _ptr = vld1q_f32(ptr);
-                    float32x4_t _ptr1 = vld1q_f32(ptr1);
-                    float32x4_t _p = vaddq_f32(_ptr, _ptr1);
-                    vst1q_f32(outptr, _p);
-
-                    ptr += 4;
-                    ptr1 += 4;
-                    outptr += 4;
+                asm volatile(
+                    "0:                               \n"
+                    "prfm       pldl1keep, [%1, #128] \n"
+                    "prfm       pldl1keep, [%2, #128] \n"
+                    "ld1        {v0.4s}, [%1], #16    \n"
+                    "ld1        {v1.4s}, [%2], #16    \n"
+                    "fadd       v0.4s, v0.4s, v1.4s   \n"
+                    "subs       %w0, %w0, #1          \n"
+                    "st1        {v0.4s}, [%3], #16    \n"
+                    "bne        0b                  \n"
+                    : "=r"(nn),     // %0
+                      "=r"(ptr),    // %1
+                      "=r"(ptr1),   // %2
+                      "=r"(outptr)  // %3
+                    : "0"(nn),
+                      "1"(ptr),
+                      "2"(ptr1),
+                      "3"(outptr)
+                    : "cc", "memory", "v0", "v1"
+                );
                 }
 #else
                 if (nn > 0)
@@ -236,7 +272,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             for (size_t b=2; b<bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
-                #pragma omp parallel for
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q=0; q<channels; q++)
                 {
                     const float* ptr = bottom_blob1.channel(q);
@@ -251,15 +287,26 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
 #if __ARM_NEON
 #if __aarch64__
-                    for (; nn>0; nn--)
+                    if (nn > 0)
                     {
-                        float32x4_t _ptr = vld1q_f32(ptr);
-                        float32x4_t _p = vld1q_f32(outptr);
-                        _p = vaddq_f32(_ptr, _p);
-                        vst1q_f32(outptr, _p);
-
-                        ptr += 4;
-                        outptr += 4;
+                    asm volatile(
+                        "0:                               \n"
+                        "prfm       pldl1keep, [%1, #128] \n"
+                        "prfm       pldl1keep, [%2, #128] \n"
+                        "ld1        {v0.4s}, [%1], #16    \n"
+                        "ld1        {v1.4s}, [%2]         \n"
+                        "fadd       v0.4s, v0.4s, v1.4s   \n"
+                        "subs       %w0, %w0, #1          \n"
+                        "st1        {v0.4s}, [%2], #16    \n"
+                        "bne        0b                    \n"
+                        : "=r"(nn),     // %0
+                          "=r"(ptr),    // %1
+                          "=r"(outptr)  // %2
+                        : "0"(nn),
+                          "1"(ptr),
+                          "2"(outptr)
+                        : "cc", "memory", "v0", "v1"
+                    );
                     }
 #else
                     if (nn > 0)
@@ -303,7 +350,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             const Mat& bottom_blob1 = bottom_blobs[1];
             float coeff0 = coeffs_ptr[0];
             float coeff1 = coeffs_ptr[1];
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -321,17 +368,31 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 float32x4_t _coeff0 = vdupq_n_f32(coeff0);
                 float32x4_t _coeff1 = vdupq_n_f32(coeff1);
 #if __aarch64__
-                for (; nn>0; nn--)
+                if (nn > 0)
                 {
-                    float32x4_t _ptr = vld1q_f32(ptr);
-                    float32x4_t _ptr1 = vld1q_f32(ptr1);
-                    float32x4_t _p = vmulq_f32(_ptr, _coeff0);
-                    _p = vmlaq_f32(_p, _ptr1, _coeff1);
-                    vst1q_f32(outptr, _p);
-
-                    ptr += 4;
-                    ptr1 += 4;
-                    outptr += 4;
+                asm volatile(
+                    "0:                               \n"
+                    "prfm       pldl1keep, [%1, #128] \n"
+                    "prfm       pldl1keep, [%2, #128] \n"
+                    "ld1        {v0.4s}, [%1], #16    \n"
+                    "ld1        {v1.4s}, [%2], #16    \n"
+                    "fmul       v0.4s, v0.4s, %8.4s   \n"
+                    "fmla       v0.4s, v1.4s, %9.4s   \n"
+                    "subs       %w0, %w0, #1          \n"
+                    "st1        {v0.4s}, [%3], #16    \n"
+                    "bne        0b                    \n"
+                    : "=r"(nn),     // %0
+                      "=r"(ptr),    // %1
+                      "=r"(ptr1),   // %2
+                      "=r"(outptr)  // %3
+                    : "0"(nn),
+                      "1"(ptr),
+                      "2"(ptr1),
+                      "3"(outptr),
+                      "w"(_coeff0), // %8
+                      "w"(_coeff1)  // %9
+                    : "cc", "memory", "v0", "v1"
+                );
                 }
 #else
                 if (nn > 0)
@@ -376,7 +437,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
                 float coeff = coeffs_ptr[b];
-                #pragma omp parallel for
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q=0; q<channels; q++)
                 {
                     const float* ptr = bottom_blob1.channel(q);
@@ -392,15 +453,27 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #if __ARM_NEON
                     float32x4_t _coeff = vdupq_n_f32(coeff);
 #if __aarch64__
-                    for (; nn>0; nn--)
+                    if (nn > 0)
                     {
-                        float32x4_t _ptr = vld1q_f32(ptr);
-                        float32x4_t _p = vld1q_f32(outptr);
-                        _p = vmlaq_f32(_p, _ptr, _coeff);
-                        vst1q_f32(outptr, _p);
-
-                        ptr += 4;
-                        outptr += 4;
+                    asm volatile(
+                        "0:                               \n"
+                        "prfm       pldl1keep, [%1, #128] \n"
+                        "prfm       pldl1keep, [%2, #128] \n"
+                        "ld1        {v0.4s}, [%1], #16    \n"
+                        "ld1        {v1.4s}, [%2]         \n"
+                        "fmla       v1.4s, v0.4s, %6.4s   \n"
+                        "subs       %w0, %w0, #1          \n"
+                        "st1        {v1.4s}, [%2], #16    \n"
+                        "bne        0b                    \n"
+                        : "=r"(nn),     // %0
+                          "=r"(ptr),    // %1
+                          "=r"(outptr)  // %2
+                        : "0"(nn),
+                          "1"(ptr),
+                          "2"(outptr),
+                          "w"(_coeff)   // %6
+                        : "cc", "memory", "v0", "v1"
+                    );
                     }
 #else
                     if (nn > 0)
@@ -413,7 +486,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         "vld1.f32   {d2-d3}, [%2 :128]  \n"
                         "vmla.f32   q1, q0, %q6         \n"
                         "subs       %0, #1              \n"
-                        "vst1.f32   {d0-d1}, [%2 :128]! \n"
+                        "vst1.f32   {d2-d3}, [%2 :128]! \n"
                         "bne        0b                  \n"
                         : "=r"(nn),     // %0
                           "=r"(ptr),    // %1
@@ -442,7 +515,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     {
         // first blob
         const Mat& bottom_blob1 = bottom_blobs[1];
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
@@ -458,16 +531,28 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
 #if __ARM_NEON
 #if __aarch64__
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4_t _ptr = vld1q_f32(ptr);
-                float32x4_t _ptr1 = vld1q_f32(ptr1);
-                float32x4_t _p = vmaxq_f32(_ptr, _ptr1);
-                vst1q_f32(outptr, _p);
-
-                ptr += 4;
-                ptr1 += 4;
-                outptr += 4;
+            asm volatile(
+                "0:                               \n"
+                "prfm       pldl1keep, [%1, #128] \n"
+                "prfm       pldl1keep, [%2, #128] \n"
+                "ld1        {v0.4s}, [%1], #16    \n"
+                "ld1        {v1.4s}, [%2], #16    \n"
+                "fmax       v0.4s, v0.4s, v1.4s   \n"
+                "subs       %w0, %w0, #1          \n"
+                "st1        {v0.4s}, [%3], #16    \n"
+                "bne        0b                    \n"
+                : "=r"(nn),     // %0
+                  "=r"(ptr),    // %1
+                  "=r"(ptr1),   // %2
+                  "=r"(outptr)  // %3
+                : "0"(nn),
+                  "1"(ptr),
+                  "2"(ptr1),
+                  "3"(outptr)
+                : "cc", "memory", "v0", "v1"
+            );
             }
 #else
             if (nn > 0)
@@ -508,7 +593,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         for (size_t b=2; b<bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob1 = bottom_blobs[b];
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = bottom_blob1.channel(q);
@@ -523,15 +608,26 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
 #if __ARM_NEON
 #if __aarch64__
-                for (; nn>0; nn--)
+                if (nn > 0)
                 {
-                    float32x4_t _ptr = vld1q_f32(ptr);
-                    float32x4_t _p = vld1q_f32(outptr);
-                    _p = vmaxq_f32(_ptr, _p);
-                    vst1q_f32(outptr, _p);
-
-                    ptr += 4;
-                    outptr += 4;
+                asm volatile(
+                    "0:                               \n"
+                    "prfm       pldl1keep, [%1, #128] \n"
+                    "prfm       pldl1keep, [%2, #128] \n"
+                    "ld1        {v0.4s}, [%1], #16    \n"
+                    "ld1        {v1.4s}, [%2]         \n"
+                    "fmax       v0.4s, v0.4s, v1.4s   \n"
+                    "subs       %w0, %w0, #1          \n"
+                    "st1        {v0.4s}, [%2], #16    \n"
+                    "bne        0b                    \n"
+                    : "=r"(nn),     // %0
+                      "=r"(ptr),    // %1
+                      "=r"(outptr)  // %2
+                    : "0"(nn),
+                      "1"(ptr),
+                      "2"(outptr)
+                    : "cc", "memory", "v0", "v1"
+                );
                 }
 #else
                 if (nn > 0)

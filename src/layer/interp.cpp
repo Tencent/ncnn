@@ -35,14 +35,22 @@ int Interp::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Interp::forward(const Mat &bottom_blob, Mat &top_blob) const
+int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) const
 {
     int h = bottom_blob.h;
     int w = bottom_blob.w;
     int c = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+
     int oh = output_height;
     int ow = output_width;
-    if (ow == 0 || ow == 0)
+    if (bottom_blob.dims == 1)
+    {
+        h = 1;
+        w = 1;
+        c = bottom_blob.w;
+    }
+    if (oh == 0 || ow == 0)
     {
         oh = h * height_scale;
         ow = w * width_scale;
@@ -52,13 +60,25 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob) const
         top_blob = bottom_blob;
         return 0;
     }
-    top_blob.create(ow, oh, c);
+    top_blob.create(ow, oh, c, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
+    if (bottom_blob.dims == 1)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < c; ++q)
+        {
+            Mat top_blob_c = top_blob.channel(q);
+            const float *ptr = ((const float*)bottom_blob.data + q);
+            top_blob_c.fill(*ptr);
+        }
+        return 0;
+    }
+
     if (resize_type == 1)//nearest
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; ++q)
         {
             const float *ptr = bottom_blob.channel(q);
@@ -75,7 +95,7 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob) const
         }
         return 0;
 
-        }
+    }
     else if (resize_type == 2)// bilinear
     {
         resize_bilinear(bottom_blob, top_blob, ow, oh);

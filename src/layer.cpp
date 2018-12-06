@@ -14,9 +14,39 @@
 
 #include "layer.h"
 
+#include <stdio.h>
 #include <string.h>
+#include "cpu.h"
 
 namespace ncnn {
+
+Option::Option()
+{
+    lightmode = true;
+    num_threads = get_cpu_count();
+    blob_allocator = 0;
+    workspace_allocator = 0;
+}
+
+static Option g_default_option;
+
+const Option& get_default_option()
+{
+    return g_default_option;
+}
+
+int set_default_option(const Option& opt)
+{
+    if (opt.num_threads <= 0)
+    {
+        fprintf(stderr, "invalid option num_threads %d\n", opt.num_threads);
+        return -1;
+    }
+
+    g_default_option = opt;
+
+    return 0;
+}
 
 Layer::Layer()
 {
@@ -38,7 +68,7 @@ int Layer::load_model(const ModelBin& /*mb*/)
     return 0;
 }
 
-int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (!support_inplace)
         return -1;
@@ -46,32 +76,32 @@ int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
     top_blobs = bottom_blobs;
     for (int i = 0; i < (int)top_blobs.size(); i++)
     {
-        top_blobs[i] = bottom_blobs[i].clone();
+        top_blobs[i] = bottom_blobs[i].clone(opt.blob_allocator);
         if (top_blobs[i].empty())
             return -100;
     }
 
-    return forward_inplace(top_blobs);
+    return forward_inplace(top_blobs, opt);
 }
 
-int Layer::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Layer::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     if (!support_inplace)
         return -1;
 
-    top_blob = bottom_blob.clone();
+    top_blob = bottom_blob.clone(opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    return forward_inplace(top_blob);
+    return forward_inplace(top_blob, opt);
 }
 
-int Layer::forward_inplace(std::vector<Mat>& /*bottom_top_blobs*/) const
+int Layer::forward_inplace(std::vector<Mat>& /*bottom_top_blobs*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
-int Layer::forward_inplace(Mat& /*bottom_top_blob*/) const
+int Layer::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) const
 {
     return -1;
 }

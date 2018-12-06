@@ -26,14 +26,14 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     int top;
     int bottom;
     int left;
     int right;
-    int type;
+    int type;// 0=BORDER_CONSTANT 1=BORDER_REPLICATE
     float value;
 };
 

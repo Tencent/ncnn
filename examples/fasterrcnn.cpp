@@ -148,7 +148,6 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // step1, extract feature and all rois
     ncnn::Extractor ex1 = fasterrcnn.create_extractor();
-    ex1.set_light_mode(true);
 
     ex1.input("data", in);
     ex1.input("im_info", im_info);
@@ -163,7 +162,6 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     for (int i = 0; i < rois.c; i++)
     {
         ncnn::Extractor ex2 = fasterrcnn.create_extractor();
-        ex2.set_light_mode(true);
 
         ncnn::Mat roi = rois.channel(i);// get single roi
         ex2.input("conv5", conv5);
@@ -315,6 +313,12 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
 int main(int argc, char** argv)
 {
+    if (argc != 2)
+    {
+        fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
+        return -1;
+    }
+
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);

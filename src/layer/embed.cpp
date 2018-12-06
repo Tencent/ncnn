@@ -51,16 +51,16 @@ int Embed::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Embed::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Embed::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int words = bottom_blob.total();
 
-    top_blob.create(num_output, words);
+    top_blob.create(num_output, words, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     // num_output
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<words; q++)
     {
         float* outptr = top_blob.row(q);

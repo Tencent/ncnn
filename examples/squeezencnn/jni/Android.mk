@@ -1,11 +1,11 @@
 LOCAL_PATH := $(call my-dir)
 
 # change this folder path to yours
-NCNN_INSTALL_PATH := /home/nihui/dev/qqfacecnn/ncnn/build-android-armv7/install
+NCNN_INSTALL_PATH := /home/nihui/osd/ncnn/ncnn-android-lib
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := ncnn
-LOCAL_SRC_FILES := $(NCNN_INSTALL_PATH)/lib/libncnn.a
+LOCAL_SRC_FILES := $(NCNN_INSTALL_PATH)/$(TARGET_ARCH_ABI)/libncnn.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)

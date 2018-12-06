@@ -28,11 +28,12 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     // param
     int across_spatial;
+    int across_channel;
     int channel_shared;
     float eps;
     int scale_data_size;

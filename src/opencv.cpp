@@ -79,6 +79,7 @@ void imwrite(const std::string& path, const Mat& m)
     fclose(fp);
 }
 
+#if NCNN_PIXEL
 void resize(const Mat& src, Mat& dst, const Size& size, float sw, float sh, int flags)
 {
     int srcw = src.cols;
@@ -115,6 +116,7 @@ void resize(const Mat& src, Mat& dst, const Size& size, float sw, float sh, int 
 
     dst = tmp;
 }
+#endif // NCNN_PIXEL
 
 } // namespace cv
 

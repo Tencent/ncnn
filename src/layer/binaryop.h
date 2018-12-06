@@ -26,7 +26,9 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
     enum {
         Operation_ADD   = 0,
@@ -35,12 +37,16 @@ public:
         Operation_DIV   = 3,
         Operation_MAX   = 4,
         Operation_MIN   = 5,
-        Operation_POW   = 6
+        Operation_POW   = 6,
+        Operation_RSUB  = 7,
+        Operation_RDIV  = 8
     };
 
 public:
     // param
     int op_type;
+    int with_scalar;
+    float b;
 };
 
 } // namespace ncnn
