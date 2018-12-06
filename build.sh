@@ -46,6 +46,7 @@ pushd build-mac
 cmake   -DNCNN_OPENMP=OFF \
         -DNCNN_OPENCV=ON \
         -DNCNN_BENCHMARK=ON \
+        -DCMAKE_CXX_FLAGS=-std=c++11 \
         ..
 make -j 8
 make install
