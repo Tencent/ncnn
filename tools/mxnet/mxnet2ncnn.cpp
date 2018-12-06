@@ -224,11 +224,11 @@ std::vector<float> MXNetNode::weight(int i, int init_len) const
 
         if (!p.init.empty() && init_len != 0)
         {
-            if (p.init == "[\\$zero\\$, {}]" || p.init == "[\\\"zero\\\", {}]")
+            if (p.init == "[\\$zero\\$, {}]" || p.init == "[\\\"zero\\\", {}]" || p.init == "zeros")
             {
                 data.resize(init_len, 0.f);
             }
-            else if (p.init == "[\\$one\\$, {}]" || p.init == "[\\\"one\\\", {}]")
+            else if (p.init == "[\\$one\\$, {}]" || p.init == "[\\\"one\\\", {}]" || p.init == "ones")
             {
                 data.resize(init_len, 1.f);
             }
