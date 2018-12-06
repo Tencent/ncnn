@@ -151,14 +151,12 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     const Mat& confidence = bottom_blobs[1];
     const Mat& priorbox = bottom_blobs[2];
 
-    bool mxnet_ssd_style = priorbox.dims == 2;
+    bool mxnet_ssd_style = num_class == -233;
 
     // mxnet-ssd _contrib_MultiBoxDetection
     const int num_prior = mxnet_ssd_style ? priorbox.h : priorbox.w / 4;
 
-    int num_class_copy = num_class;
-    if (num_class_copy == -233)
-        num_class_copy = confidence.h;
+    int num_class_copy = mxnet_ssd_style ? confidence.h : num_class;
 
     // apply location with priorbox
     Mat bboxes;
@@ -168,7 +166,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
     const float* location_ptr = location;
     const float* priorbox_ptr = priorbox.row(0);
-    const float* variance_ptr = priorbox.h == 2 ? priorbox.row(1) : 0;
+    const float* variance_ptr = mxnet_ssd_style ? 0 : priorbox.row(1);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_prior; i++)
