@@ -43,21 +43,12 @@ Yolov3DetectionOutput::~Yolov3DetectionOutput()
 int Yolov3DetectionOutput::load_param(const ParamDict& pd)
 {
     num_class = pd.get(0, 20);
-	//printf("%d\n", num_class);
     num_box = pd.get(1, 5);
-	//printf("%d\n", num_box);
     confidence_threshold = pd.get(2, 0.01f);
-	//printf("%f\n", confidence_threshold);
     nms_threshold = pd.get(3, 0.45f);
-	//printf("%f\n", nms_threshold);
     biases = pd.get(4, Mat());
-	//printf("%f %f\n", biases[0], biases[1]);
 	mask = pd.get(5, Mat());
-	//printf("%f %f %f\n", mask[0], mask[1], mask[2]);
 	anchors_scale = pd.get(6, Mat());
-	//printf("%f %f\n", anchors_scale[0], anchors_scale[1]);
-	mask_group_num = pd.get(7,2);
-	//printf("%d\n", mask_group_num);
     return 0;
 }
 
@@ -172,14 +163,6 @@ static inline float sigmoid(float x)
 
 int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-	//const Mat& bottom_top_blob2 = **bottom_top_blob[0];
-
-	//int w2 = bottom_top_blob2.w;
-	//int h2 = bottom_top_blob2.h;
-	//int channels2 = bottom_top_blob2.c;
-
-	//printf("%d %d %d\n", w2, h2, channels2);
-
 	// gather all box
 	std::vector<BBoxRect> all_bbox_rects;
 	std::vector<float> all_bbox_scores;
@@ -234,8 +217,8 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
 					// region box
 					float bbox_cx = (j + sigmoid(xptr[0])) / w;
 					float bbox_cy = (i + sigmoid(yptr[0])) / h;
-					float bbox_w = exp(wptr[0]) * bias_w / 416;
-					float bbox_h = exp(hptr[0]) * bias_h / 416;
+					float bbox_w = exp(wptr[0]) * bias_w / net_w;
+					float bbox_h = exp(hptr[0]) * bias_h / net_h;
 
 					float bbox_xmin = bbox_cx - bbox_w * 0.5f;
 					float bbox_ymin = bbox_cy - bbox_h * 0.5f;
