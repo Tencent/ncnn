@@ -258,6 +258,29 @@ int main(int argc, char** argv)
                     continue;
                 }
             }
+            else if (node.input_size() == 2)
+            {
+                // opset 5
+                const std::string& input_name = node.input(0);
+
+                // check weight
+                if (weights.find(input_name) != weights.end())
+                {
+                    weights[node.output(0)] = weights[input_name];
+
+                    // set weight shape directly
+                    const onnx::TensorProto& shape_tp = weights[node.input(1)];
+                    const int64_t* shape_data = shape_tp.int64_data().data();
+
+                    weights[node.output(0)].clear_dims();
+                    for (int j=0; j<shape_tp.int64_data_size(); j++)
+                    {
+                        weights[node.output(0)].add_dims(shape_data[j]);
+                    }
+
+                    continue;
+                }
+            }
         }
         else
         {
@@ -505,14 +528,13 @@ int main(int argc, char** argv)
         {
             float alpha = get_node_attr_f(node, "alpha", 1.f);
             float beta = get_node_attr_f(node, "beta", 1.f);
-            int broadcast = get_node_attr_i(node, "broadcast", 0);
             int transA = get_node_attr_i(node, "transA", 0);
             int transB = get_node_attr_i(node, "transB", 0);
 
             if (alpha == 1.f && beta == 1.f)
             {
                 // InnerProduct-like A * B + C
-                if (transA == 0 && transB == 1 && broadcast == 1)
+                if (transA == 0 && transB == 1)
                 {
                     fprintf(pp, "%-16s", "InnerProduct");
                 }
@@ -566,7 +588,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Reshape")
         {
-            if (node.input_size() == 1)
+            if (node.input_size() == 1 || node.input_size() == 2)
             {
                 const std::string& input_name = node.input(0);
 
@@ -943,14 +965,13 @@ int main(int argc, char** argv)
         {
             float alpha = get_node_attr_f(node, "alpha", 1.f);
             float beta = get_node_attr_f(node, "beta", 1.f);
-            int broadcast = get_node_attr_i(node, "broadcast", 0);
             int transA = get_node_attr_i(node, "transA", 0);
             int transB = get_node_attr_i(node, "transB", 0);
 
             if (alpha == 1.f && beta == 1.f)
             {
                 // InnerProduct-like A * B + C
-                if (transA == 0 && transB == 1 && broadcast == 1)
+                if (transA == 0 && transB == 1)
                 {
                     const onnx::TensorProto& B = weights[node.input(1)];
                     const onnx::TensorProto& C = weights[node.input(2)];
@@ -1113,7 +1134,21 @@ int main(int argc, char** argv)
         }
         else if (op == "Reshape")
         {
-            std::vector<int> shape = get_node_attr_ai(node, "shape");
+            std::vector<int> shape;
+
+            if (node.input_size() == 1)
+            {
+                shape = get_node_attr_ai(node, "shape");
+            }
+            else
+            {
+                const onnx::TensorProto& shape_tp = weights[node.input(1)];
+                const int64_t* shape_data = shape_tp.int64_data().data();
+                for (int j=0; j<shape_tp.int64_data_size(); j++)
+                {
+                    shape.push_back(shape_data[j]);
+                }
+            }
 
             if (shape.size() == 1) {
                 fprintf(pp, " 0=%d", shape[0]);// should never reach here
