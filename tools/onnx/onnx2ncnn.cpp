@@ -539,6 +539,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Div")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "Dropout")
         {
             fprintf(pp, "%-16s", "Dropout");
@@ -606,6 +610,14 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InnerProduct");
         }
+        else if (op == "Max")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "Min")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "Mul")
         {
             fprintf(pp, "%-16s", "BinaryOp");
@@ -617,6 +629,10 @@ int main(int argc, char** argv)
         else if (op == "Pad")
         {
             fprintf(pp, "%-16s", "Padding");
+        }
+        else if (op == "Pow")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
         }
         else if (op == "PRelu")
         {
@@ -655,6 +671,10 @@ int main(int argc, char** argv)
         else if (op == "Sqrt")
         {
             fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "Sub")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
         }
         else if (op == "Sum")
         {
@@ -1038,6 +1058,11 @@ int main(int argc, char** argv)
             int op_type = 10;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (op == "Div")
+        {
+            int op_type = 3;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "Dropout")
         {
             // no-op
@@ -1186,6 +1211,16 @@ int main(int argc, char** argv)
 
 //                 fwrite_tensor_proto_data(B, bp)
         }
+        else if (op == "Max")
+        {
+            int op_type = 4;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Min")
+        {
+            int op_type = 5;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "Mul")
         {
             int op_type = 2;
@@ -1227,6 +1262,11 @@ int main(int argc, char** argv)
             fprintf(pp, " 3=%d", right);
             fprintf(pp, " 4=%d", type);
             fprintf(pp, " 5=%f", value);
+        }
+        else if (op == "Pow")
+        {
+            int op_type = 6;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "PRelu")
         {
@@ -1291,6 +1331,11 @@ int main(int argc, char** argv)
         else if (op == "Sqrt")
         {
             int op_type = 5;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Sub")
+        {
+            int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "Sum")
