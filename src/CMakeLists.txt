@@ -14,6 +14,7 @@ set(ncnn_SRCS
     layer.cpp
     mat.cpp
     mat_pixel.cpp
+    mat_pixel_resize.cpp
     modelbin.cpp
     net.cpp
     opencv.cpp
