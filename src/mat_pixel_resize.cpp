@@ -378,8 +378,6 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
             for ( int dx = 0; dx < w; dx++ )
             {
                 int sx = xofs[dx];
-                short a0 = ialphap[0];
-                short a1 = ialphap[1];
 
                 const unsigned char* S1p = S1 + sx;
 #if __ARM_NEON
@@ -394,6 +392,9 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
                 int16x4_t _rows1_sr4 = vshrn_n_s32(_rows1, 4);
                 vst1_s16(rows1p, _rows1_sr4);
 #else
+                short a0 = ialphap[0];
+                short a1 = ialphap[1];
+
                 rows1p[0] = (S1p[0]*a0 + S1p[2]*a1) >> 4;
                 rows1p[1] = (S1p[1]*a0 + S1p[3]*a1) >> 4;
 #endif // __ARM_NEON
