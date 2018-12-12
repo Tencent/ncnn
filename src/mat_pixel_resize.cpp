@@ -1154,6 +1154,22 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
 
     delete[] buf;
 }
+
+void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+    // assert srcw % 2 == 0
+    // assert srch % 2 == 0
+    // assert w % 2 == 0
+    // assert h % 2 == 0
+
+    const unsigned char* srcY = src;
+    unsigned char* dstY = dst;
+    resize_bilinear_c1(srcY, srcw, srch, dstY, w, h);
+
+    const unsigned char* srcUV = src + srcw * srch;
+    unsigned char* dstUV = dst + w * h;
+    resize_bilinear_c2(srcUV, srcw / 2, srch / 2, dstUV, w / 2, h / 2);
+}
 #endif // NCNN_PIXEL
 
 } // namespace ncnn
