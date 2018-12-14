@@ -660,6 +660,10 @@ int main(int argc, char** argv)
             }
             fprintf(pp, "%-16s", "Reshape");
         }
+        else if (op == "Sigmoid")
+        {
+            fprintf(pp, "%-16s", "Sigmoid");
+        }
         else if (op == "Sin")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -1317,6 +1321,9 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", shape[2]);
                 fprintf(pp, " 2=%d", shape[1]);
             }
+        }
+        else if (op == "Sigmoid")
+        {
         }
         else if (op == "Sin")
         {
