@@ -291,7 +291,23 @@ void mnasnet_run(const ncnn::Net& net)
     ex.input("data", in);
 
     ncnn::Mat out;
-    ex.extract("dense0_fwd", out);
+    ex.extract("prob", out);
+}
+
+void proxylessnasnet_init(ncnn::Net& net)
+{
+    net.load_param("proxylessnasnet.param");
+}
+
+void proxylessnasnet_run(const ncnn::Net& net)
+{
+    ncnn::Extractor ex = net.create_extractor();
+
+    ncnn::Mat in(224, 224, 3);
+    ex.input("data", in);
+
+    ncnn::Mat out;
+    ex.extract("prob", out);
 }
 
 int main(int argc, char** argv)
@@ -344,7 +360,9 @@ int main(int argc, char** argv)
 
     benchmark("shufflenet", shufflenet_init, shufflenet_run);
 
-//     benchmark("mnasnet", mnasnet_init, mnasnet_run); FIXME the mnasnet.param is wrong
+    benchmark("mnasnet", mnasnet_init, mnasnet_run);
+
+    benchmark("proxylessnasnet", proxylessnasnet_init, proxylessnasnet_run);
 
     benchmark("googlenet", googlenet_init, googlenet_run);
 
