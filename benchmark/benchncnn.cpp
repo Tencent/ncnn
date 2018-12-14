@@ -166,6 +166,38 @@ void shufflenet_run(const ncnn::Net& net)
     ex.extract("fc1000", out);
 }
 
+void mnasnet_init(ncnn::Net& net)
+{
+    net.load_param("mnasnet.param");
+}
+
+void mnasnet_run(const ncnn::Net& net)
+{
+    ncnn::Extractor ex = net.create_extractor();
+
+    ncnn::Mat in(224, 224, 3);
+    ex.input("data", in);
+
+    ncnn::Mat out;
+    ex.extract("prob", out);
+}
+
+void proxylessnasnet_init(ncnn::Net& net)
+{
+    net.load_param("proxylessnasnet.param");
+}
+
+void proxylessnasnet_run(const ncnn::Net& net)
+{
+    ncnn::Extractor ex = net.create_extractor();
+
+    ncnn::Mat in(224, 224, 3);
+    ex.input("data", in);
+
+    ncnn::Mat out;
+    ex.extract("prob", out);
+}
+
 void googlenet_init(ncnn::Net& net)
 {
     net.load_param("googlenet.param");
@@ -278,36 +310,20 @@ void mobilenet_yolo_run(const ncnn::Net& net)
     ex.extract("detection_out", out);
 }
 
-void mnasnet_init(ncnn::Net& net)
+void mobilenet_yolov3_init(ncnn::Net& net)
 {
-    net.load_param("mnasnet.param");
+    net.load_param("mobilenet_yolov3.param");
 }
 
-void mnasnet_run(const ncnn::Net& net)
+void mobilenet_yolov3_run(const ncnn::Net& net)
 {
     ncnn::Extractor ex = net.create_extractor();
 
-    ncnn::Mat in(224, 224, 3);
+    ncnn::Mat in(416, 416, 3);
     ex.input("data", in);
 
     ncnn::Mat out;
-    ex.extract("prob", out);
-}
-
-void proxylessnasnet_init(ncnn::Net& net)
-{
-    net.load_param("proxylessnasnet.param");
-}
-
-void proxylessnasnet_run(const ncnn::Net& net)
-{
-    ncnn::Extractor ex = net.create_extractor();
-
-    ncnn::Mat in(224, 224, 3);
-    ex.input("data", in);
-
-    ncnn::Mat out;
-    ex.extract("prob", out);
+    ex.extract("detection_out", out);
 }
 
 int main(int argc, char** argv)
@@ -377,6 +393,8 @@ int main(int argc, char** argv)
     benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
 
     benchmark("mobilenet-yolo", mobilenet_yolo_init, mobilenet_yolo_run);
+
+    benchmark("mobilenet-yolov3", mobilenet_yolov3_init, mobilenet_yolov3_run);
 
     return 0;
 }
