@@ -556,6 +556,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Flatten")
+        {
+            fprintf(pp, "%-16s", "Flatten");
+        }
         else if (op == "Floor")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -1080,6 +1084,14 @@ int main(int argc, char** argv)
         {
             int op_type = 7;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Flatten")
+        {
+            int axis = get_node_attr_i(node, "axis", 1);
+            if (axis != 1)
+            {
+                fprintf(stderr, "Unsupported Flatten axis %d!\n", axis);
+            }
         }
         else if (op == "Floor")
         {
