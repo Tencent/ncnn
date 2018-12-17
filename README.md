@@ -93,6 +93,11 @@ Segmentation Network: FCN PSPNet ...
 
 https://github.com/Tencent/ncnn/tree/master/examples/squeezencnn
 
+https://github.com/chehongshu/ncnnforandroid_objectiondetection_Mobilenetssd
+
+![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-1.jpg)
+![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-23.jpg)
+
 ### 技术交流QQ群：637093648(已满qaq) 853969140  答案：卷卷卷卷卷
 
 ---
