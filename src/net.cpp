@@ -241,6 +241,8 @@ int Net::load_param(FILE* fp)
 #if _MSC_VER
 static inline int mem_sscanf_with_n(int* _internal_nconsumed_ptr, const char*& ptr, const char* format, ...)
 {
+    *_internal_nconsumed_ptr = 0;
+
     va_list args;
     va_start(args, format);
 
