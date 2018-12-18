@@ -111,9 +111,6 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
 #if __ARM_NEON
 #if __aarch64__
-                float32x4_t _bias = vdupq_n_f32(bias);
-                float32x4_t _scale = vdupq_n_f32(scale);
-
                 if (nn > 0)
                 {
                 asm volatile(
@@ -141,8 +138,8 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                     : "0"(nn),
                       "1"(intptr),
                       "2"(ptr),
-                      "r"(_scale),      // %6
-                      "r"(_bias)        // %7
+                      "r"(scale),       // %6
+                      "r"(bias)         // %7
                     : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6"
                 );
                 }
@@ -212,8 +209,6 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
 #if __ARM_NEON
 #if __aarch64__
-                float32x4_t _scale = vdupq_n_f32(scale);
-
                 if (nn > 0)
                 {
                 asm volatile(
@@ -237,7 +232,7 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                     : "0"(nn),
                       "1"(intptr),
                       "2"(ptr),
-                      "r"(_scale)       // %6
+                      "r"(scale)        // %6
                     : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6"
                 );
                 }
