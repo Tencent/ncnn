@@ -38,6 +38,7 @@ public:
     Mat weight_1x1_sgemm_data;
     Mat weight_3x3s2_data;
     Mat weight_3x3s1_int8_data;
+    Mat weight_1x1s1_sgemm_int8_data;
 };
 
 } // namespace ncnn
