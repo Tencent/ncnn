@@ -11,36 +11,31 @@ addons:
       - libprotobuf-dev
       - protobuf-compiler
 
+  homebrew:
+    packages:
+      - protobuf
+
+  chocolatey:
+    packages:
+      - protoc
+
 matrix:
   include:
     - os: linux
       dist: xenial
       compiler: gcc
-      env:
-        - BEFORE_BUILD=""
-        - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
     - os: linux
       dist: xenial
       compiler: clang
-      env:
-        - BEFORE_BUILD=""
-        - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
     - os: osx
       osx_image: xcode8
-      env:
-        - BEFORE_BUILD="brew install protobuf"
-        - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
     - os: windows
       dist: 1803-containers
-      env:
-        - BEFORE_BUILD=""
-        - BUILD="mkdir build && cd build && cmake .. && nmake"
-
-before_install:
-  - eval "${BEFORE_BUILD}"
 
 script:
-  - eval "${BUILD}"
+  - mkdir build
+  - cd build
+  - cmake --build ..
