@@ -24,18 +24,24 @@ matrix:
     - os: linux
       dist: xenial
       compiler: gcc
+      env:
+        - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
     - os: linux
       dist: xenial
       compiler: clang
+      env:
+        - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
     - os: osx
       osx_image: xcode8
+      env:
+        - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
     - os: windows
       dist: 1803-containers
+      env:
+        - BUILD="mkdir build && cd build && cmake .. && ls && cmake --build ."
 
 script:
-  - mkdir build
-  - cd build
-  - cmake --build ..
+  - eval "${BUILD}"
