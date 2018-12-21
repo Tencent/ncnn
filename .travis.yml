@@ -28,7 +28,6 @@ matrix:
       dist: 1803-containers
 
 script:
-  - mkdir build
-  - cd build
-  - cmake ..
-  - make -j2
+  - if [ $TRAVIS_OS_NAME == linux ]; then mkdir build && cd build && cmake .. && make -j2; fi
+  - if [ $TRAVIS_OS_NAME == osx ]; then mkdir build && cd build && cmake -DNCNN_OPENMP=OFF .. && make -j2; fi
+  - if [ $TRAVIS_OS_NAME == windows ]; then mkdir build && cd build && cmake -G"NMake Makefiles" .. && nmake; fi
