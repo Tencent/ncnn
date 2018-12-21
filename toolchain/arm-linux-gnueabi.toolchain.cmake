@@ -16,3 +16,4 @@ SET ( CMAKE_CXX_FLAGS "-std=c++11 -march=armv7-a -mfloat-abi=softfp -mfpu=neon-v
 # other settings
 add_definitions(-D__ARM_NEON)
 add_definitions(-D__ANDROID__)
+SET ( ANDROID true)

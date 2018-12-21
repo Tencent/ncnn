@@ -16,3 +16,4 @@ SET ( CMAKE_CXX_FLAGS "-std=c++11 -march=armv8-a -fopenmp ${CMAKE_CXX_FLAGS}" )
 # other settings
 add_definitions(-D__ARM_NEON)
 add_definitions(-D__ANDROID__)
+SET ( ANDROID true)
