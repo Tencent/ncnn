@@ -41,7 +41,7 @@ macro(ncnn_add_layer class)
 
         # look for arch specific implementation and append source
         # optimized implementation for armv7, aarch64 or x86
-        if((IOS AND ${CMAKE_OSX_ARCHITECTURES} MATCHES "arm")
+        if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
             OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)"))
             set(arch arm)
         else()
