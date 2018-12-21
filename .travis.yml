@@ -65,13 +65,13 @@ matrix:
       os: osx
       osx_image: xcode9.4
       env:
-        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../ios.toolchain.cmake -DIOS_PLATFORM=OS .. && make -j2"
+        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/ios.toolchain.cmake -DIOS_PLATFORM=OS .. && make -j2"
 
     - name: "ios-iphonesimulator"
       os: osx
       osx_image: xcode9.4
       env:
-        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR .. && make -j2"
+        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR .. && make -j2"
 
 before_install:
   - eval "${BEFORE_BUILD}"
