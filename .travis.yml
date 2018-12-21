@@ -1,29 +1,80 @@
 sudo: false
-dist: trusty
 
 language: cpp
-
-compiler:
-  - g++
 
 addons:
   apt:
     sources:
-    - ubuntu-toolchain-r-test
+      - ubuntu-toolchain-r-test
     packages:
-    - cmake
+      - cmake
+      - libprotobuf-dev
+      - protobuf-compiler
+
+  homebrew:
+    packages:
+      - protobuf
+
+  chocolatey:
+    packages:
+      - protoc
+
+matrix:
+  include:
+    - name: "linux-gcc"
+      os: linux
+      dist: xenial
+      compiler: gcc
+      env:
+        - BUILD="mkdir build && cd build && cmake .. && make -j2"
+
+    - name: "linux-clang"
+      os: linux
+      dist: xenial
+      compiler: clang
+      env:
+        - BUILD="mkdir build && cd build && cmake .. && make -j2"
+
+    - name: "osx-clang"
+      os: osx
+      osx_image: xcode9.4
+      env:
+        - BUILD="mkdir build && cd build && cmake .. && make -j2"
+
+    - name: "windows-vs2017"
+      os: windows
+      dist: 1803-containers
+      env:
+        - BUILD="mkdir build && cd build && cmake .. && cmake --build ."
+
+    - name: "android-armv7"
+      os: linux
+      dist: xenial
+      env:
+        - BEFORE_BUILD="wget https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip && unzip -q android-ndk-r18b-linux-x86_64.zip"
+        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/android-ndk-r18b/build/cmake/android.toolchain.cmake -DANDROID_ABI=\"armeabi-v7a\" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 .. && make -j2"
+
+    - name: "android-aarch64"
+      os: linux
+      dist: xenial
+      env:
+        - BEFORE_BUILD="wget https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip && unzip -q android-ndk-r18b-linux-x86_64.zip"
+        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/android-ndk-r18b/build/cmake/android.toolchain.cmake -DANDROID_ABI=\"arm64-v8a\" -DANDROID_PLATFORM=android-21 .. && make -j2"
+
+    - name: "ios-iphoneos"
+      os: osx
+      osx_image: xcode9.4
+      env:
+        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../ios.toolchain.cmake -DIOS_PLATFORM=OS .. && make -j2"
+
+    - name: "ios-iphonesimulator"
+      os: osx
+      osx_image: xcode9.4
+      env:
+        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR .. && make -j2"
 
 before_install:
-  - pip install --user cpp-coveralls
-
-install:
-  - wget https://github.com/google/protobuf/archive/v3.5.1.tar.gz
-  - tar -xzvf v3.5.1.tar.gz
-  - pushd protobuf-3.5.1 && ./autogen.sh && ./configure --prefix=/usr && make -j2 && sudo make install && sudo ldconfig && popd
+  - eval "${BEFORE_BUILD}"
 
 script:
-  - cmake -DCOVERAGE=1 .
-  - make -j2
-
-after_success:
-  - coveralls --root . -E ".*build.*" -E ".*protobuf.*"
+  - eval "${BUILD}"
