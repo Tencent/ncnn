@@ -73,7 +73,7 @@
 # IOS_ARCH: (armv7 armv7s armv7k arm64 arm64e arm64_32 i386 x86_64) If specified, will override the default architectures for the given IOS_PLATFORM
 #    OS = armv7 armv7s arm64 arm64e (if applicable)
 #    OS64 = arm64 arm64e (if applicable)
-#    SIMULATOR = i386
+#    SIMULATOR = i386 x86_64
 #    SIMULATOR64 = x86_64
 #    TVOS = arm64
 #    SIMULATOR_TVOS = x86_64 (i386 has since long been deprecated)
@@ -159,7 +159,7 @@ if (IOS_PLATFORM STREQUAL "OS")
 elseif (IOS_PLATFORM STREQUAL "SIMULATOR")
   set(XCODE_IOS_PLATFORM iphonesimulator)
   if(NOT IOS_ARCH)
-    set(IOS_ARCH i386)
+    set(IOS_ARCH i386 x86_64)
   endif()
   message(WARNING "SIMULATOR IS DEPRECATED. Consider using SIMULATOR64 instead.")
 elseif(IOS_PLATFORM STREQUAL "SIMULATOR64")
