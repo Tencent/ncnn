@@ -24,8 +24,8 @@ matrix:
     - os: osx
       osx_image: xcode8
 
-before_install:
-  - if [ $TRAVIS_OS_NAME == osx ]; then brew update && brew install protobuf; fi
+    - os: windows
+      dist: 1803-containers
 
 script:
   - mkdir build
