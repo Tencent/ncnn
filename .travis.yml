@@ -1,10 +1,11 @@
 sudo: false
-dist: trusty
+dist: xenial
 
 language: cpp
 
 compiler:
-  - g++
+  - gcc
+  - clang
 
 addons:
   apt:
@@ -12,18 +13,16 @@ addons:
     - ubuntu-toolchain-r-test
     packages:
     - cmake
+    - libprotobuf-dev
+    - protobuf-compiler
 
 before_install:
-  - pip install --user cpp-coveralls
-
-install:
-  - wget https://github.com/google/protobuf/archive/v3.5.1.tar.gz
-  - tar -xzvf v3.5.1.tar.gz
-  - pushd protobuf-3.5.1 && ./autogen.sh && ./configure --prefix=/usr && make -j2 && sudo make install && sudo ldconfig && popd
+  - wget https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip
+  - unzip -q android-ndk-r18b-linux-x86_64.zip
+  - export ANDROID_NDK=`pwd`/android-ndk-r18b
 
 script:
-  - cmake -DCOVERAGE=1 .
+  - mkdir build
+  - cd build
+  - cmake ..
   - make -j2
-
-after_success:
-  - coveralls --root . -E ".*build.*" -E ".*protobuf.*"
