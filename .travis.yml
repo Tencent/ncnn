@@ -23,11 +23,6 @@ matrix:
     - os: osx
       osx_image: xcode8
 
-before_install:
-  - wget https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip
-  - unzip -q android-ndk-r18b-linux-x86_64.zip
-  - export ANDROID_NDK=`pwd`/android-ndk-r18b
-
 script:
   - mkdir build
   - cd build
