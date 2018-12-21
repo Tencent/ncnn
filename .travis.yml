@@ -1,5 +1,4 @@
 sudo: false
-dist: xenial
 
 language: cpp
 
@@ -15,13 +14,18 @@ addons:
 matrix:
   include:
     - os: linux
+      dist: xenial
       compiler: gcc
 
     - os: linux
+      dist: xenial
       compiler: clang
 
     - os: osx
       osx_image: xcode8
+
+before_install:
+  - if [ $TRAVIS_OS_NAME == osx ]; then brew update && brew install protobuf; fi
 
 script:
   - mkdir build
