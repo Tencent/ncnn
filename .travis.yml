@@ -30,7 +30,7 @@ matrix:
     - os: osx
       osx_image: xcode8
       env:
-        - BEFORE_BUILD="brew update && brew install protobuf"
+        - BEFORE_BUILD="brew install protobuf"
         - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
     - os: windows
