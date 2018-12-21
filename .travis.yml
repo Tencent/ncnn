@@ -10,11 +10,22 @@ compiler:
 addons:
   apt:
     sources:
-    - ubuntu-toolchain-r-test
+      - ubuntu-toolchain-r-test
     packages:
-    - cmake
-    - libprotobuf-dev
-    - protobuf-compiler
+      - cmake
+      - libprotobuf-dev
+      - protobuf-compiler
+
+matrix:
+  include:
+    - os: linux
+      compiler: gcc
+
+    - os: linux
+      compiler: clang
+
+    - os: osx
+      osx_image: xcode8
 
 before_install:
   - wget https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip
