@@ -16,18 +16,31 @@ matrix:
     - os: linux
       dist: xenial
       compiler: gcc
+      env:
+        - BEFORE_BUILD=""
+        - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
     - os: linux
       dist: xenial
       compiler: clang
+      env:
+        - BEFORE_BUILD=""
+        - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
     - os: osx
       osx_image: xcode8
+      env:
+        - BEFORE_BUILD="brew update && brew install protobuf"
+        - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
     - os: windows
       dist: 1803-containers
+      env:
+        - BEFORE_BUILD=""
+        - BUILD="mkdir build && cd build && cmake .. && nmake"
+
+before_install:
+  - eval "${BEFORE_BUILD}"
 
 script:
-  - if [ $TRAVIS_OS_NAME == linux ]; then mkdir build && cd build && cmake .. && make -j2; fi
-  - if [ $TRAVIS_OS_NAME == osx ]; then mkdir build && cd build && cmake -DNCNN_OPENMP=OFF .. && make -j2; fi
-  - if [ $TRAVIS_OS_NAME == windows ]; then mkdir build && cd build && cmake -G"NMake Makefiles" .. && nmake; fi
+  - eval "${BUILD}"
