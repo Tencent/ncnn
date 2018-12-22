@@ -24,10 +24,66 @@ make
 make install
 popd
 
+##### linux of hisiv300 (forgot the chip name) toolchain with neon and openmp
+mkdir -p build-hisiv300-linux
+pushd build-hisiv300-linux
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/hisiv300.toolchain.cmake ..
+make
+make install
+popd
+
+##### linux of hisiv500 (Hi3516CV200 and Hi3519V101) toolchain with neon and openmp
+mkdir -p build-hisiv500-linux
+pushd build-hisiv500-linux
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/hisiv500.toolchain.cmake ..
+make
+make install
+popd
+
+##### linux of himix100 (Hi3559a) toolchain with neon and openmp
+mkdir -p build-himix100-linux
+pushd build-himix100-linux
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/himix100.toolchain.cmake ..
+make
+make install
+popd
+
+##### linux of arm-linux-gnueabi toolchain
+mkdir -p build-arm-linux-gnueabi
+pushd build-arm-linux-gnueabi
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/arm-linux-gnueabi.toolchain.cmake ..
+make
+make install
+popd
+
+##### linux of arm-linux-gnueabihf toolchain
+mkdir -p build-arm-linux-gnueabihf
+pushd build-arm-linux-gnueabihf
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/arm-linux-gnueabihf.toolchain.cmake ..
+make
+make install
+popd
+
+##### linux for aarch64-linux-gnu toolchain
+mkdir -p build-aarch64-linux-gnu
+pushd build-aarch64-linux-gnu
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/aarch64-linux-gnu.toolchain.cmake ..
+make
+make install
+popd
+
+##### linux host system with gcc/g++
+mkdir -p build-host-gcc-linux
+pushd build-host-gcc-linux
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/host.gcc.toolchain.cmake ..
+make
+make install
+popd
+
 ##### ios armv7 arm64
 mkdir -p build-ios
 pushd build-ios
-cmake -DCMAKE_TOOLCHAIN_FILE=../iosxc.toolchain.cmake ..
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/iosxc.toolchain.cmake ..
 make
 make install
 popd
@@ -35,7 +91,7 @@ popd
 ##### ios simulator i386 x86_64
 mkdir -p build-ios-sim
 pushd build-ios-sim
-cmake -DCMAKE_TOOLCHAIN_FILE=../iossimxc.toolchain.cmake ..
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/iossimxc.toolchain.cmake ..
 make
 make install
 popd
