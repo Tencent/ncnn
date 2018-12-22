@@ -7,12 +7,45 @@ The large model binary files (ncnn bin) are not loaded but generated randomly fo
 More model networks may be added later.
 
 ---
+Build
+```
+# assume you have already build ncnn library successfully
+# uncomment the following line in <ncnn-root-dir>/CMakeLists.txt with your favorite editor
+
+# add_subdirectory(benchmark)
+
+$ cd <ncnn-root-dir>/<your-build-dir>
+$ make -j4
+
+# you can find benchncnn binary in <ncnn-root-dir>/<your-build-dir>/benchmark
+```
 
 Usage
 ```
 # copy all param files to the current directory
-./benchncnn [loop count] [num threads] [powersave]
+$ ./benchncnn [loop count] [num threads] [powersave]
 ```
+run benchncnn on android device
+```
+# for running on android device, upload to /data/local/tmp/ folder
+$ adb push benchncnn /data/local/tmp/
+$ adb push <ncnn-root-dir>/benchmark/*.param /data/local/tmp/
+$ adb shell
+
+# executed in android adb shell
+$ cd /data/local/tmp/
+$ ./benchncnn [loop count] [num threads] [powersave]
+```
+
+Parameter
+
+|param|options|default|
+|---|---|---|
+|loop count|1~N|4|
+|num threads|1~N|max_cpu_count|
+|powersave|0=all cores, 1=little cores only, 2=big cores only|0|
+
+---
 
 Typical output (executed in android adb shell)
 
