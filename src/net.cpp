@@ -454,6 +454,14 @@ int Net::load_param_bin(FILE* fp)
     pd.use_winograd_convolution = use_winograd_convolution;
     pd.use_sgemm_convolution = use_sgemm_convolution;
     pd.use_int8_inference = use_int8_inference;
+    pd.use_vulkan_compute = 1;
+
+#if NCNN_VULKAN
+    pd.max_workgroup_invocations = vkdev->info.max_workgroup_invocations;
+    pd.max_workgroup_size[0] = vkdev->info.max_workgroup_size[0];
+    pd.max_workgroup_size[1] = vkdev->info.max_workgroup_size[1];
+    pd.max_workgroup_size[2] = vkdev->info.max_workgroup_size[2];
+#endif // NCNN_VULKAN
 
     for (size_t i=0; i<layer_count; i++)
     {
@@ -574,8 +582,9 @@ int Net::load_model(FILE* fp)
     {
         staging_allocator = new VkAllocator(vkdev, 1);
 
-        mb.vk_model_loader = new Command(vkdev, staging_allocator);
+        mb.vk_model_loader = new Command(vkdev);
         mb.weight_vkallocator = weight_vkallocator;
+        mb.staging_vkallocator = staging_allocator;
         mb.vk_model_loader->begin();
     }
 #endif // NCNN_VULKAN
@@ -599,7 +608,7 @@ int Net::load_model(FILE* fp)
         mb.vk_model_loader->end();
         mb.vk_model_loader->submit();
 
-//         mb.vk_model_loader->submit();
+        mb.vk_model_loader->wait();
 
         delete mb.vk_model_loader;
 
@@ -1042,18 +1051,6 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Option& o
 
         VkMat bottom_blob = blob_mats[bottom_blob_index];
 
-        if (opt.lightmode)
-        {
-            // delete after taken in light mode
-            blob_mats[bottom_blob_index].release();
-            // deep copy for inplace forward if data is shared
-            if (layer->support_inplace && *bottom_blob.refcount != 1)
-            {
-                // FIXME TODO create new bottom_blob, then issue copy command
-//                 bottom_blob = bottom_blob.clone();
-            }
-        }
-
         // forward
         if (opt.lightmode && layer->support_inplace)
         {
@@ -1094,18 +1091,6 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Option& o
             }
 
             bottom_blobs[i] = blob_mats[bottom_blob_index];
-
-            if (opt.lightmode)
-            {
-                // delete after taken in light mode
-                blob_mats[bottom_blob_index].release();
-                // deep copy for inplace forward if data is shared
-                if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
-                {
-                    // FIXME TODO create new bottom_blob, then issue copy command
-//                     bottom_blobs[i] = bottom_blobs[i].clone();
-                }
-            }
         }
 
         // forward
@@ -1145,7 +1130,7 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Option& o
     return 0;
 }
 
-int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Option& opt, std::vector<VkEvent>& events, VkCommandBuffer command_buffer) const
+int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Command& cmd, Option& opt) const
 {
     const Layer* layer = layers[layer_index];
 
@@ -1159,22 +1144,18 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Option& 
 
         if (blob_mats[bottom_blob_index].dims == 0)
         {
-            int ret = record_command(blobs[bottom_blob_index].producer, blob_mats, opt, events, command_buffer);
+            int ret = record_command(blobs[bottom_blob_index].producer, blob_mats, cmd, opt);
             if (ret != 0)
                 return ret;
         }
-
-        // wait bottom blob
+        else
         {
-            VkMemoryBarrier memoryBarrier;
-            memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-            memoryBarrier.pNext = 0;
-            memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-            memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            // upload
+            const VkMat& bottom_blob = blob_mats[bottom_blob_index];
 
-            vkCmdWaitEvents(command_buffer, 1, &events[bottom_blob_index],
-                VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                1, &memoryBarrier, 0, 0, 0, 0);
+            cmd.record_imagelayout_barrier(bottom_blob, 0);
+            cmd.record_upload(bottom_blob);
+            cmd.record_imagelayout_barrier(bottom_blob, 1);
         }
 
         VkMat bottom_blob = blob_mats[bottom_blob_index];
@@ -1186,34 +1167,23 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Option& 
             // deep copy for inplace forward if data is shared
             if (layer->support_inplace && *bottom_blob.refcount != 1)
             {
-                // FIXME TODO create new bottom_blob, then issue copy command
-//                 bottom_blob = bottom_blob.clone();
+                VkMat bottom_blob_copy;
+                bottom_blob_copy.create_like(bottom_blob, bottom_blob.allocator, bottom_blob.staging_allocator);
+                cmd.record_clone(bottom_blob, bottom_blob_copy);
+                bottom_blob = bottom_blob_copy;
             }
         }
 
         const VkMat& top_blob = blob_mats[top_blob_index];
-        uint32_t group_count_x = (top_blob.w + 3) / 4;
-        uint32_t group_count_y = (top_blob.h + 3) / 4;
-        uint32_t group_count_z = (top_blob.c + 3) / 4;
 
-        // record command
-        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline);
+        uint32_t group_count_xyz[3] = { 1, 1, 1 };
 
-        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline_layout, 0, 1, &layer->descriptorset, 0, 0);
+        group_count_xyz[0] = (top_blob.w + layer->local_size_x - 1) / layer->local_size_x;
+        group_count_xyz[1] = (top_blob.h + layer->local_size_y - 1) / layer->local_size_y;
+        group_count_xyz[2] = (top_blob.c + layer->local_size_z - 1) / layer->local_size_z;
 
-//         vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc_data), &pcdata);
-
-        vkCmdDispatch(command_buffer, group_count_x, group_count_y, group_count_z);
-
-//     VkDispatchIndirectCommand dispatch_param;
-//     dispatch_param.x = group_x;
-//     dispatch_param.y = group_y;
-//     dispatch_param.z = group_z;
-
-//     vkCmdDispatchIndirect(commandBuffer, buffer, offset);
-
-        vkCmdSetEvent(command_buffer, events[top_blob_index], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-
+        cmd.record_layer(layer, group_count_xyz);
+        cmd.record_compute_barrier();
     }
     else
     {
@@ -1226,22 +1196,18 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Option& 
 
             if (blob_mats[bottom_blob_index].dims == 0)
             {
-                int ret = record_command(blobs[bottom_blob_index].producer, blob_mats, opt, events, command_buffer);
+                int ret = record_command(blobs[bottom_blob_index].producer, blob_mats, cmd, opt);
                 if (ret != 0)
                     return ret;
             }
-
-            // wait bottom blob
+            else
             {
-                VkMemoryBarrier memoryBarrier;
-                memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-                memoryBarrier.pNext = 0;
-                memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-                memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+                // upload
+                const VkMat& bottom_blob = blob_mats[bottom_blob_index];
 
-                vkCmdWaitEvents(command_buffer, 1, &events[bottom_blob_index],
-                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                    1, &memoryBarrier, 0, 0, 0, 0);
+                cmd.record_imagelayout_barrier(bottom_blob, 0);
+                cmd.record_upload(bottom_blob);
+                cmd.record_imagelayout_barrier(bottom_blob, 1);
             }
 
             bottom_blobs[i] = blob_mats[bottom_blob_index];
@@ -1253,49 +1219,29 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Option& 
                 // deep copy for inplace forward if data is shared
                 if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
                 {
-                    // FIXME TODO create new bottom_blob, then issue copy command
-//                     bottom_blobs[i] = bottom_blobs[i].clone();
+                    VkMat bottom_blob_copy;
+                    bottom_blob_copy.create_like(bottom_blobs[i], bottom_blobs[i].allocator, bottom_blobs[i].staging_allocator);
+                    cmd.record_clone(bottom_blobs[i], bottom_blob_copy);
+                    bottom_blobs[i] = bottom_blob_copy;
                 }
             }
         }
 
-        uint32_t group_count_x = 1;
-        uint32_t group_count_y = 1;
-        uint32_t group_count_z = 1;
+        uint32_t group_count_xyz[3] = { 1, 1, 1 };
+
         for (size_t i=0; i<layer->tops.size(); i++)
         {
             int top_blob_index = layer->tops[i];
 
             const VkMat& top_blob = blob_mats[top_blob_index];
 
-            group_count_x = std::max((int)group_count_x, (top_blob.w + 3) / 4);
-            group_count_y = std::max((int)group_count_y, (top_blob.h + 3) / 4);
-            group_count_z = std::max((int)group_count_z, (top_blob.c + 3) / 4);
+            group_count_xyz[0] = std::max(group_count_xyz[0], (uint32_t)((top_blob.w + layer->local_size_x - 1) / layer->local_size_x));
+            group_count_xyz[1] = std::max(group_count_xyz[1], (uint32_t)((top_blob.h + layer->local_size_y - 1) / layer->local_size_y));
+            group_count_xyz[2] = std::max(group_count_xyz[2], (uint32_t)((top_blob.c + layer->local_size_z - 1) / layer->local_size_z));
         }
 
-        // record command
-        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline);
-
-        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline_layout, 0, 1, &layer->descriptorset, 0, 0);
-
-//         vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc_data), &pcdata);
-
-        vkCmdDispatch(command_buffer, group_count_x, group_count_y, group_count_z);
-
-//     VkDispatchIndirectCommand dispatch_param;
-//     dispatch_param.x = group_x;
-//     dispatch_param.y = group_y;
-//     dispatch_param.z = group_z;
-
-//     vkCmdDispatchIndirect(commandBuffer, buffer, offset);
-
-        // store top blobs
-        for (size_t i=0; i<layer->tops.size(); i++)
-        {
-            int top_blob_index = layer->tops[i];
-
-            vkCmdSetEvent(command_buffer, events[top_blob_index], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-        }
+        cmd.record_layer(layer, group_count_xyz);
+        cmd.record_compute_barrier();
     }
 
     return 0;
@@ -1306,6 +1252,10 @@ Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 {
     blob_mats.resize(blob_count);
     opt = get_default_option();
+
+#if NCNN_VULKAN
+    blob_mats_gpu.resize(blob_count);
+#endif // NCNN_VULKAN
 }
 
 void Extractor::set_light_mode(bool enable)
@@ -1333,7 +1283,21 @@ int Extractor::input(int blob_index, const Mat& in)
     if (blob_index < 0 || blob_index >= (int)blob_mats.size())
         return -1;
 
-    blob_mats[blob_index] = in;
+//     blob_mats[blob_index] = in;
+
+#if NCNN_VULKAN
+
+    blob_mats_gpu[blob_index].create_like(in, opt.blob_vkallocator, opt.staging_vkallocator);
+
+    blob_mats_gpu[blob_index].prepare_staging_buffer();
+
+    blob_mats_gpu[blob_index].map();
+
+    blob_mats_gpu[blob_index].staging_buffer_upload(in);
+
+    blob_mats_gpu[blob_index].unmap();
+
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -1348,7 +1312,34 @@ int Extractor::extract(int blob_index, Mat& feat)
     if (blob_mats[blob_index].dims == 0)
     {
         int layer_index = net->blobs[blob_index].producer;
-        ret = net->forward_layer(layer_index, blob_mats, opt);
+//         ret = net->forward_layer(layer_index, blob_mats, opt);
+
+#if NCNN_VULKAN
+
+        ret = net->forward_layer(layer_index, blob_mats_gpu, opt);
+
+        blob_mats_gpu[blob_index].prepare_staging_buffer();
+
+        ncnn::Command cmd(opt.vkdev);
+
+        cmd.begin();
+
+        ret = net->record_command(layer_index, blob_mats_gpu, cmd, opt);
+
+        cmd.end();
+
+        cmd.submit();
+
+        cmd.wait();
+
+        blob_mats_gpu[blob_index].map();
+
+        blob_mats_gpu[blob_index].staging_buffer_download(blob_mats[blob_index]);
+
+        blob_mats_gpu[blob_index].unmap();
+
+#endif // NCNN_VULKAN
+
     }
 
     feat = blob_mats[blob_index];
@@ -1363,9 +1354,7 @@ int Extractor::input(const char* blob_name, const Mat& in)
     if (blob_index == -1)
         return -1;
 
-    blob_mats[blob_index] = in;
-
-    return 0;
+    return input(blob_index, in);
 }
 
 int Extractor::extract(const char* blob_name, Mat& feat)
@@ -1374,17 +1363,7 @@ int Extractor::extract(const char* blob_name, Mat& feat)
     if (blob_index == -1)
         return -1;
 
-    int ret = 0;
-
-    if (blob_mats[blob_index].dims == 0)
-    {
-        int layer_index = net->blobs[blob_index].producer;
-        ret = net->forward_layer(layer_index, blob_mats, opt);
-    }
-
-    feat = blob_mats[blob_index];
-
-    return ret;
+    return extract(blob_index, feat);
 }
 #endif // NCNN_STRING
 

@@ -28,7 +28,7 @@ class Layer;
 class Command
 {
 public:
-    Command(VulkanDevice* vkdev, VkAllocator* staging_allocator);
+    Command(VulkanDevice* vkdev);
     ~Command();
 
     int begin();
@@ -37,11 +37,13 @@ public:
     // 1 = transfer-dst-optimal to general
     // 2 = undefined to general
     // 3 = general to transfer-src-optimal
-    void record_imagelayout_barrier(VkMat& image, int type);
+    void record_imagelayout_barrier(const VkMat& image, int type);
 
-    void record_upload(const Mat& src, VkMat& dst);
+    void record_upload(const VkMat& m);
 
-    void record_download(VkMat& src, const Mat& dst);
+    void record_download(const VkMat& m);
+
+    void record_clone(const VkMat& src, const VkMat& dst);
 
     void record_layer(const Layer* layer, const uint32_t* group_count_xyz);
 
@@ -59,7 +61,6 @@ protected:
 
 public:
     VulkanDevice* vkdev;
-    VkAllocator* staging_allocator;
 
     VkDevice device;
     VkQueue queue;

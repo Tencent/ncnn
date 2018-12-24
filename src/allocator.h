@@ -192,12 +192,10 @@ public:
     virtual VkImage create_image(VkImageType imageType, int w, int h, int c);
     virtual VkImageView create_imageview(VkImageViewType viewType, VkImage image);
     virtual VkBuffer create_buffer(VkBufferUsageFlags usage, int size);
-    virtual VkEvent create_event();
 
     virtual void destroy_image(VkImage image);
     virtual void destroy_imageview(VkImageView imageview);
     virtual void destroy_buffer(VkBuffer buffer);
-    virtual void destroy_event(VkEvent event);
 
 public:
     const VulkanDevice* vkdev;
@@ -211,7 +209,6 @@ private:
     std::vector<VkImage> images_to_destroy;
     std::vector<VkImageView> imageviews_to_destroy;
     std::vector<VkBuffer> buffers_to_destroy;
-    std::vector<VkEvent> events_to_destroy;
 
 public:
     // ratio range 0 ~ 1

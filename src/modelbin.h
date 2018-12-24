@@ -45,6 +45,7 @@ public:
 #if NCNN_VULKAN
     Command* vk_model_loader;
     VkAllocator* weight_vkallocator;
+    VkAllocator* staging_vkallocator;
 #endif // NCNN_VULKAN
 };
 

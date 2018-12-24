@@ -22,7 +22,7 @@
 
 namespace ncnn {
 
-Command::Command(VulkanDevice* _vkdev, VkAllocator* _staging_allocator) : vkdev(_vkdev), staging_allocator(_staging_allocator)
+Command::Command(VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
     device = *vkdev;
 
@@ -73,7 +73,7 @@ int Command::begin()
     return 0;
 }
 
-void Command::record_imagelayout_barrier(VkMat& image, int type)
+void Command::record_imagelayout_barrier(const VkMat& image, int type)
 {
     VkAccessFlags srcAccessMask;
     VkAccessFlags dstAccessMask;
@@ -147,12 +147,8 @@ void Command::record_imagelayout_barrier(VkMat& image, int type)
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 0, 0, 1, &imageBarrier);
 }
 
-void Command::record_upload(const Mat& src, VkMat& dst)
+void Command::record_upload(const VkMat& m)
 {
-    dst.prepare_staging_buffer(staging_allocator);
-
-    dst.staging_buffer_upload(src);
-
     // staging buffer to image
     VkBufferImageCopy region;
     region.bufferOffset = 0;
@@ -165,17 +161,15 @@ void Command::record_upload(const Mat& src, VkMat& dst)
     region.imageOffset.x = 0;
     region.imageOffset.y = 0;
     region.imageOffset.z = 0;
-    region.imageExtent.width = dst.w;
-    region.imageExtent.height = dst.h;
-    region.imageExtent.depth = dst.c;
+    region.imageExtent.width = m.w;
+    region.imageExtent.height = m.h;
+    region.imageExtent.depth = m.c;
 
-    vkCmdCopyBufferToImage(command_buffer, dst.staging_buffer, dst.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    vkCmdCopyBufferToImage(command_buffer, m.staging_buffer, m.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 }
 
-void Command::record_download(VkMat& src, const Mat& dst)
+void Command::record_download(const VkMat& m)
 {
-    src.prepare_staging_buffer(staging_allocator);
-
     // image to staging buffer
     VkBufferImageCopy region;
     region.bufferOffset = 0;
@@ -188,11 +182,35 @@ void Command::record_download(VkMat& src, const Mat& dst)
     region.imageOffset.x = 0;
     region.imageOffset.y = 0;
     region.imageOffset.z = 0;
-    region.imageExtent.width = src.w;
-    region.imageExtent.height = src.h;
-    region.imageExtent.depth = src.c;
+    region.imageExtent.width = m.w;
+    region.imageExtent.height = m.h;
+    region.imageExtent.depth = m.c;
 
-    vkCmdCopyImageToBuffer(command_buffer, src.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, src.staging_buffer, 1, &region);
+    vkCmdCopyImageToBuffer(command_buffer, m.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m.staging_buffer, 1, &region);
+}
+
+void Command::record_clone(const VkMat& src, const VkMat& dst)
+{
+    VkImageCopy region;
+    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.srcSubresource.mipLevel = 0;
+    region.srcSubresource.baseArrayLayer = 0;
+    region.srcSubresource.layerCount = 1;
+    region.srcOffset.x = 0;
+    region.srcOffset.y = 0;
+    region.srcOffset.z = 0;
+    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.dstSubresource.mipLevel = 0;
+    region.dstSubresource.baseArrayLayer = 0;
+    region.dstSubresource.layerCount = 1;
+    region.dstOffset.x = 0;
+    region.dstOffset.y = 0;
+    region.dstOffset.z = 0;
+    region.extent.width = src.w;
+    region.extent.height = src.h;
+    region.extent.depth = src.c;
+
+    vkCmdCopyImage(command_buffer, src.image, VK_IMAGE_LAYOUT_GENERAL, dst.image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
 }
 
 void Command::record_layer(const Layer* layer, const uint32_t* group_count_xyz)

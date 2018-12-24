@@ -24,6 +24,9 @@
 
 namespace ncnn {
 
+#if NCNN_VULKAN
+class Command;
+#endif // NCNN_VULKAN
 class Extractor;
 class Net
 {
@@ -122,7 +125,7 @@ protected:
 
 #if NCNN_VULKAN
     int forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Option& opt) const;
-    int record_command(int layer_index, std::vector<VkMat>& blob_mats, Option& opt, std::vector<VkEvent>& events, VkCommandBuffer command_buffer) const;
+    int record_command(int layer_index, std::vector<VkMat>& blob_mats, Command& cmd, Option& opt) const;
 #endif // NCNN_VULKAN
 
 protected:
@@ -186,7 +189,6 @@ private:
 
 #if NCNN_VULKAN
     std::vector<VkMat> blob_mats_gpu;
-    std::vector<VkEvent> events;
 #endif // NCNN_VULKAN
 };
 

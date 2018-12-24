@@ -268,11 +268,6 @@ VkAllocator::~VkAllocator()
         vkDestroyBuffer(device, buffers_to_destroy[i], 0);
     }
     buffers_to_destroy.clear();
-    for (int i=0; i<(int)events_to_destroy.size(); i++)
-    {
-        vkDestroyEvent(device, events_to_destroy[i], 0);
-    }
-    events_to_destroy.clear();
 
     clear();
 
@@ -379,24 +374,6 @@ VkBuffer VkAllocator::create_buffer(VkBufferUsageFlags usage, int size)
     return buffer;
 }
 
-VkEvent VkAllocator::create_event()
-{
-    VkEventCreateInfo eventCreateInfo;
-    eventCreateInfo.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO;
-    eventCreateInfo.pNext = 0;
-    eventCreateInfo.flags = 0;
-
-    VkEvent event;
-    VkResult ret = vkCreateEvent(device, &eventCreateInfo, 0, &event);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkCreateEvent failed %d\n", ret);
-        return 0;
-    }
-
-    return event;
-}
-
 void VkAllocator::destroy_image(VkImage image)
 {
     images_to_destroy.push_back(image);
@@ -410,11 +387,6 @@ void VkAllocator::destroy_imageview(VkImageView imageview)
 void VkAllocator::destroy_buffer(VkBuffer buffer)
 {
     buffers_to_destroy.push_back(buffer);
-}
-
-void VkAllocator::destroy_event(VkEvent event)
-{
-    events_to_destroy.push_back(event);
 }
 
 void VkAllocator::clear()
