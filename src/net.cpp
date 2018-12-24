@@ -1332,6 +1332,8 @@ int Extractor::extract(int blob_index, Mat& feat)
 
         cmd.wait();
 
+        blob_mats[blob_index].create_like(blob_mats_gpu[blob_index], opt.blob_allocator);
+
         blob_mats_gpu[blob_index].map();
 
         blob_mats_gpu[blob_index].staging_buffer_download(blob_mats[blob_index]);

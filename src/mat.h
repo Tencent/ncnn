@@ -72,6 +72,12 @@ public:
     void create(int w, int h, size_t elemsize = 4u, Allocator* allocator = 0);
     // allocate dim
     void create(int w, int h, int c, size_t elemsize = 4u, Allocator* allocator = 0);
+    // allocate like
+    void create_like(const Mat& m, Allocator* allocator = 0);
+#if NCNN_VULKAN
+    // allocate like
+    void create_like(const VkMat& m, Allocator* allocator = 0);
+#endif // NCNN_VULKAN
     // refcount++
     void addref();
     // refcount--
@@ -172,6 +178,90 @@ public:
 
     size_t cstep;
 };
+
+#if NCNN_VULKAN
+
+// the three dimension matrix, vulkan version
+class VkMat
+{
+public:
+    // empty
+    VkMat();
+    // vec
+    VkMat(int w, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // image
+    VkMat(int w, int h, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // dim
+    VkMat(int w, int h, int c, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // copy
+    VkMat(const VkMat& m);
+    // release
+    ~VkMat();
+    // assign
+    VkMat& operator=(const VkMat& m);
+    // allocate vec
+    void create(int w, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate image
+    void create(int w, int h, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate dim
+    void create(int w, int h, int c, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate like
+    void create_like(const Mat& m, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate like
+    void create_like(const VkMat& m, VkAllocator* allocator, VkAllocator* staging_allocator);
+
+    // staging buffer
+    void prepare_staging_buffer();
+
+    // map
+    void map();
+    void unmap();
+    // copy to staging buffer
+    void staging_buffer_upload(const Mat& m);
+    // copy from staging buffer
+    void staging_buffer_download(Mat& m);
+    // refcount++
+    void addref();
+    // refcount--
+    void release();
+
+    bool empty() const;
+    size_t total() const;
+
+    // TODO vulkan
+    VkDeviceMemory memory;
+    VkImage image;// ?
+    VkImageView imageview;// for GLSL shader
+
+    // staging buffer
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_memory;
+    void* mapped_ptr;
+
+    // pointer to the reference counter
+    // when points to user-allocated data, the pointer is NULL
+    int* refcount;
+
+    // element size in bytes
+    // 4 = float32/int32
+    // 2 = float16
+    // 1 = int8/uint8
+    // 0 = empty
+    size_t elemsize;
+
+    // the allocator
+    VkAllocator* allocator;
+    VkAllocator* staging_allocator;
+
+    // the dimensionality
+    int dims;
+
+    int w;
+    int h;
+    int c;
+};
+
+#endif // NCNN_VULKAN
 
 // misc function
 #if NCNN_PIXEL
@@ -627,6 +717,28 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _al
     }
 }
 
+inline void Mat::create_like(const Mat& m, Allocator* allocator)
+{
+    if (m.dims == 1)
+        create(m.w, m.elemsize, allocator);
+    else if (m.dims == 2)
+        create(m.w, m.h, m.elemsize, allocator);
+    else if (m.dims == 3)
+        create(m.w, m.h, m.c, m.elemsize, allocator);
+}
+
+#if NCNN_VULKAN
+inline void Mat::create_like(const VkMat& m, Allocator* allocator)
+{
+    if (m.dims == 1)
+        create(m.w, m.elemsize, allocator);
+    else if (m.dims == 2)
+        create(m.w, m.h, m.elemsize, allocator);
+    else if (m.dims == 3)
+        create(m.w, m.h, m.c, m.elemsize, allocator);
+}
+#endif // NCNN_VULKAN
+
 inline void Mat::addref()
 {
     if (refcount)
@@ -752,86 +864,6 @@ inline const float& Mat::operator[](int i) const
 }
 
 #if NCNN_VULKAN
-
-// the three dimension matrix, vulkan version
-class VkMat
-{
-public:
-    // empty
-    VkMat();
-    // vec
-    VkMat(int w, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
-    // image
-    VkMat(int w, int h, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
-    // dim
-    VkMat(int w, int h, int c, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
-    // copy
-    VkMat(const VkMat& m);
-    // release
-    ~VkMat();
-    // assign
-    VkMat& operator=(const VkMat& m);
-    // allocate vec
-    void create(int w, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
-    // allocate image
-    void create(int w, int h, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
-    // allocate dim
-    void create(int w, int h, int c, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
-    // allocate like
-    void create_like(const Mat& m, VkAllocator* allocator, VkAllocator* staging_allocator);
-    // allocate like
-    void create_like(const VkMat& m, VkAllocator* allocator, VkAllocator* staging_allocator);
-
-    // staging buffer
-    void prepare_staging_buffer();
-
-    // map
-    void map();
-    void unmap();
-    // copy to staging buffer
-    void staging_buffer_upload(const Mat& m);
-    // copy from staging buffer
-    void staging_buffer_download(Mat& m);
-    // refcount++
-    void addref();
-    // refcount--
-    void release();
-
-    bool empty() const;
-    size_t total() const;
-
-    // TODO vulkan
-    VkDeviceMemory memory;
-    VkImage image;// ?
-    VkImageView imageview;// for GLSL shader
-
-    // staging buffer
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_memory;
-    void* mapped_ptr;
-
-    // pointer to the reference counter
-    // when points to user-allocated data, the pointer is NULL
-    int* refcount;
-
-    // element size in bytes
-    // 4 = float32/int32
-    // 2 = float16
-    // 1 = int8/uint8
-    // 0 = empty
-    size_t elemsize;
-
-    // the allocator
-    VkAllocator* allocator;
-    VkAllocator* staging_allocator;
-
-    // the dimensionality
-    int dims;
-
-    int w;
-    int h;
-    int c;
-};
 
 inline VkMat::VkMat()
     : memory(0), image(0), imageview(0), staging_buffer(0), staging_memory(0), mapped_ptr(0), refcount(0), elemsize(0), allocator(0), staging_allocator(0), dims(0), w(0), h(0), c(0)
