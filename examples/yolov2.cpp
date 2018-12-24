@@ -31,18 +31,11 @@ static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net yolov2;
 
-    // original pretrained model from https://github.com/eric612/Caffe-YOLOv2-Windows
-    // yolov2_deploy.prototxt
-    // yolov2_deploy_iter_30000.caffemodel
-    // https://drive.google.com/file/d/17w7oZBbTHPI5TMuD9DKQzkPhSVDaTlC9/view?usp=sharing
-    yolov2.load_param("yolov2.param");
-    yolov2.load_model("yolov2.bin");
-
-    // https://github.com/eric612/MobileNet-YOLO
-    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy%20.prototxt
-    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy_iter_57000.caffemodel
-//     yolov2.load_param("mobilenet_yolo.param");
-//     yolov2.load_model("mobilenet_yolo.bin");
+    // original pretrained model from https://github.com/eric612/MobileNet-YOLO
+    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy.prototxt
+    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy_iter_80000.caffemodel
+    yolov2.load_param("mobilenet_yolo.param");
+    yolov2.load_model("mobilenet_yolo.bin");
 
     const int target_size = 416;
 

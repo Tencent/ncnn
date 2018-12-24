@@ -1130,846 +1130,200 @@ static Mat from_rgba2gray(const unsigned char* rgba, int w, int h, Allocator* al
     return m;
 }
 
-void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb)
 {
-    const int INTER_RESIZE_COEF_BITS=11;
-    const int INTER_RESIZE_COEF_SCALE=1 << INTER_RESIZE_COEF_BITS;
-//     const int ONE=INTER_RESIZE_COEF_SCALE;
+    const unsigned char* yptr = yuv420sp;
+    const unsigned char* vuptr = yuv420sp + w * h;
 
-    double scale_x = (double)srcw / w;
-    double scale_y = (double)srch / h;
-
-    int* buf = new int[w + h + w + h];
-
-    int* xofs = buf;//new int[w];
-    int* yofs = buf + w;//new int[h];
-
-    short* ialpha = (short*)(buf + w + h);//new short[w * 2];
-    short* ibeta = (short*)(buf + w + h + w);//new short[h * 2];
-
-    float fx;
-    float fy;
-    int sx;
-    int sy;
-
-#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
-
-    for (int dx = 0; dx < w; dx++)
-    {
-        fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = floor(fx);
-        fx -= sx;
-
-        if (sx < 0)
-        {
-            sx = 0;
-            fx = 0.f;
-        }
-        if (sx >= srcw - 1)
-        {
-            sx = srcw - 2;
-            fx = 1.f;
-        }
-
-        xofs[dx] = sx*3;
-
-        float a0 = (1.f - fx) * INTER_RESIZE_COEF_SCALE;
-        float a1 =        fx  * INTER_RESIZE_COEF_SCALE;
-
-        ialpha[dx*2    ] = SATURATE_CAST_SHORT(a0);
-        ialpha[dx*2 + 1] = SATURATE_CAST_SHORT(a1);
-    }
-
-    for (int dy = 0; dy < h; dy++)
-    {
-        fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = floor(fy);
-        fy -= sy;
-
-        if (sy < 0)
-        {
-            sy = 0;
-            fy = 0.f;
-        }
-        if (sy >= srch - 1)
-        {
-            sy = srch - 2;
-            fy = 1.f;
-        }
-
-        yofs[dy] = sy*3;
-
-        float b0 = (1.f - fy) * INTER_RESIZE_COEF_SCALE;
-        float b1 =        fy  * INTER_RESIZE_COEF_SCALE;
-
-        ibeta[dy*2    ] = SATURATE_CAST_SHORT(b0);
-        ibeta[dy*2 + 1] = SATURATE_CAST_SHORT(b1);
-    }
-
-#undef SATURATE_CAST_SHORT
-
-    // loop body
-    Mat rowsbuf0((w*3 >> 1) + 3);
-    Mat rowsbuf1((w*3 >> 1) + 3);
-    short* rows0 = (short*)rowsbuf0.data;
-    short* rows1 = (short*)rowsbuf1.data;
-
-    int prev_sy1 = -1;
-
-    for (int dy = 0; dy < h; dy++ )
-    {
-        int sy = yofs[dy];
-
-        if (sy == prev_sy1)
-        {
-            // hresize one row
-            short* rows0_old = rows0;
-            rows0 = rows1;
-            rows1 = rows0_old;
-            const unsigned char *S1 = src + srcw * (sy+3);
-
-            const short* ialphap = ialpha;
-            short* rows1p = rows1;
-            for ( int dx = 0; dx < w; dx++ )
-            {
-                int sx = xofs[dx];
-                short a0 = ialphap[0];
-                short a1 = ialphap[1];
-
-                const unsigned char* S1p = S1 + sx;
 #if __ARM_NEON
-                int16x4_t _a0 = vdup_n_s16(a0);
-                int16x4_t _a1 = vdup_n_s16(a1);
-                uint8x8_t _S1 = vld1_u8(S1p);
-                int16x8_t _S116 = vreinterpretq_s16_u16(vmovl_u8(_S1));
-                int16x4_t _S1low = vget_low_s16(_S116);
-                int16x4_t _S1high = vext_s16(_S1low, vget_high_s16(_S116), 3);
-                int32x4_t _rows1 = vmull_s16(_S1low, _a0);
-                _rows1 = vmlal_s16(_rows1, _S1high, _a1);
-                int16x4_t _rows1_sr4 = vshrn_n_s32(_rows1, 4);
-                vst1_s16(rows1p, _rows1_sr4);
-#else
-                rows1p[0] = (S1p[0]*a0 + S1p[3]*a1) >> 4;
-                rows1p[1] = (S1p[1]*a0 + S1p[4]*a1) >> 4;
-                rows1p[2] = (S1p[2]*a0 + S1p[5]*a1) >> 4;
+    int8x8_t _v128 = vdup_n_s8(128);
+    int8x8_t _v90 = vdup_n_s8(90);
+    int8x8_t _v46 = vdup_n_s8(46);
+    int8x8_t _v22 = vdup_n_s8(22);
+    int8x8_t _v113 = vdup_n_s8(113);
 #endif // __ARM_NEON
 
-                ialphap += 2;
-                rows1p += 3;
-            }
-        }
-        else
-        {
-            // hresize two rows
-            const unsigned char *S0 = src + srcw * (sy);
-            const unsigned char *S1 = src + srcw * (sy+3);
-
-            const short* ialphap = ialpha;
-            short* rows0p = rows0;
-            short* rows1p = rows1;
-            for ( int dx = 0; dx < w; dx++ )
-            {
-                int sx = xofs[dx];
-                short a0 = ialphap[0];
-                short a1 = ialphap[1];
-
-                const unsigned char* S0p = S0 + sx;
-                const unsigned char* S1p = S1 + sx;
-#if __ARM_NEON
-                int16x4_t _a0 = vdup_n_s16(a0);
-                int16x4_t _a1 = vdup_n_s16(a1);
-                uint8x8_t _S0 = vld1_u8(S0p);
-                uint8x8_t _S1 = vld1_u8(S1p);
-                int16x8_t _S016 = vreinterpretq_s16_u16(vmovl_u8(_S0));
-                int16x8_t _S116 = vreinterpretq_s16_u16(vmovl_u8(_S1));
-                int16x4_t _S0low = vget_low_s16(_S016);
-                int16x4_t _S1low = vget_low_s16(_S116);
-                int16x4_t _S0high = vext_s16(_S0low, vget_high_s16(_S016), 3);
-                int16x4_t _S1high = vext_s16(_S1low, vget_high_s16(_S116), 3);
-                int32x4_t _rows0 = vmull_s16(_S0low, _a0);
-                int32x4_t _rows1 = vmull_s16(_S1low, _a0);
-                _rows0 = vmlal_s16(_rows0, _S0high, _a1);
-                _rows1 = vmlal_s16(_rows1, _S1high, _a1);
-                int16x4_t _rows0_sr4 = vshrn_n_s32(_rows0, 4);
-                int16x4_t _rows1_sr4 = vshrn_n_s32(_rows1, 4);
-                vst1_s16(rows0p, _rows0_sr4);
-                vst1_s16(rows1p, _rows1_sr4);
-#else
-                rows0p[0] = (S0p[0]*a0 + S0p[3]*a1) >> 4;
-                rows0p[1] = (S0p[1]*a0 + S0p[4]*a1) >> 4;
-                rows0p[2] = (S0p[2]*a0 + S0p[5]*a1) >> 4;
-                rows1p[0] = (S1p[0]*a0 + S1p[3]*a1) >> 4;
-                rows1p[1] = (S1p[1]*a0 + S1p[4]*a1) >> 4;
-                rows1p[2] = (S1p[2]*a0 + S1p[5]*a1) >> 4;
-#endif // __ARM_NEON
-
-                ialphap += 2;
-                rows0p += 3;
-                rows1p += 3;
-            }
-        }
-
-        prev_sy1 = sy + 1;
-
-        // vresize
-        short b0 = ibeta[0];
-        short b1 = ibeta[1];
-
-        short* rows0p = rows0;
-        short* rows1p = rows1;
-        unsigned char* Dp = dst + w * 3 * (dy);
-
-#if __ARM_NEON
-        int nn = (w * 3) >> 3;
-#else
-        int nn = 0;
-#endif
-        int remain = (w * 3) - (nn << 3);
-
-#if __ARM_NEON
-#if __aarch64__
-        int16x4_t _b0 = vdup_n_s16(b0);
-        int16x4_t _b1 = vdup_n_s16(b1);
-        int32x4_t _v2 = vdupq_n_s32(2);
-        for (; nn>0; nn--)
-        {
-            int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
-            int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
-            int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p+4);
-            int16x4_t _rows1p_1_sr4 = vld1_s16(rows1p+4);
-
-            int32x4_t _rows0p_sr4_mb0 = vmull_s16(_rows0p_sr4, _b0);
-            int32x4_t _rows1p_sr4_mb1 = vmull_s16(_rows1p_sr4, _b1);
-            int32x4_t _rows0p_1_sr4_mb0 = vmull_s16(_rows0p_1_sr4, _b0);
-            int32x4_t _rows1p_1_sr4_mb1 = vmull_s16(_rows1p_1_sr4, _b1);
-
-            int32x4_t _acc = _v2;
-            _acc = vsraq_n_s32(_acc, _rows0p_sr4_mb0, 16);
-            _acc = vsraq_n_s32(_acc, _rows1p_sr4_mb1, 16);
-
-            int32x4_t _acc_1 = _v2;
-            _acc_1 = vsraq_n_s32(_acc_1, _rows0p_1_sr4_mb0, 16);
-            _acc_1 = vsraq_n_s32(_acc_1, _rows1p_1_sr4_mb1, 16);
-
-            int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
-            int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
-
-            uint8x8_t _D = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
-
-            vst1_u8(Dp, _D);
-
-            Dp += 8;
-            rows0p += 8;
-            rows1p += 8;
-        }
-#else
-        if (nn > 0)
-        {
-        asm volatile(
-            "vdup.s16   d16, %8         \n"
-            "mov        r4, #2          \n"
-            "vdup.s16   d17, %9         \n"
-            "vdup.s32   q12, r4         \n"
-            "pld        [%0, #128]      \n"
-            "vld1.s16   {d2-d3}, [%0 :128]!\n"
-            "pld        [%1, #128]      \n"
-            "vld1.s16   {d6-d7}, [%1 :128]!\n"
-            "0:                         \n"
-            "vmull.s16  q0, d2, d16     \n"
-            "vmull.s16  q1, d3, d16     \n"
-            "vorr.s32   q10, q12, q12   \n"
-            "vorr.s32   q11, q12, q12   \n"
-            "vmull.s16  q2, d6, d17     \n"
-            "vmull.s16  q3, d7, d17     \n"
-            "vsra.s32   q10, q0, #16    \n"
-            "vsra.s32   q11, q1, #16    \n"
-            "pld        [%0, #128]      \n"
-            "vld1.s16   {d2-d3}, [%0 :128]!\n"
-            "vsra.s32   q10, q2, #16    \n"
-            "vsra.s32   q11, q3, #16    \n"
-            "pld        [%1, #128]      \n"
-            "vld1.s16   {d6-d7}, [%1 :128]!\n"
-            "vshrn.s32  d20, q10, #2    \n"
-            "vshrn.s32  d21, q11, #2    \n"
-            "vqmovun.s16 d20, q10        \n"
-            "vst1.8     {d20}, [%2]!    \n"
-            "subs       %3, #1          \n"
-            "bne        0b              \n"
-            "sub        %0, #16         \n"
-            "sub        %1, #16         \n"
-            : "=r"(rows0p), // %0
-              "=r"(rows1p), // %1
-              "=r"(Dp),     // %2
-              "=r"(nn)      // %3
-            : "0"(rows0p),
-              "1"(rows1p),
-              "2"(Dp),
-              "3"(nn),
-              "r"(b0),      // %8
-              "r"(b1)       // %9
-            : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12"
-        );
-        }
-#endif // __aarch64__
-#endif // __ARM_NEON
-        for ( ; remain; --remain )
-        {
-//             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
-            *Dp++ = (unsigned char)(( (short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2)>>2);
-        }
-
-        ibeta += 2;
-    }
-
-    delete[] buf;
-}
-
-void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
-{
-    const int INTER_RESIZE_COEF_BITS=11;
-    const int INTER_RESIZE_COEF_SCALE=1 << INTER_RESIZE_COEF_BITS;
-//     const int ONE=INTER_RESIZE_COEF_SCALE;
-
-    double scale_x = (double)srcw / w;
-    double scale_y = (double)srch / h;
-
-    int* buf = new int[w + h + w + h];
-
-    int* xofs = buf;//new int[w];
-    int* yofs = buf + w;//new int[h];
-
-    short* ialpha = (short*)(buf + w + h);//new short[w * 2];
-    short* ibeta = (short*)(buf + w + h + w);//new short[h * 2];
-
-    float fx;
-    float fy;
-    int sx;
-    int sy;
-
-#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
-
-    for (int dx = 0; dx < w; dx++)
+    for (int y=0; y<h; y+=2)
     {
-        fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = floor(fx);
-        fx -= sx;
-
-        if (sx < 0)
-        {
-            sx = 0;
-            fx = 0.f;
-        }
-        if (sx >= srcw - 1)
-        {
-            sx = srcw - 2;
-            fx = 1.f;
-        }
-
-        xofs[dx] = sx;
-
-        float a0 = (1.f - fx) * INTER_RESIZE_COEF_SCALE;
-        float a1 =        fx  * INTER_RESIZE_COEF_SCALE;
-
-        ialpha[dx*2    ] = SATURATE_CAST_SHORT(a0);
-        ialpha[dx*2 + 1] = SATURATE_CAST_SHORT(a1);
-    }
-
-    for (int dy = 0; dy < h; dy++)
-    {
-        fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = floor(fy);
-        fy -= sy;
-
-        if (sy < 0)
-        {
-            sy = 0;
-            fy = 0.f;
-        }
-        if (sy >= srch - 1)
-        {
-            sy = srch - 2;
-            fy = 1.f;
-        }
-
-        yofs[dy] = sy;
-
-        float b0 = (1.f - fy) * INTER_RESIZE_COEF_SCALE;
-        float b1 =        fy  * INTER_RESIZE_COEF_SCALE;
-
-        ibeta[dy*2    ] = SATURATE_CAST_SHORT(b0);
-        ibeta[dy*2 + 1] = SATURATE_CAST_SHORT(b1);
-    }
-
-#undef SATURATE_CAST_SHORT
-
-    // loop body
-    Mat rowsbuf0((w >> 1) + 1);
-    Mat rowsbuf1((w >> 1) + 1);
-    short* rows0 = (short*)rowsbuf0.data;
-    short* rows1 = (short*)rowsbuf1.data;
-
-    int prev_sy1 = -1;
-
-    for (int dy = 0; dy < h; dy++ )
-    {
-        int sy = yofs[dy];
-
-        if (sy == prev_sy1)
-        {
-            // hresize one row
-            short* rows0_old = rows0;
-            rows0 = rows1;
-            rows1 = rows0_old;
-            const unsigned char *S1 = src + srcw * (sy+1);
-
-            const short* ialphap = ialpha;
-            short* rows1p = rows1;
-            for ( int dx = 0; dx < w; dx++ )
-            {
-                int sx = xofs[dx];
-                short a0 = ialphap[0];
-                short a1 = ialphap[1];
-
-                const unsigned char* S1p = S1 + sx;
-                rows1p[dx] = (S1p[0]*a0 + S1p[1]*a1) >> 4;
-
-                ialphap += 2;
-            }
-        }
-        else
-        {
-            // hresize two rows
-            const unsigned char *S0 = src + srcw * (sy);
-            const unsigned char *S1 = src + srcw * (sy+1);
-
-            const short* ialphap = ialpha;
-            short* rows0p = rows0;
-            short* rows1p = rows1;
-            for ( int dx = 0; dx < w; dx++ )
-            {
-                int sx = xofs[dx];
-                short a0 = ialphap[0];
-                short a1 = ialphap[1];
-
-                const unsigned char* S0p = S0 + sx;
-                const unsigned char* S1p = S1 + sx;
-                rows0p[dx] = (S0p[0]*a0 + S0p[1]*a1) >> 4;
-                rows1p[dx] = (S1p[0]*a0 + S1p[1]*a1) >> 4;
-
-                ialphap += 2;
-            }
-        }
-
-        prev_sy1 = sy + 1;
-
-        // vresize
-        short b0 = ibeta[0];
-        short b1 = ibeta[1];
-
-        short* rows0p = rows0;
-        short* rows1p = rows1;
-        unsigned char* Dp = dst + w * (dy);
+        const unsigned char* yptr0 = yptr;
+        const unsigned char* yptr1 = yptr + w;
+        unsigned char* rgb0 = rgb;
+        unsigned char* rgb1 = rgb + w*3;
 
 #if __ARM_NEON
         int nn = w >> 3;
-#else
-        int nn = 0;
-#endif
         int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-        int16x4_t _b0 = vdup_n_s16(b0);
-        int16x4_t _b1 = vdup_n_s16(b1);
-        int32x4_t _v2 = vdupq_n_s32(2);
         for (; nn>0; nn--)
         {
-            int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
-            int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
-            int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p+4);
-            int16x4_t _rows1p_1_sr4 = vld1_s16(rows1p+4);
+            int16x8_t _yy0 = vreinterpretq_s16_u16(vshll_n_u8(vld1_u8(yptr0), 6));
+            int16x8_t _yy1 = vreinterpretq_s16_u16(vshll_n_u8(vld1_u8(yptr1), 6));
 
-            int32x4_t _rows0p_sr4_mb0 = vmull_s16(_rows0p_sr4, _b0);
-            int32x4_t _rows1p_sr4_mb1 = vmull_s16(_rows1p_sr4, _b1);
-            int32x4_t _rows0p_1_sr4_mb0 = vmull_s16(_rows0p_1_sr4, _b0);
-            int32x4_t _rows1p_1_sr4_mb1 = vmull_s16(_rows1p_1_sr4, _b1);
+            int8x8_t _vvuu = vsub_s8(vreinterpret_s8_u8(vld1_u8(vuptr)), _v128);
+            int8x8x2_t _vvvvuuuu = vtrn_s8(_vvuu, _vvuu);
+            int8x8_t _vv = _vvvvuuuu.val[0];
+            int8x8_t _uu = _vvvvuuuu.val[1];
 
-            int32x4_t _acc = _v2;
-            _acc = vsraq_n_s32(_acc, _rows0p_sr4_mb0, 16);
-            _acc = vsraq_n_s32(_acc, _rows1p_sr4_mb1, 16);
+            int16x8_t _r0 = vmlal_s8(_yy0, _vv, _v90);
+            int16x8_t _g0 = vmlsl_s8(_yy0, _vv, _v46);
+            _g0 = vmlsl_s8(_g0, _uu, _v22);
+            int16x8_t _b0 = vmlal_s8(_yy0, _uu, _v113);
 
-            int32x4_t _acc_1 = _v2;
-            _acc_1 = vsraq_n_s32(_acc_1, _rows0p_1_sr4_mb0, 16);
-            _acc_1 = vsraq_n_s32(_acc_1, _rows1p_1_sr4_mb1, 16);
+            int16x8_t _r1 = vmlal_s8(_yy1, _vv, _v90);
+            int16x8_t _g1 = vmlsl_s8(_yy1, _vv, _v46);
+            _g1 = vmlsl_s8(_g1, _uu, _v22);
+            int16x8_t _b1 = vmlal_s8(_yy1, _uu, _v113);
 
-            int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
-            int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
+            uint8x8x3_t _rgb0;
+            _rgb0.val[0] = vqshrun_n_s16(_r0, 6);
+            _rgb0.val[1] = vqshrun_n_s16(_g0, 6);
+            _rgb0.val[2] = vqshrun_n_s16(_b0, 6);
 
-            uint8x8_t _D = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
+            uint8x8x3_t _rgb1;
+            _rgb1.val[0] = vqshrun_n_s16(_r1, 6);
+            _rgb1.val[1] = vqshrun_n_s16(_g1, 6);
+            _rgb1.val[2] = vqshrun_n_s16(_b1, 6);
 
-            vst1_u8(Dp, _D);
+            vst3_u8(rgb0, _rgb0);
+            vst3_u8(rgb1, _rgb1);
 
-            Dp += 8;
-            rows0p += 8;
-            rows1p += 8;
+            yptr0 += 8;
+            yptr1 += 8;
+            vuptr += 8;
+            rgb0 += 24;
+            rgb1 += 24;
         }
 #else
         if (nn > 0)
         {
         asm volatile(
-            "vdup.s16   d16, %8         \n"
-            "mov        r4, #2          \n"
-            "vdup.s16   d17, %9         \n"
-            "vdup.s32   q12, r4         \n"
-            "pld        [%0, #128]      \n"
-            "vld1.s16   {d2-d3}, [%0 :128]!\n"
-            "pld        [%1, #128]      \n"
-            "vld1.s16   {d6-d7}, [%1 :128]!\n"
-            "0:                         \n"
-            "vmull.s16  q0, d2, d16     \n"
-            "vmull.s16  q1, d3, d16     \n"
-            "vorr.s32   q10, q12, q12   \n"
-            "vorr.s32   q11, q12, q12   \n"
-            "vmull.s16  q2, d6, d17     \n"
-            "vmull.s16  q3, d7, d17     \n"
-            "vsra.s32   q10, q0, #16    \n"
-            "vsra.s32   q11, q1, #16    \n"
-            "pld        [%0, #128]      \n"
-            "vld1.s32   {d2-d3}, [%0 :128]!\n"
-            "vsra.s32   q10, q2, #16    \n"
-            "vsra.s32   q11, q3, #16    \n"
-            "pld        [%1, #128]      \n"
-            "vld1.s32   {d6-d7}, [%1 :128]!\n"
-            "vshrn.s32  d20, q10, #2    \n"
-            "vshrn.s32  d21, q11, #2    \n"
-            "vqmovun.s16 d20, q10        \n"
-            "vst1.8     {d20}, [%2]!    \n"
-            "subs       %3, #1          \n"
-            "bne        0b              \n"
-            "sub        %0, #16         \n"
-            "sub        %1, #16         \n"
-            : "=r"(rows0p), // %0
-              "=r"(rows1p), // %1
-              "=r"(Dp),     // %2
-              "=r"(nn)      // %3
-            : "0"(rows0p),
-              "1"(rows1p),
-              "2"(Dp),
-              "3"(nn),
-              "r"(b0),      // %8
-              "r"(b1)       // %9
-            : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12"
+            "pld        [%3, #128]          \n"
+            "vld1.u8    {d2}, [%3]!         \n"
+            "vsub.s8    d2, d2, %12         \n"
+            "0:                             \n"
+            "pld        [%1, #128]          \n"
+            "vld1.u8    {d0}, [%1]!         \n"
+            "pld        [%2, #128]          \n"
+            "vld1.u8    {d1}, [%2]!         \n"
+            "vshll.u8   q2, d0, #6          \n"
+            "vorr       d3, d2, d2          \n"
+            "vshll.u8   q3, d1, #6          \n"
+            "vorr       q9, q2, q2          \n"
+            "vtrn.s8    d2, d3              \n"
+            "vorr       q11, q3, q3         \n"
+            "vmlsl.s8   q9, d2, %14         \n"
+            "vorr       q8, q2, q2          \n"
+            "vmlsl.s8   q11, d2, %14        \n"
+            "vorr       q10, q3, q3         \n"
+            "vmlal.s8   q8, d2, %13         \n"
+            "vmlal.s8   q2, d3, %16         \n"
+            "vmlal.s8   q10, d2, %13        \n"
+            "vmlsl.s8   q9, d3, %15         \n"
+            "vmlal.s8   q3, d3, %16         \n"
+            "vmlsl.s8   q11, d3, %15        \n"
+            "vqshrun.s16 d24, q8, #6        \n"
+            "vqshrun.s16 d26, q2, #6        \n"
+            "vqshrun.s16 d4, q10, #6        \n"
+            "vqshrun.s16 d25, q9, #6        \n"
+            "vqshrun.s16 d6, q3, #6         \n"
+            "vqshrun.s16 d5, q11, #6        \n"
+            "pld        [%3, #128]          \n"
+            "vld1.u8    {d2}, [%3]!         \n"
+            "subs       %0, #1              \n"
+            "vst3.u8    {d24-d26}, [%4]!    \n"
+            "vsub.s8    d2, d2, %12         \n"
+            "vst3.u8    {d4-d6}, [%5]!      \n"
+            "bne        0b                  \n"
+            "sub        %3, #8              \n"
+            : "=r"(nn),     // %0
+              "=r"(yptr0),  // %1
+              "=r"(yptr1),  // %2
+              "=r"(vuptr),  // %3
+              "=r"(rgb0),   // %4
+              "=r"(rgb1)    // %5
+            : "0"(nn),
+              "1"(yptr0),
+              "2"(yptr1),
+              "3"(vuptr),
+              "4"(rgb0),
+              "5"(rgb1),
+              "w"(_v128),   // %12
+              "w"(_v90),    // %13
+              "w"(_v46),    // %14
+              "w"(_v22),    // %15
+              "w"(_v113)    // %16
+            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12", "d26"
         );
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for ( ; remain; --remain )
-        {
-//             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
-            *Dp++ = (unsigned char)(( (short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2)>>2);
-        }
 
-        ibeta += 2;
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain>0; remain-=2)
+        {
+            // R = 1.164 * yy + 1.596 * vv
+            // G = 1.164 * yy - 0.813 * vv - 0.391 * uu
+            // B = 1.164 * yy              + 2.018 * uu
+
+            // R = Y + (1.370705 * (V-128))
+            // G = Y - (0.698001 * (V-128)) - (0.337633 * (U-128))
+            // B = Y + (1.732446 * (U-128))
+
+            // R = ((Y << 6) + 87.72512 * (V-128)) >> 6
+            // G = ((Y << 6) - 44.672064 * (V-128) - 21.608512 * (U-128)) >> 6
+            // B = ((Y << 6) + 110.876544 * (U-128)) >> 6
+
+            // R = ((Y << 6) + 90 * (V-128)) >> 6
+            // G = ((Y << 6) - 46 * (V-128) - 22 * (U-128)) >> 6
+            // B = ((Y << 6) + 113 * (U-128)) >> 6
+
+            // R = (yy + 90 * vv) >> 6
+            // G = (yy - 46 * vv - 22 * uu) >> 6
+            // B = (yy + 113 * uu) >> 6
+
+            int v = vuptr[0] - 128;
+            int u = vuptr[1] - 128;
+
+            int ruv = 90 * v;
+            int guv = -46 * v + -22 * u;
+            int buv = 113 * u;
+
+            int y00 = yptr0[0] << 6;
+            rgb0[0] = SATURATE_CAST_UCHAR((y00 + ruv) >> 6);
+            rgb0[1] = SATURATE_CAST_UCHAR((y00 + guv) >> 6);
+            rgb0[2] = SATURATE_CAST_UCHAR((y00 + buv) >> 6);
+
+            int y01 = yptr0[1] << 6;
+            rgb0[3] = SATURATE_CAST_UCHAR((y01 + ruv) >> 6);
+            rgb0[4] = SATURATE_CAST_UCHAR((y01 + guv) >> 6);
+            rgb0[5] = SATURATE_CAST_UCHAR((y01 + buv) >> 6);
+
+            int y10 = yptr1[0] << 6;
+            rgb1[0] = SATURATE_CAST_UCHAR((y10 + ruv) >> 6);
+            rgb1[1] = SATURATE_CAST_UCHAR((y10 + guv) >> 6);
+            rgb1[2] = SATURATE_CAST_UCHAR((y10 + buv) >> 6);
+
+            int y11 = yptr1[1] << 6;
+            rgb1[3] = SATURATE_CAST_UCHAR((y11 + ruv) >> 6);
+            rgb1[4] = SATURATE_CAST_UCHAR((y11 + guv) >> 6);
+            rgb1[5] = SATURATE_CAST_UCHAR((y11 + buv) >> 6);
+
+            yptr0 += 2;
+            yptr1 += 2;
+            vuptr += 2;
+            rgb0 += 6;
+            rgb1 += 6;
+        }
+#undef SATURATE_CAST_UCHAR
+
+        yptr += 2*w;
+        rgb += 2*3*w;
     }
-
-    delete[] buf;
-}
-
-void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
-{
-    const int INTER_RESIZE_COEF_BITS=11;
-    const int INTER_RESIZE_COEF_SCALE=1 << INTER_RESIZE_COEF_BITS;
-//     const int ONE=INTER_RESIZE_COEF_SCALE;
-
-    double scale_x = (double)srcw / w;
-    double scale_y = (double)srch / h;
-
-    int* buf = new int[w + h + w + h];
-
-    int* xofs = buf;//new int[w];
-    int* yofs = buf + w;//new int[h];
-
-    short* ialpha = (short*)(buf + w + h);//new short[w * 2];
-    short* ibeta = (short*)(buf + w + h + w);//new short[h * 2];
-
-    float fx;
-    float fy;
-    int sx;
-    int sy;
-
-#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
-
-    for (int dx = 0; dx < w; dx++)
-    {
-        fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = floor(fx);
-        fx -= sx;
-
-        if (sx < 0)
-        {
-            sx = 0;
-            fx = 0.f;
-        }
-        if (sx >= srcw - 1)
-        {
-            sx = srcw - 2;
-            fx = 1.f;
-        }
-
-        xofs[dx] = sx*4;
-
-        float a0 = (1.f - fx) * INTER_RESIZE_COEF_SCALE;
-        float a1 =        fx  * INTER_RESIZE_COEF_SCALE;
-
-        ialpha[dx*2    ] = SATURATE_CAST_SHORT(a0);
-        ialpha[dx*2 + 1] = SATURATE_CAST_SHORT(a1);
-    }
-
-    for (int dy = 0; dy < h; dy++)
-    {
-        fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = floor(fy);
-        fy -= sy;
-
-        if (sy < 0)
-        {
-            sy = 0;
-            fy = 0.f;
-        }
-        if (sy >= srch - 1)
-        {
-            sy = srch - 2;
-            fy = 1.f;
-        }
-
-        yofs[dy] = sy*4;
-
-        float b0 = (1.f - fy) * INTER_RESIZE_COEF_SCALE;
-        float b1 =        fy  * INTER_RESIZE_COEF_SCALE;
-
-        ibeta[dy*2    ] = SATURATE_CAST_SHORT(b0);
-        ibeta[dy*2 + 1] = SATURATE_CAST_SHORT(b1);
-    }
-
-#undef SATURATE_CAST_SHORT
-
-    // loop body
-    Mat rowsbuf0((w*4 >> 1) + 4);
-    Mat rowsbuf1((w*4 >> 1) + 4);
-    short* rows0 = (short*)rowsbuf0.data;
-    short* rows1 = (short*)rowsbuf1.data;
-
-    int prev_sy1 = -1;
-
-    for (int dy = 0; dy < h; dy++ )
-    {
-        int sy = yofs[dy];
-
-        if (sy == prev_sy1)
-        {
-            // hresize one row
-            short* rows0_old = rows0;
-            rows0 = rows1;
-            rows1 = rows0_old;
-            const unsigned char *S1 = src + srcw * (sy+4);
-
-            const short* ialphap = ialpha;
-            short* rows1p = rows1;
-            for ( int dx = 0; dx < w; dx++ )
-            {
-                int sx = xofs[dx];
-                short a0 = ialphap[0];
-                short a1 = ialphap[1];
-
-                const unsigned char* S1p = S1 + sx;
-#if __ARM_NEON
-                int16x4_t _a0 = vdup_n_s16(a0);
-                int16x4_t _a1 = vdup_n_s16(a1);
-                uint8x8_t _S1 = vld1_u8(S1p);
-                int16x8_t _S116 = vreinterpretq_s16_u16(vmovl_u8(_S1));
-                int16x4_t _S1low = vget_low_s16(_S116);
-                int16x4_t _S1high = vget_high_s16(_S116);
-                int32x4_t _rows1 = vmull_s16(_S1low, _a0);
-                _rows1 = vmlal_s16(_rows1, _S1high, _a1);
-                int16x4_t _rows1_sr4 = vshrn_n_s32(_rows1, 4);
-                vst1_s16(rows1p, _rows1_sr4);
-#else
-                rows1p[0] = (S1p[0]*a0 + S1p[4]*a1) >> 4;
-                rows1p[1] = (S1p[1]*a0 + S1p[5]*a1) >> 4;
-                rows1p[2] = (S1p[2]*a0 + S1p[6]*a1) >> 4;
-                rows1p[3] = (S1p[3]*a0 + S1p[7]*a1) >> 4;
-#endif // __ARM_NEON
-
-                ialphap += 2;
-                rows1p += 4;
-            }
-        }
-        else
-        {
-            // hresize two rows
-            const unsigned char *S0 = src + srcw * (sy);
-            const unsigned char *S1 = src + srcw * (sy+4);
-
-            const short* ialphap = ialpha;
-            short* rows0p = rows0;
-            short* rows1p = rows1;
-            for ( int dx = 0; dx < w; dx++ )
-            {
-                int sx = xofs[dx];
-                short a0 = ialphap[0];
-                short a1 = ialphap[1];
-
-                const unsigned char* S0p = S0 + sx;
-                const unsigned char* S1p = S1 + sx;
-#if __ARM_NEON
-                int16x4_t _a0 = vdup_n_s16(a0);
-                int16x4_t _a1 = vdup_n_s16(a1);
-                uint8x8_t _S0 = vld1_u8(S0p);
-                uint8x8_t _S1 = vld1_u8(S1p);
-                int16x8_t _S016 = vreinterpretq_s16_u16(vmovl_u8(_S0));
-                int16x8_t _S116 = vreinterpretq_s16_u16(vmovl_u8(_S1));
-                int16x4_t _S0low = vget_low_s16(_S016);
-                int16x4_t _S1low = vget_low_s16(_S116);
-                int16x4_t _S0high = vget_high_s16(_S016);
-                int16x4_t _S1high = vget_high_s16(_S116);
-                int32x4_t _rows0 = vmull_s16(_S0low, _a0);
-                int32x4_t _rows1 = vmull_s16(_S1low, _a0);
-                _rows0 = vmlal_s16(_rows0, _S0high, _a1);
-                _rows1 = vmlal_s16(_rows1, _S1high, _a1);
-                int16x4_t _rows0_sr4 = vshrn_n_s32(_rows0, 4);
-                int16x4_t _rows1_sr4 = vshrn_n_s32(_rows1, 4);
-                vst1_s16(rows0p, _rows0_sr4);
-                vst1_s16(rows1p, _rows1_sr4);
-#else
-                rows0p[0] = (S0p[0]*a0 + S0p[4]*a1) >> 4;
-                rows0p[1] = (S0p[1]*a0 + S0p[5]*a1) >> 4;
-                rows0p[2] = (S0p[2]*a0 + S0p[6]*a1) >> 4;
-                rows0p[3] = (S0p[3]*a0 + S0p[7]*a1) >> 4;
-                rows1p[0] = (S1p[0]*a0 + S1p[4]*a1) >> 4;
-                rows1p[1] = (S1p[1]*a0 + S1p[5]*a1) >> 4;
-                rows1p[2] = (S1p[2]*a0 + S1p[6]*a1) >> 4;
-                rows1p[3] = (S1p[3]*a0 + S1p[7]*a1) >> 4;
-#endif // __ARM_NEON
-
-                ialphap += 2;
-                rows0p += 4;
-                rows1p += 4;
-            }
-        }
-
-        prev_sy1 = sy + 1;
-
-        // vresize
-        short b0 = ibeta[0];
-        short b1 = ibeta[1];
-
-        short* rows0p = rows0;
-        short* rows1p = rows1;
-        unsigned char* Dp = dst + w * 4 * (dy);
-
-#if __ARM_NEON
-        int nn = (w * 4) >> 3;
-#else
-        int nn = 0;
-#endif
-        int remain = (w * 4) - (nn << 3);
-
-#if __ARM_NEON
-#if __aarch64__
-        int16x4_t _b0 = vdup_n_s16(b0);
-        int16x4_t _b1 = vdup_n_s16(b1);
-        int32x4_t _v2 = vdupq_n_s32(2);
-        for (; nn>0; nn--)
-        {
-            int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
-            int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
-            int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p+4);
-            int16x4_t _rows1p_1_sr4 = vld1_s16(rows1p+4);
-
-            int32x4_t _rows0p_sr4_mb0 = vmull_s16(_rows0p_sr4, _b0);
-            int32x4_t _rows1p_sr4_mb1 = vmull_s16(_rows1p_sr4, _b1);
-            int32x4_t _rows0p_1_sr4_mb0 = vmull_s16(_rows0p_1_sr4, _b0);
-            int32x4_t _rows1p_1_sr4_mb1 = vmull_s16(_rows1p_1_sr4, _b1);
-
-            int32x4_t _acc = _v2;
-            _acc = vsraq_n_s32(_acc, _rows0p_sr4_mb0, 16);
-            _acc = vsraq_n_s32(_acc, _rows1p_sr4_mb1, 16);
-
-            int32x4_t _acc_1 = _v2;
-            _acc_1 = vsraq_n_s32(_acc_1, _rows0p_1_sr4_mb0, 16);
-            _acc_1 = vsraq_n_s32(_acc_1, _rows1p_1_sr4_mb1, 16);
-
-            int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
-            int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
-
-            uint8x8_t _D = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
-
-            vst1_u8(Dp, _D);
-
-            Dp += 8;
-            rows0p += 8;
-            rows1p += 8;
-        }
-#else
-        if (nn > 0)
-        {
-        asm volatile(
-            "vdup.s16   d16, %8         \n"
-            "mov        r4, #2          \n"
-            "vdup.s16   d17, %9         \n"
-            "vdup.s32   q12, r4         \n"
-            "pld        [%0, #128]      \n"
-            "vld1.s16   {d2-d3}, [%0 :128]!\n"
-            "pld        [%1, #128]      \n"
-            "vld1.s16   {d6-d7}, [%1 :128]!\n"
-            "0:                         \n"
-            "vmull.s16  q0, d2, d16     \n"
-            "vmull.s16  q1, d3, d16     \n"
-            "vorr.s32   q10, q12, q12   \n"
-            "vorr.s32   q11, q12, q12   \n"
-            "vmull.s16  q2, d6, d17     \n"
-            "vmull.s16  q3, d7, d17     \n"
-            "vsra.s32   q10, q0, #16    \n"
-            "vsra.s32   q11, q1, #16    \n"
-            "pld        [%0, #128]      \n"
-            "vld1.s32   {d2-d3}, [%0 :128]!\n"
-            "vsra.s32   q10, q2, #16    \n"
-            "vsra.s32   q11, q3, #16    \n"
-            "pld        [%1, #128]      \n"
-            "vld1.s32   {d6-d7}, [%1 :128]!\n"
-            "vshrn.s32  d20, q10, #2    \n"
-            "vshrn.s32  d21, q11, #2    \n"
-            "vqmovun.s16 d20, q10        \n"
-            "vst1.8     {d20}, [%2]!    \n"
-            "subs       %3, #1          \n"
-            "bne        0b              \n"
-            "sub        %0, #16         \n"
-            "sub        %1, #16         \n"
-            : "=r"(rows0p), // %0
-              "=r"(rows1p), // %1
-              "=r"(Dp),     // %2
-              "=r"(nn)      // %3
-            : "0"(rows0p),
-              "1"(rows1p),
-              "2"(Dp),
-              "3"(nn),
-              "r"(b0),      // %8
-              "r"(b1)       // %9
-            : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12"
-        );
-        }
-#endif // __aarch64__
-#endif // __ARM_NEON
-        for ( ; remain; --remain )
-        {
-//             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
-            *Dp++ = (unsigned char)(( (short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2)>>2);
-        }
-
-        ibeta += 2;
-    }
-
-    delete[] buf;
 }
 
 Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator)

@@ -16,6 +16,7 @@ set(ncnn_SRCS
     layer.cpp
     mat.cpp
     mat_pixel.cpp
+    mat_pixel_resize.cpp
     modelbin.cpp
     net.cpp
     opencv.cpp
@@ -38,35 +39,35 @@ macro(ncnn_add_layer class)
         option(WITH_LAYER_${name} "build with layer ${name}" ON)
     endif()
 
-    message("WITH_LAYER_${name} = ${WITH_LAYER_${name}}")
+    if(NCNN_CMAKE_VERBOSE)
+        message(STATUS "WITH_LAYER_${name} = ${WITH_LAYER_${name}}")
+    endif()
 
     if(WITH_LAYER_${name})
         list(APPEND ncnn_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/layer/${name}.cpp")
 
         # look for arch specific implementation and append source
-        # optimized implementation for armv7 aarch64
-        if((ANDROID AND ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "armv7-a"))
-            OR (ANDROID AND ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
-            OR (UNIX AND ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "armv7l"))
-            OR (UNIX AND ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64"))
-            OR (IOS AND ("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "armv7"))
-            OR (IOS AND ("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64"))
-            OR (IOS AND ("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "armv7;arm64")))
-            if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/layer/arm/${name}_arm.cpp")
-                list(APPEND ncnn_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/layer/arm/${name}_arm.cpp")
-                set(WITH_LAYER_${name}_arm 1)
-            endif()
+        # optimized implementation for armv7, aarch64 or x86
+        if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
+            OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)"))
+            set(arch arm)
         else()
-            if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/layer/x86/${name}_x86.cpp")
-                list(APPEND ncnn_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/layer/x86/${name}_x86.cpp")
-                set(WITH_LAYER_${name}_x86 1)
+            set(arch x86)
+        endif()
+        set(LAYER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/layer/${arch}/${name}_${arch}.cpp)
+        if(EXISTS ${LAYER_SRC})
+            set(WITH_LAYER_${name}_${arch} 1)
+            list(APPEND ncnn_SRCS ${LAYER_SRC})
+            if(NCNN_CMAKE_VERBOSE)
+                message(STATUS "Adding layer: ${LAYER_SRC}")
             endif()
         endif()
 
         # look for vulkan compute shader and compile
         if(NCNN_VULKAN)
-            if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/layer/shader/${name}.comp")
-                execute_process(COMMAND ${GLSLANGVALIDATOR_EXECUTABLE} -V ${CMAKE_CURRENT_SOURCE_DIR}/layer/shader/${name}.comp -x -o ${CMAKE_CURRENT_BINARY_DIR}/${name}.comp.spv.hex.h)
+            set(LAYER_SHADER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/layer/shader/${name}.comp)
+            if(EXISTS ${LAYER_SHADER_SRC})
+                execute_process(COMMAND ${GLSLANGVALIDATOR_EXECUTABLE} -V ${LAYER_SHADER_SRC} -x -o ${CMAKE_CURRENT_BINARY_DIR}/${name}.comp.spv.hex.h)
                 set(WITH_LAYER_${name}_vulkan 1)
             endif()
         endif()
@@ -74,47 +75,36 @@ macro(ncnn_add_layer class)
 
     # generate layer_declaration and layer_registry file
     if(WITH_LAYER_${name})
-        if(WITH_LAYER_${name}_arm)
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h
-                "extern Layer* ${class}_arm_layer_creator();\n")
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h
-                "#if NCNN_STRING\n{\"${class}\",${class}_arm_layer_creator},\n#else\n{${class}_arm_layer_creator},\n#endif\n")
-        elseif(WITH_LAYER_${name}_x86)
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h
-                "extern Layer* ${class}_x86_layer_creator();\n")
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h
-                "#if NCNN_STRING\n{\"${class}\",${class}_x86_layer_creator},\n#else\n{${class}_x86_layer_creator},\n#endif\n")
+        if(WITH_LAYER_${name}_${arch})
+            string(APPEND layer_declaration
+                "extern Layer* ${class}_${arch}_layer_creator();\n")
+            string(APPEND layer_registry
+                "#if NCNN_STRING\n{\"${class}\",${class}_${arch}_layer_creator},\n#else\n{${class}_${arch}_layer_creator},\n#endif\n")
         else()
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h
+            string(APPEND layer_declaration
                 "extern Layer* ${class}_layer_creator();\n")
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h
+            string(APPEND layer_registry
                 "#if NCNN_STRING\n{\"${class}\",${class}_layer_creator},\n#else\n{${class}_layer_creator},\n#endif\n")
         endif()
 
         if(WITH_LAYER_${name}_vulkan)
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h
+            string(APPEND layer_shader_spv_data
                 "static const uint32_t ${class}_comp_spv_data[] = {\n#include \"${name}.comp.spv.hex.h\"\n};\n")
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h
+            string(APPEND layer_shader_registry
                 "{${class}_comp_spv_data,sizeof(${class}_comp_spv_data)},\n")
         else()
-            file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h "{0,0},\n")
+            string(APPEND layer_shader_registry "{0,0},\n")
         endif()
     else()
-        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h "#if NCNN_STRING\n{\"${class}\",0},\n#else\n{0},\n#endif\n")
-        file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h "{0,0},\n")
+        string(APPEND layer_registry "#if NCNN_STRING\n{\"${class}\",0},\n#else\n{0},\n#endif\n")
+        string(APPEND layer_shader_registry "{0,0},\n")
     endif()
 
     # generate layer_type_enum file
-    file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h "${class} = ${__LAYER_TYPE_ENUM_INDEX},\n")
+    string(APPEND layer_type_enum "${class} = ${__LAYER_TYPE_ENUM_INDEX},\n")
     math(EXPR __LAYER_TYPE_ENUM_INDEX "${__LAYER_TYPE_ENUM_INDEX}+1")
 endmacro()
 
-# create new
-file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
-file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
-file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
-file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h)
-file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h)
 set(__LAYER_TYPE_ENUM_INDEX 0)
 
 # layer implementation
@@ -177,8 +167,27 @@ ncnn_add_layer(Reorg)
 ncnn_add_layer(YoloDetectionOutput)
 ncnn_add_layer(Quantize)
 ncnn_add_layer(Dequantize)
+ncnn_add_layer(Yolov3DetectionOutput)
+ncnn_add_layer(PSROIPooling)
+ncnn_add_layer(ROIAlign OFF)
+
+# create new
+configure_file(layer_declaration.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
+configure_file(layer_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
+configure_file(layer_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
+
+if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
+    if(NCNN_CMAKE_VERBOSE)
+        message("Building with OpenMP")
+    endif()
+    target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+if(COVERAGE)
+    target_compile_options(ncnn PRIVATE --coverage)
+endif()
 
 install(TARGETS ncnn ARCHIVE DESTINATION lib)
 install(FILES

@@ -18,6 +18,11 @@
 #include "gpu.h"
 
 namespace ncnn {
+    
+Allocator::~Allocator() 
+{
+
+}
 
 PoolAllocator::PoolAllocator()
 {

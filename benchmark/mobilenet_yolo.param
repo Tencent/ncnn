@@ -1,5 +1,5 @@
 7767517
-134 135
+132 134
 Input            data             0 1 data 0=416 1=416 2=3
 Convolution      conv0            1 1 data conv0 0=32 1=3 2=1 3=2 4=1 5=0 6=864
 BatchNorm        conv0/bn         1 1 conv0 conv0_conv0/bn 0=32
@@ -93,7 +93,8 @@ Convolution      conv11           1 1 conv11/dw_conv11/dw/relu conv11 0=512 1=1 
 BatchNorm        conv11/bn        1 1 conv11 conv11_conv11/bn 0=512
 Scale            conv11/scale     1 1 conv11_conv11/bn conv11_conv11/scale 0=512 1=1
 ReLU             conv11/relu      1 1 conv11_conv11/scale conv11_conv11/relu
-ConvolutionDepthWise conv12/dw        1 1 conv11_conv11/relu conv12/dw 0=512 1=3 2=1 3=2 4=1 5=0 6=4608 7=512
+Split            splitncnn_0      1 2 conv11_conv11/relu conv11_conv11/relu_splitncnn_0 conv11_conv11/relu_splitncnn_1
+ConvolutionDepthWise conv12/dw        1 1 conv11_conv11/relu_splitncnn_1 conv12/dw 0=512 1=3 2=1 3=2 4=1 5=0 6=4608 7=512
 BatchNorm        conv12/dw/bn     1 1 conv12/dw conv12/dw_conv12/dw/bn 0=512
 Scale            conv12/dw/scale  1 1 conv12/dw_conv12/dw/bn conv12/dw_conv12/dw/scale 0=512 1=1
 ReLU             conv12/dw/relu   1 1 conv12/dw_conv12/dw/scale conv12/dw_conv12/dw/relu
@@ -109,28 +110,25 @@ Convolution      conv13           1 1 conv13/dw_conv13/dw/relu conv13 0=1024 1=1
 BatchNorm        conv13/bn        1 1 conv13 conv13_conv13/bn 0=1024
 Scale            conv13/scale     1 1 conv13_conv13/bn conv13_conv13/scale 0=1024 1=1
 ReLU             conv13/relu      1 1 conv13_conv13/scale conv13_conv13/relu
-Convolution      conv16           1 1 conv13_conv13/relu conv16 0=256 1=1 2=1 3=1 4=0 5=0 6=262144
-BatchNorm        conv16/bn        1 1 conv16 conv16_conv16/bn 0=256
-Scale            conv16/scale     1 1 conv16_conv16/bn conv16_conv16/scale 0=256 1=1
-ReLU             conv16/relu      1 1 conv16_conv16/scale conv16_conv16/relu
-Convolution      conv17           1 1 conv16_conv16/relu conv17 0=1024 1=3 2=1 3=1 4=1 5=0 6=2359296
+ConvolutionDepthWise conv16/dw        1 1 conv13_conv13/relu conv16/dw 0=1024 1=3 2=1 3=1 4=1 5=0 6=9216 7=1024
+BatchNorm        conv16/dw/bn     1 1 conv16/dw conv16/dw_conv16/dw/bn 0=1024
+Scale            conv16/dw/scale  1 1 conv16/dw_conv16/dw/bn conv16/dw_conv16/dw/scale 0=1024 1=1
+ReLU             conv16/dw/relu   1 1 conv16/dw_conv16/dw/scale conv16/dw_conv16/dw/relu
+Convolution      conv17           1 1 conv16/dw_conv16/dw/relu conv17 0=1024 1=1 2=1 3=1 4=0 5=0 6=1048576
 BatchNorm        conv17/bn        1 1 conv17 conv17_conv17/bn 0=1024
 Scale            conv17/scale     1 1 conv17_conv17/bn conv17_conv17/scale 0=1024 1=1
 ReLU             conv17/relu      1 1 conv17_conv17/scale conv17_conv17/relu
-Split            splitncnn_0      1 2 conv17_conv17/relu conv17_conv17/relu_splitncnn_0 conv17_conv17/relu_splitncnn_1
-DeconvolutionDepthWise upsample         1 1 conv17_conv17/relu_splitncnn_1 upsample 0=256 1=4 2=1 3=2 4=1 5=0 6=16384 7=256
-Convolution      conv19           1 1 upsample conv19 0=1024 1=3 2=1 3=1 4=1 5=0 6=2359296
-BatchNorm        conv19/bn        1 1 conv19 conv19_conv19/bn 0=1024
-Scale            conv19/scale     1 1 conv19_conv19/bn conv19_conv19/scale 0=1024 1=1
-ReLU             conv19/relu      1 1 conv19_conv19/scale conv19_conv19/relu
-Convolution      conv20           1 1 conv19_conv19/relu conv20 0=256 1=1 2=1 3=1 4=0 5=0 6=262144
-BatchNorm        conv20/bn        1 1 conv20 conv20_conv20/bn 0=256
-Scale            conv20/scale     1 1 conv20_conv20/bn conv20_conv20/scale 0=256 1=1
+Split            splitncnn_1      1 2 conv17_conv17/relu conv17_conv17/relu_splitncnn_0 conv17_conv17/relu_splitncnn_1
+DeconvolutionDepthWise upsample         1 1 conv17_conv17/relu_splitncnn_1 upsample 0=512 1=4 2=1 3=2 4=1 5=0 6=16384 7=512
+Eltwise          conv_18/sum      2 1 conv11_conv11/relu_splitncnn_0 upsample conv_18/sum 0=1 -23301=0
+ConvolutionDepthWise conv19/dw        1 1 conv_18/sum conv19/dw 0=512 1=3 2=1 3=1 4=1 5=0 6=4608 7=512
+BatchNorm        conv19/dw/bn     1 1 conv19/dw conv19/dw_conv19/dw/bn 0=512
+Scale            conv19/dw/scale  1 1 conv19/dw_conv19/dw/bn conv19/dw_conv19/dw/scale 0=512 1=1
+ReLU             conv19/dw/relu   1 1 conv19/dw_conv19/dw/scale conv19/dw_conv19/dw/relu
+Convolution      conv20           1 1 conv19/dw_conv19/dw/relu conv20 0=1024 1=1 2=1 3=1 4=0 5=0 6=524288
+BatchNorm        conv20/bn        1 1 conv20 conv20_conv20/bn 0=1024
+Scale            conv20/scale     1 1 conv20_conv20/bn conv20_conv20/scale 0=1024 1=1
 ReLU             conv20/relu      1 1 conv20_conv20/scale conv20_conv20/relu
-Convolution      conv21           1 1 conv20_conv20/relu conv21 0=1024 1=3 2=1 3=1 4=1 5=0 6=2359296
-BatchNorm        conv21/bn        1 1 conv21 conv21_conv21/bn 0=1024
-Scale            conv21/scale     1 1 conv21_conv21/bn conv21_conv21/scale 0=1024 1=1
-ReLU             conv21/relu      1 1 conv21_conv21/scale conv21_conv21/relu
 Convolution      conv22_indoor    1 1 conv17_conv17/relu_splitncnn_0 conv22 0=125 1=1 2=1 3=1 4=0 5=1 6=128000
-Convolution      conv23_indoor    1 1 conv21_conv21/relu conv23 0=125 1=1 2=1 3=1 4=0 5=1 6=128000
-YoloDetectionOutput detection_out    2 1 conv22 conv23 detection_out 0=20 1=5 2=0.250000 3=0.400000 -23304=10,1.080000,1.190000,3.420000,4.410000,6.630000,11.380000,9.420000,5.110000,16.620001,10.520000
+Convolution      conv23_indoor    1 1 conv20_conv20/relu conv23 0=125 1=1 2=1 3=1 4=0 5=1 6=128000
+YoloDetectionOutput detection_out    2 1 conv22 conv23 detection_out 0=20 1=5 2=0.400000 3=0.450000 -23304=10,1.080000,1.190000,3.420000,4.410000,6.630000,11.380000,9.420000,5.110000,16.620001,10.520000

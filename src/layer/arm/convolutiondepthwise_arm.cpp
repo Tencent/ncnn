@@ -23,6 +23,7 @@
 namespace ncnn {
 
 #include "convolutiondepthwise_3x3.h"
+#include "convolutiondepthwise_5x5.h"
 
 #include "convolutiondepthwise_3x3_int8.h"
 
@@ -59,6 +60,13 @@ int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
     {
         // depth-wise specific
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
+        {
+            if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
+            {
+                return 0;
+            }
+        }
+        if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1)
         {
             if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
             {
@@ -240,6 +248,19 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 else if (stride_w == 2 && stride_h == 2)
                 {
                     convdw3x3s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+                    return 0;
+                }
+            }
+            if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1)
+            {
+                if (stride_w == 1 && stride_h == 1)
+                {
+                    convdw5x5s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+                    return 0;
+                }
+                else if (stride_w == 2 && stride_h == 2)
+                {
+                    convdw5x5s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
                     return 0;
                 }
             }

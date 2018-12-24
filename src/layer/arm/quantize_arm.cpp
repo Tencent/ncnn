@@ -31,11 +31,6 @@ static inline signed char float2int8(float v)
 
 int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-#if __aarch64__
-    // TODO port to aarch64 fcvtas
-    return Quantize::forward(bottom_blob, top_blob, opt);
-#endif // __aarch64__
-
 #if !__aarch64__
     int FPSCR_value = 0;
 
@@ -115,7 +110,40 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
 #if __ARM_NEON
 #if __aarch64__
-            // TODO
+            float32x4_t _scale = vdupq_n_f32(scale);
+
+            if (nn > 0)
+            {
+            asm volatile(
+                "dup    v2.4s, %w6                   \n" //scale
+                "0:                                  \n"
+                "prfm   pldl1keep, [%1, #128]        \n"
+                "ld1    {v0.4s, v1.4s}, [%1], #32    \n" //data
+                // bottom_f32 = bottom_f32 * scale
+                "fmul   v3.4s, v0.4s, v2.4s          \n"
+                "fmul   v4.4s, v1.4s, v2.4s          \n"
+                // top_f32 -> top_s32
+                "fcvtas v5.4s, v3.4s                 \n"
+                "fcvtas v6.4s, v4.4s                 \n"
+                // top_s32 -> top_s16
+                "sqxtn  v7.4h, v5.4s                 \n"
+                "sqxtn2 v7.8h, v6.4s                 \n"
+                // top_s16 -> top_s8
+                "sqxtn  v8.8b, v7.8h                 \n"
+                // save top_s8
+                "st1    {v8.8b}, [%2], #8            \n"
+                "subs   %w0, %w0, #1                 \n"
+                "bne    0b                           \n"
+                : "=r"(nn),       // %0
+                  "=r"(ptr),      // %1
+                  "=r"(outptr)    // %2
+                : "0"(nn),
+                  "1"(ptr),
+                  "2"(outptr),
+                  "r"(_scale)     // %6
+                : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"
+            );
+            }
 #else
             if (nn > 0)
             {

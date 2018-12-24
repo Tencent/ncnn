@@ -24,6 +24,9 @@
 #if NCNN_BENCHMARK
 #include <stdio.h>
 #include "layer/convolution.h"
+#include "layer/convolutiondepthwise.h"
+#include "layer/deconvolution.h"
+#include "layer/deconvolutiondepthwise.h"
 #endif // NCNN_BENCHMARK
 
 namespace ncnn {
@@ -68,6 +71,33 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double
                 ((Convolution*)layer)->kernel_h,
                 ((Convolution*)layer)->stride_w,
                 ((Convolution*)layer)->stride_h
+        );
+    }
+    else if (layer->type == "ConvolutionDepthWise")
+    {
+        fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d",
+                ((ConvolutionDepthWise*)layer)->kernel_w,
+                ((ConvolutionDepthWise*)layer)->kernel_h,
+                ((ConvolutionDepthWise*)layer)->stride_w,
+                ((ConvolutionDepthWise*)layer)->stride_h
+        );
+    }
+    else if (layer->type == "Deconvolution")
+    {
+        fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d",
+                ((Deconvolution*)layer)->kernel_w,
+                ((Deconvolution*)layer)->kernel_h,
+                ((Deconvolution*)layer)->stride_w,
+                ((Deconvolution*)layer)->stride_h
+        );
+    }
+    else if (layer->type == "DeconvolutionDepthWise")
+    {
+        fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d",
+                ((DeconvolutionDepthWise*)layer)->kernel_w,
+                ((DeconvolutionDepthWise*)layer)->kernel_h,
+                ((DeconvolutionDepthWise*)layer)->stride_w,
+                ((DeconvolutionDepthWise*)layer)->stride_h
         );
     }
     fprintf(stderr, "\n");

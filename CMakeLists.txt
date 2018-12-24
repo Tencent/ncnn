@@ -1,4 +1,3 @@
-
 if(CMAKE_TOOLCHAIN_FILE)
 set(LIBRARY_OUTPUT_PATH_ROOT ${CMAKE_BINARY_DIR} CACHE PATH "root for library output, set this to change where android libs are compiled to")
 # get absolute path, but get_filename_component ABSOLUTE only refer with source dir, so find_file here :(
@@ -12,11 +11,15 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Installation 
 endif()
 message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 
-cmake_minimum_required(VERSION 2.8.10)
+# This is the minimum cmake version supporting the modern cmake OpenMP module below
+# modern cmake requires 3.0 anyway and android cmake requires 3.6
+cmake_minimum_required(VERSION 3.1.3)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
 endif()
+
+set(COVERAGE OFF CACHE BOOL "Coverage")
 
 project(ncnn)
 
@@ -27,13 +30,20 @@ option(NCNN_OPENCV "minimal opencv structure emulation" OFF)
 option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
 option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
 option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
+option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
 option(NCNN_VULKAN "vulkan compute support" ON)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
-    if(OpenMP_CXX_FOUND OR OPENMP_FOUND)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    # For CMake < 3.9, we need to make the target ourselves
+    if(NOT TARGET OpenMP::OpenMP_CXX)
+        find_package(Threads REQUIRED)
+        add_library(OpenMP::OpenMP_CXX IMPORTED INTERFACE)
+        set_property(TARGET OpenMP::OpenMP_CXX
+          PROPERTY INTERFACE_COMPILE_OPTIONS ${OpenMP_CXX_FLAGS})
+        # Only works if the same flag is passed to the linker; use CMake 3.9+ otherwise (Intel, AppleClang)
+        set_property(TARGET OpenMP::OpenMP_CXX
+          PROPERTY INTERFACE_LINK_LIBRARIES ${OpenMP_CXX_FLAGS} Threads::Threads)
     endif()
 endif()
 
@@ -53,10 +63,16 @@ else()
 
         add_definitions(-ffast-math)
     endif()
+
+    if(PI3)
+        add_definitions(-march=native)
+        add_definitions(-mfpu=neon)
+        add_definitions(-mfloat-abi=hard)
+        add_definitions(-D__ARM_NEON)
+        add_definitions(-D__ANDROID__)
+    endif()
     # add_definitions(-march=native)
-
     # add_definitions(-flto)
-
     add_definitions(-fvisibility=hidden -fvisibility-inlines-hidden)
 endif()
 
@@ -73,8 +89,8 @@ endif()
 ##############################################
 
 # add_subdirectory(examples)
-add_subdirectory(benchmark)
+# add_subdirectory(benchmark)
 add_subdirectory(src)
 if(NOT ANDROID AND NOT IOS)
-add_subdirectory(tools)
+# add_subdirectory(tools)
 endif()

@@ -17,6 +17,7 @@
 #include "modelbin.h"
 #include "paramdict.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -111,7 +112,12 @@ int Net::register_custom_layer(int index, layer_creator_func creator)
 int Net::load_param(FILE* fp)
 {
     int magic = 0;
-    fscanf(fp, "%d", &magic);
+    int nbr = fscanf(fp, "%d", &magic);
+    if (nbr != 1)
+    {
+        fprintf(stderr, "issue with param file\n");
+        return -1;
+    }
     if (magic != 7767517)
     {
         fprintf(stderr, "param is too old, please regenerate\n");
@@ -121,10 +127,15 @@ int Net::load_param(FILE* fp)
     // parse
     int layer_count = 0;
     int blob_count = 0;
-    fscanf(fp, "%d %d", &layer_count, &blob_count);
+    nbr = fscanf(fp, "%d %d", &layer_count, &blob_count);
+    if (nbr != 2 || layer_count <= 0 || blob_count <= 0)
+    {
+        fprintf(stderr, "issue with param file\n");
+        return -1;
+    }
 
-    layers.resize(layer_count);
-    blobs.resize(blob_count);
+    layers.resize((size_t)layer_count);
+    blobs.resize((size_t)blob_count);
 
     ParamDict pd;
     pd.use_winograd_convolution = use_winograd_convolution;
@@ -236,9 +247,34 @@ int Net::load_param(FILE* fp)
     return 0;
 }
 
-#define mem_sscanf(ptr, format, ...)  ({int _b=0; int _n = sscanf(ptr, format "%n", __VA_ARGS__, &_b); ptr+=_b;_b>0?_n:0;})
+#if _MSC_VER
+static inline int mem_sscanf_with_n(int* _internal_nconsumed_ptr, const char*& ptr, const char* format, ...)
+{
+    *_internal_nconsumed_ptr = 0;
 
-int Net::load_param_mem(const char* _mem){
+    va_list args;
+    va_start(args, format);
+
+    int _n = vsscanf(ptr, format, args);
+
+    va_end(args);
+
+    ptr += *_internal_nconsumed_ptr;
+
+    return *_internal_nconsumed_ptr > 0 ? _n : 0;
+}
+#define mem_sscanf(ptr, format, ...)  mem_sscanf_with_n(&_internal_nconsumed, ptr, format "%n", __VA_ARGS__, &_internal_nconsumed)
+#else
+// return value from macro requires gcc extension https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html
+#define mem_sscanf(ptr, format, ...)  ({int _b=0; int _n = sscanf(ptr, format "%n", __VA_ARGS__, &_b); ptr+=_b;_b>0?_n:0;})
+#endif // _MSC_VER
+
+int Net::load_param_mem(const char* _mem)
+{
+#if _MSC_VER
+    int _internal_nconsumed;
+#endif
+
     int magic = 0;
     const char* mem = _mem;
     mem_sscanf(mem, "%d", &magic);
@@ -382,21 +418,34 @@ int Net::load_param(const char* protopath)
 }
 #endif // NCNN_STRING
 
+template<typename T> bool readValue(T & val, FILE * fp)
+{
+    size_t res = fread(&val, sizeof(T), 1, fp);
+    if (res != sizeof(T)) {
+        fprintf(stderr, "issue with param file reading\n");
+        return false;
+    }
+    return true;
+}
+
 int Net::load_param_bin(FILE* fp)
 {
     int magic = 0;
-    fread(&magic, sizeof(int), 1, fp);
+    if (!readValue(magic, fp))
+        return -1;
     if (magic != 7767517)
     {
         fprintf(stderr, "param is too old, please regenerate\n");
         return -1;
     }
 
-    int layer_count = 0;
-    fread(&layer_count, sizeof(int), 1, fp);
+    size_t layer_count = 0;
+    if (!readValue(layer_count, fp))
+        return -1;
 
-    int blob_count = 0;
-    fread(&blob_count, sizeof(int), 1, fp);
+    size_t blob_count = 0;
+    if (!readValue(blob_count, fp))
+        return -1;
 
     layers.resize(layer_count);
     blobs.resize(blob_count);
@@ -406,16 +455,19 @@ int Net::load_param_bin(FILE* fp)
     pd.use_sgemm_convolution = use_sgemm_convolution;
     pd.use_int8_inference = use_int8_inference;
 
-    for (int i=0; i<layer_count; i++)
+    for (size_t i=0; i<layer_count; i++)
     {
         int typeindex;
-        fread(&typeindex, sizeof(int), 1, fp);
+        if (!readValue(typeindex, fp))
+            return -1;
 
-        int bottom_count;
-        fread(&bottom_count, sizeof(int), 1, fp);
+        size_t bottom_count;
+        if (!readValue(bottom_count, fp))
+            return -1;
 
-        int top_count;
-        fread(&top_count, sizeof(int), 1, fp);
+        size_t top_count;
+        if (!readValue(top_count, fp))
+            return -1;
 
         Layer* layer = create_layer(typeindex);
         if (!layer)
@@ -435,10 +487,11 @@ int Net::load_param_bin(FILE* fp)
 //         fprintf(stderr, "new layer %d\n", typeindex);
 
         layer->bottoms.resize(bottom_count);
-        for (int j=0; j<bottom_count; j++)
+        for (size_t j=0; j<bottom_count; j++)
         {
-            int bottom_blob_index;
-            fread(&bottom_blob_index, sizeof(int), 1, fp);
+            size_t bottom_blob_index;
+            if (!readValue(bottom_blob_index, fp))
+                return -1;
 
             Blob& blob = blobs[bottom_blob_index];
 
@@ -448,10 +501,11 @@ int Net::load_param_bin(FILE* fp)
         }
 
         layer->tops.resize(top_count);
-        for (int j=0; j<top_count; j++)
+        for (size_t j=0; j<top_count; j++)
         {
-            int top_blob_index;
-            fread(&top_blob_index, sizeof(int), 1, fp);
+            size_t top_blob_index;
+            if (!readValue(top_blob_index, fp))
+                return -1;
 
             Blob& blob = blobs[top_blob_index];
 
