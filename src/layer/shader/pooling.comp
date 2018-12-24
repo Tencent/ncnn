@@ -1,0 +1,80 @@
+#version 450
+
+layout (constant_id = 0) const int pooling_type = 0;
+layout (constant_id = 1) const int kernel_w = 1;
+layout (constant_id = 2) const int kernel_h = 1;
+layout (constant_id = 3) const int stride_w = 1;
+layout (constant_id = 4) const int stride_h = 1;
+layout (constant_id = 5) const int pad_left = 0;
+layout (constant_id = 6) const int pad_right = 0;
+layout (constant_id = 7) const int pad_top = 0;
+layout (constant_id = 8) const int pad_bottom = 0;
+layout (constant_id = 9) const int global_pooling = 0;
+layout (constant_id = 10) const int pad_mode = 0;
+
+layout (binding = 0, r32f) uniform readonly image3D bottom_blob;
+layout (binding = 1, r32f) uniform writeonly image3D top_blob;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+void main()
+{
+    ivec3 inshape = imageSize(bottom_blob);
+    ivec3 outshape = imageSize(top_blob);
+
+    if (gl_GlobalInvocationID.x >= outshape[0] || gl_GlobalInvocationID.y >= outshape[1] || gl_GlobalInvocationID.z >= outshape[2])
+        return;
+
+    float res;
+
+    if (pooling_type == 0)
+    {
+        res = -99999;
+
+        for (int y = 0; y < kernel_h; y++)
+        {
+            for (int x = 0; x < kernel_w; x++)
+            {
+                ivec3 vpos;
+                vpos.x = int(gl_GlobalInvocationID.x) * stride_w + x - pad_left;
+                vpos.y = int(gl_GlobalInvocationID.y) * stride_h + y - pad_top;
+                vpos.z = int(gl_GlobalInvocationID.z);
+
+                if (vpos.x >= 0 && vpos.x < inshape[0] && vpos.y >= 0 && vpos.y < inshape[1])
+                {
+
+                float v = imageLoad(bottom_blob, vpos).r;
+
+                res = max(res, v);
+                }
+            }
+        }
+    }
+    else if (pooling_type == 1)
+    {
+        res = 0;
+
+        for (int y = 0; y < kernel_h; y++)
+        {
+            for (int x = 0; x < kernel_w; x++)
+            {
+                ivec3 vpos;
+                vpos.x = int(gl_GlobalInvocationID.x) * stride_w + x - pad_left;
+                vpos.y = int(gl_GlobalInvocationID.y) * stride_h + y - pad_top;
+                vpos.z = int(gl_GlobalInvocationID.z);
+
+                float v = imageLoad(bottom_blob, vpos).r;
+
+                res += v;
+            }
+        }
+
+        res /= kernel_w * kernel_h;
+    }
+
+//     res = 233;
+
+    imageStore(top_blob, ivec3(gl_GlobalInvocationID.xyz), vec4(res));
+}

@@ -14,6 +14,7 @@
 
 #include "pooling.h"
 #include <float.h>
+#include <math.h>
 #include <algorithm>
 
 namespace ncnn {
@@ -40,6 +41,38 @@ int Pooling::load_param(const ParamDict& pd)
     global_pooling = pd.get(4, 0);
     pad_mode = pd.get(5, 0);
 
+#if NCNN_VULKAN
+
+    local_size_z = std::min(128, pd.max_workgroup_size[2]);
+
+    int local_size_xy = sqrt(pd.max_workgroup_invocations / local_size_z);
+    int local_size_xy_prefer = 256;
+    while (local_size_xy < local_size_xy_prefer)
+    {
+        local_size_xy_prefer /= 2;
+    }
+    local_size_x = local_size_xy_prefer;
+    local_size_y = local_size_xy_prefer;
+
+    // setup pipeline specializations
+    specializations.resize(11);
+
+    specializations[0] = pooling_type;
+    specializations[1] = kernel_w;
+    specializations[2] = kernel_h;
+    specializations[3] = stride_w;
+    specializations[4] = stride_h;
+    specializations[5] = pad_left;
+    specializations[6] = pad_right;
+    specializations[7] = pad_top;
+    specializations[8] = pad_bottom;
+    specializations[9] = global_pooling;
+    specializations[10] = pad_mode;
+
+    binding_count = 2;
+
+#endif // NCNN_VULKAN
+
     return 0;
 }
 
@@ -53,7 +86,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     fprintf(stderr, "Pooling     input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+//     fprintf(stderr, "Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
     if (global_pooling)
     {
         top_blob.create(channels, elemsize, opt.blob_allocator);
@@ -288,5 +321,35 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+
+    // FIXME valid pad only
+    int outw = (w + pad_left + pad_right - kernel_w) / stride_w + 1;
+    int outh = (h + pad_top + pad_bottom - kernel_h) / stride_h + 1;
+
+//     fprintf(stderr, "%d %d %d\n", outw, outh, channels);
+
+    top_blob.create(outw, outh, channels, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    // update descriptor set FIXME TODO
+    std::vector<VkMat> bindings;
+    bindings.resize(2);
+
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+
+    update_descriptorset(bindings);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

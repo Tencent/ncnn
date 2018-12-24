@@ -1176,6 +1176,8 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Command&
 
         const VkMat& top_blob = blob_mats[top_blob_index];
 
+        cmd.record_imagelayout_barrier(top_blob, 2);
+
         uint32_t group_count_xyz[3] = { 1, 1, 1 };
 
         group_count_xyz[0] = (top_blob.w + layer->local_size_x - 1) / layer->local_size_x;
@@ -1234,6 +1236,8 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Command&
             int top_blob_index = layer->tops[i];
 
             const VkMat& top_blob = blob_mats[top_blob_index];
+
+            cmd.record_imagelayout_barrier(top_blob, 2);
 
             group_count_xyz[0] = std::max(group_count_xyz[0], (uint32_t)((top_blob.w + layer->local_size_x - 1) / layer->local_size_x));
             group_count_xyz[1] = std::max(group_count_xyz[1], (uint32_t)((top_blob.h + layer->local_size_y - 1) / layer->local_size_y));
