@@ -228,14 +228,12 @@ public:
     bool empty() const;
     size_t total() const;
 
-    // TODO vulkan
     VkDeviceMemory memory;
-    VkImage image;// ?
-    VkImageView imageview;// for GLSL shader
+    VkBuffer buffer;
 
     // staging buffer
-    VkBuffer staging_buffer;
     VkDeviceMemory staging_memory;
+    VkBuffer staging_buffer;
     void* mapped_ptr;
 
     // pointer to the reference counter
@@ -259,6 +257,8 @@ public:
     int w;
     int h;
     int c;
+
+    size_t cstep;
 };
 
 #endif // NCNN_VULKAN
@@ -866,30 +866,30 @@ inline const float& Mat::operator[](int i) const
 #if NCNN_VULKAN
 
 inline VkMat::VkMat()
-    : memory(0), image(0), imageview(0), staging_buffer(0), staging_memory(0), mapped_ptr(0), refcount(0), elemsize(0), allocator(0), staging_allocator(0), dims(0), w(0), h(0), c(0)
+    : memory(0), buffer(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0), elemsize(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
 }
 
 inline VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* allocator, VkAllocator* staging_allocator)
-    : memory(0), image(0), imageview(0), staging_buffer(0), staging_memory(0), mapped_ptr(0), refcount(0)
+    : memory(0), buffer(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0)
 {
     create(_w, _elemsize, allocator, staging_allocator);
 }
 
 inline VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* allocator, VkAllocator* staging_allocator)
-    : memory(0), image(0), imageview(0), staging_buffer(0), staging_memory(0), mapped_ptr(0), refcount(0)
+    : memory(0), buffer(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0)
 {
     create(_w, _h, _elemsize, allocator, staging_allocator);
 }
 
 inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* allocator, VkAllocator* staging_allocator)
-    : memory(0), image(0), imageview(0), staging_buffer(0), staging_memory(0), mapped_ptr(0), refcount(0)
+    : memory(0), buffer(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0)
 {
     create(_w, _h, _c, _elemsize, allocator, staging_allocator);
 }
 
 inline VkMat::VkMat(const VkMat& m)
-    : memory(m.memory), image(m.image), imageview(m.imageview), staging_buffer(m.staging_buffer), staging_memory(m.staging_memory), mapped_ptr(m.mapped_ptr), refcount(m.refcount), elemsize(m.elemsize), allocator(m.allocator), staging_allocator(m.staging_allocator), dims(m.dims)
+    : memory(m.memory), buffer(m.buffer), staging_memory(m.staging_memory), staging_buffer(m.staging_buffer), mapped_ptr(m.mapped_ptr), refcount(m.refcount), elemsize(m.elemsize), allocator(m.allocator), staging_allocator(m.staging_allocator), dims(m.dims)
 {
     if (refcount)
         NCNN_XADD(refcount, 1);
@@ -897,6 +897,8 @@ inline VkMat::VkMat(const VkMat& m)
     w = m.w;
     h = m.h;
     c = m.c;
+
+    cstep = m.cstep;
 }
 
 inline VkMat::~VkMat()
@@ -915,10 +917,9 @@ inline VkMat& VkMat::operator=(const VkMat& m)
     release();
 
     memory = m.memory;
-    image = m.image;
-    imageview = m.imageview;
-    staging_buffer = m.staging_buffer;
+    buffer = m.buffer;
     staging_memory = m.staging_memory;
+    staging_buffer = m.staging_buffer;
     mapped_ptr = m.mapped_ptr;
     refcount = m.refcount;
     elemsize = m.elemsize;
@@ -929,6 +930,8 @@ inline VkMat& VkMat::operator=(const VkMat& m)
     w = m.w;
     h = m.h;
     c = m.c;
+
+    cstep = m.cstep;
 
     return *this;
 }
@@ -949,18 +952,20 @@ inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator, VkA
     h = 1;
     c = 1;
 
+    cstep = w;
+
     if (total() > 0)
     {
-        image = allocator->create_image(VK_IMAGE_TYPE_1D, w, 1, 1);
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        buffer = allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, totalsize);
 
         VkMemoryRequirements memoryRequirements;
-        vkGetImageMemoryRequirements(allocator->device, image, &memoryRequirements);
+        vkGetBufferMemoryRequirements(allocator->device, buffer, &memoryRequirements);
 
         memory = allocator->fastMalloc(memoryRequirements.size);
 
-        vkBindImageMemory(allocator->device, image, memory, 0);
-
-        imageview = allocator->create_imageview(VK_IMAGE_VIEW_TYPE_1D, image);
+        vkBindBufferMemory(allocator->device, buffer, memory, 0);
 
         refcount = new int;
         *refcount = 1;
@@ -969,7 +974,7 @@ inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator, VkA
 
 inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
 {
-    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && allocator == _allocator && _staging_allocator == staging_allocator)
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && allocator == _allocator && staging_allocator == _staging_allocator)
         return;
 
     release();
@@ -983,18 +988,20 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _alloca
     h = _h;
     c = 1;
 
+    cstep = w * h;
+
     if (total() > 0)
     {
-        image = allocator->create_image(VK_IMAGE_TYPE_2D, w, h, 1);
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        buffer = allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, totalsize);
 
         VkMemoryRequirements memoryRequirements;
-        vkGetImageMemoryRequirements(allocator->device, image, &memoryRequirements);
+        vkGetBufferMemoryRequirements(allocator->device, buffer, &memoryRequirements);
 
         memory = allocator->fastMalloc(memoryRequirements.size);
 
-        vkBindImageMemory(allocator->device, image, memory, 0);
-
-        imageview = allocator->create_imageview(VK_IMAGE_VIEW_TYPE_2D, image);
+        vkBindBufferMemory(allocator->device, buffer, memory, 0);
 
         refcount = new int;
         *refcount = 1;
@@ -1017,18 +1024,20 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator*
     h = _h;
     c = _c;
 
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+
     if (total() > 0)
     {
-        image = allocator->create_image(VK_IMAGE_TYPE_3D, w, h, c);
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        buffer = allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, totalsize);
 
         VkMemoryRequirements memoryRequirements;
-        vkGetImageMemoryRequirements(allocator->device, image, &memoryRequirements);
+        vkGetBufferMemoryRequirements(allocator->device, buffer, &memoryRequirements);
 
         memory = allocator->fastMalloc(memoryRequirements.size);
 
-        vkBindImageMemory(allocator->device, image, memory, 0);
-
-        imageview = allocator->create_imageview(VK_IMAGE_VIEW_TYPE_3D, image);
+        vkBindBufferMemory(allocator->device, buffer, memory, 0);
 
         refcount = new int;
         *refcount = 1;
@@ -1057,7 +1066,9 @@ inline void VkMat::create_like(const VkMat& m, VkAllocator* allocator, VkAllocat
 
 inline void VkMat::prepare_staging_buffer()
 {
-    staging_buffer = staging_allocator->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, w * h * c * sizeof(float));
+    size_t totalsize = alignSize(total() * elemsize, 4);
+
+    staging_buffer = staging_allocator->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, totalsize);
 
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(staging_allocator->device, staging_buffer, &memoryRequirements);
@@ -1086,36 +1097,12 @@ inline void VkMat::unmap()
 
 inline void VkMat::staging_buffer_upload(const Mat& m)
 {
-    // TODO check m param and mapped_ptr
-    // assert w * h * c == m.w * m.h * m.c
-
-    int size = m.w * m.h;
-    float* outptr = (float*)mapped_ptr;
-    for (int i=0; i<m.c; i++)
-    {
-        const float* ptr = m.channel(i);
-
-        memcpy(outptr, ptr, size * sizeof(float));
-
-        outptr += size;
-    }
+    memcpy(mapped_ptr, m.data, m.total() * m.elemsize);
 }
 
 inline void VkMat::staging_buffer_download(Mat& m)
 {
-    // TODO check m param and mapped_ptr
-    // assert w * h * c == m.w * m.h * m.c
-
-    int size = m.w * m.h;
-    const float* ptr = (const float*)mapped_ptr;
-    for (int i=0; i<m.c; i++)
-    {
-        float* outptr = m.channel(i);
-
-        memcpy(outptr, ptr, size * sizeof(float));
-
-        ptr += size;
-    }
+    memcpy(m.data, mapped_ptr, total() * elemsize);
 }
 
 inline void VkMat::addref()
@@ -1130,16 +1117,13 @@ inline void VkMat::release()
     {
         if (allocator)
         {
-            allocator->destroy_imageview(imageview);
-
-            allocator->destroy_image(image);
+            allocator->destroy_buffer(buffer);
 
             allocator->fastFree(memory);
         }
 
         if (staging_allocator)
         {
-
             staging_allocator->destroy_buffer(staging_buffer);
 
             staging_allocator->fastFree(staging_memory);
@@ -1149,8 +1133,7 @@ inline void VkMat::release()
     }
 
     memory = 0;
-    image = 0;
-    imageview = 0;
+    buffer = 0;
     staging_buffer = 0;
     staging_memory = 0;
     mapped_ptr = 0;
@@ -1161,6 +1144,8 @@ inline void VkMat::release()
     w = 0;
     h = 0;
     c = 0;
+
+    cstep = 0;
 
     refcount = 0;
 }

@@ -1147,15 +1147,16 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Command&
             int ret = record_command(blobs[bottom_blob_index].producer, blob_mats, cmd, opt);
             if (ret != 0)
                 return ret;
+
+            const VkMat& bottom_blob = blob_mats[bottom_blob_index];
+            cmd.record_compute_barrier(bottom_blob);
         }
-        else
+        else if (blob_mats[bottom_blob_index].staging_buffer)
         {
             // upload
             const VkMat& bottom_blob = blob_mats[bottom_blob_index];
-
-            cmd.record_imagelayout_barrier(bottom_blob, 0);
             cmd.record_upload(bottom_blob);
-            cmd.record_imagelayout_barrier(bottom_blob, 1);
+            cmd.record_upload_barrier(bottom_blob);
         }
 
         VkMat bottom_blob = blob_mats[bottom_blob_index];
@@ -1176,7 +1177,22 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Command&
 
         const VkMat& top_blob = blob_mats[top_blob_index];
 
-        cmd.record_imagelayout_barrier(top_blob, 2);
+        int pc[8];
+        pc[0] = bottom_blob.w;
+        pc[1] = bottom_blob.h;
+        pc[2] = bottom_blob.c;
+        pc[3] = bottom_blob.cstep;
+        pc[4] = top_blob.w;
+        pc[5] = top_blob.h;
+        pc[6] = top_blob.c;
+        pc[7] = top_blob.cstep;
+
+        if (layer->support_inplace)
+        {
+            cmd.record_layer(layer, pc, 8);
+        }
+
+        cmd.record_layer(layer, pc, 8);
 
         uint32_t group_count_xyz[3] = { 1, 1, 1 };
 
@@ -1184,8 +1200,7 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Command&
         group_count_xyz[1] = (top_blob.h + layer->local_size_y - 1) / layer->local_size_y;
         group_count_xyz[2] = (top_blob.c + layer->local_size_z - 1) / layer->local_size_z;
 
-        cmd.record_layer(layer, group_count_xyz);
-        cmd.record_compute_barrier();
+        cmd.record_dispatch(group_count_xyz);
     }
     else
     {
@@ -1201,15 +1216,16 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Command&
                 int ret = record_command(blobs[bottom_blob_index].producer, blob_mats, cmd, opt);
                 if (ret != 0)
                     return ret;
+
+                const VkMat& bottom_blob = blob_mats[bottom_blob_index];
+                cmd.record_compute_barrier(bottom_blob);
             }
-            else
+            else if (blob_mats[bottom_blob_index].staging_buffer)
             {
                 // upload
                 const VkMat& bottom_blob = blob_mats[bottom_blob_index];
-
-                cmd.record_imagelayout_barrier(bottom_blob, 0);
                 cmd.record_upload(bottom_blob);
-                cmd.record_imagelayout_barrier(bottom_blob, 1);
+                cmd.record_upload_barrier(bottom_blob);
             }
 
             bottom_blobs[i] = blob_mats[bottom_blob_index];
@@ -1229,6 +1245,8 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Command&
             }
         }
 
+        int pc[8];
+
         uint32_t group_count_xyz[3] = { 1, 1, 1 };
 
         for (size_t i=0; i<layer->tops.size(); i++)
@@ -1237,15 +1255,23 @@ int Net::record_command(int layer_index, std::vector<VkMat>& blob_mats, Command&
 
             const VkMat& top_blob = blob_mats[top_blob_index];
 
-            cmd.record_imagelayout_barrier(top_blob, 2);
+            pc[0] = bottom_blobs[0].w;
+            pc[1] = bottom_blobs[0].h;
+            pc[2] = bottom_blobs[0].c;
+            pc[3] = bottom_blobs[0].cstep;
+            pc[4] = top_blob.w;
+            pc[5] = top_blob.h;
+            pc[6] = top_blob.c;
+            pc[7] = top_blob.cstep;
 
             group_count_xyz[0] = std::max(group_count_xyz[0], (uint32_t)((top_blob.w + layer->local_size_x - 1) / layer->local_size_x));
             group_count_xyz[1] = std::max(group_count_xyz[1], (uint32_t)((top_blob.h + layer->local_size_y - 1) / layer->local_size_y));
             group_count_xyz[2] = std::max(group_count_xyz[2], (uint32_t)((top_blob.c + layer->local_size_z - 1) / layer->local_size_z));
         }
 
-        cmd.record_layer(layer, group_count_xyz);
-        cmd.record_compute_barrier();
+        cmd.record_layer(layer, pc, 8);
+
+        cmd.record_dispatch(group_count_xyz);
     }
 
     return 0;
@@ -1291,15 +1317,15 @@ int Extractor::input(int blob_index, const Mat& in)
 
 #if NCNN_VULKAN
 
-    blob_mats_gpu[blob_index].create_like(in, opt.blob_vkallocator, opt.staging_vkallocator);
+    VkMat& in_gpu = blob_mats_gpu[blob_index];
 
-    blob_mats_gpu[blob_index].prepare_staging_buffer();
+    in_gpu.create_like(in, opt.blob_vkallocator, opt.staging_vkallocator);
 
-    blob_mats_gpu[blob_index].map();
+    in_gpu.prepare_staging_buffer();
 
-    blob_mats_gpu[blob_index].staging_buffer_upload(in);
-
-    blob_mats_gpu[blob_index].unmap();
+    in_gpu.map();
+    in_gpu.staging_buffer_upload(in);
+    in_gpu.unmap();
 
 #endif // NCNN_VULKAN
 
@@ -1322,7 +1348,9 @@ int Extractor::extract(int blob_index, Mat& feat)
 
         ret = net->forward_layer(layer_index, blob_mats_gpu, opt);
 
-        blob_mats_gpu[blob_index].prepare_staging_buffer();
+        VkMat& feat_gpu = blob_mats_gpu[blob_index];
+
+        feat_gpu.prepare_staging_buffer();
 
         ncnn::Command cmd(opt.vkdev);
 
@@ -1330,19 +1358,23 @@ int Extractor::extract(int blob_index, Mat& feat)
 
         ret = net->record_command(layer_index, blob_mats_gpu, cmd, opt);
 
+        cmd.record_compute_barrier(feat_gpu);
+
+        // download
+        cmd.record_download(feat_gpu);
+        cmd.record_download_barrier(feat_gpu);
+
         cmd.end();
 
         cmd.submit();
 
         cmd.wait();
 
-        blob_mats[blob_index].create_like(blob_mats_gpu[blob_index], opt.blob_allocator);
+        blob_mats[blob_index].create_like(feat_gpu, opt.blob_allocator);
 
-        blob_mats_gpu[blob_index].map();
-
-        blob_mats_gpu[blob_index].staging_buffer_download(blob_mats[blob_index]);
-
-        blob_mats_gpu[blob_index].unmap();
+        feat_gpu.map();
+        feat_gpu.staging_buffer_download(blob_mats[blob_index]);
+        feat_gpu.unmap();
 
 #endif // NCNN_VULKAN
 

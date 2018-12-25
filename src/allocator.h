@@ -189,12 +189,8 @@ public:
     VkAllocator(VulkanDevice* vkdev, int type);
     virtual ~VkAllocator();
 
-    virtual VkImage create_image(VkImageType imageType, int w, int h, int c);
-    virtual VkImageView create_imageview(VkImageViewType viewType, VkImage image);
     virtual VkBuffer create_buffer(VkBufferUsageFlags usage, int size);
 
-    virtual void destroy_image(VkImage image);
-    virtual void destroy_imageview(VkImageView imageview);
     virtual void destroy_buffer(VkBuffer buffer);
 
 public:
@@ -206,8 +202,6 @@ public:
     VkDevice device;
 
 private:
-    std::vector<VkImage> images_to_destroy;
-    std::vector<VkImageView> imageviews_to_destroy;
     std::vector<VkBuffer> buffers_to_destroy;
 
 public:

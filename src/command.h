@@ -33,19 +33,21 @@ public:
 
     int begin();
 
-    // 0 = undefined to transfer-dst-optimal
-    // 1 = transfer-dst-optimal to general
-    // 2 = undefined to general
-    // 3 = general to transfer-src-optimal
-    void record_imagelayout_barrier(const VkMat& image, int type);
-
     void record_upload(const VkMat& m);
+
+    void record_upload_barrier(const VkMat& m);
 
     void record_download(const VkMat& m);
 
+    void record_download_barrier(const VkMat& m);
+
     void record_clone(const VkMat& src, const VkMat& dst);
 
-    void record_layer(const Layer* layer, const uint32_t* group_count_xyz);
+    void record_layer(const Layer* layer, const int* constants, int count);
+
+    void record_dispatch(uint32_t* group_count_xyz);
+
+    void record_compute_barrier(const VkMat& m);
 
     void record_compute_barrier();
 

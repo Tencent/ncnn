@@ -253,16 +253,6 @@ VkAllocator::VkAllocator(VulkanDevice* _vkdev, int _type)
 
 VkAllocator::~VkAllocator()
 {
-    for (int i=0; i<(int)images_to_destroy.size(); i++)
-    {
-        vkDestroyImage(device, images_to_destroy[i], 0);
-    }
-    images_to_destroy.clear();
-    for (int i=0; i<(int)imageviews_to_destroy.size(); i++)
-    {
-        vkDestroyImageView(device, imageviews_to_destroy[i], 0);
-    }
-    imageviews_to_destroy.clear();
     for (int i=0; i<(int)buffers_to_destroy.size(); i++)
     {
         vkDestroyBuffer(device, buffers_to_destroy[i], 0);
@@ -283,74 +273,6 @@ VkAllocator::~VkAllocator()
     }
 }
 
-VkImage VkAllocator::create_image(VkImageType imageType, int w, int h, int c)
-{
-    VkImageCreateInfo imageCreateInfo;
-    imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageCreateInfo.pNext = 0;
-    imageCreateInfo.flags = 0;
-    imageCreateInfo.imageType = imageType;
-    imageCreateInfo.format = VK_FORMAT_R32_SFLOAT;
-    imageCreateInfo.extent.width = w;
-    imageCreateInfo.extent.height = h;
-    imageCreateInfo.extent.depth = c;
-    imageCreateInfo.mipLevels = 1;
-    imageCreateInfo.arrayLayers = 1;
-    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
-    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageCreateInfo.queueFamilyIndexCount = 1;
-    imageCreateInfo.pQueueFamilyIndices = &compute_queue_index;
-    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    VkImage image;
-    VkResult ret = vkCreateImage(device, &imageCreateInfo, 0, &image);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkCreateImage failed %d\n", ret);
-        return 0;
-    }
-
-    return image;
-}
-
-VkImageView VkAllocator::create_imageview(VkImageViewType viewType, VkImage image)
-{
-    VkComponentMapping componentMapping;
-    componentMapping.r = VK_COMPONENT_SWIZZLE_R;
-    componentMapping.g = VK_COMPONENT_SWIZZLE_G;
-    componentMapping.b = VK_COMPONENT_SWIZZLE_B;
-    componentMapping.a = VK_COMPONENT_SWIZZLE_A;
-
-    VkImageSubresourceRange subresourceRange;
-    subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    subresourceRange.baseMipLevel = 0;
-    subresourceRange.levelCount = 1;
-    subresourceRange.baseArrayLayer = 0;
-    subresourceRange.layerCount = 1;
-
-    VkImageViewCreateInfo imageViewCreateInfo;
-    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    imageViewCreateInfo.pNext = 0;
-    imageViewCreateInfo.flags = 0;
-    imageViewCreateInfo.image = image;
-    imageViewCreateInfo.viewType = viewType;
-    imageViewCreateInfo.format = VK_FORMAT_R32_SFLOAT;
-    imageViewCreateInfo.components = componentMapping;
-    imageViewCreateInfo.subresourceRange = subresourceRange;
-
-    VkImageView imageView;
-    VkResult ret = vkCreateImageView(device, &imageViewCreateInfo, 0, &imageView);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkCreateImageView failed %d\n", ret);
-        return 0;
-    }
-
-    return imageView;
-}
-
 VkBuffer VkAllocator::create_buffer(VkBufferUsageFlags usage, int size)
 {
     VkBufferCreateInfo bufferCreateInfo;
@@ -358,7 +280,7 @@ VkBuffer VkAllocator::create_buffer(VkBufferUsageFlags usage, int size)
     bufferCreateInfo.pNext = 0;
     bufferCreateInfo.flags = 0;
     bufferCreateInfo.size = size;
-    bufferCreateInfo.usage = usage;
+    bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     bufferCreateInfo.queueFamilyIndexCount = 0;
     bufferCreateInfo.pQueueFamilyIndices = 0;
@@ -372,16 +294,6 @@ VkBuffer VkAllocator::create_buffer(VkBufferUsageFlags usage, int size)
     }
 
     return buffer;
-}
-
-void VkAllocator::destroy_image(VkImage image)
-{
-    images_to_destroy.push_back(image);
-}
-
-void VkAllocator::destroy_imageview(VkImageView imageview)
-{
-    imageviews_to_destroy.push_back(imageview);
 }
 
 void VkAllocator::destroy_buffer(VkBuffer buffer)

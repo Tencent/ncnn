@@ -73,6 +73,8 @@ int Convolution::load_param(const ParamDict& pd)
     local_size_x = local_size_xy_prefer;
     local_size_y = local_size_xy_prefer;
 
+    fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+
     // setup pipeline specializations
     specializations.resize(9);
 
@@ -87,7 +89,6 @@ int Convolution::load_param(const ParamDict& pd)
     specializations[8] = bias_term;
 
     binding_count = 4;
-
 #endif // NCNN_VULKAN
 
     return 0;
@@ -174,24 +175,17 @@ int Convolution::load_model(const ModelBin& mb)
     if (mb.vk_model_loader)
     {
         // upload weight data
-        int num_input = weight_data_size / kernel_w / kernel_h / num_output;
-
-        weight_data_gpu.create(kernel_w * kernel_h, num_input, num_output, 4u, mb.weight_vkallocator, mb.staging_vkallocator);
-
+        weight_data_gpu.create(weight_data.w, 4u, mb.weight_vkallocator, mb.staging_vkallocator);
         bias_data_gpu.create(bias_data.w, 4u, mb.weight_vkallocator, mb.staging_vkallocator);
 
         weight_data_gpu.prepare_staging_buffer();
         bias_data_gpu.prepare_staging_buffer();
 
-        mb.vk_model_loader->record_imagelayout_barrier(weight_data_gpu, 0);
-        mb.vk_model_loader->record_imagelayout_barrier(bias_data_gpu, 0);
-
         mb.vk_model_loader->record_upload(weight_data_gpu);
         mb.vk_model_loader->record_upload(bias_data_gpu);
 
-        mb.vk_model_loader->record_imagelayout_barrier(weight_data_gpu, 1);
-        mb.vk_model_loader->record_imagelayout_barrier(bias_data_gpu, 1);
-
+        mb.vk_model_loader->record_upload_barrier(weight_data_gpu);
+        mb.vk_model_loader->record_upload_barrier(bias_data_gpu);
 
         weight_data_gpu.map();
         weight_data_gpu.staging_buffer_upload(weight_data);
@@ -441,7 +435,7 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option
     int outw = (w + pad_w * 2 - kernel_extent_w) / stride_w + 1;
     int outh = (h + pad_h * 2 - kernel_extent_h) / stride_h + 1;
 
-//     fprintf(stderr, "%d %d %d\n", outw, outh, num_output);
+    fprintf(stderr, "%d %d %d\n", outw, outh, num_output);
 
     top_blob.create(outw, outh, num_output, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())

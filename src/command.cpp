@@ -73,157 +73,107 @@ int Command::begin()
     return 0;
 }
 
-void Command::record_imagelayout_barrier(const VkMat& image, int type)
+void Command::record_upload_barrier(const VkMat& m)
 {
-    VkAccessFlags srcAccessMask;
-    VkAccessFlags dstAccessMask;
-    VkImageLayout oldLayout;
-    VkImageLayout newLayout;
+    VkBufferMemoryBarrier bufferBarrier;
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.pNext = 0;
+    bufferBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.buffer = m.buffer;
+    bufferBarrier.offset = 0;
+    bufferBarrier.size = VK_WHOLE_SIZE;
 
-    VkPipelineStageFlags srcStageMask;
-    VkPipelineStageFlags dstStageMask;
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
-    if (type == 0)
-    {
-        // prepare for blob upload, undefined to transfer-dst-optimal
-        srcAccessMask = 0;
-        dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
+}
 
-        srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }
-    else if (type == 1)
-    {
-        // prepare for weight blob compute, transfer-dst-optimal to general
-        srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        newLayout = VK_IMAGE_LAYOUT_GENERAL;
+void Command::record_download_barrier(const VkMat& m)
+{
+    VkBufferMemoryBarrier bufferBarrier;
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.pNext = 0;
+    bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    bufferBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.buffer = m.buffer;
+    bufferBarrier.offset = 0;
+    bufferBarrier.size = VK_WHOLE_SIZE;
 
-        srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    }
-    else if (type == 2)
-    {
-        // prepare for output blob compute, undefined to general
-        srcAccessMask = 0;
-        dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
-        srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    }
-    else if (type == 3)
-    {
-        // prepare for blob download, general to transfer-src-optimal
-        srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-        newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-
-        srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-        dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }
-
-    VkImageMemoryBarrier imageBarrier;
-    imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    imageBarrier.pNext = 0;
-    imageBarrier.srcAccessMask = srcAccessMask;
-    imageBarrier.dstAccessMask = dstAccessMask;
-    imageBarrier.oldLayout = oldLayout;
-    imageBarrier.newLayout = newLayout;
-    imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageBarrier.image = image.image;
-    imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    imageBarrier.subresourceRange.baseMipLevel = 0;
-    imageBarrier.subresourceRange.levelCount = 1;
-    imageBarrier.subresourceRange.baseArrayLayer = 0;
-    imageBarrier.subresourceRange.layerCount = 1;
-
-    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 0, 0, 1, &imageBarrier);
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
 void Command::record_upload(const VkMat& m)
 {
-    // staging buffer to image
-    VkBufferImageCopy region;
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-    region.imageOffset.x = 0;
-    region.imageOffset.y = 0;
-    region.imageOffset.z = 0;
-    region.imageExtent.width = m.w;
-    region.imageExtent.height = m.h;
-    region.imageExtent.depth = m.c;
+    VkBufferCopy region;
+    region.srcOffset = 0;
+    region.dstOffset = 0;
+    region.size = m.total() * m.elemsize;
 
-    vkCmdCopyBufferToImage(command_buffer, m.staging_buffer, m.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    vkCmdCopyBuffer(command_buffer, m.staging_buffer, m.buffer, 1, &region);
 }
 
 void Command::record_download(const VkMat& m)
 {
-    // image to staging buffer
-    VkBufferImageCopy region;
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-    region.imageOffset.x = 0;
-    region.imageOffset.y = 0;
-    region.imageOffset.z = 0;
-    region.imageExtent.width = m.w;
-    region.imageExtent.height = m.h;
-    region.imageExtent.depth = m.c;
+    VkBufferCopy region;
+    region.srcOffset = 0;
+    region.dstOffset = 0;
+    region.size = m.total() * m.elemsize;
 
-    vkCmdCopyImageToBuffer(command_buffer, m.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, m.staging_buffer, 1, &region);
+    vkCmdCopyBuffer(command_buffer, m.buffer, m.staging_buffer, 1, &region);
 }
 
 void Command::record_clone(const VkMat& src, const VkMat& dst)
 {
-    VkImageCopy region;
-    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.srcSubresource.mipLevel = 0;
-    region.srcSubresource.baseArrayLayer = 0;
-    region.srcSubresource.layerCount = 1;
-    region.srcOffset.x = 0;
-    region.srcOffset.y = 0;
-    region.srcOffset.z = 0;
-    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.dstSubresource.mipLevel = 0;
-    region.dstSubresource.baseArrayLayer = 0;
-    region.dstSubresource.layerCount = 1;
-    region.dstOffset.x = 0;
-    region.dstOffset.y = 0;
-    region.dstOffset.z = 0;
-    region.extent.width = src.w;
-    region.extent.height = src.h;
-    region.extent.depth = src.c;
+    VkBufferCopy region;
+    region.srcOffset = 0;
+    region.dstOffset = 0;
+    region.size = src.w * src.h * src.c;
 
-    vkCmdCopyImage(command_buffer, src.image, VK_IMAGE_LAYOUT_GENERAL, dst.image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+    vkCmdCopyBuffer(command_buffer, src.buffer, dst.buffer, 1, &region);
 }
 
-void Command::record_layer(const Layer* layer, const uint32_t* group_count_xyz)
+void Command::record_layer(const Layer* layer, const int* constants, int count)
 {
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline);
 
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline_layout, 0, 1, &layer->descriptorset, 0, 0);
 
-//     vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pc_data), &pcdata);
+    vkCmdPushConstants(command_buffer, layer->pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, count * sizeof(int), constants);
+}
 
+void Command::record_dispatch(uint32_t* group_count_xyz)
+{
     fprintf(stderr, "dispatch %d %d %d\n", group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
 
     vkCmdDispatch(command_buffer, group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
+}
+
+void Command::record_compute_barrier(const VkMat& m)
+{
+    VkBufferMemoryBarrier bufferBarrier;
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.pNext = 0;
+    bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.buffer = m.buffer;
+    bufferBarrier.offset = 0;
+    bufferBarrier.size = VK_WHOLE_SIZE;
+
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
 void Command::record_compute_barrier()

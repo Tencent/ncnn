@@ -32,7 +32,6 @@ Option::Option()
     vkdev = 0;
     blob_vkallocator = 0;
     workspace_vkallocator = 0;
-    staging_vkallocator = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -123,13 +122,23 @@ int Layer::create_pipeline(VkDevice _device)
 
     create_descriptorset_layout();
 
+    fprintf(stderr, "create_descriptorset_layout done\n");
+
     create_pipeline_layout();
+
+    fprintf(stderr, "create_pipeline_layout done\n");
 
     create_pipeline();
 
+    fprintf(stderr, "create_pipeline done\n");
+
     create_descriptor_pool();
 
+    fprintf(stderr, "create_descriptor_pool done\n");
+
     create_descriptorset();
+
+    fprintf(stderr, "create_descriptorset done\n");
 
     return 0;
 }
@@ -177,7 +186,7 @@ int Layer::create_descriptorset_layout()
     for (int i=0; i<binding_count; i++)
     {
         descriptorSetLayoutBindings[i].binding = i;
-        descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptorSetLayoutBindings[i].descriptorCount = 1;
         descriptorSetLayoutBindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
@@ -202,11 +211,18 @@ int Layer::create_descriptorset_layout()
 
 int Layer::create_pipeline_layout()
 {
-    // TODO use push constant ?
-//     VkPushConstantRange pushConstantRange;
-//     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-//     pushConstantRange.offset = 0;
-//     pushConstantRange.size = sizeof(int) * push_constant_count;
+    int push_constant_count = 0;
+    if (one_blob_only && support_inplace)
+        push_constant_count = 5;
+    if (one_blob_only && !support_inplace)
+        push_constant_count = 5 + 5;
+
+    VkPushConstantRange pushConstantRange;
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(int) * push_constant_count;
+
+    fprintf(stderr, "push_constant_count = %d\n", push_constant_count);
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -214,10 +230,8 @@ int Layer::create_pipeline_layout()
     pipelineLayoutCreateInfo.flags = 0;
     pipelineLayoutCreateInfo.setLayoutCount = 1;
     pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout;
-    pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
-    pipelineLayoutCreateInfo.pPushConstantRanges = 0;
-//     pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-//     pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
 
     VkResult ret = vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, 0, &pipeline_layout);
     if (ret != VK_SUCCESS)
@@ -302,7 +316,7 @@ int Layer::create_pipeline()
 int Layer::create_descriptor_pool()
 {
     VkDescriptorPoolSize poolSize;
-    poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     poolSize.descriptorCount = binding_count;
 
     VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
@@ -346,17 +360,17 @@ void Layer::update_descriptorset(const std::vector<VkMat>& bindings) const
 {
     // assert binding_count == bindings.size()
 
-    std::vector<VkDescriptorImageInfo> descriptorImageInfos;
-    descriptorImageInfos.resize(binding_count);
+    std::vector<VkDescriptorBufferInfo> descriptorBufferInfos;
+    descriptorBufferInfos.resize(binding_count);
 
     std::vector<VkWriteDescriptorSet> writeDescriptorSets;
     writeDescriptorSets.resize(binding_count);
 
     for (int i=0; i<binding_count; i++)
     {
-        descriptorImageInfos[i].sampler = 0;
-        descriptorImageInfos[i].imageView = bindings[i].imageview;
-        descriptorImageInfos[i].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        descriptorBufferInfos[i].buffer = bindings[i].buffer;
+        descriptorBufferInfos[i].offset = 0;
+        descriptorBufferInfos[i].range = VK_WHOLE_SIZE;
 
         writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeDescriptorSets[i].pNext = 0;
@@ -364,9 +378,9 @@ void Layer::update_descriptorset(const std::vector<VkMat>& bindings) const
         writeDescriptorSets[i].dstBinding = i;
         writeDescriptorSets[i].dstArrayElement = 0;
         writeDescriptorSets[i].descriptorCount = 1;
-        writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        writeDescriptorSets[i].pImageInfo = &descriptorImageInfos[i];
-        writeDescriptorSets[i].pBufferInfo = 0;
+        writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        writeDescriptorSets[i].pImageInfo = 0;
+        writeDescriptorSets[i].pBufferInfo = &descriptorBufferInfos[i];
         writeDescriptorSets[i].pTexelBufferView = 0;
     }
 

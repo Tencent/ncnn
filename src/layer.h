@@ -67,7 +67,7 @@ public:
     // workspace memory allocator
     VkAllocator* workspace_vkallocator;
 
-    // staging buffer memory allocator
+    // staging memory allocator
     VkAllocator* staging_vkallocator;
 #endif // NCNN_VULKAN
 };

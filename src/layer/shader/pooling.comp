@@ -12,69 +12,81 @@ layout (constant_id = 8) const int pad_bottom = 0;
 layout (constant_id = 9) const int global_pooling = 0;
 layout (constant_id = 10) const int pad_mode = 0;
 
-layout (binding = 0, r32f) uniform readonly image3D bottom_blob;
-layout (binding = 1, r32f) uniform writeonly image3D top_blob;
-
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+layout (binding = 0) buffer bottom_blob { float bottom_blob_data[]; };
+layout (binding = 1) buffer top_blob { float top_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+} p;
+
 void main()
 {
-    ivec3 inshape = imageSize(bottom_blob);
-    ivec3 outshape = imageSize(top_blob);
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
 
-    if (gl_GlobalInvocationID.x >= outshape[0] || gl_GlobalInvocationID.y >= outshape[1] || gl_GlobalInvocationID.z >= outshape[2])
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
     float res;
 
+    if (gx - pad_left >= 0 && gx + kernel_w - pad_left < p.w
+        && gy - pad_top >= 0 && gy + kernel_h - pad_top < p.h)
+    {
     if (pooling_type == 0)
     {
         res = -99999;
+
+        int v_offset = gz * p.cstep + (gy * stride_h - pad_top) * p.w + gx * stride_w - pad_left;
 
         for (int y = 0; y < kernel_h; y++)
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                ivec3 vpos;
-                vpos.x = int(gl_GlobalInvocationID.x) * stride_w + x - pad_left;
-                vpos.y = int(gl_GlobalInvocationID.y) * stride_h + y - pad_top;
-                vpos.z = int(gl_GlobalInvocationID.z);
-
-                if (vpos.x >= 0 && vpos.x < inshape[0] && vpos.y >= 0 && vpos.y < inshape[1])
-                {
-
-                float v = imageLoad(bottom_blob, vpos).r;
+                float v = bottom_blob_data[v_offset + x];
 
                 res = max(res, v);
-                }
             }
+
+            v_offset += p.w;
         }
     }
     else if (pooling_type == 1)
     {
         res = 0;
 
+        int v_offset = gz * p.cstep + (gy * stride_h - pad_top) * p.w + gx * stride_w - pad_left;
+
         for (int y = 0; y < kernel_h; y++)
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                ivec3 vpos;
-                vpos.x = int(gl_GlobalInvocationID.x) * stride_w + x - pad_left;
-                vpos.y = int(gl_GlobalInvocationID.y) * stride_h + y - pad_top;
-                vpos.z = int(gl_GlobalInvocationID.z);
-
-                float v = imageLoad(bottom_blob, vpos).r;
+                float v = bottom_blob_data[v_offset + x];
 
                 res += v;
             }
+
+            v_offset += p.w;
         }
 
         res /= kernel_w * kernel_h;
     }
+    }
 
-//     res = 233;
-
-    imageStore(top_blob, ivec3(gl_GlobalInvocationID.xyz), vec4(res));
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = res;
 }
