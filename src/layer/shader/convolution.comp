@@ -14,10 +14,10 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) buffer top_blob { float top_blob_data[]; };
-layout (binding = 2) buffer weight { float weight_data[]; };
-layout (binding = 3) buffer bias { float bias_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 2) readonly buffer weight { float weight_data[]; };
+layout (binding = 3) readonly buffer bias { float bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
