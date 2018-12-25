@@ -189,7 +189,8 @@ public:
     VkAllocator(VulkanDevice* vkdev, int type);
     virtual ~VkAllocator();
 
-    virtual VkBuffer create_buffer(VkBufferUsageFlags usage, int size);
+    virtual VkBuffer create_buffer(int size);
+    virtual VkBuffer create_staging_buffer(int size);
 
     virtual void destroy_buffer(VkBuffer buffer);
 

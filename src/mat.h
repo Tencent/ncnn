@@ -212,6 +212,7 @@ public:
 
     // staging buffer
     void prepare_staging_buffer();
+    void discard_staging_buffer();
 
     // map
     void map();
@@ -958,7 +959,7 @@ inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator, VkA
     {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
-        buffer = allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, totalsize);
+        buffer = allocator->create_buffer(totalsize);
 
         VkMemoryRequirements memoryRequirements;
         vkGetBufferMemoryRequirements(allocator->device, buffer, &memoryRequirements);
@@ -994,7 +995,7 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _alloca
     {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
-        buffer = allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, totalsize);
+        buffer = allocator->create_buffer(totalsize);
 
         VkMemoryRequirements memoryRequirements;
         vkGetBufferMemoryRequirements(allocator->device, buffer, &memoryRequirements);
@@ -1030,7 +1031,7 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator*
     {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
-        buffer = allocator->create_buffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, totalsize);
+        buffer = allocator->create_buffer(totalsize);
 
         VkMemoryRequirements memoryRequirements;
         vkGetBufferMemoryRequirements(allocator->device, buffer, &memoryRequirements);
@@ -1068,7 +1069,7 @@ inline void VkMat::prepare_staging_buffer()
 {
     size_t totalsize = alignSize(total() * elemsize, 4);
 
-    staging_buffer = staging_allocator->create_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, totalsize);
+    staging_buffer = staging_allocator->create_staging_buffer(totalsize);
 
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(staging_allocator->device, staging_buffer, &memoryRequirements);
@@ -1076,6 +1077,16 @@ inline void VkMat::prepare_staging_buffer()
     staging_memory = staging_allocator->fastMalloc(memoryRequirements.size);
 
     vkBindBufferMemory(staging_allocator->device, staging_buffer, staging_memory, 0);
+}
+
+inline void VkMat::discard_staging_buffer()
+{
+    staging_allocator->destroy_buffer(staging_buffer);
+
+    staging_allocator->fastFree(staging_memory);
+
+    staging_buffer = 0;
+    staging_memory = 0;
 }
 
 inline void VkMat::map()

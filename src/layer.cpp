@@ -122,23 +122,23 @@ int Layer::create_pipeline(VkDevice _device)
 
     create_descriptorset_layout();
 
-    fprintf(stderr, "create_descriptorset_layout done\n");
+//     fprintf(stderr, "create_descriptorset_layout done\n");
 
     create_pipeline_layout();
 
-    fprintf(stderr, "create_pipeline_layout done\n");
+//     fprintf(stderr, "create_pipeline_layout done\n");
 
     create_pipeline();
 
-    fprintf(stderr, "create_pipeline done\n");
+//     fprintf(stderr, "create_pipeline done\n");
 
     create_descriptor_pool();
 
-    fprintf(stderr, "create_descriptor_pool done\n");
+//     fprintf(stderr, "create_descriptor_pool done\n");
 
     create_descriptorset();
 
-    fprintf(stderr, "create_descriptorset done\n");
+//     fprintf(stderr, "create_descriptorset done\n");
 
     return 0;
 }

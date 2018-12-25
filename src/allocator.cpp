@@ -273,7 +273,7 @@ VkAllocator::~VkAllocator()
     }
 }
 
-VkBuffer VkAllocator::create_buffer(VkBufferUsageFlags usage, int size)
+VkBuffer VkAllocator::create_buffer(int size)
 {
     VkBufferCreateInfo bufferCreateInfo;
     bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -281,6 +281,29 @@ VkBuffer VkAllocator::create_buffer(VkBufferUsageFlags usage, int size)
     bufferCreateInfo.flags = 0;
     bufferCreateInfo.size = size;
     bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferCreateInfo.queueFamilyIndexCount = 0;
+    bufferCreateInfo.pQueueFamilyIndices = 0;
+
+    VkBuffer buffer;
+    VkResult ret = vkCreateBuffer(device, &bufferCreateInfo, 0, &buffer);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateBuffer failed %d\n", ret);
+        return 0;
+    }
+
+    return buffer;
+}
+
+VkBuffer VkAllocator::create_staging_buffer(int size)
+{
+    VkBufferCreateInfo bufferCreateInfo;
+    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferCreateInfo.pNext = 0;
+    bufferCreateInfo.flags = 0;
+    bufferCreateInfo.size = size;
+    bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     bufferCreateInfo.queueFamilyIndexCount = 0;
     bufferCreateInfo.pQueueFamilyIndices = 0;
