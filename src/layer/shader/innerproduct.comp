@@ -1,0 +1,62 @@
+#version 450
+
+layout (constant_id = 0) const int bias_term = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) buffer bottom_blob { float bottom_blob_data[]; };
+layout (binding = 1) buffer top_blob { float top_blob_data[]; };
+layout (binding = 2) buffer weight { float weight_data[]; };
+layout (binding = 3) buffer bias { float bias_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+        return;
+
+    float sum = 0;
+
+    if (bias_term == 1)
+    {
+        sum = bias_data[gx];
+    }
+
+    const int size = p.w * p.h;
+
+    int w_offset = gx * size * p.c;
+
+    for (int z = 0; z < p.c; z++)
+    {
+        int v_offset = z * p.cstep;
+
+        for (int i = 0; i < size; i++)
+        {
+            sum += weight_data[w_offset + i] * bottom_blob_data[v_offset + i];
+        }
+
+        w_offset += size;
+    }
+
+    top_blob_data[gx] = sum;
+}

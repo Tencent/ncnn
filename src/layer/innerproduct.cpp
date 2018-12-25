@@ -47,6 +47,26 @@ int InnerProduct::load_param(const ParamDict& pd)
     if (int8_scale_term == 0)
         use_int8_inference = false;
 
+#if NCNN_VULKAN
+
+    local_size_x = pd.max_workgroup_size[0];
+    while (num_output < local_size_x)
+    {
+        local_size_x /= 2;
+    }
+    local_size_y = 1;
+    local_size_z = 1;
+
+    fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+
+    // setup pipeline specializations
+    specializations.resize(1);
+
+    specializations[0] = bias_term;
+
+    binding_count = 4;
+#endif // NCNN_VULKAN
+
     return 0;
 }
 
@@ -100,6 +120,32 @@ int InnerProduct::load_model(const ModelBin& mb)
 
         weight_data = int8_weight_data;
     }
+
+#if NCNN_VULKAN
+    if (mb.vk_model_loader)
+    {
+        // upload weight data
+        weight_data_gpu.create(weight_data.w, 4u, mb.weight_vkallocator, mb.staging_vkallocator);
+        bias_data_gpu.create(bias_data.w, 4u, mb.weight_vkallocator, mb.staging_vkallocator);
+
+        weight_data_gpu.prepare_staging_buffer();
+        bias_data_gpu.prepare_staging_buffer();
+
+        mb.vk_model_loader->record_upload(weight_data_gpu);
+        mb.vk_model_loader->record_upload(bias_data_gpu);
+
+        mb.vk_model_loader->record_upload_barrier(weight_data_gpu);
+        mb.vk_model_loader->record_upload_barrier(bias_data_gpu);
+
+        weight_data_gpu.map();
+        weight_data_gpu.staging_buffer_upload(weight_data);
+        weight_data_gpu.unmap();
+
+        bias_data_gpu.map();
+        bias_data_gpu.staging_buffer_upload(bias_data);
+        bias_data_gpu.unmap();
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -203,5 +249,31 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+
+    top_blob.create(num_output, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    // update descriptor set FIXME TODO
+    std::vector<VkMat> bindings;
+    bindings.resize(4);
+
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+    bindings[2] = weight_data_gpu;
+    bindings[3] = bias_data_gpu;
+
+    update_descriptorset(bindings);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
