@@ -58,9 +58,7 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                float v = bottom_blob_data[v_offset + x];
-
-                res = max(res, v);
+                res = max(res, bottom_blob_data[v_offset + x]);
             }
 
             v_offset += p.w;
@@ -76,15 +74,60 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                float v = bottom_blob_data[v_offset + x];
-
-                res += v;
+                res += bottom_blob_data[v_offset + x];
             }
 
             v_offset += p.w;
         }
 
         res /= kernel_w * kernel_h;
+    }
+    }
+    else
+    {
+    if (pooling_type == 0)
+    {
+        res = -99999;
+
+        int v_offset = gz * p.cstep + (gy * stride_h - pad_top) * p.w + gx * stride_w - pad_left;
+
+        for (int y = 0; y < kernel_h; y++)
+        {
+            for (int x = 0; x < kernel_w; x++)
+            {
+                if (gx + x - pad_left >= 0 && gx + x - pad_left < p.w
+                    && gy + y - pad_top >= 0 && gy + y - pad_top < p.h)
+                {
+                    res = max(res, bottom_blob_data[v_offset + x]);
+                }
+            }
+
+            v_offset += p.w;
+        }
+    }
+    else if (pooling_type == 1)
+    {
+        res = 0;
+        int area = 0;
+
+        int v_offset = gz * p.cstep + (gy * stride_h - pad_top) * p.w + gx * stride_w - pad_left;
+
+        for (int y = 0; y < kernel_h; y++)
+        {
+            for (int x = 0; x < kernel_w; x++)
+            {
+                if (gx + x - pad_left >= 0 && gx + x - pad_left < p.w
+                    && gy + y - pad_top >= 0 && gy + y - pad_top < p.h)
+                {
+                    res += bottom_blob_data[v_offset + x];
+                    area += 1;
+                }
+            }
+
+            v_offset += p.w;
+        }
+
+        res /= area;
     }
     }
 
