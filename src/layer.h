@@ -58,7 +58,7 @@ public:
     Allocator* workspace_allocator;
 
 #if NCNN_VULKAN
-    // vulkan device
+    // vulkan device // TODO remove this member
     VulkanDevice* vkdev;
 
     // blob memory allocator
@@ -116,13 +116,13 @@ public:
 #if NCNN_VULKAN
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, const Option& opt = get_default_option()) const;
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, const Option& opt = get_default_option()) const;
+    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, Command& cmd, const Option& opt = get_default_option()) const;
+    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cmd, const Option& opt = get_default_option()) const;
 
     // implement inplace inference
     // return 0 if success
-    virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, const Option& opt = get_default_option()) const;
-    virtual int forward_inplace(VkMat& bottom_top_blob, const Option& opt = get_default_option()) const;
+    virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, Command& cmd, const Option& opt = get_default_option()) const;
+    virtual int forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option& opt = get_default_option()) const;
 
 public:
     // shared among each layer type instance
@@ -131,20 +131,14 @@ public:
     VkDescriptorSetLayout descriptorset_layout;
     VkPipelineLayout pipeline_layout;
 
-    // though the layout of a specific layer is identical
-    // we don't know how many layer instances will be created
-    // as different model differs
-    // it is more flexible to create separate pool
-    VkDescriptorPool descriptor_pool;
-
     // op forward
     VkPipeline pipeline;
 
-    // op command dispatch
-    VkDescriptorSet descriptorset;
+    // op forward
+    VkDescriptorUpdateTemplate descriptor_update_template;
 
 public:
-    int create_pipeline(VkDevice device);
+    int create_pipeline(const VulkanDevice* vkdev);
     int destroy_pipeline();
 
 protected:
@@ -153,14 +147,10 @@ protected:
     int create_descriptorset_layout();
     int create_pipeline_layout();
     int create_pipeline();
-    int create_descriptor_pool();
-    int create_descriptorset();
-
-    // called from forward
-    void update_descriptorset(const std::vector<VkMat>& bindings) const;
+    int create_descriptor_update_template();
 
 public:
-    VkDevice device;
+    const VulkanDevice* vkdev;
 
     int local_size_x;
     int local_size_y;
@@ -168,6 +158,7 @@ public:
 
     std::vector<int> specializations;
     int binding_count;
+    int push_constant_count;
 
 #endif // NCNN_VULKAN
 

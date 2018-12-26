@@ -24,7 +24,6 @@
 
 namespace ncnn {
 
-class Layer;
 class Command
 {
 public:
@@ -35,19 +34,23 @@ public:
 
     void record_upload(const VkMat& m);
 
-    void record_upload_barrier(const VkMat& m);
-
     void record_download(const VkMat& m);
-
-    void record_download_barrier(const VkMat& m);
 
     void record_clone(const VkMat& src, const VkMat& dst);
 
-    void record_layer(const Layer* layer, const int* constants, int count);
+    void record_bind_pipeline(VkPipeline pipeline);
+
+    void record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkMat>& bindings);
+
+    void record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<int>& constants);
 
     void record_dispatch(uint32_t* group_count_xyz);
 
-    void record_compute_barrier(const VkMat& m);
+    void record_upload_compute_barrier(const VkMat& m);
+
+    void record_compute_download_barrier(const VkMat& m);
+
+    void record_compute_compute_barrier(const VkMat& m);
 
     void record_compute_barrier();
 

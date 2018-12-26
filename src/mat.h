@@ -15,6 +15,7 @@
 #ifndef NCNN_MAT_H
 #define NCNN_MAT_H
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #if __ARM_NEON
@@ -29,6 +30,10 @@
 #endif // NCNN_VULKAN
 
 namespace ncnn {
+
+#if NCNN_VULKAN
+class VkMat;
+#endif // NCNN_VULKAN
 
 // the three dimension matrix
 class Mat
@@ -229,6 +234,7 @@ public:
     bool empty() const;
     size_t total() const;
 
+    // device buffer
     VkDeviceMemory memory;
     VkBuffer buffer;
 
@@ -1108,11 +1114,13 @@ inline void VkMat::unmap()
 
 inline void VkMat::staging_buffer_upload(const Mat& m)
 {
+    fprintf(stderr, "staging_buffer_upload %p to %p\n", m.data, staging_buffer);
     memcpy(mapped_ptr, m.data, m.total() * m.elemsize);
 }
 
 inline void VkMat::staging_buffer_download(Mat& m)
 {
+    fprintf(stderr, "staging_buffer_download %p to %p\n", staging_buffer, m.data);
     memcpy(m.data, mapped_ptr, total() * elemsize);
 }
 

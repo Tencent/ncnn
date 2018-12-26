@@ -115,10 +115,10 @@ int Layer::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) cons
 }
 
 #if NCNN_VULKAN
-int Layer::create_pipeline(VkDevice _device)
+int Layer::create_pipeline(const VulkanDevice* _vkdev)
 {
     // set vulkan device
-    device = _device;
+    vkdev = _vkdev;
 
     create_descriptorset_layout();
 
@@ -132,57 +132,49 @@ int Layer::create_pipeline(VkDevice _device)
 
 //     fprintf(stderr, "create_pipeline done\n");
 
-    create_descriptor_pool();
+    create_descriptor_update_template();
 
-//     fprintf(stderr, "create_descriptor_pool done\n");
-
-    create_descriptorset();
-
-//     fprintf(stderr, "create_descriptorset done\n");
+//     fprintf(stderr, "create_descriptor_update_template done\n");
 
     return 0;
 }
 
 int Layer::destroy_pipeline()
 {
-    vkFreeDescriptorSets(device, descriptor_pool, 1, &descriptorset);
+    vkdev->vkDestroyDescriptorUpdateTemplateKHR(vkdev->vkdevice(), descriptor_update_template, 0);
 
-    vkDestroyDescriptorPool(device, descriptor_pool, 0);
+    vkDestroyPipeline(vkdev->vkdevice(), pipeline, 0);
 
-    vkDestroyPipeline(device, pipeline, 0);
+    vkDestroyPipelineLayout(vkdev->vkdevice(), pipeline_layout, 0);
 
-    vkDestroyPipelineLayout(device, pipeline_layout, 0);
-
-    vkDestroyDescriptorSetLayout(device, descriptorset_layout, 0);
+    vkDestroyDescriptorSetLayout(vkdev->vkdevice(), descriptorset_layout, 0);
 
     return 0;
 }
 
-int Layer::forward(const std::vector<VkMat>& /*bottom_blobs*/, std::vector<VkMat>& /*top_blobs*/, const Option& /*opt*/) const
+int Layer::forward(const std::vector<VkMat>& /*bottom_blobs*/, std::vector<VkMat>& /*top_blobs*/, Command& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
-int Layer::forward(const VkMat& /*bottom_blob*/, VkMat& /*top_blob*/, const Option& /*opt*/) const
+int Layer::forward(const VkMat& /*bottom_blob*/, VkMat& /*top_blob*/, Command& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
-int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, const Option& /*opt*/) const
+int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, Command& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
-int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, const Option& /*opt*/) const
+int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, Command& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
 int Layer::create_descriptorset_layout()
 {
-    std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings;
-    descriptorSetLayoutBindings.resize(binding_count);
-
+    std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(binding_count);
     for (int i=0; i<binding_count; i++)
     {
         descriptorSetLayoutBindings[i].binding = i;
@@ -195,11 +187,11 @@ int Layer::create_descriptorset_layout()
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
     descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     descriptorSetLayoutCreateInfo.pNext = 0;
-    descriptorSetLayoutCreateInfo.flags = 0;
+    descriptorSetLayoutCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
     descriptorSetLayoutCreateInfo.bindingCount = binding_count;
     descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBindings.data();
 
-    VkResult ret = vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
+    VkResult ret = vkCreateDescriptorSetLayout(vkdev->vkdevice(), &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkCreateDescriptorSetLayout failed %d\n", ret);
@@ -211,18 +203,10 @@ int Layer::create_descriptorset_layout()
 
 int Layer::create_pipeline_layout()
 {
-    int push_constant_count = 0;
-    if (one_blob_only && support_inplace)
-        push_constant_count = 5;
-    if (one_blob_only && !support_inplace)
-        push_constant_count = 5 + 5;
-
     VkPushConstantRange pushConstantRange;
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
     pushConstantRange.size = sizeof(int) * push_constant_count;
-
-    fprintf(stderr, "push_constant_count = %d\n", push_constant_count);
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -233,7 +217,7 @@ int Layer::create_pipeline_layout()
     pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
     pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
 
-    VkResult ret = vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, 0, &pipeline_layout);
+    VkResult ret = vkCreatePipelineLayout(vkdev->vkdevice(), &pipelineLayoutCreateInfo, 0, &pipeline_layout);
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkCreatePipelineLayout failed %d\n", ret);
@@ -303,7 +287,7 @@ int Layer::create_pipeline()
     computePipelineCreateInfo.basePipelineHandle = 0;
     computePipelineCreateInfo.basePipelineIndex = 0;
 
-    VkResult ret = vkCreateComputePipelines(device, 0, 1, &computePipelineCreateInfo, 0, &pipeline);
+    VkResult ret = vkCreateComputePipelines(vkdev->vkdevice(), 0, 1, &computePipelineCreateInfo, 0, &pipeline);
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkCreateComputePipelines failed %d\n", ret);
@@ -313,78 +297,41 @@ int Layer::create_pipeline()
     return 0;
 }
 
-int Layer::create_descriptor_pool()
+int Layer::create_descriptor_update_template()
 {
-    VkDescriptorPoolSize poolSize;
-    poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    poolSize.descriptorCount = binding_count;
+    std::vector<VkDescriptorUpdateTemplateEntry> descriptorUpdateTemplateEntries(binding_count);
+    for (int i=0; i<binding_count; i++)// TODO do not update weights
+    {
+        descriptorUpdateTemplateEntries[i].dstBinding = i;
+        descriptorUpdateTemplateEntries[i].dstArrayElement = 0;
+        descriptorUpdateTemplateEntries[i].descriptorCount = 1;
+        descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorUpdateTemplateEntries[i].offset = i * sizeof(VkDescriptorBufferInfo);
+        descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorBufferInfo);
+    }
 
-    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
-    descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    descriptorPoolCreateInfo.pNext = 0;
-    descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    descriptorPoolCreateInfo.maxSets = 1;
-    descriptorPoolCreateInfo.poolSizeCount = 1;
-    descriptorPoolCreateInfo.pPoolSizes = &poolSize;
+    VkDescriptorUpdateTemplateCreateInfo descriptorUpdateTemplateCreateInfo;
+    descriptorUpdateTemplateCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO;
+    descriptorUpdateTemplateCreateInfo.pNext = 0;
+    descriptorUpdateTemplateCreateInfo.flags = 0;
+    descriptorUpdateTemplateCreateInfo.descriptorUpdateEntryCount = binding_count;// TODO do not update weights
+    descriptorUpdateTemplateCreateInfo.pDescriptorUpdateEntries = descriptorUpdateTemplateEntries.data();
+    descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
+    // descriptorSetLayout should be ignored if VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR
+    // FIXME HACK WARNING TODO NOTE but crash on radv if set NULL  :(
+    descriptorUpdateTemplateCreateInfo.descriptorSetLayout = descriptorset_layout;
+    descriptorUpdateTemplateCreateInfo.pipelineBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+    descriptorUpdateTemplateCreateInfo.pipelineLayout = pipeline_layout;
+    descriptorUpdateTemplateCreateInfo.set = 0;
 
-    VkResult ret = vkCreateDescriptorPool(device, &descriptorPoolCreateInfo, 0, &descriptor_pool);
+    VkResult ret = vkdev->vkCreateDescriptorUpdateTemplateKHR(vkdev->vkdevice(), &descriptorUpdateTemplateCreateInfo, 0, &descriptor_update_template);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateDescriptorPool failed %d\n", ret);
+        fprintf(stderr, "vkCreateDescriptorUpdateTemplateKHR failed %d\n", ret);
         return -1;
     }
 
     return 0;
-}
-
-int Layer::create_descriptorset()
-{
-    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo;
-    descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    descriptorSetAllocateInfo.pNext = 0;
-    descriptorSetAllocateInfo.descriptorPool = descriptor_pool;
-    descriptorSetAllocateInfo.descriptorSetCount = 1;
-    descriptorSetAllocateInfo.pSetLayouts = &descriptorset_layout;
-
-    VkResult ret = vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &descriptorset);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkAllocateDescriptorSets failed %d\n", ret);
-        return -1;
-    }
-
-    return 0;
-}
-
-void Layer::update_descriptorset(const std::vector<VkMat>& bindings) const
-{
-    // assert binding_count == bindings.size()
-
-    std::vector<VkDescriptorBufferInfo> descriptorBufferInfos;
-    descriptorBufferInfos.resize(binding_count);
-
-    std::vector<VkWriteDescriptorSet> writeDescriptorSets;
-    writeDescriptorSets.resize(binding_count);
-
-    for (int i=0; i<binding_count; i++)
-    {
-        descriptorBufferInfos[i].buffer = bindings[i].buffer;
-        descriptorBufferInfos[i].offset = 0;
-        descriptorBufferInfos[i].range = VK_WHOLE_SIZE;
-
-        writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSets[i].pNext = 0;
-        writeDescriptorSets[i].dstSet = descriptorset;
-        writeDescriptorSets[i].dstBinding = i;
-        writeDescriptorSets[i].dstArrayElement = 0;
-        writeDescriptorSets[i].descriptorCount = 1;
-        writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        writeDescriptorSets[i].pImageInfo = 0;
-        writeDescriptorSets[i].pBufferInfo = &descriptorBufferInfos[i];
-        writeDescriptorSets[i].pTexelBufferView = 0;
-    }
-
-    vkUpdateDescriptorSets(device, binding_count, writeDescriptorSets.data(), 0, 0);
 }
 #endif // NCNN_VULKAN
 

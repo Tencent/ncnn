@@ -18,13 +18,11 @@
 
 #include <stdio.h>
 
-#include "layer.h"
-
 namespace ncnn {
 
 Command::Command(VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
-    device = *vkdev;
+    device = vkdev->vkdevice();
 
     // get queue
     vkGetDeviceQueue(device, vkdev->info.compute_queue_index, 0, &queue);
@@ -57,6 +55,8 @@ Command::~Command()
 
 int Command::begin()
 {
+    fprintf(stderr, "begin\n");
+
     VkCommandBufferBeginInfo commandBufferBeginInfo;
     commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     commandBufferBeginInfo.pNext = 0;
@@ -73,8 +73,86 @@ int Command::begin()
     return 0;
 }
 
-void Command::record_upload_barrier(const VkMat& m)
+void Command::record_upload(const VkMat& m)
 {
+    fprintf(stderr, "record_upload %p to %p\n", m.staging_buffer, m.buffer);
+
+    VkBufferCopy region;
+    region.srcOffset = 0;
+    region.dstOffset = 0;
+    region.size = m.total() * m.elemsize;
+
+    vkCmdCopyBuffer(command_buffer, m.staging_buffer, m.buffer, 1, &region);
+}
+
+void Command::record_download(const VkMat& m)
+{
+    fprintf(stderr, "record_download %p to %p\n", m.buffer, m.staging_buffer);
+
+    VkBufferCopy region;
+    region.srcOffset = 0;
+    region.dstOffset = 0;
+    region.size = m.total() * m.elemsize;
+
+    vkCmdCopyBuffer(command_buffer, m.buffer, m.staging_buffer, 1, &region);
+}
+
+void Command::record_clone(const VkMat& src, const VkMat& dst)
+{
+    fprintf(stderr, "record_clone %p %p\n", src.buffer, dst.buffer);
+
+    VkBufferCopy region;
+    region.srcOffset = 0;
+    region.dstOffset = 0;
+    region.size = src.total() * src.elemsize;
+
+    vkCmdCopyBuffer(command_buffer, src.buffer, dst.buffer, 1, &region);
+}
+
+void Command::record_bind_pipeline(VkPipeline pipeline)
+{
+    fprintf(stderr, "record_bind_pipeline %p\n", pipeline);
+
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+}
+
+void Command::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkMat>& bindings)
+{
+    fprintf(stderr, "record_update_bindings %p %p\n", pipeline_layout, descriptor_update_template);
+
+    const int binding_count = bindings.size();
+
+    std::vector<VkDescriptorBufferInfo> descriptorBufferInfos;
+    descriptorBufferInfos.resize(binding_count);
+
+    for (int i=0; i<binding_count; i++)
+    {
+        descriptorBufferInfos[i].buffer = bindings[i].buffer;
+        descriptorBufferInfos[i].offset = 0;
+        descriptorBufferInfos[i].range = VK_WHOLE_SIZE;
+    }
+
+    vkdev->vkCmdPushDescriptorSetWithTemplateKHR(command_buffer, descriptor_update_template, pipeline_layout, 0, descriptorBufferInfos.data());
+}
+
+void Command::record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<int>& constants)
+{
+    fprintf(stderr, "record_push_constants %p\n", pipeline_layout);
+
+    vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, constants.size() * sizeof(int), constants.data());
+}
+
+void Command::record_dispatch(uint32_t* group_count_xyz)
+{
+    fprintf(stderr, "record_dispatch %d %d %d\n", group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
+
+    vkCmdDispatch(command_buffer, group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
+}
+
+void Command::record_upload_compute_barrier(const VkMat& m)
+{
+    fprintf(stderr, "record_upload_compute_barrier %p\n", m.buffer);
+
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     bufferBarrier.pNext = 0;
@@ -92,8 +170,10 @@ void Command::record_upload_barrier(const VkMat& m)
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-void Command::record_download_barrier(const VkMat& m)
+void Command::record_compute_download_barrier(const VkMat& m)
 {
+    fprintf(stderr, "record_compute_download_barrier %p\n", m.buffer);
+
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     bufferBarrier.pNext = 0;
@@ -111,54 +191,10 @@ void Command::record_download_barrier(const VkMat& m)
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-void Command::record_upload(const VkMat& m)
+void Command::record_compute_compute_barrier(const VkMat& m)
 {
-    VkBufferCopy region;
-    region.srcOffset = 0;
-    region.dstOffset = 0;
-    region.size = m.total() * m.elemsize;
+    fprintf(stderr, "record_compute_compute_barrier %p\n", m.buffer);
 
-    vkCmdCopyBuffer(command_buffer, m.staging_buffer, m.buffer, 1, &region);
-}
-
-void Command::record_download(const VkMat& m)
-{
-    VkBufferCopy region;
-    region.srcOffset = 0;
-    region.dstOffset = 0;
-    region.size = m.total() * m.elemsize;
-
-    vkCmdCopyBuffer(command_buffer, m.buffer, m.staging_buffer, 1, &region);
-}
-
-void Command::record_clone(const VkMat& src, const VkMat& dst)
-{
-    VkBufferCopy region;
-    region.srcOffset = 0;
-    region.dstOffset = 0;
-    region.size = src.w * src.h * src.c;
-
-    vkCmdCopyBuffer(command_buffer, src.buffer, dst.buffer, 1, &region);
-}
-
-void Command::record_layer(const Layer* layer, const int* constants, int count)
-{
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline);
-
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layer->pipeline_layout, 0, 1, &layer->descriptorset, 0, 0);
-
-    vkCmdPushConstants(command_buffer, layer->pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, count * sizeof(int), constants);
-}
-
-void Command::record_dispatch(uint32_t* group_count_xyz)
-{
-    fprintf(stderr, "dispatch %d %d %d\n", group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
-
-    vkCmdDispatch(command_buffer, group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
-}
-
-void Command::record_compute_barrier(const VkMat& m)
-{
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     bufferBarrier.pNext = 0;
@@ -178,6 +214,8 @@ void Command::record_compute_barrier(const VkMat& m)
 
 void Command::record_compute_barrier()
 {
+    fprintf(stderr, "record_compute_barrier\n");
+
     VkMemoryBarrier memoryBarrier;
     memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
     memoryBarrier.pNext = 0;
@@ -192,6 +230,8 @@ void Command::record_compute_barrier()
 
 int Command::end()
 {
+    fprintf(stderr, "end\n");
+
     VkResult ret = vkEndCommandBuffer(command_buffer);
     if (ret != VK_SUCCESS)
     {
@@ -204,6 +244,8 @@ int Command::end()
 
 int Command::submit()
 {
+    fprintf(stderr, "submit\n");
+
     VkSubmitInfo submitInfo;
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.pNext = 0;
@@ -227,6 +269,8 @@ int Command::submit()
 
 int Command::wait()
 {
+    fprintf(stderr, "wait\n");
+
     VkResult ret = vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS)
     {

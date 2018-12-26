@@ -25,6 +25,7 @@ Pooling::Pooling()
 {
     one_blob_only = true;
     support_inplace = false;
+    support_vulkan = true;
 }
 
 int Pooling::load_param(const ParamDict& pd)
@@ -56,7 +57,6 @@ int Pooling::load_param(const ParamDict& pd)
 
     // setup pipeline specializations
     specializations.resize(11);
-
     specializations[0] = pooling_type;
     specializations[1] = kernel_w;
     specializations[2] = kernel_h;
@@ -70,7 +70,7 @@ int Pooling::load_param(const ParamDict& pd)
     specializations[10] = pad_mode;
 
     binding_count = 2;
-
+    push_constant_count = 10;
 #endif // NCNN_VULKAN
 
     return 0;
@@ -323,7 +323,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 }
 
 #if NCNN_VULKAN
-int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option& opt) const
+int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cmd, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -339,14 +339,34 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, const Option& op
     if (top_blob.empty())
         return -100;
 
-    // update descriptor set FIXME TODO
-    std::vector<VkMat> bindings;
-    bindings.resize(2);
+    fprintf(stderr, "Pooling::forward %p %p\n", bottom_blob.buffer, top_blob.buffer);
 
+    std::vector<VkMat> bindings(2);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
 
-    update_descriptorset(bindings);
+    std::vector<int> constants(10);
+    constants[0] = bottom_blob.dims;
+    constants[1] = bottom_blob.w;
+    constants[2] = bottom_blob.h;
+    constants[3] = bottom_blob.c;
+    constants[4] = bottom_blob.cstep;
+    constants[5] = top_blob.dims;
+    constants[6] = top_blob.w;
+    constants[7] = top_blob.h;
+    constants[8] = top_blob.c;
+    constants[9] = top_blob.cstep;
+
+    uint32_t group_count_xyz[3];
+    group_count_xyz[0] = (top_blob.w + local_size_x - 1) / local_size_x;
+    group_count_xyz[1] = (top_blob.h + local_size_y - 1) / local_size_y;
+    group_count_xyz[2] = (top_blob.c + local_size_z - 1) / local_size_z;
+
+    // record
+    cmd.record_bind_pipeline(pipeline);
+    cmd.record_update_bindings(pipeline_layout, descriptor_update_template, bindings);
+    cmd.record_push_constants(pipeline_layout, constants);
+    cmd.record_dispatch(group_count_xyz);
 
     return 0;
 }

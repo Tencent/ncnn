@@ -246,7 +246,7 @@ VkAllocator::VkAllocator(VulkanDevice* _vkdev, int _type)
       compute_queue_index(_vkdev->info.compute_queue_index),
       memory_type_index(_type == 0 ? _vkdev->info.device_local_memory_index : _vkdev->info.host_visible_memory_index)
 {
-    device = *_vkdev;
+    device = _vkdev->vkdevice();
 
     size_compare_ratio = 192;// 0.75f * 256
 }

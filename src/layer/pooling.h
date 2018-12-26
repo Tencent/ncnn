@@ -29,7 +29,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 #if NCNN_VULKAN
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, const Option& opt) const;
+    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
     enum { PoolMethod_MAX = 0, PoolMethod_AVE = 1 };

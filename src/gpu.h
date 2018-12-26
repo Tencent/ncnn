@@ -65,8 +65,8 @@ public:
 
 const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());
 
-class VkAllocator;
-class VkMat;
+// class VkAllocator;
+// class VkMat;
 class VulkanDevice
 {
 public:
@@ -75,7 +75,7 @@ public:
 
     const GpuInfo& info;
 
-    operator VkDevice() const { return device; }
+    VkDevice vkdevice() const { return device; }
 
     VkShaderModule get_shader_module(int type_index);
 
