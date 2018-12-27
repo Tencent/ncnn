@@ -58,39 +58,40 @@ int Convolution::load_param(const ParamDict& pd)
         use_int8_inference = false;
 
 #if NCNN_VULKAN
-
-    local_size_z = pd.max_workgroup_size[2];
-    while (num_output < local_size_z)
+    if (pd.use_vulkan_compute)
     {
-        local_size_z /= 2;
+        local_size_z = vkdev->info.max_workgroup_size[2];
+        while (num_output < local_size_z)
+        {
+            local_size_z /= 2;
+        }
+
+        int local_size_xy = sqrt(vkdev->info.max_workgroup_invocations / local_size_z);
+        int local_size_xy_prefer = 64;
+        while (local_size_xy < local_size_xy_prefer)
+        {
+            local_size_xy_prefer /= 2;
+        }
+        local_size_x = local_size_xy_prefer;
+        local_size_y = local_size_xy_prefer;
+
+        fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+
+        // setup pipeline specializations
+        specializations.resize(9);
+        specializations[0] = kernel_w;
+        specializations[1] = kernel_h;
+        specializations[2] = dilation_w;
+        specializations[3] = dilation_h;
+        specializations[4] = stride_w;
+        specializations[5] = stride_h;
+        specializations[6] = pad_w;
+        specializations[7] = pad_h;
+        specializations[8] = bias_term;
+
+        binding_count = 4;
+        push_constant_count = 10;
     }
-
-    int local_size_xy = sqrt(pd.max_workgroup_invocations / local_size_z);
-    int local_size_xy_prefer = 64;
-    while (local_size_xy < local_size_xy_prefer)
-    {
-        local_size_xy_prefer /= 2;
-    }
-    local_size_x = local_size_xy_prefer;
-    local_size_y = local_size_xy_prefer;
-
-    fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
-
-    // setup pipeline specializations
-    specializations.resize(9);
-    specializations[0] = kernel_w;
-    specializations[1] = kernel_h;
-    specializations[2] = dilation_w;
-    specializations[3] = dilation_h;
-    specializations[4] = stride_w;
-    specializations[5] = stride_h;
-    specializations[6] = pad_w;
-    specializations[7] = pad_h;
-    specializations[8] = bias_term;
-
-    binding_count = 4;
-    push_constant_count = 10;
-
 #endif // NCNN_VULKAN
 
     return 0;

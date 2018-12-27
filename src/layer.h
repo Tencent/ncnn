@@ -138,8 +138,8 @@ public:
     VkDescriptorUpdateTemplate descriptor_update_template;
 
 public:
-    int create_pipeline(const VulkanDevice* vkdev);
-    int destroy_pipeline();
+    int create_vulkan_pipeline();
+    int destroy_vulkan_pipeline();
 
 protected:
     // misc routine for creating things when creating pipeline

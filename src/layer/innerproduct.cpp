@@ -49,24 +49,25 @@ int InnerProduct::load_param(const ParamDict& pd)
         use_int8_inference = false;
 
 #if NCNN_VULKAN
-
-    local_size_x = pd.max_workgroup_size[0];
-    while (num_output < local_size_x)
+    if (pd.use_vulkan_compute)
     {
-        local_size_x /= 2;
+        local_size_x = vkdev->info.max_workgroup_size[0];
+        while (num_output < local_size_x)
+        {
+            local_size_x /= 2;
+        }
+        local_size_y = 1;
+        local_size_z = 1;
+
+        fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+
+        // setup pipeline specializations
+        specializations.resize(1);
+        specializations[0] = bias_term;
+
+        binding_count = 4;
+        push_constant_count = 10;
     }
-    local_size_y = 1;
-    local_size_z = 1;
-
-    fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
-
-    // setup pipeline specializations
-    specializations.resize(1);
-    specializations[0] = bias_term;
-
-    binding_count = 4;
-    push_constant_count = 10;
-
 #endif // NCNN_VULKAN
 
     return 0;

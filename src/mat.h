@@ -1134,17 +1134,15 @@ inline void VkMat::release()
 {
     if (refcount && NCNN_XADD(refcount, -1) == 1)
     {
-        if (allocator)
+        if (allocator && (buffer || memory))
         {
             allocator->destroy_buffer(buffer);
-
             allocator->fastFree(memory);
         }
 
-        if (staging_allocator)
+        if (staging_allocator && (staging_buffer || staging_memory))
         {
             staging_allocator->destroy_buffer(staging_buffer);
-
             staging_allocator->fastFree(staging_memory);
         }
 

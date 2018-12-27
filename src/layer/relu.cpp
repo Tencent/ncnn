@@ -32,24 +32,25 @@ int ReLU::load_param(const ParamDict& pd)
     slope = pd.get(0, 0.f);
 
 #if NCNN_VULKAN
-
-    local_size_z = std::min(128, pd.max_workgroup_size[2]);
-
-    int local_size_xy = sqrt(pd.max_workgroup_invocations / local_size_z);
-    int local_size_xy_prefer = 256;
-    while (local_size_xy < local_size_xy_prefer)
+    if (pd.use_vulkan_compute)
     {
-        local_size_xy_prefer /= 2;
+        local_size_z = std::min(128, vkdev->info.max_workgroup_size[2]);
+
+        int local_size_xy = sqrt(vkdev->info.max_workgroup_invocations / local_size_z);
+        int local_size_xy_prefer = 256;
+        while (local_size_xy < local_size_xy_prefer)
+        {
+            local_size_xy_prefer /= 2;
+        }
+        local_size_x = local_size_xy_prefer;
+        local_size_y = local_size_xy_prefer;
+
+        // setup pipeline specializations
+        specializations.resize(0);
+
+        binding_count = 1;
+        push_constant_count = 5;
     }
-    local_size_x = local_size_xy_prefer;
-    local_size_y = local_size_xy_prefer;
-
-    // setup pipeline specializations
-    specializations.resize(0);
-
-    binding_count = 1;
-    push_constant_count = 5;
-
 #endif // NCNN_VULKAN
 
     return 0;

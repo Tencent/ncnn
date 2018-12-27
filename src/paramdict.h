@@ -51,12 +51,6 @@ public:
     int use_int8_inference;
     int use_vulkan_compute;
 
-#if NCNN_VULKAN
-//     VulkanDevice* vkdev;
-    int max_workgroup_invocations;
-    int max_workgroup_size[3];
-#endif // NCNN_VULKAN
-
 protected:
     friend class Net;
 

@@ -115,31 +115,20 @@ int Layer::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) cons
 }
 
 #if NCNN_VULKAN
-int Layer::create_pipeline(const VulkanDevice* _vkdev)
+int Layer::create_vulkan_pipeline()
 {
-    // set vulkan device
-    vkdev = _vkdev;
-
     create_descriptorset_layout();
-
-//     fprintf(stderr, "create_descriptorset_layout done\n");
 
     create_pipeline_layout();
 
-//     fprintf(stderr, "create_pipeline_layout done\n");
-
     create_pipeline();
 
-//     fprintf(stderr, "create_pipeline done\n");
-
     create_descriptor_update_template();
-
-//     fprintf(stderr, "create_descriptor_update_template done\n");
 
     return 0;
 }
 
-int Layer::destroy_pipeline()
+int Layer::destroy_vulkan_pipeline()
 {
     vkdev->vkDestroyDescriptorUpdateTemplateKHR(vkdev->vkdevice(), descriptor_update_template, 0);
 

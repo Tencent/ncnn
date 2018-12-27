@@ -55,7 +55,7 @@ Command::~Command()
 
 int Command::begin()
 {
-    fprintf(stderr, "begin\n");
+    fprintf(stderr, "==================== begin\n");
 
     VkCommandBufferBeginInfo commandBufferBeginInfo;
     commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -212,25 +212,9 @@ void Command::record_compute_compute_barrier(const VkMat& m)
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-void Command::record_compute_barrier()
-{
-    fprintf(stderr, "record_compute_barrier\n");
-
-    VkMemoryBarrier memoryBarrier;
-    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    memoryBarrier.pNext = 0;
-    memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-    memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-
-    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 1, &memoryBarrier, 0, 0, 0, 0);
-}
-
 int Command::end()
 {
-    fprintf(stderr, "end\n");
+    fprintf(stderr, "==================== end\n");
 
     VkResult ret = vkEndCommandBuffer(command_buffer);
     if (ret != VK_SUCCESS)
@@ -244,7 +228,7 @@ int Command::end()
 
 int Command::submit()
 {
-    fprintf(stderr, "submit\n");
+    fprintf(stderr, "==================== submit\n");
 
     VkSubmitInfo submitInfo;
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -269,7 +253,7 @@ int Command::submit()
 
 int Command::wait()
 {
-    fprintf(stderr, "wait\n");
+    fprintf(stderr, "==================== wait\n");
 
     VkResult ret = vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS)

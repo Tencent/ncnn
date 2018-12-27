@@ -43,34 +43,36 @@ int Pooling::load_param(const ParamDict& pd)
     pad_mode = pd.get(5, 0);
 
 #if NCNN_VULKAN
-
-    local_size_z = std::min(128, pd.max_workgroup_size[2]);
-
-    int local_size_xy = sqrt(pd.max_workgroup_invocations / local_size_z);
-    int local_size_xy_prefer = 256;
-    while (local_size_xy < local_size_xy_prefer)
+    if (pd.use_vulkan_compute)
     {
-        local_size_xy_prefer /= 2;
+        local_size_z = std::min(128, vkdev->info.max_workgroup_size[2]);
+
+        int local_size_xy = sqrt(vkdev->info.max_workgroup_invocations / local_size_z);
+        int local_size_xy_prefer = 256;
+        while (local_size_xy < local_size_xy_prefer)
+        {
+            local_size_xy_prefer /= 2;
+        }
+        local_size_x = local_size_xy_prefer;
+        local_size_y = local_size_xy_prefer;
+
+        // setup pipeline specializations
+        specializations.resize(11);
+        specializations[0] = pooling_type;
+        specializations[1] = kernel_w;
+        specializations[2] = kernel_h;
+        specializations[3] = stride_w;
+        specializations[4] = stride_h;
+        specializations[5] = pad_left;
+        specializations[6] = pad_right;
+        specializations[7] = pad_top;
+        specializations[8] = pad_bottom;
+        specializations[9] = global_pooling;
+        specializations[10] = pad_mode;
+
+        binding_count = 2;
+        push_constant_count = 10;
     }
-    local_size_x = local_size_xy_prefer;
-    local_size_y = local_size_xy_prefer;
-
-    // setup pipeline specializations
-    specializations.resize(11);
-    specializations[0] = pooling_type;
-    specializations[1] = kernel_w;
-    specializations[2] = kernel_h;
-    specializations[3] = stride_w;
-    specializations[4] = stride_h;
-    specializations[5] = pad_left;
-    specializations[6] = pad_right;
-    specializations[7] = pad_top;
-    specializations[8] = pad_bottom;
-    specializations[9] = global_pooling;
-    specializations[10] = pad_mode;
-
-    binding_count = 2;
-    push_constant_count = 10;
 #endif // NCNN_VULKAN
 
     return 0;

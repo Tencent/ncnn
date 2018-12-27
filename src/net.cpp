@@ -141,13 +141,7 @@ int Net::load_param(FILE* fp)
     pd.use_winograd_convolution = use_winograd_convolution;
     pd.use_sgemm_convolution = use_sgemm_convolution;
     pd.use_int8_inference = use_int8_inference;
-
-
-    pd.use_vulkan_compute = 1;
-    pd.max_workgroup_invocations = vkdev->info.max_workgroup_invocations;
-    pd.max_workgroup_size[0] = vkdev->info.max_workgroup_size[0];
-    pd.max_workgroup_size[1] = vkdev->info.max_workgroup_size[1];
-    pd.max_workgroup_size[2] = vkdev->info.max_workgroup_size[2];
+    pd.use_vulkan_compute = use_vulkan_compute;
 
     int blob_index = 0;
     for (int i=0; i<layer_count; i++)
@@ -181,7 +175,10 @@ int Net::load_param(FILE* fp)
 //         fprintf(stderr, "new layer %d %s\n", i, layer_name);
 
         if (layer->support_vulkan)
+        {
+            layer->vkdev = vkdev;
             layer->shader_module = vkdev->get_shader_module(ncnn::layer_to_index(layer_type));
+        }
 
         layer->bottoms.resize(bottom_count);
 
@@ -306,6 +303,7 @@ int Net::load_param_mem(const char* _mem)
     pd.use_winograd_convolution = use_winograd_convolution;
     pd.use_sgemm_convolution = use_sgemm_convolution;
     pd.use_int8_inference = use_int8_inference;
+    pd.use_vulkan_compute = use_vulkan_compute;
 
     int blob_index = 0;
     for (int i=0; i<layer_count; i++)
@@ -337,6 +335,12 @@ int Net::load_param_mem(const char* _mem)
         layer->type = std::string(layer_type);
         layer->name = std::string(layer_name);
 //         fprintf(stderr, "new layer %d %s\n", i, layer_name);
+
+        if (layer->support_vulkan)
+        {
+            layer->vkdev = vkdev;
+            layer->shader_module = vkdev->get_shader_module(ncnn::layer_to_index(layer_type));
+        }
 
         layer->bottoms.resize(bottom_count);
 
@@ -464,14 +468,7 @@ int Net::load_param_bin(FILE* fp)
     pd.use_winograd_convolution = use_winograd_convolution;
     pd.use_sgemm_convolution = use_sgemm_convolution;
     pd.use_int8_inference = use_int8_inference;
-    pd.use_vulkan_compute = 1;
-
-#if NCNN_VULKAN
-    pd.max_workgroup_invocations = vkdev->info.max_workgroup_invocations;
-    pd.max_workgroup_size[0] = vkdev->info.max_workgroup_size[0];
-    pd.max_workgroup_size[1] = vkdev->info.max_workgroup_size[1];
-    pd.max_workgroup_size[2] = vkdev->info.max_workgroup_size[2];
-#endif // NCNN_VULKAN
+    pd.use_vulkan_compute = use_vulkan_compute;
 
     for (size_t i=0; i<layer_count; i++)
     {
@@ -503,6 +500,12 @@ int Net::load_param_bin(FILE* fp)
 //         layer->type = std::string(layer_type);
 //         layer->name = std::string(layer_name);
 //         fprintf(stderr, "new layer %d\n", typeindex);
+
+        if (layer->support_vulkan)
+        {
+            layer->vkdev = vkdev;
+            layer->shader_module = vkdev->get_shader_module(typeindex);
+        }
 
         layer->bottoms.resize(bottom_count);
         for (size_t j=0; j<bottom_count; j++)
@@ -632,7 +635,7 @@ int Net::load_model(FILE* fp)
 
             if (layer->support_vulkan)
             {
-                layer->create_pipeline(vkdev);
+                layer->create_vulkan_pipeline();
             }
         }
 
@@ -788,6 +791,21 @@ int Net::load_model(const unsigned char* _mem)
 
     const unsigned char* mem = _mem;
     ModelBinFromMemory mb(mem);
+
+#if NCNN_VULKAN
+    mb.vk_model_loader = 0;
+    VkAllocator* staging_allocator = 0;
+    if (use_vulkan_compute)
+    {
+        staging_allocator = new VkAllocator(vkdev, 1);
+
+        mb.vk_model_loader = new Command(vkdev);
+        mb.weight_vkallocator = weight_vkallocator;
+        mb.staging_vkallocator = staging_allocator;
+        mb.vk_model_loader->begin();
+    }
+#endif // NCNN_VULKAN
+
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
@@ -800,12 +818,56 @@ int Net::load_model(const unsigned char* _mem)
         }
     }
 
+#if NCNN_VULKAN
+    if (use_vulkan_compute)
+    {
+        mb.vk_model_loader->end();
+        mb.vk_model_loader->submit();
+
+        mb.vk_model_loader->wait();
+
+        delete mb.vk_model_loader;
+
+        staging_allocator->clear();
+        delete staging_allocator;
+
+
+        for (size_t i=0; i<layers.size(); i++)
+        {
+            Layer* layer = layers[i];
+
+            if (layer->support_vulkan)
+            {
+                layer->create_vulkan_pipeline();
+            }
+        }
+
+    }
+#endif // NCNN_VULKAN
+
     return mem - _mem;
 }
 
 void Net::clear()
 {
     blobs.clear();
+
+#if NCNN_VULKAN
+    if (use_vulkan_compute)
+    {
+        for (size_t i=0; i<layers.size(); i++)
+        {
+            Layer* layer = layers[i];
+
+            if (layer->support_vulkan)
+            {
+                layer->destroy_vulkan_pipeline();
+            }
+        }
+
+    }
+#endif // NCNN_VULKAN
+
     for (size_t i=0; i<layers.size(); i++)
     {
         delete layers[i];
@@ -1269,8 +1331,6 @@ int Extractor::extract(int blob_index, Mat& feat)
 //         ret = net->forward_layer(layer_index, blob_mats, opt);
 
 #if NCNN_VULKAN
-
-//         ret = net->forward_layer(layer_index, blob_mats_gpu, opt);
 
         ncnn::Command cmd(opt.vkdev);
 

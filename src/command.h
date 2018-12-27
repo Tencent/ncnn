@@ -52,8 +52,6 @@ public:
 
     void record_compute_compute_barrier(const VkMat& m);
 
-    void record_compute_barrier();
-
     int end();
 
     int submit();
