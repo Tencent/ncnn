@@ -29,9 +29,9 @@ Option::Option()
     workspace_allocator = 0;
 
 #if NCNN_VULKAN
-    vkdev = 0;
     blob_vkallocator = 0;
     workspace_vkallocator = 0;
+    staging_vkallocator = 0;
 #endif // NCNN_VULKAN
 }
 

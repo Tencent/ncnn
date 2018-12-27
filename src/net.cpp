@@ -1327,7 +1327,7 @@ int Extractor::extract(int blob_index, Mat& feat)
 
 #if NCNN_VULKAN
 
-        ncnn::Command cmd(opt.vkdev);
+        ncnn::Command cmd(net->vkdev);
 
         cmd.begin();
 

@@ -58,9 +58,6 @@ public:
     Allocator* workspace_allocator;
 
 #if NCNN_VULKAN
-    // vulkan device // TODO remove this member
-    VulkanDevice* vkdev;
-
     // blob memory allocator
     VkAllocator* blob_vkallocator;
 
