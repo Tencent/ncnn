@@ -44,6 +44,8 @@ Net::Net()
 
 #if NCNN_VULKAN
     vkdev = 0;
+    weight_vkallocator = 0;
+    staging_vkallocator = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -590,14 +592,11 @@ int Net::load_model(FILE* fp)
 
 #if NCNN_VULKAN
     mb.vk_model_loader = 0;
-    VkAllocator* staging_allocator = 0;
     if (use_vulkan_compute)
     {
-        staging_allocator = new VkAllocator(vkdev, 1);
-
         mb.vk_model_loader = new Command(vkdev);
         mb.weight_vkallocator = weight_vkallocator;
-        mb.staging_vkallocator = staging_allocator;
+        mb.staging_vkallocator = staging_vkallocator;
         mb.vk_model_loader->begin();
     }
 #endif // NCNN_VULKAN
@@ -624,10 +623,6 @@ int Net::load_model(FILE* fp)
         mb.vk_model_loader->wait();
 
         delete mb.vk_model_loader;
-
-        staging_allocator->clear();
-        delete staging_allocator;
-
 
         for (size_t i=0; i<layers.size(); i++)
         {
@@ -794,14 +789,11 @@ int Net::load_model(const unsigned char* _mem)
 
 #if NCNN_VULKAN
     mb.vk_model_loader = 0;
-    VkAllocator* staging_allocator = 0;
     if (use_vulkan_compute)
     {
-        staging_allocator = new VkAllocator(vkdev, 1);
-
         mb.vk_model_loader = new Command(vkdev);
         mb.weight_vkallocator = weight_vkallocator;
-        mb.staging_vkallocator = staging_allocator;
+        mb.staging_vkallocator = staging_vkallocator;
         mb.vk_model_loader->begin();
     }
 #endif // NCNN_VULKAN
@@ -827,10 +819,6 @@ int Net::load_model(const unsigned char* _mem)
         mb.vk_model_loader->wait();
 
         delete mb.vk_model_loader;
-
-        staging_allocator->clear();
-        delete staging_allocator;
-
 
         for (size_t i=0; i<layers.size(); i++)
         {
@@ -889,6 +877,11 @@ void Net::set_vulkan_device(VulkanDevice* _vkdev)
 void Net::set_weight_vkallocator(VkAllocator* _weight_vkallocator)
 {
     weight_vkallocator = _weight_vkallocator;
+}
+
+void Net::set_staging_vkallocator(VkAllocator* _staging_vkallocator)
+{
+    staging_vkallocator = _staging_vkallocator;
 }
 
 #endif // NCNN_VULKAN
@@ -1118,7 +1111,7 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Command& 
 {
     const Layer* layer = layers[layer_index];
 
-//     fprintf(stderr, "forward_layer %d %s\n", layer_index, layer->name.c_str());
+    fprintf(stderr, "forward_layer %d %s\n", layer_index, layer->name.c_str());
 
     if (layer->one_blob_only)
     {
@@ -1148,7 +1141,7 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Command& 
         if (opt.lightmode)
         {
             // delete after taken in light mode
-            blob_mats[bottom_blob_index].release();
+            blob_mats[bottom_blob_index].release();//FIXME
             // deep copy for inplace forward if data is shared
             if (layer->support_inplace && *bottom_blob.refcount != 1)
             {
@@ -1213,7 +1206,7 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Command& 
             if (opt.lightmode)
             {
                 // delete after taken in light mode
-                blob_mats[bottom_blob_index].release();
+                blob_mats[bottom_blob_index].release();//FIXME
                 // deep copy for inplace forward if data is shared
                 if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
                 {
@@ -1259,6 +1252,8 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Command& 
         }
 
     }
+
+    fprintf(stderr, "forward_layer %d %s done\n", layer_index, layer->name.c_str());
 
     return 0;
 }
@@ -1340,10 +1335,11 @@ int Extractor::extract(int blob_index, Mat& feat)
 
         VkMat& feat_gpu = blob_mats_gpu[blob_index];
 
-        feat_gpu.prepare_staging_buffer();
-
         // download
         cmd.record_compute_download_barrier(feat_gpu);
+
+        feat_gpu.prepare_staging_buffer();
+
         cmd.record_download(feat_gpu);
 
         cmd.end();

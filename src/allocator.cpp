@@ -293,6 +293,8 @@ VkBuffer VkAllocator::create_buffer(int size)
         return 0;
     }
 
+    fprintf(stderr, "VkAllocator CB %p %lu\n", buffer, size);
+
     return buffer;
 }
 
@@ -316,11 +318,15 @@ VkBuffer VkAllocator::create_staging_buffer(int size)
         return 0;
     }
 
+    fprintf(stderr, "VkAllocator CSB %p %lu\n", buffer, size);
+
     return buffer;
 }
 
 void VkAllocator::destroy_buffer(VkBuffer buffer)
 {
+    fprintf(stderr, "VkAllocator DB %p\n", buffer);
+
     buffers_to_destroy.push_back(buffer);
 }
 
@@ -349,8 +355,6 @@ void VkAllocator::set_size_compare_ratio(float scr)
 
 VkDeviceMemory VkAllocator::fastMalloc(size_t size)
 {
-    fprintf(stderr, "VkAllocator fastMalloc %lu\n", size);
-
     // find free budget
     std::list< std::pair<size_t, VkDeviceMemory> >::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
@@ -365,6 +369,8 @@ VkDeviceMemory VkAllocator::fastMalloc(size_t size)
             budgets.erase(it);
 
             payouts.push_back(std::make_pair(bs, ptr));
+
+//             fprintf(stderr, "VkAllocator M %p %lu reused %lu\n", ptr, size, bs);
 
             return ptr;
         }
@@ -386,12 +392,14 @@ VkDeviceMemory VkAllocator::fastMalloc(size_t size)
 
     payouts.push_back(std::make_pair(size, ptr));
 
+//     fprintf(stderr, "VkAllocator M %p %lu\n", ptr, size);
+
     return ptr;
 }
 
 void VkAllocator::fastFree(VkDeviceMemory ptr)
 {
-    fprintf(stderr, "VkAllocator fastFree %p\n", ptr);
+//     fprintf(stderr, "VkAllocator F %p\n", ptr);
 
     // return to budgets
     std::list< std::pair<size_t, VkDeviceMemory> >::iterator it = payouts.begin();

@@ -1073,6 +1073,9 @@ inline void VkMat::create_like(const VkMat& m, VkAllocator* allocator, VkAllocat
 
 inline void VkMat::prepare_staging_buffer()
 {
+    if (staging_allocator && (staging_buffer || staging_memory))
+        return;
+
     size_t totalsize = alignSize(total() * elemsize, 4);
 
     staging_buffer = staging_allocator->create_staging_buffer(totalsize);
@@ -1087,9 +1090,11 @@ inline void VkMat::prepare_staging_buffer()
 
 inline void VkMat::discard_staging_buffer()
 {
-    staging_allocator->destroy_buffer(staging_buffer);
-
-    staging_allocator->fastFree(staging_memory);
+    if (staging_allocator && (staging_buffer || staging_memory))
+    {
+        staging_allocator->destroy_buffer(staging_buffer);
+        staging_allocator->fastFree(staging_memory);
+    }
 
     staging_buffer = 0;
     staging_memory = 0;
