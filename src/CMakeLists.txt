@@ -27,6 +27,7 @@ set(ncnn_SRCS
 if(NCNN_VULKAN)
     find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator)
     message(STATUS "GLSLANGVALIDATOR_EXECUTABLE = ${GLSLANGVALIDATOR_EXECUTABLE}")
+    include_directories(${Vulkan_INCLUDE_DIR})
 endif()
 
 macro(ncnn_add_layer class)

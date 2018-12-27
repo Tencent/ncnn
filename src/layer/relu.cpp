@@ -14,6 +14,7 @@
 
 #include "relu.h"
 #include <math.h>
+#include <algorithm>
 
 namespace ncnn {
 
