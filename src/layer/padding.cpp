@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "padding.h"
+#include <math.h>
 
 namespace ncnn {
 
@@ -22,6 +23,7 @@ Padding::Padding()
 {
     one_blob_only = true;
     support_inplace = false;
+    support_vulkan = true;
 }
 
 int Padding::load_param(const ParamDict& pd)
@@ -32,6 +34,36 @@ int Padding::load_param(const ParamDict& pd)
     right = pd.get(3, 0);
     type = pd.get(4, 0);
     value = pd.get(5, 0.f);
+
+#if NCNN_VULKAN
+    if (pd.use_vulkan_compute)
+    {
+        local_size_z = std::min(128, vkdev->info.max_workgroup_size[2]);
+
+        int local_size_xy = sqrt(vkdev->info.max_workgroup_invocations / local_size_z);
+        int local_size_xy_prefer = 256;
+        while (local_size_xy < local_size_xy_prefer)
+        {
+            local_size_xy_prefer /= 2;
+        }
+        local_size_x = local_size_xy_prefer;
+        local_size_y = local_size_xy_prefer;
+
+        fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+
+        // setup pipeline specializations
+        specializations.resize(6);
+        specializations[0] = top;
+        specializations[1] = bottom;
+        specializations[2] = left;
+        specializations[3] = right;
+        specializations[4] = type;
+        specializations[5] = value;
+
+        binding_count = 2;
+        push_constant_count = 10;
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -251,5 +283,53 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int Padding::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cmd, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
+
+    int outw = w + left + right;
+    int outh = h + top + bottom;
+
+    top_blob.create(outw, outh, channels, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    fprintf(stderr, "Padding::forward %p %p\n", bottom_blob.buffer, top_blob.buffer);
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+
+    std::vector<int> constants(10);
+    constants[0] = bottom_blob.dims;
+    constants[1] = bottom_blob.w;
+    constants[2] = bottom_blob.h;
+    constants[3] = bottom_blob.c;
+    constants[4] = bottom_blob.cstep;
+    constants[5] = top_blob.dims;
+    constants[6] = top_blob.w;
+    constants[7] = top_blob.h;
+    constants[8] = top_blob.c;
+    constants[9] = top_blob.cstep;
+
+    uint32_t group_count_xyz[3];
+    group_count_xyz[0] = (top_blob.w + local_size_x - 1) / local_size_x;
+    group_count_xyz[1] = (top_blob.h + local_size_y - 1) / local_size_y;
+    group_count_xyz[2] = (top_blob.c + local_size_z - 1) / local_size_z;
+
+    // record
+    cmd.record_bind_pipeline(pipeline);
+    cmd.record_update_bindings(pipeline_layout, descriptor_update_template, bindings);
+    cmd.record_push_constants(pipeline_layout, constants);
+    cmd.record_dispatch(group_count_xyz);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
