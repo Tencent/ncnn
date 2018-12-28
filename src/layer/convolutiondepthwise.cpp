@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "convolutiondepthwise.h"
-
+#include <math.h>
 #include "layer_type.h"
 
 namespace ncnn {
@@ -24,10 +24,15 @@ ConvolutionDepthWise::ConvolutionDepthWise()
 {
     one_blob_only = true;
     support_inplace = false;
+    support_vulkan = true;
+
+    padding = 0;
 }
 
 ConvolutionDepthWise::~ConvolutionDepthWise()
 {
+    delete padding;
+
     for (int i=0; i<(int)quantize_ops.size(); i++)
         delete quantize_ops[i];
 
@@ -65,6 +70,59 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
 
     if (int8_scale_term == 0)
         use_int8_inference = false;
+
+#if NCNN_VULKAN
+    if (pd.use_vulkan_compute)
+    {
+        local_size_z = vkdev->info.max_workgroup_size[2];
+        while (num_output < local_size_z)
+        {
+            local_size_z /= 2;
+        }
+
+        int local_size_xy = sqrt(vkdev->info.max_workgroup_invocations / local_size_z);
+        int local_size_xy_prefer = 64;
+        while (local_size_xy < local_size_xy_prefer)
+        {
+            local_size_xy_prefer /= 2;
+        }
+        local_size_x = local_size_xy_prefer;
+        local_size_y = local_size_xy_prefer;
+
+        fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+
+        // setup pipeline specializations
+        specializations.resize(8);
+        specializations[0] = kernel_w;
+        specializations[1] = kernel_h;
+        specializations[2] = dilation_w;
+        specializations[3] = dilation_h;
+        specializations[4] = stride_w;
+        specializations[5] = stride_h;
+        specializations[6] = bias_term;
+        specializations[7] = group;
+
+        binding_count = 4;
+        push_constant_count = 10;
+
+        padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, pad_h);
+            pd.set(1, pad_h);
+            pd.set(2, pad_w);
+            pd.set(3, pad_w);
+            pd.set(4, 0);
+            pd.set(5, 0.f);
+
+            pd.use_vulkan_compute = 1;
+
+            padding->load_param(pd);
+
+            padding->create_vulkan_pipeline();
+        }
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -186,6 +244,32 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
             dequantize_ops[g]->load_model(ModelBinFromMatArray(weights));
         }
     }
+
+#if NCNN_VULKAN
+    if (mb.vk_model_loader)
+    {
+        // upload weight data
+        weight_data_gpu.create_like(weight_data, mb.weight_vkallocator, mb.staging_vkallocator);
+        bias_data_gpu.create_like(bias_data, mb.weight_vkallocator, mb.staging_vkallocator);
+
+        weight_data_gpu.prepare_staging_buffer();
+        bias_data_gpu.prepare_staging_buffer();
+
+        mb.vk_model_loader->record_upload(weight_data_gpu);
+        mb.vk_model_loader->record_upload(bias_data_gpu);
+
+        mb.vk_model_loader->record_upload_compute_barrier(weight_data_gpu);
+        mb.vk_model_loader->record_upload_compute_barrier(bias_data_gpu);
+
+        weight_data_gpu.map();
+        weight_data_gpu.staging_buffer_upload(weight_data);
+        weight_data_gpu.unmap();
+
+        bias_data_gpu.map();
+        bias_data_gpu.staging_buffer_upload(bias_data);
+        bias_data_gpu.unmap();
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -489,5 +573,68 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int ConvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cmd, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    VkMat bottom_blob_bordered = bottom_blob;
+    if (pad_w > 0 || pad_h > 0)
+    {
+        padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt);
+
+        cmd.record_compute_compute_barrier(bottom_blob_bordered);
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    top_blob.create(outw, outh, num_output, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    fprintf(stderr, "ConvolutionDepthWise::forward %p %p\n", bottom_blob_bordered.buffer, top_blob.buffer);
+
+    std::vector<VkMat> bindings(4);
+    bindings[0] = bottom_blob_bordered;
+    bindings[1] = top_blob;
+    bindings[2] = weight_data_gpu;
+    bindings[3] = bias_data_gpu;
+
+    std::vector<int> constants(10);
+    constants[0] = bottom_blob_bordered.dims;
+    constants[1] = bottom_blob_bordered.w;
+    constants[2] = bottom_blob_bordered.h;
+    constants[3] = bottom_blob_bordered.c;
+    constants[4] = bottom_blob_bordered.cstep;
+    constants[5] = top_blob.dims;
+    constants[6] = top_blob.w;
+    constants[7] = top_blob.h;
+    constants[8] = top_blob.c;
+    constants[9] = top_blob.cstep;
+
+    uint32_t group_count_xyz[3];
+    group_count_xyz[0] = (top_blob.w + local_size_x - 1) / local_size_x;
+    group_count_xyz[1] = (top_blob.h + local_size_y - 1) / local_size_y;
+    group_count_xyz[2] = (top_blob.c + local_size_z - 1) / local_size_z;
+
+    // record
+    cmd.record_bind_pipeline(pipeline);
+    cmd.record_update_bindings(pipeline_layout, descriptor_update_template, bindings);
+    cmd.record_push_constants(pipeline_layout, constants);
+    cmd.record_dispatch(group_count_xyz);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

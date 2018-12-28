@@ -128,8 +128,8 @@ int InnerProduct::load_model(const ModelBin& mb)
     if (mb.vk_model_loader)
     {
         // upload weight data
-        weight_data_gpu.create(weight_data.w, 4u, mb.weight_vkallocator, mb.staging_vkallocator);
-        bias_data_gpu.create(bias_data.w, 4u, mb.weight_vkallocator, mb.staging_vkallocator);
+        weight_data_gpu.create_like(weight_data, mb.weight_vkallocator, mb.staging_vkallocator);
+        bias_data_gpu.create_like(bias_data, mb.weight_vkallocator, mb.staging_vkallocator);
 
         weight_data_gpu.prepare_staging_buffer();
         bias_data_gpu.prepare_staging_buffer();
@@ -264,7 +264,7 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cm
     if (top_blob.empty())
         return -100;
 
-//     fprintf(stderr, "InnerProduct::forward %p %p\n", bottom_blob.buffer, top_blob.buffer);
+    fprintf(stderr, "InnerProduct::forward %p %p\n", bottom_blob.buffer, top_blob.buffer);
 
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob;

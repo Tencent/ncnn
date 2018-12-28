@@ -25,12 +25,35 @@ Softmax::Softmax()
 {
     one_blob_only = true;
     support_inplace = true;
-    support_vulkan = false;
+    support_vulkan = true;
 }
 
 int Softmax::load_param(const ParamDict& pd)
 {
     axis = pd.get(0, 0);
+
+#if NCNN_VULKAN
+    if (pd.use_vulkan_compute)
+    {
+        local_size_z = std::min(128, vkdev->info.max_workgroup_size[2]);
+
+        int local_size_xy = sqrt(vkdev->info.max_workgroup_invocations / local_size_z);
+        int local_size_xy_prefer = 256;
+        while (local_size_xy < local_size_xy_prefer)
+        {
+            local_size_xy_prefer /= 2;
+        }
+        local_size_x = local_size_xy_prefer;
+        local_size_y = local_size_xy_prefer;
+
+        // setup pipeline specializations
+        specializations.resize(1);
+        specializations[0] = axis;
+
+        binding_count = 3;
+        push_constant_count = 5;
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -441,5 +464,76 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int Softmax::forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option& opt) const
+{
+    int dims = bottom_top_blob.dims;
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+
+    fprintf(stderr, "Softmax::forward_inplace %p\n", bottom_top_blob.buffer);
+
+    VkMat max_workspace;
+    VkMat sum_workspace;
+
+    if (dims == 1) // axis == 0
+    {
+        max_workspace.create(1, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(1, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+    }
+    else if (dims == 2 && axis == 0)
+    {
+        max_workspace.create(w, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(w, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+    }
+    else if (dims == 2 && axis == 1)
+    {
+        max_workspace.create(h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+    }
+    else if (dims == 3 && axis == 0)
+    {
+        max_workspace.create(w, h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(w, h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+    }
+    else if (dims == 3 && axis == 1)
+    {
+        max_workspace.create(h, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(h, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+    }
+    else if (dims == 3 && axis == 2)
+    {
+        max_workspace.create(w, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(w, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+    }
+
+    std::vector<VkMat> bindings(3);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = max_workspace;
+    bindings[2] = sum_workspace;
+
+    std::vector<int> constants(5);
+    constants[0] = bottom_top_blob.dims;
+    constants[1] = bottom_top_blob.w;
+    constants[2] = bottom_top_blob.h;
+    constants[3] = bottom_top_blob.c;
+    constants[4] = bottom_top_blob.cstep;
+
+    uint32_t group_count_xyz[3];
+    group_count_xyz[0] = (bottom_top_blob.w + local_size_x - 1) / local_size_x;
+    group_count_xyz[1] = (bottom_top_blob.h + local_size_y - 1) / local_size_y;
+    group_count_xyz[2] = (bottom_top_blob.c + local_size_z - 1) / local_size_z;
+
+    // record
+    cmd.record_bind_pipeline(pipeline);
+    cmd.record_update_bindings(pipeline_layout, descriptor_update_template, bindings);
+    cmd.record_push_constants(pipeline_layout, constants);
+    cmd.record_dispatch(group_count_xyz);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

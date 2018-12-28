@@ -42,6 +42,9 @@ Mat ModelBin::load(int w, int h, int c, int type) const
 #if NCNN_STDIO
 ModelBinFromStdio::ModelBinFromStdio(FILE* _binfp) : binfp(_binfp)
 {
+    vk_model_loader = 0;
+    weight_vkallocator = 0;
+    staging_vkallocator = 0;
 }
 
 Mat ModelBinFromStdio::load(int w, int type) const
@@ -199,6 +202,9 @@ Mat ModelBinFromStdio::load(int w, int type) const
 
 ModelBinFromMemory::ModelBinFromMemory(const unsigned char*& _mem) : mem(_mem)
 {
+    vk_model_loader = 0;
+    weight_vkallocator = 0;
+    staging_vkallocator = 0;
 }
 
 Mat ModelBinFromMemory::load(int w, int type) const
@@ -294,6 +300,9 @@ Mat ModelBinFromMemory::load(int w, int type) const
 
 ModelBinFromMatArray::ModelBinFromMatArray(const Mat* _weights) : weights(_weights)
 {
+    vk_model_loader = 0;
+    weight_vkallocator = 0;
+    staging_vkallocator = 0;
 }
 
 Mat ModelBinFromMatArray::load(int /*w*/, int /*type*/) const

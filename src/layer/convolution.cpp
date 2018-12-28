@@ -197,8 +197,8 @@ int Convolution::load_model(const ModelBin& mb)
     if (mb.vk_model_loader)
     {
         // upload weight data
-        weight_data_gpu.create(weight_data.w, 4u, mb.weight_vkallocator, mb.staging_vkallocator);
-        bias_data_gpu.create(bias_data.w, 4u, mb.weight_vkallocator, mb.staging_vkallocator);
+        weight_data_gpu.create_like(weight_data, mb.weight_vkallocator, mb.staging_vkallocator);
+        bias_data_gpu.create_like(bias_data, mb.weight_vkallocator, mb.staging_vkallocator);
 
         weight_data_gpu.prepare_staging_buffer();
         bias_data_gpu.prepare_staging_buffer();

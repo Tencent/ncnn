@@ -14,13 +14,14 @@
 
 #version 450
 
-layout (constant_id = 0) const int pooling_type = 0;
-layout (constant_id = 1) const int kernel_w = 1;
-layout (constant_id = 2) const int kernel_h = 1;
-layout (constant_id = 3) const int stride_w = 1;
-layout (constant_id = 4) const int stride_h = 1;
-layout (constant_id = 5) const int global_pooling = 0;
-layout (constant_id = 6) const int pad_mode = 0;
+layout (constant_id = 0) const int kernel_w = 1;
+layout (constant_id = 1) const int kernel_h = 1;
+layout (constant_id = 2) const int dilation_w = 1;
+layout (constant_id = 3) const int dilation_h = 1;
+layout (constant_id = 4) const int stride_w = 1;
+layout (constant_id = 5) const int stride_h = 1;
+layout (constant_id = 6) const int bias_term = 0;
+layout (constant_id = 7) const int group = 1;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -28,6 +29,8 @@ layout (local_size_z_id = 235) in;
 
 layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 2) readonly buffer weight { float weight_data[]; };
+layout (binding = 3) readonly buffer bias { float bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -53,42 +56,57 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    float res;
+    float sum = 0;
 
-    if (pooling_type == 0)
+    if (bias_term == 1)
     {
-        res = -99999999;
+        sum = bias_data[gz];
+    }
 
+    if (p.c == group && group == p.outc)
+    {
+        // depth-wise convolution
+        int w_offset = gz * kernel_w * kernel_h;
         int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
 
         for (int y = 0; y < kernel_h; y++)
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res = max(res, bottom_blob_data[v_offset + x]);
+                sum += weight_data[w_offset + x] * bottom_blob_data[v_offset + x * dilation_w];
             }
 
-            v_offset += p.w;
+            v_offset += dilation_h * p.w;
+            w_offset += kernel_w;
         }
-    }
-    else if (pooling_type == 1)
-    {
-        res = 0;
 
-        int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sum;
+
+        return;
+    }
+
+    // group convolution
+    const int c_g = p.c / group;
+    const int outc_g = p.outc / group;
+    const int g = gz / outc_g;
+
+    int w_offset = gz * c_g * kernel_w * kernel_h;
+
+    for (int z = 0; z < c_g; z++)
+    {
+        int v_offset = (g * c_g + z) * p.cstep + gy * stride_h * p.w + gx * stride_w;
 
         for (int y = 0; y < kernel_h; y++)
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res += bottom_blob_data[v_offset + x];
+                sum += weight_data[w_offset + x] * bottom_blob_data[v_offset + x * dilation_w];
             }
 
-            v_offset += p.w;
+            v_offset += dilation_h * p.w;
+            w_offset += kernel_w;
         }
-
-        res /= kernel_w * kernel_h;
     }
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = res;
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sum;
 }
