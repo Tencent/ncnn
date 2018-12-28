@@ -16,6 +16,7 @@
 #include <float.h>
 #include <math.h>
 #include <algorithm>
+#include "layer_type.h"
 
 namespace ncnn {
 
@@ -26,6 +27,13 @@ Pooling::Pooling()
     one_blob_only = true;
     support_inplace = false;
     support_vulkan = true;
+
+    padding = 0;
+}
+
+Pooling::~Pooling()
+{
+    delete padding;
 }
 
 int Pooling::load_param(const ParamDict& pd)
@@ -56,22 +64,37 @@ int Pooling::load_param(const ParamDict& pd)
         local_size_x = local_size_xy_prefer;
         local_size_y = local_size_xy_prefer;
 
+        fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+
         // setup pipeline specializations
-        specializations.resize(11);
+        specializations.resize(7);
         specializations[0] = pooling_type;
         specializations[1] = kernel_w;
         specializations[2] = kernel_h;
         specializations[3] = stride_w;
         specializations[4] = stride_h;
-        specializations[5] = pad_left;
-        specializations[6] = pad_right;
-        specializations[7] = pad_top;
-        specializations[8] = pad_bottom;
-        specializations[9] = global_pooling;
-        specializations[10] = pad_mode;
+        specializations[5] = global_pooling;
+        specializations[6] = pad_mode;
 
         binding_count = 2;
         push_constant_count = 10;
+
+        padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, pad_top);
+            pd.set(1, pad_bottom);
+            pd.set(2, pad_left);
+            pd.set(3, pad_right);
+            pd.set(4, 0);
+            pd.set(5, 0.f);
+
+            pd.use_vulkan_compute = 1;
+
+            padding->load_param(pd);
+
+            padding->create_vulkan_pipeline();
+        }
     }
 #endif // NCNN_VULKAN
 
@@ -331,28 +354,36 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cmd, co
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
 
-    // FIXME valid pad only
-    int outw = (w + pad_left + pad_right - kernel_w) / stride_w + 1;
-    int outh = (h + pad_top + pad_bottom - kernel_h) / stride_h + 1;
+    VkMat bottom_blob_bordered = bottom_blob;
+    {
+        padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt);
 
-//     fprintf(stderr, "%d %d %d\n", outw, outh, channels);
+        cmd.record_compute_compute_barrier(bottom_blob_bordered);
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+
+    // FIXME valid pad only
+    int outw = (w - kernel_w) / stride_w + 1;
+    int outh = (h - kernel_h) / stride_h + 1;
 
     top_blob.create(outw, outh, channels, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
-    fprintf(stderr, "Pooling::forward %p %p\n", bottom_blob.buffer, top_blob.buffer);
+    fprintf(stderr, "Pooling::forward %p %p\n", bottom_blob_bordered.buffer, top_blob.buffer);
 
     std::vector<VkMat> bindings(2);
-    bindings[0] = bottom_blob;
+    bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
 
     std::vector<int> constants(10);
-    constants[0] = bottom_blob.dims;
-    constants[1] = bottom_blob.w;
-    constants[2] = bottom_blob.h;
-    constants[3] = bottom_blob.c;
-    constants[4] = bottom_blob.cstep;
+    constants[0] = bottom_blob_bordered.dims;
+    constants[1] = bottom_blob_bordered.w;
+    constants[2] = bottom_blob_bordered.h;
+    constants[3] = bottom_blob_bordered.c;
+    constants[4] = bottom_blob_bordered.cstep;
     constants[5] = top_blob.dims;
     constants[6] = top_blob.w;
     constants[7] = top_blob.h;

@@ -367,4 +367,27 @@ Layer* create_layer(int index)
     return layer_creator();
 }
 
+#if NCNN_VULKAN
+#if NCNN_STRING
+Layer* create_layer(const char* type, const VulkanDevice* vkdev)
+{
+    int index = layer_to_index(type);
+    if (index == -1)
+        return 0;
+
+    return create_layer(index, vkdev);
+}
+#endif // NCNN_STRING
+
+Layer* create_layer(int index, const VulkanDevice* vkdev)
+{
+    Layer* layer = create_layer(index);
+    if (!layer)
+        return 0;
+
+    layer->vkdev = vkdev;
+    layer->shader_module = vkdev->get_shader_module(index);
+}
+#endif // NCNN_VULKAN
+
 } // namespace ncnn

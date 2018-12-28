@@ -27,12 +27,16 @@ Convolution::Convolution()
     support_inplace = false;
     support_vulkan = true;
 
+    padding = 0;
+
     quantize = 0;
     dequantize = 0;
 }
 
 Convolution::~Convolution()
 {
+    delete padding;
+
     delete quantize;
     delete dequantize;
 }
@@ -78,19 +82,34 @@ int Convolution::load_param(const ParamDict& pd)
         fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
 
         // setup pipeline specializations
-        specializations.resize(9);
+        specializations.resize(7);
         specializations[0] = kernel_w;
         specializations[1] = kernel_h;
         specializations[2] = dilation_w;
         specializations[3] = dilation_h;
         specializations[4] = stride_w;
         specializations[5] = stride_h;
-        specializations[6] = pad_w;
-        specializations[7] = pad_h;
-        specializations[8] = bias_term;
+        specializations[6] = bias_term;
 
         binding_count = 4;
         push_constant_count = 10;
+
+        padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, pad_h);
+            pd.set(1, pad_h);
+            pd.set(2, pad_w);
+            pd.set(3, pad_w);
+            pd.set(4, 0);
+            pd.set(5, 0.f);
+
+            pd.use_vulkan_compute = 1;
+
+            padding->load_param(pd);
+
+            padding->create_vulkan_pipeline();
+        }
     }
 #endif // NCNN_VULKAN
 
@@ -435,27 +454,38 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cmd
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w + pad_w * 2 - kernel_extent_w) / stride_w + 1;
-    int outh = (h + pad_h * 2 - kernel_extent_h) / stride_h + 1;
+    VkMat bottom_blob_bordered = bottom_blob;
+    if (pad_w > 0 || pad_h > 0)
+    {
+        padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt);
+
+        cmd.record_compute_compute_barrier(bottom_blob_bordered);
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
 
     top_blob.create(outw, outh, num_output, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
-    fprintf(stderr, "Convolution::forward %p %p\n", bottom_blob.buffer, top_blob.buffer);
+    fprintf(stderr, "Convolution::forward %p %p\n", bottom_blob_bordered.buffer, top_blob.buffer);
 
     std::vector<VkMat> bindings(4);
-    bindings[0] = bottom_blob;
+    bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu;
     bindings[3] = bias_data_gpu;
 
     std::vector<int> constants(10);
-    constants[0] = bottom_blob.dims;
-    constants[1] = bottom_blob.w;
-    constants[2] = bottom_blob.h;
-    constants[3] = bottom_blob.c;
-    constants[4] = bottom_blob.cstep;
+    constants[0] = bottom_blob_bordered.dims;
+    constants[1] = bottom_blob_bordered.w;
+    constants[2] = bottom_blob_bordered.h;
+    constants[3] = bottom_blob_bordered.c;
+    constants[4] = bottom_blob_bordered.cstep;
     constants[5] = top_blob.dims;
     constants[6] = top_blob.w;
     constants[7] = top_blob.h;

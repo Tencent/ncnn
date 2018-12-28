@@ -5,12 +5,8 @@ layout (constant_id = 1) const int kernel_w = 1;
 layout (constant_id = 2) const int kernel_h = 1;
 layout (constant_id = 3) const int stride_w = 1;
 layout (constant_id = 4) const int stride_h = 1;
-layout (constant_id = 5) const int pad_left = 0;
-layout (constant_id = 6) const int pad_right = 0;
-layout (constant_id = 7) const int pad_top = 0;
-layout (constant_id = 8) const int pad_bottom = 0;
-layout (constant_id = 9) const int global_pooling = 0;
-layout (constant_id = 10) const int pad_mode = 0;
+layout (constant_id = 5) const int global_pooling = 0;
+layout (constant_id = 6) const int pad_mode = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -45,14 +41,11 @@ void main()
 
     float res;
 
-    if (gx - pad_left >= 0 && gx + kernel_w - pad_left < p.w
-        && gy - pad_top >= 0 && gy + kernel_h - pad_top < p.h)
-    {
     if (pooling_type == 0)
     {
         res = -99999;
 
-        int v_offset = gz * p.cstep + (gy * stride_h - pad_top) * p.w + gx * stride_w - pad_left;
+        int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
 
         for (int y = 0; y < kernel_h; y++)
         {
@@ -68,7 +61,7 @@ void main()
     {
         res = 0;
 
-        int v_offset = gz * p.cstep + (gy * stride_h - pad_top) * p.w + gx * stride_w - pad_left;
+        int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
 
         for (int y = 0; y < kernel_h; y++)
         {
@@ -81,54 +74,6 @@ void main()
         }
 
         res /= kernel_w * kernel_h;
-    }
-    }
-    else
-    {
-    if (pooling_type == 0)
-    {
-        res = -99999;
-
-        int v_offset = gz * p.cstep + (gy * stride_h - pad_top) * p.w + gx * stride_w - pad_left;
-
-        for (int y = 0; y < kernel_h; y++)
-        {
-            for (int x = 0; x < kernel_w; x++)
-            {
-                if (gx + x - pad_left >= 0 && gx + x - pad_left < p.w
-                    && gy + y - pad_top >= 0 && gy + y - pad_top < p.h)
-                {
-                    res = max(res, bottom_blob_data[v_offset + x]);
-                }
-            }
-
-            v_offset += p.w;
-        }
-    }
-    else if (pooling_type == 1)
-    {
-        res = 0;
-        int area = 0;
-
-        int v_offset = gz * p.cstep + (gy * stride_h - pad_top) * p.w + gx * stride_w - pad_left;
-
-        for (int y = 0; y < kernel_h; y++)
-        {
-            for (int x = 0; x < kernel_w; x++)
-            {
-                if (gx + x - pad_left >= 0 && gx + x - pad_left < p.w
-                    && gy + y - pad_top >= 0 && gy + y - pad_top < p.h)
-                {
-                    res += bottom_blob_data[v_offset + x];
-                    area += 1;
-                }
-            }
-
-            v_offset += p.w;
-        }
-
-        res /= area;
-    }
     }
 
     top_blob_data[gz * p.outcstep + gy * p.outw + gx] = res;

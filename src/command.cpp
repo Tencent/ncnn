@@ -111,14 +111,14 @@ void Command::record_clone(const VkMat& src, const VkMat& dst)
 
 void Command::record_bind_pipeline(VkPipeline pipeline)
 {
-    fprintf(stderr, "record_bind_pipeline %p\n", pipeline);
+//     fprintf(stderr, "record_bind_pipeline %p\n", pipeline);
 
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 }
 
 void Command::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkMat>& bindings)
 {
-    fprintf(stderr, "record_update_bindings %p %p\n", pipeline_layout, descriptor_update_template);
+//     fprintf(stderr, "record_update_bindings %p %p\n", pipeline_layout, descriptor_update_template);
 
     const int binding_count = bindings.size();
 
@@ -137,21 +137,21 @@ void Command::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescrip
 
 void Command::record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<int>& constants)
 {
-    fprintf(stderr, "record_push_constants %p\n", pipeline_layout);
+//     fprintf(stderr, "record_push_constants %p\n", pipeline_layout);
 
     vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, constants.size() * sizeof(int), constants.data());
 }
 
 void Command::record_dispatch(uint32_t* group_count_xyz)
 {
-    fprintf(stderr, "record_dispatch %d %d %d\n", group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
+//     fprintf(stderr, "record_dispatch %d %d %d\n", group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
 
     vkCmdDispatch(command_buffer, group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
 }
 
 void Command::record_upload_compute_barrier(const VkMat& m)
 {
-    fprintf(stderr, "record_upload_compute_barrier %p\n", m.buffer);
+//     fprintf(stderr, "record_upload_compute_barrier %p\n", m.buffer);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -172,7 +172,7 @@ void Command::record_upload_compute_barrier(const VkMat& m)
 
 void Command::record_compute_download_barrier(const VkMat& m)
 {
-    fprintf(stderr, "record_compute_download_barrier %p\n", m.buffer);
+//     fprintf(stderr, "record_compute_download_barrier %p\n", m.buffer);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -193,7 +193,7 @@ void Command::record_compute_download_barrier(const VkMat& m)
 
 void Command::record_compute_compute_barrier(const VkMat& m)
 {
-    fprintf(stderr, "record_compute_compute_barrier %p\n", m.buffer);
+//     fprintf(stderr, "record_compute_compute_barrier %p\n", m.buffer);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;

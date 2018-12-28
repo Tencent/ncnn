@@ -293,7 +293,7 @@ VkBuffer VkAllocator::create_buffer(int size)
         return 0;
     }
 
-    fprintf(stderr, "VkAllocator CB %p %lu\n", buffer, size);
+//     fprintf(stderr, "VkAllocator CB %p %lu\n", buffer, size);
 
     return buffer;
 }
@@ -318,14 +318,14 @@ VkBuffer VkAllocator::create_staging_buffer(int size)
         return 0;
     }
 
-    fprintf(stderr, "VkAllocator CSB %p %lu\n", buffer, size);
+//     fprintf(stderr, "VkAllocator CSB %p %lu\n", buffer, size);
 
     return buffer;
 }
 
 void VkAllocator::destroy_buffer(VkBuffer buffer)
 {
-    fprintf(stderr, "VkAllocator DB %p\n", buffer);
+//     fprintf(stderr, "VkAllocator DB %p\n", buffer);
 
     buffers_to_destroy.push_back(buffer);
 }

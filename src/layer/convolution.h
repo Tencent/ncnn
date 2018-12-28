@@ -59,6 +59,8 @@ public:
 #if NCNN_VULKAN
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
+
+    ncnn::Layer* padding;
 #endif // NCNN_VULKAN
 
     float weight_data_int8_scale;

@@ -160,7 +160,7 @@ int Net::load_param(FILE* fp)
             continue;
         }
 
-        Layer* layer = create_layer(layer_type);
+        Layer* layer = use_vulkan_compute ? create_layer(layer_type, vkdev) : create_layer(layer_type);
         if (!layer)
         {
             layer = create_custom_layer(layer_type);
@@ -175,12 +175,6 @@ int Net::load_param(FILE* fp)
         layer->type = std::string(layer_type);
         layer->name = std::string(layer_name);
 //         fprintf(stderr, "new layer %d %s\n", i, layer_name);
-
-        if (layer->support_vulkan)
-        {
-            layer->vkdev = vkdev;
-            layer->shader_module = vkdev->get_shader_module(ncnn::layer_to_index(layer_type));
-        }
 
         layer->bottoms.resize(bottom_count);
 
@@ -322,7 +316,7 @@ int Net::load_param_mem(const char* _mem)
             continue;
         }
 
-        Layer* layer = create_layer(layer_type);
+        Layer* layer = use_vulkan_compute ? create_layer(layer_type, vkdev) : create_layer(layer_type);
         if (!layer)
         {
             layer = create_custom_layer(layer_type);
@@ -337,12 +331,6 @@ int Net::load_param_mem(const char* _mem)
         layer->type = std::string(layer_type);
         layer->name = std::string(layer_name);
 //         fprintf(stderr, "new layer %d %s\n", i, layer_name);
-
-        if (layer->support_vulkan)
-        {
-            layer->vkdev = vkdev;
-            layer->shader_module = vkdev->get_shader_module(ncnn::layer_to_index(layer_type));
-        }
 
         layer->bottoms.resize(bottom_count);
 
@@ -486,7 +474,7 @@ int Net::load_param_bin(FILE* fp)
         if (!readValue(top_count, fp))
             return -1;
 
-        Layer* layer = create_layer(typeindex);
+        Layer* layer = use_vulkan_compute ? create_layer(typeindex, vkdev) : create_layer(typeindex);
         if (!layer)
         {
             int custom_index = typeindex & ~LayerType::CustomBit;
@@ -502,12 +490,6 @@ int Net::load_param_bin(FILE* fp)
 //         layer->type = std::string(layer_type);
 //         layer->name = std::string(layer_name);
 //         fprintf(stderr, "new layer %d\n", typeindex);
-
-        if (layer->support_vulkan)
-        {
-            layer->vkdev = vkdev;
-            layer->shader_module = vkdev->get_shader_module(typeindex);
-        }
 
         layer->bottoms.resize(bottom_count);
         for (size_t j=0; j<bottom_count; j++)
@@ -1111,7 +1093,7 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Command& 
 {
     const Layer* layer = layers[layer_index];
 
-    fprintf(stderr, "forward_layer %d %s\n", layer_index, layer->name.c_str());
+//     fprintf(stderr, "forward_layer %d %s\n", layer_index, layer->name.c_str());
 
     if (layer->one_blob_only)
     {
@@ -1253,7 +1235,7 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Command& 
 
     }
 
-    fprintf(stderr, "forward_layer %d %s done\n", layer_index, layer->name.c_str());
+//     fprintf(stderr, "forward_layer %d %s done\n", layer_index, layer->name.c_str());
 
     return 0;
 }

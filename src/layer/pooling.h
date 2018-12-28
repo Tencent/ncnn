@@ -23,6 +23,7 @@ class Pooling : public Layer
 {
 public:
     Pooling();
+    ~Pooling();
 
     virtual int load_param(const ParamDict& pd);
 
@@ -47,6 +48,11 @@ public:
     int pad_bottom;
     int global_pooling;
     int pad_mode;// 0=full 1=valid 2=SAME
+
+#if NCNN_VULKAN
+    ncnn::Layer* padding;
+#endif // NCNN_VULKAN
+
 };
 
 } // namespace ncnn

@@ -28,7 +28,7 @@
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
 #else
-#define ENABLE_VALIDATION_LAYER 1
+#define ENABLE_VALIDATION_LAYER 0
 #endif
 
 namespace ncnn {
@@ -554,7 +554,7 @@ VulkanDevice::~VulkanDevice()
     vkDestroyDevice(device, 0);
 }
 
-VkShaderModule VulkanDevice::get_shader_module(int type_index)
+VkShaderModule VulkanDevice::get_shader_module(int type_index) const
 {
     if (type_index < 0 || type_index >= (int)shader_modules.size())
     {

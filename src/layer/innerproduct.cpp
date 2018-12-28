@@ -264,7 +264,7 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cm
     if (top_blob.empty())
         return -100;
 
-    fprintf(stderr, "InnerProduct::forward %p %p\n", bottom_blob.buffer, top_blob.buffer);
+//     fprintf(stderr, "InnerProduct::forward %p %p\n", bottom_blob.buffer, top_blob.buffer);
 
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob;

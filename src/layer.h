@@ -194,6 +194,15 @@ Layer* create_layer(const char* type);
 // create layer from layer type
 Layer* create_layer(int index);
 
+#if NCNN_VULKAN
+#if NCNN_STRING
+// create layer from type name, enable vulkan if possible
+Layer* create_layer(const char* type, const VulkanDevice* vkdev);
+#endif // NCNN_STRING
+// create layer from layer type, enable vulkan if possible
+Layer* create_layer(int index, const VulkanDevice* vkdev);
+#endif // NCNN_VULKAN
+
 #define DEFINE_LAYER_CREATOR(name) \
     ::ncnn::Layer* name##_layer_creator() { return new name; }
 
