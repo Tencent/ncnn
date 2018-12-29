@@ -31,6 +31,11 @@ public:
     virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
+#if NCNN_VULKAN
+    virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, Command& cmd, const Option& opt) const;
+    virtual int forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option& opt) const;
+#endif // NCNN_VULKAN
+
 public:
     // param
     int scale_data_size;
@@ -39,6 +44,12 @@ public:
     // model
     Mat scale_data;
     Mat bias_data;
+
+#if NCNN_VULKAN
+    VkMat scale_data_gpu;
+    VkMat bias_data_gpu;
+#endif // NCNN_VULKAN
+
 };
 
 } // namespace ncnn
