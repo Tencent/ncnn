@@ -181,24 +181,27 @@ int Convolution::load_model(const ModelBin& mb)
     {
         // upload weight data
         weight_data_gpu.create_like(weight_data, mb.weight_vkallocator, mb.staging_vkallocator);
-        bias_data_gpu.create_like(bias_data, mb.weight_vkallocator, mb.staging_vkallocator);
-
         weight_data_gpu.prepare_staging_buffer();
-        bias_data_gpu.prepare_staging_buffer();
 
         mb.vk_model_loader->record_upload(weight_data_gpu);
-        mb.vk_model_loader->record_upload(bias_data_gpu);
-
         mb.vk_model_loader->record_upload_compute_barrier(weight_data_gpu);
-        mb.vk_model_loader->record_upload_compute_barrier(bias_data_gpu);
 
         weight_data_gpu.map();
         weight_data_gpu.staging_buffer_upload(weight_data);
         weight_data_gpu.unmap();
 
-        bias_data_gpu.map();
-        bias_data_gpu.staging_buffer_upload(bias_data);
-        bias_data_gpu.unmap();
+        if (bias_term)
+        {
+            bias_data_gpu.create_like(bias_data, mb.weight_vkallocator, mb.staging_vkallocator);
+            bias_data_gpu.prepare_staging_buffer();
+
+            mb.vk_model_loader->record_upload(bias_data_gpu);
+            mb.vk_model_loader->record_upload_compute_barrier(bias_data_gpu);
+
+            bias_data_gpu.map();
+            bias_data_gpu.staging_buffer_upload(bias_data);
+            bias_data_gpu.unmap();
+        }
     }
 #endif // NCNN_VULKAN
 
