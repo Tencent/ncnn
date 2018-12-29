@@ -261,12 +261,12 @@ int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, Command& cmd, c
     bindings[1] = scale_blob;
     bindings[2] = bias_data_gpu;
 
-    std::vector<int> constants(5);
-    constants[0] = bottom_top_blob.dims;
-    constants[1] = bottom_top_blob.w;
-    constants[2] = bottom_top_blob.h;
-    constants[3] = bottom_top_blob.c;
-    constants[4] = bottom_top_blob.cstep;
+    std::vector<vk_constant_type> constants(5);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = bottom_top_blob.cstep;
 
     uint32_t group_count_xyz[3];
     group_count_xyz[0] = (bottom_top_blob.w + local_size_x - 1) / local_size_x;

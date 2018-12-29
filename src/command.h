@@ -42,7 +42,7 @@ public:
 
     void record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkMat>& bindings);
 
-    void record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<int>& constants);
+    void record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<vk_constant_type>& constants);
 
     void record_dispatch(uint32_t* group_count_xyz);
 

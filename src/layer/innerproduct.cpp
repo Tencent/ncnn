@@ -272,17 +272,17 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cm
     bindings[2] = weight_data_gpu;
     bindings[3] = bias_data_gpu;
 
-    std::vector<int> constants(10);
-    constants[0] = bottom_blob.dims;
-    constants[1] = bottom_blob.w;
-    constants[2] = bottom_blob.h;
-    constants[3] = bottom_blob.c;
-    constants[4] = bottom_blob.cstep;
-    constants[5] = top_blob.dims;
-    constants[6] = top_blob.w;
-    constants[7] = top_blob.h;
-    constants[8] = top_blob.c;
-    constants[9] = top_blob.cstep;
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
 
     uint32_t group_count_xyz[3];
     group_count_xyz[0] = (top_blob.w + local_size_x - 1) / local_size_x;

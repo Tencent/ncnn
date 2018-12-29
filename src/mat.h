@@ -268,6 +268,9 @@ public:
     size_t cstep;
 };
 
+// type for vulkan specialization constant and push constant
+union vk_specialization_type { int i; float f; };
+union vk_constant_type { int i; float f; };
 #endif // NCNN_VULKAN
 
 // misc function

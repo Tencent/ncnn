@@ -227,26 +227,26 @@ int Layer::create_pipeline()
     for (int i=0; i<specialization_count; i++)
     {
         specializationMapEntries[i].constantID = i;
-        specializationMapEntries[i].offset = i * sizeof(int);
-        specializationMapEntries[i].size = sizeof(int);
+        specializationMapEntries[i].offset = i * sizeof(vk_specialization_type);
+        specializationMapEntries[i].size = sizeof(vk_specialization_type);
     }
 
-    std::vector<specialization_type> specialization_data = specializations;
+    std::vector<vk_specialization_type> specialization_data = specializations;
 
     // append local_size_xyz specialization
     VkSpecializationMapEntry* local_size_xyz_entries = specializationMapEntries.data() + specialization_count;
 
     local_size_xyz_entries[0].constantID = 233;
-    local_size_xyz_entries[0].offset = (specialization_count+0) * sizeof(specialization_type);
-    local_size_xyz_entries[0].size = sizeof(specialization_type);
+    local_size_xyz_entries[0].offset = (specialization_count+0) * sizeof(vk_specialization_type);
+    local_size_xyz_entries[0].size = sizeof(vk_specialization_type);
 
     local_size_xyz_entries[1].constantID = 234;
-    local_size_xyz_entries[1].offset = (specialization_count+1) * sizeof(specialization_type);
-    local_size_xyz_entries[1].size = sizeof(specialization_type);
+    local_size_xyz_entries[1].offset = (specialization_count+1) * sizeof(vk_specialization_type);
+    local_size_xyz_entries[1].size = sizeof(vk_specialization_type);
 
     local_size_xyz_entries[2].constantID = 235;
-    local_size_xyz_entries[2].offset = (specialization_count+2) * sizeof(specialization_type);
-    local_size_xyz_entries[2].size = sizeof(specialization_type);
+    local_size_xyz_entries[2].offset = (specialization_count+2) * sizeof(vk_specialization_type);
+    local_size_xyz_entries[2].size = sizeof(vk_specialization_type);
 
     specialization_data.resize(specialization_count + 3);
     specialization_data[ specialization_count+0 ].i = local_size_x;
@@ -256,7 +256,7 @@ int Layer::create_pipeline()
     VkSpecializationInfo specializationInfo;
     specializationInfo.mapEntryCount = specializationMapEntries.size();
     specializationInfo.pMapEntries = specializationMapEntries.data();
-    specializationInfo.dataSize = specialization_data.size() * sizeof(specialization_type);
+    specializationInfo.dataSize = specialization_data.size() * sizeof(vk_specialization_type);
     specializationInfo.pData = specialization_data.data();
 
     VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo;

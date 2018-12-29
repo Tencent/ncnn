@@ -135,11 +135,11 @@ void Command::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescrip
     vkdev->vkCmdPushDescriptorSetWithTemplateKHR(command_buffer, descriptor_update_template, pipeline_layout, 0, descriptorBufferInfos.data());
 }
 
-void Command::record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<int>& constants)
+void Command::record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<vk_constant_type>& constants)
 {
 //     fprintf(stderr, "record_push_constants %p\n", pipeline_layout);
 
-    vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, constants.size() * sizeof(int), constants.data());
+    vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, constants.size() * sizeof(vk_constant_type), constants.data());
 }
 
 void Command::record_dispatch(uint32_t* group_count_xyz)
