@@ -23,12 +23,41 @@ BatchNorm::BatchNorm()
 {
     one_blob_only = true;
     support_inplace = true;
+    support_vulkan = true;
 }
 
 int BatchNorm::load_param(const ParamDict& pd)
 {
     channels = pd.get(0, 0);
     eps = pd.get(1, 0.f);
+
+#if NCNN_VULKAN
+    if (pd.use_vulkan_compute)
+    {
+        local_size_z = vkdev->info.max_workgroup_size[2];
+        while (channels < local_size_z)
+        {
+            local_size_z /= 2;
+        }
+
+        int local_size_xy = sqrt(vkdev->info.max_workgroup_invocations / local_size_z);
+        int local_size_xy_prefer = 64;
+        while (local_size_xy < local_size_xy_prefer)
+        {
+            local_size_xy_prefer /= 2;
+        }
+        local_size_x = local_size_xy_prefer;
+        local_size_y = local_size_xy_prefer;
+
+        fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+
+        // setup pipeline specializations
+        specializations.resize(0);
+
+        binding_count = 3;
+        push_constant_count = 5;
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -64,6 +93,32 @@ int BatchNorm::load_model(const ModelBin& mb)
         a_data[i] = bias_data[i] - slope_data[i] * mean_data[i] / sqrt_var;
         b_data[i] = slope_data[i] / sqrt_var;
     }
+
+#if NCNN_VULKAN
+    if (mb.vk_model_loader)
+    {
+        // upload weight data
+        a_data_gpu.create_like(a_data, mb.weight_vkallocator, mb.staging_vkallocator);
+        b_data_gpu.create_like(b_data, mb.weight_vkallocator, mb.staging_vkallocator);
+
+        a_data_gpu.prepare_staging_buffer();
+        b_data_gpu.prepare_staging_buffer();
+
+        mb.vk_model_loader->record_upload(a_data_gpu);
+        mb.vk_model_loader->record_upload(b_data_gpu);
+
+        mb.vk_model_loader->record_upload_compute_barrier(a_data_gpu);
+        mb.vk_model_loader->record_upload_compute_barrier(b_data_gpu);
+
+        a_data_gpu.map();
+        a_data_gpu.staging_buffer_upload(a_data);
+        a_data_gpu.unmap();
+
+        b_data_gpu.map();
+        b_data_gpu.staging_buffer_upload(b_data);
+        b_data_gpu.unmap();
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -130,5 +185,41 @@ int BatchNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int BatchNorm::forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+
+    fprintf(stderr, "BatchNorm::forward_inplace %p\n", bottom_top_blob.buffer);
+
+    std::vector<VkMat> bindings(3);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = a_data_gpu;
+    bindings[2] = b_data_gpu;
+
+    std::vector<int> constants(5);
+    constants[0] = bottom_top_blob.dims;
+    constants[1] = bottom_top_blob.w;
+    constants[2] = bottom_top_blob.h;
+    constants[3] = bottom_top_blob.c;
+    constants[4] = bottom_top_blob.cstep;
+
+    uint32_t group_count_xyz[3];
+    group_count_xyz[0] = (bottom_top_blob.w + local_size_x - 1) / local_size_x;
+    group_count_xyz[1] = (bottom_top_blob.h + local_size_y - 1) / local_size_y;
+    group_count_xyz[2] = (bottom_top_blob.c + local_size_z - 1) / local_size_z;
+
+    // record
+    cmd.record_bind_pipeline(pipeline);
+    cmd.record_update_bindings(pipeline_layout, descriptor_update_template, bindings);
+    cmd.record_push_constants(pipeline_layout, constants);
+    cmd.record_dispatch(group_count_xyz);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
