@@ -68,13 +68,13 @@ int Pooling::load_param(const ParamDict& pd)
 
         // setup pipeline specializations
         specializations.resize(7);
-        specializations[0] = pooling_type;
-        specializations[1] = kernel_w;
-        specializations[2] = kernel_h;
-        specializations[3] = stride_w;
-        specializations[4] = stride_h;
-        specializations[5] = global_pooling;
-        specializations[6] = pad_mode;
+        specializations[0].i = pooling_type;
+        specializations[1].i = kernel_w;
+        specializations[2].i = kernel_h;
+        specializations[3].i = stride_w;
+        specializations[4].i = stride_h;
+        specializations[5].i = global_pooling;
+        specializations[6].i = pad_mode;
 
         binding_count = 2;
         push_constant_count = 10;

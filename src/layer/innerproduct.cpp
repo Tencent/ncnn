@@ -63,7 +63,7 @@ int InnerProduct::load_param(const ParamDict& pd)
 
         // setup pipeline specializations
         specializations.resize(1);
-        specializations[0] = bias_term;
+        specializations[0].i = bias_term;
 
         binding_count = 4;
         push_constant_count = 10;

@@ -46,7 +46,8 @@ int ReLU::load_param(const ParamDict& pd)
         local_size_y = local_size_xy_prefer;
 
         // setup pipeline specializations
-        specializations.resize(0);
+        specializations.resize(1);
+        specializations[0].f = slope;
 
         binding_count = 1;
         push_constant_count = 5;

@@ -153,7 +153,8 @@ public:
     int local_size_y;
     int local_size_z;
 
-    std::vector<int> specializations;
+    union specialization_type { int i; float f; };
+    std::vector<specialization_type> specializations;
     int binding_count;
     int push_constant_count;
 

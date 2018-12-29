@@ -48,7 +48,7 @@ int Softmax::load_param(const ParamDict& pd)
 
         // setup pipeline specializations
         specializations.resize(1);
-        specializations[0] = axis;
+        specializations[0].i = axis;
 
         binding_count = 3;
         push_constant_count = 5;

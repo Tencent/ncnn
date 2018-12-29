@@ -53,12 +53,12 @@ int Padding::load_param(const ParamDict& pd)
 
         // setup pipeline specializations
         specializations.resize(6);
-        specializations[0] = top;
-        specializations[1] = bottom;
-        specializations[2] = left;
-        specializations[3] = right;
-        specializations[4] = type;
-        specializations[5] = value;
+        specializations[0].i = top;
+        specializations[1].i = bottom;
+        specializations[2].i = left;
+        specializations[3].i = right;
+        specializations[4].i = type;
+        specializations[5].f = value;
 
         binding_count = 2;
         push_constant_count = 10;

@@ -14,6 +14,8 @@
 
 #version 450
 
+layout (constant_id = 0) const float slope = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -38,9 +40,14 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    float v = bottom_top_blob_data[gz * p.cstep + gy * p.w + gx];
+    const int gi = gz * p.cstep + gy * p.w + gx;
 
-    v = max(v, 0.0);
+    float v = bottom_top_blob_data[gi];
 
-    bottom_top_blob_data[gz * p.cstep + gy * p.w + gx] = v;
+    if (slope == 0)
+        v = max(v, 0.0);
+    else
+        v = v < 0 ? v * slope : v;
+
+    bottom_top_blob_data[gi] = v;
 }

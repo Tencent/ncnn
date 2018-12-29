@@ -54,12 +54,12 @@ void main()
             max_workspace_data[0] = max_value;
         }
 
-        memoryBarrierShared();
+        memoryBarrierBuffer();
         barrier();
 
         bottom_top_blob_data[gx] = exp(bottom_top_blob_data[gx] - max_workspace_data[0]);
 
-        memoryBarrierShared();
+        memoryBarrierBuffer();
         barrier();
 
         if (gx == 0)
@@ -72,7 +72,7 @@ void main()
             sum_workspace_data[0] = sum_value;
         }
 
-        memoryBarrierShared();
+        memoryBarrierBuffer();
         barrier();
 
         bottom_top_blob_data[gx] /= sum_workspace_data[0];
@@ -94,7 +94,7 @@ void main()
 
     if (p.dims == 3 && axis == 0)
     {
-        int g_offset = gz * p.cstep + gy * p.w + gx;
+        int gi = gz * p.cstep + gy * p.w + gx;
 
         if (gz == 0)
         {
@@ -107,12 +107,12 @@ void main()
             max_workspace_data[ gy * p.w + gx ] = max_value;
         }
 
-        memoryBarrierShared();
+        memoryBarrierBuffer();
         barrier();
 
-        bottom_top_blob_data[ g_offset ] = exp(bottom_top_blob_data[ g_offset ] - max_workspace_data[ gy * p.w + gx ]);
+        bottom_top_blob_data[gi] = exp(bottom_top_blob_data[gi] - max_workspace_data[ gy * p.w + gx ]);
 
-        memoryBarrierShared();
+        memoryBarrierBuffer();
         barrier();
 
         if (gz == 0)
@@ -126,10 +126,10 @@ void main()
             sum_workspace_data[ gy * p.w + gx ] = sum_value;
         }
 
-        memoryBarrierShared();
+        memoryBarrierBuffer();
         barrier();
 
-        bottom_top_blob_data[ g_offset ] /= sum_workspace_data[ gy * p.w + gx ];
+        bottom_top_blob_data[gi] /= sum_workspace_data[ gy * p.w + gx ];
 
         return;
     }

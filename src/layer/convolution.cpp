@@ -83,13 +83,13 @@ int Convolution::load_param(const ParamDict& pd)
 
         // setup pipeline specializations
         specializations.resize(7);
-        specializations[0] = kernel_w;
-        specializations[1] = kernel_h;
-        specializations[2] = dilation_w;
-        specializations[3] = dilation_h;
-        specializations[4] = stride_w;
-        specializations[5] = stride_h;
-        specializations[6] = bias_term;
+        specializations[0].i = kernel_w;
+        specializations[1].i = kernel_h;
+        specializations[2].i = dilation_w;
+        specializations[3].i = dilation_h;
+        specializations[4].i = stride_w;
+        specializations[5].i = stride_h;
+        specializations[6].i = bias_term;
 
         binding_count = 4;
         push_constant_count = 10;

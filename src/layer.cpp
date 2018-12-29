@@ -231,31 +231,32 @@ int Layer::create_pipeline()
         specializationMapEntries[i].size = sizeof(int);
     }
 
-    std::vector<int> specialization_data = specializations;
+    std::vector<specialization_type> specialization_data = specializations;
 
     // append local_size_xyz specialization
     VkSpecializationMapEntry* local_size_xyz_entries = specializationMapEntries.data() + specialization_count;
 
     local_size_xyz_entries[0].constantID = 233;
-    local_size_xyz_entries[0].offset = (specialization_count+0) * sizeof(int);
-    local_size_xyz_entries[0].size = sizeof(int);
+    local_size_xyz_entries[0].offset = (specialization_count+0) * sizeof(specialization_type);
+    local_size_xyz_entries[0].size = sizeof(specialization_type);
 
     local_size_xyz_entries[1].constantID = 234;
-    local_size_xyz_entries[1].offset = (specialization_count+1) * sizeof(int);
-    local_size_xyz_entries[1].size = sizeof(int);
+    local_size_xyz_entries[1].offset = (specialization_count+1) * sizeof(specialization_type);
+    local_size_xyz_entries[1].size = sizeof(specialization_type);
 
     local_size_xyz_entries[2].constantID = 235;
-    local_size_xyz_entries[2].offset = (specialization_count+2) * sizeof(int);
-    local_size_xyz_entries[2].size = sizeof(int);
+    local_size_xyz_entries[2].offset = (specialization_count+2) * sizeof(specialization_type);
+    local_size_xyz_entries[2].size = sizeof(specialization_type);
 
-    specialization_data.push_back(local_size_x);
-    specialization_data.push_back(local_size_y);
-    specialization_data.push_back(local_size_z);
+    specialization_data.resize(specialization_count + 3);
+    specialization_data[ specialization_count+0 ].i = local_size_x;
+    specialization_data[ specialization_count+1 ].i = local_size_y;
+    specialization_data[ specialization_count+2 ].i = local_size_z;
 
     VkSpecializationInfo specializationInfo;
     specializationInfo.mapEntryCount = specializationMapEntries.size();
     specializationInfo.pMapEntries = specializationMapEntries.data();
-    specializationInfo.dataSize = specialization_data.size() * sizeof(int);
+    specializationInfo.dataSize = specialization_data.size() * sizeof(specialization_type);
     specializationInfo.pData = specialization_data.data();
 
     VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo;
@@ -387,6 +388,8 @@ Layer* create_layer(int index, const VulkanDevice* vkdev)
 
     layer->vkdev = vkdev;
     layer->shader_module = vkdev->get_shader_module(index);
+
+    return layer;
 }
 #endif // NCNN_VULKAN
 
