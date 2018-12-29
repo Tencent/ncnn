@@ -135,6 +135,8 @@ public:
     VkDescriptorUpdateTemplate descriptor_update_template;
 
 public:
+    int set_optimal_local_size_xyz(int w = 32, int h = 32, int c = 32);
+
     int create_vulkan_pipeline();
     int destroy_vulkan_pipeline();
 

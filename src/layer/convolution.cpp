@@ -15,7 +15,6 @@
 #include "convolution.h"
 
 #include "layer_type.h"
-#include <math.h>
 
 namespace ncnn {
 
@@ -64,24 +63,8 @@ int Convolution::load_param(const ParamDict& pd)
 #if NCNN_VULKAN
     if (pd.use_vulkan_compute)
     {
-        local_size_z = vkdev->info.max_workgroup_size[2];
-        while (num_output < local_size_z)
-        {
-            local_size_z /= 2;
-        }
+        set_optimal_local_size_xyz(32, 32, num_output);
 
-        int local_size_xy = sqrt(vkdev->info.max_workgroup_invocations / local_size_z);
-        int local_size_xy_prefer = 64;
-        while (local_size_xy < local_size_xy_prefer)
-        {
-            local_size_xy_prefer /= 2;
-        }
-        local_size_x = local_size_xy_prefer;
-        local_size_y = local_size_xy_prefer;
-
-        fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
-
-        // setup pipeline specializations
         specializations.resize(7);
         specializations[0].i = kernel_w;
         specializations[1].i = kernel_h;

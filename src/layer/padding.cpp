@@ -13,7 +13,6 @@
 // specific language governing permissions and limitations under the License.
 
 #include "padding.h"
-#include <math.h>
 
 namespace ncnn {
 
@@ -38,20 +37,8 @@ int Padding::load_param(const ParamDict& pd)
 #if NCNN_VULKAN
     if (pd.use_vulkan_compute)
     {
-        local_size_z = std::min(128, vkdev->info.max_workgroup_size[2]);
+        set_optimal_local_size_xyz();
 
-        int local_size_xy = sqrt(vkdev->info.max_workgroup_invocations / local_size_z);
-        int local_size_xy_prefer = 256;
-        while (local_size_xy < local_size_xy_prefer)
-        {
-            local_size_xy_prefer /= 2;
-        }
-        local_size_x = local_size_xy_prefer;
-        local_size_y = local_size_xy_prefer;
-
-        fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
-
-        // setup pipeline specializations
         specializations.resize(6);
         specializations[0].i = top;
         specializations[1].i = bottom;

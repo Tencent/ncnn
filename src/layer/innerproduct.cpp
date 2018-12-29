@@ -51,17 +51,8 @@ int InnerProduct::load_param(const ParamDict& pd)
 #if NCNN_VULKAN
     if (pd.use_vulkan_compute)
     {
-        local_size_x = vkdev->info.max_workgroup_size[0];
-        while (num_output < local_size_x)
-        {
-            local_size_x /= 2;
-        }
-        local_size_y = 1;
-        local_size_z = 1;
+        set_optimal_local_size_xyz(num_output, 1, 1);
 
-        fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
-
-        // setup pipeline specializations
         specializations.resize(1);
         specializations[0].i = bias_term;
 

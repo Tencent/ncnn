@@ -35,18 +35,8 @@ int Softmax::load_param(const ParamDict& pd)
 #if NCNN_VULKAN
     if (pd.use_vulkan_compute)
     {
-        local_size_z = std::min(128, vkdev->info.max_workgroup_size[2]);
+        set_optimal_local_size_xyz();
 
-        int local_size_xy = sqrt(vkdev->info.max_workgroup_invocations / local_size_z);
-        int local_size_xy_prefer = 256;
-        while (local_size_xy < local_size_xy_prefer)
-        {
-            local_size_xy_prefer /= 2;
-        }
-        local_size_x = local_size_xy_prefer;
-        local_size_y = local_size_xy_prefer;
-
-        // setup pipeline specializations
         specializations.resize(1);
         specializations[0].i = axis;
 
