@@ -128,10 +128,9 @@ public:
     VkDescriptorSetLayout descriptorset_layout;
     VkPipelineLayout pipeline_layout;
 
-    // op forward
+    // op forward TODO use pipeline cache ?
     VkPipeline pipeline;
 
-    // op forward
     VkDescriptorUpdateTemplate descriptor_update_template;
 
 public:
@@ -142,7 +141,6 @@ public:
 
 protected:
     // misc routine for creating things when creating pipeline
-    // TODO use pipeline cache ?
     int create_descriptorset_layout();
     int create_pipeline_layout();
     int create_pipeline();

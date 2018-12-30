@@ -213,14 +213,20 @@ int Layer::create_vulkan_pipeline()
 
     create_pipeline();
 
-    create_descriptor_update_template();
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        create_descriptor_update_template();
+    }
 
     return 0;
 }
 
 int Layer::destroy_vulkan_pipeline()
 {
-    vkdev->vkDestroyDescriptorUpdateTemplateKHR(vkdev->vkdevice(), descriptor_update_template, 0);
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        vkdev->vkDestroyDescriptorUpdateTemplateKHR(vkdev->vkdevice(), descriptor_update_template, 0);
+    }
 
     vkDestroyPipeline(vkdev->vkdevice(), pipeline, 0);
 
@@ -266,9 +272,14 @@ int Layer::create_descriptorset_layout()
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
     descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     descriptorSetLayoutCreateInfo.pNext = 0;
-    descriptorSetLayoutCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+    descriptorSetLayoutCreateInfo.flags = 0;
     descriptorSetLayoutCreateInfo.bindingCount = binding_count;
     descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBindings.data();
+
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        descriptorSetLayoutCreateInfo.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+    }
 
     VkResult ret = vkCreateDescriptorSetLayout(vkdev->vkdevice(), &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
     if (ret != VK_SUCCESS)
@@ -293,6 +304,7 @@ int Layer::create_pipeline_layout()
     pipelineLayoutCreateInfo.flags = 0;
     pipelineLayoutCreateInfo.setLayoutCount = 1;
     pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout;
+
     if (push_constant_count > 0)
     {
     pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
@@ -332,24 +344,26 @@ int Layer::create_pipeline()
     std::vector<vk_specialization_type> specialization_data = specializations;
 
     // append local_size_xyz specialization
-    VkSpecializationMapEntry* local_size_xyz_entries = specializationMapEntries.data() + specialization_count;
+    {
+        VkSpecializationMapEntry* local_size_xyz_entries = specializationMapEntries.data() + specialization_count;
 
-    local_size_xyz_entries[0].constantID = 233;
-    local_size_xyz_entries[0].offset = (specialization_count+0) * sizeof(vk_specialization_type);
-    local_size_xyz_entries[0].size = sizeof(vk_specialization_type);
+        local_size_xyz_entries[0].constantID = 233;
+        local_size_xyz_entries[0].offset = (specialization_count+0) * sizeof(vk_specialization_type);
+        local_size_xyz_entries[0].size = sizeof(vk_specialization_type);
 
-    local_size_xyz_entries[1].constantID = 234;
-    local_size_xyz_entries[1].offset = (specialization_count+1) * sizeof(vk_specialization_type);
-    local_size_xyz_entries[1].size = sizeof(vk_specialization_type);
+        local_size_xyz_entries[1].constantID = 234;
+        local_size_xyz_entries[1].offset = (specialization_count+1) * sizeof(vk_specialization_type);
+        local_size_xyz_entries[1].size = sizeof(vk_specialization_type);
 
-    local_size_xyz_entries[2].constantID = 235;
-    local_size_xyz_entries[2].offset = (specialization_count+2) * sizeof(vk_specialization_type);
-    local_size_xyz_entries[2].size = sizeof(vk_specialization_type);
+        local_size_xyz_entries[2].constantID = 235;
+        local_size_xyz_entries[2].offset = (specialization_count+2) * sizeof(vk_specialization_type);
+        local_size_xyz_entries[2].size = sizeof(vk_specialization_type);
 
-    specialization_data.resize(specialization_count + 3);
-    specialization_data[ specialization_count+0 ].i = local_size_x;
-    specialization_data[ specialization_count+1 ].i = local_size_y;
-    specialization_data[ specialization_count+2 ].i = local_size_z;
+        specialization_data.resize(specialization_count + 3);
+        specialization_data[ specialization_count+0 ].i = local_size_x;
+        specialization_data[ specialization_count+1 ].i = local_size_y;
+        specialization_data[ specialization_count+2 ].i = local_size_z;
+    }
 
     VkSpecializationInfo specializationInfo;
     specializationInfo.mapEntryCount = specializationMapEntries.size();

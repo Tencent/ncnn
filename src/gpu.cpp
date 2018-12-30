@@ -430,6 +430,9 @@ int create_gpu_instance()
             return -1;
         }
 
+        gpu_info.support_VK_KHR_descriptor_update_template = 0;
+        gpu_info.support_VK_KHR_push_descriptor = 0;
+        gpu_info.support_VK_AMD_gpu_shader_half_float = 0;
         for (uint32_t i=0; i<deviceExtensionPropertyCount; i++)
         {
             const VkExtensionProperties& exp = deviceExtensionProperties[i];
