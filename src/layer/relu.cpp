@@ -88,10 +88,6 @@ int ReLU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_VULKAN
 int ReLU::forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option& opt) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-
     fprintf(stderr, "ReLU::forward_inplace %p\n", bottom_top_blob.buffer);
 
     std::vector<VkMat> bindings(1);

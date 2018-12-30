@@ -228,10 +228,6 @@ int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, Command& cmd, c
     VkMat& bottom_top_blob = bottom_top_blobs[0];
     const VkMat& scale_blob = bottom_top_blobs[1];
 
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-
     fprintf(stderr, "Scale::forward_inplace %p\n", bottom_top_blob.buffer);
 
     std::vector<VkMat> bindings(3);

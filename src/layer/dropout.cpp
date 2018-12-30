@@ -80,10 +80,6 @@ int Dropout::forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option&
         return 0;
     }
 
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-
     fprintf(stderr, "Dropout::forward_inplace %p\n", bottom_top_blob.buffer);
 
     std::vector<VkMat> bindings(1);

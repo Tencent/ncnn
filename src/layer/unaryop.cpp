@@ -24,11 +24,25 @@ UnaryOp::UnaryOp()
 {
     one_blob_only = true;
     support_inplace = true;
+    support_vulkan = true;
 }
 
 int UnaryOp::load_param(const ParamDict& pd)
 {
     op_type = pd.get(0, 0);
+
+#if NCNN_VULKAN
+    if (pd.use_vulkan_compute)
+    {
+        set_optimal_local_size_xyz();
+
+        specializations.resize(1);
+        specializations[0].i = op_type;
+
+        binding_count = 1;
+        push_constant_count = 5;
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -181,5 +195,35 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int UnaryOp::forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option& opt) const
+{
+    fprintf(stderr, "UnaryOp::forward_inplace %p\n", bottom_top_blob.buffer);
+
+    std::vector<VkMat> bindings(1);
+    bindings[0] = bottom_top_blob;
+
+    std::vector<vk_constant_type> constants(5);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = bottom_top_blob.cstep;
+
+    uint32_t group_count_xyz[3];
+    group_count_xyz[0] = (bottom_top_blob.w + local_size_x - 1) / local_size_x;
+    group_count_xyz[1] = (bottom_top_blob.h + local_size_y - 1) / local_size_y;
+    group_count_xyz[2] = (bottom_top_blob.c + local_size_z - 1) / local_size_z;
+
+    // record
+    cmd.record_bind_pipeline(pipeline);
+    cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
+    cmd.record_push_constants(pipeline_layout, constants);
+    cmd.record_dispatch(group_count_xyz);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

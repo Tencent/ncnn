@@ -277,6 +277,8 @@ int Padding::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cmd, co
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+
+    // TODO vec and image padding
     int dims = bottom_blob.dims;
 
     int outw = w + left + right;
