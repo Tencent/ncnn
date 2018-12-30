@@ -105,13 +105,33 @@ void Command::record_clone(const VkMat& src, const VkMat& dst)
     delayed_records.push_back(r);
 }
 
+void Command::record_copy_region(const VkMat& src, const VkMat& dst, const VkBufferCopy& region)
+{
+    std::vector<VkBufferCopy> regions(1);
+    regions[0] = region;
+
+    record_copy_regions(src, dst, regions);
+}
+
+void Command::record_copy_regions(const VkMat& src, const VkMat& dst, const std::vector<VkBufferCopy>& regions)
+{
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+        return copy_buffer_regions(src.buffer, dst.buffer, regions);
+
+    record_type r;
+    r.type = 2;
+    r.copy_regions = { src.buffer, dst.buffer };
+    r.regions = regions;
+    delayed_records.push_back(r);
+}
+
 void Command::record_bind_pipeline(VkPipeline pipeline)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return bind_pipeline(pipeline);
 
     record_type r;
-    r.type = 2;
+    r.type = 3;
     r.bind_pipeline = { pipeline };
     delayed_records.push_back(r);
 }
@@ -193,7 +213,7 @@ void Command::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescrip
     vkUpdateDescriptorSets(vkdev->vkdevice(), binding_count, writeDescriptorSets.data(), 0, 0);
 
     record_type r;
-    r.type = 3;
+    r.type = 4;
     r.bind_descriptorset = { pipeline_layout, descriptorset };
     delayed_records.push_back(r);
 }
@@ -204,7 +224,7 @@ void Command::record_push_constants(VkPipelineLayout pipeline_layout, const std:
         return push_constants(pipeline_layout, constants);
 
     record_type r;
-    r.type = 4;
+    r.type = 5;
     r.push_constants = { pipeline_layout };
     r.constants = constants;
     delayed_records.push_back(r);
@@ -216,7 +236,7 @@ void Command::record_dispatch(const uint32_t* group_count_xyz)
         return dispatch(group_count_xyz);
 
     record_type r;
-    r.type = 5;
+    r.type = 6;
     r.dispatch.group_count_xyz[0] = group_count_xyz[0];
     r.dispatch.group_count_xyz[1] = group_count_xyz[1];
     r.dispatch.group_count_xyz[2] = group_count_xyz[2];
@@ -229,7 +249,7 @@ void Command::record_upload_compute_barrier(const VkMat& m)
         return upload_compute_barrier(m.buffer);
 
     record_type r;
-    r.type = 6;
+    r.type = 7;
     r.upload_compute_barrier.buffer = m.buffer;
     delayed_records.push_back(r);
 }
@@ -240,7 +260,7 @@ void Command::record_compute_download_barrier(const VkMat& m)
         return compute_download_barrier(m.buffer);
 
     record_type r;
-    r.type = 7;
+    r.type = 8;
     r.compute_download_barrier.buffer = m.buffer;
     delayed_records.push_back(r);
 }
@@ -251,7 +271,7 @@ void Command::record_compute_compute_barrier(const VkMat& m)
         return compute_compute_barrier(m.buffer);
 
     record_type r;
-    r.type = 8;
+    r.type = 9;
     r.compute_compute_barrier.buffer = m.buffer;
     delayed_records.push_back(r);
 }
@@ -262,7 +282,7 @@ int Command::end()
         return end_command_buffer();
 
     record_type r;
-    r.type = 9;
+    r.type = 10;
     delayed_records.push_back(r);
 
     return 0;
@@ -287,27 +307,30 @@ int Command::submit()
             copy_buffer(r.copy.src, r.copy.dst, r.copy.size);
             break;
         case 2:
-            bind_pipeline(r.bind_pipeline.pipeline);
+            copy_buffer_regions(r.copy_regions.src, r.copy_regions.dst, r.regions);
             break;
         case 3:
-            bind_descriptorset(r.bind_descriptorset.pipeline_layout, r.bind_descriptorset.descriptorset);
+            bind_pipeline(r.bind_pipeline.pipeline);
             break;
         case 4:
-            push_constants(r.push_constants.pipeline_layout, r.constants);
+            bind_descriptorset(r.bind_descriptorset.pipeline_layout, r.bind_descriptorset.descriptorset);
             break;
         case 5:
-            dispatch(r.dispatch.group_count_xyz);
+            push_constants(r.push_constants.pipeline_layout, r.constants);
             break;
         case 6:
-            upload_compute_barrier(r.upload_compute_barrier.buffer);
+            dispatch(r.dispatch.group_count_xyz);
             break;
         case 7:
-            compute_download_barrier(r.compute_download_barrier.buffer);
+            upload_compute_barrier(r.upload_compute_barrier.buffer);
             break;
         case 8:
-            compute_compute_barrier(r.compute_compute_barrier.buffer);
+            compute_download_barrier(r.compute_download_barrier.buffer);
             break;
         case 9:
+            compute_compute_barrier(r.compute_compute_barrier.buffer);
+            break;
+        case 10:
             end_command_buffer();
             break;
         }
@@ -336,7 +359,7 @@ int Command::begin_command_buffer()
     return 0;
 }
 
-void Command::copy_buffer(VkBuffer src, VkBuffer dst, int size)
+void Command::copy_buffer(VkBuffer src, VkBuffer dst, size_t size)
 {
     fprintf(stderr, "cmd copy %p to %p\n", src, dst);
 
@@ -346,6 +369,13 @@ void Command::copy_buffer(VkBuffer src, VkBuffer dst, int size)
     region.size = size;
 
     vkCmdCopyBuffer(command_buffer, src, dst, 1, &region);
+}
+
+void Command::copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions)
+{
+    fprintf(stderr, "cmd copy regions %p to %p\n", src, dst);
+
+    vkCmdCopyBuffer(command_buffer, src, dst, regions.size(), regions.data());
 }
 
 void Command::bind_pipeline(VkPipeline pipeline)

@@ -38,6 +38,10 @@ public:
 
     void record_clone(const VkMat& src, const VkMat& dst);
 
+    void record_copy_region(const VkMat& src, const VkMat& dst, const VkBufferCopy& region);
+
+    void record_copy_regions(const VkMat& src, const VkMat& dst, const std::vector<VkBufferCopy>& regions);
+
     void record_bind_pipeline(VkPipeline pipeline);
 
     void record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkMat>& bindings);
@@ -64,7 +68,8 @@ protected:
 
     // recording issue
     int begin_command_buffer();
-    void copy_buffer(VkBuffer src, VkBuffer dst, int size);
+    void copy_buffer(VkBuffer src, VkBuffer dst, size_t size);
+    void copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions);
     void bind_pipeline(VkPipeline pipeline);
     void bind_descriptorset(VkPipelineLayout pipeline_layout, VkDescriptorSet descriptorset);
     void update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkDescriptorBufferInfo>& descriptorBufferInfos);
@@ -76,7 +81,7 @@ protected:
     int end_command_buffer();
     int queue_submit();
 
-public:
+protected:
     VulkanDevice* vkdev;
 
     VkQueue queue;
@@ -94,19 +99,21 @@ public:
     {
         // 0=begin
         // 1=copy
-        // 2=bind pipeline
-        // 3=bind descriptorset
-        // 4=push constants
-        // 5=dispatch
-        // 6=upload-compute barrier
-        // 7=compute-download barrier
-        // 8=compute-compute barrier
-        // 9=end
+        // 2=copy regions
+        // 3=bind pipeline
+        // 4=bind descriptorset
+        // 5=push constants
+        // 6=dispatch
+        // 7=upload-compute barrier
+        // 8=compute-download barrier
+        // 9=compute-compute barrier
+        // 10=end
         int type;
 
         union
         {
         struct { VkBuffer src; VkBuffer dst; size_t size; } copy;
+        struct { VkBuffer src; VkBuffer dst; } copy_regions;
         struct { VkPipeline pipeline; } bind_pipeline;
         struct { VkPipelineLayout pipeline_layout; VkDescriptorSet descriptorset; } bind_descriptorset;
         struct { VkPipelineLayout pipeline_layout; } push_constants;
@@ -116,6 +123,7 @@ public:
         struct { VkBuffer buffer; } compute_compute_barrier;
         };
 
+        std::vector<VkBufferCopy> regions;
         std::vector<vk_constant_type> constants;
     };
     std::vector<record_type> delayed_records;

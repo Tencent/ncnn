@@ -293,7 +293,7 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             region.dstOffset = dstOffset;
             region.size = size;
 
-            vkCmdCopyBuffer(cmd.command_buffer, bottom_blob.buffer, top_blob.buffer, 1, &region);
+            cmd.record_copy_region(bottom_blob, top_blob, region);
 
             dstOffset += size;
         }
@@ -331,7 +331,7 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             region.dstOffset = dstOffset;
             region.size = size;
 
-            vkCmdCopyBuffer(cmd.command_buffer, bottom_blob.buffer, top_blob.buffer, 1, &region);
+            cmd.record_copy_region(bottom_blob, top_blob, region);
 
             dstOffset += size;
         }
@@ -375,7 +375,7 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             region.dstOffset = dstOffset;
             region.size = size;
 
-            vkCmdCopyBuffer(cmd.command_buffer, bottom_blob.buffer, top_blob.buffer, 1, &region);
+            cmd.record_copy_region(bottom_blob, top_blob, region);
 
             dstOffset += size;
         }

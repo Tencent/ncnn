@@ -177,7 +177,6 @@ int Layer::set_optimal_local_size_xyz(int w, int h, int c)
     }
     else if (h > 0)
     {
-        int max_local_size_xy = max_local_size_xy;
         local_size_y = std::min(max_local_size_xy, vkdev->info.max_workgroup_size[1]);
         while (h < local_size_y)
         {
@@ -189,7 +188,6 @@ int Layer::set_optimal_local_size_xyz(int w, int h, int c)
     }
     else if (w > 0)
     {
-        int max_local_size_xy = max_local_size_xy;
         local_size_x = std::min(max_local_size_xy, vkdev->info.max_workgroup_size[0]);
         while (w < local_size_x)
         {
