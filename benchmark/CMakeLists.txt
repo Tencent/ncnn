@@ -15,3 +15,13 @@ if(NCNN_VULKAN)
 else()
     target_link_libraries(benchncnn ncnn)
 endif()
+
+add_executable(vkbenchncnn vkbenchncnn.cpp)
+set_property(TARGET vkbenchncnn PROPERTY COMPILE_FLAGS "-fpie")
+set_property(TARGET vkbenchncnn PROPERTY LINK_FLAGS "-pie")
+
+if(NCNN_VULKAN)
+    target_link_libraries(vkbenchncnn ncnn ${Vulkan_LIBRARY})
+else()
+    target_link_libraries(vkbenchncnn ncnn)
+endif()
