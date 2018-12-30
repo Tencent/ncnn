@@ -216,7 +216,7 @@ int create_gpu_instance()
         return -1;
     }
 
-    for (int i=0; i<instanceLayerPropertyCount; i++)
+    for (uint32_t i=0; i<instanceLayerPropertyCount; i++)
     {
         const VkLayerProperties& lp = instanceLayerProperties[i];
 //         fprintf(stderr, "instance layer %s = %u\n", lp.layerName, lp.implementationVersion);
@@ -251,7 +251,7 @@ int create_gpu_instance()
         return -1;
     }
 
-    for (int j=0; j<instanceExtensionPropertyCount; j++)
+    for (uint32_t j=0; j<instanceExtensionPropertyCount; j++)
     {
         const VkExtensionProperties& exp = instanceExtensionProperties[j];
 //         fprintf(stderr, "instance extension %s = %u\n", exp.extensionName, exp.specVersion);
@@ -614,12 +614,16 @@ int VulkanDevice::init_device_extension()
         vkCreateDescriptorUpdateTemplateKHR = (PFN_vkCreateDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkCreateDescriptorUpdateTemplateKHR");
         vkDestroyDescriptorUpdateTemplateKHR = (PFN_vkDestroyDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkDestroyDescriptorUpdateTemplateKHR");
         vkUpdateDescriptorSetWithTemplateKHR = (PFN_vkUpdateDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkUpdateDescriptorSetWithTemplateKHR");
-        vkCmdPushDescriptorSetWithTemplateKHR = (PFN_vkCmdPushDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetWithTemplateKHR");
 
         fprintf(stderr, "vkCreateDescriptorUpdateTemplateKHR = %p\n", vkCreateDescriptorUpdateTemplateKHR);
         fprintf(stderr, "vkDestroyDescriptorUpdateTemplateKHR = %p\n", vkDestroyDescriptorUpdateTemplateKHR);
         fprintf(stderr, "vkUpdateDescriptorSetWithTemplateKHR = %p\n", vkUpdateDescriptorSetWithTemplateKHR);
-        fprintf(stderr, "vkCmdPushDescriptorSetWithTemplateKHR = %p\n", vkCmdPushDescriptorSetWithTemplateKHR);
+
+        if (info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdPushDescriptorSetWithTemplateKHR = (PFN_vkCmdPushDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetWithTemplateKHR");
+            fprintf(stderr, "vkCmdPushDescriptorSetWithTemplateKHR = %p\n", vkCmdPushDescriptorSetWithTemplateKHR);
+        }
     }
 
     if (info.support_VK_KHR_push_descriptor)
