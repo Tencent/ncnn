@@ -100,6 +100,34 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
     return -1;
 }
 
+static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties)
+{
+    // first try, transfer only queue
+    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
+    {
+        const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+        if ((queueFamilyProperty.queueFlags & VK_QUEUE_TRANSFER_BIT) && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT) && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+        {
+            return i;
+        }
+    }
+
+    // second try, any queue with transfer
+    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
+    {
+        const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+        if (queueFamilyProperty.queueFlags & VK_QUEUE_TRANSFER_BIT)
+        {
+            return i;
+        }
+    }
+
+    fprintf(stderr, "no transfer queue\n");
+    return -1;
+}
+
 static uint32_t find_device_local_memory(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties)
 {
     // first try, device local only
@@ -405,6 +433,7 @@ int create_gpu_instance()
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
 
         gpu_info.compute_queue_index = find_device_compute_queue(queueFamilyProperties);
+        gpu_info.transfer_queue_index = find_device_transfer_queue(queueFamilyProperties);
 
         // find memory type index
         VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
@@ -452,8 +481,8 @@ int create_gpu_instance()
             }
         }
 
-        fprintf(stderr, "[%u %s]  queue=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
-                gpu_info.compute_queue_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
+        fprintf(stderr, "[%u %s]  queueC=%u  queueT=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
+                gpu_info.compute_queue_index, gpu_info.transfer_queue_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
     }
 
     // the default gpu device
@@ -519,20 +548,26 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         enabledExtensions.push_back("VK_AMD_gpu_shader_half_float");
     }
 
-    VkDeviceQueueCreateInfo deviceQueueCreateInfo;
-    deviceQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    deviceQueueCreateInfo.pNext = 0;
-    deviceQueueCreateInfo.flags = 0;
-    deviceQueueCreateInfo.queueFamilyIndex = info.compute_queue_index;
-    deviceQueueCreateInfo.queueCount = 1;
-    deviceQueueCreateInfo.pQueuePriorities = queuePriorities;
+    VkDeviceQueueCreateInfo deviceQueueCreateInfos[2];
+    deviceQueueCreateInfos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    deviceQueueCreateInfos[0].pNext = 0;
+    deviceQueueCreateInfos[0].flags = 0;
+    deviceQueueCreateInfos[0].queueFamilyIndex = info.compute_queue_index;
+    deviceQueueCreateInfos[0].queueCount = 1;
+    deviceQueueCreateInfos[0].pQueuePriorities = queuePriorities;
+    deviceQueueCreateInfos[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    deviceQueueCreateInfos[1].pNext = 0;
+    deviceQueueCreateInfos[1].flags = 0;
+    deviceQueueCreateInfos[1].queueFamilyIndex = info.transfer_queue_index;
+    deviceQueueCreateInfos[1].queueCount = 1;
+    deviceQueueCreateInfos[1].pQueuePriorities = queuePriorities;
 
     VkDeviceCreateInfo deviceCreateInfo;
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.pNext = 0;
     deviceCreateInfo.flags = 0;
-    deviceCreateInfo.queueCreateInfoCount = 1;
-    deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
+    deviceCreateInfo.queueCreateInfoCount = 2;
+    deviceCreateInfo.pQueueCreateInfos = deviceQueueCreateInfos;
     deviceCreateInfo.enabledLayerCount = 0;
     deviceCreateInfo.ppEnabledLayerNames = 0;
     deviceCreateInfo.enabledExtensionCount = enabledExtensions.size();
