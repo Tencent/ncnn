@@ -262,6 +262,12 @@ public:
     VkBuffer staging_buffer;
     void* mapped_ptr;
 
+    // 0=null
+    // 1=ready
+    // 2=transfer
+    // 3=compute
+    int state;
+
     // pointer to the reference counter
     // when points to user-allocated data, the pointer is NULL
     int* refcount;

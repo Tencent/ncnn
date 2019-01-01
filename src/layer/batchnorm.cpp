@@ -78,32 +78,6 @@ int BatchNorm::load_model(const ModelBin& mb)
         b_data[i] = slope_data[i] / sqrt_var;
     }
 
-#if NCNN_VULKAN
-    if (mb.vk_model_loader)
-    {
-        // upload weight data
-        a_data_gpu.create_like(a_data, mb.weight_vkallocator, mb.staging_vkallocator);
-        b_data_gpu.create_like(b_data, mb.weight_vkallocator, mb.staging_vkallocator);
-
-        a_data_gpu.prepare_staging_buffer();
-        b_data_gpu.prepare_staging_buffer();
-
-        mb.vk_model_loader->record_upload(a_data_gpu);
-        mb.vk_model_loader->record_upload(b_data_gpu);
-
-        mb.vk_model_loader->record_upload_compute_barrier(a_data_gpu);
-        mb.vk_model_loader->record_upload_compute_barrier(b_data_gpu);
-
-        a_data_gpu.map();
-        a_data_gpu.staging_buffer_upload(a_data);
-        a_data_gpu.unmap();
-
-        b_data_gpu.map();
-        b_data_gpu.staging_buffer_upload(b_data);
-        b_data_gpu.unmap();
-    }
-#endif // NCNN_VULKAN
-
     return 0;
 }
 
@@ -171,6 +145,14 @@ int BatchNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if NCNN_VULKAN
+int BatchNorm::upload_model(VkTransfer& cmd)
+{
+    cmd.record_upload(a_data, a_data_gpu);
+    cmd.record_upload(b_data, b_data_gpu);
+
+    return 0;
+}
+
 int BatchNorm::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     fprintf(stderr, "BatchNorm::forward_inplace %p\n", bottom_top_blob.buffer);

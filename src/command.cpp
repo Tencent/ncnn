@@ -584,53 +584,157 @@ void VkCompute::compute_compute_barrier(VkBuffer buffer, size_t offset, size_t s
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index)
+// VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index) // TODO use transfer queue
+VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.compute_queue_index)
 {
+    staging_buffer = 0;
+    staging_memory = 0;
+    mapped_ptr = 0;
 }
 
 VkTransfer::~VkTransfer()
 {
 }
 
-int VkTransfer::begin()
-{
-    return 0;
-}
-
 void VkTransfer::record_upload(const Mat& src, VkMat& dst)
 {
+    dst.create_like(src, weight_vkallocator, staging_vkallocator);
+
+    record_type r;
+    r.type = 0;
+    r.size = src.total() * src.elemsize;
+    r.upload = { src.data, dst.buffer, dst.offset };
+    delayed_records.push_back(r);
 }
 
 void VkTransfer::record_download(const VkMat& src, Mat& dst)
 {
-}
+    dst.create_like(src);// TODO respect blob allocator
 
-int VkTransfer::end()
-{
-    return 0;
+    record_type r;
+    r.type = 1;
+    r.size = src.total() * src.elemsize;
+    r.download = { src.buffer, src.offset, dst.data };
+    delayed_records.push_back(r);
 }
 
 int VkTransfer::submit()
 {
+    int transfer_count = delayed_records.size();
+
+    // solve staging buffer size
+    size_t staging_buffer_size = 0;
+    for (int i=0; i<transfer_count; i++)
+    {
+        const record_type& r = delayed_records[i];
+        staging_buffer_size += r.size;
+    }
+
+    // allocate staging buffer
+    staging_buffer = staging_vkallocator->create_staging_buffer(staging_buffer_size);
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(vkdev->vkdevice(), staging_buffer, &memoryRequirements);
+
+    staging_memory = staging_vkallocator->fastMalloc(memoryRequirements.size);
+
+    vkBindBufferMemory(vkdev->vkdevice(), staging_buffer, staging_memory, 0);
+
+    // map
+    vkMapMemory(vkdev->vkdevice(), staging_memory, 0, staging_buffer_size, 0, &mapped_ptr);
+
+    // copy upload data
+    size_t mapped_ptr_offset = 0;
+    for (int i=0; i<transfer_count; i++)
+    {
+        const record_type& r = delayed_records[i];
+        if (r.type == 0)
+        {
+            memcpy((unsigned char*)mapped_ptr + mapped_ptr_offset, r.upload.src, r.size);
+        }
+
+        mapped_ptr_offset += r.size;
+    }
+
+    begin_command_buffer();
+
+    fprintf(stderr, "cmd transfer %p %u\n", staging_buffer, staging_buffer_size);
+
+    // handle delayed records
+    size_t staging_buffer_offset = 0;
+    for (int i=0; i<transfer_count; i++)
+    {
+        const record_type& r = delayed_records[i];
+
+        switch (r.type)
+        {
+        case 0:
+            copy_buffer(staging_buffer, staging_buffer_offset, r.upload.dst, r.upload.dst_offset, r.size);
+            break;
+        case 1:
+            copy_buffer(r.download.src, r.download.src_offset, staging_buffer, staging_buffer_offset, r.size);
+            break;
+        }
+
+        staging_buffer_offset += r.size;
+    }
+
+    end_command_buffer();
+
     return queue_submit();
 }
 
 int VkTransfer::wait()
 {
-    return wait_fence();
+    int ret = wait_fence();
+
+    int transfer_count = delayed_records.size();
+
+    // copy download data
+    size_t mapped_ptr_offset = 0;
+    for (int i=0; i<transfer_count; i++)
+    {
+        const record_type& r = delayed_records[i];
+        if (r.type == 1)
+        {
+            memcpy(r.download.dst, (unsigned char*)mapped_ptr + mapped_ptr_offset, r.size);
+        }
+
+        mapped_ptr_offset += r.size;
+    }
+
+    // unmap
+    vkUnmapMemory(vkdev->vkdevice(), staging_memory);
+    mapped_ptr = 0;
+
+    // deallocate staging buffer
+    staging_vkallocator->destroy_buffer(staging_buffer);
+    staging_vkallocator->fastFree(staging_memory);
+
+    staging_buffer = 0;
+    staging_memory = 0;
+
+    return ret;
 }
 
-// void VkTransfer::copy_buffer(VkBuffer src, VkBuffer dst, size_t size)
-// {
-// //     fprintf(stderr, "cmd copy %p to %p\n", src, dst);
-//
-//     VkBufferCopy region;
-//     region.srcOffset = 0;
-//     region.dstOffset = 0;
-//     region.size = size;
-//
-//     vkCmdCopyBuffer(command_buffer, src, dst, 1, &region);
-// }
+void VkTransfer::copy_buffer(VkBuffer src, size_t src_offset, VkBuffer dst, size_t dst_offset, size_t size)
+{
+//     fprintf(stderr, "cmd copy %p to %p\n", src, dst);
+
+    VkBufferCopy region;
+    region.srcOffset = src_offset;
+    region.dstOffset = dst_offset;
+    region.size = size;
+
+    vkCmdCopyBuffer(command_buffer, src, dst, 1, &region);
+}
+
+void VkTransfer::copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions)
+{
+//     fprintf(stderr, "cmd copy regions %p to %p\n", src, dst);
+
+    vkCmdCopyBuffer(command_buffer, src, dst, regions.size(), regions.data());
+}
 
 } // namespace ncnn
 

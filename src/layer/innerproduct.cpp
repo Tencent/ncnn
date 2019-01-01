@@ -115,32 +115,6 @@ int InnerProduct::load_model(const ModelBin& mb)
         weight_data = int8_weight_data;
     }
 
-#if NCNN_VULKAN
-    if (mb.vk_model_loader)
-    {
-        // upload weight data
-        weight_data_gpu.create_like(weight_data, mb.weight_vkallocator, mb.staging_vkallocator);
-        bias_data_gpu.create_like(bias_data, mb.weight_vkallocator, mb.staging_vkallocator);
-
-        weight_data_gpu.prepare_staging_buffer();
-        bias_data_gpu.prepare_staging_buffer();
-
-        mb.vk_model_loader->record_upload(weight_data_gpu);
-        mb.vk_model_loader->record_upload(bias_data_gpu);
-
-        mb.vk_model_loader->record_upload_compute_barrier(weight_data_gpu);
-        mb.vk_model_loader->record_upload_compute_barrier(bias_data_gpu);
-
-        weight_data_gpu.map();
-        weight_data_gpu.staging_buffer_upload(weight_data);
-        weight_data_gpu.unmap();
-
-        bias_data_gpu.map();
-        bias_data_gpu.staging_buffer_upload(bias_data);
-        bias_data_gpu.unmap();
-    }
-#endif // NCNN_VULKAN
-
     return 0;
 }
 
@@ -245,6 +219,18 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 }
 
 #if NCNN_VULKAN
+int InnerProduct::upload_model(VkTransfer& cmd)
+{
+    cmd.record_upload(weight_data, weight_data_gpu);
+
+    if (bias_term)
+    {
+        cmd.record_upload(bias_data, bias_data_gpu);
+    }
+
+    return 0;
+}
+
 int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     top_blob.create(num_output, 4u, opt.blob_vkallocator, opt.staging_vkallocator);

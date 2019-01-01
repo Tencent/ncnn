@@ -38,16 +38,6 @@ public:
         int ret = 0;
 
         ModelBinFromEmpty mb;
-
-        mb.vk_model_loader = 0;
-        if (use_vulkan_compute)
-        {
-            mb.vk_model_loader = new VkCompute(vkdev);
-            mb.weight_vkallocator = weight_vkallocator;
-            mb.staging_vkallocator = staging_vkallocator;
-            mb.vk_model_loader->begin();
-        }
-
         for (size_t i=0; i<layers.size(); i++)
         {
             Layer* layer = layers[i];
@@ -63,12 +53,10 @@ public:
 
         if (use_vulkan_compute)
         {
-            mb.vk_model_loader->end();
-            mb.vk_model_loader->submit();
+            ncnn::VkTransfer cmd(vkdev);
 
-            mb.vk_model_loader->wait();
-
-            delete mb.vk_model_loader;
+            cmd.weight_vkallocator = weight_vkallocator;
+            cmd.staging_vkallocator = staging_vkallocator;
 
             for (size_t i=0; i<layers.size(); i++)
             {
@@ -76,10 +64,14 @@ public:
 
                 if (layer->support_vulkan)
                 {
+                    layer->upload_model(cmd);
                     layer->create_vulkan_pipeline();
                 }
             }
 
+            cmd.submit();
+
+            cmd.wait();
         }
 
         return ret;

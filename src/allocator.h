@@ -197,7 +197,7 @@ public:
 public:
     const VulkanDevice* vkdev;
     const int type;
-    const uint32_t compute_queue_index;
+    const uint32_t compute_queue_index;// TODO add transfer queue
     const uint32_t memory_type_index;
 
     VkDevice device;

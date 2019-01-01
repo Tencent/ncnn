@@ -68,38 +68,6 @@ int Scale::load_model(const ModelBin& mb)
             return -100;
     }
 
-#if NCNN_VULKAN
-    if (mb.vk_model_loader)
-    {
-        // upload weight data
-        if (scale_data_size != -233)
-        {
-            scale_data_gpu.create_like(scale_data, mb.weight_vkallocator, mb.staging_vkallocator);
-            scale_data_gpu.prepare_staging_buffer();
-
-            mb.vk_model_loader->record_upload(scale_data_gpu);
-            mb.vk_model_loader->record_upload_compute_barrier(scale_data_gpu);
-
-            scale_data_gpu.map();
-            scale_data_gpu.staging_buffer_upload(scale_data);
-            scale_data_gpu.unmap();
-        }
-
-        if (bias_term)
-        {
-            bias_data_gpu.create_like(bias_data, mb.weight_vkallocator, mb.staging_vkallocator);
-            bias_data_gpu.prepare_staging_buffer();
-
-            mb.vk_model_loader->record_upload(bias_data_gpu);
-            mb.vk_model_loader->record_upload_compute_barrier(bias_data_gpu);
-
-            bias_data_gpu.map();
-            bias_data_gpu.staging_buffer_upload(bias_data);
-            bias_data_gpu.unmap();
-        }
-    }
-#endif // NCNN_VULKAN
-
     return 0;
 }
 
@@ -223,6 +191,21 @@ int Scale::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if NCNN_VULKAN
+int Scale::upload_model(VkTransfer& cmd)
+{
+    if (scale_data_size != -233)
+    {
+        cmd.record_upload(scale_data, scale_data_gpu);
+    }
+
+    if (bias_term)
+    {
+        cmd.record_upload(bias_data, bias_data_gpu);
+    }
+
+    return 0;
+}
+
 int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
 {
     VkMat& bottom_top_blob = bottom_top_blobs[0];
