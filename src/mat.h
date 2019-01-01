@@ -200,6 +200,12 @@ public:
     VkMat(int w, int h, int c, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
     // copy
     VkMat(const VkMat& m);
+    // external vec
+    VkMat(int w, VkDeviceMemory memory, VkBuffer buffer, size_t offset, size_t elemsize, VkAllocator* allocator = 0, VkAllocator* staging_allocator = 0);
+    // external image
+    VkMat(int w, int h, VkDeviceMemory memory, VkBuffer buffer, size_t offset, size_t elemsize, VkAllocator* allocator = 0, VkAllocator* staging_allocator = 0);
+    // external dim
+    VkMat(int w, int h, int c, VkDeviceMemory memory, VkBuffer buffer, size_t offset, size_t elemsize, VkAllocator* allocator = 0, VkAllocator* staging_allocator = 0);
     // release
     ~VkMat();
     // assign
@@ -234,9 +240,22 @@ public:
     bool empty() const;
     size_t total() const;
 
+    // data reference
+    VkMat channel(int c);
+    const VkMat channel(int c) const;
+
+    // range reference
+    VkMat channel_range(int c, int channels);
+    const VkMat channel_range(int c, int channels) const;
+    VkMat row_range(int y, int rows);
+    const VkMat row_range(int y, int rows) const;
+    VkMat range(int x, int n);
+    const VkMat range(int x, int n) const;
+
     // device buffer
     VkDeviceMemory memory;
     VkBuffer buffer;
+    size_t offset;
 
     // staging buffer
     VkDeviceMemory staging_memory;
@@ -876,30 +895,30 @@ inline const float& Mat::operator[](int i) const
 #if NCNN_VULKAN
 
 inline VkMat::VkMat()
-    : memory(0), buffer(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0), elemsize(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : memory(0), buffer(0), offset(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0), elemsize(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
 }
 
 inline VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* allocator, VkAllocator* staging_allocator)
-    : memory(0), buffer(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0)
+    : memory(0), buffer(0), offset(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0)
 {
     create(_w, _elemsize, allocator, staging_allocator);
 }
 
 inline VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* allocator, VkAllocator* staging_allocator)
-    : memory(0), buffer(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0)
+    : memory(0), buffer(0), offset(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0)
 {
     create(_w, _h, _elemsize, allocator, staging_allocator);
 }
 
 inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* allocator, VkAllocator* staging_allocator)
-    : memory(0), buffer(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0)
+    : memory(0), buffer(0), offset(0), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0)
 {
     create(_w, _h, _c, _elemsize, allocator, staging_allocator);
 }
 
 inline VkMat::VkMat(const VkMat& m)
-    : memory(m.memory), buffer(m.buffer), staging_memory(m.staging_memory), staging_buffer(m.staging_buffer), mapped_ptr(m.mapped_ptr), refcount(m.refcount), elemsize(m.elemsize), allocator(m.allocator), staging_allocator(m.staging_allocator), dims(m.dims)
+    : memory(m.memory), buffer(m.buffer), offset(m.offset), staging_memory(m.staging_memory), staging_buffer(m.staging_buffer), mapped_ptr(m.mapped_ptr), refcount(m.refcount), elemsize(m.elemsize), allocator(m.allocator), staging_allocator(m.staging_allocator), dims(m.dims)
 {
     if (refcount)
         NCNN_XADD(refcount, 1);
@@ -909,6 +928,36 @@ inline VkMat::VkMat(const VkMat& m)
     c = m.c;
 
     cstep = m.cstep;
+}
+
+inline VkMat::VkMat(int _w, VkDeviceMemory _memory, VkBuffer _buffer, size_t _offset, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : memory(_memory), buffer(_buffer), offset(_offset), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0), elemsize(_elemsize), allocator(_allocator), staging_allocator(_staging_allocator), dims(1)
+{
+    w = _w;
+    h = 1;
+    c = 1;
+
+    cstep = w;
+}
+
+inline VkMat::VkMat(int _w, int _h, VkDeviceMemory _memory, VkBuffer _buffer, size_t _offset, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : memory(_memory), buffer(_buffer), offset(_offset), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0), elemsize(_elemsize), allocator(_allocator), staging_allocator(_staging_allocator), dims(2)
+{
+    w = _w;
+    h = _h;
+    c = 1;
+
+    cstep = w * h;
+}
+
+inline VkMat::VkMat(int _w, int _h, int _c, VkDeviceMemory _memory, VkBuffer _buffer, size_t _offset, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : memory(_memory), buffer(_buffer), offset(_offset), staging_memory(0), staging_buffer(0), mapped_ptr(0), refcount(0), elemsize(_elemsize), allocator(_allocator), staging_allocator(_staging_allocator), dims(3)
+{
+    w = _w;
+    h = _h;
+    c = _c;
+
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
 }
 
 inline VkMat::~VkMat()
@@ -928,6 +977,7 @@ inline VkMat& VkMat::operator=(const VkMat& m)
 
     memory = m.memory;
     buffer = m.buffer;
+    offset = m.offset;
     staging_memory = m.staging_memory;
     staging_buffer = m.staging_buffer;
     mapped_ptr = m.mapped_ptr;
@@ -969,6 +1019,7 @@ inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator, VkA
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         buffer = allocator->create_buffer(totalsize);
+        offset = 0;
 
         VkMemoryRequirements memoryRequirements;
         vkGetBufferMemoryRequirements(allocator->device, buffer, &memoryRequirements);
@@ -1005,6 +1056,7 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _alloca
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         buffer = allocator->create_buffer(totalsize);
+        offset = 0;
 
         VkMemoryRequirements memoryRequirements;
         vkGetBufferMemoryRequirements(allocator->device, buffer, &memoryRequirements);
@@ -1041,6 +1093,7 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator*
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         buffer = allocator->create_buffer(totalsize);
+        offset = 0;
 
         VkMemoryRequirements memoryRequirements;
         vkGetBufferMemoryRequirements(allocator->device, buffer, &memoryRequirements);
@@ -1108,7 +1161,9 @@ inline void VkMat::map()
     if (mapped_ptr)
         return;
 
-    vkMapMemory(staging_allocator->device, staging_memory, 0, VK_WHOLE_SIZE, 0, &mapped_ptr);
+    size_t totalsize = alignSize(total() * elemsize, 4);
+
+    vkMapMemory(staging_allocator->device, staging_memory, offset, totalsize, 0, &mapped_ptr);
 }
 
 inline void VkMat::unmap()
@@ -1159,6 +1214,7 @@ inline void VkMat::release()
 
     memory = 0;
     buffer = 0;
+    offset = 0;
     staging_buffer = 0;
     staging_memory = 0;
     mapped_ptr = 0;
@@ -1182,8 +1238,49 @@ inline bool VkMat::empty() const
 
 inline size_t VkMat::total() const
 {
-    return w * h * c;
+    return cstep * c;
 }
+
+inline VkMat VkMat::channel(int c)
+{
+    return VkMat(w, h, memory, buffer, cstep * c * elemsize, elemsize, allocator, staging_allocator);
+}
+
+inline const VkMat VkMat::channel(int c) const
+{
+    return VkMat(w, h, memory, buffer, cstep * c * elemsize, elemsize, allocator, staging_allocator);
+}
+
+inline VkMat VkMat::channel_range(int _c, int channels)
+{
+    return VkMat(w, h, channels, memory, buffer, cstep * _c * elemsize, elemsize, allocator, staging_allocator);
+}
+
+inline const VkMat VkMat::channel_range(int _c, int channels) const
+{
+    return VkMat(w, h, channels, memory, buffer, cstep * _c * elemsize, elemsize, allocator, staging_allocator);
+}
+
+inline VkMat VkMat::row_range(int y, int rows)
+{
+    return VkMat(w, rows, memory, buffer, w * y * elemsize, elemsize, allocator, staging_allocator);
+}
+
+inline const VkMat VkMat::row_range(int y, int rows) const
+{
+    return VkMat(w, rows, memory, buffer, w * y * elemsize, elemsize, allocator, staging_allocator);
+}
+
+inline VkMat VkMat::range(int x, int n)
+{
+    return VkMat(n, memory, buffer, x * elemsize, elemsize, allocator, staging_allocator);
+}
+
+inline const VkMat VkMat::range(int x, int n) const
+{
+    return VkMat(n, memory, buffer, x * elemsize, elemsize, allocator, staging_allocator);
+}
+
 #endif // NCNN_VULKAN
 
 } // namespace ncnn

@@ -192,33 +192,33 @@ int VkCompute::begin()
 void VkCompute::record_upload(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return copy_buffer(m.staging_buffer, m.buffer, m.total() * m.elemsize);
+        return copy_buffer(m.staging_buffer, 0, m.buffer, m.offset, m.total() * m.elemsize);
 
     record_type r;
     r.type = 1;
-    r.copy = { m.staging_buffer, m.buffer, m.total() * m.elemsize };
+    r.copy = { m.staging_buffer, 0, m.buffer, m.offset, m.total() * m.elemsize };
     delayed_records.push_back(r);
 }
 
 void VkCompute::record_download(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return copy_buffer(m.buffer, m.staging_buffer, m.total() * m.elemsize);
+        return copy_buffer(m.buffer, m.offset, m.staging_buffer, 0, m.total() * m.elemsize);
 
     record_type r;
     r.type = 1;
-    r.copy = { m.buffer, m.staging_buffer, m.total() * m.elemsize };
+    r.copy = { m.buffer, m.offset, m.staging_buffer, 0, m.total() * m.elemsize };
     delayed_records.push_back(r);
 }
 
 void VkCompute::record_clone(const VkMat& src, const VkMat& dst)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return copy_buffer(src.buffer, dst.buffer, src.total() * src.elemsize);
+        return copy_buffer(src.buffer, src.offset, dst.buffer, dst.offset, src.total() * src.elemsize);
 
     record_type r;
     r.type = 1;
-    r.copy = { src.buffer, dst.buffer, src.total() * src.elemsize };
+    r.copy = { src.buffer, src.offset, dst.buffer, dst.offset, src.total() * src.elemsize };
     delayed_records.push_back(r);
 }
 
@@ -261,8 +261,8 @@ void VkCompute::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescr
     for (int i=0; i<binding_count; i++)
     {
         descriptorBufferInfos[i].buffer = bindings[i].buffer;
-        descriptorBufferInfos[i].offset = 0;
-        descriptorBufferInfos[i].range = VK_WHOLE_SIZE;
+        descriptorBufferInfos[i].offset = bindings[i].offset;
+        descriptorBufferInfos[i].range = bindings[i].total() * bindings[i].elemsize;
     }
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
@@ -421,7 +421,7 @@ int VkCompute::submit()
             begin_command_buffer();
             break;
         case 1:
-            copy_buffer(r.copy.src, r.copy.dst, r.copy.size);
+            copy_buffer(r.copy.src, r.copy.src_offset, r.copy.dst, r.copy.dst_offset, r.copy.size);
             break;
         case 2:
             copy_buffer_regions(r.copy_regions.src, r.copy_regions.dst, r.regions);
@@ -461,13 +461,13 @@ int VkCompute::wait()
     return wait_fence();
 }
 
-void VkCompute::copy_buffer(VkBuffer src, VkBuffer dst, size_t size)
+void VkCompute::copy_buffer(VkBuffer src, size_t src_offset, VkBuffer dst, size_t dst_offset, size_t size)
 {
 //     fprintf(stderr, "cmd copy %p to %p\n", src, dst);
 
     VkBufferCopy region;
-    region.srcOffset = 0;
-    region.dstOffset = 0;
+    region.srcOffset = src_offset;
+    region.dstOffset = dst_offset;
     region.size = size;
 
     vkCmdCopyBuffer(command_buffer, src, dst, 1, &region);
@@ -585,6 +585,46 @@ VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.tran
 VkTransfer::~VkTransfer()
 {
 }
+
+int VkTransfer::begin()
+{
+    return 0;
+}
+
+void VkTransfer::record_upload(const Mat& src, VkMat& dst)
+{
+}
+
+void VkTransfer::record_download(const VkMat& src, Mat& dst)
+{
+}
+
+int VkTransfer::end()
+{
+    return 0;
+}
+
+int VkTransfer::submit()
+{
+    return queue_submit();
+}
+
+int VkTransfer::wait()
+{
+    return wait_fence();
+}
+
+// void VkTransfer::copy_buffer(VkBuffer src, VkBuffer dst, size_t size)
+// {
+// //     fprintf(stderr, "cmd copy %p to %p\n", src, dst);
+//
+//     VkBufferCopy region;
+//     region.srcOffset = 0;
+//     region.dstOffset = 0;
+//     region.size = size;
+//
+//     vkCmdCopyBuffer(command_buffer, src, dst, 1, &region);
+// }
 
 } // namespace ncnn
 

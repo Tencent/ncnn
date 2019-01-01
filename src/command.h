@@ -91,7 +91,7 @@ public:
 
 protected:
     // recording issue
-    void copy_buffer(VkBuffer src, VkBuffer dst, size_t size);
+    void copy_buffer(VkBuffer src, size_t src_offset, VkBuffer dst, size_t dst_offset, size_t size);
     void copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions);
     void bind_pipeline(VkPipeline pipeline);
     void bind_descriptorset(VkPipelineLayout pipeline_layout, VkDescriptorSet descriptorset);
@@ -124,7 +124,7 @@ protected:
 
         union
         {
-        struct { VkBuffer src; VkBuffer dst; size_t size; } copy;
+        struct { VkBuffer src; size_t src_offset; VkBuffer dst; size_t dst_offset; size_t size; } copy;
         struct { VkBuffer src; VkBuffer dst; } copy_regions;
         struct { VkPipeline pipeline; } bind_pipeline;
         struct { VkPipelineLayout pipeline_layout; VkDescriptorSet descriptorset; } bind_descriptorset;
@@ -147,7 +147,35 @@ public:
     VkTransfer(VulkanDevice* vkdev);
     ~VkTransfer();
 
+    int begin();
+
+    void record_upload(const Mat& src, VkMat& dst);
+
+    void record_download(const VkMat& src, Mat& dst);
+
+    int end();
+
+    int submit();
+
+    int wait();
+
 protected:
+//     // delayed record
+//     struct record_type
+//     {
+//         // 0=begin
+//         // 1=copy
+//         // 10=end
+//         int type;
+//
+//         union
+//         {
+//         struct { VkBuffer src; VkBuffer dst; size_t size; } copy;
+//         };
+//
+//         std::vector<VkBufferCopy> regions;
+//     };
+//     std::vector<record_type> delayed_records;
 };
 
 } // namespace ncnn
