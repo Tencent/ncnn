@@ -235,22 +235,27 @@ int Layer::destroy_vulkan_pipeline()
     return 0;
 }
 
-int Layer::forward(const std::vector<VkMat>& /*bottom_blobs*/, std::vector<VkMat>& /*top_blobs*/, Command& /*cmd*/, const Option& /*opt*/) const
+int Layer::upload_model(VkTransfer& /*cmd*/)
+{
+    return 0;
+}
+
+int Layer::forward(const std::vector<VkMat>& /*bottom_blobs*/, std::vector<VkMat>& /*top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
-int Layer::forward(const VkMat& /*bottom_blob*/, VkMat& /*top_blob*/, Command& /*cmd*/, const Option& /*opt*/) const
+int Layer::forward(const VkMat& /*bottom_blob*/, VkMat& /*top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
-int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, Command& /*cmd*/, const Option& /*opt*/) const
+int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
-int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, Command& /*cmd*/, const Option& /*opt*/) const
+int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }

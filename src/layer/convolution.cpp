@@ -431,7 +431,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 }
 
 #if NCNN_VULKAN
-int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cmd, const Option& opt) const
+int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;

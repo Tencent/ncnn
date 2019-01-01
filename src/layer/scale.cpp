@@ -223,7 +223,7 @@ int Scale::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if NCNN_VULKAN
-int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, Command& cmd, const Option& opt) const
+int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
 {
     VkMat& bottom_top_blob = bottom_top_blobs[0];
     const VkMat& scale_blob = bottom_top_blobs[1];
@@ -256,7 +256,7 @@ int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, Command& cmd, c
     return 0;
 }
 
-int Scale::forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option& opt) const
+int Scale::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     std::vector<VkMat> bottom_top_blobs(2);
     bottom_top_blobs[0] = bottom_top_blob;

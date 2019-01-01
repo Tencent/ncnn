@@ -22,7 +22,7 @@
 namespace ncnn {
 
 #if NCNN_VULKAN
-class Command;
+class VkCompute;
 class VkAllocator;
 #endif // NCNN_VULKAN
 class Net;
@@ -43,7 +43,7 @@ public:
 
 public:
 #if NCNN_VULKAN
-    Command* vk_model_loader;
+    VkCompute* vk_model_loader;
     VkAllocator* weight_vkallocator;
     VkAllocator* staging_vkallocator;
 #endif // NCNN_VULKAN

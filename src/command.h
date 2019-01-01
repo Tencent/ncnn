@@ -27,8 +27,35 @@ namespace ncnn {
 class Command
 {
 public:
-    Command(VulkanDevice* vkdev);
+    Command(VulkanDevice* vkdev, uint32_t queue_index);
     ~Command();
+
+protected:
+    int create_command_pool();
+    int create_command_buffer();
+
+    // record issue
+    int begin_command_buffer();
+    int end_command_buffer();
+    int queue_submit();
+    int wait_fence();
+
+protected:
+    VulkanDevice* vkdev;
+
+    VkQueue queue;
+
+    VkCommandPool command_pool;
+    VkCommandBuffer command_buffer;
+
+    VkFence fence;
+};
+
+class VkCompute : public Command
+{
+public:
+    VkCompute(VulkanDevice* vkdev);
+    ~VkCompute();
 
     int begin();
 
@@ -63,11 +90,7 @@ public:
     int wait();
 
 protected:
-    int create_command_pool();
-    int create_command_buffer();
-
     // recording issue
-    int begin_command_buffer();
     void copy_buffer(VkBuffer src, VkBuffer dst, size_t size);
     void copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions);
     void bind_pipeline(VkPipeline pipeline);
@@ -78,19 +101,8 @@ protected:
     void upload_compute_barrier(VkBuffer buffer);
     void compute_download_barrier(VkBuffer buffer);
     void compute_compute_barrier(VkBuffer buffer);
-    int end_command_buffer();
-    int queue_submit();
 
 protected:
-    VulkanDevice* vkdev;
-
-    VkQueue queue;
-
-    VkCommandPool command_pool;
-    VkCommandBuffer command_buffer;
-
-    VkFence fence;
-
     // delayed record
     // the good-old path for device without VK_KHR_push_descriptor
     std::vector<VkDescriptorPool> descriptor_pools;
@@ -127,6 +139,15 @@ protected:
         std::vector<vk_constant_type> constants;
     };
     std::vector<record_type> delayed_records;
+};
+
+class VkTransfer : public Command
+{
+public:
+    VkTransfer(VulkanDevice* vkdev);
+    ~VkTransfer();
+
+protected:
 };
 
 } // namespace ncnn

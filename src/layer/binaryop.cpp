@@ -488,7 +488,7 @@ int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if NCNN_VULKAN
-int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, Command& cmd, const Option& opt) const
+int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& bottom_blob1 = bottom_blobs[1];
@@ -542,7 +542,7 @@ int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
     return 0;
 }
 
-int BinaryOp::forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option& opt) const
+int BinaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;

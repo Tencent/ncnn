@@ -197,7 +197,7 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if NCNN_VULKAN
-int UnaryOp::forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option& opt) const
+int UnaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     fprintf(stderr, "UnaryOp::forward_inplace %p\n", bottom_top_blob.buffer);
 

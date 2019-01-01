@@ -205,7 +205,7 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 }
 
 #if NCNN_VULKAN
-int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, Command& cmd, const Option& opt) const
+int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& bottom_blob1 = bottom_blobs[1];

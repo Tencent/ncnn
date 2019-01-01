@@ -261,7 +261,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 }
 
 #if NCNN_VULKAN
-int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, Command& cmd, const Option& opt) const
+int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
 

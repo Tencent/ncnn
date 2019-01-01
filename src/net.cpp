@@ -576,7 +576,7 @@ int Net::load_model(FILE* fp)
     mb.vk_model_loader = 0;
     if (use_vulkan_compute)
     {
-        mb.vk_model_loader = new Command(vkdev);
+        mb.vk_model_loader = new VkCompute(vkdev);
         mb.weight_vkallocator = weight_vkallocator;
         mb.staging_vkallocator = staging_vkallocator;
         mb.vk_model_loader->begin();
@@ -773,7 +773,7 @@ int Net::load_model(const unsigned char* _mem)
     mb.vk_model_loader = 0;
     if (use_vulkan_compute)
     {
-        mb.vk_model_loader = new Command(vkdev);
+        mb.vk_model_loader = new VkCompute(vkdev);
         mb.weight_vkallocator = weight_vkallocator;
         mb.staging_vkallocator = staging_vkallocator;
         mb.vk_model_loader->begin();
@@ -1089,7 +1089,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
 }
 
 #if NCNN_VULKAN
-int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, Command& cmd, Option& opt) const
+int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute& cmd, Option& opt) const
 {
     const Layer* layer = layers[layer_index];
 
@@ -1309,7 +1309,7 @@ int Extractor::extract(int blob_index, Mat& feat)
 
 #if NCNN_VULKAN
 
-        ncnn::Command cmd(net->vkdev);
+        ncnn::VkCompute cmd(net->vkdev);
 
         cmd.begin();
 

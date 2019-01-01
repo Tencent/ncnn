@@ -20,10 +20,10 @@
 
 namespace ncnn {
 
-Command::Command(VulkanDevice* _vkdev) : vkdev(_vkdev)
+Command::Command(VulkanDevice* _vkdev, uint32_t queue_index) : vkdev(_vkdev)
 {
     // get queue
-    vkGetDeviceQueue(vkdev->vkdevice(), vkdev->info.compute_queue_index, 0, &queue);
+    vkGetDeviceQueue(vkdev->vkdevice(), queue_index, 0, &queue);
 
     create_command_pool();
 
@@ -44,6 +44,129 @@ Command::Command(VulkanDevice* _vkdev) : vkdev(_vkdev)
 
 Command::~Command()
 {
+    vkDestroyFence(vkdev->vkdevice(), fence, 0);
+
+    vkFreeCommandBuffers(vkdev->vkdevice(), command_pool, 1, &command_buffer);
+
+    vkDestroyCommandPool(vkdev->vkdevice(), command_pool, 0);
+}
+
+int Command::create_command_pool()
+{
+    VkCommandPoolCreateInfo commandPoolCreateInfo;
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.pNext = 0;
+    commandPoolCreateInfo.flags = 0;
+    commandPoolCreateInfo.queueFamilyIndex = vkdev->info.compute_queue_index;
+
+    VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &command_pool);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateCommandPool failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int Command::create_command_buffer()
+{
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo;
+    commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    commandBufferAllocateInfo.pNext = 0;
+    commandBufferAllocateInfo.commandPool = command_pool;
+    commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBufferAllocateInfo.commandBufferCount = 1;
+
+    VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &command_buffer);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkAllocateCommandBuffers failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int Command::begin_command_buffer()
+{
+    fprintf(stderr, "==================== begin\n");
+
+    VkCommandBufferBeginInfo commandBufferBeginInfo;
+    commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    commandBufferBeginInfo.pNext = 0;
+    commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    commandBufferBeginInfo.pInheritanceInfo = 0;
+
+    VkResult ret = vkBeginCommandBuffer(command_buffer, &commandBufferBeginInfo);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkBeginCommandBuffer failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int Command::end_command_buffer()
+{
+    fprintf(stderr, "==================== end\n");
+
+    VkResult ret = vkEndCommandBuffer(command_buffer);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkEndCommandBuffer failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int Command::queue_submit()
+{
+    fprintf(stderr, "==================== submit\n");
+
+    VkSubmitInfo submitInfo;
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = 0;
+    submitInfo.waitSemaphoreCount = 0;
+    submitInfo.pWaitSemaphores = 0;
+    submitInfo.pWaitDstStageMask = 0;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &command_buffer;
+    submitInfo.signalSemaphoreCount = 0;
+    submitInfo.pSignalSemaphores = 0;
+
+    VkResult ret = vkQueueSubmit(queue, 1, &submitInfo, fence);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkQueueSubmit failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int Command::wait_fence()
+{
+    fprintf(stderr, "==================== wait\n");
+
+    VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, UINT64_MAX);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkWaitForFences failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+VkCompute::VkCompute(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.compute_queue_index)
+{
+}
+
+VkCompute::~VkCompute()
+{
     if (!vkdev->info.support_VK_KHR_push_descriptor)
     {
         for (size_t i=0; i<descriptorsets.size(); i++)
@@ -52,15 +175,9 @@ Command::~Command()
             vkDestroyDescriptorPool(vkdev->vkdevice(), descriptor_pools[i], 0);
         }
     }
-
-    vkDestroyFence(vkdev->vkdevice(), fence, 0);
-
-    vkFreeCommandBuffers(vkdev->vkdevice(), command_pool, 1, &command_buffer);
-
-    vkDestroyCommandPool(vkdev->vkdevice(), command_pool, 0);
 }
 
-int Command::begin()
+int VkCompute::begin()
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return begin_command_buffer();
@@ -72,7 +189,7 @@ int Command::begin()
     return 0;
 }
 
-void Command::record_upload(const VkMat& m)
+void VkCompute::record_upload(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer(m.staging_buffer, m.buffer, m.total() * m.elemsize);
@@ -83,7 +200,7 @@ void Command::record_upload(const VkMat& m)
     delayed_records.push_back(r);
 }
 
-void Command::record_download(const VkMat& m)
+void VkCompute::record_download(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer(m.buffer, m.staging_buffer, m.total() * m.elemsize);
@@ -94,7 +211,7 @@ void Command::record_download(const VkMat& m)
     delayed_records.push_back(r);
 }
 
-void Command::record_clone(const VkMat& src, const VkMat& dst)
+void VkCompute::record_clone(const VkMat& src, const VkMat& dst)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer(src.buffer, dst.buffer, src.total() * src.elemsize);
@@ -105,7 +222,7 @@ void Command::record_clone(const VkMat& src, const VkMat& dst)
     delayed_records.push_back(r);
 }
 
-void Command::record_copy_region(const VkMat& src, const VkMat& dst, const VkBufferCopy& region)
+void VkCompute::record_copy_region(const VkMat& src, const VkMat& dst, const VkBufferCopy& region)
 {
     std::vector<VkBufferCopy> regions(1);
     regions[0] = region;
@@ -113,7 +230,7 @@ void Command::record_copy_region(const VkMat& src, const VkMat& dst, const VkBuf
     record_copy_regions(src, dst, regions);
 }
 
-void Command::record_copy_regions(const VkMat& src, const VkMat& dst, const std::vector<VkBufferCopy>& regions)
+void VkCompute::record_copy_regions(const VkMat& src, const VkMat& dst, const std::vector<VkBufferCopy>& regions)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer_regions(src.buffer, dst.buffer, regions);
@@ -125,7 +242,7 @@ void Command::record_copy_regions(const VkMat& src, const VkMat& dst, const std:
     delayed_records.push_back(r);
 }
 
-void Command::record_bind_pipeline(VkPipeline pipeline)
+void VkCompute::record_bind_pipeline(VkPipeline pipeline)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return bind_pipeline(pipeline);
@@ -136,7 +253,7 @@ void Command::record_bind_pipeline(VkPipeline pipeline)
     delayed_records.push_back(r);
 }
 
-void Command::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkMat>& bindings)
+void VkCompute::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkMat>& bindings)
 {
     const int binding_count = bindings.size();
 
@@ -218,7 +335,7 @@ void Command::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescrip
     delayed_records.push_back(r);
 }
 
-void Command::record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<vk_constant_type>& constants)
+void VkCompute::record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<vk_constant_type>& constants)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return push_constants(pipeline_layout, constants);
@@ -230,7 +347,7 @@ void Command::record_push_constants(VkPipelineLayout pipeline_layout, const std:
     delayed_records.push_back(r);
 }
 
-void Command::record_dispatch(const uint32_t* group_count_xyz)
+void VkCompute::record_dispatch(const uint32_t* group_count_xyz)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return dispatch(group_count_xyz);
@@ -243,7 +360,7 @@ void Command::record_dispatch(const uint32_t* group_count_xyz)
     delayed_records.push_back(r);
 }
 
-void Command::record_upload_compute_barrier(const VkMat& m)
+void VkCompute::record_upload_compute_barrier(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return upload_compute_barrier(m.buffer);
@@ -254,7 +371,7 @@ void Command::record_upload_compute_barrier(const VkMat& m)
     delayed_records.push_back(r);
 }
 
-void Command::record_compute_download_barrier(const VkMat& m)
+void VkCompute::record_compute_download_barrier(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return compute_download_barrier(m.buffer);
@@ -265,7 +382,7 @@ void Command::record_compute_download_barrier(const VkMat& m)
     delayed_records.push_back(r);
 }
 
-void Command::record_compute_compute_barrier(const VkMat& m)
+void VkCompute::record_compute_compute_barrier(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return compute_compute_barrier(m.buffer);
@@ -276,7 +393,7 @@ void Command::record_compute_compute_barrier(const VkMat& m)
     delayed_records.push_back(r);
 }
 
-int Command::end()
+int VkCompute::end()
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return end_command_buffer();
@@ -288,7 +405,7 @@ int Command::end()
     return 0;
 }
 
-int Command::submit()
+int VkCompute::submit()
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return queue_submit();
@@ -339,29 +456,14 @@ int Command::submit()
     return queue_submit();
 }
 
-int Command::begin_command_buffer()
+int VkCompute::wait()
 {
-    fprintf(stderr, "==================== begin\n");
-
-    VkCommandBufferBeginInfo commandBufferBeginInfo;
-    commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    commandBufferBeginInfo.pNext = 0;
-    commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    commandBufferBeginInfo.pInheritanceInfo = 0;
-
-    VkResult ret = vkBeginCommandBuffer(command_buffer, &commandBufferBeginInfo);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkBeginCommandBuffer failed %d\n", ret);
-        return -1;
-    }
-
-    return 0;
+    return wait_fence();
 }
 
-void Command::copy_buffer(VkBuffer src, VkBuffer dst, size_t size)
+void VkCompute::copy_buffer(VkBuffer src, VkBuffer dst, size_t size)
 {
-    fprintf(stderr, "cmd copy %p to %p\n", src, dst);
+//     fprintf(stderr, "cmd copy %p to %p\n", src, dst);
 
     VkBufferCopy region;
     region.srcOffset = 0;
@@ -371,51 +473,51 @@ void Command::copy_buffer(VkBuffer src, VkBuffer dst, size_t size)
     vkCmdCopyBuffer(command_buffer, src, dst, 1, &region);
 }
 
-void Command::copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions)
+void VkCompute::copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions)
 {
-    fprintf(stderr, "cmd copy regions %p to %p\n", src, dst);
+//     fprintf(stderr, "cmd copy regions %p to %p\n", src, dst);
 
     vkCmdCopyBuffer(command_buffer, src, dst, regions.size(), regions.data());
 }
 
-void Command::bind_pipeline(VkPipeline pipeline)
+void VkCompute::bind_pipeline(VkPipeline pipeline)
 {
-    fprintf(stderr, "cmd bind_pipeline %p\n", pipeline);
+//     fprintf(stderr, "cmd bind_pipeline %p\n", pipeline);
 
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 }
 
-void Command::bind_descriptorset(VkPipelineLayout pipeline_layout, VkDescriptorSet descriptorset)
+void VkCompute::bind_descriptorset(VkPipelineLayout pipeline_layout, VkDescriptorSet descriptorset)
 {
-    fprintf(stderr, "cmd bind_descriptorset %p %p\n", pipeline_layout, descriptorset);
+//     fprintf(stderr, "cmd bind_descriptorset %p %p\n", pipeline_layout, descriptorset);
 
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_layout, 0, 1, &descriptorset, 0, 0);
 }
 
-void Command::update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkDescriptorBufferInfo>& descriptorBufferInfos)
+void VkCompute::update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkDescriptorBufferInfo>& descriptorBufferInfos)
 {
-    fprintf(stderr, "cmd update_bindings %p %p\n", pipeline_layout, descriptor_update_template);
+//     fprintf(stderr, "cmd update_bindings %p %p\n", pipeline_layout, descriptor_update_template);
 
     vkdev->vkCmdPushDescriptorSetWithTemplateKHR(command_buffer, descriptor_update_template, pipeline_layout, 0, descriptorBufferInfos.data());
 }
 
-void Command::push_constants(VkPipelineLayout pipeline_layout, const std::vector<vk_constant_type>& constants)
+void VkCompute::push_constants(VkPipelineLayout pipeline_layout, const std::vector<vk_constant_type>& constants)
 {
-    fprintf(stderr, "cmd push_constants %p\n", pipeline_layout);
+//     fprintf(stderr, "cmd push_constants %p\n", pipeline_layout);
 
     vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, constants.size() * sizeof(vk_constant_type), constants.data());
 }
 
-void Command::dispatch(const uint32_t* group_count_xyz)
+void VkCompute::dispatch(const uint32_t* group_count_xyz)
 {
-    fprintf(stderr, "cmd dispatch %d %d %d\n", group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
+//     fprintf(stderr, "cmd dispatch %d %d %d\n", group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
 
     vkCmdDispatch(command_buffer, group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
 }
 
-void Command::upload_compute_barrier(VkBuffer buffer)
+void VkCompute::upload_compute_barrier(VkBuffer buffer)
 {
-    fprintf(stderr, "cmd upload_compute_barrier %p\n", buffer);
+//     fprintf(stderr, "cmd upload_compute_barrier %p\n", buffer);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -434,9 +536,9 @@ void Command::upload_compute_barrier(VkBuffer buffer)
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-void Command::compute_download_barrier(VkBuffer buffer)
+void VkCompute::compute_download_barrier(VkBuffer buffer)
 {
-    fprintf(stderr, "cmd compute_download_barrier %p\n", buffer);
+//     fprintf(stderr, "cmd compute_download_barrier %p\n", buffer);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -455,9 +557,9 @@ void Command::compute_download_barrier(VkBuffer buffer)
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-void Command::compute_compute_barrier(VkBuffer buffer)
+void VkCompute::compute_compute_barrier(VkBuffer buffer)
 {
-    fprintf(stderr, "cmd compute_compute_barrier %p\n", buffer);
+//     fprintf(stderr, "cmd compute_compute_barrier %p\n", buffer);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -476,94 +578,12 @@ void Command::compute_compute_barrier(VkBuffer buffer)
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-int Command::end_command_buffer()
+VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index)
 {
-    fprintf(stderr, "==================== end\n");
-
-    VkResult ret = vkEndCommandBuffer(command_buffer);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkEndCommandBuffer failed %d\n", ret);
-        return -1;
-    }
-
-    return 0;
 }
 
-int Command::queue_submit()
+VkTransfer::~VkTransfer()
 {
-    fprintf(stderr, "==================== submit\n");
-
-    VkSubmitInfo submitInfo;
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.pNext = 0;
-    submitInfo.waitSemaphoreCount = 0;
-    submitInfo.pWaitSemaphores = 0;
-    submitInfo.pWaitDstStageMask = 0;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &command_buffer;
-    submitInfo.signalSemaphoreCount = 0;
-    submitInfo.pSignalSemaphores = 0;
-
-    VkResult ret = vkQueueSubmit(queue, 1, &submitInfo, fence);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkQueueSubmit failed %d\n", ret);
-        return -1;
-    }
-
-    return 0;
-}
-
-int Command::wait()
-{
-    fprintf(stderr, "==================== wait\n");
-
-    VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, UINT64_MAX);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkWaitForFences failed %d\n", ret);
-        return -1;
-    }
-
-    return 0;
-}
-
-int Command::create_command_pool()
-{
-    VkCommandPoolCreateInfo commandPoolCreateInfo;
-    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    commandPoolCreateInfo.pNext = 0;
-    commandPoolCreateInfo.flags = 0;
-    commandPoolCreateInfo.queueFamilyIndex = vkdev->info.compute_queue_index;
-
-    VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &command_pool);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkCreateCommandPool failed %d\n", ret);
-        return -1;
-    }
-
-    return 0;
-}
-
-int Command::create_command_buffer()
-{
-    VkCommandBufferAllocateInfo commandBufferAllocateInfo;
-    commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    commandBufferAllocateInfo.pNext = 0;
-    commandBufferAllocateInfo.commandPool = command_pool;
-    commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    commandBufferAllocateInfo.commandBufferCount = 1;
-
-    VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &command_buffer);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkAllocateCommandBuffers failed %d\n", ret);
-        return -1;
-    }
-
-    return 0;
 }
 
 } // namespace ncnn

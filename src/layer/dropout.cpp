@@ -73,7 +73,7 @@ int Dropout::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if NCNN_VULKAN
-int Dropout::forward_inplace(VkMat& bottom_top_blob, Command& cmd, const Option& opt) const
+int Dropout::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     if (scale == 1.f)
     {

@@ -42,7 +42,7 @@ public:
         mb.vk_model_loader = 0;
         if (use_vulkan_compute)
         {
-            mb.vk_model_loader = new Command(vkdev);
+            mb.vk_model_loader = new VkCompute(vkdev);
             mb.weight_vkallocator = weight_vkallocator;
             mb.staging_vkallocator = staging_vkallocator;
             mb.vk_model_loader->begin();

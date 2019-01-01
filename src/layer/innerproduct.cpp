@@ -245,7 +245,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 }
 
 #if NCNN_VULKAN
-int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, Command& cmd, const Option& opt) const
+int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     top_blob.create(num_output, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
