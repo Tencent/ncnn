@@ -363,33 +363,39 @@ void VkCompute::record_dispatch(const uint32_t* group_count_xyz)
 void VkCompute::record_upload_compute_barrier(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return upload_compute_barrier(m.buffer);
+        return upload_compute_barrier(m.buffer, m.offset, m.total() * m.elemsize);
 
     record_type r;
     r.type = 7;
     r.upload_compute_barrier.buffer = m.buffer;
+    r.upload_compute_barrier.offset = m.offset;
+    r.upload_compute_barrier.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
 
 void VkCompute::record_compute_download_barrier(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return compute_download_barrier(m.buffer);
+        return compute_download_barrier(m.buffer, m.offset, m.total() * m.elemsize);
 
     record_type r;
     r.type = 8;
     r.compute_download_barrier.buffer = m.buffer;
+    r.compute_download_barrier.offset = m.offset;
+    r.compute_download_barrier.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
 
 void VkCompute::record_compute_compute_barrier(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return compute_compute_barrier(m.buffer);
+        return compute_compute_barrier(m.buffer, m.offset, m.total() * m.elemsize);
 
     record_type r;
     r.type = 9;
     r.compute_compute_barrier.buffer = m.buffer;
+    r.compute_compute_barrier.offset = m.offset;
+    r.compute_compute_barrier.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
 
@@ -439,13 +445,13 @@ int VkCompute::submit()
             dispatch(r.dispatch.group_count_xyz);
             break;
         case 7:
-            upload_compute_barrier(r.upload_compute_barrier.buffer);
+            upload_compute_barrier(r.upload_compute_barrier.buffer, r.upload_compute_barrier.offset, r.upload_compute_barrier.size);
             break;
         case 8:
-            compute_download_barrier(r.compute_download_barrier.buffer);
+            compute_download_barrier(r.compute_download_barrier.buffer, r.compute_download_barrier.offset, r.compute_download_barrier.size);
             break;
         case 9:
-            compute_compute_barrier(r.compute_compute_barrier.buffer);
+            compute_compute_barrier(r.compute_compute_barrier.buffer, r.compute_compute_barrier.offset, r.compute_compute_barrier.size);
             break;
         case 10:
             end_command_buffer();
@@ -515,7 +521,7 @@ void VkCompute::dispatch(const uint32_t* group_count_xyz)
     vkCmdDispatch(command_buffer, group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
 }
 
-void VkCompute::upload_compute_barrier(VkBuffer buffer)
+void VkCompute::upload_compute_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
 //     fprintf(stderr, "cmd upload_compute_barrier %p\n", buffer);
 
@@ -527,8 +533,8 @@ void VkCompute::upload_compute_barrier(VkBuffer buffer)
     bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     bufferBarrier.buffer = buffer;
-    bufferBarrier.offset = 0;
-    bufferBarrier.size = VK_WHOLE_SIZE;
+    bufferBarrier.offset = offset;
+    bufferBarrier.size = size;
 
     VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
     VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
@@ -536,7 +542,7 @@ void VkCompute::upload_compute_barrier(VkBuffer buffer)
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-void VkCompute::compute_download_barrier(VkBuffer buffer)
+void VkCompute::compute_download_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
 //     fprintf(stderr, "cmd compute_download_barrier %p\n", buffer);
 
@@ -548,8 +554,8 @@ void VkCompute::compute_download_barrier(VkBuffer buffer)
     bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     bufferBarrier.buffer = buffer;
-    bufferBarrier.offset = 0;
-    bufferBarrier.size = VK_WHOLE_SIZE;
+    bufferBarrier.offset = offset;
+    bufferBarrier.size = size;
 
     VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -557,7 +563,7 @@ void VkCompute::compute_download_barrier(VkBuffer buffer)
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-void VkCompute::compute_compute_barrier(VkBuffer buffer)
+void VkCompute::compute_compute_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
 //     fprintf(stderr, "cmd compute_compute_barrier %p\n", buffer);
 
@@ -569,8 +575,8 @@ void VkCompute::compute_compute_barrier(VkBuffer buffer)
     bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     bufferBarrier.buffer = buffer;
-    bufferBarrier.offset = 0;
-    bufferBarrier.size = VK_WHOLE_SIZE;
+    bufferBarrier.offset = offset;
+    bufferBarrier.size = size;
 
     VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
