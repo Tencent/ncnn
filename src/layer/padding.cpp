@@ -312,6 +312,7 @@ int Padding::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     group_count_xyz[2] = (top_blob.c + local_size_z - 1) / local_size_z;
 
     // record
+    cmd.record_prepare_compute_barrier(bottom_blob);
     cmd.record_bind_pipeline(pipeline);
     cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
     cmd.record_push_constants(pipeline_layout, constants);

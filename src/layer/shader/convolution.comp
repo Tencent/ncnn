@@ -22,6 +22,10 @@ layout (constant_id = 4) const int stride_w = 1;
 layout (constant_id = 5) const int stride_h = 1;
 layout (constant_id = 6) const int bias_term = 0;
 
+layout (constant_id = 233) const int local_size_x = 1;
+layout (constant_id = 234) const int local_size_y = 1;
+layout (constant_id = 235) const int local_size_z = 1;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;

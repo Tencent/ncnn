@@ -801,23 +801,6 @@ int Net::load_model(const unsigned char* _mem)
 void Net::clear()
 {
     blobs.clear();
-
-#if NCNN_VULKAN
-    if (use_vulkan_compute)
-    {
-        for (size_t i=0; i<layers.size(); i++)
-        {
-            Layer* layer = layers[i];
-
-            if (layer->support_vulkan)
-            {
-                layer->destroy_vulkan_pipeline();
-            }
-        }
-
-    }
-#endif // NCNN_VULKAN
-
     for (size_t i=0; i<layers.size(); i++)
     {
         delete layers[i];
@@ -1086,16 +1069,12 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
             int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, cmd, opt);
             if (ret != 0)
                 return ret;
-
-            const VkMat& bottom_blob = blob_mats[bottom_blob_index];
-            cmd.record_compute_compute_barrier(bottom_blob);
         }
         else if (blob_mats[bottom_blob_index].staging_buffer)
         {
             // upload
             const VkMat& bottom_blob = blob_mats[bottom_blob_index];
             cmd.record_upload(bottom_blob);
-            cmd.record_upload_compute_barrier(bottom_blob);
         }
 
         VkMat bottom_blob = blob_mats[bottom_blob_index];
@@ -1109,6 +1088,7 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
             {
                 VkMat bottom_blob_copy;
                 bottom_blob_copy.create_like(bottom_blob, bottom_blob.allocator, bottom_blob.staging_allocator);
+                cmd.record_prepare_transfer_barrier(bottom_blob);
                 cmd.record_clone(bottom_blob, bottom_blob_copy);
                 bottom_blob = bottom_blob_copy;
             }
@@ -1151,16 +1131,12 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
                 int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, cmd, opt);
                 if (ret != 0)
                     return ret;
-
-                const VkMat& bottom_blob = blob_mats[bottom_blob_index];
-                cmd.record_compute_compute_barrier(bottom_blob);
             }
             else if (blob_mats[bottom_blob_index].staging_buffer)
             {
                 // upload
                 const VkMat& bottom_blob = blob_mats[bottom_blob_index];
                 cmd.record_upload(bottom_blob);
-                cmd.record_upload_compute_barrier(bottom_blob);
             }
 
             bottom_blobs[i] = blob_mats[bottom_blob_index];
@@ -1174,6 +1150,7 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
                 {
                     VkMat bottom_blob_copy;
                     bottom_blob_copy.create_like(bottom_blobs[i], bottom_blobs[i].allocator, bottom_blobs[i].staging_allocator);
+                    cmd.record_prepare_transfer_barrier(bottom_blobs[i]);
                     cmd.record_clone(bottom_blobs[i], bottom_blob_copy);
                     bottom_blobs[i] = bottom_blob_copy;
                 }
@@ -1298,7 +1275,7 @@ int Extractor::extract(int blob_index, Mat& feat)
         VkMat& feat_gpu = blob_mats_gpu[blob_index];
 
         // download
-        cmd.record_compute_download_barrier(feat_gpu);
+        cmd.record_prepare_transfer_barrier(feat_gpu);
 
         feat_gpu.prepare_staging_buffer();
 

@@ -64,6 +64,12 @@ Layer::Layer()
 
 Layer::~Layer()
 {
+#if NCNN_VULKAN
+    if (support_vulkan)
+    {
+        destroy_vulkan_pipeline();
+    }
+#endif // NCNN_VULKAN
 }
 
 int Layer::load_param(const ParamDict& /*pd*/)

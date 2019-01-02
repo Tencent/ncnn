@@ -50,7 +50,7 @@ int BinaryOp::load_param(const ParamDict& pd)
         specializations[1].i = with_scalar;
         specializations[2].f = b;
 
-        binding_count = with_scalar ? 1 : 3;
+        binding_count = 3;
         push_constant_count = 15;
     }
 #endif // NCNN_VULKAN
@@ -534,6 +534,8 @@ int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
     group_count_xyz[2] = (top_blob.c + local_size_z - 1) / local_size_z;
 
     // record
+    cmd.record_prepare_compute_barrier(bottom_blob);
+    cmd.record_prepare_compute_barrier(bottom_blob1);
     cmd.record_bind_pipeline(pipeline);
     cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
     cmd.record_push_constants(pipeline_layout, constants);
@@ -550,8 +552,10 @@ int BinaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Opti
 
     fprintf(stderr, "BinaryOp::forward_inplace %p\n", bottom_top_blob.buffer);
 
-    std::vector<VkMat> bindings(1);
+    std::vector<VkMat> bindings(3);
     bindings[0] = bottom_top_blob;
+    bindings[1] = bottom_top_blob;// TODO use dummy buffer
+    bindings[2] = bottom_top_blob;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(15);
     constants[10].i = bottom_top_blob.dims;
@@ -566,6 +570,7 @@ int BinaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Opti
     group_count_xyz[2] = (bottom_top_blob.c + local_size_z - 1) / local_size_z;
 
     // record
+    cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_bind_pipeline(pipeline);
     cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
     cmd.record_push_constants(pipeline_layout, constants);

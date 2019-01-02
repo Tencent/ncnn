@@ -377,29 +377,29 @@ void VkCompute::record_dispatch(const uint32_t* group_count_xyz)
     delayed_records.push_back(r);
 }
 
-void VkCompute::record_upload_compute_barrier(const VkMat& m)
+void VkCompute::record_transfer_compute_barrier(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return upload_compute_barrier(m.buffer, m.offset, m.total() * m.elemsize);
+        return transfer_compute_barrier(m.buffer, m.offset, m.total() * m.elemsize);
 
     record_type r;
     r.type = 7;
-    r.upload_compute_barrier.buffer = m.buffer;
-    r.upload_compute_barrier.offset = m.offset;
-    r.upload_compute_barrier.size = m.total() * m.elemsize;
+    r.transfer_compute_barrier.buffer = m.buffer;
+    r.transfer_compute_barrier.offset = m.offset;
+    r.transfer_compute_barrier.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
 
-void VkCompute::record_compute_download_barrier(const VkMat& m)
+void VkCompute::record_compute_transfer_barrier(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return compute_download_barrier(m.buffer, m.offset, m.total() * m.elemsize);
+        return compute_transfer_barrier(m.buffer, m.offset, m.total() * m.elemsize);
 
     record_type r;
     r.type = 8;
-    r.compute_download_barrier.buffer = m.buffer;
-    r.compute_download_barrier.offset = m.offset;
-    r.compute_download_barrier.size = m.total() * m.elemsize;
+    r.compute_transfer_barrier.buffer = m.buffer;
+    r.compute_transfer_barrier.offset = m.offset;
+    r.compute_transfer_barrier.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
 
@@ -414,6 +414,21 @@ void VkCompute::record_compute_compute_barrier(const VkMat& m)
     r.compute_compute_barrier.offset = m.offset;
     r.compute_compute_barrier.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
+}
+
+void VkCompute::record_prepare_transfer_barrier(const VkMat& m)
+{
+    if (m.state == 3)
+        return record_compute_transfer_barrier(m);
+}
+
+void VkCompute::record_prepare_compute_barrier(const VkMat& m)
+{
+    if (m.state == 2)
+        return record_transfer_compute_barrier(m);
+
+    if (m.state == 3)
+        return record_compute_compute_barrier(m);
 }
 
 int VkCompute::end()
@@ -462,10 +477,10 @@ int VkCompute::submit()
             dispatch(r.dispatch.group_count_xyz);
             break;
         case 7:
-            upload_compute_barrier(r.upload_compute_barrier.buffer, r.upload_compute_barrier.offset, r.upload_compute_barrier.size);
+            transfer_compute_barrier(r.transfer_compute_barrier.buffer, r.transfer_compute_barrier.offset, r.transfer_compute_barrier.size);
             break;
         case 8:
-            compute_download_barrier(r.compute_download_barrier.buffer, r.compute_download_barrier.offset, r.compute_download_barrier.size);
+            compute_transfer_barrier(r.compute_transfer_barrier.buffer, r.compute_transfer_barrier.offset, r.compute_transfer_barrier.size);
             break;
         case 9:
             compute_compute_barrier(r.compute_compute_barrier.buffer, r.compute_compute_barrier.offset, r.compute_compute_barrier.size);
@@ -538,9 +553,9 @@ void VkCompute::dispatch(const uint32_t* group_count_xyz)
     vkCmdDispatch(command_buffer, group_count_xyz[0], group_count_xyz[1], group_count_xyz[2]);
 }
 
-void VkCompute::upload_compute_barrier(VkBuffer buffer, size_t offset, size_t size)
+void VkCompute::transfer_compute_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
-//     fprintf(stderr, "cmd upload_compute_barrier %p\n", buffer);
+//     fprintf(stderr, "cmd transfer_compute_barrier %p\n", buffer);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -559,9 +574,9 @@ void VkCompute::upload_compute_barrier(VkBuffer buffer, size_t offset, size_t si
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-void VkCompute::compute_download_barrier(VkBuffer buffer, size_t offset, size_t size)
+void VkCompute::compute_transfer_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
-//     fprintf(stderr, "cmd compute_download_barrier %p\n", buffer);
+//     fprintf(stderr, "cmd compute_transfer_barrier %p\n", buffer);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;

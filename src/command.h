@@ -77,11 +77,15 @@ public:
 
     void record_dispatch(const uint32_t* group_count_xyz);
 
-    void record_upload_compute_barrier(const VkMat& m);
+    void record_transfer_compute_barrier(const VkMat& m);
 
-    void record_compute_download_barrier(const VkMat& m);
+    void record_compute_transfer_barrier(const VkMat& m);
 
     void record_compute_compute_barrier(const VkMat& m);
+
+    void record_prepare_transfer_barrier(const VkMat& m);
+
+    void record_prepare_compute_barrier(const VkMat& m);
 
     int end();
 
@@ -98,8 +102,8 @@ protected:
     void update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const std::vector<VkDescriptorBufferInfo>& descriptorBufferInfos);
     void push_constants(VkPipelineLayout pipeline_layout, const std::vector<vk_constant_type>& constants);
     void dispatch(const uint32_t* group_count_xyz);
-    void upload_compute_barrier(VkBuffer buffer, size_t offset, size_t size);
-    void compute_download_barrier(VkBuffer buffer, size_t offset, size_t size);
+    void transfer_compute_barrier(VkBuffer buffer, size_t offset, size_t size);
+    void compute_transfer_barrier(VkBuffer buffer, size_t offset, size_t size);
     void compute_compute_barrier(VkBuffer buffer, size_t offset, size_t size);
 
 protected:
@@ -116,8 +120,8 @@ protected:
         // 4=bind descriptorset
         // 5=push constants
         // 6=dispatch
-        // 7=upload-compute barrier
-        // 8=compute-download barrier
+        // 7=transfer-compute barrier
+        // 8=compute-transfer barrier
         // 9=compute-compute barrier
         // 10=end
         int type;
@@ -130,8 +134,8 @@ protected:
         struct { VkPipelineLayout pipeline_layout; VkDescriptorSet descriptorset; } bind_descriptorset;
         struct { VkPipelineLayout pipeline_layout; } push_constants;
         struct { uint32_t group_count_xyz[3]; } dispatch;
-        struct { VkBuffer buffer; size_t offset; size_t size; } upload_compute_barrier;
-        struct { VkBuffer buffer; size_t offset; size_t size; } compute_download_barrier;
+        struct { VkBuffer buffer; size_t offset; size_t size; } transfer_compute_barrier;
+        struct { VkBuffer buffer; size_t offset; size_t size; } compute_transfer_barrier;
         struct { VkBuffer buffer; size_t offset; size_t size; } compute_compute_barrier;
         };
 

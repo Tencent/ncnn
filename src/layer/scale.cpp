@@ -231,6 +231,9 @@ int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd,
     group_count_xyz[2] = (bottom_top_blob.c + local_size_z - 1) / local_size_z;
 
     // record
+    cmd.record_prepare_compute_barrier(bottom_top_blob);
+    if (scale_data_size == -233)
+        cmd.record_prepare_compute_barrier(scale_blob);
     cmd.record_bind_pipeline(pipeline);
     cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
     cmd.record_push_constants(pipeline_layout, constants);
