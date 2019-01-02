@@ -4845,9 +4845,6 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
         int* outptr2 = top_blob.channel(p+2);
         int* outptr3 = top_blob.channel(p+3);
 
-        const int zeros[4] = {0, 0, 0, 0};
-        const int* biasptr = zeros;
-
         int i = 0;
 
         for (; i+7<size; i+=8)
