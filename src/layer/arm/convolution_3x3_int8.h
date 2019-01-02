@@ -1154,12 +1154,15 @@ static void conv3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat
             int8x8_t _k8 = vdup_n_s8(kernel[8]);
 
             for (; i < outh; i++)
-            {           
+            {  
+#if __ARM_NEON
                 int nn = outw >> 3;
                 int remain = outw & 7;
+#else
+                int remain = outw;
+#endif // __ARM_NEON
 
-                remain = outw;
-
+#if __ARM_NEON
                 for (; nn >0; nn--)
                 {
                     int8x8x2_t _r0 = vld2_s8(r0);
@@ -1204,7 +1207,8 @@ static void conv3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat
                     r2 += 16;
                     outptr0 += 8;
                 }
-
+#endif
+#if __ARM_NEON
                 if (remain >= 4)
                 {
                     remain -= 4;
@@ -1246,7 +1250,7 @@ static void conv3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat
                     r2 += 8;
                     outptr0 += 4;
                 }                
-
+#endif
                 for (; remain>0; remain--)
                 {
                     int sum0 = 0;
