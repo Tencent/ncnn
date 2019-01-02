@@ -124,6 +124,13 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
         }
     }
 
+    // third try, use compute queue
+    uint32_t compute_queue_index = find_device_compute_queue(queueFamilyProperties);
+    if (compute_queue_index != -1)
+    {
+        return compute_queue_index;
+    }
+
     fprintf(stderr, "no transfer queue\n");
     return -1;
 }

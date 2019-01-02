@@ -74,7 +74,7 @@ int Convolution::load_param(const ParamDict& pd)
         specializations[5].i = stride_h;
         specializations[6].i = bias_term;
 
-        binding_count = bias_term ? 4 : 3;
+        binding_count = 4;
         push_constant_count = 10;
 
         padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
@@ -443,12 +443,11 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     fprintf(stderr, "Convolution::forward %p %p\n", bottom_blob_bordered.buffer, top_blob.buffer);
 
-    std::vector<VkMat> bindings(bias_term ? 4 : 3);
+    std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu;
-    if (bias_term)
-        bindings[3] = bias_data_gpu;
+    bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered.dims;

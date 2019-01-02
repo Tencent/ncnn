@@ -216,7 +216,7 @@ int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd,
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_top_blob;
     bindings[1] = scale_blob;
-    bindings[2] = bias_data_gpu;
+    bindings[2] = bias_term ? bias_data_gpu : scale_blob;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;

@@ -270,6 +270,9 @@ void VkCompute::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescr
 {
     const int binding_count = bindings.size();
 
+    if (binding_count == 0)
+        return;
+
     std::vector<VkDescriptorBufferInfo> descriptorBufferInfos(binding_count);
     for (int i=0; i<binding_count; i++)
     {

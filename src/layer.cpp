@@ -262,6 +262,12 @@ int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const
 
 int Layer::create_descriptorset_layout()
 {
+    if (binding_count == 0)
+    {
+        descriptorset_layout = 0;
+        return 0;
+    }
+
     std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(binding_count);
     for (int i=0; i<binding_count; i++)
     {
@@ -305,8 +311,17 @@ int Layer::create_pipeline_layout()
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.pNext = 0;
     pipelineLayoutCreateInfo.flags = 0;
+
+    if (descriptorset_layout)
+    {
     pipelineLayoutCreateInfo.setLayoutCount = 1;
     pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout;
+    }
+    else
+    {
+    pipelineLayoutCreateInfo.setLayoutCount = 0;
+    pipelineLayoutCreateInfo.pSetLayouts = 0;
+    }
 
     if (push_constant_count > 0)
     {
@@ -404,6 +419,12 @@ int Layer::create_pipeline()
 
 int Layer::create_descriptor_update_template()
 {
+    if (binding_count == 0)
+    {
+        descriptor_update_template = 0;
+        return 0;
+    }
+
     std::vector<VkDescriptorUpdateTemplateEntryKHR> descriptorUpdateTemplateEntries(binding_count);
     for (int i=0; i<binding_count; i++)// TODO do not update weights
     {
