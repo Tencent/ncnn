@@ -15,27 +15,30 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 ### Support most commonly used CNN network
 ### 支持大部分常用的 CNN 网络
 
-Classical CNN Network: VGG AlexNet GoogleNet Inception ...
-
-Practical CNN Network: ResNet DenseNet SENet FPN ...
-
-Light-weight CNN Network: SqueezeNet MobileNetV1/V2 ShuffleNetV1/V2 MNasNet ...
-
-Detection Network: MTCNN facedetection ...
-
-Detection Network: VGG-SSD MobileNet-SSD SqueezeNet-SSD MobileNetV2-SSDLite ...
-
-Detection Network: Faster-RCNN R-FCN ...
-
-Detection Network: YOLOV2 YOLOV3 MobileNet-YOLOV3 ...
-
-Segmentation Network: FCN PSPNet ...
+* Classical CNN: VGG AlexNet GoogleNet Inception ...
+* Practical CNN: ResNet DenseNet SENet FPN ...
+* Light-weight CNN: SqueezeNet MobileNetV1/V2 ShuffleNetV1/V2 MNasNet ...
+* Detection: MTCNN facedetection ...
+* Detection: VGG-SSD MobileNet-SSD SqueezeNet-SSD MobileNetV2-SSDLite ...
+* Detection: Faster-RCNN R-FCN ...
+* Detection: YOLOV2 YOLOV3 MobileNet-YOLOV3 ...
+* Segmentation: FCN PSPNet ...
 
 ---
 
 ### HowTo
 
 **[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / Raspberry Pi3 / Android  / iOS**
+
+* [Build for Linux x86](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-linux-x86)
+* [Build for Windows x64 using VS2017](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-windows-x64-using-visual-studio-community-2017)
+* [Build for MacOSX](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-macosx)
+* [Build for Raspberry Pi 3](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-raspberry-pi-3)
+* [Build for ARM Cortex-A family with cross-compiling](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-arm-cortex-a-family-with-cross-compiling)
+* [Build for Android](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-android)
+* [Build for iOS on MacOSX with xcode](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-ios-on-macosx-with-xcode)
+* [Build for iOS on Linux with cctools-port](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-ios-on-linux-with-cctools-port)
+* [Build for Hisilicon platform with cross-compiling](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-hisilicon-platform-with-cross-compiling)
 
 **[how to use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/how-to-use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
 
@@ -53,9 +56,9 @@ Segmentation Network: FCN PSPNet ...
 
 ### FAQ
 
-[ncnn throw error](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-throw-error)
+**[ncnn throw error](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-throw-error)**
 
-[ncnn produce wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)
+**[ncnn produce wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)**
 
 ---
 
@@ -91,11 +94,9 @@ Segmentation Network: FCN PSPNet ...
 
 ### Example project
 
-https://github.com/Tencent/ncnn/tree/master/examples/squeezencnn
-
-https://github.com/chehongshu/ncnnforandroid_objectiondetection_Mobilenetssd
-
-https://github.com/moli232777144/mtcnn_ncnn
+* https://github.com/Tencent/ncnn/tree/master/examples/squeezencnn
+* https://github.com/chehongshu/ncnnforandroid_objectiondetection_Mobilenetssd
+* https://github.com/moli232777144/mtcnn_ncnn
 
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-1.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-23.jpg)

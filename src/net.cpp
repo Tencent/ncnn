@@ -412,7 +412,7 @@ int Net::load_param(const char* protopath)
 template<typename T> bool readValue(T & val, FILE * fp)
 {
     size_t res = fread(&val, sizeof(T), 1, fp);
-    if (res != sizeof(T)) {
+    if (res != 1) {
         fprintf(stderr, "issue with param file reading\n");
         return false;
     }
