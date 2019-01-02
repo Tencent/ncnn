@@ -71,7 +71,7 @@ public:
 
     void record_bind_pipeline(VkPipeline pipeline);
 
-    void record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkMat>& bindings);
+    void record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const std::vector<VkMat>& bindings);
 
     void record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<vk_constant_type>& constants);
 
@@ -95,7 +95,7 @@ protected:
     void copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions);
     void bind_pipeline(VkPipeline pipeline);
     void bind_descriptorset(VkPipelineLayout pipeline_layout, VkDescriptorSet descriptorset);
-    void update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkDescriptorBufferInfo>& descriptorBufferInfos);
+    void update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const std::vector<VkDescriptorBufferInfo>& descriptorBufferInfos);
     void push_constants(VkPipelineLayout pipeline_layout, const std::vector<vk_constant_type>& constants);
     void dispatch(const uint32_t* group_count_xyz);
     void upload_compute_barrier(VkBuffer buffer, size_t offset, size_t size);

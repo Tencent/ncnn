@@ -196,7 +196,11 @@ void VkCompute::record_upload(const VkMat& m)
 
     record_type r;
     r.type = 1;
-    r.copy = { m.staging_buffer, 0, m.buffer, m.offset, m.total() * m.elemsize };
+    r.copy.src = m.staging_buffer;
+    r.copy.src_offset = 0;
+    r.copy.dst = m.buffer;
+    r.copy.dst_offset = m.offset;
+    r.copy.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
 
@@ -207,7 +211,11 @@ void VkCompute::record_download(const VkMat& m)
 
     record_type r;
     r.type = 1;
-    r.copy = { m.buffer, m.offset, m.staging_buffer, 0, m.total() * m.elemsize };
+    r.copy.src = m.buffer;
+    r.copy.src_offset = m.offset;
+    r.copy.dst = m.staging_buffer;
+    r.copy.dst_offset = 0;
+    r.copy.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
 
@@ -218,7 +226,11 @@ void VkCompute::record_clone(const VkMat& src, const VkMat& dst)
 
     record_type r;
     r.type = 1;
-    r.copy = { src.buffer, src.offset, dst.buffer, dst.offset, src.total() * src.elemsize };
+    r.copy.src = src.buffer;
+    r.copy.src_offset = src.offset;
+    r.copy.dst = dst.buffer;
+    r.copy.dst_offset = dst.offset;
+    r.copy.size = src.total() * src.elemsize;
     delayed_records.push_back(r);
 }
 
@@ -237,7 +249,8 @@ void VkCompute::record_copy_regions(const VkMat& src, const VkMat& dst, const st
 
     record_type r;
     r.type = 2;
-    r.copy_regions = { src.buffer, dst.buffer };
+    r.copy_regions.src = src.buffer;
+    r.copy_regions.dst = dst.buffer;
     r.regions = regions;
     delayed_records.push_back(r);
 }
@@ -249,11 +262,11 @@ void VkCompute::record_bind_pipeline(VkPipeline pipeline)
 
     record_type r;
     r.type = 3;
-    r.bind_pipeline = { pipeline };
+    r.bind_pipeline.pipeline = pipeline;
     delayed_records.push_back(r);
 }
 
-void VkCompute::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkMat>& bindings)
+void VkCompute::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const std::vector<VkMat>& bindings)
 {
     const int binding_count = bindings.size();
 
@@ -331,7 +344,8 @@ void VkCompute::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescr
 
     record_type r;
     r.type = 4;
-    r.bind_descriptorset = { pipeline_layout, descriptorset };
+    r.bind_descriptorset.pipeline_layout = pipeline_layout;
+    r.bind_descriptorset.descriptorset = descriptorset;
     delayed_records.push_back(r);
 }
 
@@ -342,7 +356,7 @@ void VkCompute::record_push_constants(VkPipelineLayout pipeline_layout, const st
 
     record_type r;
     r.type = 5;
-    r.push_constants = { pipeline_layout };
+    r.push_constants.pipeline_layout = pipeline_layout;
     r.constants = constants;
     delayed_records.push_back(r);
 }
@@ -500,7 +514,7 @@ void VkCompute::bind_descriptorset(VkPipelineLayout pipeline_layout, VkDescripto
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_layout, 0, 1, &descriptorset, 0, 0);
 }
 
-void VkCompute::update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplate descriptor_update_template, const std::vector<VkDescriptorBufferInfo>& descriptorBufferInfos)
+void VkCompute::update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const std::vector<VkDescriptorBufferInfo>& descriptorBufferInfos)
 {
 //     fprintf(stderr, "cmd update_bindings %p %p\n", pipeline_layout, descriptor_update_template);
 
@@ -603,7 +617,9 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst)
     record_type r;
     r.type = 0;
     r.size = src.total() * src.elemsize;
-    r.upload = { src.data, dst.buffer, dst.offset };
+    r.upload.src = src.data;
+    r.upload.dst = dst.buffer;
+    r.upload.dst_offset = dst.offset;
     delayed_records.push_back(r);
 }
 
@@ -614,7 +630,9 @@ void VkTransfer::record_download(const VkMat& src, Mat& dst)
     record_type r;
     r.type = 1;
     r.size = src.total() * src.elemsize;
-    r.download = { src.buffer, src.offset, dst.data };
+    r.download.src = src.buffer;
+    r.download.src_offset = src.offset;
+    r.download.dst = dst.data;
     delayed_records.push_back(r);
 }
 
@@ -658,7 +676,7 @@ int VkTransfer::submit()
 
     begin_command_buffer();
 
-    fprintf(stderr, "cmd transfer %p %u\n", staging_buffer, staging_buffer_size);
+    fprintf(stderr, "cmd transfer %p %lu\n", staging_buffer, staging_buffer_size);
 
     // handle delayed records
     size_t staging_buffer_offset = 0;

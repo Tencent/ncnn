@@ -404,7 +404,7 @@ int Layer::create_pipeline()
 
 int Layer::create_descriptor_update_template()
 {
-    std::vector<VkDescriptorUpdateTemplateEntry> descriptorUpdateTemplateEntries(binding_count);
+    std::vector<VkDescriptorUpdateTemplateEntryKHR> descriptorUpdateTemplateEntries(binding_count);
     for (int i=0; i<binding_count; i++)// TODO do not update weights
     {
         descriptorUpdateTemplateEntries[i].dstBinding = i;
@@ -415,8 +415,8 @@ int Layer::create_descriptor_update_template()
         descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorBufferInfo);
     }
 
-    VkDescriptorUpdateTemplateCreateInfo descriptorUpdateTemplateCreateInfo;
-    descriptorUpdateTemplateCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO;
+    VkDescriptorUpdateTemplateCreateInfoKHR descriptorUpdateTemplateCreateInfo;
+    descriptorUpdateTemplateCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO_KHR;
     descriptorUpdateTemplateCreateInfo.pNext = 0;
     descriptorUpdateTemplateCreateInfo.flags = 0;
     descriptorUpdateTemplateCreateInfo.descriptorUpdateEntryCount = binding_count;// TODO do not update weights

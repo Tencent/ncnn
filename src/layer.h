@@ -136,7 +136,7 @@ public:
     // op forward TODO use pipeline cache ?
     VkPipeline pipeline;
 
-    VkDescriptorUpdateTemplate descriptor_update_template;
+    VkDescriptorUpdateTemplateKHR descriptor_update_template;
 
 public:
     int set_optimal_local_size_xyz(int w = 32, int h = 32, int c = 32);
