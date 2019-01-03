@@ -262,11 +262,12 @@ public:
     VkBuffer staging_buffer;
     void* mapped_ptr;
 
+    // buffer state, modified by command functions internally
     // 0=null
-    // 1=ready
+    // 1=created
     // 2=transfer
     // 3=compute
-    int state;
+    mutable int state;
 
     // pointer to the reference counter
     // when points to user-allocated data, the pointer is NULL

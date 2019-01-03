@@ -1074,6 +1074,7 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
         {
             // upload
             const VkMat& bottom_blob = blob_mats[bottom_blob_index];
+            cmd.record_prepare_transfer_barrier(bottom_blob);
             cmd.record_upload(bottom_blob);
         }
 
@@ -1136,6 +1137,7 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
             {
                 // upload
                 const VkMat& bottom_blob = blob_mats[bottom_blob_index];
+                cmd.record_prepare_transfer_barrier(bottom_blob);
                 cmd.record_upload(bottom_blob);
             }
 

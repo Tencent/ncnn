@@ -596,6 +596,7 @@ int ConvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
     // record
     cmd.record_prepare_compute_barrier(bottom_blob_bordered);
+    cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_bind_pipeline(pipeline);
     cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
     cmd.record_push_constants(pipeline_layout, constants);
