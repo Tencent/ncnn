@@ -60,6 +60,15 @@ Layer::Layer()
     one_blob_only = false;
     support_inplace = false;
     support_vulkan = false;
+
+#if NCNN_VULKAN
+    local_size_x = 1;
+    local_size_y = 1;
+    local_size_z = 1;
+
+    binding_count = 0;
+    push_constant_count = 0;
+#endif // NCNN_VULKAN
 }
 
 Layer::~Layer()
