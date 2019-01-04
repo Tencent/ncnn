@@ -1207,15 +1207,15 @@ static void conv3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat
 
             int i = 0;
 
-            int8x8_t _k0 = vdup_n_s8(kernel[0]);
-            int8x8_t _k1 = vdup_n_s8(kernel[1]);
-            int8x8_t _k2 = vdup_n_s8(kernel[2]);
-            int8x8_t _k3 = vdup_n_s8(kernel[3]);
-            int8x8_t _k4 = vdup_n_s8(kernel[4]);
-            int8x8_t _k5 = vdup_n_s8(kernel[5]);
-            int8x8_t _k6 = vdup_n_s8(kernel[6]);
-            int8x8_t _k7 = vdup_n_s8(kernel[7]);
-            int8x8_t _k8 = vdup_n_s8(kernel[8]);
+            int8x8_t _k0 = vdup_n_s8(kernel0[0]);
+            int8x8_t _k1 = vdup_n_s8(kernel0[1]);
+            int8x8_t _k2 = vdup_n_s8(kernel0[2]);
+            int8x8_t _k3 = vdup_n_s8(kernel0[3]);
+            int8x8_t _k4 = vdup_n_s8(kernel0[4]);
+            int8x8_t _k5 = vdup_n_s8(kernel0[5]);
+            int8x8_t _k6 = vdup_n_s8(kernel0[6]);
+            int8x8_t _k7 = vdup_n_s8(kernel0[7]);
+            int8x8_t _k8 = vdup_n_s8(kernel0[8]);
 
             for (; i < outh; i++)
             {  
