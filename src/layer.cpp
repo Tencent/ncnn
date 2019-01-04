@@ -62,6 +62,12 @@ Layer::Layer()
     support_vulkan = false;
 
 #if NCNN_VULKAN
+    shader_module = 0;
+    descriptorset_layout = 0;
+    pipeline_layout = 0;
+    pipeline = 0;
+    descriptor_update_template = 0;
+
     local_size_x = 1;
     local_size_y = 1;
     local_size_z = 1;
@@ -238,14 +244,23 @@ int Layer::destroy_vulkan_pipeline()
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
     {
-        vkdev->vkDestroyDescriptorUpdateTemplateKHR(vkdev->vkdevice(), descriptor_update_template, 0);
+        if (descriptor_update_template)
+            vkdev->vkDestroyDescriptorUpdateTemplateKHR(vkdev->vkdevice(), descriptor_update_template, 0);
     }
 
-    vkDestroyPipeline(vkdev->vkdevice(), pipeline, 0);
+    if (pipeline)
+        vkDestroyPipeline(vkdev->vkdevice(), pipeline, 0);
 
-    vkDestroyPipelineLayout(vkdev->vkdevice(), pipeline_layout, 0);
+    if (pipeline_layout)
+        vkDestroyPipelineLayout(vkdev->vkdevice(), pipeline_layout, 0);
 
-    vkDestroyDescriptorSetLayout(vkdev->vkdevice(), descriptorset_layout, 0);
+    if (descriptorset_layout)
+        vkDestroyDescriptorSetLayout(vkdev->vkdevice(), descriptorset_layout, 0);
+
+    descriptorset_layout = 0;
+    pipeline_layout = 0;
+    pipeline = 0;
+    descriptor_update_template = 0;
 
     return 0;
 }
@@ -255,14 +270,38 @@ int Layer::upload_model(VkTransfer& /*cmd*/)
     return 0;
 }
 
-int Layer::forward(const std::vector<VkMat>& /*bottom_blobs*/, std::vector<VkMat>& /*top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
+int Layer::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    return -1;
+    if (!support_inplace)
+        return -1;
+
+    top_blobs.resize(bottom_blobs.size());
+    for (int i = 0; i < (int)top_blobs.size(); i++)
+    {
+        top_blobs[i].create_like(bottom_blobs[i], bottom_blobs[i].allocator, bottom_blobs[i].staging_allocator);
+        if (top_blobs[i].empty())
+            return -100;
+
+        cmd.record_prepare_transfer_barrier(bottom_blobs[i]);
+        cmd.record_clone(bottom_blobs[i], top_blobs[i]);
+    }
+
+    return forward_inplace(top_blobs, cmd, opt);
 }
 
-int Layer::forward(const VkMat& /*bottom_blob*/, VkMat& /*top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
+int Layer::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    return -1;
+    if (!support_inplace)
+        return -1;
+
+    top_blob.create_like(bottom_blob, bottom_blob.allocator, bottom_blob.staging_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    cmd.record_prepare_transfer_barrier(bottom_blob);
+    cmd.record_clone(bottom_blob, top_blob);
+
+    return forward_inplace(top_blob, cmd, opt);
 }
 
 int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const

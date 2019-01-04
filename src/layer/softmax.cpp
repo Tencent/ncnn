@@ -40,8 +40,11 @@ int Softmax::load_param(const ParamDict& pd)
         specializations.resize(1);
         specializations[0].i = axis;
 
-        binding_count = 3;
-        push_constant_count = 5;
+        binding_count = 2;
+        push_constant_count = 10;
+
+        // TODO inplace for vulkan
+        support_inplace = false;
     }
 #endif // NCNN_VULKAN
 
@@ -456,68 +459,43 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if NCNN_VULKAN
-int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int Softmax::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int dims = bottom_top_blob.dims;
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
+    int dims = bottom_blob.dims;
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
 
-    fprintf(stderr, "Softmax::forward_inplace %p\n", bottom_top_blob.buffer);
+    top_blob.create_like(bottom_blob, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
 
-    VkMat max_workspace;
-    VkMat sum_workspace;
+    fprintf(stderr, "Softmax::forward %p %p\n", bottom_blob.buffer, top_blob.buffer);
 
-    if (dims == 1) // axis == 0
-    {
-        max_workspace.create(1, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(1, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-    }
-    else if (dims == 2 && axis == 0)
-    {
-        max_workspace.create(w, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(w, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-    }
-    else if (dims == 2 && axis == 1)
-    {
-        max_workspace.create(h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-    }
-    else if (dims == 3 && axis == 0)
-    {
-        max_workspace.create(w, h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(w, h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-    }
-    else if (dims == 3 && axis == 1)
-    {
-        max_workspace.create(h, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(h, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-    }
-    else if (dims == 3 && axis == 2)
-    {
-        max_workspace.create(w, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(w, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-    }
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
 
-    std::vector<VkMat> bindings(3);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = max_workspace;
-    bindings[2] = sum_workspace;
-
-    std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = bottom_top_blob.cstep;
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
 
     uint32_t group_count_xyz[3];
-    group_count_xyz[0] = (bottom_top_blob.w + local_size_x - 1) / local_size_x;
-    group_count_xyz[1] = (bottom_top_blob.h + local_size_y - 1) / local_size_y;
-    group_count_xyz[2] = (bottom_top_blob.c + local_size_z - 1) / local_size_z;
+    group_count_xyz[0] = (top_blob.w + local_size_x - 1) / local_size_x;
+    group_count_xyz[1] = (top_blob.h + local_size_y - 1) / local_size_y;
+    group_count_xyz[2] = (top_blob.c + local_size_z - 1) / local_size_z;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
+    cmd.record_prepare_compute_barrier(bottom_blob);
+    cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_bind_pipeline(pipeline);
     cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
     cmd.record_push_constants(pipeline_layout, constants);
