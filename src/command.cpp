@@ -192,14 +192,14 @@ int VkCompute::begin()
 void VkCompute::record_upload(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return copy_buffer(m.staging_buffer, 0, m.buffer, m.offset, m.total() * m.elemsize);
+        return copy_buffer(m.staging_buffer(), 0, m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
 
     record_type r;
     r.type = 1;
-    r.copy.src = m.staging_buffer;
+    r.copy.src = m.staging_buffer();
     r.copy.src_offset = 0;
-    r.copy.dst = m.buffer;
-    r.copy.dst_offset = m.offset;
+    r.copy.dst = m.buffer();
+    r.copy.dst_offset = m.buffer_offset();
     r.copy.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
@@ -207,13 +207,13 @@ void VkCompute::record_upload(const VkMat& m)
 void VkCompute::record_download(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return copy_buffer(m.buffer, m.offset, m.staging_buffer, 0, m.total() * m.elemsize);
+        return copy_buffer(m.buffer(), m.buffer_offset(), m.staging_buffer(), 0, m.total() * m.elemsize);
 
     record_type r;
     r.type = 1;
-    r.copy.src = m.buffer;
-    r.copy.src_offset = m.offset;
-    r.copy.dst = m.staging_buffer;
+    r.copy.src = m.buffer();
+    r.copy.src_offset = m.buffer_offset();
+    r.copy.dst = m.staging_buffer();
     r.copy.dst_offset = 0;
     r.copy.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
@@ -222,14 +222,14 @@ void VkCompute::record_download(const VkMat& m)
 void VkCompute::record_clone(const VkMat& src, const VkMat& dst)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return copy_buffer(src.buffer, src.offset, dst.buffer, dst.offset, src.total() * src.elemsize);
+        return copy_buffer(src.buffer(), src.buffer_offset(), dst.buffer(), dst.buffer_offset(), src.total() * src.elemsize);
 
     record_type r;
     r.type = 1;
-    r.copy.src = src.buffer;
-    r.copy.src_offset = src.offset;
-    r.copy.dst = dst.buffer;
-    r.copy.dst_offset = dst.offset;
+    r.copy.src = src.buffer();
+    r.copy.src_offset = src.buffer_offset();
+    r.copy.dst = dst.buffer();
+    r.copy.dst_offset = dst.buffer_offset();
     r.copy.size = src.total() * src.elemsize;
     delayed_records.push_back(r);
 }
@@ -245,12 +245,12 @@ void VkCompute::record_copy_region(const VkMat& src, const VkMat& dst, const VkB
 void VkCompute::record_copy_regions(const VkMat& src, const VkMat& dst, const std::vector<VkBufferCopy>& regions)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return copy_buffer_regions(src.buffer, dst.buffer, regions);
+        return copy_buffer_regions(src.buffer(), dst.buffer(), regions);
 
     record_type r;
     r.type = 2;
-    r.copy_regions.src = src.buffer;
-    r.copy_regions.dst = dst.buffer;
+    r.copy_regions.src = src.buffer();
+    r.copy_regions.dst = dst.buffer();
     r.regions = regions;
     delayed_records.push_back(r);
 }
@@ -276,8 +276,8 @@ void VkCompute::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescr
     std::vector<VkDescriptorBufferInfo> descriptorBufferInfos(binding_count);
     for (int i=0; i<binding_count; i++)
     {
-        descriptorBufferInfos[i].buffer = bindings[i].buffer;
-        descriptorBufferInfos[i].offset = bindings[i].offset;
+        descriptorBufferInfos[i].buffer = bindings[i].buffer();
+        descriptorBufferInfos[i].offset = bindings[i].buffer_offset();
         descriptorBufferInfos[i].range = bindings[i].total() * bindings[i].elemsize;
     }
 
@@ -382,12 +382,12 @@ void VkCompute::record_transfer_compute_barrier(const VkMat& m)
     m.state = 3;
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return transfer_compute_barrier(m.buffer, m.offset, m.total() * m.elemsize);
+        return transfer_compute_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
 
     record_type r;
     r.type = 7;
-    r.transfer_compute_barrier.buffer = m.buffer;
-    r.transfer_compute_barrier.offset = m.offset;
+    r.transfer_compute_barrier.buffer = m.buffer();
+    r.transfer_compute_barrier.offset = m.buffer_offset();
     r.transfer_compute_barrier.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
@@ -397,12 +397,12 @@ void VkCompute::record_compute_transfer_barrier(const VkMat& m)
     m.state = 2;
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return compute_transfer_barrier(m.buffer, m.offset, m.total() * m.elemsize);
+        return compute_transfer_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
 
     record_type r;
     r.type = 8;
-    r.compute_transfer_barrier.buffer = m.buffer;
-    r.compute_transfer_barrier.offset = m.offset;
+    r.compute_transfer_barrier.buffer = m.buffer();
+    r.compute_transfer_barrier.offset = m.buffer_offset();
     r.compute_transfer_barrier.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
@@ -412,12 +412,12 @@ void VkCompute::record_compute_compute_barrier(const VkMat& m)
     m.state = 3;
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return compute_compute_barrier(m.buffer, m.offset, m.total() * m.elemsize);
+        return compute_compute_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
 
     record_type r;
     r.type = 9;
-    r.compute_compute_barrier.buffer = m.buffer;
-    r.compute_compute_barrier.offset = m.offset;
+    r.compute_compute_barrier.buffer = m.buffer();
+    r.compute_compute_barrier.offset = m.buffer_offset();
     r.compute_compute_barrier.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
@@ -629,8 +629,7 @@ void VkCompute::compute_compute_barrier(VkBuffer buffer, size_t offset, size_t s
 // VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index) // TODO use transfer queue
 VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.compute_queue_index)
 {
-    staging_buffer = 0;
-    staging_memory = 0;
+    staging_data = 0;
     mapped_ptr = 0;
 }
 
@@ -646,8 +645,8 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst)
     r.type = 0;
     r.size = src.total() * src.elemsize;
     r.upload.src = src.data;
-    r.upload.dst = dst.buffer;
-    r.upload.dst_offset = dst.offset;
+    r.upload.dst = dst.buffer();
+    r.upload.dst_offset = dst.buffer_offset();
     delayed_records.push_back(r);
 }
 
@@ -658,8 +657,8 @@ void VkTransfer::record_download(const VkMat& src, Mat& dst)
     record_type r;
     r.type = 1;
     r.size = src.total() * src.elemsize;
-    r.download.src = src.buffer;
-    r.download.src_offset = src.offset;
+    r.download.src = src.buffer();
+    r.download.src_offset = src.buffer_offset();
     r.download.dst = dst.data;
     delayed_records.push_back(r);
 }
@@ -678,17 +677,10 @@ int VkTransfer::submit()
 
     // TODO sperated staging buffer for upload and download ?
     // allocate staging buffer
-    staging_buffer = staging_vkallocator->create_staging_buffer(staging_buffer_size);
-
-    VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(vkdev->vkdevice(), staging_buffer, &memoryRequirements);
-
-    staging_memory = staging_vkallocator->fastMalloc(memoryRequirements.size);
-
-    vkBindBufferMemory(vkdev->vkdevice(), staging_buffer, staging_memory, 0);
+    staging_data = staging_vkallocator->fastMalloc(staging_buffer_size);
 
     // map
-    vkMapMemory(vkdev->vkdevice(), staging_memory, 0, staging_buffer_size, 0, &mapped_ptr);
+    vkMapMemory(vkdev->vkdevice(), staging_data->memory, 0, staging_buffer_size, 0, &mapped_ptr);
 
     // copy upload data
     size_t mapped_ptr_offset = 0;
@@ -705,7 +697,7 @@ int VkTransfer::submit()
 
     begin_command_buffer();
 
-    fprintf(stderr, "cmd transfer %p %lu\n", staging_buffer, staging_buffer_size);
+    fprintf(stderr, "cmd transfer %p %lu\n", staging_data->buffer, staging_buffer_size);
 
     // handle delayed records
     size_t staging_buffer_offset = 0;
@@ -716,10 +708,10 @@ int VkTransfer::submit()
         switch (r.type)
         {
         case 0:
-            copy_buffer(staging_buffer, staging_buffer_offset, r.upload.dst, r.upload.dst_offset, r.size);
+            copy_buffer(staging_data->buffer, staging_buffer_offset, r.upload.dst, r.upload.dst_offset, r.size);
             break;
         case 1:
-            copy_buffer(r.download.src, r.download.src_offset, staging_buffer, staging_buffer_offset, r.size);
+            copy_buffer(r.download.src, r.download.src_offset, staging_data->buffer, staging_buffer_offset, r.size);
             break;
         }
 
@@ -751,15 +743,13 @@ int VkTransfer::wait()
     }
 
     // unmap
-    vkUnmapMemory(vkdev->vkdevice(), staging_memory);
+    vkUnmapMemory(vkdev->vkdevice(), staging_data->memory);
     mapped_ptr = 0;
 
     // deallocate staging buffer
-    staging_vkallocator->destroy_buffer(staging_buffer);
-    staging_vkallocator->fastFree(staging_memory);
+    staging_vkallocator->fastFree(staging_data);
 
-    staging_buffer = 0;
-    staging_memory = 0;
+    staging_data = 0;
 
     return ret;
 }

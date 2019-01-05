@@ -218,7 +218,7 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
     if (top_blob.empty())
         return -100;
 
-    fprintf(stderr, "Eltwise::forward %p %p %p\n", bottom_blob.buffer, bottom_blob1.buffer, top_blob.buffer);
+//     fprintf(stderr, "Eltwise::forward %p %p %p\n", bottom_blob.buffer(), bottom_blob1.buffer(), top_blob.buffer());
 
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_blobs[0];

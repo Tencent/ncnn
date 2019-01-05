@@ -155,7 +155,7 @@ int BatchNorm::upload_model(VkTransfer& cmd)
 
 int BatchNorm::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    fprintf(stderr, "BatchNorm::forward_inplace %p\n", bottom_top_blob.buffer);
+//     fprintf(stderr, "BatchNorm::forward_inplace %p\n", bottom_top_blob.buffer());
 
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_top_blob;

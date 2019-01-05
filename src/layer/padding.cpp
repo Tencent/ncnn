@@ -288,7 +288,7 @@ int Padding::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     if (top_blob.empty())
         return -100;
 
-    fprintf(stderr, "Padding::forward %p %p\n", bottom_blob.buffer, top_blob.buffer);
+//     fprintf(stderr, "Padding::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
 
     std::vector<VkMat> bindings(2);
     bindings[0] = bottom_blob;

@@ -80,7 +80,7 @@ int Dropout::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
         return 0;
     }
 
-    fprintf(stderr, "Dropout::forward_inplace %p\n", bottom_top_blob.buffer);
+//     fprintf(stderr, "Dropout::forward_inplace %p\n", bottom_top_blob.buffer());
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;

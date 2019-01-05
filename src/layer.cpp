@@ -219,7 +219,7 @@ int Layer::set_optimal_local_size_xyz(int w, int h, int c)
         local_size_y = std::min(max_local_size_y, vkdev->info.max_workgroup_size[1]);
     }
 
-    fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+//     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
 
     return 0;
 }

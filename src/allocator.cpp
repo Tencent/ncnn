@@ -241,108 +241,38 @@ void UnlockedPoolAllocator::fastFree(void* ptr)
 }
 
 #if NCNN_VULKAN
-VkAllocator::VkAllocator(VulkanDevice* _vkdev, int _type)
-    : vkdev(_vkdev), type(_type),
-      compute_queue_index(_vkdev->info.compute_queue_index),
-      memory_type_index(_type == 0 ? _vkdev->info.device_local_memory_index : _vkdev->info.host_visible_memory_index)
+VkBufferAllocator::VkBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
-    device = _vkdev->vkdevice();
+//     compute_queue_index = vkdev->info.compute_queue_index;
 
     size_compare_ratio = 192;// 0.75f * 256
 }
 
-VkAllocator::~VkAllocator()
+VkBufferAllocator::~VkBufferAllocator()
 {
-    for (int i=0; i<(int)buffers_to_destroy.size(); i++)
-    {
-        vkDestroyBuffer(device, buffers_to_destroy[i], 0);
-    }
-    buffers_to_destroy.clear();
-
     clear();
-
-    if (!payouts.empty())
-    {
-        fprintf(stderr, "FATAL ERROR! unlocked pool vulkan allocator destroyed too early\n");
-        std::list< std::pair<size_t, VkDeviceMemory> >::iterator it = payouts.begin();
-        for (; it != payouts.end(); it++)
-        {
-            VkDeviceMemory ptr = it->second;
-            fprintf(stderr, "%p still in use\n", ptr);
-        }
-    }
 }
 
-VkBuffer VkAllocator::create_buffer(int size)
+void VkBufferAllocator::clear()
 {
-    VkBufferCreateInfo bufferCreateInfo;
-    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferCreateInfo.pNext = 0;
-    bufferCreateInfo.flags = 0;
-    bufferCreateInfo.size = size;
-    bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    bufferCreateInfo.queueFamilyIndexCount = 0;
-    bufferCreateInfo.pQueueFamilyIndices = 0;
+    fprintf(stderr, "VkBufferAllocator %lu\n", budgets.size());
 
-    VkBuffer buffer;
-    VkResult ret = vkCreateBuffer(device, &bufferCreateInfo, 0, &buffer);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkCreateBuffer failed %d\n", ret);
-        return 0;
-    }
-
-//     fprintf(stderr, "VkAllocator CB %p %lu\n", buffer, size);
-
-    return buffer;
-}
-
-VkBuffer VkAllocator::create_staging_buffer(int size)
-{
-    VkBufferCreateInfo bufferCreateInfo;
-    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferCreateInfo.pNext = 0;
-    bufferCreateInfo.flags = 0;
-    bufferCreateInfo.size = size;
-    bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    bufferCreateInfo.queueFamilyIndexCount = 0;
-    bufferCreateInfo.pQueueFamilyIndices = 0;
-
-    VkBuffer buffer;
-    VkResult ret = vkCreateBuffer(device, &bufferCreateInfo, 0, &buffer);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkCreateBuffer failed %d\n", ret);
-        return 0;
-    }
-
-//     fprintf(stderr, "VkAllocator CSB %p %lu\n", buffer, size);
-
-    return buffer;
-}
-
-void VkAllocator::destroy_buffer(VkBuffer buffer)
-{
-//     fprintf(stderr, "VkAllocator DB %p\n", buffer);
-
-    buffers_to_destroy.push_back(buffer);
-}
-
-void VkAllocator::clear()
-{
-    std::list< std::pair<size_t, VkDeviceMemory> >::iterator it = budgets.begin();
+    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
-        VkDeviceMemory ptr = it->second;
+        VkBufferMemory* ptr = it->second;
 
-        vkFreeMemory(device, ptr, 0);
+//         fprintf(stderr, "VkBufferAllocator F %p\n", ptr->buffer);
+
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+        delete ptr;
     }
     budgets.clear();
 }
 
-void VkAllocator::set_size_compare_ratio(float scr)
+void VkBufferAllocator::set_size_compare_ratio(float scr)
 {
     if (scr < 0.f || scr > 1.f)
     {
@@ -353,10 +283,10 @@ void VkAllocator::set_size_compare_ratio(float scr)
     size_compare_ratio = (unsigned int)(scr * 256);
 }
 
-VkDeviceMemory VkAllocator::fastMalloc(size_t size)
+VkBufferMemory* VkBufferAllocator::fastMalloc(size_t size)
 {
     // find free budget
-    std::list< std::pair<size_t, VkDeviceMemory> >::iterator it = budgets.begin();
+    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
         size_t bs = it->first;
@@ -364,45 +294,44 @@ VkDeviceMemory VkAllocator::fastMalloc(size_t size)
         // size_compare_ratio ~ 100%
         if (bs >= size && ((bs * size_compare_ratio) >> 8) <= size)
         {
-            VkDeviceMemory ptr = it->second;
+            VkBufferMemory* ptr = it->second;
 
             budgets.erase(it);
 
             payouts.push_back(std::make_pair(bs, ptr));
 
-//             fprintf(stderr, "VkAllocator M %p %lu reused %lu\n", ptr, size, bs);
+//             fprintf(stderr, "VkBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, bs);
 
             return ptr;
         }
     }
 
-    // new
-    VkMemoryAllocateInfo memoryAllocateInfo;
-    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    memoryAllocateInfo.pNext = 0;
-    memoryAllocateInfo.allocationSize = size;
-    memoryAllocateInfo.memoryTypeIndex = memory_type_index;
+    // create new
+    VkBufferMemory* ptr = new VkBufferMemory;
 
-    VkDeviceMemory ptr = 0;
-    VkResult ret = vkAllocateMemory(device, &memoryAllocateInfo, 0, &ptr);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
-    }
+    ptr->buffer = create_buffer(size);
+    ptr->offset = 0;
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
+
+    ptr->memory = allocate_memory(memoryRequirements.size);
+
+    vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
 
     payouts.push_back(std::make_pair(size, ptr));
 
-//     fprintf(stderr, "VkAllocator M %p %lu\n", ptr, size);
+//     fprintf(stderr, "VkBufferAllocator M %p %lu\n", ptr->buffer, size);
 
     return ptr;
 }
 
-void VkAllocator::fastFree(VkDeviceMemory ptr)
+void VkBufferAllocator::fastFree(VkBufferMemory* ptr)
 {
-//     fprintf(stderr, "VkAllocator F %p\n", ptr);
+//     fprintf(stderr, "VkBufferAllocator F %p\n", ptr->buffer);
 
     // return to budgets
-    std::list< std::pair<size_t, VkDeviceMemory> >::iterator it = payouts.begin();
+    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = payouts.begin();
     for (; it != payouts.end(); it++)
     {
         if (it->second == ptr)
@@ -417,10 +346,151 @@ void VkAllocator::fastFree(VkDeviceMemory ptr)
         }
     }
 
-    fprintf(stderr, "FATAL ERROR! unlocked vulkan pool allocator get wild %p\n", ptr);
+    fprintf(stderr, "FATAL ERROR! unlocked vulkan pool allocator get wild %p\n", ptr->buffer);
 
-    vkFreeMemory(device, ptr, 0);
+    vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+    vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+    delete ptr;
 }
+
+VkBuffer VkBufferAllocator::create_buffer(size_t size)
+{
+    VkBufferCreateInfo bufferCreateInfo;
+    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferCreateInfo.pNext = 0;
+    bufferCreateInfo.flags = 0;
+    bufferCreateInfo.size = size;
+    bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferCreateInfo.queueFamilyIndexCount = 0;
+    bufferCreateInfo.pQueueFamilyIndices = 0;
+
+    VkBuffer buffer;
+    VkResult ret = vkCreateBuffer(vkdev->vkdevice(), &bufferCreateInfo, 0, &buffer);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateBuffer failed %d\n", ret);
+        return 0;
+    }
+
+    return buffer;
+}
+
+VkDeviceMemory VkBufferAllocator::allocate_memory(size_t size)
+{
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = 0;
+    memoryAllocateInfo.allocationSize = size;
+    memoryAllocateInfo.memoryTypeIndex = vkdev->info.device_local_memory_index;
+
+    VkDeviceMemory memory = 0;
+    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
+    }
+
+    return memory;
+}
+
+VkStagingBufferAllocator::VkStagingBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+{
+//     compute_queue_index = vkdev->info.compute_queue_index;
+}
+
+VkStagingBufferAllocator::~VkStagingBufferAllocator()
+{
+    clear();
+}
+
+void VkStagingBufferAllocator::clear()
+{
+    fprintf(stderr, "VkStagingBufferAllocator %lu\n", staging_buffers.size());
+
+    for (size_t i=0; i<staging_buffers.size(); i++)
+    {
+        VkBufferMemory* ptr = staging_buffers[i];
+
+//         fprintf(stderr, "VkStagingBufferAllocator F %p\n", ptr->buffer);
+
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+        delete ptr;
+    }
+
+    staging_buffers.clear();
+}
+
+VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
+{
+    VkBufferMemory* ptr = new VkBufferMemory;
+
+    ptr->buffer = create_staging_buffer(size);
+    ptr->offset = 0;
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
+
+    ptr->memory = allocate_memory(memoryRequirements.size);
+
+    vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
+
+//     fprintf(stderr, "VkStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
+
+    return ptr;
+}
+
+void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
+{
+//     fprintf(stderr, "VkStagingBufferAllocator F %p\n", ptr->buffer);
+
+    staging_buffers.push_back(ptr);
+}
+
+VkBuffer VkStagingBufferAllocator::create_staging_buffer(size_t size)
+{
+    VkBufferCreateInfo bufferCreateInfo;
+    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferCreateInfo.pNext = 0;
+    bufferCreateInfo.flags = 0;
+    bufferCreateInfo.size = size;
+    bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferCreateInfo.queueFamilyIndexCount = 0;
+    bufferCreateInfo.pQueueFamilyIndices = 0;
+
+    VkBuffer buffer;
+    VkResult ret = vkCreateBuffer(vkdev->vkdevice(), &bufferCreateInfo, 0, &buffer);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateBuffer failed %d\n", ret);
+        return 0;
+    }
+
+    return buffer;
+}
+
+VkDeviceMemory VkStagingBufferAllocator::allocate_memory(size_t size)
+{
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = 0;
+    memoryAllocateInfo.allocationSize = size;
+    memoryAllocateInfo.memoryTypeIndex = vkdev->info.host_visible_memory_index;
+
+    VkDeviceMemory memory = 0;
+    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
+    }
+
+    return memory;
+}
+
 #endif // NCNN_VULKAN
 
 } // namespace ncnn

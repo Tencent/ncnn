@@ -180,30 +180,33 @@ private:
 };
 
 #if NCNN_VULKAN
+
+class VkBufferMemory
+{
+public:
+    VkBuffer buffer;
+    // the base offset assigned by allocator
+    size_t offset;
+    VkDeviceMemory memory;
+};
+
 class VkAllocator
 {
 public:
-    // vkdev = the device
-    // type 0 = device local
-    // type 1 = host visible
-    VkAllocator(VulkanDevice* vkdev, int type);
-    virtual ~VkAllocator();
-
-    virtual VkBuffer create_buffer(int size);
-    virtual VkBuffer create_staging_buffer(int size);
-
-    virtual void destroy_buffer(VkBuffer buffer);
+    VkAllocator(VulkanDevice* _vkdev) : vkdev(_vkdev) {}
+    virtual ~VkAllocator() {}
+    virtual VkBufferMemory* fastMalloc(size_t size) = 0;
+    virtual void fastFree(VkBufferMemory* ptr) = 0;
 
 public:
     const VulkanDevice* vkdev;
-    const int type;
-    const uint32_t compute_queue_index;// TODO add transfer queue
-    const uint32_t memory_type_index;
+};
 
-    VkDevice device;
-
-private:
-    std::vector<VkBuffer> buffers_to_destroy;
+class VkBufferAllocator : public VkAllocator
+{
+public:
+    VkBufferAllocator(VulkanDevice* vkdev);
+    virtual ~VkBufferAllocator();
 
 public:
     // ratio range 0 ~ 1
@@ -213,14 +216,43 @@ public:
     // release all budgets immediately
     void clear();
 
-    virtual VkDeviceMemory fastMalloc(size_t size);
-    virtual void fastFree(VkDeviceMemory ptr);
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+protected:
+    VkBuffer create_buffer(size_t size);
+    VkDeviceMemory allocate_memory(size_t size);
+
+//     const uint32_t compute_queue_index;// TODO add transfer queue
 
 private:
     unsigned int size_compare_ratio;// 0~256
-    std::list< std::pair<size_t, VkDeviceMemory> > budgets;
-    std::list< std::pair<size_t, VkDeviceMemory> > payouts;
+    std::list< std::pair<size_t, VkBufferMemory*> > budgets;
+    std::list< std::pair<size_t, VkBufferMemory*> > payouts;
 };
+
+class VkStagingBufferAllocator : public VkAllocator
+{
+public:
+    VkStagingBufferAllocator(VulkanDevice* vkdev);
+    virtual ~VkStagingBufferAllocator();
+
+public:
+    void clear();
+
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+protected:
+    VkBuffer create_staging_buffer(size_t size);
+    VkDeviceMemory allocate_memory(size_t size);
+
+//     const uint32_t compute_queue_index;// TODO add transfer queue
+
+private:
+    std::vector<VkBufferMemory*> staging_buffers;
+};
+
 #endif // NCNN_VULKAN
 
 } // namespace ncnn

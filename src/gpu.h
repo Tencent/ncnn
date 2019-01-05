@@ -46,7 +46,6 @@ public:
 
     // hardware capability
     int max_shared_memory_size;
-    int max_image_dimension[3];
     int max_workgroup_count[3];
     int max_workgroup_invocations;
     int max_workgroup_size[3];

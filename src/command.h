@@ -170,8 +170,7 @@ protected:
     void copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions);
 
 protected:
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_memory;
+    VkBufferMemory* staging_data;
     void* mapped_ptr;
 
     // delayed record

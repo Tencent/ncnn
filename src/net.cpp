@@ -1052,7 +1052,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
 }
 
 #if NCNN_VULKAN
-int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute& cmd, Option& opt) const
+int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, std::vector<int>& wait_barrier_counts, VkCompute& cmd, Option& opt) const
 {
     const Layer* layer = layers[layer_index];
 
@@ -1066,11 +1066,11 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
 
         if (blob_mats[bottom_blob_index].dims == 0)
         {
-            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, cmd, opt);
+            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, wait_barrier_counts, cmd, opt);
             if (ret != 0)
                 return ret;
         }
-        else if (blob_mats[bottom_blob_index].staging_buffer)
+        else if (blob_mats[bottom_blob_index].staging_data)
         {
             // upload
             const VkMat& bottom_blob = blob_mats[bottom_blob_index];
@@ -1082,16 +1082,22 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
 
         if (opt.lightmode)
         {
-            // delete after taken in light mode
-            blob_mats[bottom_blob_index].release();//FIXME
+
+            wait_barrier_counts[bottom_blob_index] += layer->tops.size();
+
             // deep copy for inplace forward if data is shared
-            if (layer->support_inplace && *bottom_blob.refcount != 1)
+            if (layer->support_inplace && wait_barrier_counts[bottom_blob_index] != 1)
             {
                 VkMat bottom_blob_copy;
                 bottom_blob_copy.create_like(bottom_blob, bottom_blob.allocator, bottom_blob.staging_allocator);
+
+//                 fprintf(stderr, "clone %p %p\n", bottom_blob.buffer(), bottom_blob_copy.buffer());
+
                 cmd.record_prepare_transfer_barrier(bottom_blob);
                 cmd.record_clone(bottom_blob, bottom_blob_copy);
                 bottom_blob = bottom_blob_copy;
+
+                wait_barrier_counts[bottom_blob_index]--;
             }
         }
 
@@ -1117,6 +1123,23 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
             blob_mats[top_blob_index] = top_blob;
         }
 
+        if (opt.lightmode)
+        {
+            // reclaim producer bottom_blob as free when consuming bottom_blob
+            const Layer* producer = layers[ blobs[bottom_blob_index].producer ];
+            for (size_t i=0; i<producer->bottoms.size(); i++)
+            {
+                int producer_bottom_blob_index = producer->bottoms[i];
+
+                wait_barrier_counts[producer_bottom_blob_index]--;
+                if (wait_barrier_counts[producer_bottom_blob_index] == 0)
+                {
+//                     fprintf(stderr, "reclaim free %p\n", blob_mats[producer_bottom_blob_index].buffer());
+
+                    blob_mats[producer_bottom_blob_index].release();
+                }
+            }
+        }
     }
     else
     {
@@ -1129,11 +1152,11 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
 
             if (blob_mats[bottom_blob_index].dims == 0)
             {
-                int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, cmd, opt);
+                int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, wait_barrier_counts, cmd, opt);
                 if (ret != 0)
                     return ret;
             }
-            else if (blob_mats[bottom_blob_index].staging_buffer)
+            else if (blob_mats[bottom_blob_index].staging_data)
             {
                 // upload
                 const VkMat& bottom_blob = blob_mats[bottom_blob_index];
@@ -1145,16 +1168,22 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
 
             if (opt.lightmode)
             {
-                // delete after taken in light mode
-                blob_mats[bottom_blob_index].release();//FIXME
+
+                wait_barrier_counts[bottom_blob_index] = layer->tops.size();
+
                 // deep copy for inplace forward if data is shared
-                if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                if (layer->support_inplace && wait_barrier_counts[bottom_blob_index] != 1)
                 {
                     VkMat bottom_blob_copy;
                     bottom_blob_copy.create_like(bottom_blobs[i], bottom_blobs[i].allocator, bottom_blobs[i].staging_allocator);
+
+//                     fprintf(stderr, "clone %p %p\n", bottom_blobs[i].buffer(), bottom_blob_copy.buffer());
+
                     cmd.record_prepare_transfer_barrier(bottom_blobs[i]);
                     cmd.record_clone(bottom_blobs[i], bottom_blob_copy);
                     bottom_blobs[i] = bottom_blob_copy;
+
+                    wait_barrier_counts[bottom_blob_index]--;
                 }
             }
         }
@@ -1192,6 +1221,29 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, VkCompute
             }
         }
 
+        if (opt.lightmode)
+        {
+            for (size_t i=0; i<layer->bottoms.size(); i++)
+            {
+                int bottom_blob_index = layer->bottoms[i];
+
+                // reclaim producer bottom_blob as free when consuming bottom_blob
+                const Layer* producer = layers[ blobs[bottom_blob_index].producer ];
+                for (size_t i=0; i<producer->bottoms.size(); i++)
+                {
+                    int producer_bottom_blob_index = producer->bottoms[i];
+
+                    wait_barrier_counts[producer_bottom_blob_index]--;
+                    if (wait_barrier_counts[producer_bottom_blob_index] == 0)
+                    {
+//                         fprintf(stderr, "reclaim free %p\n", blob_mats[producer_bottom_blob_index].buffer());
+
+                        blob_mats[producer_bottom_blob_index].release();
+                    }
+                }
+            }
+        }
+
     }
 
 //     fprintf(stderr, "forward_layer %d %s done\n", layer_index, layer->name.c_str());
@@ -1207,6 +1259,7 @@ Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 
 #if NCNN_VULKAN
     blob_mats_gpu.resize(blob_count);
+    wait_barrier_counts.resize(blob_count, 0);
 #endif // NCNN_VULKAN
 }
 
@@ -1272,7 +1325,7 @@ int Extractor::extract(int blob_index, Mat& feat)
 
         cmd.begin();
 
-        ret = net->forward_layer(layer_index, blob_mats_gpu, cmd, opt);
+        ret = net->forward_layer(layer_index, blob_mats_gpu, wait_barrier_counts, cmd, opt);
 
         VkMat& feat_gpu = blob_mats_gpu[blob_index];
 

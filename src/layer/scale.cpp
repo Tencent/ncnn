@@ -211,7 +211,7 @@ int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd,
     VkMat& bottom_top_blob = bottom_top_blobs[0];
     const VkMat& scale_blob = bottom_top_blobs[1];
 
-    fprintf(stderr, "Scale::forward_inplace %p\n", bottom_top_blob.buffer);
+//     fprintf(stderr, "Scale::forward_inplace %p\n", bottom_top_blob.buffer());
 
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_top_blob;

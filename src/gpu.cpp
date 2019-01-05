@@ -403,10 +403,6 @@ int create_gpu_instance()
         // device capability
         gpu_info.max_shared_memory_size = physicalDeviceProperties.limits.maxComputeSharedMemorySize;
 
-        gpu_info.max_image_dimension[0] = physicalDeviceProperties.limits.maxImageDimension1D;
-        gpu_info.max_image_dimension[1] = physicalDeviceProperties.limits.maxImageDimension2D;
-        gpu_info.max_image_dimension[2] = physicalDeviceProperties.limits.maxImageDimension3D;
-
         gpu_info.max_workgroup_count[0] = physicalDeviceProperties.limits.maxComputeWorkGroupCount[0];
         gpu_info.max_workgroup_count[1] = physicalDeviceProperties.limits.maxComputeWorkGroupCount[1];
         gpu_info.max_workgroup_count[2] = physicalDeviceProperties.limits.maxComputeWorkGroupCount[2];
@@ -418,7 +414,6 @@ int create_gpu_instance()
         gpu_info.max_workgroup_size[2] = physicalDeviceProperties.limits.maxComputeWorkGroupSize[2];
 
         fprintf(stderr, "[%u] max_shared_memory_size = %d\n", i, gpu_info.max_shared_memory_size);
-        fprintf(stderr, "[%u] max_image_dimension = %d %d %d\n", i, gpu_info.max_image_dimension[0], gpu_info.max_image_dimension[1], gpu_info.max_image_dimension[2]);
         fprintf(stderr, "[%u] max_workgroup_count = %d %d %d\n", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
         fprintf(stderr, "[%u] max_workgroup_invocations = %d\n", i, gpu_info.max_workgroup_invocations);
         fprintf(stderr, "[%u] max_workgroup_size = %d %d %d\n", i, gpu_info.max_workgroup_size[0], gpu_info.max_workgroup_size[1], gpu_info.max_workgroup_size[2]);

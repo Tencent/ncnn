@@ -289,8 +289,8 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             int size = bottom_blob.w * bottom_blob.elemsize;
 
             VkBufferCopy region;
-            region.srcOffset = 0;
-            region.dstOffset = dstOffset;
+            region.srcOffset = bottom_blob.buffer_offset();
+            region.dstOffset = top_blob.buffer_offset() + dstOffset;
             region.size = size;
 
             cmd.record_prepare_transfer_barrier(bottom_blob);
@@ -328,8 +328,8 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             int size = w * bottom_blob.h * bottom_blob.elemsize;
 
             VkBufferCopy region;
-            region.srcOffset = 0;
-            region.dstOffset = dstOffset;
+            region.srcOffset = bottom_blob.buffer_offset();
+            region.dstOffset = top_blob.buffer_offset() + dstOffset;
             region.size = size;
 
             cmd.record_prepare_transfer_barrier(bottom_blob);
@@ -373,8 +373,8 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             int size = bottom_blob.total() * bottom_blob.elemsize;
 
             VkBufferCopy region;
-            region.srcOffset = 0;
-            region.dstOffset = dstOffset;
+            region.srcOffset = bottom_blob.buffer_offset();
+            region.dstOffset = top_blob.buffer_offset() + dstOffset;
             region.size = size;
 
             cmd.record_prepare_transfer_barrier(bottom_blob);

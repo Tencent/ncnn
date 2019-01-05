@@ -426,7 +426,10 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     VkMat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
     {
-        padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt);
+        ncnn::Option opt_pad = opt;
+        opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+
+        padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt_pad);
 
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
@@ -439,7 +442,7 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     if (top_blob.empty())
         return -100;
 
-    fprintf(stderr, "Convolution::forward %p %p\n", bottom_blob_bordered.buffer, top_blob.buffer);
+//     fprintf(stderr, "Convolution::forward %p %p\n", bottom_blob_bordered.buffer(), top_blob.buffer());
 
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob_bordered;

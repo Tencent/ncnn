@@ -343,7 +343,10 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
 
     VkMat bottom_blob_bordered = bottom_blob;
     {
-        padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt);
+        ncnn::Option opt_pad = opt;
+        opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+
+        padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt_pad);
 
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
@@ -357,7 +360,7 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     if (top_blob.empty())
         return -100;
 
-    fprintf(stderr, "Pooling::forward %p %p\n", bottom_blob_bordered.buffer, top_blob.buffer);
+//     fprintf(stderr, "Pooling::forward %p %p\n", bottom_blob_bordered.buffer(), top_blob.buffer());
 
     std::vector<VkMat> bindings(2);
     bindings[0] = bottom_blob_bordered;
