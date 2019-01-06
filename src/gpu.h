@@ -86,9 +86,9 @@ public:
     PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;
     PFN_vkDestroyDescriptorUpdateTemplateKHR vkDestroyDescriptorUpdateTemplateKHR;
     PFN_vkUpdateDescriptorSetWithTemplateKHR vkUpdateDescriptorSetWithTemplateKHR;
-    PFN_vkCmdPushDescriptorSetWithTemplateKHR vkCmdPushDescriptorSetWithTemplateKHR;
 
-    // support_VK_KHR_push_descriptor
+    // VK_KHR_push_descriptor
+    PFN_vkCmdPushDescriptorSetWithTemplateKHR vkCmdPushDescriptorSetWithTemplateKHR;
     PFN_vkCmdPushDescriptorSetKHR vkCmdPushDescriptorSetKHR;
 
 protected:

@@ -15,10 +15,11 @@
 #include "allocator.h"
 
 #include <stdio.h>
+#include <algorithm>
 #include "gpu.h"
 
 namespace ncnn {
-    
+
 Allocator::~Allocator() 
 {
 

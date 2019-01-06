@@ -233,7 +233,7 @@ int Layer::create_vulkan_pipeline()
 
     create_pipeline();
 
-    if (vkdev->info.support_VK_KHR_push_descriptor)
+    if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
         create_descriptor_update_template();
     }
@@ -243,7 +243,7 @@ int Layer::create_vulkan_pipeline()
 
 int Layer::destroy_vulkan_pipeline()
 {
-    if (vkdev->info.support_VK_KHR_push_descriptor)
+    if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
         if (descriptor_update_template)
             vkdev->vkDestroyDescriptorUpdateTemplateKHR(vkdev->vkdevice(), descriptor_update_template, 0);
@@ -497,7 +497,14 @@ int Layer::create_descriptor_update_template()
     descriptorUpdateTemplateCreateInfo.flags = 0;
     descriptorUpdateTemplateCreateInfo.descriptorUpdateEntryCount = binding_count;// TODO do not update weights
     descriptorUpdateTemplateCreateInfo.pDescriptorUpdateEntries = descriptorUpdateTemplateEntries.data();
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+    {
     descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
+    }
+    else
+    {
+    descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_DESCRIPTOR_SET;
+    }
     // descriptorSetLayout should be ignored if VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR
     // FIXME HACK WARNING TODO NOTE but crash on radv if set NULL  :(
     descriptorUpdateTemplateCreateInfo.descriptorSetLayout = descriptorset_layout;

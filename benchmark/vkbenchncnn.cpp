@@ -66,13 +66,23 @@ public:
                 if (layer->support_vulkan)
                 {
                     layer->upload_model(cmd);
-                    layer->create_vulkan_pipeline();
                 }
             }
 
             cmd.submit();
 
             cmd.wait();
+
+            #pragma omp parallel for
+            for (size_t i=0; i<layers.size(); i++)
+            {
+                Layer* layer = layers[i];
+
+                if (layer->support_vulkan)
+                {
+                    layer->create_vulkan_pipeline();
+                }
+            }
         }
 
         return ret;

@@ -326,24 +326,31 @@ void VkCompute::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescr
     }
     descriptorsets.push_back(descriptorset);
 
-    fprintf(stderr, "update descriptorset %p\n", descriptorset);
+//     fprintf(stderr, "update descriptorset %p\n", descriptorset);
 
-    std::vector<VkWriteDescriptorSet> writeDescriptorSets(binding_count);
-    for (int i=0; i<binding_count; i++)
+    if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
-        writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSets[i].pNext = 0;
-        writeDescriptorSets[i].dstSet = descriptorset;
-        writeDescriptorSets[i].dstBinding = i;
-        writeDescriptorSets[i].dstArrayElement = 0;
-        writeDescriptorSets[i].descriptorCount = 1;
-        writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        writeDescriptorSets[i].pImageInfo = 0;
-        writeDescriptorSets[i].pBufferInfo = &descriptorBufferInfos[i];
-        writeDescriptorSets[i].pTexelBufferView = 0;
+        vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, descriptor_update_template, descriptorBufferInfos.data());
     }
+    else
+    {
+        std::vector<VkWriteDescriptorSet> writeDescriptorSets(binding_count);
+        for (int i=0; i<binding_count; i++)
+        {
+            writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writeDescriptorSets[i].pNext = 0;
+            writeDescriptorSets[i].dstSet = descriptorset;
+            writeDescriptorSets[i].dstBinding = i;
+            writeDescriptorSets[i].dstArrayElement = 0;
+            writeDescriptorSets[i].descriptorCount = 1;
+            writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            writeDescriptorSets[i].pImageInfo = 0;
+            writeDescriptorSets[i].pBufferInfo = &descriptorBufferInfos[i];
+            writeDescriptorSets[i].pTexelBufferView = 0;
+        }
 
-    vkUpdateDescriptorSets(vkdev->vkdevice(), binding_count, writeDescriptorSets.data(), 0, 0);
+        vkUpdateDescriptorSets(vkdev->vkdevice(), binding_count, writeDescriptorSets.data(), 0, 0);
+    }
 
     record_type r;
     r.type = 4;
