@@ -49,6 +49,8 @@ public:
     int max_workgroup_count[3];
     int max_workgroup_invocations;
     int max_workgroup_size[3];
+    size_t memory_map_alignment;
+    size_t buffer_offset_alignment;
 
     // runtime
     uint32_t compute_queue_index;

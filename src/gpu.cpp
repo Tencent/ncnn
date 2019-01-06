@@ -96,7 +96,7 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
         }
     }
 
-    fprintf(stderr, "no compute queue\n");
+//     fprintf(stderr, "no compute queue\n");
     return -1;
 }
 
@@ -131,7 +131,7 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
         return compute_queue_index;
     }
 
-    fprintf(stderr, "no transfer queue\n");
+//     fprintf(stderr, "no transfer queue\n");
     return -1;
 }
 
@@ -162,7 +162,7 @@ static uint32_t find_unified_memory(VkPhysicalDeviceMemoryProperties physicalDev
         }
     }
 
-    fprintf(stderr, "no unified memory\n");
+//     fprintf(stderr, "no unified memory\n");
     return -1;
 }
 
@@ -190,7 +190,7 @@ static uint32_t find_device_local_memory(VkPhysicalDeviceMemoryProperties physic
         }
     }
 
-    fprintf(stderr, "no device local memory\n");
+//     fprintf(stderr, "no device local memory\n");
     return -1;
 }
 
@@ -232,7 +232,7 @@ static uint32_t find_host_visible_memory(VkPhysicalDeviceMemoryProperties physic
         }
     }
 
-    fprintf(stderr, "no host visible memory\n");
+//     fprintf(stderr, "no host visible memory\n");
     return -1;
 }
 
@@ -444,10 +444,15 @@ int create_gpu_instance()
         gpu_info.max_workgroup_size[1] = physicalDeviceProperties.limits.maxComputeWorkGroupSize[1];
         gpu_info.max_workgroup_size[2] = physicalDeviceProperties.limits.maxComputeWorkGroupSize[2];
 
+        gpu_info.memory_map_alignment = physicalDeviceProperties.limits.minMemoryMapAlignment;
+        gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
+
         fprintf(stderr, "[%u] max_shared_memory_size = %d\n", i, gpu_info.max_shared_memory_size);
         fprintf(stderr, "[%u] max_workgroup_count = %d %d %d\n", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
         fprintf(stderr, "[%u] max_workgroup_invocations = %d\n", i, gpu_info.max_workgroup_invocations);
         fprintf(stderr, "[%u] max_workgroup_size = %d %d %d\n", i, gpu_info.max_workgroup_size[0], gpu_info.max_workgroup_size[1], gpu_info.max_workgroup_size[2]);
+        fprintf(stderr, "[%u] memory_map_alignment = %lu\n", i, gpu_info.memory_map_alignment);
+        fprintf(stderr, "[%u] buffer_offset_alignment = %lu\n", i, gpu_info.buffer_offset_alignment);
 
 //         // TODO check features
 //         VkPhysicalDeviceFeatures features;
@@ -515,8 +520,9 @@ int create_gpu_instance()
             }
         }
 
-        fprintf(stderr, "[%u %s]  queueC=%u  queueT=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
-                gpu_info.compute_queue_index, gpu_info.transfer_queue_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
+        fprintf(stderr, "[%u %s]  queueC=%u  queueT=%u  memU=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
+                gpu_info.compute_queue_index, gpu_info.transfer_queue_index,
+                gpu_info.unified_memory_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
     }
 
     // the default gpu device

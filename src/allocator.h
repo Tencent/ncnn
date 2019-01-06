@@ -200,6 +200,10 @@ public:
 
 public:
     const VulkanDevice* vkdev;
+
+protected:
+    VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
+    VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
 };
 
 class VkBufferAllocator : public VkAllocator
@@ -220,15 +224,39 @@ public:
     virtual void fastFree(VkBufferMemory* ptr);
 
 protected:
-    VkBuffer create_buffer(size_t size);
-    VkDeviceMemory allocate_memory(size_t size);
-
 //     const uint32_t compute_queue_index;// TODO add transfer queue
 
 private:
     unsigned int size_compare_ratio;// 0~256
     std::list< std::pair<size_t, VkBufferMemory*> > budgets;
     std::list< std::pair<size_t, VkBufferMemory*> > payouts;
+};
+
+class VkWeightBufferAllocator : public VkAllocator
+{
+public:
+    VkWeightBufferAllocator(VulkanDevice* vkdev);
+    virtual ~VkWeightBufferAllocator();
+
+public:
+    // buffer block size, default=8M
+    void set_block_size(size_t block_size);
+
+    // release all blocks immediately
+    void clear();
+
+public:
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+protected:
+//     const uint32_t compute_queue_index;// TODO add transfer queue
+
+private:
+    size_t block_size;
+    size_t buffer_offset_alignment;
+    std::vector<size_t> buffer_block_free_spaces;
+    std::vector<VkBufferMemory*> buffer_blocks;
 };
 
 class VkStagingBufferAllocator : public VkAllocator
@@ -244,13 +272,28 @@ public:
     virtual void fastFree(VkBufferMemory* ptr);
 
 protected:
-    VkBuffer create_staging_buffer(size_t size);
-    VkDeviceMemory allocate_memory(size_t size);
-
 //     const uint32_t compute_queue_index;// TODO add transfer queue
 
 private:
+    uint32_t memory_type_index;
     std::vector<VkBufferMemory*> staging_buffers;
+};
+
+class VkWeightStagingBufferAllocator : public VkAllocator
+{
+public:
+    VkWeightStagingBufferAllocator(VulkanDevice* vkdev);
+    virtual ~VkWeightStagingBufferAllocator();
+
+public:
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+protected:
+//     const uint32_t compute_queue_index;// TODO add transfer queue
+
+private:
+    uint32_t memory_type_index;
 };
 
 #endif // NCNN_VULKAN

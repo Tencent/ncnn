@@ -57,7 +57,7 @@ public:
             ncnn::VkTransfer cmd(vkdev);
 
             cmd.weight_vkallocator = weight_vkallocator;
-            cmd.staging_vkallocator = staging_vkallocator;
+            cmd.staging_vkallocator = weight_staging_vkallocator;
 
             for (size_t i=0; i<layers.size(); i++)
             {
@@ -91,10 +91,11 @@ int main(int argc, char** argv)
 
     {
 
-    ncnn::VkBufferAllocator g_weight_vkallocator(&vkdev);
+    ncnn::VkWeightBufferAllocator g_weight_vkallocator(&vkdev);
     ncnn::VkBufferAllocator g_blob_vkallocator(&vkdev);
     ncnn::VkBufferAllocator g_workspace_vkallocator(&vkdev);
     ncnn::VkStagingBufferAllocator g_staging_vkallocator(&vkdev);
+    ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(&vkdev);
 
     ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
     ncnn::PoolAllocator g_workspace_pool_allocator;
@@ -128,7 +129,7 @@ int main(int argc, char** argv)
 
     net.set_vulkan_device(&vkdev);
     net.set_weight_vkallocator(&g_weight_vkallocator);
-    net.set_staging_vkallocator(&g_staging_vkallocator);
+    net.set_weight_staging_vkallocator(&g_weight_staging_vkallocator);
 
 //     net.load_param("vgg16.param");
     net.load_param("mobilenet_v2.param");
@@ -169,6 +170,7 @@ int main(int argc, char** argv)
     g_blob_vkallocator.clear();
     g_workspace_vkallocator.clear();
     g_staging_vkallocator.clear();
+//     g_weight_staging_vkallocator.clear();
 
     fprintf(stderr, "min = %7.2f  max = %7.2f  avg = %7.2f\n", time_min, time_max, time_avg);
 

@@ -45,7 +45,7 @@ Net::Net()
 #if NCNN_VULKAN
     vkdev = 0;
     weight_vkallocator = 0;
-    staging_vkallocator = 0;
+    weight_staging_vkallocator = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -590,7 +590,7 @@ int Net::load_model(FILE* fp)
         ncnn::VkTransfer cmd(vkdev);
 
         cmd.weight_vkallocator = weight_vkallocator;
-        cmd.staging_vkallocator = staging_vkallocator;
+        cmd.staging_vkallocator = weight_staging_vkallocator;
 
         for (size_t i=0; i<layers.size(); i++)
         {
@@ -776,7 +776,7 @@ int Net::load_model(const unsigned char* _mem)
         ncnn::VkTransfer cmd(vkdev);
 
         cmd.weight_vkallocator = weight_vkallocator;
-        cmd.staging_vkallocator = staging_vkallocator;
+        cmd.staging_vkallocator = weight_staging_vkallocator;
 
         for (size_t i=0; i<layers.size(); i++)
         {
@@ -824,9 +824,9 @@ void Net::set_weight_vkallocator(VkAllocator* _weight_vkallocator)
     weight_vkallocator = _weight_vkallocator;
 }
 
-void Net::set_staging_vkallocator(VkAllocator* _staging_vkallocator)
+void Net::set_weight_staging_vkallocator(VkAllocator* _weight_staging_vkallocator)
 {
-    staging_vkallocator = _staging_vkallocator;
+    weight_staging_vkallocator = _weight_staging_vkallocator;
 }
 
 #endif // NCNN_VULKAN
