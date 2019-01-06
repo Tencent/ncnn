@@ -607,7 +607,7 @@ int Net::load_model(FILE* fp)
         cmd.wait();
 
         #pragma omp parallel for
-        for (size_t i=0; i<layers.size(); i++)
+        for (int i=0; i<layers.size(); i++)
         {
             Layer* layer = layers[i];
 
@@ -803,7 +803,7 @@ int Net::load_model(const unsigned char* _mem)
         cmd.wait();
 
         #pragma omp parallel for
-        for (size_t i=0; i<layers.size(); i++)
+        for (int i=0; i<layers.size(); i++)
         {
             Layer* layer = layers[i];
 
