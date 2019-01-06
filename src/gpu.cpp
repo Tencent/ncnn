@@ -135,6 +135,37 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
     return -1;
 }
 
+static uint32_t find_unified_memory(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties)
+{
+    // first try, host visible + host coherent + device local
+    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
+
+        if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
+        {
+            return i;
+        }
+    }
+
+    // second try, host visible + device local
+    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
+
+        if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
+        {
+            return i;
+        }
+    }
+
+    fprintf(stderr, "no unified memory\n");
+    return -1;
+}
+
 static uint32_t find_device_local_memory(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties)
 {
     // first try, device local only
@@ -165,26 +196,26 @@ static uint32_t find_device_local_memory(VkPhysicalDeviceMemoryProperties physic
 
 static uint32_t find_host_visible_memory(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties)
 {
-    // first try, host visible + host coherent + device local
+    // first try, host visible + host coherent, without device local bit
     for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
     {
         const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
 
         if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
             && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
+            && !(memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
         {
             return i;
         }
     }
 
-    // second try, host visible + host coherent
+    // second try, with host visible bit, without device local bit
     for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
     {
         const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
 
         if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
+            && !(memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
         {
             return i;
         }
@@ -441,6 +472,7 @@ int create_gpu_instance()
         VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &physicalDeviceMemoryProperties);
 
+        gpu_info.unified_memory_index = find_unified_memory(physicalDeviceMemoryProperties);
         gpu_info.device_local_memory_index = find_device_local_memory(physicalDeviceMemoryProperties);
         gpu_info.host_visible_memory_index = find_host_visible_memory(physicalDeviceMemoryProperties);
 

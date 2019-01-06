@@ -54,6 +54,7 @@ public:
     uint32_t compute_queue_index;
     uint32_t transfer_queue_index;
 
+    uint32_t unified_memory_index;
     uint32_t device_local_memory_index;
     uint32_t host_visible_memory_index;
 

@@ -14,6 +14,7 @@
 
 #include <float.h>
 #include <stdio.h>
+#include <algorithm>
 
 #include "benchmark.h"
 #include "cpu.h"
