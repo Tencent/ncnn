@@ -61,9 +61,17 @@ public:
     uint32_t host_visible_memory_index;
 
     // extension capability
+    int support_VK_KHR_8bit_storage;
+    int support_VK_KHR_16bit_storage;
+    int support_VK_KHR_bind_memory2;
+    int support_VK_KHR_dedicated_allocation;
     int support_VK_KHR_descriptor_update_template;
+    int support_VK_KHR_get_memory_requirements2;
+    int support_VK_KHR_get_physical_device_properties2;
     int support_VK_KHR_push_descriptor;
-    int support_VK_AMD_gpu_shader_half_float;
+    int support_VK_KHR_shader_float16_int8;
+    int support_VK_KHR_shader_float_controls;
+    int support_VK_KHR_storage_buffer_storage_class;
 };
 
 const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());

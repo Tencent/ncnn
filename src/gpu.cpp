@@ -498,27 +498,58 @@ int create_gpu_instance()
             return -1;
         }
 
+        // extension capability
+        gpu_info.support_VK_KHR_8bit_storage = 0;
+        gpu_info.support_VK_KHR_16bit_storage = 0;
+        gpu_info.support_VK_KHR_bind_memory2 = 0;
+        gpu_info.support_VK_KHR_dedicated_allocation = 0;
         gpu_info.support_VK_KHR_descriptor_update_template = 0;
+        gpu_info.support_VK_KHR_get_memory_requirements2 = 0;
+        gpu_info.support_VK_KHR_get_physical_device_properties2 = 0;
         gpu_info.support_VK_KHR_push_descriptor = 0;
-        gpu_info.support_VK_AMD_gpu_shader_half_float = 0;
+        gpu_info.support_VK_KHR_shader_float16_int8 = 0;
+        gpu_info.support_VK_KHR_shader_float_controls = 0;
+        gpu_info.support_VK_KHR_storage_buffer_storage_class = 0;
         for (uint32_t i=0; i<deviceExtensionPropertyCount; i++)
         {
             const VkExtensionProperties& exp = deviceExtensionProperties[i];
 //             fprintf(stderr, "device extension %s = %u\n", exp.extensionName, exp.specVersion);
 
-            if (strcmp(exp.extensionName, "VK_KHR_descriptor_update_template") == 0)
-            {
+            if (strcmp(exp.extensionName, "VK_KHR_8bit_storage") == 0)
+                gpu_info.support_VK_KHR_8bit_storage = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_16bit_storage") == 0)
+                gpu_info.support_VK_KHR_16bit_storage = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_bind_memory2") == 0)
+                gpu_info.support_VK_KHR_bind_memory2 = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_dedicated_allocation") == 0)
+                gpu_info.support_VK_KHR_dedicated_allocation = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_descriptor_update_template") == 0)
                 gpu_info.support_VK_KHR_descriptor_update_template = exp.specVersion;
-            }
-            if (strcmp(exp.extensionName, "VK_KHR_push_descriptor") == 0)
-            {
+            else if (strcmp(exp.extensionName, "VK_KHR_get_memory_requirements2") == 0)
+                gpu_info.support_VK_KHR_get_memory_requirements2 = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_get_physical_device_properties2") == 0)
+                gpu_info.support_VK_KHR_get_physical_device_properties2 = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_push_descriptor") == 0)
                 gpu_info.support_VK_KHR_push_descriptor = exp.specVersion;
-            }
-            if (strcmp(exp.extensionName, "VK_AMD_gpu_shader_half_float") == 0)
-            {
-                gpu_info.support_VK_AMD_gpu_shader_half_float = exp.specVersion;
-            }
+            else if (strcmp(exp.extensionName, "VK_KHR_shader_float16_int8") == 0)
+                gpu_info.support_VK_KHR_shader_float16_int8 = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_shader_float_controls") == 0)
+                gpu_info.support_VK_KHR_shader_float_controls = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_storage_buffer_storage_class") == 0)
+                gpu_info.support_VK_KHR_storage_buffer_storage_class = exp.specVersion;
         }
+
+        fprintf(stderr, "[%u] VK_KHR_8bit_storage                       = %d\n", i, gpu_info.support_VK_KHR_8bit_storage);
+        fprintf(stderr, "[%u] VK_KHR_16bit_storage                      = %d\n", i, gpu_info.support_VK_KHR_16bit_storage);
+        fprintf(stderr, "[%u] VK_KHR_bind_memory2                       = %d\n", i, gpu_info.support_VK_KHR_bind_memory2);
+        fprintf(stderr, "[%u] VK_KHR_dedicated_allocation               = %d\n", i, gpu_info.support_VK_KHR_dedicated_allocation);
+        fprintf(stderr, "[%u] VK_KHR_descriptor_update_template         = %d\n", i, gpu_info.support_VK_KHR_descriptor_update_template);
+        fprintf(stderr, "[%u] VK_KHR_get_memory_requirements2           = %d\n", i, gpu_info.support_VK_KHR_get_memory_requirements2);
+        fprintf(stderr, "[%u] VK_KHR_get_physical_device_properties2    = %d\n", i, gpu_info.support_VK_KHR_get_physical_device_properties2);
+        fprintf(stderr, "[%u] VK_KHR_push_descriptor                    = %d\n", i, gpu_info.support_VK_KHR_push_descriptor);
+        fprintf(stderr, "[%u] VK_KHR_shader_float16_int8                = %d\n", i, gpu_info.support_VK_KHR_shader_float16_int8);
+        fprintf(stderr, "[%u] VK_KHR_shader_float_controls              = %d\n", i, gpu_info.support_VK_KHR_shader_float_controls);
+        fprintf(stderr, "[%u] VK_KHR_storage_buffer_storage_class       = %d\n", i, gpu_info.support_VK_KHR_storage_buffer_storage_class);
 
         fprintf(stderr, "[%u %s]  queueC=%u  queueT=%u  memU=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_index, gpu_info.transfer_queue_index,
@@ -575,18 +606,28 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     const float queuePriorities[1] = { 1.f };// 0.f ~ 1.f
 
     std::vector<const char*> enabledExtensions;
+    if (info.support_VK_KHR_8bit_storage)
+        enabledExtensions.push_back("VK_KHR_8bit_storage");
+    if (info.support_VK_KHR_16bit_storage)
+        enabledExtensions.push_back("VK_KHR_16bit_storage");
+    if (info.support_VK_KHR_bind_memory2)
+        enabledExtensions.push_back("VK_KHR_bind_memory2");
+    if (info.support_VK_KHR_dedicated_allocation)
+        enabledExtensions.push_back("VK_KHR_dedicated_allocation");
     if (info.support_VK_KHR_descriptor_update_template)
-    {
         enabledExtensions.push_back("VK_KHR_descriptor_update_template");
-    }
+    if (info.support_VK_KHR_get_memory_requirements2)
+        enabledExtensions.push_back("VK_KHR_get_memory_requirements2");
+    if (info.support_VK_KHR_get_physical_device_properties2)
+        enabledExtensions.push_back("VK_KHR_get_physical_device_properties2");
     if (info.support_VK_KHR_push_descriptor)
-    {
         enabledExtensions.push_back("VK_KHR_push_descriptor");
-    }
-    if (info.support_VK_AMD_gpu_shader_half_float)
-    {
-        enabledExtensions.push_back("VK_AMD_gpu_shader_half_float");
-    }
+    if (info.support_VK_KHR_shader_float16_int8)
+        enabledExtensions.push_back("VK_KHR_shader_float16_int8");
+    if (info.support_VK_KHR_shader_float_controls)
+        enabledExtensions.push_back("VK_KHR_shader_float_controls");
+    if (info.support_VK_KHR_storage_buffer_storage_class)
+        enabledExtensions.push_back("VK_KHR_storage_buffer_storage_class");
 
     VkDeviceQueueCreateInfo deviceQueueCreateInfos[2];
     deviceQueueCreateInfos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
