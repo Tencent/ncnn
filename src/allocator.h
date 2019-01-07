@@ -204,6 +204,7 @@ public:
 protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
     VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
+    VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkBuffer buffer);
 };
 
 class VkBufferAllocator : public VkAllocator
@@ -257,6 +258,7 @@ private:
     size_t buffer_offset_alignment;
     std::vector<size_t> buffer_block_free_spaces;
     std::vector<VkBufferMemory*> buffer_blocks;
+    std::vector<VkBufferMemory*> dedicated_buffer_blocks;
 };
 
 class VkStagingBufferAllocator : public VkAllocator

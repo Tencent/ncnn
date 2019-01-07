@@ -284,6 +284,30 @@ VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_in
     return memory;
 }
 
+VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkBuffer buffer)
+{
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = 0;
+    memoryAllocateInfo.allocationSize = size;
+    memoryAllocateInfo.memoryTypeIndex = memory_type_index;
+
+    VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo;
+    memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+    memoryDedicatedAllocateInfo.pNext = 0;
+    memoryDedicatedAllocateInfo.buffer = buffer;
+    memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
+
+    VkDeviceMemory memory = 0;
+    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, nullptr, &memory);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
+    }
+
+    return memory;
+}
+
 VkBufferAllocator::VkBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
 //     compute_queue_index = vkdev->info.compute_queue_index;
@@ -412,7 +436,9 @@ VkWeightBufferAllocator::~VkWeightBufferAllocator()
 
 void VkWeightBufferAllocator::clear()
 {
-    fprintf(stderr, "VkWeightBufferAllocator %lu\n", buffer_blocks.size());
+    fprintf(stderr, "VkWeightBufferAllocator %lu %lu\n", buffer_blocks.size(), dedicated_buffer_blocks.size());
+
+    buffer_block_free_spaces.clear();
 
     for (size_t i=0; i<buffer_blocks.size(); i++)
     {
@@ -423,9 +449,18 @@ void VkWeightBufferAllocator::clear()
 
         delete ptr;
     }
-
     buffer_blocks.clear();
-    buffer_block_free_spaces.clear();
+
+    for (size_t i=0; i<dedicated_buffer_blocks.size(); i++)
+    {
+        VkBufferMemory* ptr = dedicated_buffer_blocks[i];
+
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+        delete ptr;
+    }
+    dedicated_buffer_blocks.clear();
 }
 
 VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
@@ -471,6 +506,45 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
 
     block->buffer = create_buffer(new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
     block->offset = 0;
+
+    if (vkdev->info.support_VK_KHR_get_memory_requirements2 && vkdev->info.support_VK_KHR_dedicated_allocation)
+    {
+        VkBufferMemoryRequirementsInfo2KHR bufferMemoryRequirementsInfo2;
+        bufferMemoryRequirementsInfo2.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2_KHR;
+        bufferMemoryRequirementsInfo2.pNext = 0;
+        bufferMemoryRequirementsInfo2.buffer = block->buffer;
+
+        VkMemoryRequirements2KHR memoryRequirements2;
+        memoryRequirements2.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2_KHR;
+        memoryRequirements2.pNext = 0;
+
+        VkMemoryDedicatedRequirementsKHR memoryDedicatedRequirements;
+        memoryDedicatedRequirements.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS_KHR;
+        memoryDedicatedRequirements.pNext = 0;
+        memoryRequirements2.pNext = &memoryDedicatedRequirements;
+
+        vkdev->vkGetBufferMemoryRequirements2KHR(vkdev->vkdevice(), &bufferMemoryRequirementsInfo2, &memoryRequirements2);
+
+        bool dedicatedAllocation = memoryDedicatedRequirements.requiresDedicatedAllocation || memoryDedicatedRequirements.prefersDedicatedAllocation;
+
+        if (dedicatedAllocation)
+        {
+            block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, vkdev->info.device_local_memory_index, block->buffer);
+
+            vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
+
+            dedicated_buffer_blocks.push_back(block);
+
+            // return sub buffer
+            VkBufferMemory* ptr = new VkBufferMemory;
+
+            ptr->buffer = block->buffer;
+            ptr->offset = 0;
+            ptr->memory = block->memory;
+
+            return ptr;
+        }
+    }
 
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), block->buffer, &memoryRequirements);

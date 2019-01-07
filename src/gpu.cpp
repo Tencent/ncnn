@@ -734,18 +734,28 @@ int VulkanDevice::init_device_extension()
         fprintf(stderr, "vkCreateDescriptorUpdateTemplateKHR = %p\n", vkCreateDescriptorUpdateTemplateKHR);
         fprintf(stderr, "vkDestroyDescriptorUpdateTemplateKHR = %p\n", vkDestroyDescriptorUpdateTemplateKHR);
         fprintf(stderr, "vkUpdateDescriptorSetWithTemplateKHR = %p\n", vkUpdateDescriptorSetWithTemplateKHR);
+    }
 
-        if (info.support_VK_KHR_push_descriptor)
-        {
-            vkCmdPushDescriptorSetWithTemplateKHR = (PFN_vkCmdPushDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetWithTemplateKHR");
-            fprintf(stderr, "vkCmdPushDescriptorSetWithTemplateKHR = %p\n", vkCmdPushDescriptorSetWithTemplateKHR);
-        }
+    if (info.support_VK_KHR_get_memory_requirements2)
+    {
+        vkGetImageMemoryRequirements2KHR = (PFN_vkGetImageMemoryRequirements2KHR)vkGetDeviceProcAddr(device, "vkGetImageMemoryRequirements2KHR");
+        vkGetBufferMemoryRequirements2KHR = (PFN_vkGetBufferMemoryRequirements2KHR)vkGetDeviceProcAddr(device, "vkGetBufferMemoryRequirements2KHR");
+        vkGetImageSparseMemoryRequirements2KHR = (PFN_vkGetImageSparseMemoryRequirements2KHR)vkGetDeviceProcAddr(device, "vkGetImageSparseMemoryRequirements2KHR");
+
+        fprintf(stderr, "vkGetImageMemoryRequirements2KHR = %p\n", vkGetImageMemoryRequirements2KHR);
+        fprintf(stderr, "vkGetBufferMemoryRequirements2KHR = %p\n", vkGetBufferMemoryRequirements2KHR);
+        fprintf(stderr, "vkGetImageSparseMemoryRequirements2KHR = %p\n", vkGetImageSparseMemoryRequirements2KHR);
     }
 
     if (info.support_VK_KHR_push_descriptor)
     {
-        vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetKHR");
+        if (info.support_VK_KHR_descriptor_update_template)
+        {
+            vkCmdPushDescriptorSetWithTemplateKHR = (PFN_vkCmdPushDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetWithTemplateKHR");
+            fprintf(stderr, "vkCmdPushDescriptorSetWithTemplateKHR = %p\n", vkCmdPushDescriptorSetWithTemplateKHR);
+        }
 
+        vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetKHR");
         fprintf(stderr, "vkCmdPushDescriptorSetKHR = %p\n", vkCmdPushDescriptorSetKHR);
     }
 
