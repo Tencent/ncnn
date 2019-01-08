@@ -170,10 +170,15 @@ public:
 
 // misc function
 #if NCNN_PIXEL
+// convert yuv420sp(nv21) to rgb, the fast approximate version
+void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // image pixel bilinear resize
 void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+// image pixel bilinear resize, convenient wrapper for yuv420sp(nv21)
+void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 #endif // NCNN_PIXEL
 
 // mat process

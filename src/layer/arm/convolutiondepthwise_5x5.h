@@ -1176,7 +1176,7 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                   "w"(_k20212223),  // %19
                   "w"(_k24242424),  // %20
                   "w"(_bias0)       // %21
-                : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22"
+                : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v16", "v17", "v18", "v19", "v20", "v21", "v22"
             );
             }
 
@@ -1695,7 +1695,6 @@ static void convdw5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
         const float* kernel0 = kernel + g*25;
 
         float* outptr = out;
-        float* outptr2 = outptr + outw;
 
         const float* img0 = bottom_blob.channel(g);
 
@@ -1704,8 +1703,6 @@ static void convdw5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
         const float* r2 = img0 + w*2;
         const float* r3 = img0 + w*3;
         const float* r4 = img0 + w*4;
-        const float* r5 = img0 + w*5;
-        const float* r6 = img0 + w*6;
 
         const float* k0 = kernel0;
         const float* k1 = kernel0 + 5;
@@ -2004,7 +2001,7 @@ static void convdw5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                   "w"(_k20212223),  // %19
                   "w"(_k24242424),  // %20
                   "w"(_bias0)       // %21
-                : "cc", "memory", "v8", "v9", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27"
+                : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27"
             );
             }
 #else

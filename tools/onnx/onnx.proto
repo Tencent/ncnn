@@ -10,17 +10,35 @@ syntax = "proto2";
 
 package onnx;
 
-// Note [Release]
+// Overview
+//
+// ONNX is an open specification that is comprised of the following components:
+//
+// 1)  A definition of an extensible computation graph model.
+// 2)  Definitions of standard data types.
+// 3)  Definitions of built-in operators.
+//
+// This document describes the syntax of models and their computation graphs,
+// as well as the standard data types. Together, they are referred to as the ONNX
+// Intermediate Representation, or 'IR' for short. 
+//
+// The normative semantic specification of the ONNX IR is found in docs/IR.md.
+// Definitions of the built-in neural network operators may be found in docs/Operators.md.
+
+// Notes
+//
+// Release
+//
 // We are still in the very early stage of defining ONNX. The current
 // version of ONNX is a starting point. While we are actively working
 // towards a complete spec, we would like to get the community involved
 // by sharing our working version of ONNX.
-
-// Note [Protobuf compatibility]
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Based on experience working with downstream vendors, we generally can't
-// assume recent versions of protobufs. This means that we do not use any
-// protobuf features that are only available in proto3.
+//
+// Protobuf compatibility
+// 
+// To simplify framework compatibility, ONNX is defined using the subset of protobuf 
+// that is compatible with both protobuf v2 and v3. This means that we do not use any
+// protobuf features that are only available in one of the two versions.
 //
 // Here are the most notable contortions we have to carry out to work around
 // these limitations:
@@ -29,30 +47,11 @@ package onnx;
 //     of key-value pairs, where order does not matter and duplicates
 //     are not allowed.
 
-// Note [Namespaces]
-// ~~~~~~~~~~~~~~~~~
-// ONNX gives explicit names to graphs, intermediate values and
-// serialized tensors.  To make it easier to generate names, we organize
-// these into separate namespaces (so, e.g., a graph can have the same
-// name as a serialized tensor.)  The namespaces are as follows:
-//
-// - Node: These names identify specific nodes in the graph (but not, necessarily
-//   any particular input or output of the node.
-// - Graph: These names identify graphs in the protobuf.
-// - Attribute: These names identify attribute names for extra attributes that
-//   are passed to operators.
-// - Operator: These names identify particular operators.
-// - Value: These names identify intermediate values (typically tensors) flowing through
-//   the computation of a graph.
-// - Shape: These names represent parameters for unknown shape dimensions.
-//
-// We specify the namespace of a name in ONNX as comments in the form
-// of "namespace {Node,Graph,Operator,Attribute,Value,Shape}". Framework is responsible
-// for supporting the namespaces.
-//
-// Naming things is hard. Every element with a name has an optional doc_string associated
-// with it, providing a human-readable description in text markdown.
 
+// Versioning
+//
+// ONNX versioning is specified in docs/IR.md and elaborated on in docs/Versioning.md
+//
 // To be compatible with both proto2 and proto3, we will use a version number
 // that is not defined by the default value but an explicit enum number.
 enum Version {
@@ -61,26 +60,27 @@ enum Version {
   _START_VERSION = 0;
   // The version field is always serialized and we will use it to store the
   // version that the  graph is generated from. This helps us set up version
-  // control. We should use version as
-  //     xx(major) - xx(minor) - xxxx(bugfix)
-  // and we are starting with 0x00000001 (0.0.1), which was the
-  //  version we published on Oct 10, 2017.
-  IR_VERSION_2017_10_10 = 0x00000001;
+  // control. 
+  // For the IR, we are using simple numbers starting with with 0x00000001, 
+  // which was the version we published on Oct 10, 2017.
+  IR_VERSION_2017_10_10 = 0x0000000000000001;
 
-  // IR_VERSION 0.0.2 published on Oct 30, 2017
+  // IR_VERSION 2 published on Oct 30, 2017
   // - Added type discriminator to AttributeProto to support proto3 users
-  IR_VERSION_2017_10_30 = 0x00000002;
+  IR_VERSION_2017_10_30 = 0x0000000000000002;
 
-  // IR VERSION 0.0.3 published on Nov 3, 2017
+  // IR VERSION 3 published on Nov 3, 2017
   // - For operator versioning:
   //    - Added new message OperatorSetIdProto
   //    - Added opset_import in ModelProto
   // - For vendor extensions, added domain in NodeProto
-  IR_VERSION = 0x00000003;
+  IR_VERSION = 0x0000000000000003;
 }
 
-// A named attribute containing either singular float, integer, string
-// and tensor values, or repeated float, integer, string and tensor values.
+// Attributes
+//
+// A named attribute containing either singular float, integer, string, graph,
+// and tensor values, or repeated float, integer, string, graph, and tensor values.
 // An AttributeProto MUST contain the name field, and *only one* of the
 // following content fields, effectively enforcing a C/C++ union equivalent.
 message AttributeProto {
@@ -104,6 +104,12 @@ message AttributeProto {
 
   // The name field MUST be present for this version of the IR.
   optional string name = 1;           // namespace Attribute
+ 
+  // if ref_attr_name is not empty, ref_attr_name is the attribute name in parent function.
+  // In this case, this AttributeProto does not contain data, and it's a reference of attribute
+  // in parent scope.
+  // NOTE: This should ONLY be used in function (sub-graph). It's invalid to be used in main graph.
+  optional string ref_attr_name = 21;
 
   // A human-readable documentation for this attribute. Markdown is allowed.
   optional string doc_string = 13;
@@ -143,10 +149,13 @@ message ValueInfoProto {
   optional string doc_string = 3;
 }
 
-// NodeProto stores a node that is similar to the notion of "layer"
-// or "operator" in many deep learning frameworks. For example, it can be a
-// node of type "Conv" that takes in an image, a filter tensor and a bias
-// tensor, and produces the convolved output.
+// Nodes
+//
+// Computation graphs are made up of a DAG of nodes, which represent what is
+// commonly called a "layer" or "pipeline stage" in machine learning frameworks.
+//
+// For example, it can be a node of type "Conv" that takes in an image, a filter 
+// tensor and a bias tensor, and produces the convolved output.
 message NodeProto {
   repeated string input = 1;    // namespace Value
   repeated string output = 2;   // namespace Value
@@ -161,18 +170,18 @@ message NodeProto {
   optional string domain = 7;   // namespace Domain
 
   // Additional named attributes.
-  // NOTE: Simply using ValueProto.NameValuePairProto is the most general
-  //       solution.  I kept AttributeProto to minimize churn on CI results.
   repeated AttributeProto attribute = 5;
 
   // A human-readable documentation for this node. Markdown is allowed.
   optional string doc_string = 6;
 }
 
-// ModelProto is a top-level file/container format for bundling a ML model.
-// The semantics of the model are described by the GraphProto that represents
-// a parameterized computation graph against a set of named operators that are
-// defined independently from the graph.
+// Models
+//
+// ModelProto is a top-level file/container format for bundling a ML model and
+// associating its computation graph with metadata.
+//
+// The semantics of the model are described by the associated GraphProto.
 message ModelProto {
   // The version of the IR this model targets. See Version enum above.
   // This field MUST be present.
@@ -226,23 +235,22 @@ message StringStringEntryProto {
   optional string value= 2;
 };
 
-// GraphProto defines a parameterized series of nodes to form a directed acyclic graph.
-// This is the equivalent of the "network" and "graph" in many deep learning
+// Graphs
+//
+// A graph defines the computational logic of a model and is comprised of a parameterized 
+// list of nodes that form a directed acyclic graph based on their inputs and outputs.
+// This is the equivalent of the "network" or "graph" in many deep learning
 // frameworks.
 message GraphProto {
-  // The nodes in the graph.
+  // The nodes in the graph, sorted topologically.
   repeated NodeProto node = 1;
 
   // The name of the graph.
   optional string name = 2;   // namespace Graph
 
-  // A list of named tensor values (constants), used to specify default
-  // values for some of the inputs of the graph.
+  // A list of named tensor values, used to specify constant inputs of the graph.
   // Each TensorProto entry must have a distinct name (within the list) that
   // also appears in the input list.
-  // In an evaluation, the default value specified here is used if and only if
-  // user specifies no value for the corresponding input parameter.
-  // May be used to pass serialized parameters for networks.
   repeated TensorProto initializer = 5;
 
   // A human-readable documentation for this graph. Markdown is allowed.
@@ -256,7 +264,7 @@ message GraphProto {
   // must be distinct. It is optional for a value to appear in value_info list.
   repeated ValueInfoProto value_info = 13;
 
-  // DO NOT USE the following fields, they were deprecated before
+  // DO NOT USE the following fields, they were deprecated from earlier versions.
   // repeated string input = 3;
   // repeated string output = 4;
   // optional int64 ir_version = 6;
@@ -265,7 +273,9 @@ message GraphProto {
   // optional string domain = 9;
 }
 
-// A message defined to store a tensor in its serialized format.
+// Tensors
+//
+// A serialized tensor value.
 message TensorProto {
   enum DataType {
     UNDEFINED = 0;
@@ -280,13 +290,21 @@ message TensorProto {
     STRING = 8;  // string
     BOOL = 9;    // bool
 
-    // Advanced types
+    // IEEE754 half-precision floating-point format (16 bits wide).
+    // This format has 1 sign bit, 5 exponent bits, and 10 mantissa bits.
     FLOAT16 = 10;
+
     DOUBLE = 11;
     UINT32 = 12;
     UINT64 = 13;
     COMPLEX64 = 14;     // complex with float32 real and imaginary components
     COMPLEX128 = 15;    // complex with float64 real and imaginary components
+
+    // Non-IEEE floating-point format based on IEEE754 single-precision
+    // floating-point number truncated to 16 bits.
+    // This format has 1 sign bit, 8 exponent bits, and 7 mantissa bits.
+    BFLOAT16 = 16;
+
     // Future extensions go here.
   }
 
@@ -294,7 +312,8 @@ message TensorProto {
   repeated int64 dims = 1;
 
   // The data type of the tensor.
-  optional DataType data_type = 2;
+  // This field MUST have a valid TensorProto.DataType value
+  optional int32 data_type = 2;
 
   // For very large tensors, we may want to store them in chunks, in which
   // case the following fields will specify the segment that is stored in
@@ -305,7 +324,7 @@ message TensorProto {
   }
   optional Segment segment = 3;
 
-  // Tensor content must be in the row major order.
+  // Tensor content must be organized in row-major order.
   //
   // Depending on the data_type field, exactly one of the fields below with
   // name ending in _data is used to store the elements of the tensor.
@@ -323,7 +342,7 @@ message TensorProto {
   // float16 values must be bit-wise converted to an uint16_t prior
   // to writing to the buffer.
   // When this field is present, the data_type field MUST be
-  // INT32, INT16, INT8, UINT16, INT8, BOOL, or FLOAT32
+  // INT32, INT16, INT8, UINT16, UINT8, BOOL, or FLOAT16
   repeated int32 int32_data = 5 [packed = true];
 
   // For strings.
@@ -361,7 +380,7 @@ message TensorProto {
   optional bytes raw_data = 9;
 
   // For double
-  // Complex64 tensors are encoded as a single array of doubles,
+  // Complex128 tensors are encoded as a single array of doubles,
   // with the real components appearing in odd numbered positions,
   // and the corresponding imaginary component apparing in the
   // subsequent even numbered position. (e.g., [1.0 + 2.0i, 3.0 + 4.0i]
@@ -384,17 +403,26 @@ message TensorShapeProto {
       int64 dim_value = 1;
       string dim_param = 2;   // namespace Shape
     };
+    // Standard denotation can optionally be used to denote tensor
+    // dimensions with standard semantic descriptions to ensure
+    // that operations are applied to the correct axis of a tensor.
+    // Refer to https://github.com/onnx/onnx/blob/master/docs/DimensionDenotation.md#denotation-definition
+    // for pre-defined dimension denotations.
+    optional string denotation = 3;
   };
   repeated Dimension dim = 1;
 }
 
-// Define the types.
+// Types
+//
+// The standard ONNX data types.
 message TypeProto {
 
   message Tensor {
     // This field MUST NOT have the value of UNDEFINED
+    // This field MUST have a valid TensorProto.DataType value
     // This field MUST be present for this version of the IR.
-    optional TensorProto.DataType elem_type = 1;
+    optional int32 elem_type = 1;
     optional TensorShapeProto shape = 2;
   }
 
@@ -404,8 +432,16 @@ message TypeProto {
     Tensor tensor_type = 1;
 
   }
+
+  // An optional denotation can be used to denote the whole 
+  // type with a standard semantic description as to what is 
+  // stored inside. Refer to https://github.com/onnx/onnx/blob/master/docs/TypeDenotation.md#type-denotation-definition
+  // for pre-defined type denotations.
+  optional string denotation = 6;
 }
 
+// Operator Sets
+//
 // OperatorSets are uniquely identified by a (domain, opset_version) pair.
 message OperatorSetIdProto {
   // The domain of the operator set being identified.

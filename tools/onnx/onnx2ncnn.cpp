@@ -258,6 +258,29 @@ int main(int argc, char** argv)
                     continue;
                 }
             }
+            else if (node.input_size() == 2)
+            {
+                // opset 5
+                const std::string& input_name = node.input(0);
+
+                // check weight
+                if (weights.find(input_name) != weights.end())
+                {
+                    weights[node.output(0)] = weights[input_name];
+
+                    // set weight shape directly
+                    const onnx::TensorProto& shape_tp = weights[node.input(1)];
+                    const int64_t* shape_data = shape_tp.int64_data().data();
+
+                    weights[node.output(0)].clear_dims();
+                    for (int j=0; j<shape_tp.int64_data_size(); j++)
+                    {
+                        weights[node.output(0)].add_dims(shape_data[j]);
+                    }
+
+                    continue;
+                }
+            }
         }
         else
         {
@@ -442,9 +465,25 @@ int main(int argc, char** argv)
 //             fprintf(stderr, "  output = %s\n", output_name.c_str());
         }
 
-        if (op == "Add")
+        if (op == "Abs")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "Acos")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "Add")
         {
             fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "Asin")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "Atan")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (op == "AveragePool" || op == "MaxPool")
         {
@@ -453,6 +492,10 @@ int main(int argc, char** argv)
         else if (op == "BatchNormalization")
         {
             fprintf(pp, "%-16s", "BatchNorm");
+        }
+        else if (op == "Ceil")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (op == "Clip")
         {
@@ -492,6 +535,14 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "Deconvolution");
             }
         }
+        else if (op == "Cos")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "Div")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "Dropout")
         {
             fprintf(pp, "%-16s", "Dropout");
@@ -501,18 +552,29 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "ELU");
         }
+        else if (op == "Exp")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "Flatten")
+        {
+            fprintf(pp, "%-16s", "Flatten");
+        }
+        else if (op == "Floor")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (op == "Gemm")
         {
             float alpha = get_node_attr_f(node, "alpha", 1.f);
             float beta = get_node_attr_f(node, "beta", 1.f);
-            int broadcast = get_node_attr_i(node, "broadcast", 0);
             int transA = get_node_attr_i(node, "transA", 0);
             int transB = get_node_attr_i(node, "transB", 0);
 
             if (alpha == 1.f && beta == 1.f)
             {
                 // InnerProduct-like A * B + C
-                if (transA == 0 && transB == 1 && broadcast == 1)
+                if (transA == 0 && transB == 1)
                 {
                     fprintf(pp, "%-16s", "InnerProduct");
                 }
@@ -540,6 +602,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "ReLU");
         }
+        else if (op == "Log")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (op == "LRN")
         {
             fprintf(pp, "%-16s", "LRN");
@@ -548,17 +614,37 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InnerProduct");
         }
+        else if (op == "Max")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "Min")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "Mul")
         {
             fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "Neg")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (op == "Pad")
         {
             fprintf(pp, "%-16s", "Padding");
         }
+        else if (op == "Pow")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "PRelu")
         {
             fprintf(pp, "%-16s", "PReLU");
+        }
+        else if (op == "Reciprocal")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (op == "Relu")
         {
@@ -566,7 +652,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Reshape")
         {
-            if (node.input_size() == 1)
+            if (node.input_size() == 1 || node.input_size() == 2)
             {
                 const std::string& input_name = node.input(0);
 
@@ -578,13 +664,33 @@ int main(int argc, char** argv)
             }
             fprintf(pp, "%-16s", "Reshape");
         }
+        else if (op == "Sigmoid")
+        {
+            fprintf(pp, "%-16s", "Sigmoid");
+        }
+        else if (op == "Sin")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (op == "Softmax")
         {
             fprintf(pp, "%-16s", "Softmax");
         }
+        else if (op == "Sqrt")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "Sub")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "Sum")
         {
             fprintf(pp, "%-16s", "Eltwise");
+        }
+        else if (op == "Tan")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (op == "Transpose")
         {
@@ -629,9 +735,29 @@ int main(int argc, char** argv)
             fprintf(pp, " %s", output_name.c_str());
         }
 
-        if (op == "Add")
+        if (op == "Abs")
         {
             int op_type = 0;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Acos")
+        {
+            int op_type = 13;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Add")
+        {
+            int op_type = 0;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Asin")
+        {
+            int op_type = 12;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Atan")
+        {
+            int op_type = 14;
             fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "AveragePool" || op == "MaxPool")
@@ -706,6 +832,11 @@ int main(int argc, char** argv)
                 }
             }
             fwrite_tensor_proto_data(B, bp);
+        }
+        else if (op == "Ceil")
+        {
+            int op_type = 3;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "Clip")
         {
@@ -930,6 +1061,16 @@ int main(int argc, char** argv)
                 fwrite_tensor_proto_data(B, bp);
             }
         }
+        else if (op == "Cos")
+        {
+            int op_type = 10;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Div")
+        {
+            int op_type = 3;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "Dropout")
         {
             // no-op
@@ -939,18 +1080,35 @@ int main(int argc, char** argv)
             float alpha = get_node_attr_f(node, "alpha", 1.f);
             fprintf(pp, " 0=%f", alpha);
         }
+        else if (op == "Exp")
+        {
+            int op_type = 7;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Flatten")
+        {
+            int axis = get_node_attr_i(node, "axis", 1);
+            if (axis != 1)
+            {
+                fprintf(stderr, "Unsupported Flatten axis %d!\n", axis);
+            }
+        }
+        else if (op == "Floor")
+        {
+            int op_type = 2;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "Gemm")
         {
             float alpha = get_node_attr_f(node, "alpha", 1.f);
             float beta = get_node_attr_f(node, "beta", 1.f);
-            int broadcast = get_node_attr_i(node, "broadcast", 0);
             int transA = get_node_attr_i(node, "transA", 0);
             int transB = get_node_attr_i(node, "transB", 0);
 
             if (alpha == 1.f && beta == 1.f)
             {
                 // InnerProduct-like A * B + C
-                if (transA == 0 && transB == 1 && broadcast == 1)
+                if (transA == 0 && transB == 1)
                 {
                     const onnx::TensorProto& B = weights[node.input(1)];
                     const onnx::TensorProto& C = weights[node.input(2)];
@@ -1017,6 +1175,11 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%f", alpha);
         }
+        else if (op == "Log")
+        {
+            int op_type = 8;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "LRN")
         {
             float alpha = get_node_attr_f(node, "alpha", 1.f);
@@ -1064,9 +1227,24 @@ int main(int argc, char** argv)
 
 //                 fwrite_tensor_proto_data(B, bp)
         }
+        else if (op == "Max")
+        {
+            int op_type = 4;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Min")
+        {
+            int op_type = 5;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "Mul")
         {
             int op_type = 2;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Neg")
+        {
+            int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "Pad")
@@ -1101,6 +1279,11 @@ int main(int argc, char** argv)
             fprintf(pp, " 4=%d", type);
             fprintf(pp, " 5=%f", value);
         }
+        else if (op == "Pow")
+        {
+            int op_type = 6;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "PRelu")
         {
             const onnx::TensorProto& slope = weights[node.input(1)];
@@ -1111,9 +1294,28 @@ int main(int argc, char** argv)
 
             fwrite_tensor_proto_data(slope, bp);
         }
+        else if (op == "Reciprocal")
+        {
+            int op_type = 15;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "Reshape")
         {
-            std::vector<int> shape = get_node_attr_ai(node, "shape");
+            std::vector<int> shape;
+
+            if (node.input_size() == 1)
+            {
+                shape = get_node_attr_ai(node, "shape");
+            }
+            else
+            {
+                const onnx::TensorProto& shape_tp = weights[node.input(1)];
+                const int64_t* shape_data = shape_tp.int64_data().data();
+                for (int j=0; j<shape_tp.int64_data_size(); j++)
+                {
+                    shape.push_back(shape_data[j]);
+                }
+            }
 
             if (shape.size() == 1) {
                 fprintf(pp, " 0=%d", shape[0]);// should never reach here
@@ -1132,14 +1334,37 @@ int main(int argc, char** argv)
                 fprintf(pp, " 2=%d", shape[1]);
             }
         }
+        else if (op == "Sigmoid")
+        {
+        }
+        else if (op == "Sin")
+        {
+            int op_type = 9;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "Softmax")
         {
             int axis = get_node_attr_i(node, "axis", 1);
             fprintf(pp, " 0=%d", axis-1);
         }
+        else if (op == "Sqrt")
+        {
+            int op_type = 5;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Sub")
+        {
+            int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "Sum")
         {
             int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Tan")
+        {
+            int op_type = 11;
             fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "Transpose")

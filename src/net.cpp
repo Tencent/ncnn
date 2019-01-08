@@ -241,6 +241,8 @@ int Net::load_param(FILE* fp)
 #if _MSC_VER
 static inline int mem_sscanf_with_n(int* _internal_nconsumed_ptr, const char*& ptr, const char* format, ...)
 {
+    *_internal_nconsumed_ptr = 0;
+
     va_list args;
     va_start(args, format);
 
@@ -410,7 +412,7 @@ int Net::load_param(const char* protopath)
 template<typename T> bool readValue(T & val, FILE * fp)
 {
     size_t res = fread(&val, sizeof(T), 1, fp);
-    if (res != sizeof(T)) {
+    if (res != 1) {
         fprintf(stderr, "issue with param file reading\n");
         return false;
     }

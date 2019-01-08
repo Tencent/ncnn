@@ -1131,6 +1131,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (n.op == "Pad")
+        {
+            fprintf(pp, "%-16s", "Padding");
+        }
         else if (n.op == "Pooling")
         {
             fprintf(pp, "%-16s", "Pooling");
@@ -1869,6 +1873,51 @@ int main(int argc, char** argv)
         {
             int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "Pad")
+        {
+            std::string mode = n.attr("mode");
+            std::vector<int> pad_width = n.attr("pad_width");
+            float constant_value = n.attr("constant_value");
+
+            int type = 0;
+            if (mode == "constant")
+            {
+                type = 0;
+            }
+            else if (mode == "edge")
+            {
+                type = 1;
+            }
+            else if (mode == "reflect")
+            {
+                // FIXME
+            }
+
+            if (pad_width.size() != 8)
+            {
+                fprintf(stderr, "Unsupported pad_width !\n");
+            }
+
+            int channel_before = pad_width[2];
+            int channel_after = pad_width[3];
+            if (channel_before != 0 || channel_after != 0)
+            {
+                // FIXME
+                fprintf(stderr, "Unsupported pad_width on channel axis !\n");
+            }
+
+            int top = pad_width[4];
+            int bottom = pad_width[5];
+            int left = pad_width[6];
+            int right = pad_width[7];
+
+            fprintf(pp, " 0=%d", top);
+            fprintf(pp, " 1=%d", bottom);
+            fprintf(pp, " 2=%d", left);
+            fprintf(pp, " 3=%d", right);
+            fprintf(pp, " 4=%d", type);
+            fprintf(pp, " 5=%f", constant_value);
         }
         else if (n.op == "Pooling")
         {
