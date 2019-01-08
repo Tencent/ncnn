@@ -52,7 +52,7 @@ static int detect_yolov3(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // the Caffe-yolov3-Windows style
     // X' = X * scale - mean
-    const float mean_vals[3] = {0.5f, 0.5f, 0.5f};
+    const float mean_vals[3] = {1.0f, 1.0f, 1.0f};
     const float norm_vals[3] = {0.007843f, 0.007843f, 0.007843f};
     in.substract_mean_normalize(0, norm_vals);
     in.substract_mean_normalize(mean_vals, 0);
