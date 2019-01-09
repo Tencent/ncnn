@@ -430,11 +430,11 @@ int Net::load_param_bin(FILE* fp)
         return -1;
     }
 
-    size_t layer_count = 0;
+    int layer_count = 0;
     if (!readValue(layer_count, fp))
         return -1;
 
-    size_t blob_count = 0;
+    int blob_count = 0;
     if (!readValue(blob_count, fp))
         return -1;
 
@@ -452,11 +452,11 @@ int Net::load_param_bin(FILE* fp)
         if (!readValue(typeindex, fp))
             return -1;
 
-        size_t bottom_count;
+        int bottom_count;
         if (!readValue(bottom_count, fp))
             return -1;
 
-        size_t top_count;
+        int top_count;
         if (!readValue(top_count, fp))
             return -1;
 
@@ -480,7 +480,7 @@ int Net::load_param_bin(FILE* fp)
         layer->bottoms.resize(bottom_count);
         for (size_t j=0; j<bottom_count; j++)
         {
-            size_t bottom_blob_index;
+            int bottom_blob_index;
             if (!readValue(bottom_blob_index, fp))
                 return -1;
 
@@ -494,7 +494,7 @@ int Net::load_param_bin(FILE* fp)
         layer->tops.resize(top_count);
         for (size_t j=0; j<top_count; j++)
         {
-            size_t top_blob_index;
+            int top_blob_index;
             if (!readValue(top_blob_index, fp))
                 return -1;
 
