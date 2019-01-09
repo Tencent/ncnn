@@ -4152,7 +4152,6 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                 {
                 asm volatile(
                     "vld1.s8    {d0-d1}, [%5]       \n"// d0(k0 - k7) d1(k8 ...)
-                    "add        %5, #9              \n"
                     "vmovl.s8   q1, d1              \n"// d2(k8 ...)
                     "vmovl.s8   q0, d0              \n"// d0(k0 - k3) d1(k4 - k7)
                     "0:                             \n"
@@ -4173,7 +4172,7 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                     "vmovl.s8   q2, d4              \n"// q2(a00 a02 ... a014)
                     "vmovl.s8   q4, d8              \n"// q4(a02 a04 ... a016)
 
-                    "vmovl.s8   q6, d11             \n"// q6(a10 a12 ... a114)
+                    "vmovl.s8   q6, d11             \n"// q6(a11 a13 ... a115)
                     "vmovl.s8   q5, d10             \n"// q5(a10 a12 ... a114)
                     "vmovl.s8   q7, d14             \n"// q7(a12 a14 ... a116)
 
@@ -4195,12 +4194,12 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                     "vmlal.s16  q13, d14, d1[1]     \n"// k5
                     "vmlal.s16  q14, d15, d1[1]     \n"
 
-                    "vmlal.s16  q11, d12, d1[2]     \n"// k6
-                    "vmlal.s16  q12, d13, d1[2]     \n"
-                    "vmlal.s16  q13, d14, d1[3]     \n"// k7 
-                    "vmlal.s16  q14, d15, d1[3]     \n"
-                    "vmlal.s16  q11, d16, d2[0]     \n"// k8 
-                    "vmlal.s16  q12, d17, d2[0]     \n"
+                    "vmlal.s16  q11, d16, d1[2]     \n"// k6
+                    "vmlal.s16  q12, d17, d1[2]     \n"
+                    "vmlal.s16  q13, d18, d1[3]     \n"// k7 
+                    "vmlal.s16  q14, d19, d1[3]     \n"
+                    "vmlal.s16  q11, d20, d2[0]     \n"// k8 
+                    "vmlal.s16  q12, d21, d2[0]     \n"
 
                     "vadd.s32   q11, q11, q13       \n"
                     "vadd.s32   q12, q12, q14       \n"
