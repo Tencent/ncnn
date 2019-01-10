@@ -32,22 +32,6 @@ int Softmax::load_param(const ParamDict& pd)
 {
     axis = pd.get(0, 0);
 
-#if NCNN_VULKAN
-    if (pd.use_vulkan_compute)
-    {
-        set_optimal_local_size_xyz();
-
-        specializations.resize(1);
-        specializations[0].i = axis;
-
-        binding_count = 2;
-        push_constant_count = 10;
-
-        // TODO inplace for vulkan
-        support_inplace = false;
-    }
-#endif // NCNN_VULKAN
-
     return 0;
 }
 
@@ -459,6 +443,21 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if NCNN_VULKAN
+int Softmax::create_pipeline()
+{
+    pipeline->set_optimal_local_size_xyz();
+
+    std::vector<vk_specialization_type> specializations(1);
+    specializations[0].i = axis;
+
+    pipeline->create(shader_module, "softmax", specializations, 2, 10);
+
+    // TODO inplace for vulkan
+    support_inplace = false;
+
+    return 0;
+}
+
 int Softmax::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blob.dims;
@@ -488,18 +487,10 @@ int Softmax::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    uint32_t group_count_xyz[3];
-    group_count_xyz[0] = (top_blob.w + local_size_x - 1) / local_size_x;
-    group_count_xyz[1] = (top_blob.h + local_size_y - 1) / local_size_y;
-    group_count_xyz[2] = (top_blob.c + local_size_z - 1) / local_size_z;
-
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);
     cmd.record_prepare_compute_barrier(top_blob);
-    cmd.record_bind_pipeline(pipeline);
-    cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
-    cmd.record_push_constants(pipeline_layout, constants);
-    cmd.record_dispatch(group_count_xyz);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }

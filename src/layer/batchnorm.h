@@ -33,6 +33,8 @@ public:
 #if NCNN_VULKAN
     virtual int upload_model(VkTransfer& cmd);
 
+    virtual int create_pipeline();
+
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 

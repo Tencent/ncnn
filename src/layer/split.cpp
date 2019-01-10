@@ -23,12 +23,6 @@ Split::Split()
     one_blob_only = false;
     support_inplace = false;
     support_vulkan = true;
-
-#if NCNN_VULKAN
-    specializations.resize(0);
-    binding_count = 0;
-    push_constant_count = 0;
-#endif // NCNN_VULKAN
 }
 
 int Split::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& /*opt*/) const

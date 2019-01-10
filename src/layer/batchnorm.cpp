@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "batchnorm.h"
+#include "pipeline.h"
 #include <math.h>
 
 namespace ncnn {
@@ -30,18 +31,6 @@ int BatchNorm::load_param(const ParamDict& pd)
 {
     channels = pd.get(0, 0);
     eps = pd.get(1, 0.f);
-
-#if NCNN_VULKAN
-    if (pd.use_vulkan_compute)
-    {
-        set_optimal_local_size_xyz(32, 32, channels);
-
-        specializations.resize(0);
-
-        binding_count = 3;
-        push_constant_count = 5;
-    }
-#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -153,6 +142,17 @@ int BatchNorm::upload_model(VkTransfer& cmd)
     return 0;
 }
 
+int BatchNorm::create_pipeline()
+{
+    pipeline->set_optimal_local_size_xyz(32, 32, channels);
+
+    std::vector<vk_specialization_type> specializations(0);
+
+    pipeline->create(shader_module, "batchnorm", specializations, 3, 5);
+
+    return 0;
+}
+
 int BatchNorm::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
 //     fprintf(stderr, "BatchNorm::forward_inplace %p\n", bottom_top_blob.buffer());
@@ -169,17 +169,9 @@ int BatchNorm::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Opt
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    uint32_t group_count_xyz[3];
-    group_count_xyz[0] = (bottom_top_blob.w + local_size_x - 1) / local_size_x;
-    group_count_xyz[1] = (bottom_top_blob.h + local_size_y - 1) / local_size_y;
-    group_count_xyz[2] = (bottom_top_blob.c + local_size_z - 1) / local_size_z;
-
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_bind_pipeline(pipeline);
-    cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
-    cmd.record_push_constants(pipeline_layout, constants);
-    cmd.record_dispatch(group_count_xyz);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
     return 0;
 }

@@ -613,7 +613,7 @@ int Net::load_model(FILE* fp)
 
             if (layer->support_vulkan)
             {
-                layer->create_vulkan_pipeline();
+                layer->create_pipeline();
             }
         }
     }
@@ -809,7 +809,7 @@ int Net::load_model(const unsigned char* _mem)
 
             if (layer->support_vulkan)
             {
-                layer->create_vulkan_pipeline();
+                layer->create_pipeline();
             }
         }
     }

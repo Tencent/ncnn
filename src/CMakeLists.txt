@@ -7,6 +7,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/layer)
 
+if(NCNN_VULKAN)
+    include_directories(${Vulkan_INCLUDE_DIR})
+endif()
+
 set(ncnn_SRCS
     allocator.cpp
     blob.cpp
@@ -21,14 +25,9 @@ set(ncnn_SRCS
     net.cpp
     opencv.cpp
     paramdict.cpp
+    pipeline.cpp
     benchmark.cpp
 )
-
-if(NCNN_VULKAN)
-    find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator)
-    message(STATUS "GLSLANGVALIDATOR_EXECUTABLE = ${GLSLANGVALIDATOR_EXECUTABLE}")
-    include_directories(${Vulkan_INCLUDE_DIR})
-endif()
 
 macro(ncnn_add_layer class)
     string(TOLOWER ${class} name)
@@ -68,7 +67,8 @@ macro(ncnn_add_layer class)
         if(NCNN_VULKAN)
             set(LAYER_SHADER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/layer/shader/${name}.comp)
             if(EXISTS ${LAYER_SHADER_SRC})
-                execute_process(COMMAND ${GLSLANGVALIDATOR_EXECUTABLE} -V ${LAYER_SHADER_SRC} -x -o ${CMAKE_CURRENT_BINARY_DIR}/${name}.comp.spv.hex.h)
+                compile_compute_shader(${class} shader_module_hex_file)
+                list(APPEND SHADER_MODULE_HEX_FILES ${shader_module_hex_file})
                 set(WITH_LAYER_${name}_vulkan 1)
             endif()
         endif()
@@ -90,9 +90,9 @@ macro(ncnn_add_layer class)
 
         if(WITH_LAYER_${name}_vulkan)
             string(APPEND layer_shader_spv_data
-                "static const uint32_t ${class}_comp_spv_data[] = {\n#include \"${name}.comp.spv.hex.h\"\n};\n")
+                "static const uint32_t ${class}_spv_data[] = {\n#include \"${name}.spv.hex.h\"\n};\n")
             string(APPEND layer_shader_registry
-                "{${class}_comp_spv_data,sizeof(${class}_comp_spv_data)},\n")
+                "{${class}_spv_data,sizeof(${class}_spv_data)},\n")
         else()
             string(APPEND layer_shader_registry "{0,0},\n")
         endif()
@@ -106,6 +106,7 @@ macro(ncnn_add_layer class)
     math(EXPR __LAYER_TYPE_ENUM_INDEX "${__LAYER_TYPE_ENUM_INDEX}+1")
 endmacro()
 
+set(SHADER_MODULE_HEX_FILES)
 set(__LAYER_TYPE_ENUM_INDEX 0)
 
 # layer implementation
@@ -172,6 +173,9 @@ ncnn_add_layer(Yolov3DetectionOutput)
 ncnn_add_layer(PSROIPooling)
 ncnn_add_layer(ROIAlign OFF)
 
+# message("SHADER_MODULE_HEX_FILES = ${SHADER_MODULE_HEX_FILES}")
+add_custom_target(generate-spirv DEPENDS ${SHADER_MODULE_HEX_FILES})
+
 # create new
 configure_file(layer_declaration.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
 configure_file(layer_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
@@ -180,6 +184,8 @@ configure_file(layer_shader_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shad
 configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
+
+add_dependencies(ncnn generate-spirv)
 
 if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
     if(NCNN_CMAKE_VERBOSE)
@@ -206,6 +212,7 @@ install(FILES
     net.h
     opencv.h
     paramdict.h
+    pipeline.h
     benchmark.h
     ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
     ${CMAKE_CURRENT_BINARY_DIR}/platform.h

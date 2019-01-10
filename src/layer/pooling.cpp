@@ -52,20 +52,6 @@ int Pooling::load_param(const ParamDict& pd)
 #if NCNN_VULKAN
     if (pd.use_vulkan_compute)
     {
-        set_optimal_local_size_xyz();
-
-        specializations.resize(7);
-        specializations[0].i = pooling_type;
-        specializations[1].i = kernel_w;
-        specializations[2].i = kernel_h;
-        specializations[3].i = stride_w;
-        specializations[4].i = stride_h;
-        specializations[5].i = global_pooling;
-        specializations[6].i = pad_mode;
-
-        binding_count = 2;
-        push_constant_count = 10;
-
         padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
         {
             ncnn::ParamDict pd;
@@ -79,8 +65,6 @@ int Pooling::load_param(const ParamDict& pd)
             pd.use_vulkan_compute = 1;
 
             padding->load_param(pd);
-
-            padding->create_vulkan_pipeline();
         }
     }
 #endif // NCNN_VULKAN
@@ -335,6 +319,26 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 }
 
 #if NCNN_VULKAN
+int Pooling::create_pipeline()
+{
+    pipeline->set_optimal_local_size_xyz();
+
+    std::vector<vk_specialization_type> specializations(7);
+    specializations[0].i = pooling_type;
+    specializations[1].i = kernel_w;
+    specializations[2].i = kernel_h;
+    specializations[3].i = stride_w;
+    specializations[4].i = stride_h;
+    specializations[5].i = global_pooling;
+    specializations[6].i = pad_mode;
+
+    pipeline->create(shader_module, "pooling", specializations, 2, 10);
+
+    padding->create_pipeline();
+
+    return 0;
+}
+
 int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int w = bottom_blob.w;
@@ -378,18 +382,10 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    uint32_t group_count_xyz[3];
-    group_count_xyz[0] = (top_blob.w + local_size_x - 1) / local_size_x;
-    group_count_xyz[1] = (top_blob.h + local_size_y - 1) / local_size_y;
-    group_count_xyz[2] = (top_blob.c + local_size_z - 1) / local_size_z;
-
     // record
     cmd.record_prepare_compute_barrier(bottom_blob_bordered);
     cmd.record_prepare_compute_barrier(top_blob);
-    cmd.record_bind_pipeline(pipeline);
-    cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
-    cmd.record_push_constants(pipeline_layout, constants);
-    cmd.record_dispatch(group_count_xyz);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }

@@ -26,6 +26,7 @@
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>
 #include "command.h"
+#include "pipeline.h"
 #endif // NCNN_VULKAN
 
 namespace ncnn {
@@ -115,6 +116,8 @@ public:
     // upload weight blob from host to device
     virtual int upload_model(VkTransfer& cmd);
 
+    virtual int create_pipeline();
+
 public:
     // implement inference
     // return 0 if success
@@ -127,41 +130,13 @@ public:
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt = get_default_option()) const;
 
 public:
+    const VulkanDevice* vkdev;
+
     // shared among each layer type instance
     VkShaderModule shader_module;
 
-    VkDescriptorSetLayout descriptorset_layout;
-    VkPipelineLayout pipeline_layout;
-
-    // op forward TODO use pipeline cache ?
-    VkPipeline pipeline;
-
-    VkDescriptorUpdateTemplateKHR descriptor_update_template;
-
-public:
-    int set_optimal_local_size_xyz(int w = 32, int h = 32, int c = 32);
-
-    int create_vulkan_pipeline();
-    int destroy_vulkan_pipeline();
-
-protected:
-    // misc routine for creating things when creating pipeline
-    int create_descriptorset_layout();
-    int create_pipeline_layout();
-    int create_pipeline();
-    int create_descriptor_update_template();
-
-public:
-    const VulkanDevice* vkdev;
-
-    int local_size_x;
-    int local_size_y;
-    int local_size_z;
-
-    std::vector<vk_specialization_type> specializations;
-    int binding_count;
-    int push_constant_count;
-
+    // compute pipeline
+    Pipeline* pipeline;
 #endif // NCNN_VULKAN
 
 public:

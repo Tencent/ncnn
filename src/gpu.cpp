@@ -18,9 +18,11 @@
 
 #include <vulkan/vulkan.h>
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
+#include <algorithm>
 #include <vector>
 
 #include "mat.h"
@@ -477,6 +479,18 @@ int create_gpu_instance()
         VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &physicalDeviceMemoryProperties);
 
+//         // print memory info
+//         for (uint32_t j=0; j<physicalDeviceMemoryProperties.memoryTypeCount; j++)
+//         {
+//             const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[j];
+//             fprintf(stderr, "[%u] memoryType %u heapIndex/propertyFlags = %d  %u\n", i, j, memoryType.heapIndex, memoryType.propertyFlags);
+//         }
+//         for (uint32_t j=0; j<physicalDeviceMemoryProperties.memoryHeapCount; j++)
+//         {
+//             const VkMemoryHeap& memoryHeap = physicalDeviceMemoryProperties.memoryHeaps[j];
+//             fprintf(stderr, "[%u] memoryHeap %u size/flags = %d  %u\n", i, j, memoryHeap.size, memoryHeap.flags);
+//         }
+
         gpu_info.unified_memory_index = find_unified_memory(physicalDeviceMemoryProperties);
         gpu_info.device_local_memory_index = find_device_local_memory(physicalDeviceMemoryProperties);
         gpu_info.host_visible_memory_index = find_host_visible_memory(physicalDeviceMemoryProperties);
@@ -510,9 +524,9 @@ int create_gpu_instance()
         gpu_info.support_VK_KHR_shader_float16_int8 = 0;
         gpu_info.support_VK_KHR_shader_float_controls = 0;
         gpu_info.support_VK_KHR_storage_buffer_storage_class = 0;
-        for (uint32_t i=0; i<deviceExtensionPropertyCount; i++)
+        for (uint32_t j=0; j<deviceExtensionPropertyCount; j++)
         {
-            const VkExtensionProperties& exp = deviceExtensionProperties[i];
+            const VkExtensionProperties& exp = deviceExtensionProperties[j];
 //             fprintf(stderr, "device extension %s = %u\n", exp.extensionName, exp.specVersion);
 
             if (strcmp(exp.extensionName, "VK_KHR_8bit_storage") == 0)

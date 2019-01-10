@@ -33,22 +33,6 @@ int Scale::load_param(const ParamDict& pd)
     if (scale_data_size == -233)
         one_blob_only = false;
 
-#if NCNN_VULKAN
-    if (pd.use_vulkan_compute)
-    {
-        if (scale_data_size == -233)
-            set_optimal_local_size_xyz();
-        else
-            set_optimal_local_size_xyz(8, 8, scale_data_size);
-
-        specializations.resize(1);
-        specializations[0].i = bias_term;
-
-        binding_count = 3;
-        push_constant_count = 5;
-    }
-#endif // NCNN_VULKAN
-
     return 0;
 }
 
@@ -206,6 +190,21 @@ int Scale::upload_model(VkTransfer& cmd)
     return 0;
 }
 
+int Scale::create_pipeline()
+{
+    if (scale_data_size == -233)
+        pipeline->set_optimal_local_size_xyz();
+    else
+        pipeline->set_optimal_local_size_xyz(8, 8, scale_data_size);
+
+    std::vector<vk_specialization_type> specializations(1);
+    specializations[0].i = bias_term;
+
+    pipeline->create(shader_module, "scale", specializations, 3, 5);
+
+    return 0;
+}
+
 int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
 {
     VkMat& bottom_top_blob = bottom_top_blobs[0];
@@ -225,19 +224,11 @@ int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd,
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    uint32_t group_count_xyz[3];
-    group_count_xyz[0] = (bottom_top_blob.w + local_size_x - 1) / local_size_x;
-    group_count_xyz[1] = (bottom_top_blob.h + local_size_y - 1) / local_size_y;
-    group_count_xyz[2] = (bottom_top_blob.c + local_size_z - 1) / local_size_z;
-
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
     if (scale_data_size == -233)
         cmd.record_prepare_compute_barrier(scale_blob);
-    cmd.record_bind_pipeline(pipeline);
-    cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
-    cmd.record_push_constants(pipeline_layout, constants);
-    cmd.record_dispatch(group_count_xyz);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
     return 0;
 }

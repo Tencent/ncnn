@@ -80,7 +80,7 @@ public:
 
                 if (layer->support_vulkan)
                 {
-                    layer->create_vulkan_pipeline();
+                    layer->create_pipeline();
                 }
             }
         }

@@ -255,6 +255,22 @@ void VkCompute::record_copy_regions(const VkMat& src, const VkMat& dst, const st
     delayed_records.push_back(r);
 }
 
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& m)
+{
+    record_bind_pipeline(pipeline->pipeline);
+
+    record_update_bindings(pipeline->pipeline_layout, pipeline->descriptorset_layout, pipeline->descriptor_update_template, bindings);
+
+    record_push_constants(pipeline->pipeline_layout, constants);
+
+    uint32_t group_count_xyz[3];
+    group_count_xyz[0] = (m.w + pipeline->local_size_x - 1) / pipeline->local_size_x;
+    group_count_xyz[1] = (m.h + pipeline->local_size_y - 1) / pipeline->local_size_y;
+    group_count_xyz[2] = (m.c + pipeline->local_size_z - 1) / pipeline->local_size_z;
+
+    record_dispatch(group_count_xyz);
+}
+
 void VkCompute::record_bind_pipeline(VkPipeline pipeline)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)

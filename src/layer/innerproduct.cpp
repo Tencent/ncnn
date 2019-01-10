@@ -48,19 +48,6 @@ int InnerProduct::load_param(const ParamDict& pd)
     if (int8_scale_term == 0)
         use_int8_inference = false;
 
-#if NCNN_VULKAN
-    if (pd.use_vulkan_compute)
-    {
-        set_optimal_local_size_xyz(num_output, 1, 1);
-
-        specializations.resize(1);
-        specializations[0].i = bias_term;
-
-        binding_count = 4;
-        push_constant_count = 10;
-    }
-#endif // NCNN_VULKAN
-
     return 0;
 }
 
@@ -231,6 +218,18 @@ int InnerProduct::upload_model(VkTransfer& cmd)
     return 0;
 }
 
+int InnerProduct::create_pipeline()
+{
+    pipeline->set_optimal_local_size_xyz(num_output, 1, 1);
+
+    std::vector<vk_specialization_type> specializations(1);
+    specializations[0].i = bias_term;
+
+    pipeline->create(shader_module, "innerproduct", specializations, 4, 10);
+
+    return 0;
+}
+
 int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     top_blob.create(num_output, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
@@ -257,17 +256,10 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    uint32_t group_count_xyz[3];
-    group_count_xyz[0] = (top_blob.w + local_size_x - 1) / local_size_x;
-    group_count_xyz[1] = (top_blob.h + local_size_y - 1) / local_size_y;
-    group_count_xyz[2] = (top_blob.c + local_size_z - 1) / local_size_z;
-
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);
-    cmd.record_bind_pipeline(pipeline);
-    cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
-    cmd.record_push_constants(pipeline_layout, constants);
-    cmd.record_dispatch(group_count_xyz);
+    cmd.record_prepare_compute_barrier(top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }

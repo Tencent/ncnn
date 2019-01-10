@@ -61,38 +61,19 @@ int Convolution::load_param(const ParamDict& pd)
         use_int8_inference = false;
 
 #if NCNN_VULKAN
-    if (pd.use_vulkan_compute)
+    padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
     {
-        set_optimal_local_size_xyz(32, 32, num_output);
+        ncnn::ParamDict pd;
+        pd.set(0, pad_h);
+        pd.set(1, pad_h);
+        pd.set(2, pad_w);
+        pd.set(3, pad_w);
+        pd.set(4, 0);
+        pd.set(5, 0.f);
 
-        specializations.resize(7);
-        specializations[0].i = kernel_w;
-        specializations[1].i = kernel_h;
-        specializations[2].i = dilation_w;
-        specializations[3].i = dilation_h;
-        specializations[4].i = stride_w;
-        specializations[5].i = stride_h;
-        specializations[6].i = bias_term;
+        pd.use_vulkan_compute = 1;
 
-        binding_count = 4;
-        push_constant_count = 10;
-
-        padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
-        {
-            ncnn::ParamDict pd;
-            pd.set(0, pad_h);
-            pd.set(1, pad_h);
-            pd.set(2, pad_w);
-            pd.set(3, pad_w);
-            pd.set(4, 0);
-            pd.set(5, 0.f);
-
-            pd.use_vulkan_compute = 1;
-
-            padding->load_param(pd);
-
-            padding->create_vulkan_pipeline();
-        }
+        padding->load_param(pd);
     }
 #endif // NCNN_VULKAN
 
@@ -414,6 +395,26 @@ int Convolution::upload_model(VkTransfer& cmd)
     return 0;
 }
 
+int Convolution::create_pipeline()
+{
+    pipeline->set_optimal_local_size_xyz(32, 32, num_output);
+
+    std::vector<vk_specialization_type> specializations(7);
+    specializations[0].i = kernel_w;
+    specializations[1].i = kernel_h;
+    specializations[2].i = dilation_w;
+    specializations[3].i = dilation_h;
+    specializations[4].i = stride_w;
+    specializations[5].i = stride_h;
+    specializations[6].i = bias_term;
+
+    pipeline->create(shader_module, "convolution", specializations, 4, 10);
+
+    padding->create_pipeline();
+
+    return 0;
+}
+
 int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int w = bottom_blob.w;
@@ -462,18 +463,10 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    uint32_t group_count_xyz[3];
-    group_count_xyz[0] = (top_blob.w + local_size_x - 1) / local_size_x;
-    group_count_xyz[1] = (top_blob.h + local_size_y - 1) / local_size_y;
-    group_count_xyz[2] = (top_blob.c + local_size_z - 1) / local_size_z;
-
     // record
     cmd.record_prepare_compute_barrier(bottom_blob_bordered);
     cmd.record_prepare_compute_barrier(top_blob);
-    cmd.record_bind_pipeline(pipeline);
-    cmd.record_update_bindings(pipeline_layout, descriptorset_layout, descriptor_update_template, bindings);
-    cmd.record_push_constants(pipeline_layout, constants);
-    cmd.record_dispatch(group_count_xyz);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }
