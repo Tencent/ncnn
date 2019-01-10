@@ -685,7 +685,7 @@ int main(int argc, char** argv)
 
                 if (int8_scale_term)
                 {
-                    if ((int)weight_int8scale.size() == num_group && (int)blob_int8scale.size() == num_group)
+                    if ((int)weight_int8scale.size() == num_group)
                     {
                         fprintf(pp, " 8=1");
                     }

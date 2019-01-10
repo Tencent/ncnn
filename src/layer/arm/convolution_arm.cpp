@@ -445,11 +445,15 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
 
         // dequantize, reverse scale inplace
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p=0; p<num_output; p++)
         {
             ncnn::Option opt_g = opt;
+            opt_g.num_threads = 1;
             opt_g.blob_allocator = top_blob.allocator;
 
-            dequantize->forward_inplace(top_blob, opt_g);
+            Mat top_blob_g = top_blob.channel_range(p, 1);
+            dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
         }
 
         return 0;

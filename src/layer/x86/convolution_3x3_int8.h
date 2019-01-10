@@ -11,12 +11,6 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-static inline short saturate2int16(int v)
-{
-    if (v > 32767) return 32767;
-    if (v < -32768) return -32768;
-    return (short)v;
-}
 
 static void conv3x3s1_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
 {
@@ -122,23 +116,19 @@ static void conv3x3s2_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Mat 
 
                 for (; remain > 0; remain--)
                 {
-                    short sum0 = 0;
-                    short sum1 = 0;
-                    short sum2 = 0;
+                    int sum0 = 0;
 
-                    sum0 += (short)r0[0] * kernel0[0];
-                    sum0 += (short)r0[1] * kernel0[1];
-                    sum0 += (short)r0[2] * kernel0[2];
-                    sum1 += (short)r1[0] * kernel0[3];
-                    sum1 += (short)r1[1] * kernel0[4];
-                    sum1 += (short)r1[2] * kernel0[5];
-                    sum2 += (short)r2[0] * kernel0[6];
-                    sum2 += (short)r2[1] * kernel0[7];
-                    sum2 += (short)r2[2] * kernel0[8];
+                    sum0 += (int)r0[0] * kernel0[0];
+                    sum0 += (int)r0[1] * kernel0[1];
+                    sum0 += (int)r0[2] * kernel0[2];
+                    sum0 += (int)r1[0] * kernel0[3];
+                    sum0 += (int)r1[1] * kernel0[4];
+                    sum0 += (int)r1[2] * kernel0[5];
+                    sum0 += (int)r2[0] * kernel0[6];
+                    sum0 += (int)r2[1] * kernel0[7];
+                    sum0 += (int)r2[2] * kernel0[8];
 
-                    *outptr0 = saturate2int16(*outptr0 + sum0);
-                    *outptr0 = saturate2int16(*outptr0 + sum1);
-                    *outptr0 = saturate2int16(*outptr0 + sum2);
+                    *outptr0 += sum0;
 
                     r0 += 2;
                     r1 += 2;

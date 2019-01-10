@@ -85,7 +85,11 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
     if (int8_scale_term == 1)
     {
         weight_data_int8_scales = mb.load(group, 1);
-        bottom_blob_int8_scales = mb.load(group, 1);
+        bottom_blob_int8_scales = mb.load(1, 1);
+
+        float bottom_blob_int8_scale = bottom_blob_int8_scales[0];
+        bottom_blob_int8_scales = Mat(group);
+        bottom_blob_int8_scales.fill(bottom_blob_int8_scale);
     }
     else if (int8_scale_term == 2)
     {
@@ -171,7 +175,11 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
         {
             dequantize_ops[g] = ncnn::create_layer(ncnn::LayerType::Dequantize);
 
-            float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+            float top_rescale = 1.f;
+            if (weight_data_int8_scales[g] == 0)
+                top_rescale = 0;
+            else
+                top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
 
             ncnn::ParamDict pd;
             pd.set(0, top_rescale);// scale

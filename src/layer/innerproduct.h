@@ -44,13 +44,13 @@ public:
     Mat weight_data;
     Mat bias_data;
 
-    float weight_data_int8_scale;
+    Mat weight_data_int8_scales;
     float bottom_blob_int8_scale;
 
     bool use_int8_inference;
 
     ncnn::Layer* quantize;
-    ncnn::Layer* dequantize;
+    std::vector<ncnn::Layer*> dequantize_ops;
 };
 
 } // namespace ncnn
