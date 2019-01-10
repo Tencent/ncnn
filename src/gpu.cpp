@@ -661,7 +661,14 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.pNext = 0;
     deviceCreateInfo.flags = 0;
+    if (info.compute_queue_index == info.transfer_queue_index)
+    {
+    deviceCreateInfo.queueCreateInfoCount = 1;
+    }
+    else
+    {
     deviceCreateInfo.queueCreateInfoCount = 2;
+    }
     deviceCreateInfo.pQueueCreateInfos = deviceQueueCreateInfos;
     deviceCreateInfo.enabledLayerCount = 0;
     deviceCreateInfo.ppEnabledLayerNames = 0;
