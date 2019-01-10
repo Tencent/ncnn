@@ -53,19 +53,18 @@ int Pooling::load_param(const ParamDict& pd)
     if (pd.use_vulkan_compute)
     {
         padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
-        {
-            ncnn::ParamDict pd;
-            pd.set(0, pad_top);
-            pd.set(1, pad_bottom);
-            pd.set(2, pad_left);
-            pd.set(3, pad_right);
-            pd.set(4, 0);
-            pd.set(5, 0.f);
 
-            pd.use_vulkan_compute = 1;
+        ncnn::ParamDict pd;
+        pd.set(0, pad_top);
+        pd.set(1, pad_bottom);
+        pd.set(2, pad_left);
+        pd.set(3, pad_right);
+        pd.set(4, 0);
+        pd.set(5, 0.f);
 
-            padding->load_param(pd);
-        }
+        pd.use_vulkan_compute = 1;
+
+        padding->load_param(pd);
     }
 #endif // NCNN_VULKAN
 

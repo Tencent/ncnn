@@ -71,8 +71,10 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
         use_int8_inference = false;
 
 #if NCNN_VULKAN
-    padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
+    if (pd.use_vulkan_compute)
     {
+        padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
+
         ncnn::ParamDict pd;
         pd.set(0, pad_h);
         pd.set(1, pad_h);
