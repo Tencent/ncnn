@@ -3366,7 +3366,7 @@ static void conv3x3s1_packed_int8_neon(const Mat &bottom_blob, Mat &top_blob, co
                         "sub        %3, #2          \n"
 
                         "vld1.s8    {d0[6]}, [%4]!  \n"
-                        "vld1.s8    {d0[7]}, [%4]!  \n"// d0(r00 r01 r02 r10 r11 r12 r22 r21)
+                        "vld1.s8    {d0[7]}, [%4]!  \n"// d0(r00 r01 r02 r10 r11 r12 r20 r21)
 
                         "vld1.s8    {d4[]}, [%4]    \n"// d4(r22 r22 r22 r22 r22 r22 r22 r22) 
                         "sub        %4, #2          \n"
@@ -3381,7 +3381,7 @@ static void conv3x3s1_packed_int8_neon(const Mat &bottom_blob, Mat &top_blob, co
                         "vld1.s8    {d5[]}, [%5]    \n"// d5(r32 r32 r32 r32 r32 r32 r32 r32)
                         "sub        %5, #2          \n"
 
-                        "veor       d3, d3          \n"// d3(00 00 00 00 00 00 00 00)
+                        "veor       d3, d1, d1      \n"// d3(00 00 00 00 00 00 00 00)
 
                         "vmull.s8   q8, d0, d2      \n"// sum0 = (r00 - r21) * (k00 - k21)
                         "vmull.s8   q9, d1, d2      \n"// sum1 = (r10 - r31) * (k00 - k21)
@@ -3404,7 +3404,7 @@ static void conv3x3s1_packed_int8_neon(const Mat &bottom_blob, Mat &top_blob, co
                         "vpadd.s32  d20, d20, d21   \n"
                         "vpadd.s32  d22, d22, d23   \n"
                         "vpadd.s32  d20, d20, d22   \n"
-                        "vpadd.s32  d6, d6, d20     \n"
+                        "vadd.s32   d6, d6, d20     \n"
 
                         "vst1.s32   {d6[0]}, [%0]!  \n"
                         "vst1.s32   {d6[1]}, [%1]!  \n"
@@ -3437,7 +3437,6 @@ static void conv3x3s1_packed_int8_neon(const Mat &bottom_blob, Mat &top_blob, co
                     sum0 += r1[2] * ktmp[5];
                     sum0 += r2[0] * ktmp[6];
                     sum0 += r2[1] * ktmp[7];
-
                     sum0 += r2[2] * ktmp[8];
 
                     sum0n += r1[0] * ktmp[0];
@@ -3448,7 +3447,6 @@ static void conv3x3s1_packed_int8_neon(const Mat &bottom_blob, Mat &top_blob, co
                     sum0n += r2[2] * ktmp[5];
                     sum0n += r3[0] * ktmp[6];
                     sum0n += r3[1] * ktmp[7];
-
                     sum0n += r3[2] * ktmp[8];
 
                     *outptr0 += sum0;
