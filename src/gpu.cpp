@@ -128,7 +128,7 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
 
     // third try, use compute queue
     uint32_t compute_queue_index = find_device_compute_queue(queueFamilyProperties);
-    if (compute_queue_index != -1)
+    if (compute_queue_index != (uint32_t)-1)
     {
         return compute_queue_index;
     }
@@ -268,6 +268,7 @@ int create_gpu_instance()
 
     std::vector<const char*> enabledLayers;
 
+#if ENABLE_VALIDATION_LAYER
     uint32_t instanceLayerPropertyCount;
     ret = vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, NULL);
     if (ret != VK_SUCCESS)
@@ -289,7 +290,6 @@ int create_gpu_instance()
         const VkLayerProperties& lp = instanceLayerProperties[i];
 //         fprintf(stderr, "instance layer %s = %u\n", lp.layerName, lp.implementationVersion);
 
-#if ENABLE_VALIDATION_LAYER
         if (strcmp(lp.layerName, "VK_LAYER_LUNARG_standard_validation") == 0)
         {
             enabledLayers.push_back("VK_LAYER_LUNARG_standard_validation");
@@ -298,8 +298,8 @@ int create_gpu_instance()
         {
             enabledLayers.push_back("VK_LAYER_LUNARG_parameter_validation");
         }
-#endif // ENABLE_VALIDATION_LAYER
     }
+#endif // ENABLE_VALIDATION_LAYER
 
     std::vector<const char*> enabledExtensions;
 

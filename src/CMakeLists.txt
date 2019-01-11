@@ -97,7 +97,7 @@ macro(ncnn_add_layer class)
                 COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
                 ARGS -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
                 DEPENDS ${SHADER_SRC}
-                COMMENT "Compiling ${SHADER_SRC_NAME}"
+                COMMENT "Building SPIR-V module ${SHADER_SRC_NAME_WE}.spv"
                 VERBATIM
             )
             set_source_files_properties(${SHADER_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
