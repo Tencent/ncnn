@@ -148,7 +148,7 @@ int BatchNorm::create_pipeline()
 
     std::vector<vk_specialization_type> specializations(0);
 
-    pipeline->create(shader_module, "batchnorm", specializations, 3, 5);
+    pipeline->create("batchnorm", specializations, 3, 5);
 
     return 0;
 }

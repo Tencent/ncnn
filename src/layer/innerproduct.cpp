@@ -225,7 +225,7 @@ int InnerProduct::create_pipeline()
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = bias_term;
 
-    pipeline->create(shader_module, "innerproduct", specializations, 4, 10);
+    pipeline->create("innerproduct", specializations, 4, 10);
 
     return 0;
 }

@@ -26,7 +26,10 @@ Convolution::Convolution()
     support_inplace = false;
     support_vulkan = true;
 
+#if NCNN_VULKAN
     padding = 0;
+    convolution_1x1s1d1 = 0;
+#endif // NCNN_VULKAN
 
     quantize = 0;
     dequantize = 0;
@@ -34,7 +37,10 @@ Convolution::Convolution()
 
 Convolution::~Convolution()
 {
+#if NCNN_VULKAN
     delete padding;
+    delete convolution_1x1s1d1;
+#endif // NCNN_VULKAN
 
     delete quantize;
     delete dequantize;
@@ -410,9 +416,21 @@ int Convolution::create_pipeline()
     specializations[5].i = stride_h;
     specializations[6].i = bias_term;
 
-    pipeline->create(shader_module, "convolution", specializations, 4, 10);
+    pipeline->create("convolution", specializations, 4, 10);
 
     padding->create_pipeline();
+
+    if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+    {
+        convolution_1x1s1d1 = new Pipeline(vkdev);
+
+        convolution_1x1s1d1->set_optimal_local_size_xyz(32, 32, num_output);
+
+        std::vector<vk_specialization_type> specializations(1);
+        specializations[0].i = bias_term;
+
+        convolution_1x1s1d1->create("convolution_1x1s1d1", specializations, 4, 10);
+    }
 
     return 0;
 }
@@ -468,7 +486,15 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     // record
     cmd.record_prepare_compute_barrier(bottom_blob_bordered);
     cmd.record_prepare_compute_barrier(top_blob);
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+    {
+        cmd.record_pipeline(convolution_1x1s1d1, bindings, constants, top_blob);
+    }
+    else
+    {
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    }
 
     return 0;
 }

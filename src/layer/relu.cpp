@@ -80,7 +80,7 @@ int ReLU::create_pipeline()
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].f = slope;
 
-    pipeline->create(shader_module, "relu", specializations, 1, 5);
+    pipeline->create("relu", specializations, 1, 5);
 
     return 0;
 }

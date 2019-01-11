@@ -482,7 +482,7 @@ int BinaryOp::create_pipeline()
     specializations[1].i = with_scalar;
     specializations[2].f = b;
 
-    pipeline->create(shader_module, "binaryop", specializations, 3, 15);
+    pipeline->create("binaryop", specializations, 3, 15);
 
     return 0;
 }

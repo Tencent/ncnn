@@ -132,9 +132,6 @@ public:
 public:
     const VulkanDevice* vkdev;
 
-    // shared among each layer type instance
-    VkShaderModule shader_module;
-
     // compute pipeline
     Pipeline* pipeline;
 #endif // NCNN_VULKAN

@@ -191,7 +191,7 @@ int UnaryOp::create_pipeline()
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = op_type;
 
-    pipeline->create(shader_module, "unaryop", specializations, 1, 5);
+    pipeline->create("unaryop", specializations, 1, 5);
 
     return 0;
 }

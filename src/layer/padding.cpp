@@ -266,7 +266,7 @@ int Padding::create_pipeline()
     specializations[4].i = type;
     specializations[5].f = value;
 
-    pipeline->create(shader_module, "padding", specializations, 2, 10);
+    pipeline->create("padding", specializations, 2, 10);
 
     return 0;
 }

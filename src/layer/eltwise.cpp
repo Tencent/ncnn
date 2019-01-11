@@ -199,7 +199,7 @@ int Eltwise::create_pipeline()
     specializations[0].i = op_type;
     specializations[1].i = coeffs.w == 0 ? 0 : 1;
 
-    pipeline->create(shader_module, "eltwise", specializations, 3, 5+2);
+    pipeline->create("eltwise", specializations, 3, 5+2);
 
     return 0;
 }

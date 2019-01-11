@@ -200,7 +200,7 @@ int Scale::create_pipeline()
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = bias_term;
 
-    pipeline->create(shader_module, "scale", specializations, 3, 5);
+    pipeline->create("scale", specializations, 3, 5);
 
     return 0;
 }

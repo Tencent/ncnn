@@ -8,6 +8,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/layer)
 
 if(NCNN_VULKAN)
+    find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator)
+    message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
     include_directories(${Vulkan_INCLUDE_DIR})
 endif()
 
@@ -62,16 +64,6 @@ macro(ncnn_add_layer class)
                 message(STATUS "Adding layer: ${LAYER_SRC}")
             endif()
         endif()
-
-        # look for vulkan compute shader and compile
-        if(NCNN_VULKAN)
-            set(LAYER_SHADER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/layer/shader/${name}.comp)
-            if(EXISTS ${LAYER_SHADER_SRC})
-                compile_compute_shader(${class} shader_module_hex_file)
-                list(APPEND SHADER_MODULE_HEX_FILES ${shader_module_hex_file})
-                set(WITH_LAYER_${name}_vulkan 1)
-            endif()
-        endif()
     endif()
 
     # generate layer_declaration and layer_registry file
@@ -87,18 +79,34 @@ macro(ncnn_add_layer class)
             string(APPEND layer_registry
                 "#if NCNN_STRING\n{\"${class}\",${class}_layer_creator},\n#else\n{${class}_layer_creator},\n#endif\n")
         endif()
-
-        if(WITH_LAYER_${name}_vulkan)
-            string(APPEND layer_shader_spv_data
-                "static const uint32_t ${class}_spv_data[] = {\n#include \"${name}.spv.hex.h\"\n};\n")
-            string(APPEND layer_shader_registry
-                "{${class}_spv_data,sizeof(${class}_spv_data)},\n")
-        else()
-            string(APPEND layer_shader_registry "{0,0},\n")
-        endif()
     else()
         string(APPEND layer_registry "#if NCNN_STRING\n{\"${class}\",0},\n#else\n{0},\n#endif\n")
-        string(APPEND layer_shader_registry "{0,0},\n")
+    endif()
+
+    if(WITH_LAYER_${name} AND NCNN_VULKAN)
+        file(GLOB_RECURSE SHADER_SRCS "layer/shader/${name}.comp")
+        file(GLOB_RECURSE SHADER_SUBSRCS "layer/shader/${name}_*.comp")
+        list(APPEND SHADER_SRCS ${SHADER_SUBSRCS})
+        foreach(SHADER_SRC ${SHADER_SRCS})
+            get_filename_component(SHADER_SRC_NAME ${SHADER_SRC} NAME)
+            get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
+
+            set(SHADER_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.spv.hex.h)
+            add_custom_command(
+                OUTPUT ${SHADER_SPV_HEX_FILE}
+                COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
+                ARGS -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
+                DEPENDS ${SHADER_SRC}
+                COMMENT "Compiling ${SHADER_SRC_NAME}"
+                VERBATIM
+            )
+            set_source_files_properties(${SHADER_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+
+            string(APPEND layer_shader_spv_data "static const uint32_t ${SHADER_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_SRC_NAME_WE}.spv.hex.h\"\n};\n")
+            string(APPEND layer_shader_registry "{\"${SHADER_SRC_NAME_WE}\",${SHADER_SRC_NAME_WE}_spv_data,sizeof(${SHADER_SRC_NAME_WE}_spv_data)},\n")
+
+            list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEX_FILE})
+        endforeach()
     endif()
 
     # generate layer_type_enum file
@@ -106,7 +114,9 @@ macro(ncnn_add_layer class)
     math(EXPR __LAYER_TYPE_ENUM_INDEX "${__LAYER_TYPE_ENUM_INDEX}+1")
 endmacro()
 
-set(SHADER_MODULE_HEX_FILES)
+# look for vulkan compute shader and compile
+set(SHADER_SPV_HEX_FILES)
+
 set(__LAYER_TYPE_ENUM_INDEX 0)
 
 # layer implementation
@@ -173,8 +183,8 @@ ncnn_add_layer(Yolov3DetectionOutput)
 ncnn_add_layer(PSROIPooling)
 ncnn_add_layer(ROIAlign OFF)
 
-# message("SHADER_MODULE_HEX_FILES = ${SHADER_MODULE_HEX_FILES}")
-add_custom_target(generate-spirv DEPENDS ${SHADER_MODULE_HEX_FILES})
+# message("SHADER_SPV_HEX_FILES = ${SHADER_SPV_HEX_FILES}")
+add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 
 # create new
 configure_file(layer_declaration.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)

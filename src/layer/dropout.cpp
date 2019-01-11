@@ -67,7 +67,7 @@ int Dropout::create_pipeline()
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].f = scale;
 
-    pipeline->create(shader_module, "dropout", specializations, 1, 5);
+    pipeline->create("dropout", specializations, 1, 5);
 
     return 0;
 }

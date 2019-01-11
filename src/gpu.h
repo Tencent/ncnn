@@ -88,7 +88,7 @@ public:
 
     VkDevice vkdevice() const { return device; }
 
-    VkShaderModule get_shader_module(int type_index) const;
+    VkShaderModule get_shader_module(const char* name) const;
 
     // VK_KHR_descriptor_update_template
     PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;

@@ -540,7 +540,7 @@ int ConvolutionDepthWise::create_pipeline()
     specializations[6].i = bias_term;
     specializations[7].i = group;
 
-    pipeline->create(shader_module, "convolutiondepthwise", specializations, 4, 10);
+    pipeline->create("convolutiondepthwise", specializations, 4, 10);
 
     padding->create_pipeline();
 

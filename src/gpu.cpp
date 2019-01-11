@@ -602,6 +602,7 @@ const GpuInfo& get_gpu_info(int device_index)
 
 struct layer_shader_registry_entry
 {
+    const char* name;
     const uint32_t* spv_data;
     size_t spv_data_size;
 };
@@ -694,15 +695,16 @@ VulkanDevice::~VulkanDevice()
     vkDestroyDevice(device, 0);
 }
 
-VkShaderModule VulkanDevice::get_shader_module(int type_index) const
+VkShaderModule VulkanDevice::get_shader_module(const char* name) const
 {
-    if (type_index < 0 || type_index >= (int)shader_modules.size())
+    for (int i=0; i<layer_shader_registry_entry_count; i++)
     {
-        fprintf(stderr, "type_index out of range\n");
-        return 0;
+        if (strcmp(layer_shader_registry[i].name, name) == 0)
+            return shader_modules[i];
     }
 
-    return shader_modules[type_index];
+    fprintf(stderr, "no such shader module %s\n", name);
+    return 0;
 }
 
 int VulkanDevice::create_shader_module()
@@ -711,9 +713,6 @@ int VulkanDevice::create_shader_module()
 
     for (int i=0; i<layer_shader_registry_entry_count; i++)
     {
-        if (layer_shader_registry[i].spv_data_size == 0)
-            continue;
-
         VkShaderModuleCreateInfo shaderModuleCreateInfo;
         shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         shaderModuleCreateInfo.pNext = 0;
@@ -724,11 +723,11 @@ int VulkanDevice::create_shader_module()
         VkResult ret = vkCreateShaderModule(device, &shaderModuleCreateInfo, 0, &shader_modules[i]);
         if (ret != VK_SUCCESS)
         {
-            fprintf(stderr, "vkCreateShaderModule failed %d\n", ret);
+            fprintf(stderr, "vkCreateShaderModule %s failed %d\n", layer_shader_registry[i].name, ret);
             return -1;
         }
 
-        fprintf(stderr, "shader_module %d created\n", i);
+        fprintf(stderr, "shader_module %s created\n", layer_shader_registry[i].name);
     }
 
     return 0;

@@ -49,7 +49,6 @@ endif()
 
 if(NCNN_VULKAN)
     find_package(Vulkan REQUIRED)
-    include(spirv-utility.cmake)
 endif()
 
 if(WIN32)

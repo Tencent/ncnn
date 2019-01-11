@@ -37,15 +37,13 @@ Pipeline::~Pipeline()
     destroy();
 }
 
-int Pipeline::create(VkShaderModule shader_module, const char* entry_name,
-                     const std::vector<vk_specialization_type>& specializations,
-                     int binding_count, int push_constant_count)
+int Pipeline::create(const char* name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
 {
     create_descriptorset_layout(binding_count);
 
     create_pipeline_layout(push_constant_count);
 
-    create_pipeline(shader_module, entry_name, specializations);
+    create_pipeline(name, specializations);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
@@ -243,9 +241,10 @@ int Pipeline::create_pipeline_layout(int push_constant_count)
     return 0;
 }
 
-int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_name,
-                              const std::vector<vk_specialization_type>& specializations)
+int Pipeline::create_pipeline(const char* name, const std::vector<vk_specialization_type>& specializations)
 {
+    VkShaderModule shader_module = vkdev->get_shader_module(name);
+
     const int specialization_count = specializations.size();
 
     // +3 for local_size_xyz
@@ -295,7 +294,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_na
     pipelineShaderStageCreateInfo.flags = 0;
     pipelineShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineShaderStageCreateInfo.module = shader_module;
-    pipelineShaderStageCreateInfo.pName = entry_name;
+    pipelineShaderStageCreateInfo.pName = name;
     pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
 
     VkComputePipelineCreateInfo computePipelineCreateInfo;

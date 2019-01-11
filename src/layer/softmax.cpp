@@ -468,10 +468,10 @@ int Softmax::create_pipeline()
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = axis;
 
-    softmax_reduce_max->create(shader_module, "softmax_reduce_max", specializations, 2, 10);
-    softmax_exp_sub_max->create(shader_module, "softmax_exp_sub_max", specializations, 2, 10);
-    softmax_reduce_sum->create(shader_module, "softmax_reduce_sum", specializations, 2, 10);
-    softmax_div_sum->create(shader_module, "softmax_div_sum", specializations, 2, 10);
+    softmax_reduce_max->create("softmax_reduce_max", specializations, 2, 10);
+    softmax_exp_sub_max->create("softmax_exp_sub_max", specializations, 2, 10);
+    softmax_reduce_sum->create("softmax_reduce_sum", specializations, 2, 10);
+    softmax_div_sum->create("softmax_div_sum", specializations, 2, 10);
 
     return 0;
 }

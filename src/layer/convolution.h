@@ -65,6 +65,8 @@ public:
     VkMat bias_data_gpu;
 
     ncnn::Layer* padding;
+
+    Pipeline* convolution_1x1s1d1;
 #endif // NCNN_VULKAN
 
     float weight_data_int8_scale;

@@ -331,7 +331,7 @@ int Pooling::create_pipeline()
     specializations[5].i = global_pooling;
     specializations[6].i = pad_mode;
 
-    pipeline->create(shader_module, "pooling", specializations, 2, 10);
+    pipeline->create("pooling", specializations, 2, 10);
 
     padding->create_pipeline();
 

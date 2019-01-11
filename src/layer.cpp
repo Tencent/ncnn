@@ -63,7 +63,6 @@ Layer::Layer()
     support_vulkan = false;
 
 #if NCNN_VULKAN
-    shader_module = 0;
     pipeline = 0;
 #endif // NCNN_VULKAN
 }
@@ -239,7 +238,6 @@ Layer* create_layer(int index, const VulkanDevice* vkdev)
         return 0;
 
     layer->vkdev = vkdev;
-    layer->shader_module = vkdev->get_shader_module(index);
     layer->pipeline = new Pipeline(vkdev);
 
     return layer;
