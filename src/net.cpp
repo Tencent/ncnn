@@ -1303,79 +1303,27 @@ void Extractor::set_workspace_allocator(Allocator* allocator)
     opt.workspace_allocator = allocator;
 }
 
-int Extractor::input(int blob_index, const Mat& in)
-{
-    if (blob_index < 0 || blob_index >= (int)blob_mats.size())
-        return -1;
-
-//     blob_mats[blob_index] = in;
-
 #if NCNN_VULKAN
-
-    VkMat& in_gpu = blob_mats_gpu[blob_index];
-
-    in_gpu.create_like(in, opt.blob_vkallocator, opt.staging_vkallocator);
-
-    in_gpu.prepare_staging_buffer();
-
-    in_gpu.map();
-    in_gpu.staging_buffer_upload(in);
-    in_gpu.unmap();
-
-#endif // NCNN_VULKAN
-
-    return 0;
+void Extractor::set_vulkan_compute(bool enable)
+{
+    opt.vulkan_compute = enable;
 }
 
-int Extractor::extract(int blob_index, Mat& feat)
+void Extractor::set_blob_vkallocator(VkAllocator* allocator)
 {
-    if (blob_index < 0 || blob_index >= (int)blob_mats.size())
-        return -1;
-
-    int ret = 0;
-
-    if (blob_mats[blob_index].dims == 0)
-    {
-        int layer_index = net->blobs[blob_index].producer;
-//         ret = net->forward_layer(layer_index, blob_mats, opt);
-
-#if NCNN_VULKAN
-
-        ncnn::VkCompute cmd(net->vkdev);
-
-        cmd.begin();
-
-        ret = net->forward_layer(layer_index, blob_mats_gpu, wait_barrier_counts, cmd, opt);
-
-        VkMat& feat_gpu = blob_mats_gpu[blob_index];
-
-        // download
-        cmd.record_prepare_transfer_barrier(feat_gpu);
-
-        feat_gpu.prepare_staging_buffer();
-
-        cmd.record_download(feat_gpu);
-
-        cmd.end();
-
-        cmd.submit();
-
-        cmd.wait();
-
-        blob_mats[blob_index].create_like(feat_gpu, opt.blob_allocator);
-
-        feat_gpu.map();
-        feat_gpu.staging_buffer_download(blob_mats[blob_index]);
-        feat_gpu.unmap();
-
-#endif // NCNN_VULKAN
-
-    }
-
-    feat = blob_mats[blob_index];
-
-    return ret;
+    opt.blob_vkallocator = allocator;
 }
+
+void Extractor::set_workspace_vkallocator(VkAllocator* allocator)
+{
+    opt.workspace_vkallocator = allocator;
+}
+
+void Extractor::set_staging_vkallocator(VkAllocator* allocator)
+{
+    opt.staging_vkallocator = allocator;
+}
+#endif // NCNN_VULKAN
 
 #if NCNN_STRING
 int Extractor::input(const char* blob_name, const Mat& in)
@@ -1396,5 +1344,134 @@ int Extractor::extract(const char* blob_name, Mat& feat)
     return extract(blob_index, feat);
 }
 #endif // NCNN_STRING
+
+int Extractor::input(int blob_index, const Mat& in)
+{
+    if (blob_index < 0 || blob_index >= (int)blob_mats.size())
+        return -1;
+
+    blob_mats[blob_index] = in;
+
+#if NCNN_VULKAN
+    if (opt.vulkan_compute)
+    {
+        VkMat& in_gpu = blob_mats_gpu[blob_index];
+
+        in_gpu.create_like(in, opt.blob_vkallocator, opt.staging_vkallocator);
+
+        in_gpu.prepare_staging_buffer();
+
+        in_gpu.map();
+        in_gpu.staging_buffer_upload(in);
+        in_gpu.unmap();
+    }
+#endif // NCNN_VULKAN
+
+    return 0;
+}
+
+int Extractor::extract(int blob_index, Mat& feat)
+{
+    if (blob_index < 0 || blob_index >= (int)blob_mats.size())
+        return -1;
+
+    int ret = 0;
+
+    if (blob_mats[blob_index].dims == 0)
+    {
+        int layer_index = net->blobs[blob_index].producer;
+
+#if NCNN_VULKAN
+        if (opt.vulkan_compute)
+        {
+            VkMat feat_gpu;
+
+            ncnn::VkCompute cmd(net->vkdev);
+
+            cmd.begin();
+
+            ret = extract(blob_index, feat_gpu, cmd);
+
+            // download
+            cmd.record_prepare_transfer_barrier(feat_gpu);
+
+            feat_gpu.prepare_staging_buffer();
+
+            cmd.record_download(feat_gpu);
+
+            cmd.end();
+
+            cmd.submit();
+
+            cmd.wait();
+
+            blob_mats[blob_index].create_like(feat_gpu, opt.blob_allocator);
+
+            feat_gpu.map();
+            feat_gpu.staging_buffer_download(blob_mats[blob_index]);
+            feat_gpu.unmap();
+        }
+        else
+        {
+            ret = net->forward_layer(layer_index, blob_mats, opt);
+        }
+#else
+        ret = net->forward_layer(layer_index, blob_mats, opt);
+#endif // NCNN_VULKAN
+
+    }
+
+    feat = blob_mats[blob_index];
+
+    return ret;
+}
+
+#if NCNN_VULKAN
+#if NCNN_STRING
+int Extractor::input(const char* blob_name, const VkMat& in)
+{
+    int blob_index = net->find_blob_index_by_name(blob_name);
+    if (blob_index == -1)
+        return -1;
+
+    return input(blob_index, in);
+}
+
+int Extractor::extract(const char* blob_name, VkMat& feat, VkCompute& cmd)
+{
+    int blob_index = net->find_blob_index_by_name(blob_name);
+    if (blob_index == -1)
+        return -1;
+
+    return extract(blob_index, feat, cmd);
+}
+#endif // NCNN_STRING
+
+int Extractor::input(int blob_index, const VkMat& in)
+{
+    if (blob_index < 0 || blob_index >= (int)blob_mats.size())
+        return -1;
+
+    blob_mats_gpu[blob_index] = in;
+}
+
+int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
+{
+    if (blob_index < 0 || blob_index >= (int)blob_mats.size())
+        return -1;
+
+    int ret = 0;
+
+    if (blob_mats_gpu[blob_index].dims == 0)
+    {
+        int layer_index = net->blobs[blob_index].producer;
+        ret = net->forward_layer(layer_index, blob_mats_gpu, wait_barrier_counts, cmd, opt);
+    }
+
+    feat = blob_mats_gpu[blob_index];
+
+    return ret;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

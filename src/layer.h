@@ -59,6 +59,9 @@ public:
     Allocator* workspace_allocator;
 
 #if NCNN_VULKAN
+    // enable vulkan compute
+    bool vulkan_compute;
+
     // blob memory allocator
     VkAllocator* blob_vkallocator;
 

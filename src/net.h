@@ -162,6 +162,16 @@ public:
     // set workspace memory allocator
     void set_workspace_allocator(Allocator* allocator);
 
+#if NCNN_VULKAN
+    void set_vulkan_compute(bool enable);
+
+    void set_blob_vkallocator(VkAllocator* allocator);
+
+    void set_workspace_vkallocator(VkAllocator* allocator);
+
+    void set_staging_vkallocator(VkAllocator* allocator);
+#endif // NCNN_VULKAN
+
 #if NCNN_STRING
     // set input by blob name
     // return 0 if success
@@ -179,6 +189,26 @@ public:
     // get result by blob index
     // return 0 if success
     int extract(int blob_index, Mat& feat);
+
+#if NCNN_VULKAN
+#if NCNN_STRING
+    // set input by blob name
+    // return 0 if success
+    int input(const char* blob_name, const VkMat& in);
+
+    // get result by blob name
+    // return 0 if success
+    int extract(const char* blob_name, VkMat& feat, VkCompute& cmd);
+#endif // NCNN_STRING
+
+    // set input by blob index
+    // return 0 if success
+    int input(int blob_index, const VkMat& in);
+
+    // get result by blob index
+    // return 0 if success
+    int extract(int blob_index, VkMat& feat, VkCompute& cmd);
+#endif // NCNN_VULKAN
 
 protected:
     friend Extractor Net::create_extractor() const;
