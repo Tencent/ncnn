@@ -44,6 +44,7 @@ protected:
 
 protected:
     VulkanDevice* vkdev;
+    uint32_t queue_index;
 
     VkQueue queue;
 

@@ -310,8 +310,6 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
 
 VkBufferAllocator::VkBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
-//     compute_queue_index = vkdev->info.compute_queue_index;
-
     size_compare_ratio = 192;// 0.75f * 256
 }
 
@@ -423,8 +421,6 @@ void VkBufferAllocator::fastFree(VkBufferMemory* ptr)
 
 VkWeightBufferAllocator::VkWeightBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
-//     compute_queue_index = vkdev->info.compute_queue_index;
-
     block_size = 8 * 1024 * 1024;// 8M
     buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
 }
@@ -578,8 +574,6 @@ void VkWeightBufferAllocator::fastFree(VkBufferMemory* ptr)
 
 VkStagingBufferAllocator::VkStagingBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
-//     compute_queue_index = vkdev->info.compute_queue_index;
-
     memory_type_index = vkdev->info.unified_memory_index;
 
     if (memory_type_index == -1)
@@ -639,8 +633,6 @@ void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
 
 VkWeightStagingBufferAllocator::VkWeightStagingBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
-//     compute_queue_index = vkdev->info.compute_queue_index;
-
     memory_type_index = vkdev->info.host_visible_memory_index;
 }
 

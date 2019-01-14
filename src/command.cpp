@@ -20,7 +20,7 @@
 
 namespace ncnn {
 
-Command::Command(VulkanDevice* _vkdev, uint32_t queue_index) : vkdev(_vkdev)
+Command::Command(VulkanDevice* _vkdev, uint32_t _queue_index) : vkdev(_vkdev), queue_index(_queue_index)
 {
     // get queue
     vkGetDeviceQueue(vkdev->vkdevice(), queue_index, 0, &queue);
@@ -57,7 +57,7 @@ int Command::create_command_pool()
     commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     commandPoolCreateInfo.pNext = 0;
     commandPoolCreateInfo.flags = 0;
-    commandPoolCreateInfo.queueFamilyIndex = vkdev->info.compute_queue_index;
+    commandPoolCreateInfo.queueFamilyIndex = queue_index;
 
     VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &command_pool);
     if (ret != VK_SUCCESS)
@@ -649,8 +649,7 @@ void VkCompute::compute_compute_barrier(VkBuffer buffer, size_t offset, size_t s
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-// VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index) // TODO use transfer queue
-VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.compute_queue_index)
+VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index)
 {
     staging_data = 0;
     mapped_ptr = 0;

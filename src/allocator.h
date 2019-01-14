@@ -224,9 +224,6 @@ public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
 
-protected:
-//     const uint32_t compute_queue_index;// TODO add transfer queue
-
 private:
     unsigned int size_compare_ratio;// 0~256
     std::list< std::pair<size_t, VkBufferMemory*> > budgets;
@@ -250,9 +247,6 @@ public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
 
-protected:
-//     const uint32_t compute_queue_index;// TODO add transfer queue
-
 private:
     size_t block_size;
     size_t buffer_offset_alignment;
@@ -273,9 +267,6 @@ public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
 
-protected:
-//     const uint32_t compute_queue_index;// TODO add transfer queue
-
 private:
     uint32_t memory_type_index;
     std::vector<VkBufferMemory*> staging_buffers;
@@ -290,9 +281,6 @@ public:
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-
-protected:
-//     const uint32_t compute_queue_index;// TODO add transfer queue
 
 private:
     uint32_t memory_type_index;
