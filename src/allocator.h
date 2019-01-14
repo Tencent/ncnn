@@ -193,13 +193,14 @@ public:
 class VkAllocator
 {
 public:
-    VkAllocator(VulkanDevice* _vkdev) : vkdev(_vkdev) {}
+    VkAllocator(VulkanDevice* _vkdev);
     virtual ~VkAllocator() {}
     virtual VkBufferMemory* fastMalloc(size_t size) = 0;
     virtual void fastFree(VkBufferMemory* ptr) = 0;
 
 public:
     const VulkanDevice* vkdev;
+    bool mappable;
 
 protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);

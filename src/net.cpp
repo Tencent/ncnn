@@ -1359,11 +1359,12 @@ int Extractor::input(int blob_index, const Mat& in)
 
         in_gpu.create_like(in, opt.blob_vkallocator, opt.staging_vkallocator);
 
-        in_gpu.prepare_staging_buffer();
+        if (!in_gpu.allocator->mappable)
+        {
+            in_gpu.prepare_staging_buffer();
+        }
 
-        in_gpu.map();
-        in_gpu.staging_buffer_upload(in);
-        in_gpu.unmap();
+        in_gpu.upload(in);
     }
 #endif // NCNN_VULKAN
 
@@ -1392,12 +1393,15 @@ int Extractor::extract(int blob_index, Mat& feat)
 
             ret = extract(blob_index, feat_gpu, cmd);
 
-            // download
-            cmd.record_prepare_transfer_barrier(feat_gpu);
+            if (!feat_gpu.allocator->mappable)
+            {
+                // download
+                cmd.record_prepare_transfer_barrier(feat_gpu);
 
-            feat_gpu.prepare_staging_buffer();
+                feat_gpu.prepare_staging_buffer();
 
-            cmd.record_download(feat_gpu);
+                cmd.record_download(feat_gpu);
+            }
 
             cmd.end();
 
@@ -1407,9 +1411,7 @@ int Extractor::extract(int blob_index, Mat& feat)
 
             blob_mats[blob_index].create_like(feat_gpu, opt.blob_allocator);
 
-            feat_gpu.map();
-            feat_gpu.staging_buffer_download(blob_mats[blob_index]);
-            feat_gpu.unmap();
+            feat_gpu.download(blob_mats[blob_index]);
         }
         else
         {

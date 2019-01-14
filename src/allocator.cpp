@@ -242,6 +242,10 @@ void UnlockedPoolAllocator::fastFree(void* ptr)
 }
 
 #if NCNN_VULKAN
+VkAllocator::VkAllocator(VulkanDevice* _vkdev) : vkdev(_vkdev)
+{
+    mappable = false;
+}
 
 VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
 {
@@ -310,6 +314,8 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
 
 VkBufferAllocator::VkBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
+    mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
+
     size_compare_ratio = 192;// 0.75f * 256
 }
 
@@ -419,10 +425,36 @@ void VkBufferAllocator::fastFree(VkBufferMemory* ptr)
     delete ptr;
 }
 
+static inline size_t least_common_multiple(size_t a, size_t b)
+{
+    if (a == b)
+        return a;
+
+    if (a > b)
+        return least_common_multiple(b, a);
+
+    size_t lcm = b;
+    while (lcm % a != 0)
+    {
+        lcm += b;
+    }
+
+    return lcm;
+}
+
 VkWeightBufferAllocator::VkWeightBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
+    mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
+
     block_size = 8 * 1024 * 1024;// 8M
     buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
+
+    if (mappable)
+    {
+        // least common multiple for memory_map_alignment and buffer_offset_alignment
+        size_t memory_map_alignment = vkdev->info.memory_map_alignment;
+        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, memory_map_alignment);
+    }
 }
 
 VkWeightBufferAllocator::~VkWeightBufferAllocator()
@@ -574,6 +606,8 @@ void VkWeightBufferAllocator::fastFree(VkBufferMemory* ptr)
 
 VkStagingBufferAllocator::VkStagingBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
+    mappable = true;
+
     memory_type_index = vkdev->info.unified_memory_index;
 
     if (memory_type_index == -1)
@@ -633,6 +667,8 @@ void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
 
 VkWeightStagingBufferAllocator::VkWeightStagingBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
+    mappable = true;
+
     memory_type_index = vkdev->info.host_visible_memory_index;
 }
 

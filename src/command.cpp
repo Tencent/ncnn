@@ -663,6 +663,12 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst)
 {
     dst.create_like(src, weight_vkallocator, staging_vkallocator);
 
+    if (dst.allocator->mappable)
+    {
+        dst.upload(src);
+        return;
+    }
+
     record_type r;
     r.type = 0;
     r.size = src.total() * src.elemsize;
@@ -676,6 +682,12 @@ void VkTransfer::record_download(const VkMat& src, Mat& dst)
 {
     dst.create_like(src);// TODO respect blob allocator
 
+    if (src.allocator->mappable)
+    {
+        src.download(dst);
+        return;
+    }
+
     record_type r;
     r.type = 1;
     r.size = src.total() * src.elemsize;
@@ -687,6 +699,9 @@ void VkTransfer::record_download(const VkMat& src, Mat& dst)
 
 int VkTransfer::submit()
 {
+    if (delayed_records.empty())
+        return 0;
+
     int transfer_count = delayed_records.size();
 
     // solve staging buffer size
@@ -747,6 +762,9 @@ int VkTransfer::submit()
 
 int VkTransfer::wait()
 {
+    if (delayed_records.empty())
+        return 0;
+
     int ret = wait_fence();
 
     int transfer_count = delayed_records.size();
