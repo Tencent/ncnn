@@ -263,6 +263,11 @@ public:
     virtual ~VkStagingBufferAllocator();
 
 public:
+    // ratio range 0 ~ 1
+    // default cr = 0.75
+    void set_size_compare_ratio(float scr);
+
+    // release all budgets immediately
     void clear();
 
     virtual VkBufferMemory* fastMalloc(size_t size);
@@ -270,7 +275,9 @@ public:
 
 private:
     uint32_t memory_type_index;
-    std::vector<VkBufferMemory*> staging_buffers;
+    unsigned int size_compare_ratio;// 0~256
+    std::list< std::pair<size_t, VkBufferMemory*> > budgets;
+    std::list< std::pair<size_t, VkBufferMemory*> > payouts;
 };
 
 class VkWeightStagingBufferAllocator : public VkAllocator

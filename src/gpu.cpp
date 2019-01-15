@@ -488,7 +488,7 @@ int create_gpu_instance()
 //         for (uint32_t j=0; j<physicalDeviceMemoryProperties.memoryHeapCount; j++)
 //         {
 //             const VkMemoryHeap& memoryHeap = physicalDeviceMemoryProperties.memoryHeaps[j];
-//             fprintf(stderr, "[%u] memoryHeap %u size/flags = %d  %u\n", i, j, memoryHeap.size, memoryHeap.flags);
+//             fprintf(stderr, "[%u] memoryHeap %u size/flags = %lu  %u\n", i, j, memoryHeap.size, memoryHeap.flags);
 //         }
 
         gpu_info.unified_memory_index = find_unified_memory(physicalDeviceMemoryProperties);

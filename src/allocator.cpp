@@ -256,7 +256,7 @@ VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
     bufferCreateInfo.size = size;
     bufferCreateInfo.usage = usage;
     bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    bufferCreateInfo.queueFamilyIndexCount = 0;// TODO respect transfer queue
+    bufferCreateInfo.queueFamilyIndexCount = 0;
     bufferCreateInfo.pQueueFamilyIndices = 0;
 
     VkBuffer buffer;
@@ -417,7 +417,7 @@ void VkBufferAllocator::fastFree(VkBufferMemory* ptr)
         }
     }
 
-    fprintf(stderr, "FATAL ERROR! unlocked vulkan pool allocator get wild %p\n", ptr->buffer);
+    fprintf(stderr, "FATAL ERROR! unlocked VkBufferAllocator get wild %p\n", ptr->buffer);
 
     vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
     vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
@@ -613,6 +613,7 @@ VkStagingBufferAllocator::VkStagingBufferAllocator(VulkanDevice* _vkdev) : VkAll
     if (memory_type_index == -1)
         memory_type_index = vkdev->info.host_visible_memory_index;
 
+    size_compare_ratio = 192;// 0.75f * 256
 }
 
 VkStagingBufferAllocator::~VkStagingBufferAllocator()
@@ -620,13 +621,25 @@ VkStagingBufferAllocator::~VkStagingBufferAllocator()
     clear();
 }
 
+void VkStagingBufferAllocator::set_size_compare_ratio(float scr)
+{
+    if (scr < 0.f || scr > 1.f)
+    {
+        fprintf(stderr, "invalid size compare ratio %f\n", scr);
+        return;
+    }
+
+    size_compare_ratio = (unsigned int)(scr * 256);
+}
+
 void VkStagingBufferAllocator::clear()
 {
-    fprintf(stderr, "VkStagingBufferAllocator %lu\n", staging_buffers.size());
+    fprintf(stderr, "VkStagingBufferAllocator %lu\n", budgets.size());
 
-    for (size_t i=0; i<staging_buffers.size(); i++)
+    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = budgets.begin();
+    for (; it != budgets.end(); it++)
     {
-        VkBufferMemory* ptr = staging_buffers[i];
+        VkBufferMemory* ptr = it->second;
 
 //         fprintf(stderr, "VkStagingBufferAllocator F %p\n", ptr->buffer);
 
@@ -635,12 +648,32 @@ void VkStagingBufferAllocator::clear()
 
         delete ptr;
     }
-
-    staging_buffers.clear();
+    budgets.clear();
 }
 
 VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
 {
+    // find free budget
+    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = budgets.begin();
+    for (; it != budgets.end(); it++)
+    {
+        size_t bs = it->first;
+
+        // size_compare_ratio ~ 100%
+        if (bs >= size && ((bs * size_compare_ratio) >> 8) <= size)
+        {
+            VkBufferMemory* ptr = it->second;
+
+            budgets.erase(it);
+
+            payouts.push_back(std::make_pair(bs, ptr));
+
+//             fprintf(stderr, "VkStagingBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, bs);
+
+            return ptr;
+        }
+    }
+
     VkBufferMemory* ptr = new VkBufferMemory;
 
     ptr->buffer = create_buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
@@ -653,6 +686,8 @@ VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
 
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
 
+    payouts.push_back(std::make_pair(size, ptr));
+
 //     fprintf(stderr, "VkStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
 
     return ptr;
@@ -662,7 +697,28 @@ void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
 {
 //     fprintf(stderr, "VkStagingBufferAllocator F %p\n", ptr->buffer);
 
-    staging_buffers.push_back(ptr);
+    // return to budgets
+    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = payouts.begin();
+    for (; it != payouts.end(); it++)
+    {
+        if (it->second == ptr)
+        {
+            size_t size = it->first;
+
+            payouts.erase(it);
+
+            budgets.push_back(std::make_pair(size, ptr));
+
+            return;
+        }
+    }
+
+    fprintf(stderr, "FATAL ERROR! unlocked VkStagingBufferAllocator get wild %p\n", ptr->buffer);
+
+    vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+    vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+    delete ptr;
 }
 
 VkWeightStagingBufferAllocator::VkWeightStagingBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)

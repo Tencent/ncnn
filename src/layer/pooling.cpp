@@ -27,12 +27,18 @@ Pooling::Pooling()
     support_inplace = false;
     support_vulkan = true;
 
+#if NCNN_VULKAN
     padding = 0;
+    pooling_global = 0;
+#endif // NCNN_VULKAN
 }
 
 Pooling::~Pooling()
 {
+#if NCNN_VULKAN
     delete padding;
+    delete pooling_global;
+#endif // NCNN_VULKAN
 }
 
 int Pooling::load_param(const ParamDict& pd)
@@ -335,6 +341,18 @@ int Pooling::create_pipeline()
 
     padding->create_pipeline();
 
+    if (global_pooling)
+    {
+        pooling_global = new Pipeline(vkdev);
+
+        pooling_global->set_optimal_local_size_xyz(256, 1, 1);
+
+        std::vector<vk_specialization_type> specializations(1);
+        specializations[0].i = pooling_type;
+
+        pooling_global->create("pooling_global", specializations, 2, 10);
+    }
+
     return 0;
 }
 
@@ -343,6 +361,36 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+
+    if (global_pooling)
+    {
+        top_blob.create(channels, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.c;
+        constants[4].i = bottom_blob.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = top_blob.cstep;
+
+        // record
+        cmd.record_prepare_compute_barrier(bottom_blob);
+        cmd.record_prepare_compute_barrier(top_blob);
+        cmd.record_pipeline(pooling_global, bindings, constants, top_blob);
+
+        return 0;
+    }
 
     VkMat bottom_blob_bordered = bottom_blob;
     {

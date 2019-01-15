@@ -53,6 +53,8 @@ public:
 
 #if NCNN_VULKAN
     ncnn::Layer* padding;
+
+    Pipeline* pooling_global;
 #endif // NCNN_VULKAN
 
 };

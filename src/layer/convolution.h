@@ -65,7 +65,7 @@ public:
     VkMat bias_data_gpu;
 
     ncnn::Layer* padding;
-
+    ncnn::Layer* convolution_fc;
     Pipeline* convolution_1x1s1d1;
 #endif // NCNN_VULKAN
 

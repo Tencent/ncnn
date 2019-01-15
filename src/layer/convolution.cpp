@@ -28,6 +28,7 @@ Convolution::Convolution()
 
 #if NCNN_VULKAN
     padding = 0;
+    convolution_fc = 0;
     convolution_1x1s1d1 = 0;
 #endif // NCNN_VULKAN
 
@@ -39,6 +40,7 @@ Convolution::~Convolution()
 {
 #if NCNN_VULKAN
     delete padding;
+    delete convolution_fc;
     delete convolution_1x1s1d1;
 #endif // NCNN_VULKAN
 
@@ -82,6 +84,20 @@ int Convolution::load_param(const ParamDict& pd)
         pd.use_vulkan_compute = 1;
 
         padding->load_param(pd);
+
+        if (kernel_w == 1 && kernel_h == 1)
+        {
+        convolution_fc = ncnn::create_layer(ncnn::LayerType::InnerProduct, vkdev);
+
+        ncnn::ParamDict pd;
+        pd.set(0, num_output);
+        pd.set(1, bias_term);
+        pd.set(2, weight_data_size);
+
+        pd.use_vulkan_compute = 1;
+
+        convolution_fc->load_param(pd);
+        }
     }
 #endif // NCNN_VULKAN
 
@@ -164,6 +180,17 @@ int Convolution::load_model(const ModelBin& mb)
             dequantize->load_model(ModelBinFromMatArray(weights));
         }
     }
+
+#if NCNN_VULKAN
+    if (kernel_w == 1 && kernel_h == 1)
+    {
+        ncnn::Mat weights[2];
+        weights[0] = weight_data;
+        weights[1] = bias_data;
+
+        convolution_fc->load_model(ModelBinFromMatArray(weights));
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -400,6 +427,11 @@ int Convolution::upload_model(VkTransfer& cmd)
         cmd.record_upload(bias_data, bias_data_gpu);
     }
 
+    if (kernel_w == 1 && kernel_h == 1)
+    {
+        convolution_fc->upload_model(cmd);
+    }
+
     return 0;
 }
 
@@ -420,6 +452,11 @@ int Convolution::create_pipeline()
 
     padding->create_pipeline();
 
+    if (kernel_w == 1 && kernel_h == 1)
+    {
+        convolution_fc->create_pipeline();
+    }
+
     if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
     {
         convolution_1x1s1d1 = new Pipeline(vkdev);
@@ -437,6 +474,17 @@ int Convolution::create_pipeline()
 
 int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
+    // flattened blob, implement as InnerProduct
+    if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
+    {
+        int num_input = weight_data_size / num_output;
+        if (bottom_blob.w == num_input)
+        {
+            // call InnerProduct
+            return convolution_fc->forward(bottom_blob, top_blob, cmd, opt);
+        }
+    }
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;

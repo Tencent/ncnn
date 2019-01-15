@@ -1412,6 +1412,11 @@ int Extractor::extract(int blob_index, Mat& feat)
             blob_mats[blob_index].create_like(feat_gpu, opt.blob_allocator);
 
             feat_gpu.download(blob_mats[blob_index]);
+
+            if (!feat_gpu.allocator->mappable)
+            {
+                feat_gpu.discard_staging_buffer();
+            }
         }
         else
         {
