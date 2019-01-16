@@ -31,7 +31,7 @@ option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
 option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
 option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
 option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
-option(NCNN_VULKAN "vulkan compute support" ON)
+option(NCNN_VULKAN "vulkan compute support" OFF)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
