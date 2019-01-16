@@ -25,12 +25,16 @@ ConvolutionDepthWise::ConvolutionDepthWise()
     support_inplace = false;
     support_vulkan = true;
 
+#if NCNN_VULKAN
     padding = 0;
+#endif // NCNN_VULKAN
 }
 
 ConvolutionDepthWise::~ConvolutionDepthWise()
 {
+#if NCNN_VULKAN
     delete padding;
+#endif // NCNN_VULKAN
 
     for (int i=0; i<(int)quantize_ops.size(); i++)
         delete quantize_ops[i];

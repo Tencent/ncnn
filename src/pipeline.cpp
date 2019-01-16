@@ -20,6 +20,7 @@
 
 namespace ncnn {
 
+#if NCNN_VULKAN
 Pipeline::Pipeline(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
     descriptorset_layout = 0;
@@ -58,17 +59,29 @@ void Pipeline::destroy()
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
         if (descriptor_update_template)
+        {
             vkdev->vkDestroyDescriptorUpdateTemplateKHR(vkdev->vkdevice(), descriptor_update_template, 0);
+            descriptor_update_template = 0;
+        }
     }
 
     if (pipeline)
+    {
         vkDestroyPipeline(vkdev->vkdevice(), pipeline, 0);
+        pipeline = 0;
+    }
 
     if (pipeline_layout)
+    {
         vkDestroyPipelineLayout(vkdev->vkdevice(), pipeline_layout, 0);
+        pipeline_layout = 0;
+    }
 
     if (descriptorset_layout)
+    {
         vkDestroyDescriptorSetLayout(vkdev->vkdevice(), descriptorset_layout, 0);
+        descriptorset_layout = 0;
+    }
 }
 
 void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
@@ -365,5 +378,6 @@ int Pipeline::create_descriptor_update_template(int binding_count)
 
     return 0;
 }
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

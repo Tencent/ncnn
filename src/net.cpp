@@ -160,7 +160,11 @@ int Net::load_param(FILE* fp)
             continue;
         }
 
+#if NCNN_VULKAN
         Layer* layer = use_vulkan_compute ? create_layer(layer_type, vkdev) : create_layer(layer_type);
+#else
+        Layer* layer = create_layer(layer_type);
+#endif // NCNN_VULKAN
         if (!layer)
         {
             layer = create_custom_layer(layer_type);
@@ -316,7 +320,11 @@ int Net::load_param_mem(const char* _mem)
             continue;
         }
 
+#if NCNN_VULKAN
         Layer* layer = use_vulkan_compute ? create_layer(layer_type, vkdev) : create_layer(layer_type);
+#else
+        Layer* layer = create_layer(layer_type);
+#endif // NCNN_VULKAN
         if (!layer)
         {
             layer = create_custom_layer(layer_type);
@@ -474,7 +482,11 @@ int Net::load_param_bin(FILE* fp)
         if (!readValue(top_count, fp))
             return -1;
 
+#if NCNN_VULKAN
         Layer* layer = use_vulkan_compute ? create_layer(typeindex, vkdev) : create_layer(typeindex);
+#else
+        Layer* layer = create_layer(typeindex);
+#endif // NCNN_VULKAN
         if (!layer)
         {
             int custom_index = typeindex & ~LayerType::CustomBit;

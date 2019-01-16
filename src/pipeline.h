@@ -24,6 +24,7 @@
 
 namespace ncnn {
 
+#if NCNN_VULKAN
 class Pipeline
 {
 public:
@@ -61,6 +62,7 @@ public:
     int local_size_y;
     int local_size_z;
 };
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
 
