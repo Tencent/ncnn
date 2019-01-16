@@ -238,7 +238,7 @@ public:
     virtual ~VkBlobBufferAllocator();
 
 public:
-    // buffer block size, default=8M
+    // buffer block size, default=16M
     void set_block_size(size_t size);
 
     // release all budgets immediately

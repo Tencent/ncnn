@@ -103,7 +103,6 @@ int main(int argc, char** argv)
 
     ncnn::VkWeightBufferAllocator g_weight_vkallocator(&vkdev);
     ncnn::VkBlobBufferAllocator g_blob_vkallocator(&vkdev);
-    ncnn::VkBufferAllocator g_workspace_vkallocator(&vkdev);
     ncnn::VkStagingBufferAllocator g_staging_vkallocator(&vkdev);
     ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(&vkdev);
 
@@ -122,7 +121,7 @@ int main(int argc, char** argv)
     opt.workspace_allocator = &g_workspace_pool_allocator;
 
     opt.blob_vkallocator = &g_blob_vkallocator;
-    opt.workspace_vkallocator = &g_workspace_vkallocator;
+    opt.workspace_vkallocator = &g_blob_vkallocator;
     opt.staging_vkallocator = &g_staging_vkallocator;
 
     ncnn::set_default_option(opt);
@@ -178,7 +177,6 @@ int main(int argc, char** argv)
 
     g_weight_vkallocator.clear();
     g_blob_vkallocator.clear();
-    g_workspace_vkallocator.clear();
     g_staging_vkallocator.clear();
 //     g_weight_staging_vkallocator.clear();
 

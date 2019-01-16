@@ -369,7 +369,7 @@ VkBufferMemory* VkBufferAllocator::fastMalloc(size_t size)
         {
             budgets.erase(it);
 
-//             fprintf(stderr, "VkBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, capacity);
+//             fprintf(stderr, "VkBufferAllocator M %p %lu reused\n", ptr->buffer, ptr->capacity);
 
             return ptr;
         }
@@ -390,14 +390,14 @@ VkBufferMemory* VkBufferAllocator::fastMalloc(size_t size)
 
     ptr->capacity = size;
 
-//     fprintf(stderr, "VkBufferAllocator M %p %lu\n", ptr->buffer, size);
+//     fprintf(stderr, "VkBufferAllocator M %p %lu\n", ptr->buffer, ptr->capacity);
 
     return ptr;
 }
 
 void VkBufferAllocator::fastFree(VkBufferMemory* ptr)
 {
-//     fprintf(stderr, "VkBufferAllocator F %p\n", ptr->buffer);
+//     fprintf(stderr, "VkBufferAllocator F %p %lu\n", ptr->buffer, ptr->capacity);
 
     // return to budgets
     budgets.push_back(ptr);
