@@ -70,7 +70,9 @@ Layer::Layer()
 
 Layer::~Layer()
 {
+#if NCNN_VULKAN
     delete pipeline;
+#endif // NCNN_VULKAN
 }
 
 int Layer::load_param(const ParamDict& /*pd*/)
