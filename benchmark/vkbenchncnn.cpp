@@ -102,7 +102,7 @@ int main(int argc, char** argv)
     {
 
     ncnn::VkWeightBufferAllocator g_weight_vkallocator(&vkdev);
-    ncnn::VkBufferAllocator g_blob_vkallocator(&vkdev);
+    ncnn::VkBlobBufferAllocator g_blob_vkallocator(&vkdev);
     ncnn::VkBufferAllocator g_workspace_vkallocator(&vkdev);
     ncnn::VkStagingBufferAllocator g_staging_vkallocator(&vkdev);
     ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(&vkdev);

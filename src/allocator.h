@@ -187,6 +187,7 @@ public:
     VkBuffer buffer;
     // the base offset assigned by allocator
     size_t offset;
+    size_t capacity;
     VkDeviceMemory memory;
 };
 
@@ -227,8 +228,30 @@ public:
 
 private:
     unsigned int size_compare_ratio;// 0~256
-    std::list< std::pair<size_t, VkBufferMemory*> > budgets;
-    std::list< std::pair<size_t, VkBufferMemory*> > payouts;
+    std::list<VkBufferMemory*> budgets;
+};
+
+class VkBlobBufferAllocator : public VkAllocator
+{
+public:
+    VkBlobBufferAllocator(VulkanDevice* vkdev);
+    virtual ~VkBlobBufferAllocator();
+
+public:
+    // buffer block size, default=8M
+    void set_block_size(size_t size);
+
+    // release all budgets immediately
+    void clear();
+
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+private:
+    size_t block_size;
+    size_t buffer_offset_alignment;
+    std::vector< std::list< std::pair<size_t, size_t> > > budgets;
+    std::vector<VkBufferMemory*> buffer_blocks;
 };
 
 class VkWeightBufferAllocator : public VkAllocator
@@ -276,8 +299,7 @@ public:
 private:
     uint32_t memory_type_index;
     unsigned int size_compare_ratio;// 0~256
-    std::list< std::pair<size_t, VkBufferMemory*> > budgets;
-    std::list< std::pair<size_t, VkBufferMemory*> > payouts;
+    std::list<VkBufferMemory*> budgets;
 };
 
 class VkWeightStagingBufferAllocator : public VkAllocator

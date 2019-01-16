@@ -328,10 +328,10 @@ void VkBufferAllocator::clear()
 {
     fprintf(stderr, "VkBufferAllocator %lu\n", budgets.size());
 
-    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = budgets.begin();
+    std::list<VkBufferMemory*>::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
-        VkBufferMemory* ptr = it->second;
+        VkBufferMemory* ptr = *it;
 
 //         fprintf(stderr, "VkBufferAllocator F %p\n", ptr->buffer);
 
@@ -357,21 +357,19 @@ void VkBufferAllocator::set_size_compare_ratio(float scr)
 VkBufferMemory* VkBufferAllocator::fastMalloc(size_t size)
 {
     // find free budget
-    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = budgets.begin();
+    std::list<VkBufferMemory*>::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
-        size_t bs = it->first;
+        VkBufferMemory* ptr = *it;
+
+        size_t capacity = ptr->capacity;
 
         // size_compare_ratio ~ 100%
-        if (bs >= size && ((bs * size_compare_ratio) >> 8) <= size)
+        if (capacity >= size && ((capacity * size_compare_ratio) >> 8) <= size)
         {
-            VkBufferMemory* ptr = it->second;
-
             budgets.erase(it);
 
-            payouts.push_back(std::make_pair(bs, ptr));
-
-//             fprintf(stderr, "VkBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, bs);
+//             fprintf(stderr, "VkBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, capacity);
 
             return ptr;
         }
@@ -390,7 +388,7 @@ VkBufferMemory* VkBufferAllocator::fastMalloc(size_t size)
 
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
 
-    payouts.push_back(std::make_pair(size, ptr));
+    ptr->capacity = size;
 
 //     fprintf(stderr, "VkBufferAllocator M %p %lu\n", ptr->buffer, size);
 
@@ -402,27 +400,7 @@ void VkBufferAllocator::fastFree(VkBufferMemory* ptr)
 //     fprintf(stderr, "VkBufferAllocator F %p\n", ptr->buffer);
 
     // return to budgets
-    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = payouts.begin();
-    for (; it != payouts.end(); it++)
-    {
-        if (it->second == ptr)
-        {
-            size_t size = it->first;
-
-            payouts.erase(it);
-
-            budgets.push_back(std::make_pair(size, ptr));
-
-            return;
-        }
-    }
-
-    fprintf(stderr, "FATAL ERROR! unlocked VkBufferAllocator get wild %p\n", ptr->buffer);
-
-    vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
-    vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
-
-    delete ptr;
+    budgets.push_back(ptr);
 }
 
 static inline size_t least_common_multiple(size_t a, size_t b)
@@ -442,11 +420,10 @@ static inline size_t least_common_multiple(size_t a, size_t b)
     return lcm;
 }
 
-VkWeightBufferAllocator::VkWeightBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkBlobBufferAllocator::VkBlobBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
 
-    block_size = 8 * 1024 * 1024;// 8M
     buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
 
     if (mappable)
@@ -455,11 +432,229 @@ VkWeightBufferAllocator::VkWeightBufferAllocator(VulkanDevice* _vkdev) : VkAlloc
         size_t memory_map_alignment = vkdev->info.memory_map_alignment;
         buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, memory_map_alignment);
     }
+
+    block_size = alignSize(16 * 1024 * 1024, buffer_offset_alignment);// 16M
+}
+
+VkBlobBufferAllocator::~VkBlobBufferAllocator()
+{
+    clear();
+}
+
+void VkBlobBufferAllocator::set_block_size(size_t _block_size)
+{
+    block_size = _block_size;
+}
+
+void VkBlobBufferAllocator::clear()
+{
+    fprintf(stderr, "VkBlobBufferAllocator %lu\n", buffer_blocks.size());
+
+    for (size_t i=0; i<buffer_blocks.size(); i++)
+    {
+        VkBufferMemory* ptr = buffer_blocks[i];
+
+//         std::list< std::pair<size_t, size_t> >::iterator it = budgets[i].begin();
+//         while (it != budgets[i].end())
+//         {
+//             fprintf(stderr, "VkBlobBufferAllocator budget %p %lu %lu\n", ptr->buffer, it->first, it->second);
+//             it++;
+//         }
+
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+        delete ptr;
+    }
+    buffer_blocks.clear();
+
+    budgets.clear();
+}
+
+VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
+{
+    size_t aligned_size = alignSize(size, buffer_offset_alignment);
+
+    const int buffer_block_count = buffer_blocks.size();
+
+    // find first spare space in buffer_blocks
+    for (int i=0; i<buffer_block_count; i++)
+    {
+        std::list< std::pair<size_t, size_t> >::iterator it = budgets[i].begin();
+        while (it != budgets[i].end())
+        {
+            size_t budget_size = it->second;
+            if (budget_size < aligned_size)
+            {
+                it++;
+                continue;
+            }
+
+            // return sub buffer
+            VkBufferMemory* ptr = new VkBufferMemory;
+
+            ptr->buffer = buffer_blocks[i]->buffer;
+            ptr->offset = it->first;
+            ptr->memory = buffer_blocks[i]->memory;
+            ptr->capacity = aligned_size;
+
+            // adjust budgets
+            if (budget_size == aligned_size)
+            {
+                budgets[i].erase(it);
+            }
+            else
+            {
+                it->first += aligned_size;
+                it->second -= aligned_size;
+            }
+
+//             fprintf(stderr, "VkBlobBufferAllocator M %p +%lu %lu\n", ptr->buffer, ptr->offset, ptr->capacity);
+
+            return ptr;
+        }
+    }
+
+    size_t new_block_size = std::max(block_size, aligned_size);
+
+    // create new block
+    VkBufferMemory* block = new VkBufferMemory;
+
+    block->buffer = create_buffer(new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    block->offset = 0;
+
+    // TODO respect VK_KHR_dedicated_allocation ?
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(vkdev->vkdevice(), block->buffer, &memoryRequirements);
+
+    block->memory = allocate_memory(memoryRequirements.size, vkdev->info.device_local_memory_index);
+
+    vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
+
+    buffer_blocks.push_back(block);
+
+    // return sub buffer
+    VkBufferMemory* ptr = new VkBufferMemory;
+
+    ptr->buffer = block->buffer;
+    ptr->offset = 0;
+    ptr->memory = block->memory;
+    ptr->capacity = aligned_size;
+
+    // adjust budgets
+    std::list< std::pair<size_t, size_t> > budget;
+    if (new_block_size > aligned_size)
+    {
+        budget.push_back(std::make_pair(aligned_size, new_block_size - aligned_size));
+    }
+    budgets.push_back(budget);
+
+//     fprintf(stderr, "VkBlobBufferAllocator M %p +%lu %lu\n", ptr->buffer, ptr->offset, ptr->capacity);
+
+    return ptr;
+}
+
+void VkBlobBufferAllocator::fastFree(VkBufferMemory* ptr)
+{
+//     fprintf(stderr, "VkBlobBufferAllocator F %p +%lu %lu\n", ptr->buffer, ptr->offset, ptr->capacity);
+
+    const int buffer_block_count = buffer_blocks.size();
+
+    int block_index = -1;
+    for (int i=0; i<buffer_block_count; i++)
+    {
+        if (buffer_blocks[i]->buffer == ptr->buffer && buffer_blocks[i]->memory == ptr->memory)
+        {
+            block_index = i;
+            break;
+        }
+    }
+
+    if (block_index == -1)
+    {
+        fprintf(stderr, "FATAL ERROR! unlocked VkBlobBufferAllocator get wild %p\n", ptr->buffer);
+
+        delete ptr;
+
+        return;
+    }
+
+    // merge
+    std::list< std::pair<size_t, size_t> >::iterator it_merge_left = budgets[block_index].end();
+    std::list< std::pair<size_t, size_t> >::iterator it_merge_right = budgets[block_index].end();
+    std::list< std::pair<size_t, size_t> >::iterator it = budgets[block_index].begin();
+    for ( ; it != budgets[block_index].end(); it++)
+    {
+        if (it->first + it->second == ptr->offset)
+        {
+            it_merge_left = it;
+        }
+        else if (ptr->offset + ptr->capacity == it->first)
+        {
+            it_merge_right = it;
+        }
+    }
+
+    if (it_merge_left != budgets[block_index].end() && it_merge_right != budgets[block_index].end())
+    {
+//         fprintf(stderr, "VkBlobBufferAllocator merge LR\n");
+        it_merge_left->second = it_merge_right->first + it_merge_right->second - it_merge_left->first;
+        budgets[block_index].erase(it_merge_right);
+    }
+    else if (it_merge_left != budgets[block_index].end())
+    {
+//         fprintf(stderr, "VkBlobBufferAllocator merge L\n");
+        it_merge_left->second = ptr->offset + ptr->capacity - it_merge_left->first;
+    }
+    else if (it_merge_right != budgets[block_index].end())
+    {
+//         fprintf(stderr, "VkBlobBufferAllocator merge R\n");
+        it_merge_right->second = it_merge_right->first + it_merge_right->second - ptr->offset;
+        it_merge_right->first = ptr->offset;
+    }
+    else
+    {
+        if (ptr->offset == 0)
+        {
+//             fprintf(stderr, "VkBlobBufferAllocator merge leading\n");
+            // chain leading block
+            budgets[block_index].push_front(std::make_pair(ptr->offset, ptr->capacity));
+        }
+        else
+        {
+//             fprintf(stderr, "VkBlobBufferAllocator merge tail\n");
+            budgets[block_index].push_back(std::make_pair(ptr->offset, ptr->capacity));
+        }
+    }
+
+    delete ptr;
+}
+
+VkWeightBufferAllocator::VkWeightBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+{
+    mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
+
+    buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
+
+    if (mappable)
+    {
+        // least common multiple for memory_map_alignment and buffer_offset_alignment
+        size_t memory_map_alignment = vkdev->info.memory_map_alignment;
+        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, memory_map_alignment);
+    }
+
+    block_size = alignSize(8 * 1024 * 1024, buffer_offset_alignment);// 8M
 }
 
 VkWeightBufferAllocator::~VkWeightBufferAllocator()
 {
     clear();
+}
+
+void VkWeightBufferAllocator::set_block_size(size_t _block_size)
+{
+    block_size = _block_size;
 }
 
 void VkWeightBufferAllocator::clear()
@@ -521,6 +716,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
         ptr->buffer = buffer_blocks[block_index]->buffer;
         ptr->offset = block_offset;
         ptr->memory = buffer_blocks[block_index]->memory;
+        ptr->capacity = aligned_size;
 
         buffer_block_free_spaces[block_index] -= aligned_size;
 
@@ -569,6 +765,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
             ptr->buffer = block->buffer;
             ptr->offset = 0;
             ptr->memory = block->memory;
+            ptr->capacity = new_block_size;
 
             return ptr;
         }
@@ -593,6 +790,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
     ptr->buffer = block->buffer;
     ptr->offset = 0;
     ptr->memory = block->memory;
+    ptr->capacity = aligned_size;
 
     return ptr;
 }
@@ -636,10 +834,10 @@ void VkStagingBufferAllocator::clear()
 {
     fprintf(stderr, "VkStagingBufferAllocator %lu\n", budgets.size());
 
-    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = budgets.begin();
+    std::list<VkBufferMemory*>::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
-        VkBufferMemory* ptr = it->second;
+        VkBufferMemory* ptr = *it;
 
 //         fprintf(stderr, "VkStagingBufferAllocator F %p\n", ptr->buffer);
 
@@ -654,19 +852,17 @@ void VkStagingBufferAllocator::clear()
 VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
 {
     // find free budget
-    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = budgets.begin();
+    std::list<VkBufferMemory*>::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
-        size_t bs = it->first;
+        VkBufferMemory* ptr = *it;
+
+        size_t capacity = ptr->capacity;
 
         // size_compare_ratio ~ 100%
-        if (bs >= size && ((bs * size_compare_ratio) >> 8) <= size)
+        if (capacity >= size && ((capacity * size_compare_ratio) >> 8) <= size)
         {
-            VkBufferMemory* ptr = it->second;
-
             budgets.erase(it);
-
-            payouts.push_back(std::make_pair(bs, ptr));
 
 //             fprintf(stderr, "VkStagingBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, bs);
 
@@ -686,7 +882,7 @@ VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
 
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
 
-    payouts.push_back(std::make_pair(size, ptr));
+    ptr->capacity = size;
 
 //     fprintf(stderr, "VkStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
 
@@ -698,27 +894,7 @@ void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
 //     fprintf(stderr, "VkStagingBufferAllocator F %p\n", ptr->buffer);
 
     // return to budgets
-    std::list< std::pair<size_t, VkBufferMemory*> >::iterator it = payouts.begin();
-    for (; it != payouts.end(); it++)
-    {
-        if (it->second == ptr)
-        {
-            size_t size = it->first;
-
-            payouts.erase(it);
-
-            budgets.push_back(std::make_pair(size, ptr));
-
-            return;
-        }
-    }
-
-    fprintf(stderr, "FATAL ERROR! unlocked VkStagingBufferAllocator get wild %p\n", ptr->buffer);
-
-    vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
-    vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
-
-    delete ptr;
+    budgets.push_back(ptr);
 }
 
 VkWeightStagingBufferAllocator::VkWeightStagingBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
@@ -745,6 +921,8 @@ VkBufferMemory* VkWeightStagingBufferAllocator::fastMalloc(size_t size)
     ptr->memory = allocate_memory(memoryRequirements.size, memory_type_index);
 
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
+
+    ptr->capacity = size;
 
 //     fprintf(stderr, "VkWeightStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
 
