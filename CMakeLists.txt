@@ -60,7 +60,7 @@ else()
     endif()
 
     if(PI3)
-        add_definitions(-march=native)
+        #add_definitions(-march=native)
         add_definitions(-mfpu=neon)
         add_definitions(-mfloat-abi=hard)
         add_definitions(-D__ARM_NEON)
