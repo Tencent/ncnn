@@ -31,39 +31,7 @@ int Dropout::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Dropout::forward(const Mat& bottom_blob, Mat& top_blob) const
-{
-    if (scale == 1.f)
-    {
-        top_blob = bottom_blob;
-        return 0;
-    }
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    int size = w * h;
-
-    top_blob.create(w, h, channels);
-    if (top_blob.empty())
-        return -100;
-
-    #pragma omp parallel for
-    for (int q=0; q<channels; q++)
-    {
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
-
-        for (int i=0; i<size; i++)
-        {
-            outptr[i] = ptr[i] * scale;
-        }
-    }
-
-    return 0;
-}
-
-int Dropout::forward_inplace(Mat& bottom_top_blob) const
+int Dropout::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (scale == 1.f)
     {
@@ -75,7 +43,7 @@ int Dropout::forward_inplace(Mat& bottom_top_blob) const
     int channels = bottom_top_blob.c;
     int size = w * h;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);

@@ -26,29 +26,66 @@ int Crop::load_param(const ParamDict& pd)
 {
     woffset = pd.get(0, 0);
     hoffset = pd.get(1, 0);
+    coffset = pd.get(2, 0);
+    outw = pd.get(3, 0);
+    outh = pd.get(4, 0);
+    outc = pd.get(5, 0);
+
+    if (outw != 0 || outh != 0 || outc != 0)
+    {
+        one_blob_only = true;
+    }
 
     return 0;
 }
 
-int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+
+    int _outw = outw == -233 ? w - woffset : outw;
+    int _outh = outh == -233 ? h - hoffset : outh;
+    int _outc = outc == -233 ? channels - coffset : outc;
+
+    const Mat bottom_blob_sliced(w, h, _outc, (void*)(const float*)bottom_blob.channel(coffset));
+
+    int top = hoffset;
+    int bottom = h - _outh - hoffset;
+    int left = woffset;
+    int right = w - _outw - woffset;
+
+    copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right, opt.blob_allocator, opt.num_threads);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+
+int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& reference_blob = bottom_blobs[1];
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int channels = bottom_blob.c;
 
-    int outw = reference_blob.w;
-    int outh = reference_blob.h;
+    int _outw = reference_blob.w;
+    int _outh = reference_blob.h;
+    int _outc = reference_blob.dims == 3 ? reference_blob.c : channels;
+
+    const Mat bottom_blob_sliced(w, h, _outc, (void*)(const float*)bottom_blob.channel(coffset));
 
     int top = hoffset;
-    int bottom = h - outh - hoffset;
+    int bottom = h - _outh - hoffset;
     int left = woffset;
-    int right = w - outw - woffset;
+    int right = w - _outw - woffset;
 
     Mat& top_blob = top_blobs[0];
 
-    copy_cut_border(bottom_blob, top_blob, top, bottom, left, right);
+    copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right, opt.blob_allocator, opt.num_threads);
     if (top_blob.empty())
         return -100;
 

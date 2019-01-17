@@ -22,9 +22,7 @@ namespace ncnn {
 class BatchNorm_arm : public BatchNorm
 {
 public:
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
-
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

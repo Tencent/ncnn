@@ -23,31 +23,42 @@ class Convolution : public Layer
 {
 public:
     Convolution();
-    virtual ~Convolution();
+    ~Convolution();
 
     virtual int load_param(const ParamDict& pd);
 
-#if NCNN_STDIO
-    virtual int load_model(FILE* binfp);
-#endif // NCNN_STDIO
-    virtual int load_model(const unsigned char*& mem);
+    virtual int load_model(const ModelBin& mb);
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     // param
     int num_output;
-    int kernel_size;
-    int dilation;
-    int stride;
-    int pad;
+    int kernel_w;
+    int kernel_h;
+    int dilation_w;
+    int dilation_h;
+    int stride_w;
+    int stride_h;
+    int pad_w;
+    int pad_h;
     int bias_term;
 
     int weight_data_size;
 
+    int int8_scale_term;
+
     // model
     Mat weight_data;
     Mat bias_data;
+
+    float weight_data_int8_scale;
+    float bottom_blob_int8_scale;
+
+    bool use_int8_inference;
+
+    ncnn::Layer* quantize;
+    ncnn::Layer* dequantize;
 };
 
 } // namespace ncnn

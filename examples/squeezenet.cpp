@@ -32,18 +32,16 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<float>& cls_scores)
     in.substract_mean_normalize(mean_vals, 0);
 
     ncnn::Extractor ex = squeezenet.create_extractor();
-    ex.set_light_mode(true);
 
     ex.input("data", in);
 
     ncnn::Mat out;
     ex.extract("prob", out);
 
-    cls_scores.resize(out.c);
-    for (int j=0; j<out.c; j++)
+    cls_scores.resize(out.w);
+    for (int j=0; j<out.w; j++)
     {
-        const float* prob = out.data + out.cstep * j;
-        cls_scores[j] = prob[0];
+        cls_scores[j] = out[j];
     }
 
     return 0;
@@ -76,6 +74,12 @@ static int print_topk(const std::vector<float>& cls_scores, int topk)
 
 int main(int argc, char** argv)
 {
+    if (argc != 2)
+    {
+        fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
+        return -1;
+    }
+
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);
@@ -92,4 +96,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-

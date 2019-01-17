@@ -29,10 +29,6 @@ Reduction::Reduction()
     support_inplace = false;
 }
 
-Reduction::~Reduction()
-{
-}
-
 int Reduction::load_param(const ParamDict& pd)
 {
     operation = pd.get(0, 0);
@@ -43,7 +39,7 @@ int Reduction::load_param(const ParamDict& pd)
 }
 
 template<typename Op, typename Op2>
-static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff)
+static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff, const Option& opt)
 {
     Op op;
     Op2 op2;
@@ -51,43 +47,44 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff)
     int w = a.w;
     int h = a.h;
     int channels = a.c;
+    size_t elemsize = a.elemsize;
     int size = w * h;
 
     if (dim == 0)
     {
         // w h c -> X X X
-        b.create(1);
+        b.create(1, elemsize, opt.blob_allocator);
     }
     else if (dim == 1)
     {
         // w h c -> X X c
-        b.create(channels);
+        b.create(channels, elemsize, opt.blob_allocator);
     }
     else if (dim == 2)
     {
         // w h c -> X h c
-        b.create(h, channels);
+        b.create(h, channels, elemsize, opt.blob_allocator);
     }
     else if (dim == -1)
     {
         // w h c -> w X X
-        b.create(w);
+        b.create(w, elemsize, opt.blob_allocator);
     }
     else if (dim == -2)
     {
         // w h c -> w h X
-        b.create(w, h);
+        b.create(w, h, elemsize, opt.blob_allocator);
     }
     if (b.empty())
         return -100;
 
     if (dim == 0)
     {
-        Mat sums(channels);
+        Mat sums(channels, elemsize, opt.workspace_allocator);
         if (sums.empty())
             return -100;
-        float* sums_ptr = sums;
-        #pragma omp parallel for
+
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = a.channel(q);
@@ -98,23 +95,20 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff)
                 sum = op(sum, ptr[i]);
             }
 
-            sums_ptr[q] = sum;
+            sums[q] = sum;
         }
-
-        float* outptr = b;
 
         float sum = v0;
         for (int i=0; i<channels; i++)
         {
-            sum = op2(sum, sums_ptr[i]);
+            sum = op2(sum, sums[i]);
         }
 
-        outptr[0] = sum * coeff;
+        b[0] = sum * coeff;
     }
     else if (dim == 1)
     {
-        float* outptr = b;
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = a.channel(q);
@@ -125,16 +119,16 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff)
                 sum = op(sum, ptr[i]);
             }
 
-            outptr[q] = sum * coeff;
+            b[q] = sum * coeff;
         }
     }
     else if (dim == 2)
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = a.channel(q);
-            float* outptr = b.channel(q);
+            float* outptr = b.row(q);
 
             for (int i=0; i<h; i++)
             {
@@ -152,13 +146,13 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff)
     }
     else if (dim == -1)
     {
-        Mat mins(w, 1, channels);
+        Mat mins(w, 1, channels, elemsize, opt.workspace_allocator);
         if (mins.empty())
             return -100;
 
         mins.fill(v0);
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = a.channel(q);
@@ -177,19 +171,18 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff)
 
         b.fill(v0);
 
-        float* outptr = b;
         for (int q=0; q<channels; q++)
         {
             const float* mins_ptr = mins.channel(q);
             for (int j=0; j<w; j++)
             {
-                outptr[j] = op2(outptr[j], mins_ptr[j]);
+                b[j] = op2(b[j], mins_ptr[j]);
             }
         }
 
         for (int j=0; j<w; j++)
         {
-            outptr[j] *= coeff;
+            b[j] *= coeff;
         }
     }
     else if (dim == -2)
@@ -199,18 +192,16 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = a.channel(q);
-            float* outptr = b;
 
             for (int i=0; i<size; i++)
             {
-                outptr[i] = op(outptr[i], ptr[i]);
+                b[i] = op(b[i], ptr[i]);
             }
         }
 
-        float* outptr = b;
         for (int i=0; i<size; i++)
         {
-            outptr[i] *= coeff;
+            b[i] *= coeff;
         }
     }
 
@@ -237,20 +228,20 @@ struct reduction_op_min : std::binary_function<T,T,T> {
     T operator() (const T& x, const T& y) const { return std::min(x, y); }
 };
 
-int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     if (operation == ReductionOp_SUM)
-        return reduction_op< std::plus<float>, std::plus<float> >(bottom_blob, top_blob, 0.f, dim, coeff);
+        return reduction_op< std::plus<float>, std::plus<float> >(bottom_blob, top_blob, 0.f, dim, coeff, opt);
 
     if (operation == ReductionOp_ASUM)
-        return reduction_op< reduction_op_asum<float>, std::plus<float> >(bottom_blob, top_blob, 0.f, dim, coeff);
+        return reduction_op< reduction_op_asum<float>, std::plus<float> >(bottom_blob, top_blob, 0.f, dim, coeff, opt);
 
     if (operation == ReductionOp_SUMSQ)
-        return reduction_op< reduction_op_sumsq<float>, std::plus<float> >(bottom_blob, top_blob, 0.f, dim, coeff);
+        return reduction_op< reduction_op_sumsq<float>, std::plus<float> >(bottom_blob, top_blob, 0.f, dim, coeff, opt);
 
     if (operation == ReductionOp_MEAN)
     {
-        int ret = reduction_op< std::plus<float>, std::plus<float> >(bottom_blob, top_blob, 0.f, dim, coeff);
+        int ret = reduction_op< std::plus<float>, std::plus<float> >(bottom_blob, top_blob, 0.f, dim, coeff, opt);
         if (ret != 0)
             return -100;
 
@@ -261,15 +252,13 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
 
         if (dim == 0)
         {
-            float* outptr = top_blob;
-            outptr[0] /= channels * size;
+            top_blob[0] /= channels * size;
         }
         else if (dim == 1)
         {
-            float* outptr = top_blob;
             for (int q=0; q<channels; q++)
             {
-                outptr[q] /= size;
+                top_blob[q] /= size;
             }
         }
         else if (dim == 2)
@@ -286,30 +275,28 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob) const
         }
         else if (dim == -1)
         {
-            float* outptr = top_blob;
             for (int j=0; j<w; j++)
             {
-                outptr[j] /= h * channels;
+                top_blob[j] /= h * channels;
             }
         }
         else if (dim == -2)
         {
-            float* outptr = top_blob;
             for (int i=0; i<size; i++)
             {
-                outptr[i] /= channels;
+                top_blob[i] /= channels;
             }
         }
     }
 
     if (operation == ReductionOp_MAX)
-        return reduction_op< reduction_op_max<float>, reduction_op_max<float> >(bottom_blob, top_blob, -FLT_MAX, dim, coeff);
+        return reduction_op< reduction_op_max<float>, reduction_op_max<float> >(bottom_blob, top_blob, -FLT_MAX, dim, coeff, opt);
 
     if (operation == ReductionOp_MIN)
-        return reduction_op< reduction_op_min<float>, reduction_op_min<float> >(bottom_blob, top_blob, FLT_MAX, dim, coeff);
+        return reduction_op< reduction_op_min<float>, reduction_op_min<float> >(bottom_blob, top_blob, FLT_MAX, dim, coeff, opt);
 
     if (operation == ReductionOp_PROD)
-        return reduction_op< std::multiplies<float>, std::multiplies<float> >(bottom_blob, top_blob, 1.f, dim, coeff);
+        return reduction_op< std::multiplies<float>, std::multiplies<float> >(bottom_blob, top_blob, 1.f, dim, coeff, opt);
 
     return 0;
 }

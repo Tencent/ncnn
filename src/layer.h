@@ -19,10 +19,39 @@
 #include <string>
 #include <vector>
 #include "mat.h"
+#include "modelbin.h"
 #include "paramdict.h"
 #include "platform.h"
 
 namespace ncnn {
+
+class Allocator;
+class Option
+{
+public:
+    // default option
+    Option();
+
+public:
+    // light mode
+    // intermediate blob will be recycled when enabled
+    // enabled by default
+    bool lightmode;
+
+    // thread count
+    // default value is the one returned by get_cpu_count()
+    int num_threads;
+
+    // blob memory allocator
+    Allocator* blob_allocator;
+
+    // workspace memory allocator
+    Allocator* workspace_allocator;
+};
+
+// the global default option
+const Option& get_default_option();
+int set_default_option(const Option& opt);
 
 class Layer
 {
@@ -36,16 +65,9 @@ public:
     // return 0 if success
     virtual int load_param(const ParamDict& pd);
 
-#if NCNN_STDIO
-    // load layer specific weight data from model file
+    // load layer specific weight data from model binary
     // return 0 if success
-    virtual int load_model(FILE* binfp);
-#endif // NCNN_STDIO
-
-    // load layer specific weight data from memory
-    // memory pointer is 32-bit aligned
-    // return 0 if success
-    virtual int load_model(const unsigned char*& mem);
+    virtual int load_model(const ModelBin& mb);
 
 public:
     // one input and one output blob
@@ -57,13 +79,13 @@ public:
 public:
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt = get_default_option()) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt = get_default_option()) const;
 
     // implement inplace inference
     // return 0 if success
-    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs) const;
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
+    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt = get_default_option()) const;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt = get_default_option()) const;
 
 public:
 #if NCNN_STRING
@@ -94,6 +116,8 @@ struct layer_registry_entry
 #if NCNN_STRING
 // get layer type from type name
 int layer_to_index(const char* type);
+// create layer from type name
+Layer* create_layer(const char* type);
 #endif // NCNN_STRING
 // create layer from layer type
 Layer* create_layer(int index);

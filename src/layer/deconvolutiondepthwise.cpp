@@ -24,32 +24,49 @@ DeconvolutionDepthWise::DeconvolutionDepthWise()
     support_inplace = false;
 }
 
-DeconvolutionDepthWise::~DeconvolutionDepthWise()
-{
-}
-
 int DeconvolutionDepthWise::load_param(const ParamDict& pd)
 {
-    Deconvolution::load_param(pd);
-
+    num_output = pd.get(0, 0);
+    kernel_w = pd.get(1, 0);
+    kernel_h = pd.get(11, kernel_w);
+    dilation_w = pd.get(2, 1);
+    dilation_h = pd.get(12, dilation_w);
+    stride_w = pd.get(3, 1);
+    stride_h = pd.get(13, stride_w);
+    pad_w = pd.get(4, 0);
+    pad_h = pd.get(14, pad_w);
+    bias_term = pd.get(5, 0);
+    weight_data_size = pd.get(6, 0);
     group = pd.get(7, 1);
 
     return 0;
 }
 
-int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
+int DeconvolutionDepthWise::load_model(const ModelBin& mb)
 {
-    if (group == 1)
+    weight_data = mb.load(weight_data_size, 0);
+    if (weight_data.empty())
+        return -100;
+
+    if (bias_term)
     {
-        return Deconvolution::forward(bottom_blob, top_blob);
+        bias_data = mb.load(num_output, 1);
+        if (bias_data.empty())
+            return -100;
     }
 
+    return 0;
+}
+
+int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
     // deconvolv with NxN kernel
     // value = value + bias
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
     if (channels % group != 0 || num_output % group != 0)
     {
@@ -57,17 +74,28 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         return -100;
     }
 
-    const int kernel_extent = dilation * (kernel_size - 1) + 1;
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride + kernel_extent;
-    int outh = (h - 1) * stride + kernel_extent;
+    int outw = (w - 1) * stride_w + kernel_extent_w;
+    int outh = (h - 1) * stride_h + kernel_extent_h;
 
     Mat top_blob_bordered;
-    top_blob_bordered.create(outw, outh, num_output);
-    if (top_blob_bordered.empty())
-        return -100;
+    if (pad_w > 0 || pad_h > 0)
+    {
+        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
 
-    const int maxk = kernel_size * kernel_size;
+    const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
     std::vector<int> _space_ofs(maxk);
@@ -75,14 +103,14 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     {
         int p1 = 0;
         int p2 = 0;
-        int gap = outw * dilation - kernel_size * dilation;;
-        for (int i = 0; i < kernel_size; i++)
+        int gap = outw * dilation_h - kernel_w * dilation_w;
+        for (int i = 0; i < kernel_h; i++)
         {
-            for (int j = 0; j < kernel_size; j++)
+            for (int j = 0; j < kernel_w; j++)
             {
                 space_ofs[p1] = p2;
                 p1++;
-                p2 += dilation;
+                p2 += dilation_w;
             }
             p2 += gap;
         }
@@ -91,14 +119,14 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
     // depth-wise
     if (channels == group && group == num_output)
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
             const float* inptr = bottom_blob.channel(g);
-            const float* kptr = weight_data + maxk * g;
+            const float* kptr = (const float*)weight_data + maxk * g;
             Mat m = top_blob_bordered.channel(g);
 
-            const float bias = bias_term ? bias_data.data[g] : 0.f;
+            const float bias = bias_term ? bias_data[g] : 0.f;
 
             m.fill(bias);
 
@@ -106,7 +134,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
             {
                 for (int j = 0; j < w; j++)
                 {
-                    float* outptr = m.data + outw * i*stride + j*stride;
+                    float* outptr = m.row(i*stride_h) + j*stride_w;
 
                     for (int k = 0; k < maxk; k++)
                     {
@@ -124,15 +152,19 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         const int channels_g = channels / group;
         const int num_output_g = num_output / group;
 
-        #pragma omp parallel for
+#ifdef _WIN32
+        #pragma omp parallel for num_threads(opt.num_threads)
+#else // _WIN32
+        #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
+#endif // _WIN32
         for (int g = 0; g < group; g++)
         {
-            const float* weight_data_ptr = weight_data + maxk * channels_g * num_output_g * g;
             for (int p = 0; p < num_output_g; p++)
             {
                 Mat out = top_blob_bordered.channel(g * num_output_g + p);
 
-                const float bias = bias_term ? bias_data.data[g * num_output_g + p] : 0.f;
+                const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
+                const float bias = bias_term ? bias_data[g * num_output_g + p] : 0.f;
 
                 out.fill(bias);
 
@@ -140,7 +172,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
                 {
                     for (int j = 0; j < w; j++)
                     {
-                        float* outptr = out.data + out.w * i*stride + j*stride;
+                        float* outptr = out.row(i*stride_h) + j*stride_w;
 
                         const float* kptr = weight_data_ptr + maxk * channels_g * p;
 
@@ -148,7 +180,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
                         for (int q = 0; q < channels_g; q++)
                         {
                             const Mat m = bottom_blob.channel(channels_g * g + q);
-                            float val = *(m.data + w * i + j);
+                            float val = *(m.row(i) + j);
 
                             for (int k = 0; k < maxk; k++)
                             {
@@ -163,16 +195,18 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob) const
         }
     }
 
-    top_blob = top_blob_bordered;
-
-    if (pad > 0)
+    if (pad_w > 0 || pad_h > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad, pad, pad, pad);
+        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w, opt.blob_allocator, opt.num_threads);
         if (top_blob.empty())
             return -100;
 
         outw = top_blob.w;
         outh = top_blob.h;
+    }
+    else
+    {
+        top_blob = top_blob_bordered;
     }
 
     return 0;

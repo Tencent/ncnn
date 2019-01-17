@@ -24,9 +24,7 @@ class BNLL : public Layer
 public:
     BNLL();
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
-
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 public:
 };

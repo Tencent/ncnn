@@ -14,120 +14,167 @@
 
 #include "deconvolutiondepthwise_arm.h"
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+#include "layer_type.h"
 
 namespace ncnn {
 
-#include "deconvolution_3x3.h"
-#include "deconvolution_4x4.h"
-
 DEFINE_LAYER_CREATOR(DeconvolutionDepthWise_arm)
 
-int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
+int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // convolv with NxN kernel
     // value = value + bias
 
-    if ((kernel_size != 3 && kernel_size != 4) || stride > 2 || dilation != 1)
-    {
-        return DeconvolutionDepthWise::forward(bottom_blob, top_blob);
-    }
-
-    typedef void (*deconv_func)(const Mat&, Mat&, const Mat&, const Mat&);
-
-    // kernel_size x stride
-    deconv_func deconv_func_table[2][2] =
-    {
-        {
-            deconv3x3s1_neon,
-            deconv3x3s2_neon
-        },  // kernel_size = 3
-        {
-            deconv4x4s1_neon,
-            deconv4x4s2_neon
-        }   // kernel_size = 4
-    };
-
-    deconv_func deconv = deconv_func_table[kernel_size-3][stride-1];
-    if (!deconv)
-    {
-        return DeconvolutionDepthWise::forward(bottom_blob, top_blob);
-    }
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
-    const int kernel_extent = dilation * (kernel_size - 1) + 1;
-
-    int outw = (w - 1) * stride + kernel_extent;
-    int outh = (h - 1) * stride + kernel_extent;
-
-    Mat top_blob_bordered(outw, outh, num_output);
-    if (top_blob_bordered.empty())
+    if (channels % group != 0 || num_output % group != 0)
+    {
+        // reject invalid group
         return -100;
+    }
 
-    const int maxk = kernel_size * kernel_size;
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    int outw = (w - 1) * stride_w + kernel_extent_w;
+    int outh = (h - 1) * stride_h + kernel_extent_h;
+
+    Mat top_blob_bordered;
+    if (pad_w > 0 || pad_h > 0)
+    {
+        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
+
+    const int maxk = kernel_w * kernel_h;
 
     // depth-wise
     if (channels == group && group == num_output)
     {
-#ifdef _OPENMP
-        int nested_current = omp_get_nested();
-        omp_set_nested(0);
-#endif
-
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
-            Mat top_blob_bordered_g = top_blob_bordered.channel(g);
-            Mat bottom_blob_g = bottom_blob.channel(g);
-            Mat weight_data_g(maxk, (float*)(weight_data + maxk * g));
+            Mat bottom_blob_g = bottom_blob.channel_range(g, 1);
+            Mat top_blob_bordered_g = top_blob_bordered.channel_range(g, 1);
+            Mat weight_data_g = weight_data.range(maxk * g, maxk);
 
             Mat bias_data_g;
             if (bias_term)
-                bias_data_g = Mat(1, (float*)(bias_data + g));
+                bias_data_g = bias_data.range(g, 1);
 
-            deconv(bottom_blob_g, top_blob_bordered_g, weight_data_g, bias_data_g);
+            // call Deconvolution
+            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+
+            // set param
+            ncnn::ParamDict pd;
+            pd.set(0, 1);// num_output
+            pd.set(1, kernel_w);
+            pd.set(11, kernel_h);
+            pd.set(2, dilation_w);
+            pd.set(12, dilation_h);
+            pd.set(3, stride_w);
+            pd.set(13, stride_h);
+            pd.set(4, 0);// pad_w
+            pd.set(14, 0);// pad_h
+            pd.set(5, bias_term);
+            pd.set(6, maxk);// weight_data_size
+
+            op->load_param(pd);
+
+            // set weights
+            ncnn::Mat weights[2];
+            weights[0] = weight_data_g;
+            weights[1] = bias_data_g;
+
+            op->load_model(ModelBinFromMatArray(weights));
+
+            ncnn::Option opt_g = opt;
+            opt_g.num_threads = 1;
+            opt_g.blob_allocator = top_blob_bordered.allocator;
+
+            // forward
+            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+
+            delete op;
         }
+    }
+    else
+    {
+        const int channels_g = channels / group;
+        const int num_output_g = num_output / group;
 
-#ifdef _OPENMP
-        omp_set_nested(nested_current);
-#endif
-        return 0;
+        for (int g=0; g<group; g++)
+        {
+            Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
+            Mat top_blob_bordered_g = top_blob_bordered.channel_range(num_output_g * g, num_output_g);
+            Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
+            Mat bias_data_g;
+            if (bias_term)
+                bias_data_g = bias_data.range(num_output_g * g, num_output_g);
+
+            // call Deconvolution
+            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+
+            // set param
+            ncnn::ParamDict pd;
+            pd.set(0, num_output_g);// num_output
+            pd.set(1, kernel_w);
+            pd.set(11, kernel_h);
+            pd.set(2, dilation_w);
+            pd.set(12, dilation_h);
+            pd.set(3, stride_w);
+            pd.set(13, stride_h);
+            pd.set(4, 0);// pad_w
+            pd.set(14, 0);// pad_h
+            pd.set(5, bias_term);
+            pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
+
+            op->load_param(pd);
+
+            // set weights
+            ncnn::Mat weights[2];
+            weights[0] = weight_data_g;
+            weights[1] = bias_data_g;
+
+            op->load_model(ModelBinFromMatArray(weights));
+
+            ncnn::Option opt_g = opt;
+            opt_g.blob_allocator = top_blob_bordered.allocator;
+
+            // forward
+            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+
+            delete op;
+        }
     }
 
-    const int channels_g = channels / group;
-    const int num_output_g = num_output / group;
-
-    for (int g=0; g<group; g++)
+    if (pad_w > 0 || pad_h > 0)
     {
-        Mat top_blob_bordered_g(outw, outh, num_output_g, top_blob_bordered.channel(num_output_g * g));
-        Mat bottom_blob_g(w, h, channels_g, bottom_blob.channel(channels_g * g).data);
-        Mat weight_data_g(maxk * channels_g * num_output_g, (float*)(weight_data + maxk * channels_g * num_output_g * g));
-        Mat bias_data_g;
-        if (bias_term)
-            bias_data_g = Mat(num_output_g, (float*)(bias_data + num_output_g * g));
-
-        deconv(bottom_blob_g, top_blob_bordered_g, weight_data_g, bias_data_g);
-    }
-
-    top_blob = top_blob_bordered;
-
-    if (pad > 0)
-    {
-        copy_cut_border(top_blob_bordered, top_blob, pad, pad, pad, pad);
+        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w, opt.blob_allocator, opt.num_threads);
         if (top_blob.empty())
             return -100;
 
         outw = top_blob.w;
         outh = top_blob.h;
     }
+    else
+    {
+        top_blob = top_blob_bordered;
+    }
 
     return 0;
 
 }
 
-}// namespace ncnn
+} // namespace ncnn

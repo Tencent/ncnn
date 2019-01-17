@@ -34,459 +34,14 @@ int Softmax::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Softmax::forward(const Mat& bottom_blob, Mat& top_blob) const
-{
-    // value = exp( value - global max value )
-    // sum all value
-    // value = value / sum
-
-    int dims = bottom_blob.dims;
-
-    if (dims == 1) // axis == 0
-    {
-        int w = bottom_blob.w;
-
-        top_blob.create(w);
-        if (top_blob.empty())
-            return -100;
-
-        const float* ptr = bottom_blob;
-        float* outptr = top_blob;
-
-        float max = -FLT_MAX;
-        for (int i=0; i<w; i++)
-        {
-            max = std::max(max, ptr[i]);
-        }
-
-        for (int i=0; i<w; i++)
-        {
-            outptr[i] = exp(ptr[i] - max);
-        }
-
-        float sum = 0.f;
-        for (int i=0; i<w; i++)
-        {
-            sum += outptr[i];
-        }
-
-        for (int i=0; i<w; i++)
-        {
-            outptr[i] /= sum;
-        }
-
-        return 0;
-    }
-
-    if (dims == 2 && axis == 0)
-    {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-
-        top_blob.create(w, h);
-        if (top_blob.empty())
-            return -100;
-
-        Mat max;
-        max.create(w);
-        if (max.empty())
-            return -100;
-        max.fill(-FLT_MAX);
-
-        float* maxptr = max;
-        for (int i=0; i<h; i++)
-        {
-            const float* ptr = bottom_blob.row(i);
-            for (int j=0; j<w; j++)
-            {
-                maxptr[j] = std::max(maxptr[j], ptr[j]);
-            }
-        }
-
-        for (int i=0; i<h; i++)
-        {
-            const float* ptr = bottom_blob.row(i);
-            float* outptr = top_blob.row(i);
-            for (int j=0; j<w; j++)
-            {
-                outptr[j] = exp(ptr[j] - maxptr[j]);
-            }
-        }
-
-        Mat sum;
-        sum.create(w);
-        if (sum.empty())
-            return -100;
-        sum.fill(0.f);
-
-        float* sumptr = sum;
-        for (int i=0; i<h; i++)
-        {
-            const float* outptr = top_blob.row(i);
-            for (int j=0; j<w; j++)
-            {
-                sumptr[j] += outptr[j];
-            }
-        }
-
-        for (int i=0; i<h; i++)
-        {
-            float* outptr = top_blob.row(i);
-            for (int j=0; j<w; j++)
-            {
-                outptr[j] /= sumptr[j];
-            }
-        }
-
-        return 0;
-    }
-
-    if (dims == 2 && axis == 1)
-    {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-
-        top_blob.create(w, h);
-        if (top_blob.empty())
-            return -100;
-
-        Mat max;
-        max.create(h);
-        if (max.empty())
-            return -100;
-
-        float* maxptr = max;
-        for (int i=0; i<h; i++)
-        {
-            const float* ptr = bottom_blob.row(i);
-
-            float m = -FLT_MAX;
-            for (int j=0; j<w; j++)
-            {
-                m = std::max(m, ptr[j]);
-            }
-
-            maxptr[i] = m;
-        }
-
-        for (int i=0; i<h; i++)
-        {
-            const float* ptr = bottom_blob.row(i);
-            float* outptr = top_blob.row(i);
-
-            float m = maxptr[i];
-            for (int j=0; j<w; j++)
-            {
-                outptr[j] = exp(ptr[j] - m);
-            }
-        }
-
-        Mat sum;
-        sum.create(h);
-        if (sum.empty())
-            return -100;
-
-        float* sumptr = sum;
-        for (int i=0; i<h; i++)
-        {
-            const float* outptr = top_blob.row(i);
-
-            float s = 0.f;
-            for (int j=0; j<w; j++)
-            {
-                s += outptr[j];
-            }
-
-            sumptr[i] = s;
-        }
-
-        for (int i=0; i<h; i++)
-        {
-            float* outptr = top_blob.row(i);
-
-            float s = sumptr[i];
-            for (int j=0; j<w; j++)
-            {
-                outptr[j] /= s;
-            }
-        }
-
-        return 0;
-    }
-
-    if (dims == 3 && axis == 0)
-    {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-        int channels = bottom_blob.c;
-        int size = w * h;
-
-        top_blob.create(w, h, channels);
-        if (top_blob.empty())
-            return -100;
-
-        Mat max;
-        max.create(w, h);
-        if (max.empty())
-            return -100;
-        max.fill(-FLT_MAX);
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            float* maxptr = max;
-
-            for (int i=0; i<size; i++)
-            {
-                maxptr[i] = std::max(maxptr[i], ptr[i]);
-            }
-        }
-
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-            float* maxptr = max;
-
-            for (int i=0; i<size; i++)
-            {
-                outptr[i] = exp(ptr[i] - maxptr[i]);
-            }
-        }
-
-        Mat sum;
-        sum.create(w, h);
-        if (sum.empty())
-            return -100;
-        sum.fill(0.f);
-        for (int q=0; q<channels; q++)
-        {
-            const float* outptr = top_blob.channel(q);
-            float* sumptr = sum;
-
-            for (int i=0; i<size; i++)
-            {
-                sumptr[i] += outptr[i];
-            }
-        }
-
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            float* outptr = top_blob.channel(q);
-            float* sumptr = sum;
-
-            for (int i=0; i<size; i++)
-            {
-                outptr[i] /= sumptr[i];
-            }
-        }
-
-        return 0;
-    }
-
-    if (dims == 3 && axis == 1)
-    {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-        int channels = bottom_blob.c;
-
-        top_blob.create(w, h, channels);
-        if (top_blob.empty())
-            return -100;
-
-        Mat max;
-        max.create(h, channels);
-        if (max.empty())
-            return -100;
-        max.fill(-FLT_MAX);
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            float* maxptr = max.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                float max = -FLT_MAX;
-                for (int j=0; j<w; j++)
-                {
-                    max = std::max(max, ptr[j]);
-                }
-
-                maxptr[i] = max;
-                ptr += w;
-            }
-        }
-
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-            float* maxptr = max.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                float max = maxptr[i];
-                for (int j=0; j<w; j++)
-                {
-                    outptr[j] = exp(ptr[j] - max);
-                }
-
-                ptr += w;
-                outptr += w;
-            }
-        }
-
-        Mat sum;
-        sum.create(h, channels);
-        if (sum.empty())
-            return -100;
-        sum.fill(0.f);
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* outptr = top_blob.channel(q);
-            float* sumptr = sum.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                float sum = 0.f;
-                for (int j=0; j<w; j++)
-                {
-                    sum += outptr[j];
-                }
-
-                sumptr[i] = sum;
-                outptr += w;
-            }
-        }
-
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            float* outptr = top_blob.channel(q);
-            float* sumptr = sum.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                float sum = sumptr[i];
-                for (int j=0; j<w; j++)
-                {
-                    outptr[j] /= sum;
-                }
-
-                outptr += w;
-            }
-        }
-
-        return 0;
-    }
-
-    if (dims == 3 && axis == 2)
-    {
-        int w = bottom_blob.w;
-        int h = bottom_blob.h;
-        int channels = bottom_blob.c;
-
-        top_blob.create(w, h, channels);
-        if (top_blob.empty())
-            return -100;
-
-        Mat max;
-        max.create(w, channels);
-        if (max.empty())
-            return -100;
-        max.fill(-FLT_MAX);
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            float* maxptr = max.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                for (int j=0; j<w; j++)
-                {
-                    maxptr[j] = std::max(maxptr[j], ptr[j]);
-                }
-
-                ptr += w;
-            }
-        }
-
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-            float* maxptr = max.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                for (int j=0; j<w; j++)
-                {
-                    outptr[j] = exp(ptr[j] - maxptr[j]);
-                }
-
-                ptr += w;
-                outptr += w;
-            }
-        }
-
-        Mat sum;
-        sum.create(w, channels);
-        if (sum.empty())
-            return -100;
-        sum.fill(0.f);
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            const float* outptr = top_blob.channel(q);
-            float* sumptr = sum.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                for (int j=0; j<w; j++)
-                {
-                    sumptr[j] += outptr[j];
-                }
-
-                outptr += w;
-            }
-        }
-
-        #pragma omp parallel for
-        for (int q=0; q<channels; q++)
-        {
-            float* outptr = top_blob.channel(q);
-            float* sumptr = sum.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                for (int j=0; j<w; j++)
-                {
-                    outptr[j] /= sumptr[j];
-                }
-
-                outptr += w;
-            }
-        }
-
-        return 0;
-    }
-
-    return 0;
-}
-
-int Softmax::forward_inplace(Mat& bottom_top_blob) const
+int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     // value = exp( value - global max value )
     // sum all value
     // value = value / sum
 
     int dims = bottom_top_blob.dims;
+    size_t elemsize = bottom_top_blob.elemsize;
 
     if (dims == 1) // axis == 0
     {
@@ -525,18 +80,17 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         int h = bottom_top_blob.h;
 
         Mat max;
-        max.create(w);
+        max.create(w, elemsize, opt.workspace_allocator);
         if (max.empty())
             return -100;
         max.fill(-FLT_MAX);
 
-        float* maxptr = max;
         for (int i=0; i<h; i++)
         {
             const float* ptr = bottom_top_blob.row(i);
             for (int j=0; j<w; j++)
             {
-                maxptr[j] = std::max(maxptr[j], ptr[j]);
+                max[j] = std::max(max[j], ptr[j]);
             }
         }
 
@@ -545,23 +99,22 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
             float* ptr = bottom_top_blob.row(i);
             for (int j=0; j<w; j++)
             {
-                ptr[j] = exp(ptr[j] - maxptr[j]);
+                ptr[j] = exp(ptr[j] - max[j]);
             }
         }
 
         Mat sum;
-        sum.create(w);
+        sum.create(w, elemsize, opt.workspace_allocator);
         if (sum.empty())
             return -100;
         sum.fill(0.f);
 
-        float* sumptr = sum;
         for (int i=0; i<h; i++)
         {
             const float* ptr = bottom_top_blob.row(i);
             for (int j=0; j<w; j++)
             {
-                sumptr[j] += ptr[j];
+                sum[j] += ptr[j];
             }
         }
 
@@ -570,7 +123,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
             float* ptr = bottom_top_blob.row(i);
             for (int j=0; j<w; j++)
             {
-                ptr[j] /= sumptr[j];
+                ptr[j] /= sum[j];
             }
         }
 
@@ -583,11 +136,10 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         int h = bottom_top_blob.h;
 
         Mat max;
-        max.create(h);
+        max.create(h, elemsize, opt.workspace_allocator);
         if (max.empty())
             return -100;
 
-        float* maxptr = max;
         for (int i=0; i<h; i++)
         {
             const float* ptr = bottom_top_blob.row(i);
@@ -598,14 +150,14 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
                 m = std::max(m, ptr[j]);
             }
 
-            maxptr[i] = m;
+            max[i] = m;
         }
 
         for (int i=0; i<h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
 
-            float m = maxptr[i];
+            float m = max[i];
             for (int j=0; j<w; j++)
             {
                 ptr[j] = exp(ptr[j] - m);
@@ -613,11 +165,10 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         }
 
         Mat sum;
-        sum.create(h);
+        sum.create(h, elemsize, opt.workspace_allocator);
         if (sum.empty())
             return -100;
 
-        float* sumptr = sum;
         for (int i=0; i<h; i++)
         {
             const float* ptr = bottom_top_blob.row(i);
@@ -628,14 +179,14 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
                 s += ptr[j];
             }
 
-            sumptr[i] = s;
+            sum[i] = s;
         }
 
         for (int i=0; i<h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
 
-            float s = sumptr[i];
+            float s = sum[i];
             for (int j=0; j<w; j++)
             {
                 ptr[j] /= s;
@@ -653,58 +204,54 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         int size = w * h;
 
         Mat max;
-        max.create(w, h);
+        max.create(w, h, elemsize, opt.workspace_allocator);
         if (max.empty())
             return -100;
         max.fill(-FLT_MAX);
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
-            float* maxptr = max;
 
             for (int i=0; i<size; i++)
             {
-                maxptr[i] = std::max(maxptr[i], ptr[i]);
+                max[i] = std::max(max[i], ptr[i]);
             }
         }
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
-            float* maxptr = max;
 
             for (int i=0; i<size; i++)
             {
-                ptr[i] = exp(ptr[i] - maxptr[i]);
+                ptr[i] = exp(ptr[i] - max[i]);
             }
         }
 
         Mat sum;
-        sum.create(w, h);
+        sum.create(w, h, elemsize, opt.workspace_allocator);
         if (sum.empty())
             return -100;
         sum.fill(0.f);
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
-            float* sumptr = sum;
 
             for (int i=0; i<size; i++)
             {
-                sumptr[i] += ptr[i];
+                sum[i] += ptr[i];
             }
         }
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
-            float* sumptr = sum;
 
             for (int i=0; i<size; i++)
             {
-                ptr[i] /= sumptr[i];
+                ptr[i] /= sum[i];
             }
         }
 
@@ -718,11 +265,11 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         int channels = bottom_top_blob.c;
 
         Mat max;
-        max.create(h, channels);
+        max.create(h, channels, elemsize, opt.workspace_allocator);
         if (max.empty())
             return -100;
         max.fill(-FLT_MAX);
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
@@ -741,7 +288,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
             }
         }
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -760,11 +307,11 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         }
 
         Mat sum;
-        sum.create(h, channels);
+        sum.create(h, channels, elemsize, opt.workspace_allocator);
         if (sum.empty())
             return -100;
         sum.fill(0.f);
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
@@ -783,7 +330,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
             }
         }
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -811,11 +358,11 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         int channels = bottom_top_blob.c;
 
         Mat max;
-        max.create(w, channels);
+        max.create(w, channels, elemsize, opt.workspace_allocator);
         if (max.empty())
             return -100;
         max.fill(-FLT_MAX);
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
@@ -832,7 +379,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
             }
         }
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -850,11 +397,11 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
         }
 
         Mat sum;
-        sum.create(w, channels);
+        sum.create(w, channels, elemsize, opt.workspace_allocator);
         if (sum.empty())
             return -100;
         sum.fill(0.f);
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
@@ -871,7 +418,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob) const
             }
         }
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
