@@ -76,6 +76,16 @@ public:
         {
             ncnn::VkTransfer cmd(vkdev);
 
+            // create gpu device allocator if null
+            if (!weight_vkallocator)
+            {
+                weight_vkallocator = vkdev->create_weight_allocator();
+            }
+            if (!weight_staging_vkallocator)
+            {
+                weight_staging_vkallocator = vkdev->create_weight_staging_allocator();
+            }
+
             cmd.weight_vkallocator = weight_vkallocator;
             cmd.staging_vkallocator = weight_staging_vkallocator;
 
@@ -121,10 +131,8 @@ static ncnn::PoolAllocator g_workspace_pool_allocator;
 static bool g_use_vulkan_compute = false;
 
 static ncnn::VulkanDevice* g_vkdev = 0;
-static ncnn::VkWeightBufferAllocator* g_weight_vkallocator = 0;
-static ncnn::VkBlobBufferAllocator* g_blob_vkallocator = 0;
-static ncnn::VkStagingBufferAllocator* g_staging_vkallocator = 0;
-static ncnn::VkWeightStagingBufferAllocator* g_weight_staging_vkallocator = 0;
+static ncnn::VkAllocator* g_blob_vkallocator = 0;
+static ncnn::VkAllocator* g_staging_vkallocator = 0;
 #endif // NCNN_VULKAN
 
 void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const ncnn::Net&))
@@ -134,14 +142,9 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
 #if NCNN_VULKAN
     if (g_use_vulkan_compute)
     {
-        g_weight_vkallocator->clear();
-    //     g_weight_staging_vkallocator->clear();
-
         net.use_vulkan_compute = g_use_vulkan_compute;
 
         net.set_vulkan_device(g_vkdev);
-        net.set_weight_vkallocator(g_weight_vkallocator);
-        net.set_weight_staging_vkallocator(g_weight_staging_vkallocator);
     }
 #endif // NCNN_VULKAN
 
@@ -461,10 +464,8 @@ int main(int argc, char** argv)
     {
         g_vkdev = new ncnn::VulkanDevice(gpu_device);
 
-        g_weight_vkallocator = new ncnn::VkWeightBufferAllocator(g_vkdev);
-        g_blob_vkallocator = new ncnn::VkBlobBufferAllocator(g_vkdev);
-        g_staging_vkallocator = new ncnn::VkStagingBufferAllocator(g_vkdev);
-        g_weight_staging_vkallocator = new ncnn::VkWeightStagingBufferAllocator(g_vkdev);
+        g_blob_vkallocator = g_vkdev->create_blob_allocator();
+        g_staging_vkallocator = g_vkdev->create_staging_allocator();
     }
 #endif // NCNN_VULKAN
 
@@ -523,10 +524,8 @@ int main(int argc, char** argv)
 //     benchmark("mobilenet-yolov3", mobilenet_yolov3_init, mobilenet_yolov3_run);
 
 #if NCNN_VULKAN
-    delete g_weight_vkallocator;
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;
-    delete g_weight_staging_vkallocator;
 
     delete g_vkdev;
 #endif // NCNN_VULKAN

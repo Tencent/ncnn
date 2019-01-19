@@ -242,7 +242,7 @@ void UnlockedPoolAllocator::fastFree(void* ptr)
 }
 
 #if NCNN_VULKAN
-VkAllocator::VkAllocator(VulkanDevice* _vkdev) : vkdev(_vkdev)
+VkAllocator::VkAllocator(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
     mappable = false;
 }
@@ -303,7 +303,7 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
 
     VkDeviceMemory memory = 0;
-    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, nullptr, &memory);
+    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
@@ -312,7 +312,7 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     return memory;
 }
 
-VkBufferAllocator::VkBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkBufferAllocator::VkBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
 
@@ -420,7 +420,7 @@ static inline size_t least_common_multiple(size_t a, size_t b)
     return lcm;
 }
 
-VkBlobBufferAllocator::VkBlobBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkBlobBufferAllocator::VkBlobBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
 
@@ -631,7 +631,7 @@ void VkBlobBufferAllocator::fastFree(VkBufferMemory* ptr)
     delete ptr;
 }
 
-VkWeightBufferAllocator::VkWeightBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkWeightBufferAllocator::VkWeightBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
 
@@ -802,7 +802,7 @@ void VkWeightBufferAllocator::fastFree(VkBufferMemory* ptr)
     delete ptr;
 }
 
-VkStagingBufferAllocator::VkStagingBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkStagingBufferAllocator::VkStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = true;
 
@@ -897,7 +897,7 @@ void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
     budgets.push_back(ptr);
 }
 
-VkWeightStagingBufferAllocator::VkWeightStagingBufferAllocator(VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkWeightStagingBufferAllocator::VkWeightStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = true;
 

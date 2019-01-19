@@ -139,6 +139,22 @@ int Net::load_param(FILE* fp)
     layers.resize((size_t)layer_count);
     blobs.resize((size_t)blob_count);
 
+#if NCNN_VULKAN
+    // use default gpu device if not specified
+    if (use_vulkan_compute && !vkdev)
+    {
+        if (ncnn::get_gpu_count() == 0)
+        {
+            fprintf(stderr, "no vulkan device found, vulkan compute disabled\n");
+            use_vulkan_compute = false;
+        }
+        else
+        {
+            vkdev = ncnn::get_default_gpu_device();
+        }
+    }
+#endif // NCNN_VULKAN
+
     ParamDict pd;
     pd.use_winograd_convolution = use_winograd_convolution;
     pd.use_sgemm_convolution = use_sgemm_convolution;
@@ -298,6 +314,22 @@ int Net::load_param_mem(const char* _mem)
 
     layers.resize(layer_count);
     blobs.resize(blob_count);
+
+#if NCNN_VULKAN
+    // use default gpu device if not specified
+    if (use_vulkan_compute && !vkdev)
+    {
+        if (ncnn::get_gpu_count() == 0)
+        {
+            fprintf(stderr, "no vulkan device found, vulkan compute disabled\n");
+            use_vulkan_compute = false;
+        }
+        else
+        {
+            vkdev = ncnn::get_default_gpu_device();
+        }
+    }
+#endif // NCNN_VULKAN
 
     ParamDict pd;
     pd.use_winograd_convolution = use_winograd_convolution;
@@ -462,6 +494,22 @@ int Net::load_param_bin(FILE* fp)
     layers.resize(layer_count);
     blobs.resize(blob_count);
 
+#if NCNN_VULKAN
+    // use default gpu device if not specified
+    if (use_vulkan_compute && !vkdev)
+    {
+        if (ncnn::get_gpu_count() == 0)
+        {
+            fprintf(stderr, "no vulkan device found, vulkan compute disabled\n");
+            use_vulkan_compute = false;
+        }
+        else
+        {
+            vkdev = ncnn::get_default_gpu_device();
+        }
+    }
+#endif // NCNN_VULKAN
+
     ParamDict pd;
     pd.use_winograd_convolution = use_winograd_convolution;
     pd.use_sgemm_convolution = use_sgemm_convolution;
@@ -600,6 +648,16 @@ int Net::load_model(FILE* fp)
     if (use_vulkan_compute)
     {
         ncnn::VkTransfer cmd(vkdev);
+
+        // create gpu device allocator if null
+        if (!weight_vkallocator)
+        {
+            weight_vkallocator = vkdev->create_weight_allocator();
+        }
+        if (!weight_staging_vkallocator)
+        {
+            weight_staging_vkallocator = vkdev->create_weight_staging_allocator();
+        }
 
         cmd.weight_vkallocator = weight_vkallocator;
         cmd.staging_vkallocator = weight_staging_vkallocator;
@@ -797,6 +855,16 @@ int Net::load_model(const unsigned char* _mem)
     {
         ncnn::VkTransfer cmd(vkdev);
 
+        // create gpu device allocator if null
+        if (!weight_vkallocator)
+        {
+            weight_vkallocator = vkdev->create_weight_allocator();
+        }
+        if (!weight_staging_vkallocator)
+        {
+            weight_staging_vkallocator = vkdev->create_weight_staging_allocator();
+        }
+
         cmd.weight_vkallocator = weight_vkallocator;
         cmd.staging_vkallocator = weight_staging_vkallocator;
 
@@ -838,6 +906,19 @@ void Net::clear()
         delete layers[i];
     }
     layers.clear();
+
+#if NCNN_VULKAN
+    if (weight_vkallocator)
+    {
+        delete weight_vkallocator;
+        weight_vkallocator = 0;
+    }
+    if (weight_staging_vkallocator)
+    {
+        delete weight_staging_vkallocator;
+        weight_staging_vkallocator = 0;
+    }
+#endif // NCNN_VULKAN
 }
 
 Extractor Net::create_extractor() const
@@ -850,17 +931,6 @@ void Net::set_vulkan_device(VulkanDevice* _vkdev)
 {
     vkdev = _vkdev;
 }
-
-void Net::set_weight_vkallocator(VkAllocator* _weight_vkallocator)
-{
-    weight_vkallocator = _weight_vkallocator;
-}
-
-void Net::set_weight_staging_vkallocator(VkAllocator* _weight_staging_vkallocator)
-{
-    weight_staging_vkallocator = _weight_staging_vkallocator;
-}
-
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING

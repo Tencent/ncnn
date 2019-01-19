@@ -76,8 +76,7 @@ public:
 
 const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());
 
-// class VkAllocator;
-// class VkMat;
+class VkAllocator;
 class VulkanDevice
 {
 public:
@@ -89,6 +88,13 @@ public:
     VkDevice vkdevice() const { return device; }
 
     VkShaderModule get_shader_module(const char* name) const;
+
+    // create allocator on this device
+    VkAllocator* create_blob_allocator() const;
+    VkAllocator* create_workspace_allocator() const;
+    VkAllocator* create_staging_allocator() const;
+    VkAllocator* create_weight_allocator() const;
+    VkAllocator* create_weight_staging_allocator() const;
 
     // VK_KHR_descriptor_update_template
     PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;
@@ -114,9 +120,11 @@ protected:
 
 private:
     VkDevice device;
-
     std::vector<VkShaderModule> shader_modules;
 };
+
+// default vulkan device
+VulkanDevice* get_default_gpu_device();
 
 } // namespace ncnn
 

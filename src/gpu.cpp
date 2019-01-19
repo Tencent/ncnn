@@ -707,6 +707,31 @@ VkShaderModule VulkanDevice::get_shader_module(const char* name) const
     return 0;
 }
 
+VkAllocator* VulkanDevice::create_blob_allocator() const
+{
+    return new VkBlobBufferAllocator(this);
+}
+
+VkAllocator* VulkanDevice::create_workspace_allocator() const
+{
+    return new VkBlobBufferAllocator(this);
+}
+
+VkAllocator* VulkanDevice::create_staging_allocator() const
+{
+    return new VkStagingBufferAllocator(this);
+}
+
+VkAllocator* VulkanDevice::create_weight_allocator() const
+{
+    return new VkWeightBufferAllocator(this);
+}
+
+VkAllocator* VulkanDevice::create_weight_staging_allocator() const
+{
+    return new VkWeightStagingBufferAllocator(this);
+}
+
 int VulkanDevice::create_shader_module()
 {
     shader_modules.resize(layer_shader_registry_entry_count, VK_NULL_HANDLE);
@@ -780,6 +805,12 @@ int VulkanDevice::init_device_extension()
     }
 
     return 0;
+}
+
+VulkanDevice* get_default_gpu_device()
+{
+    static VulkanDevice g_default_device;
+    return &g_default_device;
 }
 
 } // namespace ncnn

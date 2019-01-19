@@ -108,10 +108,6 @@ public:
 
     void set_vulkan_device(VulkanDevice* vkdev);
 
-    void set_weight_vkallocator(VkAllocator* weight_vkallocator);
-
-    void set_weight_staging_vkallocator(VkAllocator* weight_staging_vkallocator);
-
 #endif // NCNN_VULKAN
 
 protected:

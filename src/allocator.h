@@ -194,8 +194,9 @@ public:
 class VkAllocator
 {
 public:
-    VkAllocator(VulkanDevice* _vkdev);
-    virtual ~VkAllocator() {}
+    VkAllocator(const VulkanDevice* _vkdev);
+    virtual ~VkAllocator() { clear(); }
+    virtual void clear() {}
     virtual VkBufferMemory* fastMalloc(size_t size) = 0;
     virtual void fastFree(VkBufferMemory* ptr) = 0;
 
@@ -212,7 +213,7 @@ protected:
 class VkBufferAllocator : public VkAllocator
 {
 public:
-    VkBufferAllocator(VulkanDevice* vkdev);
+    VkBufferAllocator(const VulkanDevice* vkdev);
     virtual ~VkBufferAllocator();
 
 public:
@@ -221,7 +222,7 @@ public:
     void set_size_compare_ratio(float scr);
 
     // release all budgets immediately
-    void clear();
+    virtual void clear();
 
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
@@ -234,7 +235,7 @@ private:
 class VkBlobBufferAllocator : public VkAllocator
 {
 public:
-    VkBlobBufferAllocator(VulkanDevice* vkdev);
+    VkBlobBufferAllocator(const VulkanDevice* vkdev);
     virtual ~VkBlobBufferAllocator();
 
 public:
@@ -242,7 +243,7 @@ public:
     void set_block_size(size_t size);
 
     // release all budgets immediately
-    void clear();
+    virtual void clear();
 
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
@@ -257,7 +258,7 @@ private:
 class VkWeightBufferAllocator : public VkAllocator
 {
 public:
-    VkWeightBufferAllocator(VulkanDevice* vkdev);
+    VkWeightBufferAllocator(const VulkanDevice* vkdev);
     virtual ~VkWeightBufferAllocator();
 
 public:
@@ -265,7 +266,7 @@ public:
     void set_block_size(size_t block_size);
 
     // release all blocks immediately
-    void clear();
+    virtual void clear();
 
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
@@ -282,7 +283,7 @@ private:
 class VkStagingBufferAllocator : public VkAllocator
 {
 public:
-    VkStagingBufferAllocator(VulkanDevice* vkdev);
+    VkStagingBufferAllocator(const VulkanDevice* vkdev);
     virtual ~VkStagingBufferAllocator();
 
 public:
@@ -291,7 +292,7 @@ public:
     void set_size_compare_ratio(float scr);
 
     // release all budgets immediately
-    void clear();
+    virtual void clear();
 
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
@@ -305,7 +306,7 @@ private:
 class VkWeightStagingBufferAllocator : public VkAllocator
 {
 public:
-    VkWeightStagingBufferAllocator(VulkanDevice* vkdev);
+    VkWeightStagingBufferAllocator(const VulkanDevice* vkdev);
     virtual ~VkWeightStagingBufferAllocator();
 
 public:
