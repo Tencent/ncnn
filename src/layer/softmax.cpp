@@ -26,6 +26,13 @@ Softmax::Softmax()
     one_blob_only = true;
     support_inplace = true;
     support_vulkan = true;
+
+#if NCNN_VULKAN
+    softmax_reduce_max = 0;
+    softmax_exp_sub_max = 0;
+    softmax_reduce_sum = 0;
+    softmax_div_sum = 0;
+#endif // NCNN_VULKAN
 }
 
 Softmax::~Softmax()

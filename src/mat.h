@@ -1150,13 +1150,13 @@ inline void VkMat::upload(const Mat& m)
     {
         vkMapMemory(allocator->vkdev->vkdevice(), data->memory, data->offset, totalsize, 0, &mapped_ptr);
 
-        fprintf(stderr, "upload %p to %p + %lu [+%lu]\n", m.data, data->buffer, data->offset, offset);
+//         fprintf(stderr, "upload %p to %p + %lu [+%lu]\n", m.data, data->buffer, data->offset, offset);
     }
     else
     {
         vkMapMemory(staging_allocator->vkdev->vkdevice(), staging_data->memory, 0, totalsize, 0, &mapped_ptr);
 
-        fprintf(stderr, "upload %p to %p + %lu [+%lu]\n", m.data, staging_data->buffer, staging_data->offset, offset);
+//         fprintf(stderr, "upload %p to %p + %lu [+%lu]\n", m.data, staging_data->buffer, staging_data->offset, offset);
     }
 
     memcpy((unsigned char*)mapped_ptr + offset, m.data, m.total() * m.elemsize);
@@ -1182,13 +1182,13 @@ inline void VkMat::download(Mat& m) const
     {
         vkMapMemory(allocator->vkdev->vkdevice(), data->memory, data->offset, totalsize, 0, &mapped_ptr);
 
-        fprintf(stderr, "download %p + %lu [+%lu] to %p\n", data->buffer, data->offset, offset, m.data);
+//         fprintf(stderr, "download %p + %lu [+%lu] to %p\n", data->buffer, data->offset, offset, m.data);
     }
     else
     {
         vkMapMemory(staging_allocator->vkdev->vkdevice(), staging_data->memory, 0, totalsize, 0, &mapped_ptr);
 
-        fprintf(stderr, "download %p + %lu [+%lu] to %p\n", staging_data->buffer, staging_data->offset, offset, m.data);
+//         fprintf(stderr, "download %p + %lu [+%lu] to %p\n", staging_data->buffer, staging_data->offset, offset, m.data);
     }
 
     memcpy(m.data, (unsigned char*)mapped_ptr + offset, total() * elemsize);

@@ -326,7 +326,7 @@ VkBufferAllocator::~VkBufferAllocator()
 
 void VkBufferAllocator::clear()
 {
-    fprintf(stderr, "VkBufferAllocator %lu\n", budgets.size());
+//     fprintf(stderr, "VkBufferAllocator %lu\n", budgets.size());
 
     std::list<VkBufferMemory*>::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
@@ -448,7 +448,7 @@ void VkBlobBufferAllocator::set_block_size(size_t _block_size)
 
 void VkBlobBufferAllocator::clear()
 {
-    fprintf(stderr, "VkBlobBufferAllocator %lu\n", buffer_blocks.size());
+//     fprintf(stderr, "VkBlobBufferAllocator %lu\n", buffer_blocks.size());
 
     for (size_t i=0; i<buffer_blocks.size(); i++)
     {
@@ -659,7 +659,7 @@ void VkWeightBufferAllocator::set_block_size(size_t _block_size)
 
 void VkWeightBufferAllocator::clear()
 {
-    fprintf(stderr, "VkWeightBufferAllocator %lu %lu\n", buffer_blocks.size(), dedicated_buffer_blocks.size());
+//     fprintf(stderr, "VkWeightBufferAllocator %lu %lu\n", buffer_blocks.size(), dedicated_buffer_blocks.size());
 
     buffer_block_free_spaces.clear();
 
@@ -832,7 +832,7 @@ void VkStagingBufferAllocator::set_size_compare_ratio(float scr)
 
 void VkStagingBufferAllocator::clear()
 {
-    fprintf(stderr, "VkStagingBufferAllocator %lu\n", budgets.size());
+//     fprintf(stderr, "VkStagingBufferAllocator %lu\n", budgets.size());
 
     std::list<VkBufferMemory*>::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)

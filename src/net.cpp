@@ -40,7 +40,7 @@ Net::Net()
     use_winograd_convolution = 1;
     use_sgemm_convolution = 1;
     use_int8_inference = 1;
-    use_vulkan_compute = 1;
+    use_vulkan_compute = 0;
 
 #if NCNN_VULKAN
     vkdev = 0;
@@ -468,7 +468,7 @@ int Net::load_param_bin(FILE* fp)
     pd.use_int8_inference = use_int8_inference;
     pd.use_vulkan_compute = use_vulkan_compute;
 
-    for (size_t i=0; i<layer_count; i++)
+    for (int i=0; i<layer_count; i++)
     {
         int typeindex;
         if (!readValue(typeindex, fp))
@@ -504,7 +504,7 @@ int Net::load_param_bin(FILE* fp)
 //         fprintf(stderr, "new layer %d\n", typeindex);
 
         layer->bottoms.resize(bottom_count);
-        for (size_t j=0; j<bottom_count; j++)
+        for (int j=0; j<bottom_count; j++)
         {
             int bottom_blob_index;
             if (!readValue(bottom_blob_index, fp))
@@ -518,7 +518,7 @@ int Net::load_param_bin(FILE* fp)
         }
 
         layer->tops.resize(top_count);
-        for (size_t j=0; j<top_count; j++)
+        for (int j=0; j<top_count; j++)
         {
             int top_blob_index;
             if (!readValue(top_blob_index, fp))
@@ -1472,6 +1472,8 @@ int Extractor::input(int blob_index, const VkMat& in)
         return -1;
 
     blob_mats_gpu[blob_index] = in;
+
+    return 0;
 }
 
 int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)

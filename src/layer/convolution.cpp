@@ -182,7 +182,7 @@ int Convolution::load_model(const ModelBin& mb)
     }
 
 #if NCNN_VULKAN
-    if (kernel_w == 1 && kernel_h == 1)
+    if (convolution_fc)
     {
         ncnn::Mat weights[2];
         weights[0] = weight_data;

@@ -90,7 +90,7 @@ int Command::create_command_buffer()
 
 int Command::begin_command_buffer()
 {
-    fprintf(stderr, "==================== begin\n");
+//     fprintf(stderr, "==================== begin\n");
 
     VkCommandBufferBeginInfo commandBufferBeginInfo;
     commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -110,7 +110,7 @@ int Command::begin_command_buffer()
 
 int Command::end_command_buffer()
 {
-    fprintf(stderr, "==================== end\n");
+//     fprintf(stderr, "==================== end\n");
 
     VkResult ret = vkEndCommandBuffer(command_buffer);
     if (ret != VK_SUCCESS)
@@ -124,7 +124,7 @@ int Command::end_command_buffer()
 
 int Command::queue_submit()
 {
-    fprintf(stderr, "==================== submit\n");
+//     fprintf(stderr, "==================== submit\n");
 
     VkSubmitInfo submitInfo;
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -149,7 +149,7 @@ int Command::queue_submit()
 
 int Command::wait_fence()
 {
-    fprintf(stderr, "==================== wait\n");
+//     fprintf(stderr, "==================== wait\n");
 
     VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS)
@@ -734,7 +734,7 @@ int VkTransfer::submit()
 
     begin_command_buffer();
 
-    fprintf(stderr, "cmd transfer %p %lu\n", staging_data->buffer, staging_buffer_size);
+//     fprintf(stderr, "cmd transfer %p %lu\n", staging_data->buffer, staging_buffer_size);
 
     // handle delayed records
     size_t staging_buffer_offset = 0;
