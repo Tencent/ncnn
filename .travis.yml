@@ -33,7 +33,7 @@ matrix:
       dist: xenial
       compiler: gcc
       env:
-        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz"
+        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz"
         - BUILD="export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON .. && make -j2"
 
     - name: "linux-clang"
@@ -48,7 +48,7 @@ matrix:
       dist: xenial
       compiler: clang
       env:
-        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz"
+        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz"
         - BUILD="export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON .. && make -j2"
 
     - name: "osx-clang"
@@ -61,7 +61,7 @@ matrix:
       os: osx
       osx_image: xcode9.4
       env:
-        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?human=true -O vulkansdk-macos-1.1.92.1.tar.gz && tar -xf vulkansdk-macos-1.1.92.1.tar.gz"
+        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz && tar -xf vulkansdk-macos-1.1.92.1.tar.gz"
         - BUILD="export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON .. && make -j2"
 
     - name: "windows-vs2017"
@@ -74,7 +74,7 @@ matrix:
       os: windows
       dist: 1803-containers
       env:
-        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?human=true -O VulkanSDK-1.1.92.1-Installer.exe && .\\VulkanSDK-1.1.92.1-Installer.exe /S"
+        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -O VulkanSDK-1.1.92.1-Installer.exe && .\\\\VulkanSDK-1.1.92.1-Installer.exe /S"
         - BUILD="mkdir build && cd build && cmake -DNCNN_VULKAN=ON .. && cmake --build ."
 
     - name: "android-armv7"
@@ -88,7 +88,7 @@ matrix:
       os: linux
       dist: xenial
       env:
-        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz && wget https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip && unzip -q android-ndk-r18b-linux-x86_64.zip"
+        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz && wget https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip && unzip -q android-ndk-r18b-linux-x86_64.zip"
         - BUILD="export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/android-ndk-r18b/build/cmake/android.toolchain.cmake -DANDROID_ABI=\"armeabi-v7a\" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON .. && make -j2"
 
     - name: "android-aarch64"
@@ -102,7 +102,7 @@ matrix:
       os: linux
       dist: xenial
       env:
-        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz && wget https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip && unzip -q android-ndk-r18b-linux-x86_64.zip"
+        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz && wget https://dl.google.com/android/repository/android-ndk-r18b-linux-x86_64.zip && unzip -q android-ndk-r18b-linux-x86_64.zip"
         - BUILD="export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/android-ndk-r18b/build/cmake/android.toolchain.cmake -DANDROID_ABI=\"arm64-v8a\" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON .. && make -j2"
 
     - name: "ios-iphoneos"
@@ -115,7 +115,7 @@ matrix:
       os: osx
       osx_image: xcode9.4
       env:
-        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?human=true -O vulkansdk-macos-1.1.92.1.tar.gz && tar -xf vulkansdk-macos-1.1.92.1.tar.gz"
+        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz && tar -xf vulkansdk-macos-1.1.92.1.tar.gz"
         - BUILD="export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DNCNN_VULKAN=ON .. && make -j2"
 
     - name: "ios-iphonesimulator"
@@ -128,7 +128,7 @@ matrix:
       os: osx
       osx_image: xcode9.4
       env:
-        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?human=true -O vulkansdk-macos-1.1.92.1.tar.gz && tar -xf vulkansdk-macos-1.1.92.1.tar.gz"
+        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz && tar -xf vulkansdk-macos-1.1.92.1.tar.gz"
         - BUILD="export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR64 -DNCNN_VULKAN=ON .. && make -j2"
 
 before_install:
