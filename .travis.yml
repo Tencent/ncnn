@@ -28,12 +28,28 @@ matrix:
       env:
         - BUILD="mkdir build && cd build && cmake .. && make -j2"
 
+    - name: "linux-gcc-vulkan"
+      os: linux
+      dist: xenial
+      compiler: gcc
+      env:
+        - BEFORE_BUILD="wget -c https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz"
+        - BUILD="sh `pwd`/1.1.92.1/setup-env.sh && mkdir build && cd build && cmake -DNCNN_VULKAN=ON .. && make -j2"
+
     - name: "linux-clang"
       os: linux
       dist: xenial
       compiler: clang
       env:
         - BUILD="mkdir build && cd build && cmake .. && make -j2"
+
+    - name: "linux-clang-vulkan"
+      os: linux
+      dist: xenial
+      compiler: clang
+      env:
+        - BEFORE_BUILD="wget -c https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz"
+        - BUILD="sh `pwd`/1.1.92.1/setup-env.sh && mkdir build && cd build && cmake -DNCNN_VULKAN=ON .. && make -j2"
 
     - name: "osx-clang"
       os: osx
