@@ -8,7 +8,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/layer)
 
 if(NCNN_VULKAN)
-    find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator)
+    find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin)
     message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
     include_directories(${Vulkan_INCLUDE_DIR})
 endif()
