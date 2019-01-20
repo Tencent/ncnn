@@ -312,97 +312,6 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     return memory;
 }
 
-VkBufferAllocator::VkBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
-{
-    mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
-
-    size_compare_ratio = 192;// 0.75f * 256
-}
-
-VkBufferAllocator::~VkBufferAllocator()
-{
-    clear();
-}
-
-void VkBufferAllocator::clear()
-{
-//     fprintf(stderr, "VkBufferAllocator %lu\n", budgets.size());
-
-    std::list<VkBufferMemory*>::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
-    {
-        VkBufferMemory* ptr = *it;
-
-//         fprintf(stderr, "VkBufferAllocator F %p\n", ptr->buffer);
-
-        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
-        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
-
-        delete ptr;
-    }
-    budgets.clear();
-}
-
-void VkBufferAllocator::set_size_compare_ratio(float scr)
-{
-    if (scr < 0.f || scr > 1.f)
-    {
-        fprintf(stderr, "invalid size compare ratio %f\n", scr);
-        return;
-    }
-
-    size_compare_ratio = (unsigned int)(scr * 256);
-}
-
-VkBufferMemory* VkBufferAllocator::fastMalloc(size_t size)
-{
-    // find free budget
-    std::list<VkBufferMemory*>::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
-    {
-        VkBufferMemory* ptr = *it;
-
-        size_t capacity = ptr->capacity;
-
-        // size_compare_ratio ~ 100%
-        if (capacity >= size && ((capacity * size_compare_ratio) >> 8) <= size)
-        {
-            budgets.erase(it);
-
-//             fprintf(stderr, "VkBufferAllocator M %p %lu reused\n", ptr->buffer, ptr->capacity);
-
-            return ptr;
-        }
-    }
-
-    // create new
-    VkBufferMemory* ptr = new VkBufferMemory;
-
-    ptr->buffer = create_buffer(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-    ptr->offset = 0;
-
-    VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
-
-    ptr->memory = allocate_memory(memoryRequirements.size, vkdev->info.device_local_memory_index);
-
-    vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
-
-    ptr->capacity = size;
-
-//     fprintf(stderr, "VkBufferAllocator M %p %lu\n", ptr->buffer, ptr->capacity);
-
-    return ptr;
-}
-
-void VkBufferAllocator::fastFree(VkBufferMemory* ptr)
-{
-//     fprintf(stderr, "VkBufferAllocator F %p %lu\n", ptr->buffer, ptr->capacity);
-
-    // return to budgets
-    budgets.push_back(ptr);
-}
-
 static inline size_t least_common_multiple(size_t a, size_t b)
 {
     if (a == b)
@@ -420,7 +329,7 @@ static inline size_t least_common_multiple(size_t a, size_t b)
     return lcm;
 }
 
-VkBlobBufferAllocator::VkBlobBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkUnlockedBlobBufferAllocator::VkUnlockedBlobBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
 
@@ -436,19 +345,19 @@ VkBlobBufferAllocator::VkBlobBufferAllocator(const VulkanDevice* _vkdev) : VkAll
     block_size = alignSize(16 * 1024 * 1024, buffer_offset_alignment);// 16M
 }
 
-VkBlobBufferAllocator::~VkBlobBufferAllocator()
+VkUnlockedBlobBufferAllocator::~VkUnlockedBlobBufferAllocator()
 {
     clear();
 }
 
-void VkBlobBufferAllocator::set_block_size(size_t _block_size)
+void VkUnlockedBlobBufferAllocator::set_block_size(size_t _block_size)
 {
     block_size = _block_size;
 }
 
-void VkBlobBufferAllocator::clear()
+void VkUnlockedBlobBufferAllocator::clear()
 {
-//     fprintf(stderr, "VkBlobBufferAllocator %lu\n", buffer_blocks.size());
+//     fprintf(stderr, "VkUnlockedBlobBufferAllocator %lu\n", buffer_blocks.size());
 
     for (size_t i=0; i<buffer_blocks.size(); i++)
     {
@@ -457,7 +366,7 @@ void VkBlobBufferAllocator::clear()
 //         std::list< std::pair<size_t, size_t> >::iterator it = budgets[i].begin();
 //         while (it != budgets[i].end())
 //         {
-//             fprintf(stderr, "VkBlobBufferAllocator budget %p %lu %lu\n", ptr->buffer, it->first, it->second);
+//             fprintf(stderr, "VkUnlockedBlobBufferAllocator budget %p %lu %lu\n", ptr->buffer, it->first, it->second);
 //             it++;
 //         }
 
@@ -471,7 +380,7 @@ void VkBlobBufferAllocator::clear()
     budgets.clear();
 }
 
-VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
+VkBufferMemory* VkUnlockedBlobBufferAllocator::fastMalloc(size_t size)
 {
     size_t aligned_size = alignSize(size, buffer_offset_alignment);
 
@@ -509,7 +418,7 @@ VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
                 it->second -= aligned_size;
             }
 
-//             fprintf(stderr, "VkBlobBufferAllocator M %p +%lu %lu\n", ptr->buffer, ptr->offset, ptr->capacity);
+//             fprintf(stderr, "VkUnlockedBlobBufferAllocator M %p +%lu %lu\n", ptr->buffer, ptr->offset, ptr->capacity);
 
             return ptr;
         }
@@ -550,14 +459,14 @@ VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
     }
     budgets.push_back(budget);
 
-//     fprintf(stderr, "VkBlobBufferAllocator M %p +%lu %lu\n", ptr->buffer, ptr->offset, ptr->capacity);
+//     fprintf(stderr, "VkUnlockedBlobBufferAllocator M %p +%lu %lu\n", ptr->buffer, ptr->offset, ptr->capacity);
 
     return ptr;
 }
 
-void VkBlobBufferAllocator::fastFree(VkBufferMemory* ptr)
+void VkUnlockedBlobBufferAllocator::fastFree(VkBufferMemory* ptr)
 {
-//     fprintf(stderr, "VkBlobBufferAllocator F %p +%lu %lu\n", ptr->buffer, ptr->offset, ptr->capacity);
+//     fprintf(stderr, "VkUnlockedBlobBufferAllocator F %p +%lu %lu\n", ptr->buffer, ptr->offset, ptr->capacity);
 
     const int buffer_block_count = buffer_blocks.size();
 
@@ -573,7 +482,7 @@ void VkBlobBufferAllocator::fastFree(VkBufferMemory* ptr)
 
     if (block_index == -1)
     {
-        fprintf(stderr, "FATAL ERROR! unlocked VkBlobBufferAllocator get wild %p\n", ptr->buffer);
+        fprintf(stderr, "FATAL ERROR! unlocked VkUnlockedBlobBufferAllocator get wild %p\n", ptr->buffer);
 
         delete ptr;
 
@@ -598,18 +507,15 @@ void VkBlobBufferAllocator::fastFree(VkBufferMemory* ptr)
 
     if (it_merge_left != budgets[block_index].end() && it_merge_right != budgets[block_index].end())
     {
-//         fprintf(stderr, "VkBlobBufferAllocator merge LR\n");
         it_merge_left->second = it_merge_right->first + it_merge_right->second - it_merge_left->first;
         budgets[block_index].erase(it_merge_right);
     }
     else if (it_merge_left != budgets[block_index].end())
     {
-//         fprintf(stderr, "VkBlobBufferAllocator merge L\n");
         it_merge_left->second = ptr->offset + ptr->capacity - it_merge_left->first;
     }
     else if (it_merge_right != budgets[block_index].end())
     {
-//         fprintf(stderr, "VkBlobBufferAllocator merge R\n");
         it_merge_right->second = it_merge_right->first + it_merge_right->second - ptr->offset;
         it_merge_right->first = ptr->offset;
     }
@@ -617,18 +523,43 @@ void VkBlobBufferAllocator::fastFree(VkBufferMemory* ptr)
     {
         if (ptr->offset == 0)
         {
-//             fprintf(stderr, "VkBlobBufferAllocator merge leading\n");
             // chain leading block
             budgets[block_index].push_front(std::make_pair(ptr->offset, ptr->capacity));
         }
         else
         {
-//             fprintf(stderr, "VkBlobBufferAllocator merge tail\n");
             budgets[block_index].push_back(std::make_pair(ptr->offset, ptr->capacity));
         }
     }
 
     delete ptr;
+}
+
+VkBlobBufferAllocator::VkBlobBufferAllocator(const VulkanDevice* _vkdev) : VkUnlockedBlobBufferAllocator(_vkdev)
+{
+}
+
+VkBlobBufferAllocator::~VkBlobBufferAllocator()
+{
+    clear();
+}
+
+void VkBlobBufferAllocator::clear()
+{
+    MutexLockGuard guard(budgets_lock);
+    VkUnlockedBlobBufferAllocator::clear();
+}
+
+VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
+{
+    MutexLockGuard guard(budgets_lock);
+    return VkUnlockedBlobBufferAllocator::fastMalloc(size);
+}
+
+void VkBlobBufferAllocator::fastFree(VkBufferMemory* ptr)
+{
+    MutexLockGuard guard(budgets_lock);
+    return VkUnlockedBlobBufferAllocator::fastFree(ptr);
 }
 
 VkWeightBufferAllocator::VkWeightBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
@@ -802,7 +733,7 @@ void VkWeightBufferAllocator::fastFree(VkBufferMemory* ptr)
     delete ptr;
 }
 
-VkStagingBufferAllocator::VkStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkUnlockedStagingBufferAllocator::VkUnlockedStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = true;
 
@@ -814,12 +745,12 @@ VkStagingBufferAllocator::VkStagingBufferAllocator(const VulkanDevice* _vkdev) :
     size_compare_ratio = 192;// 0.75f * 256
 }
 
-VkStagingBufferAllocator::~VkStagingBufferAllocator()
+VkUnlockedStagingBufferAllocator::~VkUnlockedStagingBufferAllocator()
 {
     clear();
 }
 
-void VkStagingBufferAllocator::set_size_compare_ratio(float scr)
+void VkUnlockedStagingBufferAllocator::set_size_compare_ratio(float scr)
 {
     if (scr < 0.f || scr > 1.f)
     {
@@ -830,16 +761,16 @@ void VkStagingBufferAllocator::set_size_compare_ratio(float scr)
     size_compare_ratio = (unsigned int)(scr * 256);
 }
 
-void VkStagingBufferAllocator::clear()
+void VkUnlockedStagingBufferAllocator::clear()
 {
-//     fprintf(stderr, "VkStagingBufferAllocator %lu\n", budgets.size());
+//     fprintf(stderr, "VkUnlockedStagingBufferAllocator %lu\n", budgets.size());
 
     std::list<VkBufferMemory*>::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
         VkBufferMemory* ptr = *it;
 
-//         fprintf(stderr, "VkStagingBufferAllocator F %p\n", ptr->buffer);
+//         fprintf(stderr, "VkUnlockedStagingBufferAllocator F %p\n", ptr->buffer);
 
         vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
         vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
@@ -849,7 +780,7 @@ void VkStagingBufferAllocator::clear()
     budgets.clear();
 }
 
-VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
+VkBufferMemory* VkUnlockedStagingBufferAllocator::fastMalloc(size_t size)
 {
     // find free budget
     std::list<VkBufferMemory*>::iterator it = budgets.begin();
@@ -864,7 +795,7 @@ VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
         {
             budgets.erase(it);
 
-//             fprintf(stderr, "VkStagingBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, bs);
+//             fprintf(stderr, "VkUnlockedStagingBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, bs);
 
             return ptr;
         }
@@ -884,17 +815,44 @@ VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
 
     ptr->capacity = size;
 
-//     fprintf(stderr, "VkStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
+//     fprintf(stderr, "VkUnlockedStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
 
     return ptr;
 }
 
-void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
+void VkUnlockedStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
 {
-//     fprintf(stderr, "VkStagingBufferAllocator F %p\n", ptr->buffer);
+//     fprintf(stderr, "VkUnlockedStagingBufferAllocator F %p\n", ptr->buffer);
 
     // return to budgets
     budgets.push_back(ptr);
+}
+
+VkStagingBufferAllocator::VkStagingBufferAllocator(const VulkanDevice* _vkdev) : VkUnlockedStagingBufferAllocator(_vkdev)
+{
+}
+
+VkStagingBufferAllocator::~VkStagingBufferAllocator()
+{
+    clear();
+}
+
+void VkStagingBufferAllocator::clear()
+{
+    MutexLockGuard guard(budgets_lock);
+    VkUnlockedStagingBufferAllocator::clear();
+}
+
+VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
+{
+    MutexLockGuard guard(budgets_lock);
+    return VkUnlockedStagingBufferAllocator::fastMalloc(size);
+}
+
+void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
+{
+    MutexLockGuard guard(budgets_lock);
+    VkUnlockedStagingBufferAllocator::fastFree(ptr);
 }
 
 VkWeightStagingBufferAllocator::VkWeightStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)

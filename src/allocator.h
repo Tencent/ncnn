@@ -125,6 +125,15 @@ private:
 };
 #endif // _WIN32
 
+class MutexLockGuard
+{
+public:
+    MutexLockGuard(Mutex& _mutex) : mutex(_mutex) { mutex.lock(); }
+    ~MutexLockGuard() { mutex.unlock(); }
+private:
+    Mutex& mutex;
+};
+
 class Allocator
 {
 public:
@@ -210,33 +219,11 @@ protected:
     VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkBuffer buffer);
 };
 
-class VkBufferAllocator : public VkAllocator
+class VkUnlockedBlobBufferAllocator : public VkAllocator
 {
 public:
-    VkBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkBufferAllocator();
-
-public:
-    // ratio range 0 ~ 1
-    // default cr = 0.75
-    void set_size_compare_ratio(float scr);
-
-    // release all budgets immediately
-    virtual void clear();
-
-    virtual VkBufferMemory* fastMalloc(size_t size);
-    virtual void fastFree(VkBufferMemory* ptr);
-
-private:
-    unsigned int size_compare_ratio;// 0~256
-    std::list<VkBufferMemory*> budgets;
-};
-
-class VkBlobBufferAllocator : public VkAllocator
-{
-public:
-    VkBlobBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkBlobBufferAllocator();
+    VkUnlockedBlobBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkUnlockedBlobBufferAllocator();
 
 public:
     // buffer block size, default=16M
@@ -253,6 +240,21 @@ private:
     size_t buffer_offset_alignment;
     std::vector< std::list< std::pair<size_t, size_t> > > budgets;
     std::vector<VkBufferMemory*> buffer_blocks;
+};
+
+class VkBlobBufferAllocator : public VkUnlockedBlobBufferAllocator
+{
+public:
+    VkBlobBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkBlobBufferAllocator();
+
+public:
+    virtual void clear();
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+private:
+    Mutex budgets_lock;
 };
 
 class VkWeightBufferAllocator : public VkAllocator
@@ -280,11 +282,11 @@ private:
     std::vector<VkBufferMemory*> dedicated_buffer_blocks;
 };
 
-class VkStagingBufferAllocator : public VkAllocator
+class VkUnlockedStagingBufferAllocator : public VkAllocator
 {
 public:
-    VkStagingBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkStagingBufferAllocator();
+    VkUnlockedStagingBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkUnlockedStagingBufferAllocator();
 
 public:
     // ratio range 0 ~ 1
@@ -301,6 +303,21 @@ private:
     uint32_t memory_type_index;
     unsigned int size_compare_ratio;// 0~256
     std::list<VkBufferMemory*> budgets;
+};
+
+class VkStagingBufferAllocator : public VkUnlockedStagingBufferAllocator
+{
+public:
+    VkStagingBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkStagingBufferAllocator();
+
+public:
+    virtual void clear();
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+private:
+    Mutex budgets_lock;
 };
 
 class VkWeightStagingBufferAllocator : public VkAllocator

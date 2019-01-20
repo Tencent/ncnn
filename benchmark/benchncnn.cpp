@@ -79,11 +79,11 @@ public:
             // create gpu device allocator if null
             if (!weight_vkallocator)
             {
-                weight_vkallocator = vkdev->create_weight_allocator();
+                weight_vkallocator = new VkWeightBufferAllocator(vkdev);
             }
             if (!weight_staging_vkallocator)
             {
-                weight_staging_vkallocator = vkdev->create_weight_staging_allocator();
+                weight_staging_vkallocator = new VkWeightStagingBufferAllocator(vkdev);
             }
 
             cmd.weight_vkallocator = weight_vkallocator;
@@ -464,8 +464,8 @@ int main(int argc, char** argv)
     {
         g_vkdev = new ncnn::VulkanDevice(gpu_device);
 
-        g_blob_vkallocator = g_vkdev->create_blob_allocator();
-        g_staging_vkallocator = g_vkdev->create_staging_allocator();
+        g_blob_vkallocator = new ncnn::VkUnlockedBlobBufferAllocator(g_vkdev);
+        g_staging_vkallocator = new ncnn::VkUnlockedStagingBufferAllocator(g_vkdev);
     }
 #endif // NCNN_VULKAN
 

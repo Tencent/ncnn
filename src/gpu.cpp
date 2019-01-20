@@ -449,12 +449,12 @@ int create_gpu_instance()
         gpu_info.memory_map_alignment = physicalDeviceProperties.limits.minMemoryMapAlignment;
         gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
 
-        fprintf(stderr, "[%u] max_shared_memory_size = %d\n", i, gpu_info.max_shared_memory_size);
-        fprintf(stderr, "[%u] max_workgroup_count = %d %d %d\n", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
-        fprintf(stderr, "[%u] max_workgroup_invocations = %d\n", i, gpu_info.max_workgroup_invocations);
-        fprintf(stderr, "[%u] max_workgroup_size = %d %d %d\n", i, gpu_info.max_workgroup_size[0], gpu_info.max_workgroup_size[1], gpu_info.max_workgroup_size[2]);
-        fprintf(stderr, "[%u] memory_map_alignment = %lu\n", i, gpu_info.memory_map_alignment);
-        fprintf(stderr, "[%u] buffer_offset_alignment = %lu\n", i, gpu_info.buffer_offset_alignment);
+//         fprintf(stderr, "[%u] max_shared_memory_size = %d\n", i, gpu_info.max_shared_memory_size);
+//         fprintf(stderr, "[%u] max_workgroup_count = %d %d %d\n", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
+//         fprintf(stderr, "[%u] max_workgroup_invocations = %d\n", i, gpu_info.max_workgroup_invocations);
+//         fprintf(stderr, "[%u] max_workgroup_size = %d %d %d\n", i, gpu_info.max_workgroup_size[0], gpu_info.max_workgroup_size[1], gpu_info.max_workgroup_size[2]);
+//         fprintf(stderr, "[%u] memory_map_alignment = %lu\n", i, gpu_info.memory_map_alignment);
+//         fprintf(stderr, "[%u] buffer_offset_alignment = %lu\n", i, gpu_info.buffer_offset_alignment);
 
 //         // TODO check features
 //         VkPhysicalDeviceFeatures features;
@@ -553,17 +553,17 @@ int create_gpu_instance()
                 gpu_info.support_VK_KHR_storage_buffer_storage_class = exp.specVersion;
         }
 
-        fprintf(stderr, "[%u] VK_KHR_8bit_storage                       = %d\n", i, gpu_info.support_VK_KHR_8bit_storage);
-        fprintf(stderr, "[%u] VK_KHR_16bit_storage                      = %d\n", i, gpu_info.support_VK_KHR_16bit_storage);
-        fprintf(stderr, "[%u] VK_KHR_bind_memory2                       = %d\n", i, gpu_info.support_VK_KHR_bind_memory2);
-        fprintf(stderr, "[%u] VK_KHR_dedicated_allocation               = %d\n", i, gpu_info.support_VK_KHR_dedicated_allocation);
-        fprintf(stderr, "[%u] VK_KHR_descriptor_update_template         = %d\n", i, gpu_info.support_VK_KHR_descriptor_update_template);
-        fprintf(stderr, "[%u] VK_KHR_get_memory_requirements2           = %d\n", i, gpu_info.support_VK_KHR_get_memory_requirements2);
-        fprintf(stderr, "[%u] VK_KHR_get_physical_device_properties2    = %d\n", i, gpu_info.support_VK_KHR_get_physical_device_properties2);
-        fprintf(stderr, "[%u] VK_KHR_push_descriptor                    = %d\n", i, gpu_info.support_VK_KHR_push_descriptor);
-        fprintf(stderr, "[%u] VK_KHR_shader_float16_int8                = %d\n", i, gpu_info.support_VK_KHR_shader_float16_int8);
-        fprintf(stderr, "[%u] VK_KHR_shader_float_controls              = %d\n", i, gpu_info.support_VK_KHR_shader_float_controls);
-        fprintf(stderr, "[%u] VK_KHR_storage_buffer_storage_class       = %d\n", i, gpu_info.support_VK_KHR_storage_buffer_storage_class);
+//         fprintf(stderr, "[%u] VK_KHR_8bit_storage                       = %d\n", i, gpu_info.support_VK_KHR_8bit_storage);
+//         fprintf(stderr, "[%u] VK_KHR_16bit_storage                      = %d\n", i, gpu_info.support_VK_KHR_16bit_storage);
+//         fprintf(stderr, "[%u] VK_KHR_bind_memory2                       = %d\n", i, gpu_info.support_VK_KHR_bind_memory2);
+//         fprintf(stderr, "[%u] VK_KHR_dedicated_allocation               = %d\n", i, gpu_info.support_VK_KHR_dedicated_allocation);
+//         fprintf(stderr, "[%u] VK_KHR_descriptor_update_template         = %d\n", i, gpu_info.support_VK_KHR_descriptor_update_template);
+//         fprintf(stderr, "[%u] VK_KHR_get_memory_requirements2           = %d\n", i, gpu_info.support_VK_KHR_get_memory_requirements2);
+//         fprintf(stderr, "[%u] VK_KHR_get_physical_device_properties2    = %d\n", i, gpu_info.support_VK_KHR_get_physical_device_properties2);
+//         fprintf(stderr, "[%u] VK_KHR_push_descriptor                    = %d\n", i, gpu_info.support_VK_KHR_push_descriptor);
+//         fprintf(stderr, "[%u] VK_KHR_shader_float16_int8                = %d\n", i, gpu_info.support_VK_KHR_shader_float16_int8);
+//         fprintf(stderr, "[%u] VK_KHR_shader_float_controls              = %d\n", i, gpu_info.support_VK_KHR_shader_float_controls);
+//         fprintf(stderr, "[%u] VK_KHR_storage_buffer_storage_class       = %d\n", i, gpu_info.support_VK_KHR_storage_buffer_storage_class);
 
         fprintf(stderr, "[%u %s]  queueC=%u  queueT=%u  memU=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_index, gpu_info.transfer_queue_index,
@@ -686,10 +686,16 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     init_device_extension();
 
     create_shader_module();
+
+    blob_buffer_allocator = new VkBlobBufferAllocator(this);
+    staging_buffer_allocator = new VkStagingBufferAllocator(this);
 }
 
 VulkanDevice::~VulkanDevice()
 {
+    delete blob_buffer_allocator;
+    delete staging_buffer_allocator;
+
     destroy_shader_module();
 
     vkDestroyDevice(device, 0);
@@ -707,29 +713,14 @@ VkShaderModule VulkanDevice::get_shader_module(const char* name) const
     return 0;
 }
 
-VkAllocator* VulkanDevice::create_blob_allocator() const
+VkAllocator* VulkanDevice::allocator() const
 {
-    return new VkBlobBufferAllocator(this);
+    return blob_buffer_allocator;
 }
 
-VkAllocator* VulkanDevice::create_workspace_allocator() const
+VkAllocator* VulkanDevice::staging_allocator() const
 {
-    return new VkBlobBufferAllocator(this);
-}
-
-VkAllocator* VulkanDevice::create_staging_allocator() const
-{
-    return new VkStagingBufferAllocator(this);
-}
-
-VkAllocator* VulkanDevice::create_weight_allocator() const
-{
-    return new VkWeightBufferAllocator(this);
-}
-
-VkAllocator* VulkanDevice::create_weight_staging_allocator() const
-{
-    return new VkWeightStagingBufferAllocator(this);
+    return staging_buffer_allocator;
 }
 
 int VulkanDevice::create_shader_module()
@@ -805,12 +796,6 @@ int VulkanDevice::init_device_extension()
     }
 
     return 0;
-}
-
-VulkanDevice* get_default_gpu_device()
-{
-    static VulkanDevice g_default_device;
-    return &g_default_device;
 }
 
 } // namespace ncnn
