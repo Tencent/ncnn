@@ -229,6 +229,10 @@ public:
     void upload(const Mat& m);
     void download(Mat& m) const;
 
+    // mapped
+    Mat mapped() const;
+    void* mapped_ptr() const;
+
     // refcount++
     void addref();
     // refcount--
@@ -1142,66 +1146,32 @@ inline void VkMat::discard_staging_buffer()
 
 inline void VkMat::upload(const Mat& m)
 {
-    // map
-    void* mapped_ptr = 0;
-    size_t totalsize = alignSize(total() * elemsize, 4);
-
-    if (allocator->mappable)
-    {
-        vkMapMemory(allocator->vkdev->vkdevice(), data->memory, data->offset, totalsize, 0, &mapped_ptr);
-
-//         fprintf(stderr, "upload %p to %p + %lu [+%lu]\n", m.data, data->buffer, data->offset, offset);
-    }
-    else
-    {
-        vkMapMemory(staging_allocator->vkdev->vkdevice(), staging_data->memory, 0, totalsize, 0, &mapped_ptr);
-
-//         fprintf(stderr, "upload %p to %p + %lu [+%lu]\n", m.data, staging_data->buffer, staging_data->offset, offset);
-    }
-
-    memcpy((unsigned char*)mapped_ptr + offset, m.data, m.total() * m.elemsize);
-
-    // unmap
-    if (allocator->mappable)
-    {
-        vkUnmapMemory(allocator->vkdev->vkdevice(), data->memory);
-    }
-    else
-    {
-        vkUnmapMemory(staging_allocator->vkdev->vkdevice(), staging_data->memory);
-    }
+    memcpy(mapped_ptr(), m.data, m.total() * m.elemsize);
 }
 
 inline void VkMat::download(Mat& m) const
 {
-    // map
-    void* mapped_ptr = 0;
-    size_t totalsize = alignSize(total() * elemsize, 4);
+    memcpy(m.data, mapped_ptr(), total() * elemsize);
+}
 
-    if (allocator->mappable)
-    {
-        vkMapMemory(allocator->vkdev->vkdevice(), data->memory, data->offset, totalsize, 0, &mapped_ptr);
+inline Mat VkMat::mapped() const
+{
+    if (dims == 1)
+        return Mat(w, mapped_ptr(), elemsize, 0);
 
-//         fprintf(stderr, "download %p + %lu [+%lu] to %p\n", data->buffer, data->offset, offset, m.data);
-    }
-    else
-    {
-        vkMapMemory(staging_allocator->vkdev->vkdevice(), staging_data->memory, 0, totalsize, 0, &mapped_ptr);
+    if (dims == 2)
+        return Mat(w, h, mapped_ptr(), elemsize, 0);
 
-//         fprintf(stderr, "download %p + %lu [+%lu] to %p\n", staging_data->buffer, staging_data->offset, offset, m.data);
-    }
+    if (dims == 3)
+        return Mat(w, h, c, mapped_ptr(), elemsize, 0);
 
-    memcpy(m.data, (unsigned char*)mapped_ptr + offset, total() * elemsize);
+    return Mat();
+}
 
-    // unmap
-    if (allocator->mappable)
-    {
-        vkUnmapMemory(allocator->vkdev->vkdevice(), data->memory);
-    }
-    else
-    {
-        vkUnmapMemory(staging_allocator->vkdev->vkdevice(), staging_data->memory);
-    }
+inline void* VkMat::mapped_ptr() const
+{
+    VkBufferMemory* mappable_data = allocator->mappable ? data : staging_data;
+    return (unsigned char*)mappable_data->mapped_ptr + mappable_data->offset + offset;
 }
 
 inline void VkMat::addref()

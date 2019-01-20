@@ -198,6 +198,7 @@ public:
     size_t offset;
     size_t capacity;
     VkDeviceMemory memory;
+    void* mapped_ptr;
 };
 
 class VkAllocator
