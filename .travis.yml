@@ -74,7 +74,7 @@ matrix:
       os: windows
       dist: 1803-containers
       env:
-        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -O VulkanSDK-1.1.92.1-Installer.exe && .\\\\VulkanSDK-1.1.92.1-Installer.exe /S"
+        - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -O VulkanSDK-1.1.92.1-Installer.exe && VulkanSDK-1.1.92.1-Installer.exe /S"
         - BUILD="mkdir build && cd build && cmake -DNCNN_VULKAN=ON .. && cmake --build ."
 
     - name: "android-armv7"
