@@ -1344,13 +1344,16 @@ Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
     opt = get_default_option();
 
 #if NCNN_VULKAN
-    blob_mats_gpu.resize(blob_count);
-    wait_barrier_counts.resize(blob_count, 0);
+    if (net->use_vulkan_compute)
+    {
+        blob_mats_gpu.resize(blob_count);
+        wait_barrier_counts.resize(blob_count, 0);
 
-    // set default vulkan blob/workspace/staging allocator
-    opt.blob_vkallocator = net->vkdev->allocator();
-    opt.workspace_vkallocator = net->vkdev->allocator();
-    opt.staging_vkallocator = net->vkdev->staging_allocator();
+        // set default vulkan blob/workspace/staging allocator
+        opt.blob_vkallocator = net->vkdev->allocator();
+        opt.workspace_vkallocator = net->vkdev->allocator();
+        opt.staging_vkallocator = net->vkdev->staging_allocator();
+    }
 #endif // NCNN_VULKAN
 }
 
@@ -1377,7 +1380,14 @@ void Extractor::set_workspace_allocator(Allocator* allocator)
 #if NCNN_VULKAN
 void Extractor::set_vulkan_compute(bool enable)
 {
-    opt.vulkan_compute = enable;
+    if (net->use_vulkan_compute)
+    {
+        opt.vulkan_compute = enable;
+    }
+    else
+    {
+        fprintf(stderr, "set_vulkan_compute failed, network use_vulkan_compute disabled\n");
+    }
 }
 
 void Extractor::set_blob_vkallocator(VkAllocator* allocator)
