@@ -20,22 +20,22 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { float weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { float bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
     int dims;
-    int size;
+    int size_4;
     int c;
-    int cstep;
+    int cstep_4;
 
     int outdims;
-    int outsize;
+    int outsize_4;
     int outc;
-    int outcstep;
+    int outcstep_4;
 } p;
 
 void main()
@@ -44,14 +44,18 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outsize || gy >= 1 || gz >= p.outc)
+    if (gx >= p.outsize_4 || gy >= 1 || gz >= p.outc)
         return;
 
-    float sum = 0;
+    vec4 sum;
 
     if (bias_term == 1)
     {
-        sum = bias_data[gz];
+        sum = vec4(bias_data[gz]);
+    }
+    else
+    {
+        sum = vec4(0.f);
     }
 
     int w_offset = gz * p.c;
@@ -62,8 +66,8 @@ void main()
         sum += weight_data[w_offset] * bottom_blob_data[v_offset];
 
         w_offset += 1;
-        v_offset += p.cstep;
+        v_offset += p.cstep_4;
     }
 
-    top_blob_data[gz * p.outcstep + gx] = sum;
+    top_blob_data[gz * p.outcstep_4 + gx] = sum;
 }

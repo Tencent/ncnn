@@ -527,16 +527,16 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     {
         std::vector<vk_constant_type> constants(8);
         constants[0].i = bottom_blob_bordered.dims;
-        constants[1].i = bottom_blob_bordered.w * bottom_blob_bordered.h;
+        constants[1].i = bottom_blob_bordered.cstep / 4;
         constants[2].i = bottom_blob_bordered.c;
-        constants[3].i = bottom_blob_bordered.cstep;
+        constants[3].i = bottom_blob_bordered.cstep / 4;
         constants[4].i = top_blob.dims;
-        constants[5].i = top_blob.w * top_blob.h;
+        constants[5].i = top_blob.cstep / 4;
         constants[6].i = top_blob.c;
-        constants[7].i = top_blob.cstep;
+        constants[7].i = top_blob.cstep / 4;
 
         VkMat dispatcher;
-        dispatcher.w = top_blob.w * top_blob.h;
+        dispatcher.w = top_blob.cstep / 4;
         dispatcher.h = 1;
         dispatcher.c = top_blob.c;
 
