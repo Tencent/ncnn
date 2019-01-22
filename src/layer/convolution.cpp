@@ -437,7 +437,7 @@ int Convolution::upload_model(VkTransfer& cmd)
 
 int Convolution::create_pipeline()
 {
-    pipeline->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 4));
+    pipeline->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
 
     std::vector<vk_specialization_type> specializations(7);
     specializations[0].i = kernel_w;
@@ -461,7 +461,7 @@ int Convolution::create_pipeline()
     {
         convolution_1x1s1d1 = new Pipeline(vkdev);
 
-        convolution_1x1s1d1->set_optimal_local_size_xyz(-1, 1, std::max(1, num_output / 4));
+        convolution_1x1s1d1->set_optimal_local_size_xyz(-1, 1, std::max(1, num_output / 8));
 
         std::vector<vk_specialization_type> specializations(1);
         specializations[0].i = bias_term;
