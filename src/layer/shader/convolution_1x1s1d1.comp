@@ -28,14 +28,12 @@ layout (binding = 3) readonly buffer bias_blob { float bias_data[]; };
 layout (push_constant) uniform parameter
 {
     int dims;
-    int w;
-    int h;
+    int size;
     int c;
     int cstep;
 
     int outdims;
-    int outw;
-    int outh;
+    int outsize;
     int outc;
     int outcstep;
 } p;
@@ -46,7 +44,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= p.outsize || gy >= 1 || gz >= p.outc)
         return;
 
     float sum = 0;
@@ -57,7 +55,7 @@ void main()
     }
 
     int w_offset = gz * p.c;
-    int v_offset = gy * p.w + gx;
+    int v_offset = gx;
 
     for (int z = 0; z < p.c; z++)
     {
@@ -67,5 +65,5 @@ void main()
         v_offset += p.cstep;
     }
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sum;
+    top_blob_data[gz * p.outcstep + gx] = sum;
 }
