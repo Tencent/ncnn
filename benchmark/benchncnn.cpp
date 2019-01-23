@@ -501,27 +501,33 @@ int main(int argc, char** argv)
 
     benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
 
-//     benchmark("shufflenet", shufflenet_init, shufflenet_run);
+#if !NCNN_VULKAN
+    benchmark("shufflenet", shufflenet_init, shufflenet_run);
+#endif // NCNN_VULKAN
 
     benchmark("mnasnet", mnasnet_init, mnasnet_run);
 
     benchmark("proxylessnasnet", proxylessnasnet_init, proxylessnasnet_run);
 
-//     benchmark("googlenet", googlenet_init, googlenet_run);
+#if !NCNN_VULKAN
+    benchmark("googlenet", googlenet_init, googlenet_run);
+#endif // NCNN_VULKAN
 
     benchmark("resnet18", resnet18_init, resnet18_run);
 
-//     benchmark("alexnet", alexnet_init, alexnet_run);
+#if !NCNN_VULKAN
+    benchmark("alexnet", alexnet_init, alexnet_run);
 
-//     benchmark("vgg16", vgg16_init, vgg16_run);
+    benchmark("vgg16", vgg16_init, vgg16_run);
 
-//     benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
-//
-//     benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
-//
-//     benchmark("mobilenet-yolo", mobilenet_yolo_init, mobilenet_yolo_run);
-//
-//     benchmark("mobilenet-yolov3", mobilenet_yolov3_init, mobilenet_yolov3_run);
+    benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
+
+    benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
+
+    benchmark("mobilenet-yolo", mobilenet_yolo_init, mobilenet_yolo_run);
+
+    benchmark("mobilenet-yolov3", mobilenet_yolov3_init, mobilenet_yolov3_run);
+#endif // NCNN_VULKAN
 
 #if NCNN_VULKAN
     delete g_blob_vkallocator;

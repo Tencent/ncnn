@@ -89,8 +89,8 @@ endif()
 ##############################################
 
 # add_subdirectory(examples)
-add_subdirectory(benchmark)
+# add_subdirectory(benchmark)
 add_subdirectory(src)
 if(NOT ANDROID AND NOT IOS)
-# add_subdirectory(tools)
+add_subdirectory(tools)
 endif()
