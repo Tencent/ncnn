@@ -14,6 +14,8 @@
 
 #include "convolution_x86.h"
 
+#include "layer_type.h"
+
 namespace ncnn {
 
 #include "convolution_1x1.h"
@@ -24,6 +26,44 @@ namespace ncnn {
 #include "convolution_3x3_int8.h"
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
+
+int Convolution_x86::load_param(const ParamDict& pd)
+{
+    int ret = Convolution::load_param(pd);
+    if (ret != 0)
+        return ret;
+
+    use_winograd3x3 = false;
+
+    if (pd.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        int num_input = weight_data_size / 9 / num_output;
+        // winograd is slow on small channel count
+        if(num_input >= 16 && num_output >= 16 && (num_output % 4)==0)
+            use_winograd3x3 = true;
+    }           
+
+    return 0;
+}
+
+int Convolution_x86::load_model(const ModelBin& mb)
+{
+    int ret = Convolution::load_model(mb);
+    if (ret != 0)
+        return ret;
+
+    if (use_winograd3x3)
+    {
+        int num_input = weight_data_size / 9 / num_output;
+
+        if (use_int8_inference)
+            conv3x3s1_winograd23_transform_kernel_int8_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+        else
+            conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+    }
+
+    return 0;
+}
 
 int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv, const Option& opt) const
 {
@@ -322,7 +362,10 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (use_int8_inference)
     {
-        conv_int8(bottom_blob_bordered, top_blob, weight_data, opt);
+        if (use_winograd3x3)
+            conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
+        else
+            conv_int8(bottom_blob_bordered, top_blob, weight_data, opt);
 
         // dequantize, reverse scale inplace
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -334,12 +377,17 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
             Mat top_blob_g = top_blob.channel_range(p, 1);
             dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
-        }
+        }     
 
         return 0;
     }
 
-    conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+    if (use_winograd3x3)
+    {
+        conv3x3s1_winograd23_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
+    }    
+    else
+        conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
     return 0;
 }
