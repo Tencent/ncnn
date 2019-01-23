@@ -25,6 +25,7 @@ BinaryOp::BinaryOp()
 {
     one_blob_only = false;
     support_inplace = false;
+    support_vulkan = true;
 }
 
 int BinaryOp::load_param(const ParamDict& pd)
@@ -470,5 +471,96 @@ int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int BinaryOp::create_pipeline()
+{
+    pipeline->set_optimal_local_size_xyz();
+
+    std::vector<vk_specialization_type> specializations(3);
+    specializations[0].i = op_type;
+    specializations[1].i = with_scalar;
+    specializations[2].f = b;
+
+    pipeline->create("binaryop", specializations, 3, 15);
+
+    return 0;
+}
+
+int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    const VkMat& bottom_blob = bottom_blobs[0];
+    const VkMat& bottom_blob1 = bottom_blobs[1];
+
+    VkMat& top_blob = top_blobs[0];
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+
+    // TODO broadcast
+    top_blob.create_like(bottom_blob, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+//     fprintf(stderr, "BinaryOp::forward %p %p %p\n", bottom_blob.buffer(), bottom_blob1.buffer(), top_blob.buffer());
+
+    std::vector<VkMat> bindings(3);
+    bindings[0] = bottom_blob;
+    bindings[1] = bottom_blob1;
+    bindings[2] = top_blob;
+
+    std::vector<vk_constant_type> constants(15);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = bottom_blob1.dims;
+    constants[6].i = bottom_blob1.w;
+    constants[7].i = bottom_blob1.h;
+    constants[8].i = bottom_blob1.c;
+    constants[9].i = bottom_blob1.cstep;
+    constants[10].i = top_blob.dims;
+    constants[11].i = top_blob.w;
+    constants[12].i = top_blob.h;
+    constants[13].i = top_blob.c;
+    constants[14].i = top_blob.cstep;
+
+    // record
+    cmd.record_prepare_compute_barrier(bottom_blob);
+    cmd.record_prepare_compute_barrier(bottom_blob1);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    return 0;
+}
+
+int BinaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+
+//     fprintf(stderr, "BinaryOp::forward_inplace %p\n", bottom_top_blob.buffer());
+
+    std::vector<VkMat> bindings(3);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = bottom_top_blob;// TODO use dummy buffer
+    bindings[2] = bottom_top_blob;// TODO use dummy buffer
+
+    std::vector<vk_constant_type> constants(15);
+    constants[10].i = bottom_top_blob.dims;
+    constants[11].i = bottom_top_blob.w;
+    constants[12].i = bottom_top_blob.h;
+    constants[13].i = bottom_top_blob.c;
+    constants[14].i = bottom_top_blob.cstep;
+
+    // record
+    cmd.record_prepare_compute_barrier(bottom_top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

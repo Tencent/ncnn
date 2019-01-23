@@ -23,13 +23,27 @@ class Softmax : public Layer
 {
 public:
     Softmax();
+    ~Softmax();
 
     virtual int load_param(const ParamDict& pd);
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
+#if NCNN_VULKAN
+    virtual int create_pipeline();
+
+    virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
+#endif // NCNN_VULKAN
+
 public:
     int axis;
+
+#if NCNN_VULKAN
+    Pipeline* softmax_reduce_max;
+    Pipeline* softmax_exp_sub_max;
+    Pipeline* softmax_reduce_sum;
+    Pipeline* softmax_div_sum;
+#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn
