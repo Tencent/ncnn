@@ -19,3 +19,7 @@ target_link_libraries(ncnn2mem PRIVATE ncnn)
 if(COVERAGE)
     target_link_libraries(ncnn2mem PRIVATE --coverage)
 endif()
+
+if(NCNN_VULKAN)
+    target_link_libraries(ncnn2mem PRIVATE ${Vulkan_LIBRARY})
+endif()
