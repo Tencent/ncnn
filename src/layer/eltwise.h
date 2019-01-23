@@ -28,6 +28,12 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
+#if NCNN_VULKAN
+    virtual int create_pipeline();
+
+    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+#endif // NCNN_VULKAN
+
     enum { Operation_PROD = 0, Operation_SUM = 1, Operation_MAX = 2 };
 
 public:

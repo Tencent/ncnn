@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "batchnorm.h"
+#include "pipeline.h"
 #include <math.h>
 
 namespace ncnn {
@@ -23,6 +24,7 @@ BatchNorm::BatchNorm()
 {
     one_blob_only = true;
     support_inplace = true;
+    support_vulkan = true;
 }
 
 int BatchNorm::load_param(const ParamDict& pd)
@@ -130,5 +132,49 @@ int BatchNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int BatchNorm::upload_model(VkTransfer& cmd)
+{
+    cmd.record_upload(a_data, a_data_gpu);
+    cmd.record_upload(b_data, b_data_gpu);
+
+    return 0;
+}
+
+int BatchNorm::create_pipeline()
+{
+    pipeline->set_optimal_local_size_xyz(32, 32, channels);
+
+    std::vector<vk_specialization_type> specializations(0);
+
+    pipeline->create("batchnorm", specializations, 3, 5);
+
+    return 0;
+}
+
+int BatchNorm::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+{
+//     fprintf(stderr, "BatchNorm::forward_inplace %p\n", bottom_top_blob.buffer());
+
+    std::vector<VkMat> bindings(3);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = a_data_gpu;
+    bindings[2] = b_data_gpu;
+
+    std::vector<vk_constant_type> constants(5);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = bottom_top_blob.cstep;
+
+    // record
+    cmd.record_prepare_compute_barrier(bottom_top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

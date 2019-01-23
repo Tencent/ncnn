@@ -30,6 +30,14 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
+#if NCNN_VULKAN
+    virtual int create_pipeline();
+
+    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+
+    virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
+#endif // NCNN_VULKAN
+
     enum {
         Operation_ADD   = 0,
         Operation_SUB   = 1,
