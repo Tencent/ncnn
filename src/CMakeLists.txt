@@ -7,10 +7,18 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/layer)
 
+if(NCNN_VULKAN)
+    find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin NO_CMAKE_FIND_ROOT_PATH)
+    message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
+    include_directories(${Vulkan_INCLUDE_DIR})
+endif()
+
 set(ncnn_SRCS
     allocator.cpp
     blob.cpp
+    command.cpp
     cpu.cpp
+    gpu.cpp
     layer.cpp
     mat.cpp
     mat_pixel.cpp
@@ -19,6 +27,7 @@ set(ncnn_SRCS
     net.cpp
     opencv.cpp
     paramdict.cpp
+    pipeline.cpp
     benchmark.cpp
 )
 
@@ -74,10 +83,39 @@ macro(ncnn_add_layer class)
         string(APPEND layer_registry "#if NCNN_STRING\n{\"${class}\",0},\n#else\n{0},\n#endif\n")
     endif()
 
+    if(WITH_LAYER_${name} AND NCNN_VULKAN)
+        file(GLOB_RECURSE SHADER_SRCS "layer/shader/${name}.comp")
+        file(GLOB_RECURSE SHADER_SUBSRCS "layer/shader/${name}_*.comp")
+        list(APPEND SHADER_SRCS ${SHADER_SUBSRCS})
+        foreach(SHADER_SRC ${SHADER_SRCS})
+            get_filename_component(SHADER_SRC_NAME ${SHADER_SRC} NAME)
+            get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
+
+            set(SHADER_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.spv.hex.h)
+            add_custom_command(
+                OUTPUT ${SHADER_SPV_HEX_FILE}
+                COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
+                ARGS -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
+                DEPENDS ${SHADER_SRC}
+                COMMENT "Building SPIR-V module ${SHADER_SRC_NAME_WE}.spv"
+                VERBATIM
+            )
+            set_source_files_properties(${SHADER_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+
+            string(APPEND layer_shader_spv_data "static const uint32_t ${SHADER_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_SRC_NAME_WE}.spv.hex.h\"\n};\n")
+            string(APPEND layer_shader_registry "{\"${SHADER_SRC_NAME_WE}\",${SHADER_SRC_NAME_WE}_spv_data,sizeof(${SHADER_SRC_NAME_WE}_spv_data)},\n")
+
+            list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEX_FILE})
+        endforeach()
+    endif()
+
     # generate layer_type_enum file
     string(APPEND layer_type_enum "${class} = ${__LAYER_TYPE_ENUM_INDEX},\n")
     math(EXPR __LAYER_TYPE_ENUM_INDEX "${__LAYER_TYPE_ENUM_INDEX}+1")
 endmacro()
+
+# look for vulkan compute shader and compile
+set(SHADER_SPV_HEX_FILES)
 
 set(__LAYER_TYPE_ENUM_INDEX 0)
 
@@ -145,12 +183,19 @@ ncnn_add_layer(Yolov3DetectionOutput)
 ncnn_add_layer(PSROIPooling)
 ncnn_add_layer(ROIAlign OFF)
 
+# message("SHADER_SPV_HEX_FILES = ${SHADER_SPV_HEX_FILES}")
+add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
+
 # create new
 configure_file(layer_declaration.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
 configure_file(layer_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
 configure_file(layer_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
+configure_file(layer_shader_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h)
+configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
+
+add_dependencies(ncnn generate-spirv)
 
 if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
     if(NCNN_CMAKE_VERBOSE)
@@ -167,7 +212,9 @@ install(TARGETS ncnn ARCHIVE DESTINATION lib)
 install(FILES
     allocator.h
     blob.h
+    command.h
     cpu.h
+    gpu.h
     layer.h
     layer_type.h
     mat.h
@@ -175,6 +222,7 @@ install(FILES
     net.h
     opencv.h
     paramdict.h
+    pipeline.h
     benchmark.h
     ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
     ${CMAKE_CURRENT_BINARY_DIR}/platform.h

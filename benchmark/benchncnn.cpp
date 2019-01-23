@@ -1,3 +1,17 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
 #include <float.h>
 #include <stdio.h>
 
@@ -12,6 +26,19 @@
 #include "benchmark.h"
 #include "cpu.h"
 #include "net.h"
+
+#if NCNN_VULKAN
+#include "gpu.h"
+
+class GlobalGpuInstance
+{
+public:
+    GlobalGpuInstance() { ncnn::create_gpu_instance(); }
+    ~GlobalGpuInstance() { ncnn::destroy_gpu_instance(); }
+};
+// initialize vulkan runtime before main()
+GlobalGpuInstance g_global_gpu_instance;
+#endif // NCNN_VULKAN
 
 namespace ncnn {
 
@@ -44,6 +71,51 @@ public:
             }
         }
 
+#if NCNN_VULKAN
+        if (use_vulkan_compute)
+        {
+            ncnn::VkTransfer cmd(vkdev);
+
+            // create gpu device allocator if null
+            if (!weight_vkallocator)
+            {
+                weight_vkallocator = new VkWeightBufferAllocator(vkdev);
+            }
+            if (!weight_staging_vkallocator)
+            {
+                weight_staging_vkallocator = new VkWeightStagingBufferAllocator(vkdev);
+            }
+
+            cmd.weight_vkallocator = weight_vkallocator;
+            cmd.staging_vkallocator = weight_staging_vkallocator;
+
+            for (size_t i=0; i<layers.size(); i++)
+            {
+                Layer* layer = layers[i];
+
+                if (layer->support_vulkan)
+                {
+                    layer->upload_model(cmd);
+                }
+            }
+
+            cmd.submit();
+
+            cmd.wait();
+
+            #pragma omp parallel for
+            for (int i=0; i<layers.size(); i++)
+            {
+                Layer* layer = layers[i];
+
+                if (layer->support_vulkan)
+                {
+                    layer->create_pipeline();
+                }
+            }
+        }
+#endif // NCNN_VULKAN
+
         return ret;
     }
 };
@@ -55,9 +127,26 @@ static int g_loop_count = 4;
 static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
 static ncnn::PoolAllocator g_workspace_pool_allocator;
 
+#if NCNN_VULKAN
+static bool g_use_vulkan_compute = false;
+
+static ncnn::VulkanDevice* g_vkdev = 0;
+static ncnn::VkAllocator* g_blob_vkallocator = 0;
+static ncnn::VkAllocator* g_staging_vkallocator = 0;
+#endif // NCNN_VULKAN
+
 void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const ncnn::Net&))
 {
     ncnn::BenchNet net;
+
+#if NCNN_VULKAN
+    if (g_use_vulkan_compute)
+    {
+        net.use_vulkan_compute = g_use_vulkan_compute;
+
+        net.set_vulkan_device(g_vkdev);
+    }
+#endif // NCNN_VULKAN
 
     init(net);
 
@@ -65,6 +154,14 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
 
     g_blob_pool_allocator.clear();
     g_workspace_pool_allocator.clear();
+
+#if NCNN_VULKAN
+    if (g_use_vulkan_compute)
+    {
+        g_blob_vkallocator->clear();
+        g_staging_vkallocator->clear();
+    }
+#endif // NCNN_VULKAN
 
     // sleep 10 seconds for cooling down SOC  :(
 #ifdef _WIN32
@@ -74,6 +171,12 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
 #endif
 
     // warm up
+    run(net);
+    run(net);
+    run(net);
+
+    run(net);
+    run(net);
     run(net);
     run(net);
     run(net);
@@ -331,6 +434,7 @@ int main(int argc, char** argv)
     int loop_count = 4;
     int num_threads = ncnn::get_cpu_count();
     int powersave = 0;
+    int gpu_device = -1;
 
     if (argc >= 2)
     {
@@ -344,17 +448,39 @@ int main(int argc, char** argv)
     {
         powersave = atoi(argv[3]);
     }
+    if (argc >= 5)
+    {
+        gpu_device = atoi(argv[4]);
+    }
 
     g_loop_count = loop_count;
 
     g_blob_pool_allocator.set_size_compare_ratio(0.0f);
     g_workspace_pool_allocator.set_size_compare_ratio(0.5f);
 
+#if NCNN_VULKAN
+    g_use_vulkan_compute = gpu_device != -1;
+    if (g_use_vulkan_compute)
+    {
+        g_vkdev = new ncnn::VulkanDevice(gpu_device);
+
+        g_blob_vkallocator = new ncnn::VkUnlockedBlobBufferAllocator(g_vkdev);
+        g_staging_vkallocator = new ncnn::VkUnlockedStagingBufferAllocator(g_vkdev);
+    }
+#endif // NCNN_VULKAN
+
     ncnn::Option opt;
     opt.lightmode = true;
     opt.num_threads = num_threads;
     opt.blob_allocator = &g_blob_pool_allocator;
     opt.workspace_allocator = &g_workspace_pool_allocator;
+
+#if NCNN_VULKAN
+    opt.vulkan_compute = g_use_vulkan_compute;
+    opt.blob_vkallocator = g_blob_vkallocator;
+    opt.workspace_vkallocator = g_blob_vkallocator;
+    opt.staging_vkallocator = g_staging_vkallocator;
+#endif // NCNN_VULKAN
 
     ncnn::set_default_option(opt);
 
@@ -366,6 +492,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "loop_count = %d\n", g_loop_count);
     fprintf(stderr, "num_threads = %d\n", num_threads);
     fprintf(stderr, "powersave = %d\n", ncnn::get_cpu_powersave());
+    fprintf(stderr, "gpu_device = %d\n", gpu_device);
 
     // run
     benchmark("squeezenet", squeezenet_init, squeezenet_run);
@@ -374,16 +501,21 @@ int main(int argc, char** argv)
 
     benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
 
+#if !NCNN_VULKAN
     benchmark("shufflenet", shufflenet_init, shufflenet_run);
+#endif // NCNN_VULKAN
 
     benchmark("mnasnet", mnasnet_init, mnasnet_run);
 
     benchmark("proxylessnasnet", proxylessnasnet_init, proxylessnasnet_run);
 
+#if !NCNN_VULKAN
     benchmark("googlenet", googlenet_init, googlenet_run);
+#endif // NCNN_VULKAN
 
     benchmark("resnet18", resnet18_init, resnet18_run);
 
+#if !NCNN_VULKAN
     benchmark("alexnet", alexnet_init, alexnet_run);
 
     benchmark("vgg16", vgg16_init, vgg16_run);
@@ -395,6 +527,14 @@ int main(int argc, char** argv)
     benchmark("mobilenet-yolo", mobilenet_yolo_init, mobilenet_yolo_run);
 
     benchmark("mobilenet-yolov3", mobilenet_yolov3_init, mobilenet_yolov3_run);
+#endif // NCNN_VULKAN
+
+#if NCNN_VULKAN
+    delete g_blob_vkallocator;
+    delete g_staging_vkallocator;
+
+    delete g_vkdev;
+#endif // NCNN_VULKAN
 
     return 0;
 }
