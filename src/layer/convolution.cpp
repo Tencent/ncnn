@@ -24,6 +24,13 @@ Convolution::Convolution()
 {
     one_blob_only = true;
     support_inplace = false;
+    support_vulkan = true;
+
+#if NCNN_VULKAN
+    padding = 0;
+    convolution_fc = 0;
+    convolution_1x1s1d1 = 0;
+#endif // NCNN_VULKAN
 
     quantize = 0;
     dequantize = 0;
@@ -31,6 +38,12 @@ Convolution::Convolution()
 
 Convolution::~Convolution()
 {
+#if NCNN_VULKAN
+    delete padding;
+    delete convolution_fc;
+    delete convolution_1x1s1d1;
+#endif // NCNN_VULKAN
+
     delete quantize;
     delete dequantize;
 }
@@ -54,6 +67,39 @@ int Convolution::load_param(const ParamDict& pd)
 
     if (int8_scale_term == 0)
         use_int8_inference = false;
+
+#if NCNN_VULKAN
+    if (pd.use_vulkan_compute)
+    {
+        padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
+
+        ncnn::ParamDict pd;
+        pd.set(0, pad_h);
+        pd.set(1, pad_h);
+        pd.set(2, pad_w);
+        pd.set(3, pad_w);
+        pd.set(4, 0);
+        pd.set(5, 0.f);
+
+        pd.use_vulkan_compute = 1;
+
+        padding->load_param(pd);
+
+        if (kernel_w == 1 && kernel_h == 1)
+        {
+        convolution_fc = ncnn::create_layer(ncnn::LayerType::InnerProduct, vkdev);
+
+        ncnn::ParamDict pd;
+        pd.set(0, num_output);
+        pd.set(1, bias_term);
+        pd.set(2, weight_data_size);
+
+        pd.use_vulkan_compute = 1;
+
+        convolution_fc->load_param(pd);
+        }
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -134,6 +180,17 @@ int Convolution::load_model(const ModelBin& mb)
             dequantize->load_model(ModelBinFromMatArray(weights));
         }
     }
+
+#if NCNN_VULKAN
+    if (convolution_fc)
+    {
+        ncnn::Mat weights[2];
+        weights[0] = weight_data;
+        weights[1] = bias_data;
+
+        convolution_fc->load_model(ModelBinFromMatArray(weights));
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -359,5 +416,151 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int Convolution::upload_model(VkTransfer& cmd)
+{
+    cmd.record_upload(weight_data, weight_data_gpu);
+
+    if (bias_term)
+    {
+        cmd.record_upload(bias_data, bias_data_gpu);
+    }
+
+    if (kernel_w == 1 && kernel_h == 1)
+    {
+        convolution_fc->upload_model(cmd);
+    }
+
+    return 0;
+}
+
+int Convolution::create_pipeline()
+{
+    pipeline->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+
+    std::vector<vk_specialization_type> specializations(7);
+    specializations[0].i = kernel_w;
+    specializations[1].i = kernel_h;
+    specializations[2].i = dilation_w;
+    specializations[3].i = dilation_h;
+    specializations[4].i = stride_w;
+    specializations[5].i = stride_h;
+    specializations[6].i = bias_term;
+
+    pipeline->create("convolution", specializations, 4, 10);
+
+    padding->create_pipeline();
+
+    if (kernel_w == 1 && kernel_h == 1)
+    {
+        convolution_fc->create_pipeline();
+    }
+
+    if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+    {
+        convolution_1x1s1d1 = new Pipeline(vkdev);
+
+        convolution_1x1s1d1->set_optimal_local_size_xyz(-1, 1, std::max(1, num_output / 8));
+
+        std::vector<vk_specialization_type> specializations(1);
+        specializations[0].i = bias_term;
+
+        convolution_1x1s1d1->create("convolution_1x1s1d1", specializations, 4, 8);
+    }
+
+    return 0;
+}
+
+int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    // flattened blob, implement as InnerProduct
+    if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
+    {
+        int num_input = weight_data_size / num_output;
+        if (bottom_blob.w == num_input)
+        {
+            // call InnerProduct
+            return convolution_fc->forward(bottom_blob, top_blob, cmd, opt);
+        }
+    }
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    VkMat bottom_blob_bordered = bottom_blob;
+    if (pad_w > 0 || pad_h > 0)
+    {
+        ncnn::Option opt_pad = opt;
+        opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+
+        padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt_pad);
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    top_blob.create(outw, outh, num_output, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+//     fprintf(stderr, "Convolution::forward %p %p\n", bottom_blob_bordered.buffer(), top_blob.buffer());
+
+    std::vector<VkMat> bindings(4);
+    bindings[0] = bottom_blob_bordered;
+    bindings[1] = top_blob;
+    bindings[2] = weight_data_gpu;
+    bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu;// TODO use dummy buffer
+
+    // record
+    cmd.record_prepare_compute_barrier(bottom_blob_bordered);
+    cmd.record_prepare_compute_barrier(top_blob);
+
+    if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+    {
+        std::vector<vk_constant_type> constants(8);
+        constants[0].i = bottom_blob_bordered.dims;
+        constants[1].i = bottom_blob_bordered.cstep / 4;
+        constants[2].i = bottom_blob_bordered.c;
+        constants[3].i = bottom_blob_bordered.cstep / 4;
+        constants[4].i = top_blob.dims;
+        constants[5].i = top_blob.cstep / 4;
+        constants[6].i = top_blob.c;
+        constants[7].i = top_blob.cstep / 4;
+
+        VkMat dispatcher;
+        dispatcher.w = top_blob.cstep / 4;
+        dispatcher.h = 1;
+        dispatcher.c = top_blob.c;
+
+        cmd.record_pipeline(convolution_1x1s1d1, bindings, constants, dispatcher);
+    }
+    else
+    {
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob_bordered.dims;
+        constants[1].i = bottom_blob_bordered.w;
+        constants[2].i = bottom_blob_bordered.h;
+        constants[3].i = bottom_blob_bordered.c;
+        constants[4].i = bottom_blob_bordered.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = top_blob.cstep;
+
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    }
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

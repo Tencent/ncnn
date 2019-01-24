@@ -31,7 +31,7 @@ static inline signed char float2int8(float v)
 
 int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-#if !__aarch64__
+#if !__aarch64__ && __ARM_NEON
     int FPSCR_value = 0;
 
     asm volatile(
@@ -200,7 +200,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         }
     }
 
-#if !__aarch64__
+#if !__aarch64__ && __ARM_NEON
     asm volatile(
         "vmsr   FPSCR, %0           \n"
         :

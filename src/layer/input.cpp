@@ -22,6 +22,7 @@ Input::Input()
 {
     one_blob_only = true;
     support_inplace = true;
+    support_vulkan = false;
 }
 
 int Input::load_param(const ParamDict& pd)

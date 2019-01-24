@@ -22,6 +22,7 @@ Flatten::Flatten()
 {
     one_blob_only = true;
     support_inplace = false;
+    support_vulkan = true;
 }
 
 int Flatten::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -50,5 +51,49 @@ int Flatten::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int Flatten::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int dims = bottom_blob.dims;
+
+    if (dims == 1 || dims == 2)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+
+    top_blob.create(w * h * channels, elemsize, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    std::vector<VkBufferCopy> regions(channels);
+
+    int srcOffset = 0;
+    int dstOffset = 0;
+    for (int q=0; q<channels; q++)
+    {
+        int size = w * h * elemsize;
+
+        regions[q].srcOffset = bottom_blob.buffer_offset() + srcOffset;
+        regions[q].dstOffset = top_blob.buffer_offset() + dstOffset;
+        regions[q].size = size;
+
+        srcOffset += bottom_blob.cstep * elemsize;
+        dstOffset += size;
+    }
+
+    cmd.record_prepare_transfer_barrier(bottom_blob);
+    cmd.record_prepare_transfer_barrier(top_blob);
+    cmd.record_copy_regions(bottom_blob, top_blob, regions);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
