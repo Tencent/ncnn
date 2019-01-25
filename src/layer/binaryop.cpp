@@ -67,6 +67,23 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 3)
         {
+            if (b.w == 1&&b.h==1)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    float* outptr = c.channel(q);
+                    const float* b0 = b.channel(q);
+                    for (int i = 0; i < size; i++)
+                    {
+                        outptr[i] = op(ptr[i], b0[0]);
+                    }
+                }
+
+                return 0;
+             }
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
