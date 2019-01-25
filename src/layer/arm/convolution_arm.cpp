@@ -14,6 +14,8 @@
 
 #include "convolution_arm.h"
 
+#include "benchmark.h"
+
 namespace ncnn {
 
 #include "convolution_1x1.h"
@@ -68,7 +70,12 @@ int Convolution_arm::load_model(const ModelBin& mb)
     {
 #if __ARM_NEON
 #if !__aarch64__
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (use_winograd3x3)
+        {
+            int num_input = weight_data_size / 9 / num_output;
+            conv3x3s1_winograd23_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             int num_input = weight_data_size / 9 / num_output;
             conv3x3s1_transform_kernel_int8_neon(weight_data, weight_3x3s1_int8_data, num_input, num_output);
@@ -78,7 +85,7 @@ int Convolution_arm::load_model(const ModelBin& mb)
         {
             int num_input = weight_data_size / 9 / num_output;
             conv3x3s2_transform_kernel_int8_neon(weight_data, weight_3x3s2_int8_data, num_input, num_output);
-        }   
+        }
 
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -428,6 +435,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         if (use_sgemm1x1)
         {
             conv1x1s1_sgemm_int8_neon(bottom_blob_bordered, top_blob, weight_1x1s1_sgemm_int8_data, opt);
+        }
+        else if (use_winograd3x3)
+        {
+            conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
         }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {

@@ -69,6 +69,138 @@ static void conv3x3s1_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel
     }
 }
 
+static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
+{
+    kernel_tm.create(4*4, inch, outch, 2ul);  
+
+    // G
+    const short ktm[4][3] = {
+        {   2,     0,     0},
+        {   1,     1,     1},
+        {   1,    -1,     1},
+        {   0,     0,     2}
+    };
+
+    #pragma omp parallel for
+    for (int p = 0; p<outch; p++)
+    {
+        for (int q = 0; q<inch; q++)
+        {
+            const signed char* kernel0 = (const signed char*)kernel + p*inch * 9 + q * 9;
+            short* kernel_tm0 = kernel_tm.channel(p).row<short>(q);
+
+            // transform kernel
+            const signed char* k0 = kernel0;
+            const signed char* k1 = kernel0 + 3;
+            const signed char* k2 = kernel0 + 6;
+
+            // h
+            short tmp[4][3];
+            for (int i=0; i<4; i++)
+            {
+                tmp[i][0] = (short)k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
+                tmp[i][1] = (short)k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
+                tmp[i][2] = (short)k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
+            }
+
+            // U
+            for (int j=0; j<4; j++)
+            {
+                short* tmpp = &tmp[j][0];
+
+                for (int i=0; i<4; i++)
+                {
+                    kernel_tm0[j*4 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
+                }
+            }
+        }
+    }
+
+    Mat kernel_tm2(4*4*2, inch, outch/2 + outch%2, 2ul);
+
+    int p = 0;
+    for (; p+1<outch; p+=2)
+    {
+        const short* kernel0 = (const short*)kernel_tm + (p+0)*inch*16;
+        const short* kernel1 = (const short*)kernel_tm + (p+1)*inch*16;
+
+        short* ktmp = kernel_tm2.channel(p/2);
+
+        for (int q=0; q<inch; q++)
+        {
+            ktmp[0] = kernel0[0];
+            ktmp[1] = kernel0[1];
+            ktmp[2] = kernel0[2];
+            ktmp[3] = kernel0[3];
+            ktmp[4] = kernel0[4];
+            ktmp[5] = kernel0[5];
+            ktmp[6] = kernel0[6];
+            ktmp[7] = kernel0[7];
+            ktmp[8] = kernel0[8];
+            ktmp[9] = kernel0[9];
+            ktmp[10] = kernel0[10];
+            ktmp[11] = kernel0[11];
+            ktmp[12] = kernel0[12];
+            ktmp[13] = kernel0[13];
+            ktmp[14] = kernel0[14];
+            ktmp[15] = kernel0[15];
+
+            ktmp[16] = kernel1[0];
+            ktmp[17] = kernel1[1];
+            ktmp[18] = kernel1[2];
+            ktmp[19] = kernel1[3];
+            ktmp[20] = kernel1[4];
+            ktmp[21] = kernel1[5];
+            ktmp[22] = kernel1[6];
+            ktmp[23] = kernel1[7];
+            ktmp[24] = kernel1[8];
+            ktmp[25] = kernel1[9];
+            ktmp[26] = kernel1[10];
+            ktmp[27] = kernel1[11];
+            ktmp[28] = kernel1[12];
+            ktmp[29] = kernel1[13];
+            ktmp[30] = kernel1[14];
+            ktmp[31] = kernel1[15];
+
+            ktmp += 32;
+            kernel0 += 16;
+            kernel1 += 16;
+        }
+    }
+
+    for (; p<outch; p++)
+    {
+        const short* kernel0 = (const short*)kernel_tm + p*inch*16;
+
+        short* ktmp = kernel_tm2.channel(p/2 + p%2);
+
+        for (int q=0; q<inch; q++)
+        {
+            ktmp[0] = kernel0[0];
+            ktmp[1] = kernel0[1];
+            ktmp[2] = kernel0[2];
+            ktmp[3] = kernel0[3];
+            ktmp[4] = kernel0[4];
+            ktmp[5] = kernel0[5];
+            ktmp[6] = kernel0[6];
+            ktmp[7] = kernel0[7];
+            ktmp[8] = kernel0[8];
+            ktmp[9] = kernel0[9];
+            ktmp[10] = kernel0[10];
+            ktmp[11] = kernel0[11];
+            ktmp[12] = kernel0[12];
+            ktmp[13] = kernel0[13];
+            ktmp[14] = kernel0[14];
+            ktmp[15] = kernel0[15];
+
+            ktmp += 16;
+            kernel0 += 16;
+        }        
+    }
+
+    kernel_tm = kernel_tm2;
+}
+
 static void conv3x3s2_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
 {
     kernel_tm.create(8*9, inch, outch/8 + outch%8, (size_t)1u);
@@ -2084,6 +2216,608 @@ static void conv3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat
             kernel0 += 9;
         }       
     }
+}
+
+static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int inch = bottom_blob.c;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    // pad to 2n+2, winograd F(2,3)
+    Mat bottom_blob_bordered = bottom_blob;
+
+    outw = (outw + 1) / 2 * 2;
+    outh = (outh + 1) / 2 * 2;
+
+    w = outw + 2;
+    h = outh + 2;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);  
+    
+    double start = ncnn::get_current_time();
+
+    // BEGIN transform input
+    Mat bottom_blob_tm;
+    {
+        int w_tm = outw / 2 * 4;
+        int h_tm = outh / 2 * 4;
+
+        int nColBlocks = h_tm/4; // may be the block num in Feathercnn
+        int nRowBlocks = w_tm/4;
+
+        const int tiles = nColBlocks * nRowBlocks;
+
+        // bottom_blob_tm.create(4*4, tiles, inch, 2u, opt.workspace_allocator);
+        bottom_blob_tm.create(4*4, inch, tiles, 2u, opt.workspace_allocator);
+
+        // BT
+        // const float itm[4][4] = {
+        //     {1.0f,  0.0f, -1.0f,  0.0f},
+        //     {0.0f,  1.0f,  1.00f, 0.0f},
+        //     {0.0f, -1.0f,  1.00f, 0.0f},
+        //     {0.0f, -1.0f,  0.00f, 1.0f}
+        // };        
+
+        for (int q=0; q<inch; q++)
+        {
+            const signed char* img = bottom_blob_bordered.channel(q);
+
+            for (int j = 0; j < nColBlocks; j++)
+            {
+                const signed char* r0 = img + w * j * 2;
+                const signed char* r1 = r0 + w;
+                const signed char* r2 = r1 + w;
+                const signed char* r3 = r2 + w;
+
+                for (int i = 0; i < nRowBlocks; i++)
+                {
+                    short* out_tm0 = bottom_blob_tm.channel(j*nRowBlocks+i).row<short>(q);
+
+                    short d0[4],d1[4],d2[4],d3[4];
+                    short w0[4],w1[4],w2[4],w3[4];
+                    short t0[4],t1[4],t2[4],t3[4];
+                    // load 
+                    for (int n = 0; n < 4; n++)
+                    {
+                        d0[n] = r0[n];
+                        d1[n] = r1[n];
+                        d2[n] = r2[n];
+                        d3[n] = r3[n];
+                    }
+                    // w = B_t * d
+                    for (int n = 0; n < 4; n++)
+                    {   
+                        w0[n] = d0[n] - d2[n];
+                        w1[n] = d1[n] + d2[n];
+                        w2[n] = d2[n] - d1[n];
+                        w3[n] = d3[n] - d1[n];
+                    } 
+                    // transpose d to d_t
+                    {
+                        t0[0]=w0[0]; t1[0]=w0[1]; t2[0]=w0[2]; t3[0]=w0[3];
+                        t0[1]=w1[0]; t1[1]=w1[1]; t2[1]=w1[2]; t3[1]=w1[3];
+                        t0[2]=w2[0]; t1[2]=w2[1]; t2[2]=w2[2]; t3[2]=w2[3];
+                        t0[3]=w3[0]; t1[3]=w3[1]; t2[3]=w3[2]; t3[3]=w3[3];
+                    }
+                    // U = B_t * d_t
+                    for (int n = 0; n < 4; n++)
+                    {   
+                        d0[n] = t0[n] - t2[n];
+                        d1[n] = t1[n] + t2[n];
+                        d2[n] = t2[n] - t1[n];
+                        d3[n] = t3[n] - t1[n];
+                    }                
+                    // save to out_tm
+                    for (int n = 0; n < 4; n++)
+                    {
+                        out_tm0[n   ] = d0[n];
+                        out_tm0[n+ 4] = d1[n];
+                        out_tm0[n+ 8] = d2[n];
+                        out_tm0[n+12] = d3[n];
+                    }               
+                    r0 += 2;
+                    r1 += 2;
+                    r2 += 2;
+                    r3 += 2;
+                }
+            }
+        }
+
+        // bottom_blob_tm = bottom_blob_tm_reshape;
+    }
+    bottom_blob_bordered = Mat();
+
+    double end = ncnn::get_current_time();
+    printf("trans A : %.3f ms\n", end - start);
+    start = ncnn::get_current_time();
+
+    // BEGIN dot
+    Mat top_blob_tm;
+    {
+        int w_tm = outw / 2 * 4;
+        int h_tm = outh / 2 * 4;
+
+        int nColBlocks = h_tm/4; // may be the block num in Feathercnn
+        int nRowBlocks = w_tm/4;
+
+        const int tiles = nColBlocks * nRowBlocks; 
+
+        top_blob_tm.create(16, tiles, outch, 4u, opt.workspace_allocator);
+
+        int nn_outch = outch >> 1;
+        int remain_outch_start = nn_outch << 1;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp=0; pp<nn_outch; pp++)
+        {
+            int p = pp * 2;
+
+            Mat out0_tm = top_blob_tm.channel(p);
+            Mat out1_tm = top_blob_tm.channel(p+1);
+
+            for (int i=0; i<tiles; i++)
+            {
+                int* output0_tm = out0_tm.row<int>(i);
+                int* output1_tm = out1_tm.row<int>(i);
+                const short* kptr = kernel_tm.channel(p/2);
+#if 1 //__ARM_NEON
+                const short* r0 = bottom_blob_tm.channel(i);
+
+                int32x4_t _sum00, _sum01, _sum02, _sum03;
+                int32x4_t _sum10, _sum11, _sum12, _sum13;
+                int16x8_t _k0, _k0n, _k1, _k1n;
+                int16x8_t _r0, _r0n, _r1, _r1n;
+
+                _sum00 = vdupq_n_s32(0);
+                _sum01 = vdupq_n_s32(0);
+                _sum02 = vdupq_n_s32(0);
+                _sum03 = vdupq_n_s32(0);
+
+                _sum10 = vdupq_n_s32(0);
+                _sum11 = vdupq_n_s32(0);
+                _sum12 = vdupq_n_s32(0);
+                _sum13 = vdupq_n_s32(0);
+#else
+                int sum0[16] = {0};
+                int sum1[16] = {0};
+#endif // __ARM_NEON
+                int q = 0;
+                for (; q+3<inch; q+=4)
+                {   
+#if 1 //__ARM_NEON
+                    _r0 = vld1q_s16(r0);  // input inch 0
+                    _r0n = vld1q_s16(r0+8);
+                    r0 += 16;
+
+                    _r1 = vld1q_s16(r0);  // input inch 1
+                    _r1n = vld1q_s16(r0+8);
+                    r0 += 16;                    
+
+                    _k0 = vld1q_s16(kptr);  // kernel outch 0 inch 0
+                    _k0n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    _k1 = vld1q_s16(kptr);  // kernel outch 1 inch 0
+                    _k1n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    // inch 0, outch 0
+                    _sum00 = vmlal_s16(_sum00, vget_low_s16(_r0), vget_low_s16(_k0));
+                    _sum01 = vmlal_s16(_sum01, vget_high_s16(_r0), vget_high_s16(_k0));
+                    _sum02 = vmlal_s16(_sum02, vget_low_s16(_r0n), vget_low_s16(_k0n));
+                    _sum03 = vmlal_s16(_sum03, vget_high_s16(_r0n), vget_high_s16(_k0n));
+                    _k0 = vld1q_s16(kptr);  // kernel outch 0 inch 1
+                    _k0n = vld1q_s16(kptr+8);
+                    kptr += 16;
+                    // inch 0, outch 1
+                    _sum10 = vmlal_s16(_sum10, vget_low_s16(_r0), vget_low_s16(_k1));
+                    _sum11 = vmlal_s16(_sum11, vget_high_s16(_r0), vget_high_s16(_k1));
+                    _sum12 = vmlal_s16(_sum12, vget_low_s16(_r0n), vget_low_s16(_k1n));
+                    _sum13 = vmlal_s16(_sum13, vget_high_s16(_r0n), vget_high_s16(_k1n));
+                    _k1 = vld1q_s16(kptr);  // kernel outch 1 inch 1
+                    _k1n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    _r0 = vld1q_s16(r0);  // input inch 2
+                    _r0n = vld1q_s16(r0+8);
+                    r0 += 16;                    
+
+                    // inch 1, outch 0
+                    _sum00 = vmlal_s16(_sum00, vget_low_s16(_r1), vget_low_s16(_k0));
+                    _sum01 = vmlal_s16(_sum01, vget_high_s16(_r1), vget_high_s16(_k0));
+                    _sum02 = vmlal_s16(_sum02, vget_low_s16(_r1n), vget_low_s16(_k0n));
+                    _sum03 = vmlal_s16(_sum03, vget_high_s16(_r1n), vget_high_s16(_k0n));
+                    _k0 = vld1q_s16(kptr);  // kernel outch 0 inch 2
+                    _k0n = vld1q_s16(kptr+8);
+                    kptr += 16;
+                    // inch 1, outch 1
+                    _sum10 = vmlal_s16(_sum10, vget_low_s16(_r1), vget_low_s16(_k1));
+                    _sum11 = vmlal_s16(_sum11, vget_high_s16(_r1), vget_high_s16(_k1));
+                    _sum12 = vmlal_s16(_sum12, vget_low_s16(_r1n), vget_low_s16(_k1n));
+                    _sum13 = vmlal_s16(_sum13, vget_high_s16(_r1n), vget_high_s16(_k1n));
+                    _k1 = vld1q_s16(kptr);  // kernel outch 1 inch 2
+                    _k1n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    _r1 = vld1q_s16(r0);  // input inch 3
+                    _r1n = vld1q_s16(r0+8);
+                    r0 += 16;
+
+                    // inch 2, outch 0
+                    _sum00 = vmlal_s16(_sum00, vget_low_s16(_r0), vget_low_s16(_k0));
+                    _sum01 = vmlal_s16(_sum01, vget_high_s16(_r0), vget_high_s16(_k0));
+                    _sum02 = vmlal_s16(_sum02, vget_low_s16(_r0n), vget_low_s16(_k0n));
+                    _sum03 = vmlal_s16(_sum03, vget_high_s16(_r0n), vget_high_s16(_k0n));
+                    _k0 = vld1q_s16(kptr);  // kernel outch 0 inch 3
+                    _k0n = vld1q_s16(kptr+8);
+                    kptr += 16;
+                    // inch 2, outch 1
+                    _sum10 = vmlal_s16(_sum10, vget_low_s16(_r0), vget_low_s16(_k1));
+                    _sum11 = vmlal_s16(_sum11, vget_high_s16(_r0), vget_high_s16(_k1));
+                    _sum12 = vmlal_s16(_sum12, vget_low_s16(_r0n), vget_low_s16(_k1n));
+                    _sum13 = vmlal_s16(_sum13, vget_high_s16(_r0n), vget_high_s16(_k1n));
+                    _k1 = vld1q_s16(kptr);  // kernel outch 1 inch 3
+                    _k1n = vld1q_s16(kptr+8);
+                    kptr += 16;                    
+
+                    // inch 3, outch 0
+                    _sum00 = vmlal_s16(_sum00, vget_low_s16(_r1), vget_low_s16(_k0));
+                    _sum01 = vmlal_s16(_sum01, vget_high_s16(_r1), vget_high_s16(_k0));
+                    _sum02 = vmlal_s16(_sum02, vget_low_s16(_r1n), vget_low_s16(_k0n));
+                    _sum03 = vmlal_s16(_sum03, vget_high_s16(_r1n), vget_high_s16(_k0n));
+                    // inch 3, outch 1
+                    _sum10 = vmlal_s16(_sum10, vget_low_s16(_r1), vget_low_s16(_k1));
+                    _sum11 = vmlal_s16(_sum11, vget_high_s16(_r1), vget_high_s16(_k1));
+                    _sum12 = vmlal_s16(_sum12, vget_low_s16(_r1n), vget_low_s16(_k1n));
+                    _sum13 = vmlal_s16(_sum13, vget_high_s16(_r1n), vget_high_s16(_k1n));
+#else
+                    const short* r0 = bottom_blob_tm.channel(i).row<short>(q);
+                    const short* r1 = r0 + 16;
+                    const short* r2 = r0 + 32;
+                    const short* r3 = r0 + 48;
+
+                    // inch 0
+                    for (int n=0; n<16; n++)
+                    {
+                        sum0[n] += (int)r0[n] * kptr[n];
+                        sum1[n] += (int)r0[n] * kptr[n+16];
+                    }
+                    kptr += 32;
+
+                    // inch 1
+                    for (int n=0; n<16; n++)
+                    {
+                        sum0[n] += (int)r1[n] * kptr[n];
+                        sum1[n] += (int)r1[n] * kptr[n+16];
+                    }
+                    kptr += 32;
+
+                    // inch 2
+                    for (int n=0; n<16; n++)
+                    {
+                        sum0[n] += (int)r2[n] * kptr[n];
+                        sum1[n] += (int)r2[n] * kptr[n+16];
+                    }
+                    kptr += 32;
+
+                    // inch 3
+                    for (int n=0; n<16; n++)
+                    {
+                        sum0[n] += (int)r3[n] * kptr[n];
+                        sum1[n] += (int)r3[n] * kptr[n+16];
+                    }
+                    kptr += 32;
+#endif // __ARM_NEON
+                }
+
+                for (; q<inch; q++)
+                {
+#if 1 //__ARM_NEON
+                    _r0 = vld1q_s16(r0);  // input inch 0
+                    _r0n = vld1q_s16(r0+8);
+                    r0 += 16;                
+
+                    _k0 = vld1q_s16(kptr);  // kernel outch 0 inch 0
+                    _k0n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    _k1 = vld1q_s16(kptr);  // kernel outch 1 inch 0
+                    _k1n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    // inch 0, outch 0
+                    _sum00 = vmlal_s16(_sum00, vget_low_s16(_r0), vget_low_s16(_k0));
+                    _sum01 = vmlal_s16(_sum01, vget_high_s16(_r0), vget_high_s16(_k0));
+                    _sum02 = vmlal_s16(_sum02, vget_low_s16(_r0n), vget_low_s16(_k0n));
+                    _sum03 = vmlal_s16(_sum03, vget_high_s16(_r0n), vget_high_s16(_k0n));
+                    // inch 0, outch 1
+                    _sum10 = vmlal_s16(_sum10, vget_low_s16(_r0), vget_low_s16(_k1));
+                    _sum11 = vmlal_s16(_sum11, vget_high_s16(_r0), vget_high_s16(_k1));
+                    _sum12 = vmlal_s16(_sum12, vget_low_s16(_r0n), vget_low_s16(_k1n));
+                    _sum13 = vmlal_s16(_sum13, vget_high_s16(_r0n), vget_high_s16(_k1n));
+#else
+                    const short* r0 = bottom_blob_tm.channel(i).row<short>(q);
+                    for (int n=0; n<16; n++)
+                    {
+                        sum0[n] += (int)r0[n] * kptr[n];
+                        sum1[n] += (int)r0[n] * kptr[n+16];
+                    }
+                    kptr += 32;
+#endif // __ARM_NEON      
+                }
+#if 1 //__ARM_NEON
+                vst1q_s32(output0_tm    , _sum00);
+                vst1q_s32(output0_tm + 4, _sum01);
+                vst1q_s32(output0_tm + 8, _sum02);
+                vst1q_s32(output0_tm +12, _sum03);
+
+                vst1q_s32(output1_tm    , _sum10);
+                vst1q_s32(output1_tm + 4, _sum11);
+                vst1q_s32(output1_tm + 8, _sum12);
+                vst1q_s32(output1_tm +12, _sum13);
+#else
+                for (int n=0; n<16; n++)
+                {
+                    output0_tm[n] = sum0[n];
+                    output1_tm[n] = sum1[n];
+                }
+#endif // __ARM_NEON
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p=remain_outch_start; p<outch; p++)
+        {
+            Mat out0_tm = top_blob_tm.channel(p);
+
+            for (int i=0; i<tiles; i++)
+            {
+                int* output0_tm = out0_tm.row<int>(i);
+                const short* kptr = kernel_tm.channel(p);
+#if 1 //__ARM_NEON
+                const short* r0 = bottom_blob_tm.channel(i);
+                
+                int32x4_t _sum00, _sum01, _sum02, _sum03;
+                int16x8_t _k0, _k0n, _k1, _k1n;
+                int16x8_t _r0, _r0n, _r1, _r1n;
+
+                _sum00 = vdupq_n_s32(0);            
+#else
+                int sum0[16] = {0};
+#endif // __ARM_NEON                
+                int q = 0;
+                for (; q+3<inch; q+=4)
+                {   
+#if 1 //__ARM_NEON
+                    _r0 = vld1q_s16(r0);  // input inch 0
+                    _r0n = vld1q_s16(r0+8);
+                    r0 += 16;
+
+                    _r1 = vld1q_s16(r0);  // input inch 1
+                    _r1n = vld1q_s16(r0+8);
+                    r0 += 16;                    
+
+                    _k0 = vld1q_s16(kptr);  // kernel outch 0 inch 0
+                    _k0n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    _k1 = vld1q_s16(kptr);  // kernel outch 0 inch 1
+                    _k1n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    // inch 0, outch 0
+                    _sum00 = vmlal_s16(_sum00, vget_low_s16(_r0), vget_low_s16(_k0));
+                    _sum01 = vmlal_s16(_sum01, vget_high_s16(_r0), vget_high_s16(_k0));
+                    _sum02 = vmlal_s16(_sum02, vget_low_s16(_r0n), vget_low_s16(_k0n));
+                    _sum03 = vmlal_s16(_sum03, vget_high_s16(_r0n), vget_high_s16(_k0n));
+                    _k0 = vld1q_s16(kptr);  // kernel outch 0 inch 2
+                    _k0n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    _r0 = vld1q_s16(r0);  // input inch 2
+                    _r0n = vld1q_s16(r0+8);
+                    r0 += 16;                    
+
+                    // inch 1, outch 0
+                    _sum00 = vmlal_s16(_sum00, vget_low_s16(_r1), vget_low_s16(_k1));
+                    _sum01 = vmlal_s16(_sum01, vget_high_s16(_r1), vget_high_s16(_k1));
+                    _sum02 = vmlal_s16(_sum02, vget_low_s16(_r1n), vget_low_s16(_k1n));
+                    _sum03 = vmlal_s16(_sum03, vget_high_s16(_r1n), vget_high_s16(_k1n));
+                    _k1 = vld1q_s16(kptr);  // kernel outch 0 inch 3
+                    _k1n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    _r1 = vld1q_s16(r0);  // input inch 3
+                    _r1n = vld1q_s16(r0+8);
+                    r0 += 16;
+
+                    // inch 2, outch 0
+                    _sum00 = vmlal_s16(_sum00, vget_low_s16(_r0), vget_low_s16(_k0));
+                    _sum01 = vmlal_s16(_sum01, vget_high_s16(_r0), vget_high_s16(_k0));
+                    _sum02 = vmlal_s16(_sum02, vget_low_s16(_r0n), vget_low_s16(_k0n));
+                    _sum03 = vmlal_s16(_sum03, vget_high_s16(_r0n), vget_high_s16(_k0n));
+               
+                    // inch 3, outch 0
+                    _sum00 = vmlal_s16(_sum00, vget_low_s16(_r1), vget_low_s16(_k1));
+                    _sum01 = vmlal_s16(_sum01, vget_high_s16(_r1), vget_high_s16(_k1));
+                    _sum02 = vmlal_s16(_sum02, vget_low_s16(_r1n), vget_low_s16(_k1n));
+                    _sum03 = vmlal_s16(_sum03, vget_high_s16(_r1n), vget_high_s16(_k1n));                                                                        
+#else
+                    const short* r0 = bottom_blob_tm.channel(i).row<short>(q);
+                    const short* r1 = r0 + 16;
+                    const short* r2 = r0 + 32;
+                    const short* r3 = r0 + 48;
+
+                    for (int n=0; n<16; n++)
+                    {
+                        sum0[n] += (int)r0[n] * kptr[n];
+                        sum0[n] += (int)r1[n] * kptr[n+16];
+                        sum0[n] += (int)r2[n] * kptr[n+32];
+                        sum0[n] += (int)r3[n] * kptr[n+48];
+                    }
+                    kptr += 64; 
+#endif // __ARM_NEON
+                }
+
+                for (; q<inch; q++)
+                {
+                    const short* r0 = bottom_blob_tm.channel(i).row<short>(q);
+#if 1 //__ARM_NEON
+                    _r0 = vld1q_s16(r0);  // input inch 0
+                    _r0n = vld1q_s16(r0+8);
+                    r0 += 16;             
+
+                    _k0 = vld1q_s16(kptr);  // kernel outch 0 inch 0
+                    _k0n = vld1q_s16(kptr+8);
+                    kptr += 16;
+
+                    // inch 0, outch 0
+                    _sum00 = vmlal_s16(_sum00, vget_low_s16(_r0), vget_low_s16(_k0));
+                    _sum01 = vmlal_s16(_sum01, vget_high_s16(_r0), vget_high_s16(_k0));
+                    _sum02 = vmlal_s16(_sum02, vget_low_s16(_r0n), vget_low_s16(_k0n));
+                    _sum03 = vmlal_s16(_sum03, vget_high_s16(_r0n), vget_high_s16(_k0n));
+#else
+                    for (int n=0; n<16; n++)
+                    {
+                        sum0[n] += (int)r0[n] * kptr[n];
+                    }
+                    kptr += 16;   
+#endif // __ARM_NEON
+                }
+#if 1 //__ARM_NEON
+                vst1q_s32(output0_tm    , _sum00);
+                vst1q_s32(output0_tm + 4, _sum01);
+                vst1q_s32(output0_tm + 8, _sum02);
+                vst1q_s32(output0_tm +12, _sum03);
+#else
+                for (int n=0; n<16; n++)
+                {
+                    output0_tm[n] = sum0[n];
+                }
+#endif // __ARM_NEON
+            }
+        }
+    }
+    bottom_blob_tm = Mat();
+    // END dot    
+
+    end = ncnn::get_current_time();
+    printf("dot B   : %.3f ms\n", end - start);
+    start = ncnn::get_current_time();
+
+    // BEGIN transform output
+    Mat top_blob_bordered;
+    top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
+    {
+        // AT
+        // const float itm[2][4] = {
+        //     {1.0f,  1.0f,  1.0f,  0.0f},
+        //     {0.0f,  1.0f, -1.0f,  1.0f}
+        // }; 
+
+        int w_tm = outw / 2 * 4;
+        int h_tm = outh / 2 * 4;
+
+        int nColBlocks = h_tm/4; // may be the block num in Feathercnn
+        int nRowBlocks = w_tm/4;
+
+        int32x2_t _shift = vdup_n_s32(-2);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p=0; p<outch; p++)
+        {
+            Mat out_tm = top_blob_tm.channel(p);
+            Mat out = top_blob_bordered.channel(p);
+
+            for (int j=0; j<nColBlocks; j++)
+            {
+                int* outRow0 = out.row<int>(j*2);
+                int* outRow1 = out.row<int>(j*2+1);
+
+                for(int i=0; i<nRowBlocks; i++)
+                {
+                    int* out_tile = out_tm.row<int>(j*nRowBlocks + i);
+#if __ARM_NEON
+                    int32x4_t s0, s1, s2, s3;
+                    int32x2_t o0, o1;
+                    int32x2_t d0, d1, d2, d3;
+
+                    s0 = vld1q_s32(out_tile);
+                    s1 = vld1q_s32(out_tile+4);
+                    s2 = vld1q_s32(out_tile+8);
+                    s3 = vld1q_s32(out_tile+12);
+
+                    s0 = s0 + s1 + s2;
+                    s1 = s1 - s2 + s3;
+
+                    int32x4x2_t rows = vtrnq_s32(s0, s1);
+                    d0 = vget_low_s32(rows.val[0]);
+                    d1 = vget_low_s32(rows.val[1]);
+                    d2 = vget_high_s32(rows.val[0]);
+                    d3 = vget_high_s32(rows.val[1]);
+                    o0 = d0 + d1 + d2;
+                    o1 = d1 - d2 + d3;
+
+                    o0 = vshl_s32(o0, _shift);
+                    o1 = vshl_s32(o1, _shift);
+
+                    vst1_s32(outRow0, o0);
+                    vst1_s32(outRow1, o1);
+#else
+                    int s0[4],s1[4],s2[4],s3[4];
+                    int w0[4],w1[4];
+                    int d0[2],d1[2],d2[2],d3[2];
+                    int o0[2],o1[2];
+                    // load
+                    for (int n = 0; n < 4; n++)
+                    {
+                        s0[n] = out_tile[n];
+                        s1[n] = out_tile[n+ 4];
+                        s2[n] = out_tile[n+ 8];
+                        s3[n] = out_tile[n+12];
+                    }
+                    // w = A_T * W
+                    for (int n = 0; n < 4; n++)
+                    {
+                        w0[n] = s0[n] + s1[n] + s2[n];
+                        w1[n] = s1[n] - s2[n] + s3[n];
+                    }
+                    // transpose w to w_t
+                    {
+                        d0[0] = w0[0]; d0[1] = w1[0];
+                        d1[0] = w0[1]; d1[1] = w1[1];
+                        d2[0] = w0[2]; d2[1] = w1[2];
+                        d3[0] = w0[3]; d3[1] = w1[3];
+                    }
+                    // Y = A_T * w_t
+                    for (int n = 0; n < 2; n++)
+                    {
+                        o0[n] = d0[n] + d1[n] + d2[n];
+                        o1[n] = d1[n] - d2[n] + d3[n];
+                    }
+                    // save to top blob tm,why right 2,because the G' = G*2
+                    outRow0[0] = o0[0] >> 2;
+                    outRow0[1] = o0[1] >> 2;
+                    outRow1[0] = o1[0] >> 2;
+                    outRow1[1] = o1[1] >> 2;
+#endif // __ARM_NEON
+                    outRow0 += 2;
+                    outRow1 += 2;           
+                }
+            }
+        }        
+    }
+    // END transform output 
+
+    end = ncnn::get_current_time();
+    printf("trans C : %.3f ms\n", end - start);
+    
+    // cut result pad
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);  
 }
 
 static void conv3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)

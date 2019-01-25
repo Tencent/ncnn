@@ -39,7 +39,7 @@ int Convolution_x86::load_param(const ParamDict& pd)
     {
         int num_input = weight_data_size / 9 / num_output;
         // winograd is slow on small channel count
-        if(num_input >= 16 && num_output >= 16 && (num_output % 4)==0)
+        if(num_input >= 16 && num_output >= 16)
             use_winograd3x3 = true;
     }           
 
