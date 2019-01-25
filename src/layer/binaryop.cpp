@@ -83,7 +83,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 return 0;
              }
 
-			#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = a.channel(q);
