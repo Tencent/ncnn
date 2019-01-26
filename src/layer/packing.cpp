@@ -92,7 +92,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                     const unsigned char* ptr = (const unsigned char*)bottom_blob + srcy * w * elemsize;
                     const unsigned char* elem_ptr = ptr + j * elemsize;
 
-                    memcpy(out_elem_ptr + k, elem_ptr + srck, lane_size);
+                    memcpy(out_elem_ptr + k * lane_size, elem_ptr + srck * lane_size, lane_size);
                 }
             }
         }
@@ -135,7 +135,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                         const unsigned char* ptr = (const unsigned char*)m + i * w * elemsize;
                         const unsigned char* elem_ptr = ptr + j * elemsize;
 
-                        memcpy(out_elem_ptr + k, elem_ptr + srck, lane_size);
+                        memcpy(out_elem_ptr + k * lane_size, elem_ptr + srck * lane_size, lane_size);
                     }
                 }
             }
