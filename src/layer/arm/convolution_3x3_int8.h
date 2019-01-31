@@ -2293,7 +2293,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         int w_tm = outw / 2 * 4;
         int h_tm = outh / 2 * 4;
 
-        int nColBlocks = h_tm/4; // may be the block num in Feathercnn
+        int nColBlocks = h_tm/4; // may be the block num in FeatherCNN
         int nRowBlocks = w_tm/4;
 
         const int tiles = nColBlocks * nRowBlocks;
@@ -2312,20 +2312,69 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         {
             const signed char* img = bottom_blob_bordered.channel(q);
 
-            for (int j = 0; j < nColBlocks; j++)
+            for (int j=0; j<nColBlocks; j++)
             {
                 const signed char* r0 = img + w * j * 2;
                 const signed char* r1 = r0 + w;
                 const signed char* r2 = r1 + w;
                 const signed char* r3 = r2 + w;
 
-                for (int i = 0; i < nRowBlocks; i++)
+                for (int i = 0; i<nRowBlocks; i++)
                 {
                     short* out_tm0 = bottom_blob_tm.channel(tiles*0+j*nRowBlocks+i).row<short>(q);
                     short* out_tm1 = bottom_blob_tm.channel(tiles*1+j*nRowBlocks+i).row<short>(q);
                     short* out_tm2 = bottom_blob_tm.channel(tiles*2+j*nRowBlocks+i).row<short>(q);
                     short* out_tm3 = bottom_blob_tm.channel(tiles*3+j*nRowBlocks+i).row<short>(q);
-
+#if __ARM_NEON
+                    asm volatile(
+                        // load
+                        "pld         [%0, #64]     \n"
+                        "vld1.s8     {d0}, [%0]    \n"
+                        "pld         [%1, #64]     \n"
+                        "vld1.s8     {d1}, [%1]    \n"
+                        "pld         [%2, #64]     \n"
+                        "vld1.s8     {d2}, [%2]    \n"
+                        "pld         [%3, #64]     \n"
+                        "vld1.s8     {d3}, [%3]    \n"
+                        // w = B_t * d, trans int8 to int16
+                        "vsubl.s8    q2, d0, d2    \n" // d4
+                        "vaddl.s8    q3, d1, d2    \n" // d6
+                        "vsubl.s8    q4, d2, d1    \n" // d8
+                        "vsubl.s8    q5, d3, d1    \n" // d10
+                        // transpose w to w_t
+                        "vtrn.s16    d4, d6        \n"
+                        "vtrn.s16    d8, d10       \n"
+                        "vtrn.s32    d4, d8        \n"
+                        "vtrn.s32    d6, d10       \n"
+                        // U = B_t * d_t
+                        "vsub.s16    d11, d4, d8   \n"
+                        "vadd.s16    d12, d6, d8   \n"
+                        "vsub.s16    d13, d8, d6   \n"
+                        "vsub.s16    d14, d10, d6  \n"
+                        // save
+                        "vst1.s32    {d11}, [%4]   \n"
+                        "vst1.s32    {d12}, [%5]   \n"
+                        "vst1.s32    {d13}, [%6]   \n"
+                        "vst1.s32    {d14}, [%7]   \n"
+                        : "=r"(r0),      // %0
+                          "=r"(r1),      // %1
+                          "=r"(r2),      // %2
+                          "=r"(r3),      // %3
+                          "=r"(out_tm0), // %4
+                          "=r"(out_tm1), // %5
+                          "=r"(out_tm2), // %6
+                          "=r"(out_tm3)  // %7
+                        : "0"(r0),
+                          "1"(r1),
+                          "2"(r2),
+                          "3"(r3),
+                          "4"(out_tm0),
+                          "5"(out_tm1),
+                          "6"(out_tm2),
+                          "7"(out_tm3)
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7"
+                    );
+#else
                     short d0[4],d1[4],d2[4],d3[4];
                     short w0[4],w1[4],w2[4],w3[4];
                     short t0[4],t1[4],t2[4],t3[4];
@@ -2367,11 +2416,12 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         out_tm1[n] = d1[n];
                         out_tm2[n] = d2[n];
                         out_tm3[n] = d3[n];
-                    }               
+                    }
+#endif                           
                     r0 += 2;
                     r1 += 2;
                     r2 += 2;
-                    r3 += 2;
+                    r3 += 2;    
                 }
             }
         }
@@ -2388,7 +2438,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         int w_tm = outw / 2 * 4;
         int h_tm = outh / 2 * 4;
 
-        int nColBlocks = h_tm/4; // may be the block num in Feathercnn
+        int nColBlocks = h_tm/4; // may be the block num in FeatherCNN
         int nRowBlocks = w_tm/4;
 
         const int tiles = nColBlocks * nRowBlocks; 
@@ -2452,7 +2502,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "vld1.s16    {d22-d23}, [%9]  \n" // _k1 = vld1q_s16(kptr+16);
                         "add         %9, #16          \n"  
                         "vld1.s16    {d24-d25}, [%9]  \n" // _k1n = vld1q_s16(kptr+24);
-                        "add         %9, #16          \n"                                                                  
+                        "add         %9, #16          \n"
 
                         "vmlal.s16   q0, d16, d18     \n" // sum0 += (a00-a03) * (k00-k03)
                         "vmlal.s16   q1, d16, d19     \n" // sum1 += (a00-a03) * (k10-k13)
@@ -2544,7 +2594,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     output4_tm += 16;
                     output5_tm += 16;
                     output6_tm += 16;
-                    output7_tm += 16;                    
+                    output7_tm += 16;
                 }
             }
 
@@ -2583,7 +2633,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "vld1.s16    {d18-d19}, [%5]  \n" // _k0 = vld1q_s16(kptr);
                         "add         %5, #16          \n" 
                         "vld1.s16    {d20-d21}, [%5]  \n" // _k0n = vld1q_s16(kptr+8);
-                        "add         %5, #16          \n"                                                       
+                        "add         %5, #16          \n"
 
                         "vmlal.s16   q0, d16, d18     \n" // sum0 += (a00-a03) * (k00-k03)
                         "vmlal.s16   q1, d16, d19     \n" // sum1 += (a00-a03) * (k10-k13)
@@ -2626,7 +2676,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                             sum0[n] += (int)r0[n] * kptr[n];
                             sum1[n] += (int)r0[n] * kptr[n+4];
                             sum2[n] += (int)r0[n] * kptr[n+8];
-                            sum3[n] += (int)r0[n] * kptr[n+12];                            
+                            sum3[n] += (int)r0[n] * kptr[n+12];
                         }
                         kptr += 16;
                         r += 4;
@@ -2638,7 +2688,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         output1_tm[n] = sum1[n];
                         output2_tm[n] = sum2[n];
                         output3_tm[n] = sum3[n];
-                    }                                  
+                    }
 #endif // __ARM_NEON
                     output0_tm += 16;
                     output1_tm += 16;
@@ -2670,7 +2720,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "vld1.s16    {d16}, [%1]      \n" // _r0 = vld1_s16(r0);  // input inch0
                         "add         %1, #8           \n"
                         "vld1.s16    {d18}, [%2]      \n" // _k0 = vld1q_s16(kptr);
-                        "add         %2, #8           \n"                                                        
+                        "add         %2, #8           \n"
                         "vmlal.s16   q0, d16, d18     \n" // sum0 += (a00-a03) * (k00-k03)
 
                         "subs        r4, r4, #1       \n"
@@ -2727,7 +2777,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         int w_tm = outw / 2 * 4;
         int h_tm = outh / 2 * 4;
 
-        int nColBlocks = h_tm/4; // may be the block num in Feathercnn
+        int nColBlocks = h_tm/4; // may be the block num in FeatherCNN
         int nRowBlocks = w_tm/4;
 
         int32x2_t _shift = vdup_n_s32(-2);
@@ -2735,43 +2785,45 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<outch; p++)
         {
-            Mat out_tm = top_blob_tm.channel(p);
-            Mat out = top_blob_bordered.channel(p);
+            int* out_tile = top_blob_tm.channel(p);
+            int* outRow0 = top_blob_bordered.channel(p);
+            int* outRow1 = outRow0 + outw;     
 
             for (int j=0; j<nColBlocks; j++)
             {
-                int* outRow0 = out.row<int>(j*2);
-                int* outRow1 = out.row<int>(j*2+1);
-
                 for(int i=0; i<nRowBlocks; i++)
                 {
-                    int* out_tile = out_tm.row<int>(j*nRowBlocks + i);
 #if __ARM_NEON
-                    int32x4_t s0, s1, s2, s3;
-                    int32x2_t o0, o1;
-                    int32x2_t d0, d1, d2, d3;
+                    asm volatile(
+                        "pld        [%0, #512]      \n"
+                        "vldm        %0!, {d0-d7}   \n"
 
-                    s0 = vld1q_s32(out_tile);
-                    s1 = vld1q_s32(out_tile+4);
-                    s2 = vld1q_s32(out_tile+8);
-                    s3 = vld1q_s32(out_tile+12);
+                        "vaddq.s32    q0, q0, q1    \n" // s0 = s0 + s1 + s2;
+                        "vsubq.s32    q1, q1, q2    \n"
+                        "vaddq.s32    q0, q0, q2    \n" // s1 = s1 - s2 + s3;
+                        "vaddq.s32    q1, q1, q3    \n"
 
-                    s0 = s0 + s1 + s2;
-                    s1 = s1 - s2 + s3;
+                        "vtrn.s32    q0, q1         \n"
+                        
+                        "vadd.s32    d8, d0, d2     \n" // o0 = d0 + d1 + d2;
+                        "vsub.s32    d9, d2, d1     \n"
+                        "vadd.s32    d8, d8, d1     \n" // o1 = d1 - d2 + d3;
+                        "vadd.s32    d9, d9, d3     \n"
 
-                    int32x4x2_t rows = vtrnq_s32(s0, s1);
-                    d0 = vget_low_s32(rows.val[0]);
-                    d1 = vget_low_s32(rows.val[1]);
-                    d2 = vget_high_s32(rows.val[0]);
-                    d3 = vget_high_s32(rows.val[1]);
-                    o0 = d0 + d1 + d2;
-                    o1 = d1 - d2 + d3;
+                        "vshl.s32    d8, d8, %P6    \n" // o0 = o0 >> 2
+                        "vshl.s32    d9, d9, %P6    \n" // o1 = o1 >> 2
 
-                    o0 = vshl_s32(o0, _shift);
-                    o1 = vshl_s32(o1, _shift);
-
-                    vst1_s32(outRow0, o0);
-                    vst1_s32(outRow1, o1);
+                        "vst1.s32    {d8}, [%1]!    \n"
+                        "vst1.s32    {d9}, [%2]!    \n"
+                        : "=r"(out_tile), // %0
+                          "=r"(outRow0),  // %1
+                          "=r"(outRow1)   // %2
+                        : "0"(out_tile),
+                          "1"(outRow0),
+                          "2"(outRow1),
+                          "w"(_shift)     // %6
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4"
+                    );
 #else
                     int s0[4],s1[4],s2[4],s3[4];
                     int w0[4],w1[4];
@@ -2809,10 +2861,16 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     outRow0[1] = o0[1] >> 2;
                     outRow1[0] = o1[0] >> 2;
                     outRow1[1] = o1[1] >> 2;
-#endif // __ARM_NEON
+
+                    out_tile += 16;
+
                     outRow0 += 2;
-                    outRow1 += 2;           
+                    outRow1 += 2;
+#endif // __ARM_NEON
                 }
+
+                outRow0 += outw;
+                outRow1 += outw;
             }
         }        
     }
