@@ -24,6 +24,11 @@ ReLU::ReLU()
     one_blob_only = true;
     support_inplace = true;
     support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_relu = 0;
+    pipeline_relu_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int ReLU::load_param(const ParamDict& pd)
@@ -75,18 +80,39 @@ int ReLU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_VULKAN
 int ReLU::create_pipeline()
 {
-    pipeline->set_optimal_local_size_xyz();
+    pipeline_relu = new Pipeline(vkdev);
+    pipeline_relu->set_optimal_local_size_xyz();
 
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].f = slope;
 
-    pipeline->create("relu", specializations, 1, 5);
+    pipeline_relu->create("relu", specializations, 1, 5);
+
+    // pack4
+    {
+        pipeline_relu_pack4 = new Pipeline(vkdev);
+        pipeline_relu_pack4->set_optimal_local_size_xyz();
+        pipeline_relu_pack4->create("relu_pack4", specializations, 1, 5);
+    }
+
+    return 0;
+}
+
+int ReLU::destroy_pipeline()
+{
+    delete pipeline_relu;
+    pipeline_relu = 0;
+
+    delete pipeline_relu_pack4;
+    pipeline_relu_pack4 = 0;
 
     return 0;
 }
 
 int ReLU::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
+    int packing = bottom_top_blob.packing;
+
 //     fprintf(stderr, "ReLU::forward_inplace %p\n", bottom_top_blob.buffer());
 
     std::vector<VkMat> bindings(1);
@@ -98,6 +124,8 @@ int ReLU::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& 
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_relu_pack4 : pipeline_relu;
 
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);

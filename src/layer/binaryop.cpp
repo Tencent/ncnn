@@ -26,6 +26,10 @@ BinaryOp::BinaryOp()
     one_blob_only = false;
     support_inplace = false;
     support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_binaryop = 0;
+#endif // NCNN_VULKAN
 }
 
 int BinaryOp::load_param(const ParamDict& pd)
@@ -492,14 +496,23 @@ int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_VULKAN
 int BinaryOp::create_pipeline()
 {
-    pipeline->set_optimal_local_size_xyz();
+    pipeline_binaryop = new Pipeline(vkdev);
+    pipeline_binaryop->set_optimal_local_size_xyz();
 
     std::vector<vk_specialization_type> specializations(3);
     specializations[0].i = op_type;
     specializations[1].i = with_scalar;
     specializations[2].f = b;
 
-    pipeline->create("binaryop", specializations, 3, 15);
+    pipeline_binaryop->create("binaryop", specializations, 3, 15);
+
+    return 0;
+}
+
+int BinaryOp::destroy_pipeline()
+{
+    delete pipeline_binaryop;
+    pipeline_binaryop = 0;
 
     return 0;
 }
@@ -547,7 +560,7 @@ int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);
     cmd.record_prepare_compute_barrier(bottom_blob1);
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline_binaryop, bindings, constants, top_blob);
 
     return 0;
 }
@@ -574,7 +587,7 @@ int BinaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Opti
 
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    cmd.record_pipeline(pipeline_binaryop, bindings, constants, bottom_top_blob);
 
     return 0;
 }

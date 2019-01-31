@@ -652,7 +652,6 @@ void VkCompute::compute_compute_barrier(VkBuffer buffer, size_t offset, size_t s
 VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index)
 {
     staging_data = 0;
-    mapped_ptr = 0;
 }
 
 VkTransfer::~VkTransfer()
@@ -716,9 +715,6 @@ int VkTransfer::submit()
     // allocate staging buffer
     staging_data = staging_vkallocator->fastMalloc(staging_buffer_size);
 
-    // map
-    vkMapMemory(vkdev->vkdevice(), staging_data->memory, 0, staging_buffer_size, 0, &mapped_ptr);
-
     // copy upload data
     size_t mapped_ptr_offset = 0;
     for (int i=0; i<transfer_count; i++)
@@ -726,7 +722,7 @@ int VkTransfer::submit()
         const record_type& r = delayed_records[i];
         if (r.type == 0)
         {
-            memcpy((unsigned char*)mapped_ptr + mapped_ptr_offset, r.upload.src, r.size);
+            memcpy((unsigned char*)staging_data->mapped_ptr + mapped_ptr_offset, r.upload.src, r.size);
         }
 
         mapped_ptr_offset += r.size;
@@ -776,15 +772,11 @@ int VkTransfer::wait()
         const record_type& r = delayed_records[i];
         if (r.type == 1)
         {
-            memcpy(r.download.dst, (unsigned char*)mapped_ptr + mapped_ptr_offset, r.size);
+            memcpy(r.download.dst, (unsigned char*)staging_data->mapped_ptr + mapped_ptr_offset, r.size);
         }
 
         mapped_ptr_offset += r.size;
     }
-
-    // unmap
-    vkUnmapMemory(vkdev->vkdevice(), staging_data->memory);
-    mapped_ptr = 0;
 
     // deallocate staging buffer
     staging_vkallocator->fastFree(staging_data);

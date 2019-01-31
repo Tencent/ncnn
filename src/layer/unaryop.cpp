@@ -25,6 +25,10 @@ UnaryOp::UnaryOp()
     one_blob_only = true;
     support_inplace = true;
     support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_unaryop = 0;
+#endif // NCNN_VULKAN
 }
 
 int UnaryOp::load_param(const ParamDict& pd)
@@ -186,12 +190,21 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_VULKAN
 int UnaryOp::create_pipeline()
 {
-    pipeline->set_optimal_local_size_xyz();
+    pipeline_unaryop = new Pipeline(vkdev);
+    pipeline_unaryop->set_optimal_local_size_xyz();
 
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = op_type;
 
-    pipeline->create("unaryop", specializations, 1, 5);
+    pipeline_unaryop->create("unaryop", specializations, 1, 5);
+
+    return 0;
+}
+
+int UnaryOp::destroy_pipeline()
+{
+    delete pipeline_unaryop;
+    pipeline_unaryop = 0;
 
     return 0;
 }
@@ -212,7 +225,7 @@ int UnaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
 
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    cmd.record_pipeline(pipeline_unaryop, bindings, constants, bottom_top_blob);
 
     return 0;
 }

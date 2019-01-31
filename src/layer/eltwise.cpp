@@ -24,6 +24,11 @@ Eltwise::Eltwise()
     one_blob_only = false;
     support_inplace = false;// TODO inplace reduction
     support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_eltwise = 0;
+    pipeline_eltwise_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int Eltwise::load_param(const ParamDict& pd)
@@ -193,13 +198,32 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 #if NCNN_VULKAN
 int Eltwise::create_pipeline()
 {
-    pipeline->set_optimal_local_size_xyz();
+    pipeline_eltwise = new Pipeline(vkdev);
+    pipeline_eltwise->set_optimal_local_size_xyz();
 
     std::vector<vk_specialization_type> specializations(2);
     specializations[0].i = op_type;
     specializations[1].i = coeffs.w == 0 ? 0 : 1;
 
-    pipeline->create("eltwise", specializations, 3, 5+2);
+    pipeline_eltwise->create("eltwise", specializations, 3, 5+2);
+
+    // pack4
+    {
+        pipeline_eltwise_pack4 = new Pipeline(vkdev);
+        pipeline_eltwise_pack4->set_optimal_local_size_xyz();
+        pipeline_eltwise_pack4->create("eltwise_pack4", specializations, 3, 5+2);
+    }
+
+    return 0;
+}
+
+int Eltwise::destroy_pipeline()
+{
+    delete pipeline_eltwise;
+    pipeline_eltwise = 0;
+
+    delete pipeline_eltwise_pack4;
+    pipeline_eltwise_pack4 = 0;
 
     return 0;
 }
@@ -236,7 +260,7 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);
     cmd.record_prepare_compute_barrier(bottom_blob1);
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline_eltwise, bindings, constants, top_blob);
 
     for (size_t b=2; b<bottom_blobs.size(); b++)
     {
@@ -259,7 +283,7 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
         // record
         cmd.record_prepare_compute_barrier(top_blob);
         cmd.record_prepare_compute_barrier(bottom_blobs[b]);
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_eltwise, bindings, constants, top_blob);
     }
 
     return 0;
