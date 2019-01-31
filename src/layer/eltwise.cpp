@@ -232,12 +232,15 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
 {
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& bottom_blob1 = bottom_blobs[1];
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(w, h, channels, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(w, h, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -257,10 +260,12 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
+    const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4 : pipeline_eltwise;
+
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);
     cmd.record_prepare_compute_barrier(bottom_blob1);
-    cmd.record_pipeline(pipeline_eltwise, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     for (size_t b=2; b<bottom_blobs.size(); b++)
     {
@@ -283,7 +288,7 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
         // record
         cmd.record_prepare_compute_barrier(top_blob);
         cmd.record_prepare_compute_barrier(bottom_blobs[b]);
-        cmd.record_pipeline(pipeline_eltwise, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
 
     return 0;
