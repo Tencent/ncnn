@@ -29,6 +29,7 @@ BinaryOp::BinaryOp()
 
 #if NCNN_VULKAN
     pipeline_binaryop = 0;
+    pipeline_binaryop_pack4 = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -506,6 +507,13 @@ int BinaryOp::create_pipeline()
 
     pipeline_binaryop->create("binaryop", specializations, 3, 15);
 
+    // pack4
+    {
+        pipeline_binaryop_pack4 = new Pipeline(vkdev);
+        pipeline_binaryop_pack4->set_optimal_local_size_xyz();
+        pipeline_binaryop_pack4->create("binaryop_pack4", specializations, 3, 15);
+    }
+
     return 0;
 }
 
@@ -513,6 +521,9 @@ int BinaryOp::destroy_pipeline()
 {
     delete pipeline_binaryop;
     pipeline_binaryop = 0;
+
+    delete pipeline_binaryop_pack4;
+    pipeline_binaryop_pack4 = 0;
 
     return 0;
 }
@@ -524,9 +535,7 @@ int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
 
     VkMat& top_blob = top_blobs[0];
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
+    int packing = bottom_blob.packing;
 
     // TODO broadcast
     top_blob.create_like(bottom_blob, opt.blob_vkallocator, opt.staging_vkallocator);
@@ -557,20 +566,19 @@ int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
     constants[13].i = top_blob.c;
     constants[14].i = top_blob.cstep;
 
+    const Pipeline* pipeline = packing == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
+
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);
     cmd.record_prepare_compute_barrier(bottom_blob1);
-    cmd.record_pipeline(pipeline_binaryop, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }
 
 int BinaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-
+    int packing = bottom_top_blob.packing;
 //     fprintf(stderr, "BinaryOp::forward_inplace %p\n", bottom_top_blob.buffer());
 
     std::vector<VkMat> bindings(3);
@@ -585,9 +593,11 @@ int BinaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Opti
     constants[13].i = bottom_top_blob.c;
     constants[14].i = bottom_top_blob.cstep;
 
+    const Pipeline* pipeline = packing == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
+
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_pipeline(pipeline_binaryop, bindings, constants, bottom_top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
     return 0;
 }

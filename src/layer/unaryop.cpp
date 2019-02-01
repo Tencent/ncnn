@@ -28,6 +28,7 @@ UnaryOp::UnaryOp()
 
 #if NCNN_VULKAN
     pipeline_unaryop = 0;
+    pipeline_unaryop_pack4 = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -198,6 +199,13 @@ int UnaryOp::create_pipeline()
 
     pipeline_unaryop->create("unaryop", specializations, 1, 5);
 
+    // pack4
+    {
+        pipeline_unaryop_pack4 = new Pipeline(vkdev);
+        pipeline_unaryop_pack4->set_optimal_local_size_xyz();
+        pipeline_unaryop_pack4->create("unaryop_pack4", specializations, 1, 5);
+    }
+
     return 0;
 }
 
@@ -206,11 +214,15 @@ int UnaryOp::destroy_pipeline()
     delete pipeline_unaryop;
     pipeline_unaryop = 0;
 
+    delete pipeline_unaryop_pack4;
+    pipeline_unaryop_pack4 = 0;
+
     return 0;
 }
 
 int UnaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
+    int packing = bottom_top_blob.packing;
 //     fprintf(stderr, "UnaryOp::forward_inplace %p\n", bottom_top_blob.buffer());
 
     std::vector<VkMat> bindings(1);
@@ -223,9 +235,11 @@ int UnaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
+    const Pipeline* pipeline = packing == 4 ? pipeline_unaryop_pack4 : pipeline_unaryop;
+
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_pipeline(pipeline_unaryop, bindings, constants, bottom_top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
     return 0;
 }

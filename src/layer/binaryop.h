@@ -59,6 +59,7 @@ public:
 
 #if NCNN_VULKAN
     Pipeline* pipeline_binaryop;
+    Pipeline* pipeline_binaryop_pack4;
 #endif // NCNN_VULKAN
 };
 

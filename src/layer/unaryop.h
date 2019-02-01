@@ -60,6 +60,7 @@ public:
 
 #if NCNN_VULKAN
     Pipeline* pipeline_unaryop;
+    Pipeline* pipeline_unaryop_pack4;
 #endif // NCNN_VULKAN
 };
 
