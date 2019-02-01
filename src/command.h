@@ -78,6 +78,8 @@ public:
 
     void record_compute_compute_barrier(const VkMat& m);
 
+    void record_transfer_transfer_barrier(const VkMat& m);
+
     void record_prepare_transfer_barrier(const VkMat& m);
 
     void record_prepare_compute_barrier(const VkMat& m);
@@ -109,6 +111,7 @@ protected:
     void transfer_compute_barrier(VkBuffer buffer, size_t offset, size_t size);
     void compute_transfer_barrier(VkBuffer buffer, size_t offset, size_t size);
     void compute_compute_barrier(VkBuffer buffer, size_t offset, size_t size);
+    void transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t size);
 
 protected:
     // delayed record
@@ -127,7 +130,8 @@ protected:
         // 7=transfer-compute barrier
         // 8=compute-transfer barrier
         // 9=compute-compute barrier
-        // 10=end
+        // 10=transfer-transfer barrier
+        // 11=end
         int type;
 
         union
@@ -141,6 +145,7 @@ protected:
         struct { VkBuffer buffer; size_t offset; size_t size; } transfer_compute_barrier;
         struct { VkBuffer buffer; size_t offset; size_t size; } compute_transfer_barrier;
         struct { VkBuffer buffer; size_t offset; size_t size; } compute_compute_barrier;
+        struct { VkBuffer buffer; size_t offset; size_t size; } transfer_transfer_barrier;
         };
 
         std::vector<VkBufferCopy> regions;
