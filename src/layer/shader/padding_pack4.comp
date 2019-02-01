@@ -14,14 +14,19 @@
 
 #version 450
 
-layout (constant_id = 0) const int pooling_type = 0;
+layout (constant_id = 0) const int top = 0;
+layout (constant_id = 1) const int bottom = 1;
+layout (constant_id = 2) const int left = 1;
+layout (constant_id = 3) const int right = 1;
+layout (constant_id = 4) const int type = 1;
+layout (constant_id = 5) const float value = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -47,31 +52,31 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    int size = p.w * p.h;
-    int v_offset = gx * p.cstep;
+    vec4 res;
 
-    float res;
+    int x = gx - left;
+    int y = gy - top;
 
-    if (pooling_type == 0)
+    if (type == 0)
     {
-        res = -99999999;
-
-        for (int i = 0; i < size; i++)
+        if (x >= 0 && x < p.w && y >= 0 && y < p.h)
         {
-            res = max(res, bottom_blob_data[v_offset + i]);
+            int v_offset = gz * p.cstep + y * p.w + x;
+            res = bottom_blob_data[v_offset];
+        }
+        else
+        {
+            res = vec4(value);
         }
     }
-    else if (pooling_type == 1)
+    else if (type == 1)
     {
-        res = 0;
+        x = clamp(x, 0, p.w - 1);
+        y = clamp(y, 0, p.h - 1);
 
-        for (int i = 0; i < size; i++)
-        {
-            res += bottom_blob_data[v_offset + i];
-        }
-
-        res /= size;
+        int v_offset = gz * p.cstep + y * p.w + x;
+        res = bottom_blob_data[v_offset];
     }
 
-    top_blob_data[gx] = res;
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = res;
 }

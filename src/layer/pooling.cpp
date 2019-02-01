@@ -29,15 +29,10 @@ Pooling::Pooling()
 
 #if NCNN_VULKAN
     padding = 0;
-    pooling_global = 0;
-#endif // NCNN_VULKAN
-}
-
-Pooling::~Pooling()
-{
-#if NCNN_VULKAN
-    delete padding;
-    delete pooling_global;
+    pipeline_pooling = 0;
+    pipeline_pooling_global = 0;
+    pipeline_pooling_pack4 = 0;
+    pipeline_pooling_global_pack4 = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -58,7 +53,8 @@ int Pooling::load_param(const ParamDict& pd)
 #if NCNN_VULKAN
     if (pd.use_vulkan_compute)
     {
-        padding = ncnn::create_layer(ncnn::LayerType::Padding, vkdev);
+        padding = ncnn::create_layer(ncnn::LayerType::Padding);
+        padding->vkdev = vkdev;
 
         ncnn::ParamDict pd;
         pd.set(0, pad_top);
@@ -326,7 +322,8 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 #if NCNN_VULKAN
 int Pooling::create_pipeline()
 {
-    pipeline->set_optimal_local_size_xyz();
+    pipeline_pooling = new Pipeline(vkdev);
+    pipeline_pooling->set_optimal_local_size_xyz();
 
     std::vector<vk_specialization_type> specializations(7);
     specializations[0].i = pooling_type;
@@ -337,21 +334,55 @@ int Pooling::create_pipeline()
     specializations[5].i = global_pooling;
     specializations[6].i = pad_mode;
 
-    pipeline->create("pooling", specializations, 2, 10);
+    pipeline_pooling->create("pooling", specializations, 2, 10);
 
     padding->create_pipeline();
 
+    // pack4
+    {
+        pipeline_pooling_pack4 = new Pipeline(vkdev);
+        pipeline_pooling_pack4->set_optimal_local_size_xyz();
+        pipeline_pooling_pack4->create("pooling_pack4", specializations, 2, 10);
+    }
+
     if (global_pooling)
     {
-        pooling_global = new Pipeline(vkdev);
+        pipeline_pooling_global = new Pipeline(vkdev);
 
-        pooling_global->set_optimal_local_size_xyz(256, 1, 1);
+        pipeline_pooling_global->set_optimal_local_size_xyz(256, 1, 1);
 
         std::vector<vk_specialization_type> specializations(1);
         specializations[0].i = pooling_type;
 
-        pooling_global->create("pooling_global", specializations, 2, 10);
+        pipeline_pooling_global->create("pooling_global", specializations, 2, 10);
+
+        // pack4
+        {
+            pipeline_pooling_global_pack4 = new Pipeline(vkdev);
+            pipeline_pooling_global_pack4->set_optimal_local_size_xyz(256, 1, 1);
+            pipeline_pooling_global_pack4->create("pooling_global_pack4", specializations, 2, 10);
+        }
     }
+
+    return 0;
+}
+
+int Pooling::destroy_pipeline()
+{
+    if (padding)
+        padding->destroy_pipeline();
+
+    delete pipeline_pooling;
+    pipeline_pooling = 0;
+
+    delete pipeline_pooling_pack4;
+    pipeline_pooling_pack4 = 0;
+
+    delete pipeline_pooling_global;
+    pipeline_pooling_global = 0;
+
+    delete pipeline_pooling_global_pack4;
+    pipeline_pooling_global_pack4 = 0;
 
     return 0;
 }
@@ -361,10 +392,12 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
 
     if (global_pooling)
     {
-        top_blob.create(channels, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -384,10 +417,12 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
+        const Pipeline* pipeline = packing == 4 ? pipeline_pooling_global_pack4 : pipeline_pooling_global;
+
         // record
         cmd.record_prepare_compute_barrier(bottom_blob);
         cmd.record_prepare_compute_barrier(top_blob);
-        cmd.record_pipeline(pooling_global, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
         return 0;
     }
@@ -407,7 +442,7 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     int outw = (w - kernel_w) / stride_w + 1;
     int outh = (h - kernel_h) / stride_h + 1;
 
-    top_blob.create(outw, outh, channels, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -428,6 +463,8 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_pooling_pack4 : pipeline_pooling;
 
     // record
     cmd.record_prepare_compute_barrier(bottom_blob_bordered);

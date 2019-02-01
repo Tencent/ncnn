@@ -26,6 +26,11 @@ InnerProduct::InnerProduct()
     support_inplace = false;
     support_vulkan = true;
 
+#if NCNN_VULKAN
+    pipeline_innerproduct = 0;
+    pipeline_innerproduct_pack4 = 0;
+#endif // NCNN_VULKAN
+
     quantize = 0;
     dequantize = 0;
 }
@@ -215,24 +220,118 @@ int InnerProduct::upload_model(VkTransfer& cmd)
         cmd.record_upload(bias_data, bias_data_gpu);
     }
 
+    // pack4
+    if (num_output % 4 == 0)
+    {
+        int num_input = weight_data_size / num_output;
+
+//         convert_packing(weight_data_r2, weight_data_pack4, 4);
+        // src = inch-outch
+        // dst = 4a-4b-inch/4a-outch/4b
+        {
+            Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+            weight_data_pack4 = Mat(16, num_input/4, num_output/4);
+
+            for (int q=0; q+3<num_output; q+=4)
+            {
+                const float* k0 = weight_data_r2.row(q);
+                const float* k1 = weight_data_r2.row(q+1);
+                const float* k2 = weight_data_r2.row(q+2);
+                const float* k3 = weight_data_r2.row(q+3);
+
+                float* g00 = weight_data_pack4.channel(q/4);
+
+                for (int p=0; p+3<num_input; p+=4)
+                {
+                    g00[0] = k0[0];
+                    g00[1] = k0[1];
+                    g00[2] = k0[2];
+                    g00[3] = k0[3];
+
+                    g00[4] = k1[0];
+                    g00[5] = k1[1];
+                    g00[6] = k1[2];
+                    g00[7] = k1[3];
+
+                    g00[8] = k2[0];
+                    g00[9] = k2[1];
+                    g00[10] = k2[2];
+                    g00[11] = k2[3];
+
+                    g00[12] = k3[0];
+                    g00[13] = k3[1];
+                    g00[14] = k3[2];
+                    g00[15] = k3[3];
+
+                    k0 += 4;
+                    k1 += 4;
+                    k2 += 4;
+                    k3 += 4;
+                    g00 += 16;
+                }
+            }
+        }
+
+        weight_data_pack4 = weight_data_pack4.reshape(16 * (num_input/4) * (num_output/4));
+        cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
+
+        if (bias_term)
+        {
+            convert_packing(bias_data, bias_data_pack4, 4);
+            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
+        }
+    }
+
     return 0;
 }
 
 int InnerProduct::create_pipeline()
 {
-    pipeline->set_optimal_local_size_xyz(num_output, 1, 1);
+    pipeline_innerproduct = new Pipeline(vkdev);
+    pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
 
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = bias_term;
 
-    pipeline->create("innerproduct", specializations, 4, 10);
+    pipeline_innerproduct->create("innerproduct", specializations, 4, 10);
+
+    // pack4
+    if (num_output % 4 == 0)
+    {
+        pipeline_innerproduct_pack4 = new Pipeline(vkdev);
+        pipeline_innerproduct_pack4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
+        pipeline_innerproduct_pack4->create("innerproduct_pack4", specializations, 4, 10);
+    }
+
+    return 0;
+}
+
+int InnerProduct::destroy_pipeline()
+{
+    delete pipeline_innerproduct;
+    pipeline_innerproduct = 0;
+
+    delete pipeline_innerproduct_pack4;
+    pipeline_innerproduct_pack4 = 0;
 
     return 0;
 }
 
 int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    top_blob.create(num_output, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
+    if (dims != 1)
+    {
+        // TODO flatten pack4
+    }
+
+    // TODO assert num_output % packing == 0
+
+    top_blob.create(num_output / packing, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -241,8 +340,8 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = weight_data_gpu;
-    bindings[3] = bias_data_gpu;
+    bindings[2] = packing == 4 ? weight_data_gpu_pack4 : weight_data_gpu;
+    bindings[3] = bias_term ? (packing == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : weight_data_gpu;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
@@ -255,6 +354,8 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_innerproduct_pack4 : pipeline_innerproduct;
 
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);

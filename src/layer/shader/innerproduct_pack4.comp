@@ -14,14 +14,16 @@
 
 #version 450
 
-layout (constant_id = 0) const int pooling_type = 0;
+layout (constant_id = 0) const int bias_term = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
+layout (binding = 2) readonly buffer weight { mat4 weight_data[]; };
+layout (binding = 3) readonly buffer bias { vec4 bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -47,31 +49,36 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    int size = p.w * p.h;
-    int v_offset = gx * p.cstep;
+    vec4 sum;
 
-    float res;
-
-    if (pooling_type == 0)
+    if (bias_term == 1)
     {
-        res = -99999999;
+        sum = bias_data[gx];
+    }
+    else
+    {
+        sum = vec4(0.0);
+    }
+
+    const int size = p.w * p.h;
+
+    int w_offset = gx * size * p.c;
+
+    for (int z = 0; z < p.c; z++)
+    {
+        int v_offset = z * p.cstep;
 
         for (int i = 0; i < size; i++)
         {
-            res = max(res, bottom_blob_data[v_offset + i]);
-        }
-    }
-    else if (pooling_type == 1)
-    {
-        res = 0;
+            vec4 v = bottom_blob_data[v_offset + i];
 
-        for (int i = 0; i < size; i++)
-        {
-            res += bottom_blob_data[v_offset + i];
+            mat4 k = weight_data[w_offset + i];
+
+            sum += v * k;
         }
 
-        res /= size;
+        w_offset += size;
     }
 
-    top_blob_data[gx] = res;
+    top_blob_data[gx] = sum;
 }

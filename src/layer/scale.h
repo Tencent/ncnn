@@ -35,6 +35,7 @@ public:
     virtual int upload_model(VkTransfer& cmd);
 
     virtual int create_pipeline();
+    virtual int destroy_pipeline();
 
     virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
@@ -52,6 +53,14 @@ public:
 #if NCNN_VULKAN
     VkMat scale_data_gpu;
     VkMat bias_data_gpu;
+
+    Pipeline* pipeline_scale;
+
+    Mat scale_data_pack4;
+    Mat bias_data_pack4;
+    VkMat scale_data_gpu_pack4;
+    VkMat bias_data_gpu_pack4;
+    Pipeline* pipeline_scale_pack4;
 #endif // NCNN_VULKAN
 
 };

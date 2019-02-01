@@ -174,7 +174,6 @@ protected:
 
 protected:
     VkBufferMemory* staging_data;
-    void* mapped_ptr;
 
     // delayed record
     struct record_type

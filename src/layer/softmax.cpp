@@ -32,6 +32,11 @@ Softmax::Softmax()
     softmax_exp_sub_max = 0;
     softmax_reduce_sum = 0;
     softmax_div_sum = 0;
+
+    softmax_reduce_max_pack4 = 0;
+    softmax_exp_sub_max_pack4 = 0;
+    softmax_reduce_sum_pack4 = 0;
+    softmax_div_sum_pack4 = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -42,6 +47,11 @@ Softmax::~Softmax()
     delete softmax_exp_sub_max;
     delete softmax_reduce_sum;
     delete softmax_div_sum;
+
+    delete softmax_reduce_max_pack4;
+    delete softmax_exp_sub_max_pack4;
+    delete softmax_reduce_sum_pack4;
+    delete softmax_div_sum_pack4;
 #endif // NCNN_VULKAN
 }
 
@@ -480,6 +490,24 @@ int Softmax::create_pipeline()
     softmax_reduce_sum->create("softmax_reduce_sum", specializations, 2, 10);
     softmax_div_sum->create("softmax_div_sum", specializations, 2, 10);
 
+    // pack4
+    {
+        softmax_reduce_max_pack4 = new Pipeline(vkdev);
+        softmax_exp_sub_max_pack4 = new Pipeline(vkdev);
+        softmax_reduce_sum_pack4 = new Pipeline(vkdev);
+        softmax_div_sum_pack4 = new Pipeline(vkdev);
+
+        softmax_reduce_max_pack4->set_optimal_local_size_xyz();
+        softmax_exp_sub_max_pack4->set_optimal_local_size_xyz();
+        softmax_reduce_sum_pack4->set_optimal_local_size_xyz();
+        softmax_div_sum_pack4->set_optimal_local_size_xyz();
+
+        softmax_reduce_max_pack4->create("softmax_reduce_max_pack4", specializations, 2, 10);
+        softmax_exp_sub_max_pack4->create("softmax_exp_sub_max_pack4", specializations, 2, 10);
+        softmax_reduce_sum_pack4->create("softmax_reduce_sum_pack4", specializations, 2, 10);
+        softmax_div_sum_pack4->create("softmax_div_sum_pack4", specializations, 2, 10);
+    }
+
     return 0;
 }
 
@@ -489,6 +517,7 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
+    int packing = bottom_top_blob.packing;
 
     VkMat max_workspace;
     VkMat sum_workspace;
@@ -544,10 +573,12 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     constants[8].i = max_workspace.c;
     constants[9].i = max_workspace.cstep;
 
+    const Pipeline* pipeline = packing == 4 ? softmax_reduce_max_pack4 : softmax_reduce_max;
+
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_prepare_compute_barrier(max_workspace);
-    cmd.record_pipeline(softmax_reduce_max, bindings, constants, max_workspace);
+    cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
     }
 
     // exp( v - max )
@@ -568,10 +599,12 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     constants[8].i = max_workspace.c;
     constants[9].i = max_workspace.cstep;
 
+    const Pipeline* pipeline = packing == 4 ? softmax_exp_sub_max_pack4 : softmax_exp_sub_max;
+
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_prepare_compute_barrier(max_workspace);
-    cmd.record_pipeline(softmax_exp_sub_max, bindings, constants, bottom_top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
     // reduce sum
@@ -592,10 +625,12 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     constants[8].i = sum_workspace.c;
     constants[9].i = sum_workspace.cstep;
 
+    const Pipeline* pipeline = packing == 4 ? softmax_reduce_sum_pack4 : softmax_reduce_sum;
+
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_prepare_compute_barrier(sum_workspace);
-    cmd.record_pipeline(softmax_reduce_sum, bindings, constants, sum_workspace);
+    cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
     }
 
     // div sum
@@ -616,10 +651,12 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     constants[8].i = sum_workspace.c;
     constants[9].i = sum_workspace.cstep;
 
+    const Pipeline* pipeline = packing == 4 ? softmax_div_sum_pack4 : softmax_div_sum;
+
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_prepare_compute_barrier(sum_workspace);
-    cmd.record_pipeline(softmax_div_sum, bindings, constants, bottom_top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
     return 0;

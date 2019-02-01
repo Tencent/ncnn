@@ -14,14 +14,13 @@
 
 #version 450
 
-layout (constant_id = 0) const int pooling_type = 0;
+layout (constant_id = 0) const float slope = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 0) buffer bottom_top_blob { vec4 bottom_top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -30,12 +29,6 @@ layout (push_constant) uniform parameter
     int h;
     int c;
     int cstep;
-
-    int outdims;
-    int outw;
-    int outh;
-    int outc;
-    int outcstep;
 } p;
 
 void main()
@@ -44,34 +37,17 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    int size = p.w * p.h;
-    int v_offset = gx * p.cstep;
+    const int gi = gz * p.cstep + gy * p.w + gx;
 
-    float res;
+    vec4 v = bottom_top_blob_data[gi];
 
-    if (pooling_type == 0)
-    {
-        res = -99999999;
+    if (slope == 0)
+        v = max(v, 0.0);
+    else
+        v = mix(v, v * slope, lessThan(v, vec4(0.0)));
 
-        for (int i = 0; i < size; i++)
-        {
-            res = max(res, bottom_blob_data[v_offset + i]);
-        }
-    }
-    else if (pooling_type == 1)
-    {
-        res = 0;
-
-        for (int i = 0; i < size; i++)
-        {
-            res += bottom_blob_data[v_offset + i];
-        }
-
-        res /= size;
-    }
-
-    top_blob_data[gx] = res;
+    bottom_top_blob_data[gi] = v;
 }

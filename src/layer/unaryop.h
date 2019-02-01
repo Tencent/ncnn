@@ -30,6 +30,7 @@ public:
 
 #if NCNN_VULKAN
     virtual int create_pipeline();
+    virtual int destroy_pipeline();
 
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
@@ -56,6 +57,11 @@ public:
 public:
     // param
     int op_type;
+
+#if NCNN_VULKAN
+    Pipeline* pipeline_unaryop;
+    Pipeline* pipeline_unaryop_pack4;
+#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

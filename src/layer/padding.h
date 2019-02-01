@@ -30,6 +30,7 @@ public:
 
 #if NCNN_VULKAN
     virtual int create_pipeline();
+    virtual int destroy_pipeline();
 
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
@@ -41,6 +42,11 @@ public:
     int right;
     int type;// 0=BORDER_CONSTANT 1=BORDER_REPLICATE
     float value;
+
+#if NCNN_VULKAN
+    Pipeline* pipeline_padding;
+    Pipeline* pipeline_padding_pack4;
+#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn
