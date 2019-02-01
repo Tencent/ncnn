@@ -27,6 +27,8 @@ InnerProduct::InnerProduct()
     support_vulkan = true;
 
 #if NCNN_VULKAN
+    flatten = 0;
+
     pipeline_innerproduct = 0;
     pipeline_innerproduct_pack4 = 0;
 #endif // NCNN_VULKAN
@@ -37,6 +39,10 @@ InnerProduct::InnerProduct()
 
 InnerProduct::~InnerProduct()
 {
+#if NCNN_VULKAN
+    delete flatten;
+#endif // NCNN_VULKAN
+
     delete quantize;
     delete dequantize;
 }
@@ -52,6 +58,19 @@ int InnerProduct::load_param(const ParamDict& pd)
 
     if (int8_scale_term == 0)
         use_int8_inference = false;
+
+#if NCNN_VULKAN
+    if (pd.use_vulkan_compute)
+    {
+        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.use_vulkan_compute = 1;
+
+        flatten->load_param(pd);
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -296,6 +315,8 @@ int InnerProduct::create_pipeline()
 
     pipeline_innerproduct->create("innerproduct", specializations, 4, 10);
 
+    flatten->create_pipeline();
+
     // pack4
     if (num_output % 4 == 0)
     {
@@ -309,6 +330,9 @@ int InnerProduct::create_pipeline()
 
 int InnerProduct::destroy_pipeline()
 {
+    if (flatten)
+        flatten->destroy_pipeline();
+
     delete pipeline_innerproduct;
     pipeline_innerproduct = 0;
 
@@ -324,9 +348,13 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     size_t elemsize = bottom_blob.elemsize;
     int packing = bottom_blob.packing;
 
-    if (dims != 1)
+    // flatten
+    VkMat bottom_blob_flattened = bottom_blob;
     {
-        // TODO flatten pack4
+        ncnn::Option opt_flatten = opt;
+        opt_flatten.blob_vkallocator = opt.workspace_vkallocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
     }
 
     // TODO assert num_output % packing == 0
@@ -335,20 +363,20 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     if (top_blob.empty())
         return -100;
 
-//     fprintf(stderr, "InnerProduct::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
+//     fprintf(stderr, "InnerProduct::forward %p %p\n", bottom_blob_flattened.buffer(), top_blob.buffer());
 
     std::vector<VkMat> bindings(4);
-    bindings[0] = bottom_blob;
+    bindings[0] = bottom_blob_flattened;
     bindings[1] = top_blob;
     bindings[2] = packing == 4 ? weight_data_gpu_pack4 : weight_data_gpu;
     bindings[3] = bias_term ? (packing == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : weight_data_gpu;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = bottom_blob.cstep;
+    constants[0].i = bottom_blob_flattened.dims;
+    constants[1].i = bottom_blob_flattened.w;
+    constants[2].i = bottom_blob_flattened.h;
+    constants[3].i = bottom_blob_flattened.c;
+    constants[4].i = bottom_blob_flattened.cstep;
     constants[5].i = top_blob.dims;
     constants[6].i = top_blob.w;
     constants[7].i = top_blob.h;
@@ -358,7 +386,7 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     const Pipeline* pipeline = packing == 4 ? pipeline_innerproduct_pack4 : pipeline_innerproduct;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob);
+    cmd.record_prepare_compute_barrier(bottom_blob_flattened);
     cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

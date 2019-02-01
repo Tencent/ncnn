@@ -54,6 +54,8 @@ public:
     Mat bias_data;
 
 #if NCNN_VULKAN
+    ncnn::Layer* flatten;
+
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
 
