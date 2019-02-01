@@ -264,6 +264,8 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
+    size_t elemsize = bottom_blobs[0].elemsize;
+    int packing = bottom_blobs[0].packing;
 
     if (dims == 1) // axis == 0
     {
@@ -277,9 +279,11 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(top_w, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(top_w, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
         if (top_blob.empty())
             return -100;
+
+        cmd.record_prepare_transfer_barrier(top_blob);
 
         int dstOffset = 0;
         for (size_t b=0; b<bottom_blobs.size(); b++)
@@ -316,9 +320,11 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(w, top_h, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, top_h, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
         if (top_blob.empty())
             return -100;
+
+        cmd.record_prepare_transfer_barrier(top_blob);
 
         int dstOffset = 0;
         for (size_t b=0; b<bottom_blobs.size(); b++)
@@ -361,9 +367,11 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(w, h, top_channels, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, h, top_channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
         if (top_blob.empty())
             return -100;
+
+        cmd.record_prepare_transfer_barrier(top_blob);
 
         int dstOffset = 0;
         for (size_t b=0; b<bottom_blobs.size(); b++)
