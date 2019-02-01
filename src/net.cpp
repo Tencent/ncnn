@@ -168,11 +168,7 @@ int Net::load_param(FILE* fp)
             continue;
         }
 
-#if NCNN_VULKAN
-        Layer* layer = use_vulkan_compute ? create_layer(layer_type, vkdev) : create_layer(layer_type);
-#else
         Layer* layer = create_layer(layer_type);
-#endif // NCNN_VULKAN
         if (!layer)
         {
             layer = create_custom_layer(layer_type);
@@ -183,6 +179,11 @@ int Net::load_param(FILE* fp)
             clear();
             return -1;
         }
+
+#if NCNN_VULKAN
+        if (use_vulkan_compute)
+            layer->vkdev = vkdev;
+#endif // NCNN_VULKAN
 
         layer->type = std::string(layer_type);
         layer->name = std::string(layer_name);
@@ -336,11 +337,7 @@ int Net::load_param_mem(const char* _mem)
             continue;
         }
 
-#if NCNN_VULKAN
-        Layer* layer = use_vulkan_compute ? create_layer(layer_type, vkdev) : create_layer(layer_type);
-#else
         Layer* layer = create_layer(layer_type);
-#endif // NCNN_VULKAN
         if (!layer)
         {
             layer = create_custom_layer(layer_type);
@@ -351,6 +348,11 @@ int Net::load_param_mem(const char* _mem)
             clear();
             return -1;
         }
+
+#if NCNN_VULKAN
+        if (use_vulkan_compute)
+            layer->vkdev = vkdev;
+#endif // NCNN_VULKAN
 
         layer->type = std::string(layer_type);
         layer->name = std::string(layer_name);
@@ -506,11 +508,7 @@ int Net::load_param_bin(FILE* fp)
         if (!readValue(top_count, fp))
             return -1;
 
-#if NCNN_VULKAN
-        Layer* layer = use_vulkan_compute ? create_layer(typeindex, vkdev) : create_layer(typeindex);
-#else
         Layer* layer = create_layer(typeindex);
-#endif // NCNN_VULKAN
         if (!layer)
         {
             int custom_index = typeindex & ~LayerType::CustomBit;
@@ -522,6 +520,11 @@ int Net::load_param_bin(FILE* fp)
             clear();
             return -1;
         }
+
+#if NCNN_VULKAN
+        if (use_vulkan_compute)
+            layer->vkdev = vkdev;
+#endif // NCNN_VULKAN
 
 //         layer->type = std::string(layer_type);
 //         layer->name = std::string(layer_name);
@@ -887,6 +890,10 @@ void Net::clear()
     blobs.clear();
     for (size_t i=0; i<layers.size(); i++)
     {
+#if NCNN_VULKAN
+        layers[i]->destroy_pipeline();
+#endif // NCNN_VULKAN
+
         delete layers[i];
     }
     layers.clear();

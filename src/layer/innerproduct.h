@@ -35,6 +35,7 @@ public:
     virtual int upload_model(VkTransfer& cmd);
 
     virtual int create_pipeline();
+    virtual int destroy_pipeline();
 
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
@@ -55,6 +56,15 @@ public:
 #if NCNN_VULKAN
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
+
+    Pipeline* pipeline_innerproduct;
+
+    // pack4
+    Mat weight_data_pack4;
+    Mat bias_data_pack4;
+    VkMat weight_data_gpu_pack4;
+    VkMat bias_data_gpu_pack4;
+    Pipeline* pipeline_innerproduct_pack4;
 #endif // NCNN_VULKAN
 
     float weight_data_int8_scale;

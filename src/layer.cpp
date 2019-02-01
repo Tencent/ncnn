@@ -64,15 +64,12 @@ Layer::Layer()
     support_vulkan = false;
 
 #if NCNN_VULKAN
-    pipeline = 0;
+    vkdev = 0;
 #endif // NCNN_VULKAN
 }
 
 Layer::~Layer()
 {
-#if NCNN_VULKAN
-    delete pipeline;
-#endif // NCNN_VULKAN
 }
 
 int Layer::load_param(const ParamDict& /*pd*/)
@@ -130,6 +127,11 @@ int Layer::upload_model(VkTransfer& /*cmd*/)
 }
 
 int Layer::create_pipeline()
+{
+    return 0;
+}
+
+int Layer::destroy_pipeline()
 {
     return 0;
 }
@@ -221,30 +223,5 @@ Layer* create_layer(int index)
 
     return layer_creator();
 }
-
-#if NCNN_VULKAN
-#if NCNN_STRING
-Layer* create_layer(const char* type, const VulkanDevice* vkdev)
-{
-    int index = layer_to_index(type);
-    if (index == -1)
-        return 0;
-
-    return create_layer(index, vkdev);
-}
-#endif // NCNN_STRING
-
-Layer* create_layer(int index, const VulkanDevice* vkdev)
-{
-    Layer* layer = create_layer(index);
-    if (!layer)
-        return 0;
-
-    layer->vkdev = vkdev;
-    layer->pipeline = new Pipeline(vkdev);
-
-    return layer;
-}
-#endif // NCNN_VULKAN
 
 } // namespace ncnn

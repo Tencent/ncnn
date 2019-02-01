@@ -20,8 +20,8 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -50,11 +50,11 @@ void main()
     int size = p.w * p.h;
     int v_offset = gx * p.cstep;
 
-    float res;
+    vec4 res;
 
     if (pooling_type == 0)
     {
-        res = -99999999;
+        res = vec4(-99999999);
 
         for (int i = 0; i < size; i++)
         {
@@ -63,7 +63,7 @@ void main()
     }
     else if (pooling_type == 1)
     {
-        res = 0;
+        res = vec4(0.0);
 
         for (int i = 0; i < size; i++)
         {

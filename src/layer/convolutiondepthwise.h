@@ -35,6 +35,7 @@ public:
     virtual int upload_model(VkTransfer& cmd);
 
     virtual int create_pipeline();
+    virtual int destroy_pipeline();
 
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
@@ -66,6 +67,16 @@ public:
     VkMat bias_data_gpu;
 
     ncnn::Layer* padding;
+
+    std::vector<ncnn::Layer*> convolution_group_ops;
+
+    Pipeline* pipeline_convolutiondepthwise;
+
+    Mat weight_data_pack4;
+    Mat bias_data_pack4;
+    VkMat weight_data_gpu_pack4;
+    VkMat bias_data_gpu_pack4;
+    Pipeline* pipeline_convolutiondepthwise_pack4;
 #endif // NCNN_VULKAN
 
     Mat weight_data_int8_scales;

@@ -23,6 +23,11 @@ Padding::Padding()
     one_blob_only = true;
     support_inplace = false;
     support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_padding = 0;
+    pipeline_padding_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int Padding::load_param(const ParamDict& pd)
@@ -256,7 +261,8 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 #if NCNN_VULKAN
 int Padding::create_pipeline()
 {
-    pipeline->set_optimal_local_size_xyz();
+    pipeline_padding = new Pipeline(vkdev);
+    pipeline_padding->set_optimal_local_size_xyz();
 
     std::vector<vk_specialization_type> specializations(6);
     specializations[0].i = top;
@@ -266,7 +272,25 @@ int Padding::create_pipeline()
     specializations[4].i = type;
     specializations[5].f = value;
 
-    pipeline->create("padding", specializations, 2, 10);
+    pipeline_padding->create("padding", specializations, 2, 10);
+
+    // pack4
+    {
+        pipeline_padding_pack4 = new Pipeline(vkdev);
+        pipeline_padding_pack4->set_optimal_local_size_xyz();
+        pipeline_padding_pack4->create("padding_pack4", specializations, 2, 10);
+    }
+
+    return 0;
+}
+
+int Padding::destroy_pipeline()
+{
+    delete pipeline_padding;
+    pipeline_padding = 0;
+
+    delete pipeline_padding_pack4;
+    pipeline_padding_pack4 = 0;
 
     return 0;
 }
@@ -276,6 +300,8 @@ int Padding::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
 
     // TODO vec and image padding
     int dims = bottom_blob.dims;
@@ -283,7 +309,7 @@ int Padding::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     int outw = w + left + right;
     int outh = h + top + bottom;
 
-    top_blob.create(outw, outh, channels, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -304,6 +330,8 @@ int Padding::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_padding_pack4 : pipeline_padding;
 
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);

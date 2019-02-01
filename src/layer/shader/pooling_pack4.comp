@@ -15,13 +15,19 @@
 #version 450
 
 layout (constant_id = 0) const int pooling_type = 0;
+layout (constant_id = 1) const int kernel_w = 1;
+layout (constant_id = 2) const int kernel_h = 1;
+layout (constant_id = 3) const int stride_w = 1;
+layout (constant_id = 4) const int stride_h = 1;
+layout (constant_id = 5) const int global_pooling = 0;
+layout (constant_id = 6) const int pad_mode = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -47,31 +53,42 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    int size = p.w * p.h;
-    int v_offset = gx * p.cstep;
-
-    float res;
+    vec4 res;
 
     if (pooling_type == 0)
     {
-        res = -99999999;
+        res = vec4(-99999999);
 
-        for (int i = 0; i < size; i++)
+        int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
+
+        for (int y = 0; y < kernel_h; y++)
         {
-            res = max(res, bottom_blob_data[v_offset + i]);
+            for (int x = 0; x < kernel_w; x++)
+            {
+                res = max(res, bottom_blob_data[v_offset + x]);
+            }
+
+            v_offset += p.w;
         }
     }
     else if (pooling_type == 1)
     {
-        res = 0;
+        res = vec4(0.0);
 
-        for (int i = 0; i < size; i++)
+        int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
+
+        for (int y = 0; y < kernel_h; y++)
         {
-            res += bottom_blob_data[v_offset + i];
+            for (int x = 0; x < kernel_w; x++)
+            {
+                res += bottom_blob_data[v_offset + x];
+            }
+
+            v_offset += p.w;
         }
 
-        res /= size;
+        res /= kernel_w * kernel_h;
     }
 
-    top_blob_data[gx] = res;
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = res;
 }

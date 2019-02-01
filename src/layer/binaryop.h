@@ -32,6 +32,7 @@ public:
 
 #if NCNN_VULKAN
     virtual int create_pipeline();
+    virtual int destroy_pipeline();
 
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
@@ -55,6 +56,11 @@ public:
     int op_type;
     int with_scalar;
     float b;
+
+#if NCNN_VULKAN
+    Pipeline* pipeline_binaryop;
+    Pipeline* pipeline_binaryop_pack4;
+#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

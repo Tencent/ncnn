@@ -14,14 +14,16 @@
 
 #version 450
 
-layout (constant_id = 0) const int pooling_type = 0;
+layout (constant_id = 0) const int op_type = 0;
+layout (constant_id = 1) const int coeff_term = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob1 { vec4 bottom_blob1_data[]; };
+layout (binding = 1) readonly buffer bottom_blob2 { vec4 bottom_blob2_data[]; };
+layout (binding = 2) writeonly buffer top_blob { vec4 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -31,11 +33,8 @@ layout (push_constant) uniform parameter
     int c;
     int cstep;
 
-    int outdims;
-    int outw;
-    int outh;
-    int outc;
-    int outcstep;
+    float coeff0;
+    float coeff1;
 } p;
 
 void main()
@@ -44,34 +43,38 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    int size = p.w * p.h;
-    int v_offset = gx * p.cstep;
+    const int gi = gz * p.cstep + gy * p.w + gx;
 
-    float res;
+    vec4 v1 = bottom_blob1_data[gi];
+    vec4 v2 = bottom_blob2_data[gi];
 
-    if (pooling_type == 0)
+    vec4 res;
+
+    if (coeff_term == 0)
     {
-        res = -99999999;
+        if (op_type == 0)
+            res = v1 * v2;
 
-        for (int i = 0; i < size; i++)
-        {
-            res = max(res, bottom_blob_data[v_offset + i]);
-        }
+        if (op_type == 1)
+            res = v1 + v2;
+
+        if (op_type == 2)
+            res = max(v1, v2);
     }
-    else if (pooling_type == 1)
+    else
     {
-        res = 0;
+        if (op_type == 0)
+            res = v1 * p.coeff0 * v2 * p.coeff1;
 
-        for (int i = 0; i < size; i++)
-        {
-            res += bottom_blob_data[v_offset + i];
-        }
+        if (op_type == 1)
+            res = v1 * p.coeff0 + v2 * p.coeff1;
 
-        res /= size;
+        if (op_type == 2)
+            res = max(v1 * p.coeff0, v2 * p.coeff1);
     }
 
-    top_blob_data[gx] = res;
+    top_blob_data[gi] = res;
 }

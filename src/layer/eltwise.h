@@ -30,6 +30,7 @@ public:
 
 #if NCNN_VULKAN
     virtual int create_pipeline();
+    virtual int destroy_pipeline();
 
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
@@ -40,6 +41,11 @@ public:
     // param
     int op_type;
     Mat coeffs;
+
+#if NCNN_VULKAN
+    Pipeline* pipeline_eltwise;
+    Pipeline* pipeline_eltwise_pack4;
+#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

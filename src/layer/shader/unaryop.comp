@@ -44,7 +44,7 @@ void main()
 
     float v = bottom_top_blob_data[gi];
 
-    float res = 233;
+    float res;
 
     if (op_type == 0) res = abs(v);
     if (op_type == 1) res = -v;
