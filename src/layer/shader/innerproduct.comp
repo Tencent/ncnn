@@ -46,30 +46,25 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= p.outw || gy >= 1 || gz >= 1)
         return;
 
-    float sum = 0;
+    float sum;
 
     if (bias_term == 1)
     {
         sum = bias_data[gx];
     }
-
-    const int size = p.w * p.h;
-
-    int w_offset = gx * size * p.c;
-
-    for (int z = 0; z < p.c; z++)
+    else
     {
-        int v_offset = z * p.cstep;
+        sum = 0.f;
+    }
 
-        for (int i = 0; i < size; i++)
-        {
-            sum += weight_data[w_offset + i] * bottom_blob_data[v_offset + i];
-        }
+    int w_offset = gx * p.w;
 
-        w_offset += size;
+    for (int i = 0; i < p.w; i++)
+    {
+        sum += weight_data[w_offset + i] * bottom_blob_data[i];
     }
 
     top_blob_data[gx] = sum;
