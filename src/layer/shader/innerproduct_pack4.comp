@@ -46,7 +46,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= p.outw || gy >= 1 || gz >= 1)
         return;
 
     vec4 sum;
@@ -60,24 +60,15 @@ void main()
         sum = vec4(0.0);
     }
 
-    const int size = p.w * p.h;
+    int w_offset = gx * p.w;
 
-    int w_offset = gx * size * p.c;
-
-    for (int z = 0; z < p.c; z++)
+    for (int i = 0; i < p.w; i++)
     {
-        int v_offset = z * p.cstep;
+        vec4 v = bottom_blob_data[i];
 
-        for (int i = 0; i < size; i++)
-        {
-            vec4 v = bottom_blob_data[v_offset + i];
+        mat4 k = weight_data[w_offset + i];
 
-            mat4 k = weight_data[w_offset + i];
-
-            sum += v * k;
-        }
-
-        w_offset += size;
+        sum += v * k;
     }
 
     top_blob_data[gx] = sum;
