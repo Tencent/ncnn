@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -14,19 +14,16 @@
 
 #version 450
 
-layout (constant_id = 0) const int top = 0;
-layout (constant_id = 1) const int bottom = 0;
-layout (constant_id = 2) const int left = 0;
-layout (constant_id = 3) const int right = 0;
-layout (constant_id = 4) const int type = 1;
-layout (constant_id = 5) const float value = 0;
+layout (constant_id = 0) const int region_type = 0;
+layout (constant_id = 1) const int pad_head = 0;
+layout (constant_id = 2) const int pad_tail = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
 layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 1) writeonly buffer square_workspace { float square_workspace_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -54,29 +51,37 @@ void main()
 
     float res;
 
-    int x = gx - left;
-    int y = gy - top;
-
-    if (type == 0)
+    if (region_type == 0)
     {
-        if (x >= 0 && x < p.w && y >= 0 && y < p.h)
+        int z = gz - pad_head;
+
+        if (z >= 0 && z < p.c)
         {
-            int v_offset = gz * p.cstep + y * p.w + x;
-            res = bottom_blob_data[v_offset];
+            int v_offset = z * p.cstep + gy * p.w + gx;
+            float v = bottom_blob_data[v_offset];
+            res = v * v;
         }
         else
         {
-            res = value;
+            res = 0.f;
         }
     }
-    else if (type == 1)
+    else
     {
-        x = clamp(x, 0, p.w - 1);
-        y = clamp(y, 0, p.h - 1);
+        int x = gx - pad_head;
+        int y = gy - pad_head;
 
-        int v_offset = gz * p.cstep + y * p.w + x;
-        res = bottom_blob_data[v_offset];
+        if (x >= 0 && x < p.w && y >= 0 && y < p.h)
+        {
+            int v_offset = gz * p.cstep + y * p.w + x;
+            float v = bottom_blob_data[v_offset];
+            res = v * v;
+        }
+        else
+        {
+            res = 0.f;
+        }
     }
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = res;
+    square_workspace_data[gz * p.outcstep + gy * p.outw + gx] = res;
 }

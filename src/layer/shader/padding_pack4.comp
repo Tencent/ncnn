@@ -15,9 +15,9 @@
 #version 450
 
 layout (constant_id = 0) const int top = 0;
-layout (constant_id = 1) const int bottom = 1;
-layout (constant_id = 2) const int left = 1;
-layout (constant_id = 3) const int right = 1;
+layout (constant_id = 1) const int bottom = 0;
+layout (constant_id = 2) const int left = 0;
+layout (constant_id = 3) const int right = 0;
 layout (constant_id = 4) const int type = 1;
 layout (constant_id = 5) const float value = 0;
 
