@@ -299,6 +299,7 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo;
     memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
     memoryDedicatedAllocateInfo.pNext = 0;
+    memoryDedicatedAllocateInfo.image = 0;
     memoryDedicatedAllocateInfo.buffer = buffer;
     memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
 
