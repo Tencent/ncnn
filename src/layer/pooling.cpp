@@ -62,7 +62,15 @@ int Pooling::load_param(const ParamDict& pd)
         pd.set(2, pad_left);
         pd.set(3, pad_right);
         pd.set(4, 0);
-        pd.set(5, 0.f);
+
+        if (pooling_type == PoolMethod_MAX)
+        {
+            pd.set(5, -FLT_MAX);
+        }
+        else if (pooling_type == PoolMethod_AVE)
+        {
+            pd.set(5, 0.f);
+        }
 
         pd.use_vulkan_compute = 1;
 
@@ -438,7 +446,18 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
         h = bottom_blob_bordered.h;
     }
 
-    // FIXME valid pad only
+    if (pad_mode == 0) // full padding
+    {
+        int wtail = (w + pad_left + pad_right - kernel_w) % stride_w;
+        int htail = (h + pad_top + pad_bottom - kernel_h) % stride_h;
+
+        if (wtail != 0)
+            w += stride_w - wtail;
+        if (htail != 0)
+            h += stride_h - htail;
+    }
+
+    // FIXME full pad and valid pad only
     int outw = (w - kernel_w) / stride_w + 1;
     int outh = (h - kernel_h) / stride_h + 1;
 
@@ -470,6 +489,8 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     cmd.record_prepare_compute_barrier(bottom_blob_bordered);
     cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    // TODO avgpool exclude padding
 
     return 0;
 }
