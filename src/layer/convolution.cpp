@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "convolution.h"
-
+#include <algorithm>
 #include "layer_type.h"
 
 namespace ncnn {

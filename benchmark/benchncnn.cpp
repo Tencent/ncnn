@@ -509,15 +509,13 @@ int main(int argc, char** argv)
 
     benchmark("proxylessnasnet", proxylessnasnet_init, proxylessnasnet_run);
 
-#if !NCNN_VULKAN
     benchmark("googlenet", googlenet_init, googlenet_run);
-#endif // NCNN_VULKAN
 
     benchmark("resnet18", resnet18_init, resnet18_run);
 
-#if !NCNN_VULKAN
     benchmark("alexnet", alexnet_init, alexnet_run);
 
+#if !NCNN_VULKAN
     benchmark("vgg16", vgg16_init, vgg16_run);
 
     benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
