@@ -31,6 +31,7 @@ public:
 
 #if NCNN_VULKAN
     virtual int create_pipeline();
+    virtual int destroy_pipeline();
 
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
