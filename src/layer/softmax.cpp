@@ -511,6 +511,35 @@ int Softmax::create_pipeline()
     return 0;
 }
 
+int Softmax::destroy_pipeline()
+{
+    delete softmax_reduce_max;
+    softmax_reduce_max = 0;
+
+    delete softmax_exp_sub_max;
+    softmax_exp_sub_max = 0;
+
+    delete softmax_reduce_sum;
+    softmax_reduce_sum = 0;
+
+    delete softmax_div_sum;
+    softmax_div_sum = 0;
+
+    delete softmax_reduce_max_pack4;
+    softmax_reduce_max_pack4 = 0;
+
+    delete softmax_exp_sub_max_pack4;
+    softmax_exp_sub_max_pack4 = 0;
+
+    delete softmax_reduce_sum_pack4;
+    softmax_reduce_sum_pack4 = 0;
+
+    delete softmax_div_sum_pack4;
+    softmax_div_sum_pack4 = 0;
+
+    return 0;
+}
+
 int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
