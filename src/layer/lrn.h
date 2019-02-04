@@ -48,6 +48,8 @@ public:
 #if NCNN_VULKAN
     Pipeline* lrn_square_pad;
     Pipeline* lrn_norm;
+    Pipeline* lrn_square_pad_pack4;
+    Pipeline* lrn_norm_pack4;
 #endif // NCNN_VULKAN
 };
 
