@@ -28,6 +28,8 @@ LRN::LRN()
 #if NCNN_VULKAN
     lrn_square_pad = 0;
     lrn_norm = 0;
+    lrn_square_pad_pack4 = 0;
+    lrn_norm_pack4 = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -196,6 +198,14 @@ int LRN::create_pipeline()
         }
 
         lrn_square_pad->create("lrn_square_pad", specializations, 2, 10);
+
+        // pack4
+        if (region_type == 1)
+        {
+            lrn_square_pad_pack4 = new Pipeline(vkdev);
+            lrn_square_pad_pack4->set_optimal_local_size_xyz();
+            lrn_square_pad_pack4->create("lrn_square_pad_pack4", specializations, 2, 10);
+        }
     }
 
     {
@@ -210,6 +220,14 @@ int LRN::create_pipeline()
         specializations[4].f = bias;
 
         lrn_norm->create("lrn_norm", specializations, 2, 10);
+
+        // pack4
+        if (region_type == 1)
+        {
+            lrn_norm_pack4 = new Pipeline(vkdev);
+            lrn_norm_pack4->set_optimal_local_size_xyz();
+            lrn_norm_pack4->create("lrn_norm_pack4", specializations, 2, 10);
+        }
     }
 
     return 0;
@@ -222,6 +240,12 @@ int LRN::destroy_pipeline()
 
     delete lrn_norm;
     lrn_norm = 0;
+
+    delete lrn_square_pad_pack4;
+    lrn_square_pad_pack4 = 0;
+
+    delete lrn_norm_pack4;
+    lrn_norm_pack4 = 0;
 
     return 0;
 }
@@ -270,10 +294,12 @@ int LRN::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& o
     constants[8].i = square_workspace.c;
     constants[9].i = square_workspace.cstep;
 
+    const Pipeline* pipeline = (packing == 4 && region_type == 1) ? lrn_square_pad_pack4 : lrn_square_pad;
+
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_prepare_compute_barrier(square_workspace);
-    cmd.record_pipeline(lrn_square_pad, bindings, constants, square_workspace);
+    cmd.record_pipeline(pipeline, bindings, constants, square_workspace);
     }
 
     // norm
@@ -294,10 +320,12 @@ int LRN::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& o
     constants[8].i = bottom_top_blob.c;
     constants[9].i = bottom_top_blob.cstep;
 
+    const Pipeline* pipeline = (packing == 4 && region_type == 1) ? lrn_norm_pack4 : lrn_norm;
+
     // record
     cmd.record_prepare_compute_barrier(square_workspace);
     cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_pipeline(lrn_norm, bindings, constants, bottom_top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
     return 0;
