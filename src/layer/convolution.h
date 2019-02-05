@@ -71,12 +71,23 @@ public:
     Pipeline* pipeline_convolution;
     Pipeline* pipeline_convolution_1x1s1d1;
 
+    Mat bias_data_pack4;
+    VkMat bias_data_gpu_pack4;
+
     // pack4
     Mat weight_data_pack4;
-    Mat bias_data_pack4;
     VkMat weight_data_gpu_pack4;
-    VkMat bias_data_gpu_pack4;
     Pipeline* pipeline_convolution_pack4;
+
+    // pack1to4
+    Mat weight_data_pack1to4;
+    VkMat weight_data_gpu_pack1to4;
+    Pipeline* pipeline_convolution_pack1to4;
+
+    // pack4to1
+    Mat weight_data_pack4to1;
+    VkMat weight_data_gpu_pack4to1;
+    Pipeline* pipeline_convolution_pack4to1;
 #endif // NCNN_VULKAN
 
     float weight_data_int8_scale;
