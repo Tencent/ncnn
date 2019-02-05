@@ -46,10 +46,12 @@ public:
     float bias;
 
 #if NCNN_VULKAN
-    Pipeline* lrn_square_pad;
-    Pipeline* lrn_norm;
-    Pipeline* lrn_square_pad_pack4;
-    Pipeline* lrn_norm_pack4;
+    Pipeline* pipeline_lrn_square_pad;
+    Pipeline* pipeline_lrn_norm;
+    Pipeline* pipeline_lrn_square_pad_across_channel_pack4;
+    Pipeline* pipeline_lrn_norm_across_channel_pack4;
+    Pipeline* pipeline_lrn_square_pad_within_channel_pack4;
+    Pipeline* pipeline_lrn_norm_within_channel_pack4;
 #endif // NCNN_VULKAN
 };
 

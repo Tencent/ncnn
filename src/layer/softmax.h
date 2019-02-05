@@ -23,7 +23,6 @@ class Softmax : public Layer
 {
 public:
     Softmax();
-    ~Softmax();
 
     virtual int load_param(const ParamDict& pd);
 
@@ -40,15 +39,15 @@ public:
     int axis;
 
 #if NCNN_VULKAN
-    Pipeline* softmax_reduce_max;
-    Pipeline* softmax_exp_sub_max;
-    Pipeline* softmax_reduce_sum;
-    Pipeline* softmax_div_sum;
+    Pipeline* pipeline_softmax_reduce_max;
+    Pipeline* pipeline_softmax_exp_sub_max;
+    Pipeline* pipeline_softmax_reduce_sum;
+    Pipeline* pipeline_softmax_div_sum;
 
-    Pipeline* softmax_reduce_max_pack4;
-    Pipeline* softmax_exp_sub_max_pack4;
-    Pipeline* softmax_reduce_sum_pack4;
-    Pipeline* softmax_div_sum_pack4;
+    Pipeline* pipeline_softmax_reduce_max_pack4;
+    Pipeline* pipeline_softmax_exp_sub_max_pack4;
+    Pipeline* pipeline_softmax_reduce_sum_pack4;
+    Pipeline* pipeline_softmax_div_sum_pack4;
 #endif // NCNN_VULKAN
 };
 

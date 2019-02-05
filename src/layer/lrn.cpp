@@ -26,10 +26,12 @@ LRN::LRN()
     support_vulkan = true;
 
 #if NCNN_VULKAN
-    lrn_square_pad = 0;
-    lrn_norm = 0;
-    lrn_square_pad_pack4 = 0;
-    lrn_norm_pack4 = 0;
+    pipeline_lrn_square_pad = 0;
+    pipeline_lrn_norm = 0;
+    pipeline_lrn_square_pad_across_channel_pack4 = 0;
+    pipeline_lrn_norm_across_channel_pack4 = 0;
+    pipeline_lrn_square_pad_within_channel_pack4 = 0;
+    pipeline_lrn_norm_within_channel_pack4 = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -179,8 +181,8 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 int LRN::create_pipeline()
 {
     {
-        lrn_square_pad = new Pipeline(vkdev);
-        lrn_square_pad->set_optimal_local_size_xyz();
+        pipeline_lrn_square_pad = new Pipeline(vkdev);
+        pipeline_lrn_square_pad->set_optimal_local_size_xyz();
 
         std::vector<vk_specialization_type> specializations(3);
         specializations[0].i = region_type;
@@ -197,20 +199,26 @@ int LRN::create_pipeline()
             specializations[2].i = local_size - pad - 1;
         }
 
-        lrn_square_pad->create("lrn_square_pad", specializations, 2, 10);
+        pipeline_lrn_square_pad->create("lrn_square_pad", specializations, 2, 10);
 
         // pack4
+        if (region_type == 0)
+        {
+            pipeline_lrn_square_pad_across_channel_pack4 = new Pipeline(vkdev);
+            pipeline_lrn_square_pad_across_channel_pack4->set_optimal_local_size_xyz();
+            pipeline_lrn_square_pad_across_channel_pack4->create("lrn_square_pad_across_channel_pack4", specializations, 2, 10);
+        }
         if (region_type == 1)
         {
-            lrn_square_pad_pack4 = new Pipeline(vkdev);
-            lrn_square_pad_pack4->set_optimal_local_size_xyz();
-            lrn_square_pad_pack4->create("lrn_square_pad_pack4", specializations, 2, 10);
+            pipeline_lrn_square_pad_within_channel_pack4 = new Pipeline(vkdev);
+            pipeline_lrn_square_pad_within_channel_pack4->set_optimal_local_size_xyz();
+            pipeline_lrn_square_pad_within_channel_pack4->create("lrn_square_pad_within_channel_pack4", specializations, 2, 10);
         }
     }
 
     {
-        lrn_norm = new Pipeline(vkdev);
-        lrn_norm->set_optimal_local_size_xyz();
+        pipeline_lrn_norm = new Pipeline(vkdev);
+        pipeline_lrn_norm->set_optimal_local_size_xyz();
 
         std::vector<vk_specialization_type> specializations(5);
         specializations[0].i = region_type;
@@ -219,14 +227,20 @@ int LRN::create_pipeline()
         specializations[3].f = beta;
         specializations[4].f = bias;
 
-        lrn_norm->create("lrn_norm", specializations, 2, 10);
+        pipeline_lrn_norm->create("lrn_norm", specializations, 2, 10);
 
         // pack4
+        if (region_type == 0)
+        {
+            pipeline_lrn_norm_across_channel_pack4 = new Pipeline(vkdev);
+            pipeline_lrn_norm_across_channel_pack4->set_optimal_local_size_xyz();
+            pipeline_lrn_norm_across_channel_pack4->create("lrn_norm_across_channel_pack4", specializations, 2, 10);
+        }
         if (region_type == 1)
         {
-            lrn_norm_pack4 = new Pipeline(vkdev);
-            lrn_norm_pack4->set_optimal_local_size_xyz();
-            lrn_norm_pack4->create("lrn_norm_pack4", specializations, 2, 10);
+            pipeline_lrn_norm_within_channel_pack4 = new Pipeline(vkdev);
+            pipeline_lrn_norm_within_channel_pack4->set_optimal_local_size_xyz();
+            pipeline_lrn_norm_within_channel_pack4->create("lrn_norm_within_channel_pack4", specializations, 2, 10);
         }
     }
 
@@ -235,17 +249,23 @@ int LRN::create_pipeline()
 
 int LRN::destroy_pipeline()
 {
-    delete lrn_square_pad;
-    lrn_square_pad = 0;
+    delete pipeline_lrn_square_pad;
+    pipeline_lrn_square_pad = 0;
 
-    delete lrn_norm;
-    lrn_norm = 0;
+    delete pipeline_lrn_norm;
+    pipeline_lrn_norm = 0;
 
-    delete lrn_square_pad_pack4;
-    lrn_square_pad_pack4 = 0;
+    delete pipeline_lrn_square_pad_across_channel_pack4;
+    pipeline_lrn_square_pad_across_channel_pack4 = 0;
 
-    delete lrn_norm_pack4;
-    lrn_norm_pack4 = 0;
+    delete pipeline_lrn_norm_across_channel_pack4;
+    pipeline_lrn_norm_across_channel_pack4 = 0;
+
+    delete pipeline_lrn_square_pad_within_channel_pack4;
+    pipeline_lrn_square_pad_within_channel_pack4 = 0;
+
+    delete pipeline_lrn_norm_within_channel_pack4;
+    pipeline_lrn_norm_within_channel_pack4 = 0;
 
     return 0;
 }
@@ -267,7 +287,8 @@ int LRN::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& o
     }
     else if (region_type == NormRegion_ACROSS_CHANNELS)
     {
-        square_workspace.create(w, h, channels + local_size - 1, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        // always create scalar square workspace blob for norm across channel
+        square_workspace.create(w, h, channels * packing + local_size - 1, 4u, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else if (region_type == NormRegion_WITHIN_CHANNEL)
     {
@@ -294,7 +315,16 @@ int LRN::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& o
     constants[8].i = square_workspace.c;
     constants[9].i = square_workspace.cstep;
 
-    const Pipeline* pipeline = (packing == 4 && region_type == 1) ? lrn_square_pad_pack4 : lrn_square_pad;
+    const Pipeline* pipeline = 0;
+    if (packing == 4)
+    {
+        if (region_type == 0) pipeline = pipeline_lrn_square_pad_across_channel_pack4;
+        if (region_type == 1) pipeline = pipeline_lrn_square_pad_within_channel_pack4;
+    }
+    else
+    {
+        pipeline = pipeline_lrn_square_pad;
+    }
 
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
@@ -320,7 +350,16 @@ int LRN::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& o
     constants[8].i = bottom_top_blob.c;
     constants[9].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = (packing == 4 && region_type == 1) ? lrn_norm_pack4 : lrn_norm;
+    const Pipeline* pipeline = 0;
+    if (packing == 4)
+    {
+        if (region_type == 0) pipeline = pipeline_lrn_norm_across_channel_pack4;
+        if (region_type == 1) pipeline = pipeline_lrn_norm_within_channel_pack4;
+    }
+    else
+    {
+        pipeline = pipeline_lrn_norm;
+    }
 
     // record
     cmd.record_prepare_compute_barrier(square_workspace);
