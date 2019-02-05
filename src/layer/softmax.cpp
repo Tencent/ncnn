@@ -28,30 +28,15 @@ Softmax::Softmax()
     support_vulkan = true;
 
 #if NCNN_VULKAN
-    softmax_reduce_max = 0;
-    softmax_exp_sub_max = 0;
-    softmax_reduce_sum = 0;
-    softmax_div_sum = 0;
+    pipeline_softmax_reduce_max = 0;
+    pipeline_softmax_exp_sub_max = 0;
+    pipeline_softmax_reduce_sum = 0;
+    pipeline_softmax_div_sum = 0;
 
-    softmax_reduce_max_pack4 = 0;
-    softmax_exp_sub_max_pack4 = 0;
-    softmax_reduce_sum_pack4 = 0;
-    softmax_div_sum_pack4 = 0;
-#endif // NCNN_VULKAN
-}
-
-Softmax::~Softmax()
-{
-#if NCNN_VULKAN
-    delete softmax_reduce_max;
-    delete softmax_exp_sub_max;
-    delete softmax_reduce_sum;
-    delete softmax_div_sum;
-
-    delete softmax_reduce_max_pack4;
-    delete softmax_exp_sub_max_pack4;
-    delete softmax_reduce_sum_pack4;
-    delete softmax_div_sum_pack4;
+    pipeline_softmax_reduce_max_pack4 = 0;
+    pipeline_softmax_exp_sub_max_pack4 = 0;
+    pipeline_softmax_reduce_sum_pack4 = 0;
+    pipeline_softmax_div_sum_pack4 = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -472,40 +457,40 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_VULKAN
 int Softmax::create_pipeline()
 {
-    softmax_reduce_max = new Pipeline(vkdev);
-    softmax_exp_sub_max = new Pipeline(vkdev);
-    softmax_reduce_sum = new Pipeline(vkdev);
-    softmax_div_sum = new Pipeline(vkdev);
+    pipeline_softmax_reduce_max = new Pipeline(vkdev);
+    pipeline_softmax_exp_sub_max = new Pipeline(vkdev);
+    pipeline_softmax_reduce_sum = new Pipeline(vkdev);
+    pipeline_softmax_div_sum = new Pipeline(vkdev);
 
-    softmax_reduce_max->set_optimal_local_size_xyz();
-    softmax_exp_sub_max->set_optimal_local_size_xyz();
-    softmax_reduce_sum->set_optimal_local_size_xyz();
-    softmax_div_sum->set_optimal_local_size_xyz();
+    pipeline_softmax_reduce_max->set_optimal_local_size_xyz();
+    pipeline_softmax_exp_sub_max->set_optimal_local_size_xyz();
+    pipeline_softmax_reduce_sum->set_optimal_local_size_xyz();
+    pipeline_softmax_div_sum->set_optimal_local_size_xyz();
 
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = axis;
 
-    softmax_reduce_max->create("softmax_reduce_max", specializations, 2, 10);
-    softmax_exp_sub_max->create("softmax_exp_sub_max", specializations, 2, 10);
-    softmax_reduce_sum->create("softmax_reduce_sum", specializations, 2, 10);
-    softmax_div_sum->create("softmax_div_sum", specializations, 2, 10);
+    pipeline_softmax_reduce_max->create("softmax_reduce_max", specializations, 2, 10);
+    pipeline_softmax_exp_sub_max->create("softmax_exp_sub_max", specializations, 2, 10);
+    pipeline_softmax_reduce_sum->create("softmax_reduce_sum", specializations, 2, 10);
+    pipeline_softmax_div_sum->create("softmax_div_sum", specializations, 2, 10);
 
     // pack4
     {
-        softmax_reduce_max_pack4 = new Pipeline(vkdev);
-        softmax_exp_sub_max_pack4 = new Pipeline(vkdev);
-        softmax_reduce_sum_pack4 = new Pipeline(vkdev);
-        softmax_div_sum_pack4 = new Pipeline(vkdev);
+        pipeline_softmax_reduce_max_pack4 = new Pipeline(vkdev);
+        pipeline_softmax_exp_sub_max_pack4 = new Pipeline(vkdev);
+        pipeline_softmax_reduce_sum_pack4 = new Pipeline(vkdev);
+        pipeline_softmax_div_sum_pack4 = new Pipeline(vkdev);
 
-        softmax_reduce_max_pack4->set_optimal_local_size_xyz();
-        softmax_exp_sub_max_pack4->set_optimal_local_size_xyz();
-        softmax_reduce_sum_pack4->set_optimal_local_size_xyz();
-        softmax_div_sum_pack4->set_optimal_local_size_xyz();
+        pipeline_softmax_reduce_max_pack4->set_optimal_local_size_xyz();
+        pipeline_softmax_exp_sub_max_pack4->set_optimal_local_size_xyz();
+        pipeline_softmax_reduce_sum_pack4->set_optimal_local_size_xyz();
+        pipeline_softmax_div_sum_pack4->set_optimal_local_size_xyz();
 
-        softmax_reduce_max_pack4->create("softmax_reduce_max_pack4", specializations, 2, 10);
-        softmax_exp_sub_max_pack4->create("softmax_exp_sub_max_pack4", specializations, 2, 10);
-        softmax_reduce_sum_pack4->create("softmax_reduce_sum_pack4", specializations, 2, 10);
-        softmax_div_sum_pack4->create("softmax_div_sum_pack4", specializations, 2, 10);
+        pipeline_softmax_reduce_max_pack4->create("softmax_reduce_max_pack4", specializations, 2, 10);
+        pipeline_softmax_exp_sub_max_pack4->create("softmax_exp_sub_max_pack4", specializations, 2, 10);
+        pipeline_softmax_reduce_sum_pack4->create("softmax_reduce_sum_pack4", specializations, 2, 10);
+        pipeline_softmax_div_sum_pack4->create("softmax_div_sum_pack4", specializations, 2, 10);
     }
 
     return 0;
@@ -513,29 +498,29 @@ int Softmax::create_pipeline()
 
 int Softmax::destroy_pipeline()
 {
-    delete softmax_reduce_max;
-    softmax_reduce_max = 0;
+    delete pipeline_softmax_reduce_max;
+    pipeline_softmax_reduce_max = 0;
 
-    delete softmax_exp_sub_max;
-    softmax_exp_sub_max = 0;
+    delete pipeline_softmax_exp_sub_max;
+    pipeline_softmax_exp_sub_max = 0;
 
-    delete softmax_reduce_sum;
-    softmax_reduce_sum = 0;
+    delete pipeline_softmax_reduce_sum;
+    pipeline_softmax_reduce_sum = 0;
 
-    delete softmax_div_sum;
-    softmax_div_sum = 0;
+    delete pipeline_softmax_div_sum;
+    pipeline_softmax_div_sum = 0;
 
-    delete softmax_reduce_max_pack4;
-    softmax_reduce_max_pack4 = 0;
+    delete pipeline_softmax_reduce_max_pack4;
+    pipeline_softmax_reduce_max_pack4 = 0;
 
-    delete softmax_exp_sub_max_pack4;
-    softmax_exp_sub_max_pack4 = 0;
+    delete pipeline_softmax_exp_sub_max_pack4;
+    pipeline_softmax_exp_sub_max_pack4 = 0;
 
-    delete softmax_reduce_sum_pack4;
-    softmax_reduce_sum_pack4 = 0;
+    delete pipeline_softmax_reduce_sum_pack4;
+    pipeline_softmax_reduce_sum_pack4 = 0;
 
-    delete softmax_div_sum_pack4;
-    softmax_div_sum_pack4 = 0;
+    delete pipeline_softmax_div_sum_pack4;
+    pipeline_softmax_div_sum_pack4 = 0;
 
     return 0;
 }
@@ -602,7 +587,7 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     constants[8].i = max_workspace.c;
     constants[9].i = max_workspace.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? softmax_reduce_max_pack4 : softmax_reduce_max;
+    const Pipeline* pipeline = packing == 4 ? pipeline_softmax_reduce_max_pack4 : pipeline_softmax_reduce_max;
 
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
@@ -628,7 +613,7 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     constants[8].i = max_workspace.c;
     constants[9].i = max_workspace.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? softmax_exp_sub_max_pack4 : softmax_exp_sub_max;
+    const Pipeline* pipeline = packing == 4 ? pipeline_softmax_exp_sub_max_pack4 : pipeline_softmax_exp_sub_max;
 
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
@@ -654,7 +639,7 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     constants[8].i = sum_workspace.c;
     constants[9].i = sum_workspace.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? softmax_reduce_sum_pack4 : softmax_reduce_sum;
+    const Pipeline* pipeline = packing == 4 ? pipeline_softmax_reduce_sum_pack4 : pipeline_softmax_reduce_sum;
 
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
@@ -680,7 +665,7 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     constants[8].i = sum_workspace.c;
     constants[9].i = sum_workspace.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? softmax_div_sum_pack4 : softmax_div_sum;
+    const Pipeline* pipeline = packing == 4 ? pipeline_softmax_div_sum_pack4 : pipeline_softmax_div_sum;
 
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);
