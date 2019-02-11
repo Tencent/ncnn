@@ -54,6 +54,8 @@ int InnerProduct::load_param(const ParamDict& pd)
     weight_data_size = pd.get(2, 0);
     int8_scale_term = pd.get(8, 0);
 
+    keep_h = pd.get(3,0);
+
     use_int8_inference = pd.use_int8_inference;
 
     if (int8_scale_term == 0)
@@ -137,12 +139,17 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
 
-    top_blob.create(num_output, elemsize, opt.blob_allocator);
+    if (keep_h)
+        top_blob.create(num_output, h, elemsize, opt.blob_allocator);
+    else
+        top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     if (use_int8_inference)
     {
+        if (keep_h)
+            return -101;
         Mat bottom_blob_int8;
         bottom_blob_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
         if (bottom_blob_int8.empty())
@@ -203,7 +210,35 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     }
 
     // num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
+    if (keep_h)
+    {
+      #pragma omp parallel for num_threads(opt.num_threads)
+        for (int hi=0; hi <h ; ++hi)
+        {
+            for (int p=0; p<num_output; p++)
+            {
+                float sum = 0.f;
+
+                if (bias_term)
+                    sum = bias_data[p];
+
+                for (int q=0; q<channels; ++q)
+                {
+                    size = bottom_blob.w;
+                    const float* w = (const float*) weight_data + size * channels * p + size * q;
+                    const float* m = bottom_blob.channel(q).row(hi);
+                    for (int i =0; i<bottom_blob.w ; ++i)
+                    {
+		      sum += m[i] * w[i];
+                    }
+                }
+                top_blob.row(hi)[p] = sum;
+            }
+        }
+
+        return 0;
+    }
+
     for (int p=0; p<num_output; p++)
     {
         float sum = 0.f;
@@ -219,6 +254,9 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
             for (int i = 0; i < size; i++)
             {
+	      /*std::cout << "m[" << i << "]: " << m[i] << std::endl;
+                if (m[i] > 10.0)
+		std::cout << "w[" << i << "]: " << w[i] << std::endl;*/
                 sum += m[i] * w[i];
             }
         }
@@ -359,6 +397,8 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
 
     // TODO assert num_output % packing == 0
 
+    if (keep_h)
+      return -101;
     top_blob.create(num_output / packing, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;

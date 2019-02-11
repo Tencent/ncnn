@@ -49,6 +49,12 @@ public:
 
     int int8_scale_term;
 
+    // if set to 1, do not flatten along h axis,
+    // instead build ouput of  h * num_outputs
+    // sames weights are applied for every h
+    // implemented only on non_vulkan non int8_inference
+    int keep_h;
+
     // model
     Mat weight_data;
     Mat bias_data;
