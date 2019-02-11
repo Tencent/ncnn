@@ -321,18 +321,23 @@ static bool read_proto_from_binary(const char* filepath, google::protobuf::Messa
 
 int main(int argc, char** argv)
 {
-    if (!(argc == 3 || argc == 5 || argc == 6 || argc == 7))
+    int ocr = 0;
+
+    if (!(argc == 4 || argc == 6 || argc == 7 || argc == 8))
     {
-        fprintf(stderr, "Usage: %s [caffeproto] [caffemodel] [ncnnproto] [ncnnbin] [quantizelevel] [int8scaletable]\n", argv[0]);
+        fprintf(stderr, "Usage: %s ocr|noocr [caffeproto] [caffemodel] [ncnnproto] [ncnnbin] [quantizelevel] [int8scaletable]\n", argv[0]);
         return -1;
     }
 
-    const char* caffeproto = argv[1];
-    const char* caffemodel = argv[2];
-    const char* ncnn_prototxt = argc >= 5 ? argv[3] : "ncnn.proto";
-    const char* ncnn_modelbin = argc >= 5 ? argv[4] : "ncnn.bin";
-    const char* quantize_param = argc >= 6 ? argv[5] : "0";
-    const char* int8scale_table_path = argc == 7 ? argv[6] : NULL;
+    ocr = !strcmp(argv[1], "ocr");
+    if (ocr)
+        fprintf(stdout, "generating params for ocr (lstm) flavor\n");
+    const char* caffeproto = argv[2];
+    const char* caffemodel = argv[3];
+    const char* ncnn_prototxt = argc >= 6 ? argv[4] : "ncnn.proto";
+    const char* ncnn_modelbin = argc >= 6 ? argv[5] : "ncnn.bin";
+    const char* quantize_param = argc >= 7 ? argv[6] : "0";
+    const char* int8scale_table_path = argc == 8 ? argv[7] : NULL;
     int quantize_level = atoi(quantize_param);
 
     if (quantize_level != 0 && quantize_level != 256 && quantize_level != 65536) {
@@ -604,6 +609,14 @@ int main(int argc, char** argv)
             fwrite(scale_blob.data().data(), sizeof(float), scale_blob.data_size(), bp);
             fwrite(shift_blob.data().data(), sizeof(float), shift_blob.data_size(), bp);
         }
+	else if (layer.type() == "ContinuationIndicator")
+	  {
+	    const caffe::ContinuationIndicatorParameter &ci_param = layer.continuation_indicator_param();
+	    int time_step = ci_param.time_step();
+	    int axis = ci_param.axis();
+	    fprintf(pp, " 0=%d", time_step);
+	    fprintf(pp, " 1=%d", axis);
+	  }
         else if (layer.type() == "Concat")
         {
             const caffe::ConcatParameter& concat_param = layer.concat_param();
@@ -991,6 +1004,10 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", inner_product_param.num_output());
             fprintf(pp, " 1=%d", inner_product_param.bias_term());
             fprintf(pp, " 2=%d", weight_blob.data_size());
+            // in OCR case, we need to keep H dimensions in order to do H inner products
+            // custom inner product layer is needed for this
+            if (ocr)
+                fprintf(pp, " 3=1");
 
             bool int8_scale_term = false;
             std::vector<float> weight_int8scale;
@@ -1293,7 +1310,14 @@ int main(int argc, char** argv)
                 }
                 // permute with N not supported
             }
-            fprintf(pp, " 0=%d", order_type);
+            if (ocr)
+                // in OCR case, only one permute juste before the LSTM to permute h and w
+                // computation above do not allow dimensions swaps as needed for LSTMs as
+                // LSTMS in caffe take T as first dim, second dim is 1 (batchsize forced to 1)
+                // and next dim is the data vector length. We thus hardcode it for now
+                fprintf(pp, " 0=1");
+            else
+                fprintf(pp, " 0=%d", order_type);
         }
         else if (layer.type() == "Pooling")
         {
@@ -1496,7 +1520,14 @@ int main(int argc, char** argv)
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(2), bs.dim(1), bs.dim(0));
+                if (ocr)
+                    // in ocr case, c has no dimension (1), dim(1) is -1;
+                    // ncnn badly interprets -1 and 0 in the same reshape
+                    // params set, as a workaround in ocr case we force c dim to be 1, so
+                    // h dim is correctly computed
+                    fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(2), bs.dim(1), 1L);
+                else
+                    fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(2), bs.dim(1), bs.dim(0));
             }
             else // bs.dim_size() == 4
             {
