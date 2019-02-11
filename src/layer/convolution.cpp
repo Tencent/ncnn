@@ -25,6 +25,7 @@ Convolution::Convolution()
     one_blob_only = true;
     support_inplace = false;
     support_vulkan = true;
+    use_int8_requantize = false;
 
 #if NCNN_VULKAN
     padding = 0;
@@ -48,6 +49,10 @@ Convolution::~Convolution()
     for (int i=0; i<(int)dequantize_ops.size(); i++)
         delete dequantize_ops[i];
     dequantize_ops.clear();
+
+    for (int i=0; i<(int)requantize_ops.size(); i++)
+        delete requantize_ops[i];
+    requantize_ops.clear();
 }
 
 int Convolution::load_param(const ParamDict& pd)
@@ -127,7 +132,11 @@ int Convolution::load_model(const ModelBin& mb)
 
     for (int i=0; i<(int)dequantize_ops.size(); i++)
         delete dequantize_ops[i];
-    dequantize_ops.clear(); 
+    dequantize_ops.clear();
+
+    for (int i=0; i<(int)requantize_ops.size(); i++)
+        delete requantize_ops[i];
+    requantize_ops.clear();
 
     bool weight_data_is_int8 = (weight_data.elemsize == (size_t)1u);
     bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
@@ -217,6 +226,50 @@ int Convolution::load_model(const ModelBin& mb)
         convolution_fc->load_model(ModelBinFromMatArray(weights));
     }
 #endif // NCNN_VULKAN
+
+    return 0;
+}
+
+int Convolution::create_requantize_op(void)
+{
+    if (!use_int8_requantize)
+    {
+        fprintf(stderr, "requantized op set but use_int8_requantize disabled\n");
+        return -1;
+    }
+
+    requantize_ops.resize(num_output);
+    for (int n=0; n<num_output; n++)
+    {
+        requantize_ops[n] = ncnn::create_layer(ncnn::LayerType::Requantize);
+
+        float scale_in = 1.f;
+        float scale_out = 1.f;
+
+        if (weight_data_int8_scales[n] == 0)
+        {
+            scale_in = 0;
+        }
+        else
+        {
+            scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[n]);
+        }
+
+        scale_out = top_blob_int8_scale;
+
+        ncnn::ParamDict pd;
+        pd.set(0, scale_in);   // scale in
+        pd.set(1, scale_out);  // scale_out
+        pd.set(2, bias_term);  // bias_term
+        pd.set(3, 1);          // bias_data_size
+
+        requantize_ops[n]->load_param(pd);
+
+        ncnn::Mat weights[1];
+        weights[0] = bias_data.range(n, 1);
+
+        requantize_ops[n]->load_model(ModelBinFromMatArray(weights));
+    }
 
     return 0;
 }
@@ -352,94 +405,120 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     if (use_int8_inference)
     {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output; p++)
+        if (use_int8_requantize == true)
         {
-            int* outptr = top_blob.channel(p);
+            Mat top_blob_tm;
+            top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
+            if (top_blob_tm.empty())
+                return -100;
+            
+            top_blob.create(outw, outh, num_output, (size_t)1u, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100; 
 
-            for (int i = 0; i < outh; i++)
+            // num_output
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p=0; p<num_output; p++)
             {
-                for (int j = 0; j < outw; j++)
+                int* outptr = top_blob_tm.channel(p);
+
+                for (int i = 0; i < outh; i++)
                 {
-                    int sum = 0;
-
-                    const signed char* kptr = (const signed char*)weight_data + maxk * channels * p;
-
-                    // channels
-                    for (int q=0; q<channels; q++)
+                    for (int j = 0; j < outw; j++)
                     {
-                        const Mat m = bottom_blob_bordered.channel(q);
-                        const signed char* sptr = m.row<signed char>(i*stride_h) + j*stride_w;
+                        int sum = 0;
 
-                        for (int k = 0; k < maxk; k++)
+                        const signed char* kptr = (const signed char*)weight_data + maxk * channels * p;
+
+                        // channels
+                        for (int q=0; q<channels; q++)
                         {
-                            int val = sptr[ space_ofs[k] ];
-                            int w = kptr[k];
-                            sum += val * w;
+                            const Mat m = bottom_blob_bordered.channel(q);
+                            const signed char* sptr = m.row<signed char>(i*stride_h) + j*stride_w;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                int val = sptr[ space_ofs[k] ];
+                                int w = kptr[k];
+                                sum += val * w;
+                            }
+
+                            kptr += maxk;
                         }
 
-                        kptr += maxk;
+                        outptr[j] = sum;
                     }
 
-                    outptr[j] = sum;
+                    outptr += outw;
                 }
 
-                outptr += outw;
+                // requantize, reverse scale inplace
+                {
+                    ncnn::Option opt_g = opt;
+                    opt_g.num_threads = 1;
+                    opt_g.blob_allocator = top_blob.allocator;
+
+                    Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
+                    Mat top_blob_g = top_blob.channel_range(p, 1);
+                    requantize_ops[p]->forward(top_blob_tm_g, top_blob_g, opt_g);
+                }                        
             }
-
-            // dequantize, reverse scale inplace
-            {
-                ncnn::Option opt_g = opt;
-                opt_g.num_threads = 1;
-                opt_g.blob_allocator = top_blob.allocator;
-
-                Mat top_blob_g = top_blob.channel_range(p, 1);
-                dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
-            }            
         }
+        else
+        {
+            top_blob.create(outw, outh, num_output, (size_t)4u, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+      
+            // num_output
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p=0; p<num_output; p++)
+            {
+                int* outptr = top_blob.channel(p);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        int sum = 0;
+
+                        const signed char* kptr = (const signed char*)weight_data + maxk * channels * p;
+
+                        // channels
+                        for (int q=0; q<channels; q++)
+                        {
+                            const Mat m = bottom_blob_bordered.channel(q);
+                            const signed char* sptr = m.row<signed char>(i*stride_h) + j*stride_w;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                int val = sptr[ space_ofs[k] ];
+                                int w = kptr[k];
+                                sum += val * w;
+                            }
+
+                            kptr += maxk;
+                        }
+
+                        outptr[j] = sum;
+                    }
+
+                    outptr += outw;
+                }
+
+                // dequantize, reverse scale inplace
+                {
+                    ncnn::Option opt_g = opt;
+                    opt_g.num_threads = 1;
+                    opt_g.blob_allocator = top_blob.allocator;
+
+                    Mat top_blob_g = top_blob.channel_range(p, 1);
+                    dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
+                }            
+            }
+        }        
 
         return 0;
-    }
-
-    // num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<num_output; p++)
-    {
-        float* outptr = top_blob.channel(p);
-
-        for (int i = 0; i < outh; i++)
-        {
-            for (int j = 0; j < outw; j++)
-            {
-                float sum = 0.f;
-
-                if (bias_term)
-                    sum = bias_data[p];
-
-                const float* kptr = (const float*)weight_data + maxk * channels * p;
-
-                // channels
-                for (int q=0; q<channels; q++)
-                {
-                    const Mat m = bottom_blob_bordered.channel(q);
-                    const float* sptr = m.row(i*stride_h) + j*stride_w;
-
-                    for (int k = 0; k < maxk; k++) // 29.23
-                    {
-                        float val = sptr[ space_ofs[k] ]; // 20.72
-                        float w = kptr[k];
-                        sum += val * w; // 41.45
-                    }
-
-                    kptr += maxk;
-                }
-
-                outptr[j] = sum;
-            }
-
-            outptr += outw;
-        }
     }
 
     return 0;

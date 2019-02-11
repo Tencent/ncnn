@@ -16,6 +16,9 @@
 #include "layer_type.h"
 #include "modelbin.h"
 #include "paramdict.h"
+#include "convolution.h"
+#include "convolutiondepthwise.h"
+#include "relu.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -619,6 +622,113 @@ int Net::load_model(FILE* fp)
             break;
         }
     }
+
+    // set the int8 op fusion:relu
+#if 0
+
+#else    
+    fprintf(stderr, "Test op fusion to int8 implement:\n");
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        Layer* layer = layers[i];
+
+        if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise")
+        {
+            if (((Convolution*)layer)->use_int8_inference == false)
+                continue;
+
+            for (size_t n=0; n<blobs[layer->tops[0]].consumers.size(); n++)
+            {
+                int layer_next_index = blobs[layer->tops[0]].consumers[n];
+                Layer* layer_next = layers[layer_next_index];
+
+                if (layer_next->type == "ReLU")
+                {
+                    int layer_next_2_index = blobs[layer_next->tops[0]].consumers[0];
+                    Layer* layer_next_2 = layers[layer_next_2_index];
+
+                    if (layer_next_2->type == "Convolution" || layer_next_2->type == "ConvolutionDepthWise")
+                    {
+                        fprintf(stderr, "%s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
+
+                        if (layer->type == "Convolution" && layer_next_2->type == "Convolution")
+                        {
+                            ((Convolution*)layer)->use_int8_requantize = true;
+                            ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
+                            ((Convolution*)layer)->create_requantize_op();
+                        }
+                        else if (layer->type == "ConvolutionDepthWise" && layer_next_2->type == "Convolution")
+                        {
+                            ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
+                            ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
+                            ((ConvolutionDepthWise*)layer)->create_requantize_op();
+                        }
+                        else if (layer->type == "Convolution" && layer_next_2->type == "ConvolutionDepthWise")
+                        {
+                            ((Convolution*)layer)->use_int8_requantize = true;
+                            ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
+                            ((Convolution*)layer)->create_requantize_op();
+                        }
+                        else
+                        {
+                            ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
+                            ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
+                            ((ConvolutionDepthWise*)layer)->create_requantize_op();
+                        }
+                    }
+                    else if (layer_next_2->type == "Split")
+                    {
+                        bool all_conv = true;
+                        for (size_t i=0; i<layer_next_2->tops.size(); i++)
+                        {
+                            int layer_next_3_index = blobs[layer_next_2->tops[i]].consumers[0];
+                            if (layers[layer_next_3_index]->type != "Convolution" && layers[layer_next_3_index]->type != "ConvolutionDepthWise" && layers[layer_next_3_index]->type != "PriorBox" )
+                            {
+                                // fprintf(stderr, "%s, %s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str(), layers[layer_next_3_index]->name.c_str());
+                                
+                                all_conv = false;
+                            }
+                        }
+
+                        if (all_conv == true && layer_next_2->tops.size() >= size_t(2))
+                        {
+                            fprintf(stderr, "%s, %s, %s, ", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
+                            for (size_t i=0; i<layer_next_2->tops.size(); i++)
+                            {
+                                int layer_next_3_index = blobs[layer_next_2->tops[i]].consumers[0];
+                                Layer* layer_next_3 = layers[layer_next_3_index];
+
+                                fprintf(stderr, "%s, ", layer_next_3->name.c_str());
+
+                                if (layer_next_3->type == "Convolution")
+                                {
+                                    ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_3)->bottom_blob_int8_scale; 
+                                }    
+                            }
+
+                            ((Convolution*)layer)->use_int8_requantize = true;
+                            ((Convolution*)layer)->create_requantize_op();    
+
+                            fprintf(stderr, "\n");
+                        }
+                    }
+                    else
+                    {
+                        // fprintf(stderr, "%s, %s\n", layer->name.c_str(), layer_next->name.c_str());
+                    }
+                }
+                else if (layer_next->type == "Pooling")
+                {
+                    
+                }
+                else
+                {
+                    // fprintf(stderr, "%s\n", layer->name.c_str());
+                }                  
+            }
+        }
+    }
+#endif    
 
 #if NCNN_VULKAN
     if (use_vulkan_compute)

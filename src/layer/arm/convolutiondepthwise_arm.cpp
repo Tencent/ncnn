@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "convolutiondepthwise_arm.h"
-
+#include "benchmark.h"
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -141,12 +141,21 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         return -100;
     }
 
+#if DEBUG_FEATURE
+    if (elemsize == 4)
+        extract_feature_in_f32(0, this->name.c_str(), bottom_blob);
+#endif
+
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    // double start, end;
 
     Mat bottom_blob_unbordered = bottom_blob;
     if (use_int8_inference && elemsize != 1)
     {
+        // start = ncnn::get_current_time();
+
         Mat bottom_blob_int8;
         bottom_blob_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
         if (bottom_blob_int8.empty())
@@ -168,7 +177,15 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         }
 
         bottom_blob_unbordered = bottom_blob_int8;
+
+        // end = ncnn::get_current_time();
+        // printf("quantize    : %.3f ms\n", end - start);        
     }
+
+#if DEBUG_FEATURE
+    if (use_int8_inference)
+        extract_feature_in_s8(0, this->name.c_str(), bottom_blob_unbordered);
+#endif     
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
@@ -211,25 +228,92 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
             {
                 if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
                 {
-                    if (stride_w == 1 && stride_h == 1)
+                    if (use_int8_requantize)
                     {
-                        convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
-                    }
-                    else if (stride_w == 2 && stride_h == 2)
-                    {
-                        convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
-                    }
+                        // start = ncnn::get_current_time();
 
-                    // dequantize, reverse scale inplace
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int g=0; g<group; g++)
-                    {
-                        ncnn::Option opt_g = opt;
-                        opt_g.num_threads = 1;
-                        opt_g.blob_allocator = top_blob.allocator;
+                        Mat top_blob_tm;
+                        top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
+                        if (top_blob_tm.empty())
+                            return -100;
+                        
+                        top_blob.create(outw, outh, num_output, (size_t)1u, opt.blob_allocator);
+                        if (top_blob.empty())
+                            return -100;
 
-                        Mat top_blob_g = top_blob.channel_range(g, 1);
-                        dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
+                        if (stride_w == 1 && stride_h == 1)
+                        {
+                            convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob_tm, weight_data, opt);
+                        }
+                        else if (stride_w == 2 && stride_h == 2)
+                        {
+                            convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob_tm, weight_data, opt);
+                        }
+
+                        // end = ncnn::get_current_time();
+                        // printf("convdw int8 : %.3f ms\n", end - start);
+                        // start = ncnn::get_current_time();                        
+
+                        // requantize, reverse scale inplace
+                        #pragma omp parallel for num_threads(opt.num_threads)
+                        for (int g=0; g<group; g++)
+                        {
+                            ncnn::Option opt_g = opt;
+                            opt_g.num_threads = 1;
+                            opt_g.blob_allocator = top_blob.allocator;
+
+                            Mat top_blob_tm_g = top_blob_tm.channel_range(g, 1);
+                            Mat top_blob_g = top_blob.channel_range(g, 1);
+                            requantize_ops[g]->forward(top_blob_tm_g, top_blob_g, opt_g);
+                        }
+
+                        // end = ncnn::get_current_time();
+                        // printf("requantize  : %.3f ms\n", end - start);                        
+#if DEBUG_FEATURE
+                        extract_feature_out_s32(0, this->name.c_str(), top_blob_tm);
+                        extract_feature_blob_s8("D_Out_S8", this->name.c_str(), top_blob);
+                        extract_kernel_dw_s8(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_w);
+#endif                         
+                    }
+                    else
+                    {
+                        // start = ncnn::get_current_time();
+
+                        top_blob.create(outw, outh, num_output, (size_t)4u, opt.blob_allocator);
+                        if (top_blob.empty())
+                            return -100;
+
+                        if (stride_w == 1 && stride_h == 1)
+                        {
+                            convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
+                        }
+                        else if (stride_w == 2 && stride_h == 2)
+                        {
+                            convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
+                        }
+
+                        // end = ncnn::get_current_time();
+                        // printf("convdw int8 : %.3f ms\n", end - start);
+                        // start = ncnn::get_current_time();                          
+
+                        // dequantize, reverse scale inplace
+                        #pragma omp parallel for num_threads(opt.num_threads)
+                        for (int g=0; g<group; g++)
+                        {
+                            ncnn::Option opt_g = opt;
+                            opt_g.num_threads = 1;
+                            opt_g.blob_allocator = top_blob.allocator;
+
+                            Mat top_blob_g = top_blob.channel_range(g, 1);
+                            dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
+                        }
+
+                        // end = ncnn::get_current_time();
+                        // printf("dequantize  : %.3f ms\n", end - start);                    
+#if DEBUG_FEATURE
+                        extract_kernel_dw_s8(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_w);
+                        extract_feature_out_f32(0, this->name.c_str(), top_blob);
+#endif                        
                     }
 
                     return 0;

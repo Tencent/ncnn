@@ -309,6 +309,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
+#if DEBUG_FEATURE
+    if (elemsize == 4)
+        extract_feature_in_f32(0, this->name.c_str(), bottom_blob);
+#endif
+
     Mat bottom_blob_unbordered = bottom_blob;
     if (use_int8_inference && elemsize != 1)
     {
@@ -327,6 +332,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         bottom_blob_unbordered = bottom_blob_int8;
     }
+
+#if DEBUG_FEATURE
+    if (use_int8_inference)
+        extract_feature_in_s8(0, this->name.c_str(), bottom_blob_unbordered);
+#endif    
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
@@ -362,23 +372,69 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (use_int8_inference)
     {
-        if (use_winograd3x3)
-            conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
-        else
-            conv_int8(bottom_blob_bordered, top_blob, weight_data, opt);
-
-        // dequantize, reverse scale inplace
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output; p++)
+        if (use_int8_requantize == true)
         {
-            ncnn::Option opt_g = opt;
-            opt_g.num_threads = 1;
-            opt_g.blob_allocator = top_blob.allocator;
+            Mat top_blob_tm;
+            top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
+            if (top_blob_tm.empty())
+                return -100;
+            
+            top_blob.create(outw, outh, num_output, (size_t)1u, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100; 
 
-            Mat top_blob_g = top_blob.channel_range(p, 1);
-            dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
-        }     
+            if (use_winograd3x3)
+                conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data, bias_data, opt);
+            else
+                conv_int8(bottom_blob_bordered, top_blob_tm, weight_data, opt);
 
+            // requantize, reverse scale inplace
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p=0; p<num_output; p++)
+            {
+                ncnn::Option opt_g = opt;
+                opt_g.num_threads = 1;
+                opt_g.blob_allocator = top_blob.allocator;
+
+                Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
+                Mat top_blob_g = top_blob.channel_range(p, 1);
+                requantize_ops[p]->forward(top_blob_tm_g, top_blob_g, opt_g);
+            }  
+
+#if DEBUG_FEATURE
+            extract_feature_out_s32(0, this->name.c_str(), top_blob_tm);
+            extract_feature_blob_s8("D_Out_S8", this->name.c_str(), top_blob);
+#endif                                         
+        }
+        else
+        {
+            top_blob.create(outw, outh, num_output, (size_t)4u, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100; 
+
+            if (use_winograd3x3)
+                conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
+            else
+                conv_int8(bottom_blob_bordered, top_blob, weight_data, opt);
+
+            // dequantize, reverse scale inplace
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p=0; p<num_output; p++)
+            {
+                ncnn::Option opt_g = opt;
+                opt_g.num_threads = 1;
+                opt_g.blob_allocator = top_blob.allocator;
+
+                Mat top_blob_g = top_blob.channel_range(p, 1);
+                dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
+            }
+#if DEBUG_FEATURE 
+            extract_feature_out_f32(0, this->name.c_str(), top_blob);
+#endif                        
+        } 
+#if DEBUG_FEATURE 
+        extract_kernel_s8(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_size);
+#endif        
         return 0;
     }
 
