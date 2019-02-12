@@ -68,8 +68,6 @@ int Convolution_arm::load_model(const ModelBin& mb)
 
     if (use_int8_inference)
     {
-#if __ARM_NEON
-#if !__aarch64__
         if (use_winograd3x3)
         {
             int num_input = weight_data_size / 9 / num_output;
@@ -92,9 +90,15 @@ int Convolution_arm::load_model(const ModelBin& mb)
             int num_input = weight_data_size / num_output;
             conv1x1s1_sgemm_transform_kernel_int8_neon(weight_data, weight_1x1s1_sgemm_int8_data, num_input, num_output);
             use_sgemm1x1 = true;
-        }        
-#endif // !__aarch64__
-#endif // __ARM_NEON
+        }
+
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            int num_input = weight_data_size / num_output;
+            conv1x1s1_sgemm_transform_kernel_int8_neon(weight_data, weight_1x1s1_sgemm_int8_data, num_input, num_output);
+            use_sgemm1x1 = true;            
+        }
+        
         return 0;
     }
 
@@ -240,7 +244,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
 
     const int kernel_size = kernel_w;
-    const int stride = stride_w;
+    //const int stride = stride_w;
+    int stride = stride_w;
 
     if (kernel_size > 7 || stride > 4 || dilation_w != dilation_h)
     {
@@ -400,10 +405,27 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             opt_g.blob_allocator = bottom_blob_int8.allocator;
 
             quantize->forward(bottom_blob, bottom_blob_int8, opt_g);
+        }       
+
+        // downsampling conv1x1s2 to conv1x1s1
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            Mat bottom_blob_tm;
+
+            resize_downsample2(bottom_blob_int8, bottom_blob_tm, opt.workspace_allocator, opt.num_threads);
+            if (bottom_blob_tm.empty())
+                return -100;
+
+            w = bottom_blob_tm.w;
+            h = bottom_blob_tm.h;
+
+            stride = 1;
+            bottom_blob_unbordered = bottom_blob_tm;
         }
-
-        bottom_blob_unbordered = bottom_blob_int8;
-
+        else
+        {
+            bottom_blob_unbordered = bottom_blob_int8;
+        }
         // end = ncnn::get_current_time();
         // printf("quantize   : %.3f ms\n", end - start);
     }
@@ -467,7 +489,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
             else if (use_winograd3x3)
             {
-                conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_int8_data, bias_data, opt);
+                conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_int8_data, opt);
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
@@ -520,7 +542,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
             else if (use_winograd3x3)
             {
-                conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, bias_data, opt);
+                conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, opt);
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {

@@ -22,5 +22,6 @@
 #cmakedefine01 NCNN_PIXEL
 #cmakedefine01 NCNN_PIXEL_ROTATE
 #cmakedefine01 NCNN_VULKAN
+#cmakedefine01 NCNN_REQUANT
 
 #endif // NCNN_PLATFORM_H

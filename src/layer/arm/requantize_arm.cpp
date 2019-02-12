@@ -137,15 +137,28 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                 float bias = bias_data_size > 1 ? bias_data[q] : bias_data[0];
 
-#if 1 //__ARM_NEON
+#if __ARM_NEON
                 int nn = size >> 3;
                 int remain = size & 7;
 
+#if __aarch64__
+                for (; nn>0; nn--)
+                {
+                    ptr[0] = float2int8(((intptr[0] * scale_in) + bias) * scale_out);
+                    ptr[1] = float2int8(((intptr[1] * scale_in) + bias) * scale_out);
+                    ptr[2] = float2int8(((intptr[2] * scale_in) + bias) * scale_out);
+                    ptr[3] = float2int8(((intptr[3] * scale_in) + bias) * scale_out);
+                    ptr[4] = float2int8(((intptr[4] * scale_in) + bias) * scale_out);
+                    ptr[5] = float2int8(((intptr[5] * scale_in) + bias) * scale_out);
+                    ptr[6] = float2int8(((intptr[6] * scale_in) + bias) * scale_out);
+                    ptr[7] = float2int8(((intptr[7] * scale_in) + bias) * scale_out);
+
+                    ptr += 8;
+                    intptr += 8;
+                }
+#else
                 if (nn > 0)
                 {
-#if __aarch64__
-                //TODO
-#else
                 asm volatile(
                     "pld        [%1, #256]          \n"
                     "vld1.s32   {d0-d3}, [%1:128]!  \n" //q0-q1 data
@@ -197,8 +210,8 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                       "r"(bias)         // %8
                     : "cc", "memory", "q0", "q1", "q2", "q10", "q11", "q12"
                 );
-#endif                    
                 }
+#endif // __aarch64__           
 #else
                 int remain = size;
 #endif // __ARM_NEON
@@ -220,15 +233,29 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 const int* intptr = bottom_blob.channel(q);
                 signed char* ptr = top_blob.channel(q);
 
-#if 1 //__ARM_NEON
+#if __ARM_NEON
                 int nn = size >> 3;
                 int remain = size & 7;
 
-                if (nn > 0)
-                {
 #if __aarch64__
                 //TODO
+                for (; nn>0; nn--)
+                {
+                    ptr[0] = float2int8(intptr[0] * scale_in * scale_out);
+                    ptr[1] = float2int8(intptr[1] * scale_in * scale_out);
+                    ptr[2] = float2int8(intptr[2] * scale_in * scale_out);
+                    ptr[3] = float2int8(intptr[3] * scale_in * scale_out);
+                    ptr[4] = float2int8(intptr[4] * scale_in * scale_out);
+                    ptr[5] = float2int8(intptr[5] * scale_in * scale_out);
+                    ptr[6] = float2int8(intptr[6] * scale_in * scale_out);
+                    ptr[7] = float2int8(intptr[7] * scale_in * scale_out);
+
+                    ptr += 8;
+                    intptr += 8;
+                }                
 #else
+                if (nn > 0)
+                {
                 asm volatile(
                     "pld        [%1, #256]          \n"
                     "vld1.s32   {d0-d3}, [%1:128]!  \n" //q0-q1 data
@@ -236,7 +263,7 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     "vdup.f32   q11, %7             \n" //q11 scale_out
                     "0:                             \n"
                     // top_s32 -> top_f32
-                    "vcvt.f32.s32 q0, q0            \n" 
+                    "vcvt.f32.s32 q0, q0            \n"
                     "vcvt.f32.s32 q1, q1            \n"
                     // top_f32 = top_f32 * scale_int
                     "vmul.f32   q0, q0, q10         \n"
@@ -275,8 +302,8 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                       "r"(scale_out)    // %7
                     : "cc", "memory", "q0", "q1", "q2", "q10", "q11"
                 );
-#endif                    
-                }        
+                } 
+#endif // __aarch64__      
 #else
                 int remain = size;
 #endif // __ARM_NEON
@@ -286,7 +313,7 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     *ptr = float2int8(*intptr * scale_in * scale_out);
 
                     intptr++;
-                    ptr ++;                     
+                    ptr ++;
                 }
             }
         }    

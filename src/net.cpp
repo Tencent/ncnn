@@ -624,9 +624,7 @@ int Net::load_model(FILE* fp)
     }
 
     // set the int8 op fusion:relu
-#if 0
-
-#else    
+#if NCNN_REQUANT   
     fprintf(stderr, "Test op fusion to int8 implement:\n");
     for (size_t i=0; i<layers.size(); i++)
     {
