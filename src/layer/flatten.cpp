@@ -95,11 +95,14 @@ int Flatten::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     size_t elemsize = bottom_blob.elemsize;
     int packing = bottom_blob.packing;
 
-    top_blob.create(w * h * channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    int out_packing = (w * h * channels * packing) % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / packing * out_packing;
+
+    top_blob.create(w * h * channels * packing / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
-    if (packing == 4)
+    if (packing == 4 && out_packing == 4)
     {
         std::vector<VkMat> bindings(2);
         bindings[0] = bottom_blob;
