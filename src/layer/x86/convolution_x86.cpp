@@ -445,6 +445,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
+#if DEBUG_FEATURE
+    extract_feature_out_f32(0, this->name.c_str(), top_blob);
+    extract_kernel_f32(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_size);
+#endif
+        
+
     return 0;
 }
 

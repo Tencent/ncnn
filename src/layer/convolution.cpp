@@ -521,6 +521,52 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return 0;
     }
 
+    // num_output
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p=0; p<num_output; p++)
+    {
+        float* outptr = top_blob.channel(p);
+
+        for (int i = 0; i < outh; i++)
+        {
+            for (int j = 0; j < outw; j++)
+            {
+                float sum = 0.f;
+
+                if (bias_term)
+                    sum = bias_data[p];
+
+                const float* kptr = (const float*)weight_data + maxk * channels * p;
+
+                // channels
+                for (int q=0; q<channels; q++)
+                {
+                    const Mat m = bottom_blob_bordered.channel(q);
+                    const float* sptr = m.row(i*stride_h) + j*stride_w;
+
+                    for (int k = 0; k < maxk; k++) // 29.23
+                    {
+                        float val = sptr[ space_ofs[k] ]; // 20.72
+                        float w = kptr[k];
+                        sum += val * w; // 41.45
+                    }
+
+                    kptr += maxk;
+                }
+
+                outptr[j] = sum;
+            }
+
+            outptr += outw;
+        }
+    }
+
+#if DEBUG_FEATURE
+    extract_feature_in_f32(0, this->name.c_str(), bottom_blob);
+    extract_feature_out_f32(0, this->name.c_str(), top_blob);
+    extract_kernel_f32(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_w);        
+#endif
+
     return 0;
 }
 

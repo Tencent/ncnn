@@ -29,6 +29,7 @@ set(ncnn_SRCS
     paramdict.cpp
     pipeline.cpp
     benchmark.cpp
+    help.cpp
 )
 
 macro(ncnn_add_layer class)
@@ -182,6 +183,7 @@ ncnn_add_layer(Dequantize)
 ncnn_add_layer(Yolov3DetectionOutput)
 ncnn_add_layer(PSROIPooling)
 ncnn_add_layer(ROIAlign OFF)
+ncnn_add_layer(Requantize)
 
 # message("SHADER_SPV_HEX_FILES = ${SHADER_SPV_HEX_FILES}")
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
@@ -224,6 +226,7 @@ install(FILES
     paramdict.h
     pipeline.h
     benchmark.h
+    help.h
     ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
     ${CMAKE_CURRENT_BINARY_DIR}/platform.h
     DESTINATION include
