@@ -213,7 +213,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }, // kernel_size = 2
         {
             conv3x3s1_sse,
-            0,
+            conv3x3s2_sse,
             0,
             0,
             0
