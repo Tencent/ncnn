@@ -659,7 +659,7 @@ int ConvolutionDepthWise::create_pipeline()
         if (num_output % 4 == 0)
         {
             pipeline_convolutiondepthwise_pack4 = new Pipeline(vkdev);
-            pipeline_convolutiondepthwise_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+            pipeline_convolutiondepthwise_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 4));
             pipeline_convolutiondepthwise_pack4->create("convolutiondepthwise_pack4", specializations, 4, 10);
         }
 
