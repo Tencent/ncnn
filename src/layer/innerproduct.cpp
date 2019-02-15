@@ -411,7 +411,7 @@ int InnerProduct::create_pipeline()
     if (num_input % 4 == 0 && num_output % 4 != 0)
     {
         pipeline_innerproduct_pack4to1 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(num_output / 4, 1, 1);
+        pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(num_output, 1, 1);
         pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", specializations, 4, 10);
     }
 
