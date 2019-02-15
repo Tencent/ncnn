@@ -329,7 +329,7 @@ int InnerProduct::upload_model(VkTransfer& cmd)
         }
 
         weight_data_pack1to4 = weight_data_pack1to4.reshape(4 * num_input * (num_output/4));
-        cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack4);
+        cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4);
     }
 
     // pack4to1
@@ -362,7 +362,7 @@ int InnerProduct::upload_model(VkTransfer& cmd)
         }
 
         weight_data_pack4to1 = weight_data_pack4to1.reshape(4 * (num_input/4) * num_output);
-        cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4);
+        cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1);
     }
 
     if (num_output % 4 == 0)
