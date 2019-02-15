@@ -1799,333 +1799,271 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
 
             for (; i < outh; i++)
             {
-#if 0 //__ARM_NEON
+#if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
 #else
                 int remain = outw;
 #endif // __ARM_NEON
 
-#if 0 //__ARM_NEON
-#if __aarch64__
-                if (nn > 0)
-                {
-                    // TODO
-                }
-#else // __aarch64__
-                if (nn > 0)
-                {
-                asm volatile(
-                    "0:                             \n"
-                    "pld        [%1, #128]          \n"
-                    "vld1.s32   {d16-d17}, [%1]     \n"// out0
-                    "pld        [%2, #128]          \n"
-                    "vld1.s32   {d18-d19}, [%2]     \n"// out1
-                    "pld        [%3, #128]          \n"
-                    "vld1.s32   {d20-d21}, [%3]     \n"// out2
-                    "pld        [%4, #128]          \n"
-                    "vld1.s32   {d22-d23}, [%4]     \n"// out3 
+#if __ARM_NEON
+                for (; nn>0; nn--)
+                {                  
+                    // load output ch 0-7
+                    int32x4_t _sum0 = vld1q_s32(outptr0);// out0
+                    int32x4_t _sum1 = vld1q_s32(outptr1);// out1
+                    int32x4_t _sum2 = vld1q_s32(outptr2);// out2
+                    int32x4_t _sum3 = vld1q_s32(outptr3);// out3
+                    int32x4_t _sum4 = vld1q_s32(outptr4);// out4
+                    int32x4_t _sum5 = vld1q_s32(outptr5);// out5
+                    int32x4_t _sum6 = vld1q_s32(outptr6);// out6
+                    int32x4_t _sum7 = vld1q_s32(outptr7);// out7
 
                     // r0
-                    "pld        [%9, #64]          \n"
-                    "vld2.s8    {d8-d9}, [%9]       \n"// d8(a00 a02 a04 a06 a08 a010 a012 a014), d9(a01 a03 a05 a07 a09 a011 a013 a015)
-                    "add        %9, #8              \n"
-                    "pld        [%12, #64]         \n"
-                    "vld1.s8    {d0-d2}, [%12]!     \n"// d0(k00-k70) d1(k01-k71) d2(k02-k72)
+                    int8x8x2_t _r0_s8 = vld2_s8(r0);
+                    int8x8_t _r2_s8 = vext_s8(_r0_s8.val[0], _r0_s8.val[0], 1);
+                    // k0 - k2
+                    int8x8_t _k0_8 = vld1_s8(ktmp);    //(k00-k70)
+                    int8x8_t _k1_8 = vld1_s8(ktmp+8);  //(k01-k71)
+                    int8x8_t _k2_8 = vld1_s8(ktmp+16); //(k02-k72)
 
-                    "pld        [%5, #128]          \n"
-                    "vld1.s32   {d24-d25}, [%5]     \n"// out4
-                    "pld        [%6, #128]          \n"
-                    "vld1.s32   {d26-d27}, [%6]     \n"// out5
+                    int16x8_t _r0 = vmovl_s8(_r0_s8.val[0]);
+                    int16x8_t _r1 = vmovl_s8(_r0_s8.val[1]);
+                    int16x8_t _r2 = vmovl_s8(_r2_s8);
 
-                    "vmovl.s8   q2, d2              \n"// q2(k02-k72)
-                    "vmovl.s8   q1, d1              \n"// q1(k01-k71)
-                    "vmovl.s8   q0, d0              \n"// q0(k00-k70)
-                    "vext.s8    d12, d8, d8, #1     \n"// d12(a02 a04 a06 a08 x x x x)
-
-                    "pld        [%7, #128]          \n"
-                    "vld1.s32   {d28-d29}, [%7]     \n"// out6
-
-                    "vmovl.s8   q5, d9              \n"// q5(a01 a03 a05 a07 a09 a011 a013 a015) d11
-                    "vmovl.s8   q4, d8              \n"// q4(a00 a02 a04 a06 a08 a010 a012 a014) d9
-                    "vmovl.s8   q6, d12             \n"// q6(a02 a04 a06 a08 a010 a012 a014 a016) d13
-
-                    "pld        [%8, #128]          \n"
-                    "vld1.s32   {d30-d31}, [%8]     \n"// out7  
-
-                    "vmlal.s16  q8, d8, d0[0]       \n"// sum0 += (a00 a02 a04 a06) * k00
-                    "vmlal.s16  q9, d8, d0[1]       \n"// sum1 += (a00 a02 a04 a06) * k10
-                    "vmlal.s16  q10, d8, d0[2]      \n"// sum2 += (a00 a02 a04 a06) * k20
-                    "vmlal.s16  q11, d8, d0[3]      \n"// sum3 += (a00 a02 a04 a06) * k30
-                    "vmlal.s16  q12, d8, d1[0]      \n"// sum4 += (a00 a02 a04 a06) * k40
-                    "vmlal.s16  q13, d8, d1[1]      \n"// sum5 += (a00 a02 a04 a06) * k50
-                    "vmlal.s16  q14, d8, d1[2]      \n"// sum6 += (a00 a02 a04 a06) * k60
-                    "vmlal.s16  q15, d8, d1[3]      \n"// sum7 += (a00 a02 a04 a06) * k70
-
-                    "vmlal.s16  q8, d10, d2[0]      \n"// sum0 += (a01-a07) * k01
-                    "vmlal.s16  q9, d10, d2[1]      \n"// sum1 += (a01-a07) * k11
-                    "vmlal.s16  q10, d10, d2[2]     \n"// sum2 += (a01-a07) * k21
-                    "vmlal.s16  q11, d10, d2[3]     \n"// sum3 += (a01-a07) * k31
-                    "vmlal.s16  q12, d10, d3[0]     \n"// sum4 += (a01-a07) * k41
-                    "vmlal.s16  q13, d10, d3[1]     \n"// sum5 += (a01-a07) * k51
-                    "vmlal.s16  q14, d10, d3[2]     \n"// sum6 += (a01-a07) * k61
-                    "vmlal.s16  q15, d10, d3[3]     \n"// sum7 += (a01-a07) * k71   
-
-                    "pld        [%10, #64]         \n"
-                    "vld2.s8    {d8-d9}, [%10]      \n"// d8(a10 a12 a14 a16 a18 a110 a112 a114), d9(a11 a13 a15 a17 a19 a111 a113 a115)
-                    "add        %10, #8             \n"
-
-                    "vmlal.s16  q8, d12, d4[0]      \n"// sum0 += (a02-a08) * k02
-                    "vmlal.s16  q9, d12, d4[1]      \n"// sum1 += (a02-a08) * k12
-                    "vmlal.s16  q10, d12, d4[2]     \n"// sum2 += (a02-a08) * k22
-                    "vmlal.s16  q11, d12, d4[3]     \n"// sum3 += (a02-a08) * k32
-
-                    "pld        [%12, #64]         \n"
-                    "vld1.s8    {d0-d2}, [%12]!     \n"// d0(k03-k73) d1(k04-k74) d2(k05-k75)
-
-                    "vmlal.s16  q12, d12, d5[0]     \n"// sum4 += (a02-a08) * k42
-                    "vmlal.s16  q13, d12, d5[1]     \n"// sum5 += (a02-a08) * k52
-                    "vmlal.s16  q14, d12, d5[2]     \n"// sum6 += (a02-a08) * k62
-                    "vmlal.s16  q15, d12, d5[3]     \n"// sum7 += (a02-a08) * k72
+                    int16x8_t _k0 = vmovl_s8(_k0_8);
+                    int16x8_t _k1 = vmovl_s8(_k1_8);
+                    int16x8_t _k2 = vmovl_s8(_k2_8);
+                    // dot row 1 k0
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r0), _k0, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_r0), _k0, 1);
+                    _sum2 = vmlal_laneq_s16(_sum2, vget_low_s16(_r0), _k0, 2);
+                    _sum3 = vmlal_laneq_s16(_sum3, vget_low_s16(_r0), _k0, 3);
+                    _sum4 = vmlal_laneq_s16(_sum4, vget_low_s16(_r0), _k0, 4);
+                    _sum5 = vmlal_laneq_s16(_sum5, vget_low_s16(_r0), _k0, 5);
+                    _sum6 = vmlal_laneq_s16(_sum6, vget_low_s16(_r0), _k0, 6);
+                    _sum7 = vmlal_laneq_s16(_sum7, vget_low_s16(_r0), _k0, 7);
+                    // dot row 1 k1
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r1), _k1, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_r1), _k1, 1);
+                    _sum2 = vmlal_laneq_s16(_sum2, vget_low_s16(_r1), _k1, 2);
+                    _sum3 = vmlal_laneq_s16(_sum3, vget_low_s16(_r1), _k1, 3);
+                    _sum4 = vmlal_laneq_s16(_sum4, vget_low_s16(_r1), _k1, 4);
+                    _sum5 = vmlal_laneq_s16(_sum5, vget_low_s16(_r1), _k1, 5);
+                    _sum6 = vmlal_laneq_s16(_sum6, vget_low_s16(_r1), _k1, 6);
+                    _sum7 = vmlal_laneq_s16(_sum7, vget_low_s16(_r1), _k1, 7);
+                    // dot row 1 k2
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r2), _k2, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_r2), _k2, 1);
+                    _sum2 = vmlal_laneq_s16(_sum2, vget_low_s16(_r2), _k2, 2);
+                    _sum3 = vmlal_laneq_s16(_sum3, vget_low_s16(_r2), _k2, 3);
+                    _sum4 = vmlal_laneq_s16(_sum4, vget_low_s16(_r2), _k2, 4);
+                    _sum5 = vmlal_laneq_s16(_sum5, vget_low_s16(_r2), _k2, 5);
+                    _sum6 = vmlal_laneq_s16(_sum6, vget_low_s16(_r2), _k2, 6);
+                    _sum7 = vmlal_laneq_s16(_sum7, vget_low_s16(_r2), _k2, 7);
 
                     // r1
-                    "vext.s8    d12, d8, d8, #1     \n"// d12(a12 a14 a16 a18 x x x x)
+                    _r0_s8 = vld2_s8(r1);
+                    _r2_s8 = vext_s8(_r0_s8.val[0], _r0_s8.val[0], 1);
+                    // k3 - k5
+                    _k0_8 = vld1_s8(ktmp+24);    //(k03-k73)
+                    _k1_8 = vld1_s8(ktmp+32);  //(k04-k74)
+                    _k2_8 = vld1_s8(ktmp+40); //(k05-k75)
 
-                    "vmovl.s8   q2, d2              \n"// q2(k05-k75)
-                    "vmovl.s8   q1, d1              \n"// q1(k04-k74)
-                    "vmovl.s8   q0, d0              \n"// q0(k03-k73)
-                    "vmovl.s8   q5, d9              \n"// q5(a11-a115)
-                    "vmovl.s8   q4, d8              \n"// q4(a10-a114)
-                    "vmovl.s8   q6, d12             \n"// q6(a12-a116)
+                    _r0 = vmovl_s8(_r0_s8.val[0]);
+                    _r1 = vmovl_s8(_r0_s8.val[1]);
+                    _r2 = vmovl_s8(_r2_s8);
 
-                    "vmlal.s16  q8, d8, d0[0]       \n"// sum0 += (a10-a16) * k03
-                    "vmlal.s16  q9, d8, d0[1]       \n"// sum1 += (a10-a16) * k13
-                    "vmlal.s16  q10, d8, d0[2]      \n"// sum2 += (a10-a16) * k23
-                    "vmlal.s16  q11, d8, d0[3]      \n"// sum3 += (a10-a16) * k33
-                    "vmlal.s16  q12, d8, d1[0]      \n"// sum4 += (a10-a16) * k43
-                    "vmlal.s16  q13, d8, d1[1]      \n"// sum5 += (a10-a16) * k53
-                    "vmlal.s16  q14, d8, d1[2]      \n"// sum6 += (a10-a16) * k63
-                    "vmlal.s16  q15, d8, d1[3]      \n"// sum7 += (a10-a16) * k73
+                    _k0 = vmovl_s8(_k0_8);
+                    _k1 = vmovl_s8(_k1_8);
+                    _k2 = vmovl_s8(_k2_8);
+                    // dot row 2 k3
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r0), _k0, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_r0), _k0, 1);
+                    _sum2 = vmlal_laneq_s16(_sum2, vget_low_s16(_r0), _k0, 2);
+                    _sum3 = vmlal_laneq_s16(_sum3, vget_low_s16(_r0), _k0, 3);
+                    _sum4 = vmlal_laneq_s16(_sum4, vget_low_s16(_r0), _k0, 4);
+                    _sum5 = vmlal_laneq_s16(_sum5, vget_low_s16(_r0), _k0, 5);
+                    _sum6 = vmlal_laneq_s16(_sum6, vget_low_s16(_r0), _k0, 6);
+                    _sum7 = vmlal_laneq_s16(_sum7, vget_low_s16(_r0), _k0, 7);
+                    // dot row 2 k4
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r1), _k1, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_r1), _k1, 1);
+                    _sum2 = vmlal_laneq_s16(_sum2, vget_low_s16(_r1), _k1, 2);
+                    _sum3 = vmlal_laneq_s16(_sum3, vget_low_s16(_r1), _k1, 3);
+                    _sum4 = vmlal_laneq_s16(_sum4, vget_low_s16(_r1), _k1, 4);
+                    _sum5 = vmlal_laneq_s16(_sum5, vget_low_s16(_r1), _k1, 5);
+                    _sum6 = vmlal_laneq_s16(_sum6, vget_low_s16(_r1), _k1, 6);
+                    _sum7 = vmlal_laneq_s16(_sum7, vget_low_s16(_r1), _k1, 7);
+                    // dot row 2 k5
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r2), _k2, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_r2), _k2, 1);
+                    _sum2 = vmlal_laneq_s16(_sum2, vget_low_s16(_r2), _k2, 2);
+                    _sum3 = vmlal_laneq_s16(_sum3, vget_low_s16(_r2), _k2, 3);
+                    _sum4 = vmlal_laneq_s16(_sum4, vget_low_s16(_r2), _k2, 4);
+                    _sum5 = vmlal_laneq_s16(_sum5, vget_low_s16(_r2), _k2, 5);
+                    _sum6 = vmlal_laneq_s16(_sum6, vget_low_s16(_r2), _k2, 6);
+                    _sum7 = vmlal_laneq_s16(_sum7, vget_low_s16(_r2), _k2, 7);
 
-                    "vmlal.s16  q8, d10, d2[0]      \n"// sum0 += (a11-a17) * k04
-                    "vmlal.s16  q9, d10, d2[1]      \n"// sum1 += (a11-a17) * k14
-                    "vmlal.s16  q10, d10, d2[2]     \n"// sum2 += (a11-a17) * k24
-                    "vmlal.s16  q11, d10, d2[3]     \n"// sum3 += (a11-a17) * k34
-                    "vmlal.s16  q12, d10, d3[0]     \n"// sum4 += (a11-a17) * k44
-                    "vmlal.s16  q13, d10, d3[1]     \n"// sum5 += (a11-a17) * k54
-                    "vmlal.s16  q14, d10, d3[2]     \n"// sum6 += (a11-a17) * k64
-                    "vmlal.s16  q15, d10, d3[3]     \n"// sum7 += (a11-a17) * k74
+                    // r2 
+                    _r0_s8 = vld2_s8(r2);
+                    _r2_s8 = vext_s8(_r0_s8.val[0], _r0_s8.val[0], 1);
+                    // k6 - k8
+                    _k0_8 = vld1_s8(ktmp+48); //(k06-k76)
+                    _k1_8 = vld1_s8(ktmp+56); //(k07-k77)
+                    _k2_8 = vld1_s8(ktmp+64); //(k08-k78)
 
-                    "pld        [%11, #64]         \n"
-                    "vld2.s8    {d8-d9}, [%11]      \n"// d8(a20 a22 a24 a26 a28 a210 a212 a214), d9(a21 a23 a25 a27 a29 a211 a213 a215)
-                    "add        %11, #8             \n"
+                    _r0 = vmovl_s8(_r0_s8.val[0]);
+                    _r1 = vmovl_s8(_r0_s8.val[1]);
+                    _r2 = vmovl_s8(_r2_s8);
 
-                    "vmlal.s16  q8, d12, d4[0]      \n"// sum0 += (a12-a18) * k05
-                    "vmlal.s16  q9, d12, d4[1]      \n"// sum1 += (a12-a18) * k15
-                    "vmlal.s16  q10, d12, d4[2]     \n"// sum2 += (a12-a18) * k25
-                    "vmlal.s16  q11, d12, d4[3]     \n"// sum3 += (a12-a18) * k35
-
-                    "pld        [%12, #64]         \n"
-                    "vld1.s8    {d0-d2}, [%12]!     \n"// d0(k06-k76) d1(k07-k77) d2(k08-k78)
-
-                    "vmlal.s16  q12, d12, d5[0]     \n"// sum4 += (a12-a18) * k45
-                    "vmlal.s16  q13, d12, d5[1]     \n"// sum5 += (a12-a18) * k55
-                    "vmlal.s16  q14, d12, d5[2]     \n"// sum6 += (a12-a18) * k65
-                    "vmlal.s16  q15, d12, d5[3]     \n"// sum7 += (a12-a18) * k75
-
-                    // r2
-                    "vext.s8    d12, d8, d8, #1     \n"// d12(a22 a24 a26 a28 x x x x)
-                    
-                    "vmovl.s8   q2, d2              \n"// q2(k08-k78)
-                    "vmovl.s8   q1, d1              \n"// q1(k07-k77)
-                    "vmovl.s8   q0, d0              \n"// q0(k06-k76) 
-                    "vmovl.s8   q5, d9              \n"// q5(a21-a215)
-                    "vmovl.s8   q4, d8              \n"// q4(a20-a214)
-                    "vmovl.s8   q6, d12             \n"// q6(a22-a216)
-
-                    "vmlal.s16  q8, d8, d0[0]       \n"// sum0 += (a20-a26) * k06
-                    "vmlal.s16  q9, d8, d0[1]       \n"// sum1 += (a20-a26) * k16
-                    "vmlal.s16  q10, d8, d0[2]      \n"// sum2 += (a20-a26) * k26
-                    "vmlal.s16  q11, d8, d0[3]      \n"// sum3 += (a20-a26) * k36
-                    "vmlal.s16  q12, d8, d1[0]      \n"// sum4 += (a20-a26) * k46
-                    "vmlal.s16  q13, d8, d1[1]      \n"// sum5 += (a20-a26) * k56
-                    "vmlal.s16  q14, d8, d1[2]      \n"// sum6 += (a20-a26) * k66
-                    "vmlal.s16  q15, d8, d1[3]      \n"// sum7 += (a20-a26) * k76
-
-                    "vmlal.s16  q8, d10, d2[0]      \n"// sum0 += (a21-a27) * k07
-                    "vmlal.s16  q9, d10, d2[1]      \n"// sum1 += (a21-a27) * k17
-                    "vmlal.s16  q10, d10, d2[2]     \n"// sum2 += (a21-a27) * k27
-                    "vmlal.s16  q11, d10, d2[3]     \n"// sum3 += (a21-a27) * k37
-                    "vmlal.s16  q12, d10, d3[0]     \n"// sum4 += (a21-a27) * k47
-                    "vmlal.s16  q13, d10, d3[1]     \n"// sum5 += (a21-a27) * k57
-                    "vmlal.s16  q14, d10, d3[2]     \n"// sum6 += (a21-a27) * k67
-                    "vmlal.s16  q15, d10, d3[3]     \n"// sum7 += (a21-a27) * k77
-
-                    "vmlal.s16  q8, d12, d4[0]      \n"// sum0 += (a22-a28) * k08
-                    "vmlal.s16  q9, d12, d4[1]      \n"// sum1 += (a22-a28) * k18
-                    "vmlal.s16  q10, d12, d4[2]     \n"// sum2 += (a22-a28) * k28
-                    "vmlal.s16  q11, d12, d4[3]     \n"// sum3 += (a22-a28) * k38
-                    "vmlal.s16  q12, d12, d5[0]     \n"// sum4 += (a22-a28) * k48
-                    "vmlal.s16  q13, d12, d5[1]     \n"// sum5 += (a22-a28) * k58
-                    "vmlal.s16  q14, d12, d5[2]     \n"// sum6 += (a22-a28) * k68
-                    "vmlal.s16  q15, d12, d5[3]     \n"// sum7 += (a22-a28) * k78
+                    _k0 = vmovl_s8(_k0_8);
+                    _k1 = vmovl_s8(_k1_8);
+                    _k2 = vmovl_s8(_k2_8);
+                    // dot row 2 k6
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r0), _k0, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_r0), _k0, 1);
+                    _sum2 = vmlal_laneq_s16(_sum2, vget_low_s16(_r0), _k0, 2);
+                    _sum3 = vmlal_laneq_s16(_sum3, vget_low_s16(_r0), _k0, 3);
+                    _sum4 = vmlal_laneq_s16(_sum4, vget_low_s16(_r0), _k0, 4);
+                    _sum5 = vmlal_laneq_s16(_sum5, vget_low_s16(_r0), _k0, 5);
+                    _sum6 = vmlal_laneq_s16(_sum6, vget_low_s16(_r0), _k0, 6);
+                    _sum7 = vmlal_laneq_s16(_sum7, vget_low_s16(_r0), _k0, 7);
+                    // dot row 2 k7
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r1), _k1, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_r1), _k1, 1);
+                    _sum2 = vmlal_laneq_s16(_sum2, vget_low_s16(_r1), _k1, 2);
+                    _sum3 = vmlal_laneq_s16(_sum3, vget_low_s16(_r1), _k1, 3);
+                    _sum4 = vmlal_laneq_s16(_sum4, vget_low_s16(_r1), _k1, 4);
+                    _sum5 = vmlal_laneq_s16(_sum5, vget_low_s16(_r1), _k1, 5);
+                    _sum6 = vmlal_laneq_s16(_sum6, vget_low_s16(_r1), _k1, 6);
+                    _sum7 = vmlal_laneq_s16(_sum7, vget_low_s16(_r1), _k1, 7);
+                    // dot row 2 k8
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r2), _k2, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_r2), _k2, 1);
+                    _sum2 = vmlal_laneq_s16(_sum2, vget_low_s16(_r2), _k2, 2);
+                    _sum3 = vmlal_laneq_s16(_sum3, vget_low_s16(_r2), _k2, 3);
+                    _sum4 = vmlal_laneq_s16(_sum4, vget_low_s16(_r2), _k2, 4);
+                    _sum5 = vmlal_laneq_s16(_sum5, vget_low_s16(_r2), _k2, 5);
+                    _sum6 = vmlal_laneq_s16(_sum6, vget_low_s16(_r2), _k2, 6);
+                    _sum7 = vmlal_laneq_s16(_sum7, vget_low_s16(_r2), _k2, 7);
 
                     // save s32 to memory
-                    "sub        %12, %12, #72       \n"
-                    "vst1.s32   {d16-d17}, [%1]!    \n"// out0
-                    "vst1.s32   {d18-d19}, [%2]!    \n"// out1
-                    "vst1.s32   {d20-d21}, [%3]!    \n"// out2
-                    "vst1.s32   {d22-d23}, [%4]!    \n"// out3
-                    "subs       %0, #1              \n"
-                    "vst1.s32   {d24-d25}, [%5]!    \n"// out4
-                    "vst1.s32   {d26-d27}, [%6]!    \n"// out5
-                    "vst1.s32   {d28-d29}, [%7]!    \n"// out6
-                    "vst1.s32   {d30-d31}, [%8]!    \n"// out7
-                                                 
-                    "bne        0b                  \n"
-                    : "=r"(nn),         // %0
-                      "=r"(outptr0),    // %1
-                      "=r"(outptr1),    // %2
-                      "=r"(outptr2),    // %3
-                      "=r"(outptr3),    // %4
-                      "=r"(outptr4),    // %5
-                      "=r"(outptr5),    // %6
-                      "=r"(outptr6),    // %7
-                      "=r"(outptr7),    // %8
-                      "=r"(r0),         // %9
-                      "=r"(r1),         // %10
-                      "=r"(r2),         // %11
-                      "=r"(ktmp)        // %12
-                    : "0"(nn),
-                      "1"(outptr0),
-                      "2"(outptr1),
-                      "3"(outptr2),
-                      "4"(outptr3),
-                      "5"(outptr4),
-                      "6"(outptr5),
-                      "7"(outptr6),
-                      "8"(outptr7),
-                      "9"(r0),
-                      "10"(r1),
-                      "11"(r2),
-                      "12"(ktmp)
-                    : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    vst1q_s32(outptr0, _sum0);
+                    vst1q_s32(outptr1, _sum1);
+                    vst1q_s32(outptr2, _sum2);
+                    vst1q_s32(outptr3, _sum3);
+                    vst1q_s32(outptr4, _sum4);
+                    vst1q_s32(outptr5, _sum5);
+                    vst1q_s32(outptr6, _sum6);
+                    vst1q_s32(outptr7, _sum7);
+               
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                    outptr4 += 4;
+                    outptr5 += 4;
+                    outptr6 += 4;
+                    outptr7 += 4;
                 }
-#endif // __aarch64__
+                
 #endif // __ARM_NEON
                 for (; remain>0; remain--)
                 {
-#if 0 //__ARM_NEON
-#if __aarch64__
-                    // TODO
-#else // __aarch64__
-                    asm volatile(
-                        "pld        [%8, #64]          \n"
-                        "vld1.s8    {d0}, [%8]         \n"// d0(a00 a01 a02 ....)
-                        "pld        [%9, #64]          \n"
-                        "vld1.s8    {d2}, [%9]         \n"// d2(a10 a11 a12 ....)
-                        "pld        [%10, #64]         \n"
-                        "vld1.s8    {d4}, [%10]        \n"// d4(a20 a21 a22 ....)
+#if __ARM_NEON
+                    int8x8_t _r0_s8 = vld1_s8(r0);// (a00 a01 a02 ....)
+                    int8x8_t _r1_s8 = vld1_s8(r1);// (a10 a11 a12 ....)
+                    int8x8_t _r2_s8 = vld1_s8(r2);// (a20 a21 a22 ....)
 
-                        "pld        [%11, #64]         \n"
-                        "vld1.s8    {d6-d8}, [%11]!    \n"// d6(k00-k70) d7(k01-k71) d8(k02-k72)
+                    int16x8_t _r0 = vmovl_s8(_r0_s8);
+                    int16x8_t _r1 = vmovl_s8(_r1_s8);
+                    int16x8_t _r2 = vmovl_s8(_r2_s8);
 
-                        "vmovl.s8   q0, d0             \n"// d0(a00 a01 a02 x) 
-                        "vmovl.s8   q1, d2             \n"// d2(a10 a11 a12 x)
-                        "vmovl.s8   q2, d4             \n"// d4(a20 a21 a22 x)
+                    int32x4_t _sum03, _sum47;
+                    _sum03 = vld1q_lane_s32(outptr0, _sum03, 0);// out0
+                    _sum03 = vld1q_lane_s32(outptr1, _sum03, 1);// out1
+                    _sum03 = vld1q_lane_s32(outptr2, _sum03, 2);// out2
+                    _sum03 = vld1q_lane_s32(outptr3, _sum03, 3);// out3
+                    _sum47 = vld1q_lane_s32(outptr4, _sum47, 0);// out4
+                    _sum47 = vld1q_lane_s32(outptr5, _sum47, 1);// out5
+                    _sum47 = vld1q_lane_s32(outptr6, _sum47, 2);// out6
+                    _sum47 = vld1q_lane_s32(outptr7, _sum47, 3);// out7
 
-                        "vmovl.s8   q5, d8             \n"// d10(k02-k32) d11(k42-k72)
-                        "vmovl.s8   q4, d7             \n"// d8(k01-k31) d9(k41-k71)
-                        "vmovl.s8   q3, d6             \n"// d6(k00-k30) d7(k40-k70)
+                    // k0 - k2
+                    int8x8_t _k0_8 = vld1_s8(ktmp);    //(k00-k70)
+                    int8x8_t _k1_8 = vld1_s8(ktmp+8);  //(k01-k71)
+                    int8x8_t _k2_8 = vld1_s8(ktmp+16); //(k02-k72)
 
-                        "vld1.s32   {d20[0]}, [%0]     \n"// out0 q10
-                        "vld1.s32   {d20[1]}, [%1]     \n"// out1
-                        "vld1.s32   {d21[0]}, [%2]     \n"// out2 
-                        "vld1.s32   {d21[1]}, [%3]     \n"// out3
+                    int16x8_t _k0 = vmovl_s8(_k0_8);
+                    int16x8_t _k1 = vmovl_s8(_k1_8);
+                    int16x8_t _k2 = vmovl_s8(_k2_8);
 
-                        "pld        [%11, #64]         \n"
-                        "vld1.s8    {d24-d26}, [%11]!  \n"
-                        "vmovl.s8   q14, d26           \n"// d28(k05-k35) d29(k45-k75)
-                        "vmovl.s8   q13, d25           \n"// d26(k04-k34) d27(k44-k74)
-                        "vmovl.s8   q12, d24           \n"// d24(k03-k33) d25(k43-k73)
+                    int32x4_t _sum0 = vmull_laneq_s16(vget_low_s16(_k0), _r0, 0);
+                    int32x4_t _sum0n = vmull_laneq_s16(vget_high_s16(_k0), _r0, 0);
+                    int32x4_t _sum1 = vmull_laneq_s16(vget_low_s16(_k1), _r0, 1);
+                    int32x4_t _sum1n = vmull_laneq_s16(vget_high_s16(_k1), _r0, 1);
+                    _sum03 = vmlal_laneq_s16(_sum03, vget_low_s16(_k2), _r0, 2);
+                    _sum47 = vmlal_laneq_s16(_sum47, vget_high_s16(_k2), _r0, 2);
 
-                        "vld1.s32   {d22[0]}, [%4]     \n"// out4 q11
-                        "vld1.s32   {d22[1]}, [%5]     \n"// out5
-                        "vld1.s32   {d23[0]}, [%6]     \n"// out6
-                        "vld1.s32   {d23[1]}, [%7]     \n"// out7
+                    // k3 - k5
+                    _k0_8 = vld1_s8(ktmp+24); //(k03-k73)
+                    _k1_8 = vld1_s8(ktmp+32); //(k04-k74)
+                    _k2_8 = vld1_s8(ktmp+40); //(k05-k75)
 
-                        "vmull.s16  q6, d6, d0[0]      \n"// a00 x (k00-k30)
-                        "vmull.s16  q7, d7, d0[0]      \n"// a00 x (k40-k70)
-                        "vmull.s16  q8, d8, d0[1]      \n"// a01 x (k01-k31)
-                        "vmull.s16  q9, d9, d0[1]      \n"// a01 x (k41-k71)
-                        "vmlal.s16  q10, d10, d0[2]    \n"// a02 x (k02-k32)
-                        "vmlal.s16  q11, d11, d0[2]    \n"// a02 x (k42-k72)
+                    _k0 = vmovl_s8(_k0_8);
+                    _k1 = vmovl_s8(_k1_8);
+                    _k2 = vmovl_s8(_k2_8);
 
-                        "pld        [%11, #64]         \n"
-                        "vld1.s8    {d6-d8}, [%11]!    \n"
-                        "vmovl.s8   q5, d8             \n"// d10(k08-k38) d11(k48-k78)
-                        "vmovl.s8   q4, d7             \n"// d8(k07-k37) d9(k47-k77)
-                        "vmovl.s8   q3, d6             \n"// d6(k06-k36) d7(k46-k76)
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_k0), _r1, 0);
+                    _sum0n = vmlal_laneq_s16(_sum0n, vget_high_s16(_k0), _r1, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_k1), _r1, 1);
+                    _sum1n = vmlal_laneq_s16(_sum1n, vget_high_s16(_k1), _r1, 1);
+                    _sum03 = vmlal_laneq_s16(_sum03, vget_low_s16(_k2), _r1, 2);
+                    _sum47 = vmlal_laneq_s16(_sum47, vget_high_s16(_k2), _r1, 2);
 
-                        "vmlal.s16  q6, d24, d2[0]     \n"// a10 x (k03-k33)
-                        "vmlal.s16  q7, d25, d2[0]     \n"// a10 x (k43-k73)
-                        "vmlal.s16  q8, d26, d2[1]     \n"// a11 x (k04-k34)
-                        "vmlal.s16  q9, d27, d2[1]     \n"// a11 x (k44-k74)
-                        "vmlal.s16  q10, d28, d2[2]    \n"// a12 x (k05-k35)
-                        "vmlal.s16  q11, d29, d2[2]    \n"// a12 x (k45-k75)
+                    // k6 - k8
+                    _k0_8 = vld1_s8(ktmp+48); //(k06-k76)
+                    _k1_8 = vld1_s8(ktmp+56); //(k07-k77)
+                    _k2_8 = vld1_s8(ktmp+64); //(k08-k78)
 
-                        "vmlal.s16  q6, d6, d4[0]      \n"// a20 x (k06-k36)
-                        "vmlal.s16  q7, d7, d4[0]      \n"// a20 x (k46-k76)
-                        "vmlal.s16  q8, d8, d4[1]      \n"// a21 x (k07-k37)
-                        "vmlal.s16  q9, d9, d4[1]      \n"// a21 x (k47-k77)
-                        "vmlal.s16  q10, d10, d4[2]    \n"// a22 x (k08-k38)
-                        "vmlal.s16  q11, d11, d4[2]    \n"// a22 x (k48-k78)
+                    _k0 = vmovl_s8(_k0_8);
+                    _k1 = vmovl_s8(_k1_8);
+                    _k2 = vmovl_s8(_k2_8);
 
-                        "vadd.s32   q8, q8, q6         \n"
-                        "vadd.s32   q9, q9, q7         \n"
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_k0), _r2, 0);
+                    _sum0n = vmlal_laneq_s16(_sum0n, vget_high_s16(_k0), _r2, 0);
+                    _sum1 = vmlal_laneq_s16(_sum1, vget_low_s16(_k1), _r2, 1);
+                    _sum1n = vmlal_laneq_s16(_sum1n, vget_high_s16(_k1), _r2, 1);
+                    _sum03 = vmlal_laneq_s16(_sum03, vget_low_s16(_k2), _r2, 2);
+                    _sum47 = vmlal_laneq_s16(_sum47, vget_high_s16(_k2), _r2, 2);
 
-                        "sub        %11, %11, #72      \n"
+                    _sum0 = vaddq_s32(_sum0, _sum1);
+                    _sum0n = vaddq_s32(_sum0n, _sum1n);
+                    _sum03 = vaddq_s32(_sum03, _sum0);
+                    _sum47 = vaddq_s32(_sum47, _sum0n);
 
-                        "vadd.s32   q10, q10, q8       \n"
-                        "vadd.s32   q11, q11, q9       \n"
+                    vst1q_lane_s32(outptr0, _sum03, 0);
+                    vst1q_lane_s32(outptr1, _sum03, 1);
+                    vst1q_lane_s32(outptr2, _sum03, 2);
+                    vst1q_lane_s32(outptr3, _sum03, 3);
+                    vst1q_lane_s32(outptr4, _sum47, 0);
+                    vst1q_lane_s32(outptr5, _sum47, 1);
+                    vst1q_lane_s32(outptr6, _sum47, 2);
+                    vst1q_lane_s32(outptr7, _sum47, 3);
 
-                        "vst1.s32   {d20[0]}, [%0]!    \n"// out0
-                        "vst1.s32   {d20[1]}, [%1]!    \n"// out1
-                        "vst1.s32   {d21[0]}, [%2]!    \n"// out2
-                        "vst1.s32   {d21[1]}, [%3]!    \n"// out3
-                        "vst1.s32   {d22[0]}, [%4]!    \n"// out4
-                        "vst1.s32   {d22[1]}, [%5]!    \n"// out5
-                        "vst1.s32   {d23[0]}, [%6]!    \n"// out6
-                        "vst1.s32   {d23[1]}, [%7]!    \n"// out7
-
-                        : "=r"(outptr0),    // %0
-                          "=r"(outptr1),    // %1
-                          "=r"(outptr2),    // %2
-                          "=r"(outptr3),    // %3
-                          "=r"(outptr4),    // %4
-                          "=r"(outptr5),    // %5
-                          "=r"(outptr6),    // %6
-                          "=r"(outptr7),    // %7
-                          "=r"(r0),         // %8
-                          "=r"(r1),         // %9
-                          "=r"(r2),         // %10
-                          "=r"(ktmp)        // %11
-                        : "0"(outptr0),
-                          "1"(outptr1),
-                          "2"(outptr2),
-                          "3"(outptr3),
-                          "4"(outptr4),
-                          "5"(outptr5),
-                          "6"(outptr6),
-                          "7"(outptr7),
-                          "8"(r0),
-                          "9"(r1),
-                          "10"(r2),
-                          "11"(ktmp)
-                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
-#endif // __aarch64__
+                    outptr0++;
+                    outptr1++;
+                    outptr2++;
+                    outptr3++;
+                    outptr4++;
+                    outptr5++;
+                    outptr6++;
+                    outptr7++;
 #else // __ARM_NEON
                     int sum0 = 0;
                     int sum1 = 0;
@@ -2283,97 +2221,88 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
 
             for (; i < outh; i++)
             {
-#if 0 //__ARM_NEON
+#if __ARM_NEON
                 int nn = outw >> 3;
                 int remain = outw & 7;
 #else
                 int remain = outw;
 #endif // __ARM_NEON
 
-#if 0 //__ARM_NEON
-#if __aarch64__
-                // TODO
-#else
-                if (nn > 0)
-                {
-                asm volatile(
-                    "vld1.s8    {d0-d1}, [%5]       \n"// d0(k0 - k7) d1(k8 ...)
-                    "vmovl.s8   q1, d1              \n"// d2(k8 ...)
-                    "vmovl.s8   q0, d0              \n"// d0(k0 - k3) d1(k4 - k7)
-                    "0:                             \n"
-                    "pld        [%2, #192]          \n"
-                    "vld2.s8    {d4-d5}, [%2]!      \n"// r0 d4(a00 a02 ... a014) d5(a01 a03 ... a015)
-                    "vld2.s8    {d8-d9}, [%2]       \n"//    d8(a016 ....)
-                    "vld2.s8    {d10-d11}, [%3]!    \n"// r1 d10(a10 a12 ... a114) d11(a11 a13 ... a115)
-                    "vld2.s8    {d14-d15}, [%3]     \n"//    d14(a116 ....)
-                    "vld2.s8    {d16-d17}, [%4]!    \n"// r2 d16(a20 a22 ... a214) d17(a21 a23 ... a215)
-                    "vld2.s8    {d20-d21}, [%4]     \n"//    d20(a216 ....)
-                    "vld1.s32   {d22-d25}, [%1]     \n"// q11(out0 - out3) q12(out4 - out7)
+#if __ARM_NEON
+                for (; nn>0; nn--)
+                {                  
+                    // load output ch 0
+                    int32x4_t _sum0 = vld1q_s32(outptr);// out0
+                    int32x4_t _sum0n = vld1q_s32(outptr+4);// out0n
 
-                    "vext.s8    d8, d4, d8, #1      \n"//  d8(a02 a04 ... a016)
-                    "vext.s8    d14, d10, d14, #1   \n"// d14(a12 a14 ... a116)
-                    "vext.s8    d20, d16, d20, #1   \n"// d20(a22 a24 ... a216)
+                    int8x8x2_t _r0_s8 = vld2_s8(r0); 
+                    int8x8x2_t _r0n_s8 = vld2_s8(r0+16);
 
-                    "vmovl.s8   q3, d5              \n"// q3(a01 a03 ... a015)
-                    "vmovl.s8   q2, d4              \n"// q2(a00 a02 ... a014)
-                    "vmovl.s8   q4, d8              \n"// q4(a02 a04 ... a016)
+                    int8x8x2_t _r1_s8 = vld2_s8(r1);
+                    int8x8x2_t _r1n_s8 = vld2_s8(r1+16);
 
-                    "vmovl.s8   q6, d11             \n"// q6(a11 a13 ... a115)
-                    "vmovl.s8   q5, d10             \n"// q5(a10 a12 ... a114)
-                    "vmovl.s8   q7, d14             \n"// q7(a12 a14 ... a116)
+                    int8x8x2_t _r2_s8 = vld2_s8(r2);
+                    int8x8x2_t _r2n_s8 = vld2_s8(r2+16);
 
-                    "vmovl.s8   q9, d17             \n"// q9(a21 a23 ... a215)
-                    "vmovl.s8   q8, d16             \n"// q8(a20 a22 ... a214)
-                    "vmovl.s8   q10, d20            \n"// q10(a22 a24 ... a216)
-        
-                    "vmlal.s16  q11, d4, d0[0]      \n"// k0
-                    "vmlal.s16  q12, d5, d0[0]      \n"
-                    "vmull.s16  q13, d6, d0[1]      \n"// k1
-                    "vmull.s16  q14, d7, d0[1]      \n"
-                    "vmlal.s16  q11, d8, d0[2]      \n"// k2
-                    "vmlal.s16  q12, d9, d0[2]      \n"
+                    int8x8_t _r02_s8 = vext_s8(_r0_s8.val[0], _r0n_s8.val[0], 1);
+                    int8x8_t _r12_s8 = vext_s8(_r1_s8.val[0], _r1n_s8.val[0], 1);
+                    int8x8_t _r22_s8 = vext_s8(_r2_s8.val[0], _r2n_s8.val[0], 1);
 
-                    "vmlal.s16  q13, d12, d1[0]     \n"// k4
-                    "vmlal.s16  q14, d13, d1[0]     \n"
-                    "vmlal.s16  q11, d10, d0[3]     \n"// k3
-                    "vmlal.s16  q12, d11, d0[3]     \n"
-                    "vmlal.s16  q13, d14, d1[1]     \n"// k5
-                    "vmlal.s16  q14, d15, d1[1]     \n"
+                    int16x8_t _r00 = vmovl_s8(_r0_s8.val[0]); // r00
+                    int16x8_t _r01 = vmovl_s8(_r0_s8.val[1]); // r01
+                    int16x8_t _r02 = vmovl_s8(_r02_s8);       // r02
 
-                    "vmlal.s16  q11, d16, d1[2]     \n"// k6
-                    "vmlal.s16  q12, d17, d1[2]     \n"
-                    "vmlal.s16  q13, d18, d1[3]     \n"// k7 
-                    "vmlal.s16  q14, d19, d1[3]     \n"
-                    "vmlal.s16  q11, d20, d2[0]     \n"// k8 
-                    "vmlal.s16  q12, d21, d2[0]     \n"
+                    int16x8_t _r10 = vmovl_s8(_r1_s8.val[0]); // r10
+                    int16x8_t _r11 = vmovl_s8(_r1_s8.val[1]); // r11
+                    int16x8_t _r12 = vmovl_s8(_r12_s8);       // r12
 
-                    "vadd.s32   q11, q11, q13       \n"
-                    "vadd.s32   q12, q12, q14       \n"
-                    
-                    "vst1.32    {d22-d25}, [%1]!    \n"     
+                    int16x8_t _r20 = vmovl_s8(_r2_s8.val[0]); // r20
+                    int16x8_t _r21 = vmovl_s8(_r2_s8.val[1]); // r21
+                    int16x8_t _r22 = vmovl_s8(_r22_s8);       // r22
 
-                    "subs       %0, #1              \n"
-                    "bne        0b                  \n"
-                    : "=r"(nn),     // %0
-                      "=r"(outptr), // %1
-                      "=r"(r0),     // %2
-                      "=r"(r1),     // %3
-                      "=r"(r2),     // %4
-                      "=r"(ktmp)    // %5
-                    : "0"(nn),
-                      "1"(outptr),
-                      "2"(r0),
-                      "3"(r1),
-                      "4"(r2),
-                      "5"(ktmp)
-                    : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    int8x16_t _k_s8 = vld1q_s8(ktmp);
+                    int16x8_t _k_s16 = vmovl_s8(vget_low_s8(_k_s8)); // k0...k8
+                    int16x8_t _kn_s16 = vmovl_s8(vget_high_s8(_k_s8));// k9... 
+
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r00), _k_s16, 0);
+                    _sum0n = vmlal_laneq_s16(_sum0n, vget_high_s16(_r00), _k_s16, 0);
+                    int32x4_t _sum01 = vmull_laneq_s16(vget_low_s16(_r01), _k_s16, 1);
+                    int32x4_t _sum01n = vmull_laneq_s16(vget_high_s16(_r01), _k_s16, 1);
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r02), _k_s16, 2);
+                    _sum0n = vmlal_laneq_s16(_sum0n, vget_high_s16(_r02), _k_s16, 2);
+
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r10), _k_s16, 3);
+                    _sum0n = vmlal_laneq_s16(_sum0n, vget_high_s16(_r10), _k_s16, 3);
+                    _sum01 = vmlal_laneq_s16(_sum01, vget_low_s16(_r11), _k_s16, 4);
+                    _sum01n = vmlal_laneq_s16(_sum01n, vget_high_s16(_r11), _k_s16, 4);
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r12), _k_s16, 5);
+                    _sum0n = vmlal_laneq_s16(_sum0n, vget_high_s16(_r12), _k_s16, 5);
+
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r20), _k_s16, 6);
+                    _sum0n = vmlal_laneq_s16(_sum0n, vget_high_s16(_r20), _k_s16, 6);
+                    _sum01 = vmlal_laneq_s16(_sum01, vget_low_s16(_r21), _k_s16, 7);
+                    _sum01n = vmlal_laneq_s16(_sum01n, vget_high_s16(_r21), _k_s16, 7);
+                    _sum0 = vmlal_laneq_s16(_sum0, vget_low_s16(_r22), _kn_s16, 0);
+                    _sum0n = vmlal_laneq_s16(_sum0n, vget_high_s16(_r22), _kn_s16, 0);
+
+                    _sum0 = vaddq_s32(_sum0, _sum01);
+                    _sum0n = vaddq_s32(_sum0n, _sum01n);
+
+                    // save s32 to memory
+                    vst1q_s32(outptr, _sum0);
+                    vst1q_s32(outptr+4, _sum0n);
+               
+                    r0 += 16;
+                    r1 += 16;
+                    r2 += 16;
+
+                    outptr += 8;
                 }
-#endif // __aarch64__
 #endif // __ARM_NEON
+
                 if (remain > 0)
                 {
-#if 0 //__ARM_NEON
+#if __ARM_NEON
                     int8x8_t _k01234567s8 = vld1_s8(ktmp);
                     int8x8_t _k8xxxxxxxs8 = vld1_s8(ktmp+8);
                     int8x8_t _k34567xxxs8 = vext_s8(_k01234567s8, _k01234567s8, 3);
@@ -2384,7 +2313,7 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
 #endif
                     for (; remain>0; remain--)
                     {
-#if 0 //__ARM_NEON
+#if __ARM_NEON
                         int8x8_t _r00s8 = vld1_s8(r0);
                         int8x8_t _r10s8 = vld1_s8(r1);
                         int8x8_t _r20s8 = vld1_s8(r2);
@@ -2399,14 +2328,7 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                         _sum = vsetq_lane_s32(*outptr, _sum, 3);
 
-#if __aarch64__
                         *outptr = vaddvq_s32(_sum);
-#else
-                        int32x2_t _ss = vadd_s32(vget_low_s32(_sum), vget_high_s32(_sum));
-                        _ss = vpadd_s32(_ss, _ss);
-
-                        *outptr = vget_lane_s32(_ss, 0);
-#endif // __aarch64__
 #else
                         int sum = 0;
 
@@ -4203,7 +4125,7 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                     "vmovl.s8   q6, d12             \n"// q6(a02 a04 a06 a08 a010 a012 a014 a016) d13
 
                     "pld        [%8, #128]          \n"
-                    "vld1.s32   {d30-d31}, [%8]     \n"// out7  
+                    "vld1.s32   {d30-d31}, [%8]     \n"// out7
 
                     "vmlal.s16  q8, d8, d0[0]       \n"// sum0 += (a00 a02 a04 a06) * k00
                     "vmlal.s16  q9, d8, d0[1]       \n"// sum1 += (a00 a02 a04 a06) * k10
@@ -4221,7 +4143,7 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                     "vmlal.s16  q12, d10, d3[0]     \n"// sum4 += (a01-a07) * k41
                     "vmlal.s16  q13, d10, d3[1]     \n"// sum5 += (a01-a07) * k51
                     "vmlal.s16  q14, d10, d3[2]     \n"// sum6 += (a01-a07) * k61
-                    "vmlal.s16  q15, d10, d3[3]     \n"// sum7 += (a01-a07) * k71   
+                    "vmlal.s16  q15, d10, d3[3]     \n"// sum7 += (a01-a07) * k71
 
                     "pld        [%10, #64]         \n"
                     "vld2.s8    {d8-d9}, [%10]      \n"// d8(a10 a12 a14 a16 a18 a110 a112 a114), d9(a11 a13 a15 a17 a19 a111 a113 a115)
