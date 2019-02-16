@@ -710,7 +710,7 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
         int num_input = weight_data_size / num_output;
-        if (bottom_blob.w == num_input)
+        if (bottom_blob.w * bottom_blob.packing == num_input)
         {
             // call InnerProduct
             return convolution_fc->forward(bottom_blob, top_blob, cmd, opt);
