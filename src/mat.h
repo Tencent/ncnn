@@ -1217,7 +1217,7 @@ inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator, VkA
 
         state = 1;
 
-        refcount = new int;
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
     }
 }
@@ -1250,7 +1250,7 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _alloca
 
         state = 1;
 
-        refcount = new int;
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
     }
 }
@@ -1283,7 +1283,7 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator*
 
         state = 1;
 
-        refcount = new int;
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
     }
 }
@@ -1316,7 +1316,7 @@ inline void VkMat::create(int _w, size_t _elemsize, int _packing, VkAllocator* _
 
         state = 1;
 
-        refcount = new int;
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
     }
 }
@@ -1349,7 +1349,7 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, int _packing, VkAllo
 
         state = 1;
 
-        refcount = new int;
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
     }
 }
@@ -1382,7 +1382,7 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _packing
 
         state = 1;
 
-        refcount = new int;
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
     }
 }
@@ -1478,8 +1478,6 @@ inline void VkMat::release()
         {
             staging_allocator->fastFree(staging_data);
         }
-
-        delete refcount;
     }
 
     data = 0;

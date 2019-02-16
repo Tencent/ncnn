@@ -199,6 +199,8 @@ public:
     size_t capacity;
     VkDeviceMemory memory;
     void* mapped_ptr;
+    // initialize and modified by mat
+    int refcount;
 };
 
 class VkAllocator
