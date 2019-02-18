@@ -22,8 +22,8 @@ layout (local_size_z_id = 235) in;
 
 layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
-layout (binding = 2) readonly buffer weight { mat4 weight_data[]; };
-layout (binding = 3) readonly buffer bias { vec4 bias_data[]; };
+layout (binding = 2) readonly buffer weight_blob { mat4 weight_data[]; };
+layout (binding = 3) readonly buffer bias_blob { vec4 bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
