@@ -18,7 +18,7 @@ layout (constant_id = 0) const int region_type = 0;
 layout (constant_id = 1) const int local_size = 0;
 layout (constant_id = 2) const float alpha = 0;
 layout (constant_id = 3) const float beta = 0;
-layout (constant_id = 4) const float bias = 0;
+layout (constant_id = 4) const float bias_constant = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -68,7 +68,7 @@ void main()
 
         const float alpha_div_size = alpha / local_size;
 
-        scale = pow(bias + alpha_div_size * sum, -beta);
+        scale = pow(bias_constant + alpha_div_size * sum, -beta);
     }
     else
     {
@@ -88,7 +88,7 @@ void main()
 
         const float alpha_div_size = alpha / (local_size * local_size);
 
-        scale = pow(bias + alpha_div_size * sum, -beta);
+        scale = pow(bias_constant + alpha_div_size * sum, -beta);
     }
 
     float v = bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx];
