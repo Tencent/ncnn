@@ -24,6 +24,7 @@ namespace ncnn {
 
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
+#include "convolution_7x7_int8.h"
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
 
@@ -187,7 +188,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     const int kernel_size = kernel_w;
     const int stride = stride_w;
 
-    if (kernel_size > 5 || stride > 5 || dilation_w != dilation_h)
+    if (kernel_size > 7 || stride > 7 || dilation_w != dilation_h)
     {
         return Convolution::forward(bottom_blob, top_blob, opt);
     }
@@ -195,17 +196,15 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&, const Option&);
 
     // kernel_size x stride
-    conv_func conv_func_table[5][5] =
+    conv_func conv_func_table[7][4] =
     {
         {
             conv1x1s1_sse,
             conv1x1s2_sse,
             0,
-            0,
             0
         }, // kernel_size = 1
         {
-            0,
             0,
             0,
             0,
@@ -215,11 +214,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             conv3x3s1_sse,
             conv3x3s2_sse,
             0,
-            0,
             0
         }, // kernel_size = 3
         {
-            0,
             0,
             0,
             0,
@@ -229,25 +226,34 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             conv5x5s1_sse,
             0,
             0,
+            0
+        }, // kernel_size = 5
+        {
+            0,
+            0,
             0,
             0
-        }  // kernel_size = 5
+        }, // kernel_size = 6
+        {
+            0,          
+            0,          
+            0,
+            0
+        }  // kernel_size = 7        
     };
 
     typedef void (*conv_int8_func)(const Mat&, Mat&, const Mat&, const Option&);
 
     // kernel_size x stride
-    conv_int8_func conv_int8_func_table[5][5] =
+    conv_int8_func conv_int8_func_table[7][4] =
     {
         {
             conv1x1s1_int8_sse,
             conv1x1s2_int8_sse,
             0,
-            0,
             0
         }, // kernel_size = 1
         {
-            0,
             0,
             0,
             0,
@@ -258,10 +264,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             conv3x3s2_int8_sse,
             0,
             0,
-            0
         }, // kernel_size = 3
         {
-            0,
             0,
             0,
             0,
@@ -271,9 +275,24 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             0,
             0,
             0,
+            0
+        }, // kernel_size = 5
+        {
+            0,
+            0,
             0,
             0
-        }  // kernel_size = 5
+        }, // kernel_size = 6
+        {
+            0,
+#if NCNN_IM2COL_SGEMM            
+            conv7x7s2_int8_sse,
+#else
+            0,
+#endif            
+            0,
+            0
+        }  // kernel_size = 7
     };
 
     conv_func conv = 0;
@@ -384,7 +403,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 return -100; 
 
             if (use_winograd3x3)
-                conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data, bias_data, opt);
+                conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data, opt);
             else
                 conv_int8(bottom_blob_bordered, top_blob_tm, weight_data, opt);
 
@@ -413,7 +432,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 return -100; 
 
             if (use_winograd3x3)
-                conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
+                conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, opt);
             else
                 conv_int8(bottom_blob_bordered, top_blob, weight_data, opt);
 

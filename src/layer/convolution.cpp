@@ -470,6 +470,73 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
       
+#if NCNN_IM2COL_SGEMM
+            // im2col
+            printf("compute with im2col sgemm\n");
+            Mat bottom_im2col(outw*outh, kernel_h*kernel_w*channels, 1UL, opt.workspace_allocator);
+            {
+                const int stride = kernel_h*kernel_w*outw*outh;
+                signed char* ret = (signed char*)bottom_im2col;
+            
+                for (int p=0; p<channels; p++)
+                {
+                    signed char* input = bottom_blob_bordered.channel(p);
+                    int retID = stride * p;
+                    for (int u=0; u<kernel_h; u++)
+                    {
+                        for (int v=0; v<kernel_w; v++)
+                        {
+                            for (int i=0; i<outh; i++)
+                            {
+                                for (int j=0; j<outw; j++)
+                                {
+                                    int row = u + i * stride_h;
+                                    int col = v + j * stride_w;
+                                    int index = row * w + col;
+                                    ret[retID] = input[index];
+                                    retID++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // sgemm(int M, int N, int L, float* A, float* B, float* C)
+            {
+                int M = num_output;
+                int N = outw * outh;
+                int L = kernel_w * kernel_h * channels;
+
+                const signed char* A = weight_data;
+                const signed char* B = bottom_im2col;
+
+                for (int i=0 ; i<M; i++)
+                {
+                    int* output = top_blob.channel(i);
+                    for (int j=0; j<N; j++)
+                    {
+                        int sum = 0;
+
+                        for (int k=0; k<L; k++)
+                        {
+                            sum += (int)A[i*L+k] * B[k*N+j];
+                        }
+                        output[j] = sum;   
+                    }
+
+                    // dequantize, reverse scale inplace
+                    {
+                        ncnn::Option opt_g = opt;
+                        opt_g.num_threads = 1;
+                        opt_g.blob_allocator = top_blob.allocator;
+
+                        Mat top_blob_g = top_blob.channel_range(i, 1);
+                        dequantize_ops[i]->forward_inplace(top_blob_g, opt_g);
+                    }                      
+                }
+            }
+#else      
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p=0; p<num_output; p++)
@@ -514,8 +581,9 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                     Mat top_blob_g = top_blob.channel_range(p, 1);
                     dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
-                }            
+                }          
             }
+#endif            
         }        
 
         return 0;

@@ -126,7 +126,7 @@ static void conv3x3s1_winograd23_transform_kernel_int8_sse(const Mat& kernel, Ma
     }
 }
 
-static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
+static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;

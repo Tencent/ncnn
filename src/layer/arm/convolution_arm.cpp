@@ -28,6 +28,7 @@ namespace ncnn {
 #if __ARM_NEON
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
+#include "convolution_7x7_int8.h"
 #endif // __ARM_NEON
 
 DEFINE_LAYER_CREATOR(Convolution_arm)
@@ -305,17 +306,15 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
 #if __ARM_NEON
     // kernel_size x stride
-    conv_int8_func conv_int8_func_table[5][5] =
+    conv_int8_func conv_int8_func_table[7][4] =
     {
         {
             conv1x1s1_int8_neon,
             conv1x1s2_int8_neon,
             0,
-            0,
             0
         }, // kernel_size = 1
         {
-            0,
             0,
             0,
             0,
@@ -325,11 +324,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             conv3x3s1_int8_neon,
             conv3x3s2_int8_neon,
             0,
-            0,
             0
         }, // kernel_size = 3
         {
-            0,
             0,
             0,
             0,
@@ -339,9 +336,24 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             0,
             0,
             0,
+            0
+        }, // kernel_size = 5
+        {
+            0,
+            0,
             0,
             0
-        }  // kernel_size = 5
+        }, // kernel_size = 6
+        {
+            0,
+#if NCNN_IM2COL_SGEMM            
+            conv7x7s2_int8_neon,
+#else
+            0,
+#endif    
+            0,
+            0
+        }  // kernel_size = 7                
     };
 #endif // __ARM_NEON
 
@@ -434,7 +446,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 #if DEBUG_FEATURE
     if (use_int8_inference)
         extract_feature_in_s8(0, this->name.c_str(), bottom_blob_unbordered);
-#endif       
+#endif
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
