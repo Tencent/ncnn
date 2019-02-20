@@ -172,6 +172,7 @@ protected:
     void copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions);
 
 protected:
+    size_t buffer_offset_alignment;
     VkBufferMemory* staging_data;
 
     // delayed record
@@ -180,14 +181,9 @@ protected:
         // 0=upload
         // 1=download
         int type;
-
         size_t size;
-
-        union
-        {
-        struct { void* src; VkBuffer dst; size_t dst_offset; } upload;
-        struct { VkBuffer src; size_t src_offset; void* dst; } download;
-        };
+        Mat mat;
+        VkMat vkmat;
     };
     std::vector<record_type> delayed_records;
 };
