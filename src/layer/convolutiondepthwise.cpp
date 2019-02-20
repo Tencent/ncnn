@@ -606,6 +606,7 @@ int ConvolutionDepthWise::upload_model(VkTransfer& cmd)
         {
             const int maxk = kernel_w * kernel_h;
 
+            Mat weight_data_pack4;
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_pack4, 4);
 
@@ -614,6 +615,7 @@ int ConvolutionDepthWise::upload_model(VkTransfer& cmd)
 
             if (bias_term)
             {
+                Mat bias_data_pack4;
                 convert_packing(bias_data, bias_data_pack4, 4);
                 cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
             }

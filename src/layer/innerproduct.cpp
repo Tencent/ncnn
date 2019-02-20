@@ -248,10 +248,11 @@ int InnerProduct::upload_model(VkTransfer& cmd)
     {
         // src = inch-outch
         // dst = 4a-4b-inch/4a-outch/4b
+        Mat weight_data_pack4;
         {
             Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-            weight_data_pack4 = Mat(16, num_input/4, num_output/4);
+            weight_data_pack4.create(16, num_input/4, num_output/4);
 
             for (int q=0; q+3<num_output; q+=4)
             {
@@ -302,10 +303,11 @@ int InnerProduct::upload_model(VkTransfer& cmd)
     {
         // src = inch-outch
         // dst = 4b-inch-outch/4b
+        Mat weight_data_pack1to4;
         {
             Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-            weight_data_pack1to4 = Mat(4, num_input, num_output/4);
+            weight_data_pack1to4.create(4, num_input, num_output/4);
 
             for (int q=0; q+3<num_output; q+=4)
             {
@@ -337,10 +339,11 @@ int InnerProduct::upload_model(VkTransfer& cmd)
     {
         // src = inch-outch
         // dst = 4a-inch/4a-outch
+        Mat weight_data_pack4to1;
         {
             Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-            weight_data_pack4to1 = Mat(4, num_input/4, num_output);
+            weight_data_pack4to1.create(4, num_input/4, num_output);
 
             for (int q=0; q<num_output; q++)
             {
@@ -369,6 +372,7 @@ int InnerProduct::upload_model(VkTransfer& cmd)
     {
         if (bias_term)
         {
+            Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
             cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
         }
