@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolutiondepthwise.h"
+#include "layer_type.h"
 
 namespace ncnn {
 
@@ -22,6 +23,22 @@ DeconvolutionDepthWise::DeconvolutionDepthWise()
 {
     one_blob_only = true;
     support_inplace = false;
+    support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_deconvolutiondepthwise = 0;
+    pipeline_deconvolutiondepthwise_pack4 = 0;
+#endif // NCNN_VULKAN
+}
+
+DeconvolutionDepthWise::~DeconvolutionDepthWise()
+{
+#if NCNN_VULKAN
+    for (int i=0; i<(int)deconvolution_group_ops.size(); i++)
+        delete deconvolution_group_ops[i];
+
+    deconvolution_group_ops.clear();
+#endif // NCNN_VULKAN
 }
 
 int DeconvolutionDepthWise::load_param(const ParamDict& pd)
@@ -54,6 +71,65 @@ int DeconvolutionDepthWise::load_model(const ModelBin& mb)
         if (bias_data.empty())
             return -100;
     }
+
+#if NCNN_VULKAN
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    // group deconvolution
+    if (!(channels == group && group == num_output))
+    {
+        // create Deconvolution op for each group
+
+        for (int i=0; i<(int)deconvolution_group_ops.size(); i++)
+            delete deconvolution_group_ops[i];
+
+        deconvolution_group_ops.clear();
+
+        const int channels_g = channels / group;
+        const int num_output_g = num_output / group;
+
+        deconvolution_group_ops.resize(group);
+
+        for (int g=0; g<group; g++)
+        {
+            Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
+            Mat bias_data_g;
+            if (bias_term)
+                bias_data_g = bias_data.range(num_output_g * g, num_output_g);
+
+            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+            op->vkdev = vkdev;
+
+            // set param
+            ncnn::ParamDict pd;
+            pd.set(0, num_output_g);// num_output
+            pd.set(1, kernel_w);
+            pd.set(11, kernel_h);
+            pd.set(2, dilation_w);
+            pd.set(12, dilation_h);
+            pd.set(3, stride_w);
+            pd.set(13, stride_h);
+            pd.set(4, 0);// pad_w
+            pd.set(14, 0);// pad_h
+            pd.set(5, bias_term);
+            pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
+
+            pd.use_vulkan_compute = 1;
+
+            op->load_param(pd);
+
+            // set weights
+            ncnn::Mat weights[2];
+            weights[0] = weight_data_g;
+            weights[1] = bias_data_g;
+
+            op->load_model(ModelBinFromMatArray(weights));
+
+            deconvolution_group_ops[g] = op;
+        }
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -211,5 +287,205 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int DeconvolutionDepthWise::upload_model(VkTransfer& cmd)
+{
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    Mat weight_data_transposed(weight_data.w);
+    {
+        float* pt = weight_data_transposed;
+        const float* p = weight_data;
+
+        for (int i=0; i<(channels/group)*(num_output/group)*group; i++)
+        {
+            for (int k=0; k<maxk; k++)
+            {
+                pt[maxk-1 - k] = p[k];
+            }
+
+            p += maxk;
+            pt += maxk;
+        }
+    }
+
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+        cmd.record_upload(weight_data_transposed, weight_data_gpu);
+
+        if (bias_term)
+        {
+            cmd.record_upload(bias_data, bias_data_gpu);
+        }
+
+        // pack4
+        if (channels % 4 == 0 && num_output % 4 == 0)
+        {
+            const int maxk = kernel_w * kernel_h;
+
+            Mat weight_data_pack4;
+            Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
+            convert_packing(weight_data_r2, weight_data_pack4, 4);
+
+            weight_data_pack4 = weight_data_pack4.reshape(maxk * (group/4));
+            cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
+
+            if (bias_term)
+            {
+                Mat bias_data_pack4;
+                convert_packing(bias_data, bias_data_pack4, 4);
+                cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
+            }
+        }
+
+        return 0;
+    }
+
+    for (int g=0; g<group; g++)
+    {
+        deconvolution_group_ops[g]->upload_model(cmd);
+    }
+
+    return 0;
+}
+
+int DeconvolutionDepthWise::create_pipeline()
+{
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+        pipeline_deconvolutiondepthwise = new Pipeline(vkdev);
+        pipeline_deconvolutiondepthwise->set_optimal_local_size_xyz(32, 32, num_output);
+
+        std::vector<vk_specialization_type> specializations(8);
+        specializations[0].i = kernel_w;
+        specializations[1].i = kernel_h;
+        specializations[2].i = dilation_w;
+        specializations[3].i = dilation_h;
+        specializations[4].i = stride_w;
+        specializations[5].i = stride_h;
+        specializations[6].i = bias_term;
+        specializations[7].i = group;
+
+        pipeline_deconvolutiondepthwise->create("deconvolutiondepthwise", specializations, 4, 10);
+
+        // pack4
+        if (num_output % 4 == 0)
+        {
+            pipeline_deconvolutiondepthwise_pack4 = new Pipeline(vkdev);
+            pipeline_deconvolutiondepthwise_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 4));
+            pipeline_deconvolutiondepthwise_pack4->create("deconvolutiondepthwise_pack4", specializations, 4, 10);
+        }
+
+        return 0;
+    }
+
+    for (int g=0; g<group; g++)
+    {
+        deconvolution_group_ops[g]->create_pipeline();
+    }
+
+    return 0;
+}
+
+int DeconvolutionDepthWise::destroy_pipeline()
+{
+    for (int g=0; g<(int)deconvolution_group_ops.size(); g++)
+    {
+        deconvolution_group_ops[g]->destroy_pipeline();
+    }
+
+    delete pipeline_deconvolutiondepthwise;
+    pipeline_deconvolutiondepthwise = 0;
+
+    delete pipeline_deconvolutiondepthwise_pack4;
+    pipeline_deconvolutiondepthwise_pack4 = 0;
+
+    return 0;
+}
+
+int DeconvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    int outw = (w - 1) * stride_w + kernel_extent_w;
+    int outh = (h - 1) * stride_h + kernel_extent_h;
+
+    // TODO assert num_output % packing == 0
+
+    top_blob.create(outw, outh, num_output / packing, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+//     fprintf(stderr, "DeconvolutionDepthWise::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
+
+    // depth-wise
+    if (channels == group / packing && group / packing == num_output / packing)
+    {
+        std::vector<VkMat> bindings(4);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob;
+        bindings[2] = packing == 4 ? weight_data_gpu_pack4 : weight_data_gpu;
+        bindings[3] = bias_term ? (packing == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : weight_data_gpu;// TODO use dummy buffer
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.c;
+        constants[4].i = bottom_blob.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = top_blob.cstep;
+
+        const Pipeline* pipeline = packing == 4 ? pipeline_deconvolutiondepthwise_pack4 : pipeline_deconvolutiondepthwise;
+
+        // record
+        cmd.record_prepare_compute_barrier(bottom_blob);
+        cmd.record_prepare_compute_barrier(top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+        return 0;
+    }
+
+    // record
+    cmd.record_prepare_compute_barrier(top_blob);
+
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / packing / group;
+
+    for (int g=0; g<group; g++)
+    {
+        VkMat bottom_blob_bordered_g = bottom_blob.channel_range(channels_g * g, channels_g);
+        VkMat top_blob_g = top_blob.channel_range(num_output_g * g, num_output_g);
+
+        const ncnn::Layer* op = deconvolution_group_ops[g];
+
+        ncnn::Option opt_g = opt;
+        opt_g.blob_vkallocator = top_blob.allocator;
+        opt_g.staging_vkallocator = top_blob.staging_allocator;
+
+        // forward
+        op->forward(bottom_blob_bordered_g, top_blob_g, cmd, opt_g);
+    }
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

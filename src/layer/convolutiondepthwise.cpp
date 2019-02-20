@@ -760,6 +760,9 @@ int ConvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         return 0;
     }
 
+    // record
+    cmd.record_prepare_compute_barrier(top_blob);
+
     const int channels_g = channels / group;
     const int num_output_g = num_output / packing / group;
 
