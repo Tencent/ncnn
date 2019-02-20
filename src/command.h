@@ -60,8 +60,6 @@ public:
     VkCompute(VulkanDevice* vkdev);
     ~VkCompute();
 
-    int begin();
-
     void record_upload(const VkMat& m);
 
     void record_download(const VkMat& m);
@@ -85,8 +83,6 @@ public:
     void record_prepare_compute_barrier(const VkMat& m);
 
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& m);
-
-    int end();
 
     int submit();
 
@@ -120,18 +116,16 @@ protected:
     std::vector<VkDescriptorSet> descriptorsets;
     struct record_type
     {
-        // 0=begin
-        // 1=copy
-        // 2=copy regions
-        // 3=bind pipeline
-        // 4=bind descriptorset
-        // 5=push constants
-        // 6=dispatch
-        // 7=transfer-compute barrier
-        // 8=compute-transfer barrier
-        // 9=compute-compute barrier
-        // 10=transfer-transfer barrier
-        // 11=end
+        // 0=copy
+        // 1=copy regions
+        // 2=bind pipeline
+        // 3=bind descriptorset
+        // 4=push constants
+        // 5=dispatch
+        // 6=transfer-compute barrier
+        // 7=compute-transfer barrier
+        // 8=compute-compute barrier
+        // 9=transfer-transfer barrier
         int type;
 
         union
