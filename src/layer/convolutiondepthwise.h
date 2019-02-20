@@ -72,8 +72,6 @@ public:
 
     Pipeline* pipeline_convolutiondepthwise;
 
-    Mat weight_data_pack4;
-    Mat bias_data_pack4;
     VkMat weight_data_gpu_pack4;
     VkMat bias_data_gpu_pack4;
     Pipeline* pipeline_convolutiondepthwise_pack4;

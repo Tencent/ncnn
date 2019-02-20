@@ -53,11 +53,8 @@ public:
 #if NCNN_VULKAN
     VkMat scale_data_gpu;
     VkMat bias_data_gpu;
-
     Pipeline* pipeline_scale;
 
-    Mat scale_data_pack4;
-    Mat bias_data_pack4;
     VkMat scale_data_gpu_pack4;
     VkMat bias_data_gpu_pack4;
     Pipeline* pipeline_scale_pack4;

@@ -188,6 +188,7 @@ int Scale::upload_model(VkTransfer& cmd)
 
         // pack4
         {
+            Mat scale_data_pack4;
             convert_packing(scale_data, scale_data_pack4, 4);
             cmd.record_upload(scale_data_pack4, scale_data_gpu_pack4);
         }
@@ -199,6 +200,7 @@ int Scale::upload_model(VkTransfer& cmd)
 
         // pack4
         {
+            Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
             cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
         }

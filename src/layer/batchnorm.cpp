@@ -147,9 +147,11 @@ int BatchNorm::upload_model(VkTransfer& cmd)
     // pack4
     if (channels % 4 == 0)
     {
+        Mat a_data_pack4;
         convert_packing(a_data, a_data_pack4, 4);
         cmd.record_upload(a_data_pack4, a_data_gpu_pack4);
 
+        Mat b_data_pack4;
         convert_packing(b_data, b_data_pack4, 4);
         cmd.record_upload(b_data_pack4, b_data_gpu_pack4);
     }
