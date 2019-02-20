@@ -22,8 +22,10 @@ namespace ncnn {
 #include "convolution_3x3.h"
 #include "convolution_5x5.h"
 
+#include "convolution_sgemm_int8.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
+#include "convolution_5x5_int8.h"
 #include "convolution_7x7_int8.h"
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
@@ -271,9 +273,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             0,
             0
         }, // kernel_size = 4
-        {
-            0,
-            0,
+        {        
+            conv5x5s1_int8_sse,
+            conv5x5s2_int8_sse,    
             0,
             0
         }, // kernel_size = 5
@@ -284,12 +286,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             0
         }, // kernel_size = 6
         {
-            0,
-#if NCNN_IM2COL_SGEMM            
-            conv7x7s2_int8_sse,
-#else
-            0,
-#endif            
+            conv7x7s1_int8_sse,          
+            conv7x7s2_int8_sse, 
             0,
             0
         }  // kernel_size = 7
