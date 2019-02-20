@@ -1477,8 +1477,6 @@ int Extractor::extract(int blob_index, Mat& feat)
 
             ncnn::VkCompute cmd(net->vkdev);
 
-            cmd.begin();
-
             ret = extract(blob_index, feat_gpu, cmd);
 
             if (!feat_gpu.allocator->mappable)
@@ -1490,8 +1488,6 @@ int Extractor::extract(int blob_index, Mat& feat)
 
                 cmd.record_download(feat_gpu);
             }
-
-            cmd.end();
 
             cmd.submit();
 
