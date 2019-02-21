@@ -32,6 +32,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
         const int stride = kernel_h*kernel_w*outw*outh;
         signed char* ret = (signed char*)bottom_im2col;
     
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<inch; p++)
         {
             const signed char* input = bottom_blob.channel(p);
@@ -59,13 +60,88 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
     // printf("im2col : %8.3f ms\n", end - start);
     // start = ncnn::get_current_time();
 
-    // kernel memory packed 4 x 8
     int kernel_size = kernel_w * kernel_h;
+    int out_size = outw * outh;
+
+    // bottom_im2col memory packed 4 x 8
+    Mat bottom_tm(8*kernel_size, inch, out_size/8 + out_size%8, (size_t)1u, opt.workspace_allocator);
+    {
+        int nn_size = out_size >> 3;
+        int remain_size_start = nn_size << 3;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii=0; ii<nn_size; ii++)
+        {
+            int i = ii * 8;
+
+            const signed char* img0 = bottom_im2col.channel(0);
+            img0 += i;
+
+            signed char* tmpptr = bottom_tm.channel(i/8);
+
+            for (int q=0; q<inch*kernel_size; q++)
+            {
+#if __ARM_NEON
+                asm volatile(
+                    "pld        [%0, #64]     \n"
+                    "vld1.s8   {d0}, [%0]     \n"
+                    "vst1.s8   {d0}, [%1]     \n"
+                    : "=r"(img0),   // %0
+                      "=r"(tmpptr)  // %1
+                    : "0"(img0),
+                      "1"(tmpptr)
+                    : "memory", "d0"
+                );
+#else                
+                tmpptr[0] = img0[0];
+                tmpptr[1] = img0[1];
+                tmpptr[2] = img0[2];
+                tmpptr[3] = img0[3];
+                tmpptr[4] = img0[4];
+                tmpptr[5] = img0[5];
+                tmpptr[6] = img0[6];
+                tmpptr[7] = img0[7];
+#endif                
+                tmpptr += 8;
+                img0 += out_size;
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i=remain_size_start; i<out_size; i++)
+        {
+            const signed char* img0 = bottom_im2col.channel(0);
+            img0 += i;
+
+            signed char* tmpptr = bottom_tm.channel(i/8 + i%8);
+
+            for (int q=0; q<inch*kernel_size; q++)
+            {
+                tmpptr[0] = img0[0];
+
+                tmpptr += 1;
+                img0 += out_size;
+            }
+        }       
+    }
+    // end = ncnn::get_current_time();
+    // printf("d_pack : %8.3f ms\n", end - start);
+    // start = ncnn::get_current_time();
+
+    // kernel memory packed 4 x 8
     Mat kernel_tm(4*kernel_size, inch, outch/4 + outch%4, (size_t)1u, opt.workspace_allocator);
     {
-        int p=0;
-        for (; p+3<outch; p+=4)
+        int nn_outch = 0;
+        int remain_outch_start = 0;
+
+        nn_outch = outch >> 2;
+        remain_outch_start = nn_outch << 2;      
+        
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp=0; pp<nn_outch; pp++)
         {
+            int p = pp * 4;
+
             const signed char* k0 = kernel + (p+0)*inch*kernel_size;
             const signed char* k1 = kernel + (p+1)*inch*kernel_size;
             const signed char* k2 = kernel + (p+2)*inch*kernel_size;
@@ -87,7 +163,9 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                 k3 += 1;
             }
         }
-        for (; p<outch; p++)
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p=remain_outch_start; p<outch; p++)
         {
             const signed char* k0 = kernel + (p+0)*inch*kernel_size;
 
@@ -111,11 +189,17 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
         int N = outw * outh; // outsize or out stride
         int L = kernel_w * kernel_h * inch; // ksize * inch
 
-        signed char* B = (signed char*)bottom_im2col;
+        int nn_outch = 0;
+        int remain_outch_start = 0;
 
-        int i=0;
-        for (; i+3<M; i=i+4)
+        nn_outch = outch >> 2;
+        remain_outch_start = nn_outch << 2;      
+        
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp=0; pp<nn_outch; pp++)
         {
+            int i = pp * 4;
+
             int* output0 = top_blob.channel(i);
             int* output1 = top_blob.channel(i+1);
             int* output2 = top_blob.channel(i+2);
@@ -124,9 +208,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             int j=0;
             for (; j+7<N; j=j+8)
             {
+                signed char* vb = bottom_tm.channel(j/8);
                 signed char* va = kernel_tm.channel(i/4);
                 
-#if __ARM_NEON
+#if 1 //__ARM_NEON
                 int32x4_t _sum0 = vdupq_n_s32(0);
                 int32x4_t _sum0n = vdupq_n_s32(0);
                 int32x4_t _sum1 = vdupq_n_s32(0);
@@ -139,15 +224,6 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                 int k=0;
                 for (; k+7<L; k=k+8)
                 {
-                    signed char* vb0 = B + k*N + j;
-                    signed char* vb1 = B + (k+1)*N + j;
-                    signed char* vb2 = B + (k+2)*N + j;
-                    signed char* vb3 = B + (k+3)*N + j;
-                    signed char* vb4 = B + (k+4)*N + j;
-                    signed char* vb5 = B + (k+5)*N + j;
-                    signed char* vb6 = B + (k+6)*N + j;
-                    signed char* vb7 = B + (k+7)*N + j;
-
                     int8x8_t _vacc0_s8 = vld1_s8(va);
                     int8x8_t _vacc1_s8 = vld1_s8(va+8);
                     int8x8_t _vacc2_s8 = vld1_s8(va+16);
@@ -158,7 +234,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     int16x8_t _vacc3 = vmovl_s8(_vacc3_s8);
 
                     // k=0
-                    int8x8_t _vb_s8 = vld1_s8(vb0);
+                    int8x8_t _vb_s8 = vld1_s8(vb);
                     int16x8_t _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_low_s16(_vacc0), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_low_s16(_vacc0), 0);
@@ -170,7 +246,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     _sum3n = vmlal_lane_s16(_sum3n, vget_high_s16(_vb), vget_low_s16(_vacc0), 3);
 
                     // k=1
-                    _vb_s8 = vld1_s8(vb1);
+                    _vb_s8 = vld1_s8(vb+8);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_high_s16(_vacc0), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_high_s16(_vacc0), 0);
@@ -182,7 +258,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     _sum3n = vmlal_lane_s16(_sum3n, vget_high_s16(_vb), vget_high_s16(_vacc0), 3);
 
                     // k=2
-                    _vb_s8 = vld1_s8(vb2);
+                    _vb_s8 = vld1_s8(vb+16);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_low_s16(_vacc1), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_low_s16(_vacc1), 0);
@@ -194,7 +270,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     _sum3n = vmlal_lane_s16(_sum3n, vget_high_s16(_vb), vget_low_s16(_vacc1), 3);
 
                     // k=3
-                    _vb_s8 = vld1_s8(vb3);
+                    _vb_s8 = vld1_s8(vb+24);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_high_s16(_vacc1), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_high_s16(_vacc1), 0);
@@ -206,7 +282,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     _sum3n = vmlal_lane_s16(_sum3n, vget_high_s16(_vb), vget_high_s16(_vacc1), 3);
 
                     // k=4
-                    _vb_s8 = vld1_s8(vb4);
+                    _vb_s8 = vld1_s8(vb+32);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_low_s16(_vacc2), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_low_s16(_vacc2), 0);
@@ -218,7 +294,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     _sum3n = vmlal_lane_s16(_sum3n, vget_high_s16(_vb), vget_low_s16(_vacc2), 3);
 
                     // k=5
-                    _vb_s8 = vld1_s8(vb5);
+                    _vb_s8 = vld1_s8(vb+40);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_high_s16(_vacc2), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_high_s16(_vacc2), 0);
@@ -230,7 +306,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     _sum3n = vmlal_lane_s16(_sum3n, vget_high_s16(_vb), vget_high_s16(_vacc2), 3);
 
                     // k=6
-                    _vb_s8 = vld1_s8(vb6);
+                    _vb_s8 = vld1_s8(vb+48);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_low_s16(_vacc3), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_low_s16(_vacc3), 0);
@@ -242,7 +318,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     _sum3n = vmlal_lane_s16(_sum3n, vget_high_s16(_vb), vget_low_s16(_vacc3), 3);
 
                     // k=7
-                    _vb_s8 = vld1_s8(vb7);
+                    _vb_s8 = vld1_s8(vb+56);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_high_s16(_vacc3), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_high_s16(_vacc3), 0);
@@ -254,17 +330,16 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     _sum3n = vmlal_lane_s16(_sum3n, vget_high_s16(_vb), vget_high_s16(_vacc3), 3);
 
                     va += 32;
+                    vb += 64;
                 }
 
                 for (; k<L; k++)
                 {
-                    signed char* vb0 = B + k*N + j;
-
                     int8x8_t _vacc0_s8 = vld1_s8(va);
                     int16x8_t _vacc0 = vmovl_s8(_vacc0_s8);
 
                     // k=0
-                    int8x8_t _vb_s8 = vld1_s8(vb0);
+                    int8x8_t _vb_s8 = vld1_s8(vb);
                     int16x8_t _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_low_s16(_vacc0), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_low_s16(_vacc0), 0);
@@ -276,6 +351,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     _sum3n = vmlal_lane_s16(_sum3n, vget_high_s16(_vb), vget_low_s16(_vacc0), 3);
 
                     va += 4;
+                    vb += 8;
                 }
 
                 vst1q_s32(output0, _sum0);
@@ -295,82 +371,73 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                 int k=0;
                 for (; k+7<L; k=k+8)
                 {
-                    signed char* vb0 = B + k*N + j;
-                    signed char* vb1 = B + (k+1)*N + j;
-                    signed char* vb2 = B + (k+2)*N + j;
-                    signed char* vb3 = B + (k+3)*N + j;
-                    signed char* vb4 = B + (k+4)*N + j;
-                    signed char* vb5 = B + (k+5)*N + j;
-                    signed char* vb6 = B + (k+6)*N + j;
-                    signed char* vb7 = B + (k+7)*N + j;
-
                     for (int n=0; n<8; n++)
                     {
-                        sum0[n] += (int)va[0] * vb0[n];
-                        sum1[n] += (int)va[1] * vb0[n];
-                        sum2[n] += (int)va[2] * vb0[n];
-                        sum3[n] += (int)va[3] * vb0[n];
+                        sum0[n] += (int)va[0] * vb[n];
+                        sum1[n] += (int)va[1] * vb[n];
+                        sum2[n] += (int)va[2] * vb[n];
+                        sum3[n] += (int)va[3] * vb[n];
                         va += 4;
 
-                        sum0[n] += (int)va[0] * vb1[n];
-                        sum1[n] += (int)va[1] * vb1[n];
-                        sum2[n] += (int)va[2] * vb1[n];
-                        sum3[n] += (int)va[3] * vb1[n];
+                        sum0[n] += (int)va[0] * vb[n+8];
+                        sum1[n] += (int)va[1] * vb[n+8];
+                        sum2[n] += (int)va[2] * vb[n+8];
+                        sum3[n] += (int)va[3] * vb[n+8];
                         va += 4;
 
-                        sum0[n] += (int)va[0] * vb2[n];
-                        sum1[n] += (int)va[1] * vb2[n];
-                        sum2[n] += (int)va[2] * vb2[n];
-                        sum3[n] += (int)va[3] * vb2[n];
+                        sum0[n] += (int)va[0] * vb[n+16];
+                        sum1[n] += (int)va[1] * vb[n+16];
+                        sum2[n] += (int)va[2] * vb[n+16];
+                        sum3[n] += (int)va[3] * vb[n+16];
                         va += 4;
 
-                        sum0[n] += (int)va[0] * vb3[n];
-                        sum1[n] += (int)va[1] * vb3[n];
-                        sum2[n] += (int)va[2] * vb3[n];
-                        sum3[n] += (int)va[3] * vb3[n];
+                        sum0[n] += (int)va[0] * vb[n+24];
+                        sum1[n] += (int)va[1] * vb[n+24];
+                        sum2[n] += (int)va[2] * vb[n+24];
+                        sum3[n] += (int)va[3] * vb[n+24];
                         va += 4;
 
-                        sum0[n] += (int)va[0] * vb4[n];
-                        sum1[n] += (int)va[1] * vb4[n];
-                        sum2[n] += (int)va[2] * vb4[n];
-                        sum3[n] += (int)va[3] * vb4[n];
+                        sum0[n] += (int)va[0] * vb[n+32];
+                        sum1[n] += (int)va[1] * vb[n+32];
+                        sum2[n] += (int)va[2] * vb[n+32];
+                        sum3[n] += (int)va[3] * vb[n+32];
                         va += 4;
 
-                        sum0[n] += (int)va[0] * vb5[n];
-                        sum1[n] += (int)va[1] * vb5[n];
-                        sum2[n] += (int)va[2] * vb5[n];
-                        sum3[n] += (int)va[3] * vb5[n];
+                        sum0[n] += (int)va[0] * vb[n+40];
+                        sum1[n] += (int)va[1] * vb[n+40];
+                        sum2[n] += (int)va[2] * vb[n+40];
+                        sum3[n] += (int)va[3] * vb[n+40];
                         va += 4;
 
-                        sum0[n] += (int)va[0] * vb6[n];
-                        sum1[n] += (int)va[1] * vb6[n];
-                        sum2[n] += (int)va[2] * vb6[n];
-                        sum3[n] += (int)va[3] * vb6[n];
+                        sum0[n] += (int)va[0] * vb[n+48];
+                        sum1[n] += (int)va[1] * vb[n+48];
+                        sum2[n] += (int)va[2] * vb[n+48];
+                        sum3[n] += (int)va[3] * vb[n+48];
                         va += 4;
 
-                        sum0[n] += (int)va[0] * vb7[n];
-                        sum1[n] += (int)va[1] * vb7[n];
-                        sum2[n] += (int)va[2] * vb7[n];
-                        sum3[n] += (int)va[3] * vb7[n];
+                        sum0[n] += (int)va[0] * vb[n+56];
+                        sum1[n] += (int)va[1] * vb[n+56];
+                        sum2[n] += (int)va[2] * vb[n+56];
+                        sum3[n] += (int)va[3] * vb[n+56];
                         va -= 28;
                     }
 
                     va += 32;
+                    vb += 64;
                 }
 
                 for (; k<L; k++)
                 {
-                    signed char* vb0 = B + k*N + j;
-
                     for (int n=0; n<8; n++)
                     {
-                        sum0[n] += (int)va[0] * vb0[n];
-                        sum1[n] += (int)va[1] * vb0[n];
-                        sum2[n] += (int)va[2] * vb0[n];
-                        sum3[n] += (int)va[3] * vb0[n];
+                        sum0[n] += (int)va[0] * vb[n];
+                        sum1[n] += (int)va[1] * vb[n];
+                        sum2[n] += (int)va[2] * vb[n];
+                        sum3[n] += (int)va[3] * vb[n];
                     }
                     
                     va += 4;
+                    vb += 8;
                 }
 
                 for (int n=0; n<8; n++)
@@ -394,18 +461,18 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                 int sum2 = 0;
                 int sum3 = 0;
 
+                signed char* vb = bottom_tm.channel(j/8 + j%8);
                 signed char* va = kernel_tm.channel(i/4);
 
                 for (int k=0; k<L; k++)
                 {
-                    signed char* vb0 = B + k*N + j;
-
-                    sum0 += (int)va[0] * vb0[0];
-                    sum1 += (int)va[1] * vb0[0];
-                    sum2 += (int)va[2] * vb0[0];
-                    sum3 += (int)va[3] * vb0[0];
+                    sum0 += (int)va[0] * vb[0];
+                    sum1 += (int)va[1] * vb[0];
+                    sum2 += (int)va[2] * vb[0];
+                    sum3 += (int)va[3] * vb[0];
 
                     va += 4;
+                    vb += 1;
                 }
                 
                 output0[0] = sum0;
@@ -420,122 +487,128 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             }
         }
 
-        for (; i<M; i++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i=remain_outch_start; i<outch; i++)
         {
             int* output = top_blob.channel(i);
 
             int j=0;
             for (; j+7<N; j=j+8)
             {
+                signed char* vb = bottom_tm.channel(j/8);
                 signed char* va = kernel_tm.channel(i/4 + i%4);
-#if __ARM_NEON
+#if 1 //__ARM_NEON
                 int32x4_t _sum0 = vdupq_n_s32(0);
                 int32x4_t _sum0n = vdupq_n_s32(0);
-#else                
-                int sum[8] = {0};
-#endif
+
                 int k=0;
                 for (; k+7<L; k=k+8)
                 {
-                    signed char* vb0 = B + k*N + j;
-                    signed char* vb1 = B + (k+1)*N + j;
-                    signed char* vb2 = B + (k+2)*N + j;
-                    signed char* vb3 = B + (k+3)*N + j;
-                    signed char* vb4 = B + (k+4)*N + j;
-                    signed char* vb5 = B + (k+5)*N + j;
-                    signed char* vb6 = B + (k+6)*N + j;
-                    signed char* vb7 = B + (k+7)*N + j;
-#if __ARM_NEON
                     int8x8_t _vacc0_s8 = vld1_s8(va);
                     int16x8_t _vacc0 = vmovl_s8(_vacc0_s8);
 
                     // k=0
-                    int8x8_t _vb_s8 = vld1_s8(vb0);
+                    int8x8_t _vb_s8 = vld1_s8(vb);
                     int16x8_t _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_low_s16(_vacc0), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_low_s16(_vacc0), 0);
 
                     // k=1
-                    _vb_s8 = vld1_s8(vb1);
+                    _vb_s8 = vld1_s8(vb+8);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_low_s16(_vacc0), 1);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_low_s16(_vacc0), 1);
 
                     // k=2
-                    _vb_s8 = vld1_s8(vb2);
+                    _vb_s8 = vld1_s8(vb+16);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_low_s16(_vacc0), 2);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_low_s16(_vacc0), 2);
 
                     // k=3
-                    _vb_s8 = vld1_s8(vb3);
+                    _vb_s8 = vld1_s8(vb+24);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_low_s16(_vacc0), 3);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_low_s16(_vacc0), 3);
 
                     // k=4
-                    _vb_s8 = vld1_s8(vb4);
+                    _vb_s8 = vld1_s8(vb+32);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_high_s16(_vacc0), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_high_s16(_vacc0), 0);
 
                     // k=5
-                    _vb_s8 = vld1_s8(vb5);
+                    _vb_s8 = vld1_s8(vb+40);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_high_s16(_vacc0), 1);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_high_s16(_vacc0), 1);
 
                     // k=6
-                    _vb_s8 = vld1_s8(vb6);
+                    _vb_s8 = vld1_s8(vb+48);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_high_s16(_vacc0), 2);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_high_s16(_vacc0), 2);
 
                     // k=7
-                    _vb_s8 = vld1_s8(vb7);
+                    _vb_s8 = vld1_s8(vb+56);
                     _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_high_s16(_vacc0), 3);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_high_s16(_vacc0), 3);
-#else
-                    for (int n=0; n<8; n++)
-                    {
-                        sum[n] += (int)va[0] * vb0[n];
-                        sum[n] += (int)va[1] * vb1[n];
-                        sum[n] += (int)va[2] * vb2[n];
-                        sum[n] += (int)va[3] * vb3[n];
-                        sum[n] += (int)va[4] * vb4[n];
-                        sum[n] += (int)va[5] * vb5[n];
-                        sum[n] += (int)va[6] * vb6[n];
-                        sum[n] += (int)va[7] * vb7[n];
-                    }
+
                     va += 8;
-#endif                    
+                    vb += 64;
                 }
 
                 for (; k<L; k++)
                 {
-                    signed char* vb0 = B + k*N + j;
-#if __ARM_NEON
                     int8x8_t _vacc0_s8 = vld1_s8(va);
                     int16x8_t _vacc0 = vmovl_s8(_vacc0_s8);
 
                     // k=0
-                    int8x8_t _vb_s8 = vld1_s8(vb0);
+                    int8x8_t _vb_s8 = vld1_s8(vb);
                     int16x8_t _vb = vmovl_s8(_vb_s8);
                     _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_vb), vget_low_s16(_vacc0), 0);
                     _sum0n = vmlal_lane_s16(_sum0n, vget_high_s16(_vb), vget_low_s16(_vacc0), 0);
-#else
+
+                    va += 1;
+                    vb += 8;
+                }
+
+                vst1q_s32(output, _sum0);
+                vst1q_s32(output+4, _sum0n);             
+#else                
+                int sum[8] = {0};
+
+                int k=0;
+                for (; k+7<L; k=k+8)
+                {
                     for (int n=0; n<8; n++)
                     {
-                        sum[n] += (int)va[0] * vb0[n];
+                        sum[n] += (int)va[0] * vb[n];
+                        sum[n] += (int)va[1] * vb[n+8];
+                        sum[n] += (int)va[2] * vb[n+16];
+                        sum[n] += (int)va[3] * vb[n+24];
+                        sum[n] += (int)va[4] * vb[n+32];
+                        sum[n] += (int)va[5] * vb[n+40];
+                        sum[n] += (int)va[6] * vb[n+48];
+                        sum[n] += (int)va[7] * vb[n+56];
                     }
-#endif
-                    va += 1;
+
+                    va += 8;
+                    vb += 64;    
                 }
-#if __ARM_NEON
-                vst1q_s32(output, _sum0);
-                vst1q_s32(output+4, _sum0n);
-#else
+
+                for (; k<L; k++)
+                {
+                    for (int n=0; n<8; n++)
+                    {
+                        sum[n] += (int)va[0] * vb[n];
+                    }
+
+                    va += 1;
+                    vb += 8;
+                }
+
                 for (int n=0; n<8; n++)
                 {
                     output[n] = sum[n];
@@ -547,15 +620,16 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             for (; j<N; j++)
             {
                 int sum = 0;
+
+                signed char* vb = bottom_tm.channel(j/8 + j%8);
                 signed char* va = kernel_tm.channel(i/4 + i%4);
 
                 for (int k=0; k<L; k++)
                 {
-                    signed char* vb0 = B + k*N + j;
-
-                    sum += (int)va[0] * vb0[0];
+                    sum += (int)va[0] * vb[0];
 
                     va += 1;
+                    vb += 1;
                 }
                 output[0] = sum;
 

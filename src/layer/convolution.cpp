@@ -470,7 +470,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
       
-#if NCNN_IM2COL_SGEMM
+#if 0
             // im2col
             printf("compute with im2col sgemm\n");
             Mat bottom_im2col(outw*outh, kernel_h*kernel_w*channels, 1UL, opt.workspace_allocator);
@@ -589,7 +589,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return 0;
     }
 
-#if NCNN_IM2COL_SGEMM
+#if 0
     // im2col
     printf("compute with im2col sgemm\n");
     Mat bottom_im2col(outw*outh, kernel_h*kernel_w*channels, 4UL, opt.workspace_allocator);

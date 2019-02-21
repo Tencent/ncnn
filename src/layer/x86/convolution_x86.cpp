@@ -15,6 +15,7 @@
 #include "convolution_x86.h"
 
 #include "layer_type.h"
+#include "benchmark.h"
 
 namespace ncnn {
 

@@ -165,8 +165,9 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
         //     {0.0f,  1.0f,  1.00f, 0.0f},
         //     {0.0f, -1.0f,  1.00f, 0.0f},
         //     {0.0f, -1.0f,  0.00f, 1.0f}
-        // };        
-
+        // };
+        
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<inch; q++)
         {
             const signed char* img = bottom_blob_bordered.channel(q);
