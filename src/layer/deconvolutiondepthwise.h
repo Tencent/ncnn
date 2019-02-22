@@ -64,13 +64,27 @@ public:
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
 
-    std::vector<ncnn::Layer*> deconvolution_group_ops;
+    ncnn::Layer* packing_pack1;
+    ncnn::Layer* packing_pack4;
 
     Pipeline* pipeline_deconvolutiondepthwise;
 
+    // pack4
     VkMat weight_data_gpu_pack4;
     VkMat bias_data_gpu_pack4;
+
     Pipeline* pipeline_deconvolutiondepthwise_pack4;
+
+    Pipeline* pipeline_deconvolutiondepthwise_group;
+    Pipeline* pipeline_deconvolutiondepthwise_group_pack4;
+
+    // pack1to4
+    VkMat weight_data_gpu_pack1to4;
+    Pipeline* pipeline_deconvolutiondepthwise_group_pack1to4;
+
+    // pack4to1
+    VkMat weight_data_gpu_pack4to1;
+    Pipeline* pipeline_deconvolutiondepthwise_group_pack4to1;
 #endif // NCNN_VULKAN
 
 };
