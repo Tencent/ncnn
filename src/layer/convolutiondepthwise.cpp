@@ -997,10 +997,10 @@ int ConvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     VkMat bottom_blob_bordered_unpacked = bottom_blob_bordered;
     if (packing == 4 && channels_g % 4 != 0)
     {
-        ncnn::Option opt_pad = opt;
-        opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+        ncnn::Option opt_pack1 = opt;
+        opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
-        packing_pack1->forward(bottom_blob_bordered, bottom_blob_bordered_unpacked, cmd, opt_pad);
+        packing_pack1->forward(bottom_blob_bordered, bottom_blob_bordered_unpacked, cmd, opt_pack1);
     }
 
     VkMat top_blob_unpacked = top_blob;
@@ -1073,10 +1073,7 @@ int ConvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     // packing
     if (num_output_g % 4 != 0 && out_packing == 4)
     {
-        ncnn::Option opt_pad = opt;
-        opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-
-        packing_pack4->forward(top_blob_unpacked, top_blob, cmd, opt_pad);
+        packing_pack4->forward(top_blob_unpacked, top_blob, cmd, opt);
     }
     else
     {
