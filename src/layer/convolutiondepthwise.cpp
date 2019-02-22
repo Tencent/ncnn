@@ -28,8 +28,16 @@ ConvolutionDepthWise::ConvolutionDepthWise()
 
 #if NCNN_VULKAN
     padding = 0;
+    packing_pack1 = 0;
+    packing_pack4 = 0;
+
     pipeline_convolutiondepthwise = 0;
     pipeline_convolutiondepthwise_pack4 = 0;
+
+    pipeline_convolutiondepthwise_group = 0;
+    pipeline_convolutiondepthwise_group_pack4 = 0;
+    pipeline_convolutiondepthwise_group_pack1to4 = 0;
+    pipeline_convolutiondepthwise_group_pack4to1 = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -37,11 +45,8 @@ ConvolutionDepthWise::~ConvolutionDepthWise()
 {
 #if NCNN_VULKAN
     delete padding;
-
-    for (int i=0; i<(int)convolution_group_ops.size(); i++)
-        delete convolution_group_ops[i];
-
-    convolution_group_ops.clear();
+    delete packing_pack1;
+    delete packing_pack4;
 #endif // NCNN_VULKAN
 
     for (int i=0; i<(int)quantize_ops.size(); i++)
@@ -85,6 +90,7 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
 #if NCNN_VULKAN
     if (pd.use_vulkan_compute)
     {
+        {
         padding = ncnn::create_layer(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;
 
@@ -99,6 +105,29 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
         pd.use_vulkan_compute = 1;
 
         padding->load_param(pd);
+        }
+
+        {
+        packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
+        packing_pack1->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        pd.use_vulkan_compute = 1;
+
+        packing_pack1->load_param(pd);
+        }
+
+        {
+        packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
+        packing_pack4->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 4);
+        pd.use_vulkan_compute = 1;
+
+        packing_pack4->load_param(pd);
+        }
     }
 #endif // NCNN_VULKAN
 
@@ -222,65 +251,6 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
             dequantize_ops[g]->load_model(ModelBinFromMatArray(weights));
         }
     }
-
-#if NCNN_VULKAN
-    const int maxk = kernel_w * kernel_h;
-    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
-
-    // group convolution
-    if (!(channels == group && group == num_output))
-    {
-        // create Convolution op for each group
-
-        for (int i=0; i<(int)convolution_group_ops.size(); i++)
-            delete convolution_group_ops[i];
-
-        convolution_group_ops.clear();
-
-        const int channels_g = channels / group;
-        const int num_output_g = num_output / group;
-
-        convolution_group_ops.resize(group);
-
-        for (int g=0; g<group; g++)
-        {
-            Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
-            Mat bias_data_g;
-            if (bias_term)
-                bias_data_g = bias_data.range(num_output_g * g, num_output_g);
-
-            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
-            op->vkdev = vkdev;
-
-            // set param
-            ncnn::ParamDict pd;
-            pd.set(0, num_output_g);// num_output
-            pd.set(1, kernel_w);
-            pd.set(11, kernel_h);
-            pd.set(2, dilation_w);
-            pd.set(12, dilation_h);
-            pd.set(3, stride_w);
-            pd.set(13, stride_h);
-            pd.set(4, 0);// pad_w
-            pd.set(14, 0);// pad_h
-            pd.set(5, bias_term);
-            pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
-
-            pd.use_vulkan_compute = 1;
-
-            op->load_param(pd);
-
-            // set weights
-            ncnn::Mat weights[2];
-            weights[0] = weight_data_g;
-            weights[1] = bias_data_g;
-
-            op->load_model(ModelBinFromMatArray(weights));
-
-            convolution_group_ops[g] = op;
-        }
-    }
-#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -604,8 +574,6 @@ int ConvolutionDepthWise::upload_model(VkTransfer& cmd)
         // pack4
         if (channels % 4 == 0 && num_output % 4 == 0)
         {
-            const int maxk = kernel_w * kernel_h;
-
             Mat weight_data_pack4;
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_pack4, 4);
@@ -624,9 +592,210 @@ int ConvolutionDepthWise::upload_model(VkTransfer& cmd)
         return 0;
     }
 
-    for (int g=0; g<group; g++)
+    // group convolution
+    cmd.record_upload(weight_data, weight_data_gpu);
+
+    if (bias_term)
     {
-        convolution_group_ops[g]->upload_model(cmd);
+        cmd.record_upload(bias_data, bias_data_gpu);
+    }
+
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / group;
+
+    // pack4
+    if (channels_g % 4 == 0 && num_output_g % 4 == 0)
+    {
+        // src = kw-kh-inch-outch
+        // dst = 4a-4b-kw-kh-inch/4a-outch/4b
+        Mat weight_data_pack4_groups;
+        {
+            Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
+
+            weight_data_pack4_groups.create(16*maxk, channels_g/4, num_output_g/4 * group);
+
+            for (int g=0; g<group; g++)
+            {
+                const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
+
+                Mat weight_data_pack4 = weight_data_pack4_groups.channel_range(num_output_g/4 * g, num_output_g/4);
+
+                for (int q=0; q+3<num_output_g; q+=4)
+                {
+                    const Mat k0 = weight_data_r2.channel(q);
+                    const Mat k1 = weight_data_r2.channel(q+1);
+                    const Mat k2 = weight_data_r2.channel(q+2);
+                    const Mat k3 = weight_data_r2.channel(q+3);
+
+                    Mat g0 = weight_data_pack4.channel(q/4);
+
+                    for (int p=0; p+3<channels_g; p+=4)
+                    {
+                        const float* k00 = k0.row(p);
+                        const float* k01 = k0.row(p+1);
+                        const float* k02 = k0.row(p+2);
+                        const float* k03 = k0.row(p+3);
+
+                        const float* k10 = k1.row(p);
+                        const float* k11 = k1.row(p+1);
+                        const float* k12 = k1.row(p+2);
+                        const float* k13 = k1.row(p+3);
+
+                        const float* k20 = k2.row(p);
+                        const float* k21 = k2.row(p+1);
+                        const float* k22 = k2.row(p+2);
+                        const float* k23 = k2.row(p+3);
+
+                        const float* k30 = k3.row(p);
+                        const float* k31 = k3.row(p+1);
+                        const float* k32 = k3.row(p+2);
+                        const float* k33 = k3.row(p+3);
+
+                        float* g00 = g0.row(p/4);
+
+                        for (int k=0; k<maxk; k++)
+                        {
+                            g00[0] = k00[k];
+                            g00[1] = k01[k];
+                            g00[2] = k02[k];
+                            g00[3] = k03[k];
+
+                            g00[4] = k10[k];
+                            g00[5] = k11[k];
+                            g00[6] = k12[k];
+                            g00[7] = k13[k];
+
+                            g00[8] = k20[k];
+                            g00[9] = k21[k];
+                            g00[10] = k22[k];
+                            g00[11] = k23[k];
+
+                            g00[12] = k30[k];
+                            g00[13] = k31[k];
+                            g00[14] = k32[k];
+                            g00[15] = k33[k];
+
+                            g00 += 16;
+                        }
+                    }
+                }
+            }
+        }
+
+        weight_data_pack4_groups = weight_data_pack4_groups.reshape(16*maxk * (channels_g/4) * (num_output_g/4) * group);
+        cmd.record_upload(weight_data_pack4_groups, weight_data_gpu_pack4);
+    }
+
+    // pack1to4
+    if (channels_g % 4 != 0 && num_output_g % 4 == 0)
+    {
+        // src = kw-kh-inch-outch
+        // dst = 4b-kw-kh-inch-outch/4b
+        Mat weight_data_pack1to4_groups;
+        {
+            Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
+
+            weight_data_pack1to4_groups.create(4*maxk, channels_g, num_output_g/4 * group);
+
+            for (int g=0; g<group; g++)
+            {
+                const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
+
+                Mat weight_data_pack1to4 = weight_data_pack1to4_groups.channel_range(num_output_g/4 * g, num_output_g/4);
+
+                for (int q=0; q+3<num_output_g; q+=4)
+                {
+                    const Mat k0 = weight_data_r2.channel(q);
+                    const Mat k1 = weight_data_r2.channel(q+1);
+                    const Mat k2 = weight_data_r2.channel(q+2);
+                    const Mat k3 = weight_data_r2.channel(q+3);
+
+                    Mat g0 = weight_data_pack1to4.channel(q/4);
+
+                    for (int p=0; p<channels_g; p++)
+                    {
+                        const float* k00 = k0.row(p);
+                        const float* k10 = k1.row(p);
+                        const float* k20 = k2.row(p);
+                        const float* k30 = k3.row(p);
+
+                        float* g00 = g0.row(p);
+
+                        for (int k=0; k<maxk; k++)
+                        {
+                            g00[0] = k00[k];
+                            g00[1] = k10[k];
+                            g00[2] = k20[k];
+                            g00[3] = k30[k];
+
+                            g00 += 4;
+                        }
+                    }
+                }
+            }
+        }
+
+        weight_data_pack1to4_groups = weight_data_pack1to4_groups.reshape(4*maxk * channels_g * (num_output_g/4) * group);
+        cmd.record_upload(weight_data_pack1to4_groups, weight_data_gpu_pack1to4);
+    }
+
+    // pack4to1
+    if (channels_g % 4 == 0 && num_output_g % 4 != 0)
+    {
+        // src = kw-kh-inch-outch
+        // dst = 4a-kw-kh-inch/4a-outch
+        Mat weight_data_pack4to1_groups;
+        {
+            Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
+
+            weight_data_pack4to1_groups.create(4*maxk, channels_g/4, num_output_g * group);
+
+            for (int g=0; g<group; g++)
+            {
+                const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
+
+                Mat weight_data_pack4to1 = weight_data_pack4to1_groups.channel_range(num_output_g * g, num_output_g);
+
+                for (int q=0; q<num_output_g; q++)
+                {
+                    const Mat k0 = weight_data_r2.channel(q);
+                    Mat g0 = weight_data_pack4to1.channel(q);
+
+                    for (int p=0; p+3<channels_g; p+=4)
+                    {
+                        const float* k00 = k0.row(p);
+                        const float* k01 = k0.row(p+1);
+                        const float* k02 = k0.row(p+2);
+                        const float* k03 = k0.row(p+3);
+
+                        float* g00 = g0.row(p/4);
+
+                        for (int k=0; k<maxk; k++)
+                        {
+                            g00[0] = k00[k];
+                            g00[1] = k01[k];
+                            g00[2] = k02[k];
+                            g00[3] = k03[k];
+
+                            g00 += 4;
+                        }
+                    }
+                }
+            }
+        }
+
+        weight_data_pack4to1_groups = weight_data_pack4to1_groups.reshape(4*maxk * (channels_g/4) * num_output_g * group);
+        cmd.record_upload(weight_data_pack4to1_groups, weight_data_gpu_pack4to1);
+    }
+
+    if (num_output_g % 4 == 0)
+    {
+        if (bias_term)
+        {
+            Mat bias_data_pack4;
+            convert_packing(bias_data, bias_data_pack4, 4);
+            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
+        }
     }
 
     return 0;
@@ -668,9 +837,57 @@ int ConvolutionDepthWise::create_pipeline()
         return 0;
     }
 
-    for (int g=0; g<group; g++)
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / group;
+
+    // group convolution
+    pipeline_convolutiondepthwise_group = new Pipeline(vkdev);
+    pipeline_convolutiondepthwise_group->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+
+    std::vector<vk_specialization_type> specializations(8);
+    specializations[0].i = kernel_w;
+    specializations[1].i = kernel_h;
+    specializations[2].i = dilation_w;
+    specializations[3].i = dilation_h;
+    specializations[4].i = stride_w;
+    specializations[5].i = stride_h;
+    specializations[6].i = bias_term;
+    specializations[7].i = group;
+
+    pipeline_convolutiondepthwise_group->create("convolutiondepthwise_group", specializations, 4, 10);
+
+    // pack4
+    if (channels_g % 4 == 0 && num_output_g % 4 == 0)
     {
-        convolution_group_ops[g]->create_pipeline();
+        pipeline_convolutiondepthwise_group_pack4 = new Pipeline(vkdev);
+        pipeline_convolutiondepthwise_group_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack4->create("convolutiondepthwise_group_pack4", specializations, 4, 10);
+    }
+
+    // pack1to4
+    if (channels_g % 4 != 0 && num_output_g % 4 == 0)
+    {
+        pipeline_convolutiondepthwise_group_pack1to4 = new Pipeline(vkdev);
+        pipeline_convolutiondepthwise_group_pack1to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack1to4->create("convolutiondepthwise_group_pack1to4", specializations, 4, 10);
+    }
+
+    // pack4to1
+    if (channels_g % 4 == 0 && num_output_g % 4 != 0)
+    {
+        pipeline_convolutiondepthwise_group_pack4to1 = new Pipeline(vkdev);
+        pipeline_convolutiondepthwise_group_pack4to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack4to1->create("convolutiondepthwise_group_pack4to1", specializations, 4, 10);
+    }
+
+    if (channels % 4 == 0 && channels_g % 4 != 0)
+    {
+        packing_pack1->create_pipeline();
+    }
+
+    if (num_output_g % 4 != 0 && num_output % 4 == 0)
+    {
+        packing_pack4->create_pipeline();
     }
 
     return 0;
@@ -681,16 +898,29 @@ int ConvolutionDepthWise::destroy_pipeline()
     if (padding)
         padding->destroy_pipeline();
 
-    for (int g=0; g<(int)convolution_group_ops.size(); g++)
-    {
-        convolution_group_ops[g]->destroy_pipeline();
-    }
+    if (packing_pack1)
+        packing_pack1->destroy_pipeline();
+
+    if (packing_pack4)
+        packing_pack4->destroy_pipeline();
 
     delete pipeline_convolutiondepthwise;
     pipeline_convolutiondepthwise = 0;
 
     delete pipeline_convolutiondepthwise_pack4;
     pipeline_convolutiondepthwise_pack4 = 0;
+
+    delete pipeline_convolutiondepthwise_group;
+    pipeline_convolutiondepthwise_group = 0;
+
+    delete pipeline_convolutiondepthwise_group_pack4;
+    pipeline_convolutiondepthwise_group_pack4 = 0;
+
+    delete pipeline_convolutiondepthwise_group_pack1to4;
+    pipeline_convolutiondepthwise_group_pack1to4 = 0;
+
+    delete pipeline_convolutiondepthwise_group_pack4to1;
+    pipeline_convolutiondepthwise_group_pack4to1 = 0;
 
     return 0;
 }
@@ -720,10 +950,10 @@ int ConvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
+    int out_packing = num_output % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / packing * out_packing;
 
-    // TODO assert num_output % packing == 0
-
-    top_blob.create(outw, outh, num_output / packing, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -760,25 +990,97 @@ int ConvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         return 0;
     }
 
-    // record
-    cmd.record_prepare_compute_barrier(top_blob);
+    const int channels_g = channels * packing / group;
+    const int num_output_g = num_output / group;
 
-    const int channels_g = channels / group;
-    const int num_output_g = num_output / packing / group;
-
-    for (int g=0; g<group; g++)
+    // unpacking
+    VkMat bottom_blob_bordered_unpacked = bottom_blob_bordered;
+    if (packing == 4 && channels_g % 4 != 0)
     {
-        VkMat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(channels_g * g, channels_g);
-        VkMat top_blob_g = top_blob.channel_range(num_output_g * g, num_output_g);
+        ncnn::Option opt_pad = opt;
+        opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-        const ncnn::Layer* op = convolution_group_ops[g];
+        packing_pack1->forward(bottom_blob_bordered, bottom_blob_bordered_unpacked, cmd, opt_pad);
+    }
 
-        ncnn::Option opt_g = opt;
-        opt_g.blob_vkallocator = top_blob.allocator;
-        opt_g.staging_vkallocator = top_blob.staging_allocator;
+    VkMat top_blob_unpacked = top_blob;
+    if (num_output_g % 4 != 0 && out_packing == 4)
+    {
+        top_blob_unpacked.create(outw, outh, num_output, elemsize / packing, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
+        if (top_blob_unpacked.empty())
+            return -100;
+    }
 
-        // forward
-        op->forward(bottom_blob_bordered_g, top_blob_g, cmd, opt_g);
+    std::vector<VkMat> bindings(4);
+    bindings[0] = bottom_blob_bordered_unpacked;
+    bindings[1] = top_blob_unpacked;
+    if (channels_g % 4 != 0 && num_output_g % 4 != 0)
+    {
+        bindings[2] = weight_data_gpu;
+        bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu;// TODO use dummy buffer
+    }
+    else if (channels_g % 4 == 0 && num_output_g % 4 == 0)
+    {
+        bindings[2] = weight_data_gpu_pack4;
+        bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack4;// TODO use dummy buffer
+    }
+    else if (channels_g % 4 != 0 && num_output_g % 4 == 0)
+    {
+        bindings[2] = weight_data_gpu_pack1to4;
+        bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack1to4;// TODO use dummy buffer
+    }
+    else if (channels_g % 4 == 0 && num_output_g % 4 != 0)
+    {
+        bindings[2] = weight_data_gpu_pack4to1;
+        bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu_pack4to1;// TODO use dummy buffer
+    }
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob_bordered_unpacked.dims;
+    constants[1].i = bottom_blob_bordered_unpacked.w;
+    constants[2].i = bottom_blob_bordered_unpacked.h;
+    constants[3].i = bottom_blob_bordered_unpacked.c;
+    constants[4].i = bottom_blob_bordered_unpacked.cstep;
+    constants[5].i = top_blob_unpacked.dims;
+    constants[6].i = top_blob_unpacked.w;
+    constants[7].i = top_blob_unpacked.h;
+    constants[8].i = top_blob_unpacked.c;
+    constants[9].i = top_blob_unpacked.cstep;
+
+    const Pipeline* pipeline = 0;
+    if (channels_g % 4 != 0 && num_output_g % 4 != 0)
+    {
+        pipeline = pipeline_convolutiondepthwise_group;
+    }
+    else if (channels_g % 4 == 0 && num_output_g % 4 == 0)
+    {
+        pipeline = pipeline_convolutiondepthwise_group_pack4;
+    }
+    else if (channels_g % 4 != 0 && num_output_g % 4 == 0)
+    {
+        pipeline = pipeline_convolutiondepthwise_group_pack1to4;
+    }
+    else if (channels_g % 4 == 0 && num_output_g % 4 != 0)
+    {
+        pipeline = pipeline_convolutiondepthwise_group_pack4to1;
+    }
+
+    // record
+    cmd.record_prepare_compute_barrier(bottom_blob_bordered_unpacked);
+    cmd.record_prepare_compute_barrier(top_blob_unpacked);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked);
+
+    // packing
+    if (num_output_g % 4 != 0 && out_packing == 4)
+    {
+        ncnn::Option opt_pad = opt;
+        opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+
+        packing_pack4->forward(top_blob_unpacked, top_blob, cmd, opt_pad);
+    }
+    else
+    {
+        top_blob = top_blob_unpacked;
     }
 
     return 0;
