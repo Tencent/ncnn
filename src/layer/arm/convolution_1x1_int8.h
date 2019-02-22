@@ -1613,7 +1613,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "beq         1f                \n"
                 
                 "0:                            \n"// for(; nn != 0; nn--)
-                "pld         [%2, #128]        \n"
+                "pld         [%1, #128]        \n"
                 "vld1.s8     {d4-d7}, [%1]!    \n"// tmpr a00-a07,a10-a17,a20-a27,a30-a37    a(inch)(data)
                 "vmovl.s8    q5, d7            \n"// a30-a37
                 "vmovl.s8    q4, d6            \n"// a20-a27
