@@ -63,7 +63,6 @@ public:
 
 #if NCNN_VULKAN
     ncnn::Layer* padding;
-    ncnn::Layer* convolution_fc;
 
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
@@ -84,6 +83,12 @@ public:
     // pack4to1
     VkMat weight_data_gpu_pack4to1;
     Pipeline* pipeline_convolution_pack4to1;
+
+    // convolution as fc
+    Pipeline* pipeline_innerproduct;
+    Pipeline* pipeline_innerproduct_pack4;
+    Pipeline* pipeline_innerproduct_pack1to4;
+    Pipeline* pipeline_innerproduct_pack4to1;
 #endif // NCNN_VULKAN
 
     float weight_data_int8_scale;
