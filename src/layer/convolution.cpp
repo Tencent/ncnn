@@ -28,13 +28,17 @@ Convolution::Convolution()
 
 #if NCNN_VULKAN
     padding = 0;
-    convolution_fc = 0;
 
     pipeline_convolution = 0;
     pipeline_convolution_1x1s1d1 = 0;
     pipeline_convolution_pack4 = 0;
     pipeline_convolution_pack1to4 = 0;
     pipeline_convolution_pack4to1 = 0;
+
+    pipeline_innerproduct = 0;
+    pipeline_innerproduct_pack4 = 0;
+    pipeline_innerproduct_pack1to4 = 0;
+    pipeline_innerproduct_pack4to1 = 0;
 #endif // NCNN_VULKAN
 
     quantize = 0;
@@ -45,7 +49,6 @@ Convolution::~Convolution()
 {
 #if NCNN_VULKAN
     delete padding;
-    delete convolution_fc;
 #endif // NCNN_VULKAN
 
     delete quantize;
@@ -89,21 +92,6 @@ int Convolution::load_param(const ParamDict& pd)
         pd.use_vulkan_compute = 1;
 
         padding->load_param(pd);
-
-        if (kernel_w == 1 && kernel_h == 1)
-        {
-        convolution_fc = ncnn::create_layer(ncnn::LayerType::InnerProduct);
-        convolution_fc->vkdev = vkdev;
-
-        ncnn::ParamDict pd;
-        pd.set(0, num_output);
-        pd.set(1, bias_term);
-        pd.set(2, weight_data_size);
-
-        pd.use_vulkan_compute = 1;
-
-        convolution_fc->load_param(pd);
-        }
     }
 #endif // NCNN_VULKAN
 
@@ -186,17 +174,6 @@ int Convolution::load_model(const ModelBin& mb)
             dequantize->load_model(ModelBinFromMatArray(weights));
         }
     }
-
-#if NCNN_VULKAN
-    if (convolution_fc)
-    {
-        ncnn::Mat weights[2];
-        weights[0] = weight_data;
-        weights[1] = bias_data;
-
-        convolution_fc->load_model(ModelBinFromMatArray(weights));
-    }
-#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -433,11 +410,6 @@ int Convolution::upload_model(VkTransfer& cmd)
         cmd.record_upload(bias_data, bias_data_gpu);
     }
 
-    if (kernel_w == 1 && kernel_h == 1)
-    {
-        convolution_fc->upload_model(cmd);
-    }
-
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
@@ -636,11 +608,6 @@ int Convolution::create_pipeline()
 
     padding->create_pipeline();
 
-    if (kernel_w == 1 && kernel_h == 1)
-    {
-        convolution_fc->create_pipeline();
-    }
-
     if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
     {
         pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
@@ -679,6 +646,41 @@ int Convolution::create_pipeline()
         pipeline_convolution_pack4to1->create("convolution_pack4to1", specializations, 4, 10);
     }
 
+    // fc
+    if (kernel_w == 1 && kernel_h == 1)
+    {
+        std::vector<vk_specialization_type> specializations(1);
+        specializations[0].i = bias_term;
+
+        pipeline_innerproduct = new Pipeline(vkdev);
+        pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
+        pipeline_innerproduct->create("innerproduct", specializations, 4, 10);
+
+        // pack4
+        if (num_input % 4 == 0 && num_output % 4 == 0)
+        {
+            pipeline_innerproduct_pack4 = new Pipeline(vkdev);
+            pipeline_innerproduct_pack4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
+            pipeline_innerproduct_pack4->create("innerproduct_pack4", specializations, 4, 10);
+        }
+
+        // pack1to4
+        if (num_input % 4 != 0 && num_output % 4 == 0)
+        {
+            pipeline_innerproduct_pack1to4 = new Pipeline(vkdev);
+            pipeline_innerproduct_pack1to4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
+            pipeline_innerproduct_pack1to4->create("innerproduct_pack1to4", specializations, 4, 10);
+        }
+
+        // pack4to1
+        if (num_input % 4 == 0 && num_output % 4 != 0)
+        {
+            pipeline_innerproduct_pack4to1 = new Pipeline(vkdev);
+            pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(num_output, 1, 1);
+            pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", specializations, 4, 10);
+        }
+    }
+
     return 0;
 }
 
@@ -686,9 +688,6 @@ int Convolution::destroy_pipeline()
 {
     if (padding)
         padding->destroy_pipeline();
-
-    if (convolution_fc)
-        convolution_fc->destroy_pipeline();
 
     delete pipeline_convolution;
     pipeline_convolution = 0;
@@ -705,27 +704,107 @@ int Convolution::destroy_pipeline()
     delete pipeline_convolution_pack4to1;
     pipeline_convolution_pack4to1 = 0;
 
+    // fc
+    delete pipeline_innerproduct;
+    pipeline_innerproduct = 0;
+
+    delete pipeline_innerproduct_pack4;
+    pipeline_innerproduct_pack4 = 0;
+
+    delete pipeline_innerproduct_pack1to4;
+    pipeline_innerproduct_pack1to4 = 0;
+
+    delete pipeline_innerproduct_pack4to1;
+    pipeline_innerproduct_pack4to1 = 0;
+
     return 0;
 }
 
 int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
         int num_input = weight_data_size / num_output;
         if (bottom_blob.w * bottom_blob.packing == num_input)
         {
-            // call InnerProduct
-            return convolution_fc->forward(bottom_blob, top_blob, cmd, opt);
+            int out_packing = num_output % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / packing * out_packing;
+
+            top_blob.create(num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+            if (top_blob.empty())
+                return -100;
+
+//             fprintf(stderr, "InnerProduct::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
+
+            std::vector<VkMat> bindings(4);
+            bindings[0] = bottom_blob;
+            bindings[1] = top_blob;
+            if (packing == 1 && out_packing == 1)
+            {
+                bindings[2] = weight_data_gpu;
+                bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu;// TODO use dummy buffer
+            }
+            else if (packing == 4 && out_packing == 4)
+            {
+                bindings[2] = weight_data_gpu_pack4;
+                bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack4;// TODO use dummy buffer
+            }
+            else if (packing == 1 && out_packing == 4)
+            {
+                bindings[2] = weight_data_gpu_pack1to4;
+                bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack1to4;// TODO use dummy buffer
+            }
+            else if (packing == 4 && out_packing == 1)
+            {
+                bindings[2] = weight_data_gpu_pack4to1;
+                bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu_pack4to1;// TODO use dummy buffer
+            }
+
+            std::vector<vk_constant_type> constants(10);
+            constants[0].i = bottom_blob.dims;
+            constants[1].i = bottom_blob.w;
+            constants[2].i = bottom_blob.h;
+            constants[3].i = bottom_blob.c;
+            constants[4].i = bottom_blob.cstep;
+            constants[5].i = top_blob.dims;
+            constants[6].i = top_blob.w;
+            constants[7].i = top_blob.h;
+            constants[8].i = top_blob.c;
+            constants[9].i = top_blob.cstep;
+
+            const Pipeline* pipeline = 0;
+            if (packing == 1 && out_packing == 1)
+            {
+                pipeline = pipeline_innerproduct;
+            }
+            else if (packing == 4 && out_packing == 4)
+            {
+                pipeline = pipeline_innerproduct_pack4;
+            }
+            else if (packing == 1 && out_packing == 4)
+            {
+                pipeline = pipeline_innerproduct_pack1to4;
+            }
+            else if (packing == 4 && out_packing == 1)
+            {
+                pipeline = pipeline_innerproduct_pack4to1;
+            }
+
+            // record
+            cmd.record_prepare_compute_barrier(bottom_blob);
+            cmd.record_prepare_compute_barrier(top_blob);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+            return 0;
         }
     }
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
