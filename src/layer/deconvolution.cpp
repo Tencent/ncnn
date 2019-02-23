@@ -195,7 +195,11 @@ int Deconvolution::upload_model(VkTransfer& cmd)
         }
     }
 
-    cmd.record_upload(weight_data_transposed, weight_data_gpu);
+    // pack1
+    if (num_input % 4 != 0 && num_output % 4 != 0)
+    {
+        cmd.record_upload(weight_data_transposed, weight_data_gpu);
+    }
 
     // pack4
     if (num_input % 4 == 0 && num_output % 4 == 0)
@@ -361,9 +365,14 @@ int Deconvolution::upload_model(VkTransfer& cmd)
         cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1);
     }
 
-    if (num_output % 4 == 0)
+    if (bias_term)
     {
-        if (bias_term)
+        if (num_output % 4 != 0)
+        {
+            cmd.record_upload(bias_data, bias_data_gpu);
+        }
+
+        if (num_output % 4 == 0)
         {
             Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
@@ -371,18 +380,13 @@ int Deconvolution::upload_model(VkTransfer& cmd)
         }
     }
 
-    if (bias_term)
-    {
-        cmd.record_upload(bias_data, bias_data_gpu);
-    }
-
     return 0;
 }
 
 int Deconvolution::create_pipeline()
 {
-    pipeline_deconvolution = new Pipeline(vkdev);
-    pipeline_deconvolution->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+    const int maxk = kernel_w * kernel_h;
+    int num_input = weight_data_size / maxk / num_output;
 
     std::vector<vk_specialization_type> specializations(7);
     specializations[0].i = kernel_w;
@@ -393,10 +397,13 @@ int Deconvolution::create_pipeline()
     specializations[5].i = stride_h;
     specializations[6].i = bias_term;
 
-    pipeline_deconvolution->create("deconvolution", specializations, 4, 10);
-
-    const int maxk = kernel_w * kernel_h;
-    int num_input = weight_data_size / maxk / num_output;
+    // pack1
+    if (num_input % 4 != 0 && num_output % 4 != 0)
+    {
+        pipeline_deconvolution = new Pipeline(vkdev);
+        pipeline_deconvolution->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution->create("deconvolution", specializations, 4, 10);
+    }
 
     // pack4
     if (num_input % 4 == 0 && num_output % 4 == 0)
@@ -470,22 +477,22 @@ int Deconvolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     if (packing == 1 && out_packing == 1)
     {
         bindings[2] = weight_data_gpu;
-        bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
     }
     else if (packing == 4 && out_packing == 4)
     {
         bindings[2] = weight_data_gpu_pack4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack4;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
     }
     else if (packing == 1 && out_packing == 4)
     {
         bindings[2] = weight_data_gpu_pack1to4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack1to4;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
     }
     else if (packing == 4 && out_packing == 1)
     {
         bindings[2] = weight_data_gpu_pack4to1;
-        bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu_pack4to1;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
     }
 
     // record

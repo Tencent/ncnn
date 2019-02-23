@@ -141,8 +141,12 @@ int BatchNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_VULKAN
 int BatchNorm::upload_model(VkTransfer& cmd)
 {
-    cmd.record_upload(a_data, a_data_gpu);
-    cmd.record_upload(b_data, b_data_gpu);
+    // pack1
+    if (channels % 4 != 0)
+    {
+        cmd.record_upload(a_data, a_data_gpu);
+        cmd.record_upload(b_data, b_data_gpu);
+    }
 
     // pack4
     if (channels % 4 == 0)
@@ -161,12 +165,15 @@ int BatchNorm::upload_model(VkTransfer& cmd)
 
 int BatchNorm::create_pipeline()
 {
-    pipeline_batchnorm = new Pipeline(vkdev);
-    pipeline_batchnorm->set_optimal_local_size_xyz(32, 32, channels);
-
     std::vector<vk_specialization_type> specializations(0);
 
-    pipeline_batchnorm->create("batchnorm", specializations, 3, 5);
+    // pack1
+    if (channels % 4 != 0)
+    {
+        pipeline_batchnorm = new Pipeline(vkdev);
+        pipeline_batchnorm->set_optimal_local_size_xyz(32, 32, channels);
+        pipeline_batchnorm->create("batchnorm", specializations, 3, 5);
+    }
 
     // pack4
     if (channels % 4 == 0)

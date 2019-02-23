@@ -403,15 +403,14 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #if NCNN_VULKAN
 int Convolution::upload_model(VkTransfer& cmd)
 {
-    cmd.record_upload(weight_data, weight_data_gpu);
-
-    if (bias_term)
-    {
-        cmd.record_upload(bias_data, bias_data_gpu);
-    }
-
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
+
+    // pack1
+    if (num_input % 4 != 0 && num_output % 4 != 0)
+    {
+        cmd.record_upload(weight_data, weight_data_gpu);
+    }
 
     // pack4
     if (num_input % 4 == 0 && num_output % 4 == 0)
@@ -577,9 +576,14 @@ int Convolution::upload_model(VkTransfer& cmd)
         cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1);
     }
 
-    if (num_output % 4 == 0)
+    if (bias_term)
     {
-        if (bias_term)
+        if (num_output % 4 != 0)
+        {
+            cmd.record_upload(bias_data, bias_data_gpu);
+        }
+
+        if (num_output % 4 == 0)
         {
             Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
@@ -592,20 +596,6 @@ int Convolution::upload_model(VkTransfer& cmd)
 
 int Convolution::create_pipeline()
 {
-    pipeline_convolution = new Pipeline(vkdev);
-    pipeline_convolution->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
-
-    std::vector<vk_specialization_type> specializations(7);
-    specializations[0].i = kernel_w;
-    specializations[1].i = kernel_h;
-    specializations[2].i = dilation_w;
-    specializations[3].i = dilation_h;
-    specializations[4].i = stride_w;
-    specializations[5].i = stride_h;
-    specializations[6].i = bias_term;
-
-    pipeline_convolution->create("convolution", specializations, 4, 10);
-
     padding->create_pipeline();
 
     if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
@@ -621,6 +611,23 @@ int Convolution::create_pipeline()
 
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
+
+    std::vector<vk_specialization_type> specializations(7);
+    specializations[0].i = kernel_w;
+    specializations[1].i = kernel_h;
+    specializations[2].i = dilation_w;
+    specializations[3].i = dilation_h;
+    specializations[4].i = stride_w;
+    specializations[5].i = stride_h;
+    specializations[6].i = bias_term;
+
+    // pack1
+    if (num_input % 4 != 0 && num_output % 4 != 0)
+    {
+        pipeline_convolution = new Pipeline(vkdev);
+        pipeline_convolution->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolution->create("convolution", specializations, 4, 10);
+    }
 
     // pack4
     if (num_input % 4 == 0 && num_output % 4 == 0)
@@ -652,9 +659,13 @@ int Convolution::create_pipeline()
         std::vector<vk_specialization_type> specializations(1);
         specializations[0].i = bias_term;
 
-        pipeline_innerproduct = new Pipeline(vkdev);
-        pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
-        pipeline_innerproduct->create("innerproduct", specializations, 4, 10);
+        // pack1
+        if (num_input % 4 != 0 && num_output % 4 != 0)
+        {
+            pipeline_innerproduct = new Pipeline(vkdev);
+            pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
+            pipeline_innerproduct->create("innerproduct", specializations, 4, 10);
+        }
 
         // pack4
         if (num_input % 4 == 0 && num_output % 4 == 0)
@@ -749,22 +760,22 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             if (packing == 1 && out_packing == 1)
             {
                 bindings[2] = weight_data_gpu;
-                bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu;// TODO use dummy buffer
+                bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
             }
             else if (packing == 4 && out_packing == 4)
             {
                 bindings[2] = weight_data_gpu_pack4;
-                bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack4;// TODO use dummy buffer
+                bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
             }
             else if (packing == 1 && out_packing == 4)
             {
                 bindings[2] = weight_data_gpu_pack1to4;
-                bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack1to4;// TODO use dummy buffer
+                bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
             }
             else if (packing == 4 && out_packing == 1)
             {
                 bindings[2] = weight_data_gpu_pack4to1;
-                bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu_pack4to1;// TODO use dummy buffer
+                bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
             }
 
             std::vector<vk_constant_type> constants(10);
@@ -838,22 +849,22 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     if (packing == 1 && out_packing == 1)
     {
         bindings[2] = weight_data_gpu;
-        bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
     }
     else if (packing == 4 && out_packing == 4)
     {
         bindings[2] = weight_data_gpu_pack4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack4;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
     }
     else if (packing == 1 && out_packing == 4)
     {
         bindings[2] = weight_data_gpu_pack1to4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack1to4;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
     }
     else if (packing == 4 && out_packing == 1)
     {
         bindings[2] = weight_data_gpu_pack4to1;
-        bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu_pack4to1;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
     }
 
     // record
