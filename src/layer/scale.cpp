@@ -43,12 +43,12 @@ int Scale::load_param(const ParamDict& pd)
 
 int Scale::load_model(const ModelBin& mb)
 {
-    if (scale_data_size != -233)
-    {
-        scale_data = mb.load(scale_data_size, 1);
-        if (scale_data.empty())
-            return -100;
-    }
+    if (scale_data_size == -233)
+        return 0;
+
+    scale_data = mb.load(scale_data_size, 1);
+    if (scale_data.empty())
+        return -100;
 
     if (bias_term)
     {
@@ -182,23 +182,33 @@ int Scale::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_VULKAN
 int Scale::upload_model(VkTransfer& cmd)
 {
-    if (scale_data_size != -233)
+    if (scale_data_size == -233)
+        return 0;
+
+    // pack1
+    if (scale_data_size % 4 != 0)
     {
         cmd.record_upload(scale_data, scale_data_gpu);
+    }
 
-        // pack4
-        {
-            Mat scale_data_pack4;
-            convert_packing(scale_data, scale_data_pack4, 4);
-            cmd.record_upload(scale_data_pack4, scale_data_gpu_pack4);
-        }
+    // pack4
+    if (scale_data_size % 4 == 0)
+    {
+        Mat scale_data_pack4;
+        convert_packing(scale_data, scale_data_pack4, 4);
+        cmd.record_upload(scale_data_pack4, scale_data_gpu_pack4);
     }
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data, bias_data_gpu);
+        // pack1
+        if (scale_data_size % 4 != 0)
+        {
+            cmd.record_upload(bias_data, bias_data_gpu);
+        }
 
         // pack4
+        if (scale_data_size % 4 == 0)
         {
             Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
@@ -211,25 +221,41 @@ int Scale::upload_model(VkTransfer& cmd)
 
 int Scale::create_pipeline()
 {
-    pipeline_scale = new Pipeline(vkdev);
     if (scale_data_size == -233)
+    {
+        std::vector<vk_specialization_type> specializations(1);
+        specializations[0].i = 0;
+
+        pipeline_scale = new Pipeline(vkdev);
         pipeline_scale->set_optimal_local_size_xyz();
-    else
-        pipeline_scale->set_optimal_local_size_xyz(8, 8, scale_data_size);
+        pipeline_scale->create("scale", specializations, 3, 5);
+
+        // pack4
+        {
+            pipeline_scale_pack4 = new Pipeline(vkdev);
+            pipeline_scale_pack4->set_optimal_local_size_xyz();
+            pipeline_scale_pack4->create("scale_pack4", specializations, 3, 5);
+        }
+
+        return 0;
+    }
 
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = bias_term;
 
-    pipeline_scale->create("scale", specializations, 3, 5);
+    // pack1
+    if (scale_data_size % 4 != 0)
+    {
+        pipeline_scale = new Pipeline(vkdev);
+        pipeline_scale->set_optimal_local_size_xyz(8, 8, scale_data_size);
+        pipeline_scale->create("scale", specializations, 3, 5);
+    }
 
     // pack4
+    if (scale_data_size % 4 == 0)
     {
         pipeline_scale_pack4 = new Pipeline(vkdev);
-        if (scale_data_size == -233)
-            pipeline_scale_pack4->set_optimal_local_size_xyz();
-        else
-            pipeline_scale_pack4->set_optimal_local_size_xyz(8, 8, scale_data_size / 4);
-
+        pipeline_scale_pack4->set_optimal_local_size_xyz(8, 8, scale_data_size / 4);
         pipeline_scale_pack4->create("scale_pack4", specializations, 3, 5);
     }
 

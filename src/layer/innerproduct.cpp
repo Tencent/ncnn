@@ -234,14 +234,13 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 #if NCNN_VULKAN
 int InnerProduct::upload_model(VkTransfer& cmd)
 {
-    cmd.record_upload(weight_data, weight_data_gpu);
-
-    if (bias_term)
-    {
-        cmd.record_upload(bias_data, bias_data_gpu);
-    }
-
     int num_input = weight_data_size / num_output;
+
+    // pack1
+    if (num_input % 4 != 0 && num_output % 4 != 0)
+    {
+        cmd.record_upload(weight_data, weight_data_gpu);
+    }
 
     // pack4
     if (num_input % 4 == 0 && num_output % 4 == 0)
@@ -368,9 +367,14 @@ int InnerProduct::upload_model(VkTransfer& cmd)
         cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1);
     }
 
-    if (num_output % 4 == 0)
+    if (bias_term)
     {
-        if (bias_term)
+        if (num_output % 4 != 0)
+        {
+            cmd.record_upload(bias_data, bias_data_gpu);
+        }
+
+        if (num_output % 4 == 0)
         {
             Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
@@ -383,17 +387,20 @@ int InnerProduct::upload_model(VkTransfer& cmd)
 
 int InnerProduct::create_pipeline()
 {
-    pipeline_innerproduct = new Pipeline(vkdev);
-    pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
+    flatten->create_pipeline();
+
+    int num_input = weight_data_size / num_output;
 
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = bias_term;
 
-    pipeline_innerproduct->create("innerproduct", specializations, 4, 10);
-
-    flatten->create_pipeline();
-
-    int num_input = weight_data_size / num_output;
+    // pack1
+    if (num_input % 4 != 0 && num_output % 4 != 0)
+    {
+        pipeline_innerproduct = new Pipeline(vkdev);
+        pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
+        pipeline_innerproduct->create("innerproduct", specializations, 4, 10);
+    }
 
     // pack4
     if (num_input % 4 == 0 && num_output % 4 == 0)
@@ -472,22 +479,22 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     if (packing == 1 && out_packing == 1)
     {
         bindings[2] = weight_data_gpu;
-        bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
     }
     else if (packing == 4 && out_packing == 4)
     {
         bindings[2] = weight_data_gpu_pack4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack4;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
     }
     else if (packing == 1 && out_packing == 4)
     {
         bindings[2] = weight_data_gpu_pack1to4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack1to4;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
     }
     else if (packing == 4 && out_packing == 1)
     {
         bindings[2] = weight_data_gpu_pack4to1;
-        bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu_pack4to1;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
     }
 
     std::vector<vk_constant_type> constants(10);

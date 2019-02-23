@@ -288,15 +288,14 @@ int DeconvolutionDepthWise::upload_model(VkTransfer& cmd)
     // depth-wise
     if (channels == group && group == num_output)
     {
-        cmd.record_upload(weight_data_transposed, weight_data_gpu);
-
-        if (bias_term)
+        // pack1
+        if (num_output % 4 != 0)
         {
-            cmd.record_upload(bias_data, bias_data_gpu);
+            cmd.record_upload(weight_data_transposed, weight_data_gpu);
         }
 
         // pack4
-        if (channels % 4 == 0 && num_output % 4 == 0)
+        if (num_output % 4 == 0)
         {
             const int maxk = kernel_w * kernel_h;
 
@@ -306,8 +305,16 @@ int DeconvolutionDepthWise::upload_model(VkTransfer& cmd)
 
             weight_data_pack4 = weight_data_pack4.reshape(maxk * (group/4));
             cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
+        }
 
-            if (bias_term)
+        if (bias_term)
+        {
+            if (num_output % 4 != 0)
+            {
+                cmd.record_upload(bias_data, bias_data_gpu);
+            }
+
+            if (num_output % 4 == 0)
             {
                 Mat bias_data_pack4;
                 convert_packing(bias_data, bias_data_pack4, 4);
@@ -319,15 +326,14 @@ int DeconvolutionDepthWise::upload_model(VkTransfer& cmd)
     }
 
     // group deconvolution
-    cmd.record_upload(weight_data_transposed, weight_data_gpu);
-
-    if (bias_term)
-    {
-        cmd.record_upload(bias_data, bias_data_gpu);
-    }
-
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
+
+    // pack1
+    if (channels_g % 4 != 0 && num_output_g % 4 != 0)
+    {
+        cmd.record_upload(weight_data_transposed, weight_data_gpu);
+    }
 
     // pack4
     if (channels_g % 4 == 0 && num_output_g % 4 == 0)
@@ -514,9 +520,14 @@ int DeconvolutionDepthWise::upload_model(VkTransfer& cmd)
         cmd.record_upload(weight_data_pack4to1_groups, weight_data_gpu_pack4to1);
     }
 
-    if (num_output_g % 4 == 0)
+    if (bias_term)
     {
-        if (bias_term)
+        if (num_output_g % 4 != 0)
+        {
+            cmd.record_upload(bias_data, bias_data_gpu);
+        }
+
+        if (num_output_g % 4 == 0)
         {
             Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
@@ -535,9 +546,6 @@ int DeconvolutionDepthWise::create_pipeline()
     // depth-wise
     if (channels == group && group == num_output)
     {
-        pipeline_deconvolutiondepthwise = new Pipeline(vkdev);
-        pipeline_deconvolutiondepthwise->set_optimal_local_size_xyz(32, 32, num_output);
-
         std::vector<vk_specialization_type> specializations(8);
         specializations[0].i = kernel_w;
         specializations[1].i = kernel_h;
@@ -548,7 +556,13 @@ int DeconvolutionDepthWise::create_pipeline()
         specializations[6].i = bias_term;
         specializations[7].i = group;
 
-        pipeline_deconvolutiondepthwise->create("deconvolutiondepthwise", specializations, 4, 10);
+        // pack1
+        if (num_output % 4 != 0)
+        {
+            pipeline_deconvolutiondepthwise = new Pipeline(vkdev);
+            pipeline_deconvolutiondepthwise->set_optimal_local_size_xyz(32, 32, num_output);
+            pipeline_deconvolutiondepthwise->create("deconvolutiondepthwise", specializations, 4, 10);
+        }
 
         // pack4
         if (num_output % 4 == 0)
@@ -561,12 +575,9 @@ int DeconvolutionDepthWise::create_pipeline()
         return 0;
     }
 
+    // group deconvolution
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
-
-    // group deconvolution
-    pipeline_deconvolutiondepthwise_group = new Pipeline(vkdev);
-    pipeline_deconvolutiondepthwise_group->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
 
     std::vector<vk_specialization_type> specializations(8);
     specializations[0].i = kernel_w;
@@ -578,7 +589,13 @@ int DeconvolutionDepthWise::create_pipeline()
     specializations[6].i = bias_term;
     specializations[7].i = group;
 
-    pipeline_deconvolutiondepthwise_group->create("deconvolutiondepthwise_group", specializations, 4, 10);
+    // pack1
+    if (channels_g % 4 != 0 && num_output_g % 4 != 0)
+    {
+        pipeline_deconvolutiondepthwise_group = new Pipeline(vkdev);
+        pipeline_deconvolutiondepthwise_group->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolutiondepthwise_group->create("deconvolutiondepthwise_group", specializations, 4, 10);
+    }
 
     // pack4
     if (channels_g % 4 == 0 && num_output_g % 4 == 0)
@@ -675,7 +692,7 @@ int DeconvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, V
         bindings[0] = bottom_blob;
         bindings[1] = top_blob;
         bindings[2] = packing == 4 ? weight_data_gpu_pack4 : weight_data_gpu;
-        bindings[3] = bias_term ? (packing == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : weight_data_gpu;// TODO use dummy buffer
+        bindings[3] = bias_term ? (packing == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : bindings[2];// TODO use dummy buffer
 
         std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob.dims;
@@ -726,22 +743,22 @@ int DeconvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, V
     if (channels_g % 4 != 0 && num_output_g % 4 != 0)
     {
         bindings[2] = weight_data_gpu;
-        bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
     }
     else if (channels_g % 4 == 0 && num_output_g % 4 == 0)
     {
         bindings[2] = weight_data_gpu_pack4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack4;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
     }
     else if (channels_g % 4 != 0 && num_output_g % 4 == 0)
     {
         bindings[2] = weight_data_gpu_pack1to4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : weight_data_gpu_pack1to4;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
     }
     else if (channels_g % 4 == 0 && num_output_g % 4 != 0)
     {
         bindings[2] = weight_data_gpu_pack4to1;
-        bindings[3] = bias_term ? bias_data_gpu : weight_data_gpu_pack4to1;// TODO use dummy buffer
+        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
     }
 
     std::vector<vk_constant_type> constants(10);
