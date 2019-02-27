@@ -25,7 +25,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
 
     const signed char *kernel = _kernel;
 
-    double start = ncnn::get_current_time();
+    // double start = ncnn::get_current_time();
     // im2col
     Mat bottom_im2col(outw*outh, kernel_h*kernel_w*inch, 1UL, opt.workspace_allocator);
     {
@@ -56,9 +56,9 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
             }
         }
     }
-    double end = ncnn::get_current_time();
-    printf("im2col : %8.3f ms\n", end - start);
-    start = ncnn::get_current_time();
+    // double end = ncnn::get_current_time();
+    // printf("im2col : %8.3f ms\n", end - start);
+    // start = ncnn::get_current_time();
 
     int kernel_size = kernel_w * kernel_h;
     int out_size = outw * outh;
@@ -112,9 +112,9 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
             }
         }       
     }
-    end = ncnn::get_current_time();
-    printf("d_pack : %8.3f ms\n", end - start);
-    start = ncnn::get_current_time();
+    // end = ncnn::get_current_time();
+    // printf("d_pack : %8.3f ms\n", end - start);
+    // start = ncnn::get_current_time();
 
     // kernel memory packed 4 x 8
     Mat kernel_tm(4*kernel_size, inch, outch/4 + outch%4, (size_t)1u, opt.workspace_allocator);
@@ -168,12 +168,12 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
         }
     }
 
-    end = ncnn::get_current_time();
-    printf("k_pack : %8.3f ms\n", end - start);
-    start = ncnn::get_current_time();
+    // end = ncnn::get_current_time();
+    // printf("k_pack : %8.3f ms\n", end - start);
+    // start = ncnn::get_current_time();
     // sgemm(int M, int N, int L, float* A, float* B, float* C)
     {
-        int M = outch;  // outch
+        // int M = outch;  // outch
         int N = outw * outh; // outsize or out stride
         int L = kernel_w * kernel_h * inch; // ksize * inch
 
@@ -389,6 +389,6 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
             }
         }
     }
-    end = ncnn::get_current_time();
-    printf("sgemm  : %8.3f ms\n", end - start);
+    // end = ncnn::get_current_time();
+    // printf("sgemm  : %8.3f ms\n", end - start);
 }
