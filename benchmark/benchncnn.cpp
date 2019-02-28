@@ -501,9 +501,7 @@ int main(int argc, char** argv)
 
     benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
 
-#if !NCNN_VULKAN
     benchmark("shufflenet", shufflenet_init, shufflenet_run);
-#endif // NCNN_VULKAN
 
     benchmark("mnasnet", mnasnet_init, mnasnet_run);
 
@@ -515,9 +513,9 @@ int main(int argc, char** argv)
 
     benchmark("alexnet", alexnet_init, alexnet_run);
 
-#if !NCNN_VULKAN
     benchmark("vgg16", vgg16_init, vgg16_run);
 
+#if !NCNN_VULKAN
     benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
 
     benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
