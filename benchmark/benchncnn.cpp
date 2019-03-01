@@ -409,6 +409,19 @@ void mobilenet_yolo_run(const ncnn::Net& net)
     ncnn::Mat in(416, 416, 3);
     ex.input("data", in);
 
+    // TODO chain conv22 conv23
+    if (g_use_vulkan_compute)
+    {
+        ncnn::Mat conv22;
+        ex.extract("conv22", conv22);
+
+        ncnn::Mat conv23;
+        ex.extract("conv23", conv23);
+
+        // use cpu for detection_out
+        ex.set_vulkan_compute(false);
+    }
+
     ncnn::Mat out;
     ex.extract("detection_out", out);
 }
@@ -424,6 +437,19 @@ void mobilenet_yolov3_run(const ncnn::Net& net)
 
     ncnn::Mat in(416, 416, 3);
     ex.input("data", in);
+
+    // TODO chain conv19 conv20
+    if (g_use_vulkan_compute)
+    {
+        ncnn::Mat conv19;
+        ex.extract("conv19", conv19);
+
+        ncnn::Mat conv20;
+        ex.extract("conv20", conv20);
+
+        // use cpu for detection_out
+        ex.set_vulkan_compute(false);
+    }
 
     ncnn::Mat out;
     ex.extract("detection_out", out);
@@ -519,11 +545,11 @@ int main(int argc, char** argv)
     benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
 
     benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
+#endif // NCNN_VULKAN
 
     benchmark("mobilenet-yolo", mobilenet_yolo_init, mobilenet_yolo_run);
 
     benchmark("mobilenet-yolov3", mobilenet_yolov3_init, mobilenet_yolov3_run);
-#endif // NCNN_VULKAN
 
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
