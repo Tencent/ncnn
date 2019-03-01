@@ -56,7 +56,7 @@ int Command::create_command_pool()
     VkCommandPoolCreateInfo commandPoolCreateInfo;
     commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     commandPoolCreateInfo.pNext = 0;
-    commandPoolCreateInfo.flags = 0;
+    commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     commandPoolCreateInfo.queueFamilyIndex = queue_index;
 
     VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &command_pool);
@@ -535,6 +535,25 @@ int VkCompute::submit()
 int VkCompute::wait()
 {
     return wait_fence();
+}
+
+int VkCompute::reset()
+{
+//     fprintf(stderr, "cmd reset\n");
+
+    VkResult ret = vkResetCommandBuffer(command_buffer, 0);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkResetCommandBuffer failed %d\n", ret);
+        return -1;
+    }
+
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        begin_command_buffer();
+    }
+
+    return 0;
 }
 
 void VkCompute::copy_buffer(VkBuffer src, size_t src_offset, VkBuffer dst, size_t dst_offset, size_t size)
