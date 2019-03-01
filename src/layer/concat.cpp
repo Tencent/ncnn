@@ -349,7 +349,51 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
 
     if (dims == 2 && axis == 1)
     {
-        // TODO
+        // interleave image row
+        int h = bottom_blobs[0].h;
+
+        // total width
+        int top_w = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkMat& bottom_blob = bottom_blobs[b];
+            top_w += bottom_blob.w;
+        }
+
+        VkMat& top_blob = top_blobs[0];
+        top_blob.create(top_w, h, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        cmd.record_prepare_transfer_barrier(top_blob);
+
+        int dstOffset_0 = 0;
+
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkMat& bottom_blob = bottom_blobs[b];
+
+            int size = bottom_blob.w * bottom_blob.elemsize;
+
+            int dstOffset = dstOffset_0;
+
+            std::vector<VkBufferCopy> regions(h);
+            for (int i=0; i<h; i++)
+            {
+                regions[i].srcOffset = bottom_blob.buffer_offset();
+                regions[i].dstOffset = top_blob.buffer_offset() + dstOffset;
+                regions[i].size = size;
+
+                dstOffset += top_blob.w * top_blob.elemsize;
+            }
+
+            cmd.record_prepare_transfer_barrier(bottom_blob);
+            cmd.record_copy_regions(bottom_blob, top_blob, regions);
+
+            dstOffset_0 += size;
+        }
+
+        return 0;
     }
 
     if (dims == 3 && axis == 0)
