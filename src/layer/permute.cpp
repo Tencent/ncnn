@@ -317,8 +317,6 @@ int Permute::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
         }
     }
 
-    fprintf(stderr, "%d %d %d\n", top_blob.w, top_blob.h, top_blob.c);
-
 //     fprintf(stderr, "Permute::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
 
     std::vector<VkMat> bindings(2);
