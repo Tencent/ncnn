@@ -285,6 +285,8 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
 
     // fill result
     int num_detected = bbox_rects.size();
+    if (num_detected == 0)
+        return 0;
 
     Mat& top_blob = bottom_top_blobs[0];
     top_blob.create(6, num_detected, 4u, opt.blob_allocator);
