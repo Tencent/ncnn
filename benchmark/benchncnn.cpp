@@ -409,6 +409,7 @@ void mobilenet_yolo_run(const ncnn::Net& net)
     ncnn::Mat in(416, 416, 3);
     ex.input("data", in);
 
+#if NCNN_VULKAN
     // TODO chain conv22 conv23
     if (g_use_vulkan_compute)
     {
@@ -421,6 +422,7 @@ void mobilenet_yolo_run(const ncnn::Net& net)
         // use cpu for detection_out
         ex.set_vulkan_compute(false);
     }
+#endif // NCNN_VULKAN
 
     ncnn::Mat out;
     ex.extract("detection_out", out);
@@ -438,6 +440,7 @@ void mobilenet_yolov3_run(const ncnn::Net& net)
     ncnn::Mat in(416, 416, 3);
     ex.input("data", in);
 
+#if NCNN_VULKAN
     // TODO chain conv19 conv20
     if (g_use_vulkan_compute)
     {
@@ -450,6 +453,7 @@ void mobilenet_yolov3_run(const ncnn::Net& net)
         // use cpu for detection_out
         ex.set_vulkan_compute(false);
     }
+#endif // NCNN_VULKAN
 
     ncnn::Mat out;
     ex.extract("detection_out", out);
