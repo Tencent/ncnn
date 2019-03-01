@@ -39,6 +39,12 @@ public:
     Mat weight_hc_data;
     Mat weight_xc_data;
     Mat bias_c_data;
+
+    // internal lstm state , mutable so that it can be changed by forward() const
+    // stored here so that successive calls to forward() may restart from previous
+    // state (if unwanted, set cont indicator  to zero at beginning of sequence)
+    mutable Mat hidden;
+    mutable Mat cell;
 };
 
 } // namespace ncnn

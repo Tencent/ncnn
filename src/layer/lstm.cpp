@@ -68,13 +68,14 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     int size = input_blob.w;
 
     // initial hidden state
-    Mat hidden(num_output, 4u, opt.workspace_allocator);
+    // created only if necessary by Mat::create
+    hidden.create(num_output, 4u, opt.workspace_allocator);
     if (hidden.empty())
         return -100;
-    hidden.fill(0.f);
 
     // internal cell state
-    Mat cell(num_output, 4u, opt.workspace_allocator);
+    // created only if necessary by Mat::create
+    cell.create(num_output, 4u, opt.workspace_allocator);
     if (cell.empty())
         return -100;
     // 4 x num_output
