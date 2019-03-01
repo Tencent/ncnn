@@ -88,6 +88,8 @@ public:
 
     int wait();
 
+    int reset();
+
 protected:
     // record pipeline things
     void record_bind_pipeline(VkPipeline pipeline);
