@@ -515,11 +515,9 @@ int main(int argc, char** argv)
 
     benchmark("vgg16", vgg16_init, vgg16_run);
 
-#if !NCNN_VULKAN
     benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
 
     benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
-#endif // NCNN_VULKAN
 
     benchmark("mobilenet-yolo", mobilenet_yolo_init, mobilenet_yolo_run);
 
