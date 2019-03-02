@@ -1185,7 +1185,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     cmd.record_upload(bottom_blob);
 
                     // TODO convert packing
-//                     fprintf(stderr, "upload %d %d %d  %lu %d\n", bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
+//                     fprintf(stderr, "upload %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
                 }
             }
 
@@ -1287,7 +1287,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         cmd.record_upload(bottom_blob);
 
                         // TODO convert packing
-//                         fprintf(stderr, "upload %d %d %d  %lu %d\n", bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
+//                         fprintf(stderr, "upload %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
                     }
                 }
 
@@ -1418,7 +1418,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     }
 
                     // TODO convert packing
-//                     fprintf(stderr, "download %d %d %d  %lu %d\n", bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
+//                     fprintf(stderr, "download %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
                 }
             }
 
@@ -1519,10 +1519,21 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     }
 
                     // TODO convert packing
-//                     fprintf(stderr, "download %d %d %d  %lu %d\n", bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
+//                     fprintf(stderr, "download %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
                 }
 
                 bottom_blobs[i] = blob_mats[bottom_blob_index];
+
+                if (opt.lightmode)
+                {
+                    // delete after taken in light mode
+                    blob_mats[bottom_blob_index].release();
+                    // deep copy for inplace forward if data is shared
+                    if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                    {
+                        bottom_blobs[i] = bottom_blobs[i].clone();
+                    }
+                }
             }
 
             // forward
