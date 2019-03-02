@@ -1181,8 +1181,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     bottom_blob.upload(blob_mats[bottom_blob_index]);
 
-                    cmd.record_prepare_transfer_barrier(bottom_blob);
-                    cmd.record_upload(bottom_blob);
+                    if (!bottom_blob.allocator->mappable)
+                    {
+                        cmd.record_prepare_transfer_barrier(bottom_blob);
+                        cmd.record_upload(bottom_blob);
+                    }
 
                     // TODO convert packing
 //                     fprintf(stderr, "upload %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
@@ -1283,8 +1286,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                         bottom_blob.upload(blob_mats[bottom_blob_index]);
 
-                        cmd.record_prepare_transfer_barrier(bottom_blob);
-                        cmd.record_upload(bottom_blob);
+                        if (!bottom_blob.allocator->mappable)
+                        {
+                            cmd.record_prepare_transfer_barrier(bottom_blob);
+                            cmd.record_upload(bottom_blob);
+                        }
 
                         // TODO convert packing
 //                         fprintf(stderr, "upload %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
