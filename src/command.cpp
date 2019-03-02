@@ -548,6 +548,13 @@ int VkCompute::reset()
         return -1;
     }
 
+    ret = vkResetFences(vkdev->vkdevice(), 1, &fence);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkResetFences failed %d\n", ret);
+        return -1;
+    }
+
     if (vkdev->info.support_VK_KHR_push_descriptor)
     {
         begin_command_buffer();
