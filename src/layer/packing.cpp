@@ -33,6 +33,7 @@ Packing::Packing()
 int Packing::load_param(const ParamDict& pd)
 {
     out_packing = pd.get(0, 1);
+    use_padding = pd.get(1, 0);
 
     return 0;
 }
@@ -52,6 +53,26 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
+
+    if (!use_padding)
+    {
+        // identity if use_padding not allowed
+        if (dims == 1 && w * packing % out_packing != 0)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+        if (dims == 2 && h * packing % out_packing != 0)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+        if (dims == 3 && channels * packing % out_packing != 0)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+    }
 
     if (dims == 1)
     {
