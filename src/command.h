@@ -29,7 +29,7 @@ namespace ncnn {
 class Command
 {
 public:
-    Command(VulkanDevice* vkdev, uint32_t queue_index);
+    Command(const VulkanDevice* vkdev, uint32_t queue_index);
     ~Command();
 
 protected:
@@ -43,7 +43,7 @@ protected:
     int wait_fence();
 
 protected:
-    VulkanDevice* vkdev;
+    const VulkanDevice* vkdev;
     uint32_t queue_index;
 
     VkQueue queue;
@@ -57,7 +57,7 @@ protected:
 class VkCompute : public Command
 {
 public:
-    VkCompute(VulkanDevice* vkdev);
+    VkCompute(const VulkanDevice* vkdev);
     ~VkCompute();
 
     void record_upload(const VkMat& m);
@@ -153,7 +153,7 @@ protected:
 class VkTransfer : public Command
 {
 public:
-    VkTransfer(VulkanDevice* vkdev);
+    VkTransfer(const VulkanDevice* vkdev);
     ~VkTransfer();
 
     void record_upload(const Mat& src, VkMat& dst);

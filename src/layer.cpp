@@ -30,7 +30,7 @@ Option::Option()
     workspace_allocator = 0;
 
 #if NCNN_VULKAN
-    vulkan_compute = true;
+    vulkan_compute = false;
     blob_vkallocator = 0;
     workspace_vkallocator = 0;
     staging_vkallocator = 0;

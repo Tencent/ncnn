@@ -44,6 +44,7 @@ Net::Net()
 
 #if NCNN_VULKAN
     vkdev = 0;
+    vkdev_local = 0;
     weight_vkallocator = 0;
     weight_staging_vkallocator = 0;
 #endif // NCNN_VULKAN
@@ -52,6 +53,10 @@ Net::Net()
 Net::~Net()
 {
     clear();
+
+#if NCNN_VULKAN
+    delete vkdev_local;
+#endif // NCNN_VULKAN
 }
 
 #if NCNN_STRING
@@ -142,8 +147,10 @@ int Net::load_param(FILE* fp)
 #if NCNN_VULKAN
     if (use_vulkan_compute && !vkdev)
     {
-        fprintf(stderr, "vulkan device not set, vulkan compute disabled\n");
-        use_vulkan_compute = false;
+        // use default vulkan device
+        if (!vkdev_local)
+            vkdev_local = new VulkanDevice;
+        vkdev = vkdev_local;
     }
 #endif // NCNN_VULKAN
 
@@ -311,8 +318,10 @@ int Net::load_param_mem(const char* _mem)
 #if NCNN_VULKAN
     if (use_vulkan_compute && !vkdev)
     {
-        fprintf(stderr, "vulkan device not set, vulkan compute disabled\n");
-        use_vulkan_compute = false;
+        // use default vulkan device
+        if (!vkdev_local)
+            vkdev_local = new VulkanDevice;
+        vkdev = vkdev_local;
     }
 #endif // NCNN_VULKAN
 
@@ -483,8 +492,10 @@ int Net::load_param_bin(FILE* fp)
 #if NCNN_VULKAN
     if (use_vulkan_compute && !vkdev)
     {
-        fprintf(stderr, "vulkan device not set, vulkan compute disabled\n");
-        use_vulkan_compute = false;
+        // use default vulkan device
+        if (!vkdev_local)
+            vkdev_local = new VulkanDevice;
+        vkdev = vkdev_local;
     }
 #endif // NCNN_VULKAN
 
@@ -720,8 +731,10 @@ int Net::load_param(const unsigned char* _mem)
 #if NCNN_VULKAN
     if (use_vulkan_compute && !vkdev)
     {
-        fprintf(stderr, "vulkan device not set, vulkan compute disabled\n");
-        use_vulkan_compute = false;
+        // use default vulkan device
+        if (!vkdev_local)
+            vkdev_local = new VulkanDevice;
+        vkdev = vkdev_local;
     }
 #endif // NCNN_VULKAN
 
@@ -918,7 +931,7 @@ Extractor Net::create_extractor() const
 }
 
 #if NCNN_VULKAN
-void Net::set_vulkan_device(VulkanDevice* _vkdev)
+void Net::set_vulkan_device(const VulkanDevice* _vkdev)
 {
     vkdev = _vkdev;
 }
@@ -1592,6 +1605,8 @@ Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
     opt = get_default_option();
 
 #if NCNN_VULKAN
+    opt.vulkan_compute = net->use_vulkan_compute;
+
     if (net->use_vulkan_compute)
     {
         blob_mats_gpu.resize(blob_count);

@@ -20,7 +20,7 @@
 
 namespace ncnn {
 
-Command::Command(VulkanDevice* _vkdev, uint32_t _queue_index) : vkdev(_vkdev), queue_index(_queue_index)
+Command::Command(const VulkanDevice* _vkdev, uint32_t _queue_index) : vkdev(_vkdev), queue_index(_queue_index)
 {
     // get queue
     vkGetDeviceQueue(vkdev->vkdevice(), queue_index, 0, &queue);
@@ -161,7 +161,7 @@ int Command::wait_fence()
     return 0;
 }
 
-VkCompute::VkCompute(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.compute_queue_index)
+VkCompute::VkCompute(const VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.compute_queue_index)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
     {
@@ -701,7 +701,7 @@ void VkCompute::transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index)
+VkTransfer::VkTransfer(const VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index)
 {
     buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
     staging_data = 0;
