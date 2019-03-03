@@ -18,7 +18,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "platform.h"
 #include "net.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#endif // NCNN_VULKAN
 
 class Noop : public ncnn::Layer {};
 DEFINE_LAYER_CREATOR(Noop)
@@ -33,6 +37,10 @@ struct Object
 static int detect_mobilenetv2(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net mobilenetv2;
+
+#if NCNN_VULKAN
+    mobilenetv2.use_vulkan_compute = true;
+#endif // NCNN_VULKAN
 
     mobilenetv2.register_custom_layer("Silence", Noop_layer_creator);
 
@@ -143,8 +151,16 @@ int main(int argc, char** argv)
         return -1;
     }
 
+#if NCNN_VULKAN
+    ncnn::create_gpu_instance();
+#endif // NCNN_VULKAN
+
     std::vector<Object> objects;
     detect_mobilenetv2(m, objects);
+
+#if NCNN_VULKAN
+    ncnn::destroy_gpu_instance();
+#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 
