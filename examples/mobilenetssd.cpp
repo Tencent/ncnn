@@ -18,7 +18,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "platform.h"
 #include "net.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -30,6 +34,10 @@ struct Object
 static int detect_mobilenet(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net mobilenet;
+
+#if NCNN_VULKAN
+    mobilenet.use_vulkan_compute = true;
+#endif // NCNN_VULKAN
 
     // model is converted from https://github.com/chuanqi305/MobileNet-SSD
     // and can be downloaded from https://drive.google.com/open?id=0ByaKLD9QaPtucWk0Y0dha1VVY0U
@@ -137,8 +145,16 @@ int main(int argc, char** argv)
         return -1;
     }
 
+#if NCNN_VULKAN
+    ncnn::create_gpu_instance();
+#endif // NCNN_VULKAN
+
     std::vector<Object> objects;
     detect_mobilenet(m, objects);
+
+#if NCNN_VULKAN
+    ncnn::destroy_gpu_instance();
+#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 

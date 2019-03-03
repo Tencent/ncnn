@@ -18,7 +18,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "platform.h"
 #include "net.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -115,6 +119,10 @@ static void nms_sorted_bboxes(const std::vector<Object>& objects, std::vector<in
 static int detect_rfcn(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net rfcn;
+
+#if NCNN_VULKAN
+    rfcn.use_vulkan_compute = true;
+#endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/YuwenXiong/py-R-FCN
     // https://github.com/YuwenXiong/py-R-FCN/blob/master/models/pascal_voc/ResNet-50/rfcn_end2end/test_agnostic.prototxt
@@ -342,8 +350,16 @@ int main(int argc, char** argv)
         return -1;
     }
 
+#if NCNN_VULKAN
+    ncnn::create_gpu_instance();
+#endif // NCNN_VULKAN
+
     std::vector<Object> objects;
     detect_rfcn(m, objects);
+
+#if NCNN_VULKAN
+    ncnn::destroy_gpu_instance();
+#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 

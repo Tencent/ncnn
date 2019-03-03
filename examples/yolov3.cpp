@@ -18,7 +18,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "platform.h"
 #include "net.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -31,31 +35,26 @@ static int detect_yolov3(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net yolov3;
 
-    // original pretrained model from https://github.com/eric612/Caffe-YOLOv3-Windows
-    // yolov3_deploy.prototxt
-	// https://github.com/eric612/MobileNet-YOLO/blob/master/models/darknet_yolov3/yolov3.prototxt
-    // https://drive.google.com/file/d/12nLE6GtmwZxDiulwdEmB3Ovj5xx18Nnh/view
-    yolov3.load_param("yolo.param");
-    yolov3.load_model("yolo.bin");
+#if NCNN_VULKAN
+    yolov3.use_vulkan_compute = true;
+#endif // NCNN_VULKAN
 
-    // https://github.com/eric612/MobileNet-YOLO
+    // original pretrained model from https://github.com/eric612/MobileNet-YOLO
     // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov3/mobilenet_yolov3_lite_deploy.prototxt
     // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov3/mobilenet_yolov3_lite_deploy.caffemodel
+    yolov3.load_param("mobilenet_yolov3.param");
+    yolov3.load_model("mobilenet_yolov3.bin");
 
-
-    const int target_size = 416;
+    const int target_size = 320;
 
     int img_w = bgr.cols;
     int img_h = bgr.rows;
 
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, target_size, target_size);
 
-    // the Caffe-yolov3-Windows style
-    // X' = X * scale - mean
-    const float mean_vals[3] = {1.0f, 1.0f, 1.0f};
+    const float mean_vals[3] = {127.5f, 127.5f, 127.5f};
     const float norm_vals[3] = {0.007843f, 0.007843f, 0.007843f};
-    in.substract_mean_normalize(0, norm_vals);
-    in.substract_mean_normalize(mean_vals, 0);
+    in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = yolov3.create_extractor();
     ex.set_num_threads(4);
@@ -147,8 +146,16 @@ int main(int argc, char** argv)
         return -1;
     }
 
+#if NCNN_VULKAN
+    ncnn::create_gpu_instance();
+#endif // NCNN_VULKAN
+
     std::vector<Object> objects;
     detect_yolov3(m, objects);
+
+#if NCNN_VULKAN
+    ncnn::destroy_gpu_instance();
+#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 

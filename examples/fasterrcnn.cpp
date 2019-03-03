@@ -4,7 +4,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "platform.h"
 #include "net.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -101,6 +105,10 @@ static void nms_sorted_bboxes(const std::vector<Object>& objects, std::vector<in
 static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net fasterrcnn;
+
+#if NCNN_VULKAN
+    fasterrcnn.use_vulkan_compute = true;
+#endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/rbgirshick/py-faster-rcnn
     // py-faster-rcnn/models/pascal_voc/ZF/faster_rcnn_alt_opt/faster_rcnn_test.pt
@@ -328,8 +336,16 @@ int main(int argc, char** argv)
         return -1;
     }
 
+#if NCNN_VULKAN
+    ncnn::create_gpu_instance();
+#endif // NCNN_VULKAN
+
     std::vector<Object> objects;
     detect_fasterrcnn(m, objects);
+
+#if NCNN_VULKAN
+    ncnn::destroy_gpu_instance();
+#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 
