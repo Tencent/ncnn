@@ -44,13 +44,13 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
     if (p.dims == 1) // axis == 0
     {
-        vec4 sum_value = vec4(0.0);
-        for (int i=0; i<p.w; i++)
+        vec4 sum_value = vec4(0.f);
+        for (int i = 0; i < p.w; i++)
         {
             sum_value += bottom_top_blob_data[i];
         }
@@ -62,22 +62,38 @@ void main()
 
     if (p.dims == 2 && axis == 0)
     {
-        // FIXME TODO
+        vec4 sum_value = vec4(0.f);
+        for (int i = 0; i < p.h; i++)
+        {
+            int v_offset = i * p.w + gx;
+            sum_value += bottom_top_blob_data[v_offset];
+        }
+        vec2 sum2 = sum_value.rg + sum_value.ba;
+        sum_workspace_data[gx] = sum2.r + sum2.g;
+
         return;
     }
 
     if (p.dims == 2 && axis == 1)
     {
-        // FIXME TODO
+        vec4 sum_value = vec4(0.f);
+        for (int i = 0; i < p.w; i++)
+        {
+            int v_offset = gx * p.w + i;
+            sum_value += bottom_top_blob_data[v_offset];
+        }
+        vec2 sum2 = sum_value.rg + sum_value.ba;
+        sum_workspace_data[gx] = sum2.r + sum2.g;
+
         return;
     }
 
     if (p.dims == 3 && axis == 0)
     {
-        vec4 sum_value = vec4(0.0);
-        for (int z = 0; z < p.c; z++)
+        vec4 sum_value = vec4(0.f);
+        for (int i = 0; i < p.c; i++)
         {
-            int v_offset = z * p.cstep + gy * p.w + gx;
+            int v_offset = i * p.cstep + gy * p.w + gx;
             sum_value += bottom_top_blob_data[v_offset];
         }
         vec2 sum2 = sum_value.rg + sum_value.ba;
@@ -88,13 +104,29 @@ void main()
 
     if (p.dims == 3 && axis == 1)
     {
-        // FIXME TODO
+        vec4 sum_value = vec4(0.f);
+        for (int i = 0; i < p.h; i++)
+        {
+            int v_offset = gy * p.cstep + i * p.w + gx;
+            sum_value += bottom_top_blob_data[v_offset];
+        }
+        vec2 sum2 = sum_value.rg + sum_value.ba;
+        sum_workspace_data[gy * p.w + gx] = sum2.r + sum2.g;
+
         return;
     }
 
     if (p.dims == 3 && axis == 2)
     {
-        // FIXME TODO
+        vec4 sum_value = vec4(0.f);
+        for (int i = 0; i < p.w; i++)
+        {
+            int v_offset = gy * p.cstep + gx * p.w + i;
+            sum_value += bottom_top_blob_data[v_offset];
+        }
+        vec2 sum2 = sum_value.rg + sum_value.ba;
+        sum_workspace_data[gy * p.h + gx] = sum2.r + sum2.g;
+
         return;
     }
 }

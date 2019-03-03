@@ -55,32 +55,36 @@ void main()
 
     if (p.dims == 2 && axis == 0)
     {
-        // FIXME TODO
+        int gi = gy * p.w + gx;
+        bottom_top_blob_data[gi] = exp(bottom_top_blob_data[gi] - max_workspace_data[gx]);
         return;
     }
 
     if (p.dims == 2 && axis == 1)
     {
-        // FIXME TODO
+        int gi = gy * p.w + gx;
+        bottom_top_blob_data[gi] = exp(bottom_top_blob_data[gi] - max_workspace_data[gy]);
         return;
     }
 
     if (p.dims == 3 && axis == 0)
     {
         int gi = gz * p.cstep + gy * p.w + gx;
-        bottom_top_blob_data[gi] = exp(bottom_top_blob_data[gi] - max_workspace_data[ gy * p.w + gx ]);
+        bottom_top_blob_data[gi] = exp(bottom_top_blob_data[gi] - max_workspace_data[gy * p.w + gx]);
         return;
     }
 
     if (p.dims == 3 && axis == 1)
     {
-        // FIXME TODO
+        int gi = gz * p.cstep + gy * p.w + gx;
+        bottom_top_blob_data[gi] = exp(bottom_top_blob_data[gi] - max_workspace_data[gz * p.w + gx]);
         return;
     }
 
     if (p.dims == 3 && axis == 2)
     {
-        // FIXME TODO
+        int gi = gz * p.cstep + gy * p.w + gx;
+        bottom_top_blob_data[gi] = exp(bottom_top_blob_data[gi] - max_workspace_data[gz * p.h + gy]);
         return;
     }
 }

@@ -83,9 +83,18 @@ int Flatten::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
 {
     int dims = bottom_blob.dims;
 
-    if (dims == 1 || dims == 2)
+    if (dims == 1)
     {
         top_blob = bottom_blob;
+        return 0;
+    }
+
+    if (dims == 2)
+    {
+        top_blob = bottom_blob;
+        top_blob.dims = 1;
+        top_blob.w = bottom_blob.w * bottom_blob.h;
+        top_blob.h = 1;
         return 0;
     }
 
