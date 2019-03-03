@@ -278,6 +278,93 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int channels = bottom_top_blob.c;
 
         Mat max;
+        max.create(w, channels, elemsize, opt.workspace_allocator);
+        if (max.empty())
+            return -100;
+        max.fill(-FLT_MAX);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const float* ptr = bottom_top_blob.channel(q);
+            float* maxptr = max.row(q);
+
+            for (int i=0; i<h; i++)
+            {
+                for (int j=0; j<w; j++)
+                {
+                    maxptr[j] = std::max(maxptr[j], ptr[j]);
+                }
+
+                ptr += w;
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+            float* maxptr = max.row(q);
+
+            for (int i=0; i<h; i++)
+            {
+                for (int j=0; j<w; j++)
+                {
+                    ptr[j] = exp(ptr[j] - maxptr[j]);
+                }
+
+                ptr += w;
+            }
+        }
+
+        Mat sum;
+        sum.create(w, channels, elemsize, opt.workspace_allocator);
+        if (sum.empty())
+            return -100;
+        sum.fill(0.f);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const float* ptr = bottom_top_blob.channel(q);
+            float* sumptr = sum.row(q);
+
+            for (int i=0; i<h; i++)
+            {
+                for (int j=0; j<w; j++)
+                {
+                    sumptr[j] += ptr[j];
+                }
+
+                ptr += w;
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+            float* sumptr = sum.row(q);
+
+            for (int i=0; i<h; i++)
+            {
+                for (int j=0; j<w; j++)
+                {
+                    ptr[j] /= sumptr[j];
+                }
+
+                ptr += w;
+            }
+        }
+
+        return 0;
+    }
+
+    if (dims == 3 && axis == 2)
+    {
+        int w = bottom_top_blob.w;
+        int h = bottom_top_blob.h;
+        int channels = bottom_top_blob.c;
+
+        Mat max;
         max.create(h, channels, elemsize, opt.workspace_allocator);
         if (max.empty())
             return -100;
@@ -355,93 +442,6 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 for (int j=0; j<w; j++)
                 {
                     ptr[j] /= sum;
-                }
-
-                ptr += w;
-            }
-        }
-
-        return 0;
-    }
-
-    if (dims == 3 && axis == 2)
-    {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int channels = bottom_top_blob.c;
-
-        Mat max;
-        max.create(w, channels, elemsize, opt.workspace_allocator);
-        if (max.empty())
-            return -100;
-        max.fill(-FLT_MAX);
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_top_blob.channel(q);
-            float* maxptr = max.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                for (int j=0; j<w; j++)
-                {
-                    maxptr[j] = std::max(maxptr[j], ptr[j]);
-                }
-
-                ptr += w;
-            }
-        }
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-            float* maxptr = max.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                for (int j=0; j<w; j++)
-                {
-                    ptr[j] = exp(ptr[j] - maxptr[j]);
-                }
-
-                ptr += w;
-            }
-        }
-
-        Mat sum;
-        sum.create(w, channels, elemsize, opt.workspace_allocator);
-        if (sum.empty())
-            return -100;
-        sum.fill(0.f);
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
-            const float* ptr = bottom_top_blob.channel(q);
-            float* sumptr = sum.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                for (int j=0; j<w; j++)
-                {
-                    sumptr[j] += ptr[j];
-                }
-
-                ptr += w;
-            }
-        }
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-            float* sumptr = sum.row(q);
-
-            for (int i=0; i<h; i++)
-            {
-                for (int j=0; j<w; j++)
-                {
-                    ptr[j] /= sumptr[j];
                 }
 
                 ptr += w;
@@ -558,13 +558,13 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     }
     else if (dims == 3 && axis == 1)
     {
-        max_workspace.create(h, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(h, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(w, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(w, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else if (dims == 3 && axis == 2)
     {
-        max_workspace.create(w, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(w, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(h, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(h, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
 
 //     fprintf(stderr, "Softmax::forward_inplace %p\n", bottom_top_blob.buffer());

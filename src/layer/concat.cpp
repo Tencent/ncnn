@@ -370,15 +370,15 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             constants[10].i = woffset;
 
             const Pipeline* pipeline = 0;
-            if (packing == 1 && out_packing == 1)
+            if (bottom_blob.packing == 1 && out_packing == 1)
             {
                 pipeline = pipeline_concat;
             }
-            else if (packing == 4 && out_packing == 4)
+            else if (bottom_blob.packing == 4 && out_packing == 4)
             {
                 pipeline = pipeline_concat_pack4;
             }
-            else if (packing == 4 && out_packing == 1)
+            else if (bottom_blob.packing == 4 && out_packing == 1)
             {
                 pipeline = pipeline_concat_pack4to1;
             }
@@ -450,15 +450,15 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             constants[10].i = hoffset;
 
             const Pipeline* pipeline = 0;
-            if (packing == 1 && out_packing == 1)
+            if (bottom_blob.packing == 1 && out_packing == 1)
             {
                 pipeline = pipeline_concat;
             }
-            else if (packing == 4 && out_packing == 4)
+            else if (bottom_blob.packing == 4 && out_packing == 4)
             {
                 pipeline = pipeline_concat_pack4;
             }
-            else if (packing == 4 && out_packing == 1)
+            else if (bottom_blob.packing == 4 && out_packing == 1)
             {
                 pipeline = pipeline_concat_pack4to1;
             }
@@ -587,15 +587,15 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             constants[10].i = coffset;
 
             const Pipeline* pipeline = 0;
-            if (packing == 1 && out_packing == 1)
+            if (bottom_blob.packing == 1 && out_packing == 1)
             {
                 pipeline = pipeline_concat;
             }
-            else if (packing == 4 && out_packing == 4)
+            else if (bottom_blob.packing == 4 && out_packing == 4)
             {
                 pipeline = pipeline_concat_pack4;
             }
-            else if (packing == 4 && out_packing == 1)
+            else if (bottom_blob.packing == 4 && out_packing == 1)
             {
                 pipeline = pipeline_concat_pack4to1;
             }
