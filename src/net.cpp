@@ -1183,16 +1183,21 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                 if (blob_mats_gpu[bottom_blob_index].dims == 0)
                 {
+                    // TODO use gpu packing
+                    const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+                    Mat bottom_blob_cpu_packed;
+                    convert_packing(bottom_blob_cpu, bottom_blob_cpu_packed, 4);
+
                     // upload
                     VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
-                    bottom_blob.create_like(blob_mats[bottom_blob_index], opt.blob_vkallocator, opt.staging_vkallocator);
+                    bottom_blob.create_like(bottom_blob_cpu_packed, opt.blob_vkallocator, opt.staging_vkallocator);
 
                     if (!bottom_blob.allocator->mappable)
                     {
                         bottom_blob.prepare_staging_buffer();
                     }
 
-                    bottom_blob.upload(blob_mats[bottom_blob_index]);
+                    bottom_blob.upload(bottom_blob_cpu_packed);
 
                     if (!bottom_blob.allocator->mappable)
                     {
@@ -1200,7 +1205,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         cmd.record_upload(bottom_blob);
                     }
 
-                    // TODO convert packing
 //                     fprintf(stderr, "upload %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
                 }
             }
@@ -1288,16 +1292,21 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     if (blob_mats_gpu[bottom_blob_index].dims == 0)
                     {
+                        // TODO use gpu packing
+                        const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+                        Mat bottom_blob_cpu_packed;
+                        convert_packing(bottom_blob_cpu, bottom_blob_cpu_packed, 4);
+
                         // upload
                         VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
-                        bottom_blob.create_like(blob_mats[bottom_blob_index], opt.blob_vkallocator, opt.staging_vkallocator);
+                        bottom_blob.create_like(bottom_blob_cpu_packed, opt.blob_vkallocator, opt.staging_vkallocator);
 
                         if (!bottom_blob.allocator->mappable)
                         {
                             bottom_blob.prepare_staging_buffer();
                         }
 
-                        bottom_blob.upload(blob_mats[bottom_blob_index]);
+                        bottom_blob.upload(bottom_blob_cpu_packed);
 
                         if (!bottom_blob.allocator->mappable)
                         {
@@ -1305,7 +1314,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                             cmd.record_upload(bottom_blob);
                         }
 
-                        // TODO convert packing
 //                         fprintf(stderr, "upload %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
                     }
                 }
@@ -1428,13 +1436,17 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     cmd.reset();
 
-                    blob_mats[bottom_blob_index].create_like(bottom_blob, opt.blob_allocator);
-                    bottom_blob.download(blob_mats[bottom_blob_index]);
+                    Mat bottom_blob_cpu_packed;
+                    bottom_blob_cpu_packed.create_like(bottom_blob, opt.blob_allocator);
+                    bottom_blob.download(bottom_blob_cpu_packed);
 
                     if (!bottom_blob.allocator->mappable)
                     {
                         bottom_blob.discard_staging_buffer();
                     }
+
+                    Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+                    convert_packing(bottom_blob_cpu_packed, bottom_blob_cpu, 1);
 
                     // TODO convert packing
 //                     fprintf(stderr, "download %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
@@ -1529,15 +1541,19 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     // download
                     VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
 
-                    blob_mats[bottom_blob_index].create_like(bottom_blob, opt.blob_allocator);
-                    bottom_blob.download(blob_mats[bottom_blob_index]);
+                    Mat bottom_blob_cpu_packed;
+                    bottom_blob_cpu_packed.create_like(bottom_blob, opt.blob_allocator);
+                    bottom_blob.download(bottom_blob_cpu_packed);
 
                     if (!bottom_blob.allocator->mappable)
                     {
                         bottom_blob.discard_staging_buffer();
                     }
 
-                    // TODO convert packing
+                    // TODO use gpu packing
+                    Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+                    convert_packing(bottom_blob_cpu_packed, bottom_blob_cpu, 1);
+
 //                     fprintf(stderr, "download %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
                 }
 
@@ -1724,9 +1740,7 @@ int Extractor::extract(int blob_index, Mat& feat)
                 if (!feat_gpu.allocator->mappable)
                 {
                     cmd.record_prepare_transfer_barrier(feat_gpu);
-
                     feat_gpu.prepare_staging_buffer();
-
                     cmd.record_download(feat_gpu);
                 }
 
@@ -1734,14 +1748,18 @@ int Extractor::extract(int blob_index, Mat& feat)
 
                 cmd.wait();
 
-                blob_mats[blob_index].create_like(feat_gpu, opt.blob_allocator);
-
-                feat_gpu.download(blob_mats[blob_index]);
+                Mat feat_cpu_packed;
+                feat_cpu_packed.create_like(feat_gpu, opt.blob_allocator);
+                feat_gpu.download(feat_cpu_packed);
 
                 if (!feat_gpu.allocator->mappable)
                 {
                     feat_gpu.discard_staging_buffer();
                 }
+
+                // TODO use gpu packing
+                Mat& feat_cpu = blob_mats[blob_index];
+                convert_packing(feat_cpu_packed, feat_cpu, 1);
             }
         }
         else

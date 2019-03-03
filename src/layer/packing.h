@@ -37,6 +37,7 @@ public:
 
 private:
     int out_packing;
+    int use_padding;
 
 #if NCNN_VULKAN
     Pipeline* pipeline_packing_1to4;
