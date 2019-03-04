@@ -186,18 +186,24 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
                     fscanf(fp, ",%15[^,\n ]", vstr);
 
                     bool is_float = vstr_is_float(vstr);
+					int type = 1;  // 1 for float 0 for int
 
                     if (is_float)
                     {
                         float vf;
                         sscanf(vstr, "%f", &vf);
+						fwrite(&type, sizeof(int), 1, mp);
                         fwrite(&vf, sizeof(float), 1, mp);
+						fprintf(stderr, "type=%d, vf=%.3f,", type,vf);
                     }
                     else
                     {
+						type = 0;
                         int v;
                         sscanf(vstr, "%d", &v);
+						fwrite(&type, sizeof(int), 1, mp);
                         fwrite(&v, sizeof(int), 1, mp);
+						fprintf(stderr, "type=%d, v=%d,", type,v);
                     }
                 }
             }
@@ -207,18 +213,24 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
                 fscanf(fp, "%15s", vstr);
 
                 bool is_float = vstr_is_float(vstr);
+				int type = 1;  // 1 for float 0 for int
 
                 if (is_float)
                 {
                     float vf;
                     sscanf(vstr, "%f", &vf);
+					fwrite(&type, sizeof(int), 1, mp);
                     fwrite(&vf, sizeof(float), 1, mp);
+					fprintf(stderr, "type=%d, vf=%.3f,", type,vf);
                 }
                 else
                 {
+					type = 0;
                     int v;
                     sscanf(vstr, "%d", &v);
+					fwrite(&type, sizeof(int), 1, mp);
                     fwrite(&v, sizeof(int), 1, mp);
+					fprintf(stderr, "type=%d, v=%d,", type,v);
                 }
             }
         }

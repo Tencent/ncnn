@@ -291,21 +291,18 @@ int ParamDict::load_param_bin(FILE* fp)
 {
     clear();
 
-//     binary 0
-//     binary 100
-//     binary 1
-//     binary 1.250000
-//     binary 3 | array_bit
-//     binary 5
-//     binary 0.1
-//     binary 0.2
-//     binary 0.4
-//     binary 0.8
-//     binary 1.0
+//     id(less than 23300 denote array)
+//     type(1 for float 0 for int)
+//     value(not array)	or len type value type value...
 //     binary -233(EOP)
 
     int id = 0;
-    fread(&id, sizeof(int), 1, fp);
+    int nread = fread(&id, sizeof(int), 1, fp);
+	if (nread != 1)
+	{
+		fprintf(stderr, "ParamDict read id fail\n");
+		return -1;
+	}
 
     while (id != -233)
     {
@@ -318,17 +315,68 @@ int ParamDict::load_param_bin(FILE* fp)
         if (is_array)
         {
             int len = 0;
-            fread(&len, sizeof(int), 1, fp);
+            nread = fread(&len, sizeof(int), 1, fp);
+			if (nread != 1 || len < 0)
+			{
+				fprintf(stderr, "ParamDict read array length fail\n");
+				return -1;
+			}
 
             params[id].v.create(len);
+			for(int i = 0; i < len; ++i)
+			{
+				int type = 0;
+				nread = fread(&type, sizeof(int), 1, fp);
+				if (nread != 1)
+				{
+					fprintf(stderr, "ParamDict read array value type fail\n");
+					return -1;
+				}
 
-            float* ptr = params[id].v;
-            fread(ptr, sizeof(float), len, fp);
+				bool is_float = (1 == type);
+				if (is_float)
+                {
+					float* ptr = params[id].v;
+					nread = fread(&ptr[i], sizeof(float), 1, fp);
+                }
+                else
+                {
+                    int* ptr = params[id].v;
+					nread = fread(&ptr[i], sizeof(int), 1, fp);
+                }
+				if (nread != 1)
+				{
+					fprintf(stderr, "ParamDict read array value data fail\n");
+					return -1;
+				}
+			}
         }
         else
         {
-            fread(&params[id].f, sizeof(float), 1, fp);
-        }
+            int type = 0;
+			nread = fread(&type, sizeof(int), 1, fp);
+			if (nread != 1)
+			{
+				fprintf(stderr, "ParamDict read value type fail\n");
+				return -1;
+			}
+
+			bool is_float = (1 == type);
+			if (is_float)
+			{
+				nread = fread(&params[id].f, sizeof(float), 1, fp);
+			}
+			else
+			{
+				nread = fread(&params[id].i, sizeof(int), 1, fp);
+			}
+
+			if (nread != 1)
+			{
+				fprintf(stderr, "ParamDict read value data fail\n");
+				return -1;
+			}
+		}
 
         params[id].loaded = 1;
 
