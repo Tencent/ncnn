@@ -26,6 +26,11 @@ BinaryOp::BinaryOp()
     one_blob_only = false;
     support_inplace = false;
     support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_binaryop = 0;
+    pipeline_binaryop_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int BinaryOp::load_param(const ParamDict& pd)
@@ -67,6 +72,23 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 3)
         {
+            if (b.w == 1&&b.h==1)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    float* outptr = c.channel(q);
+                    const float* b0 = b.channel(q);
+                    for (int i = 0; i < size; i++)
+                    {
+                        outptr[i] = op(ptr[i], b0[0]);
+                    }
+                }
+
+                return 0;
+             }
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
@@ -475,14 +497,33 @@ int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_VULKAN
 int BinaryOp::create_pipeline()
 {
-    pipeline->set_optimal_local_size_xyz();
+    pipeline_binaryop = new Pipeline(vkdev);
+    pipeline_binaryop->set_optimal_local_size_xyz();
 
     std::vector<vk_specialization_type> specializations(3);
     specializations[0].i = op_type;
     specializations[1].i = with_scalar;
     specializations[2].f = b;
 
-    pipeline->create("binaryop", specializations, 3, 15);
+    pipeline_binaryop->create("binaryop", specializations, 3, 15);
+
+    // pack4
+    {
+        pipeline_binaryop_pack4 = new Pipeline(vkdev);
+        pipeline_binaryop_pack4->set_optimal_local_size_xyz();
+        pipeline_binaryop_pack4->create("binaryop_pack4", specializations, 3, 15);
+    }
+
+    return 0;
+}
+
+int BinaryOp::destroy_pipeline()
+{
+    delete pipeline_binaryop;
+    pipeline_binaryop = 0;
+
+    delete pipeline_binaryop_pack4;
+    pipeline_binaryop_pack4 = 0;
 
     return 0;
 }
@@ -494,9 +535,7 @@ int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
 
     VkMat& top_blob = top_blobs[0];
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
+    int packing = bottom_blob.packing;
 
     // TODO broadcast
     top_blob.create_like(bottom_blob, opt.blob_vkallocator, opt.staging_vkallocator);
@@ -527,6 +566,8 @@ int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
     constants[13].i = top_blob.c;
     constants[14].i = top_blob.cstep;
 
+    const Pipeline* pipeline = packing == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
+
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);
     cmd.record_prepare_compute_barrier(bottom_blob1);
@@ -537,10 +578,7 @@ int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
 
 int BinaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-
+    int packing = bottom_top_blob.packing;
 //     fprintf(stderr, "BinaryOp::forward_inplace %p\n", bottom_top_blob.buffer());
 
     std::vector<VkMat> bindings(3);
@@ -554,6 +592,8 @@ int BinaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Opti
     constants[12].i = bottom_top_blob.h;
     constants[13].i = bottom_top_blob.c;
     constants[14].i = bottom_top_blob.cstep;
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
 
     // record
     cmd.record_prepare_compute_barrier(bottom_top_blob);

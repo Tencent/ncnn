@@ -272,6 +272,8 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
     // fill result
     int num_detected = bbox_rects.size();
+    if (num_detected == 0)
+        return 0;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create(6, num_detected, 4u, opt.blob_allocator);

@@ -401,7 +401,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             quantize->forward(bottom_blob, bottom_blob_int8, opt_g);
         }       
 
-        bottom_blob_unbordered = bottom_blob_int8;
+        bottom_blob_unbordered = bottom_blob_int8;       
     }
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
@@ -481,12 +481,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 requantize_ops[p]->forward(top_blob_tm_g, top_blob_g, opt_g);
-            }       
+            }          
         }
         else
         {
-            // start = ncnn::get_current_time();
-
             top_blob.create(outw, outh, num_output, (size_t)4u, opt.blob_allocator);
             if (top_blob.empty())
                 return -100; 
@@ -510,7 +508,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             else
             {
                 conv_int8(bottom_blob_bordered, top_blob, weight_data, opt);
-            }
+            }          
 
             // dequantize, reverse scale inplace
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -522,7 +520,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
-            }                   
+            }           
         } 
 
         return 0;

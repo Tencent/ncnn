@@ -20,7 +20,7 @@
 
 namespace ncnn {
 
-Command::Command(VulkanDevice* _vkdev, uint32_t _queue_index) : vkdev(_vkdev), queue_index(_queue_index)
+Command::Command(const VulkanDevice* _vkdev, uint32_t _queue_index) : vkdev(_vkdev), queue_index(_queue_index)
 {
     // get queue
     vkGetDeviceQueue(vkdev->vkdevice(), queue_index, 0, &queue);
@@ -56,7 +56,7 @@ int Command::create_command_pool()
     VkCommandPoolCreateInfo commandPoolCreateInfo;
     commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     commandPoolCreateInfo.pNext = 0;
-    commandPoolCreateInfo.flags = 0;
+    commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     commandPoolCreateInfo.queueFamilyIndex = queue_index;
 
     VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &command_pool);
@@ -161,8 +161,12 @@ int Command::wait_fence()
     return 0;
 }
 
-VkCompute::VkCompute(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.compute_queue_index)
+VkCompute::VkCompute(const VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.compute_queue_index)
 {
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        begin_command_buffer();
+    }
 }
 
 VkCompute::~VkCompute()
@@ -177,25 +181,13 @@ VkCompute::~VkCompute()
     }
 }
 
-int VkCompute::begin()
-{
-    if (vkdev->info.support_VK_KHR_push_descriptor)
-        return begin_command_buffer();
-
-    record_type r;
-    r.type = 0;
-    delayed_records.push_back(r);
-
-    return 0;
-}
-
 void VkCompute::record_upload(const VkMat& m)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer(m.staging_buffer(), 0, m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
 
     record_type r;
-    r.type = 1;
+    r.type = 0;
     r.copy.src = m.staging_buffer();
     r.copy.src_offset = 0;
     r.copy.dst = m.buffer();
@@ -210,7 +202,7 @@ void VkCompute::record_download(const VkMat& m)
         return copy_buffer(m.buffer(), m.buffer_offset(), m.staging_buffer(), 0, m.total() * m.elemsize);
 
     record_type r;
-    r.type = 1;
+    r.type = 0;
     r.copy.src = m.buffer();
     r.copy.src_offset = m.buffer_offset();
     r.copy.dst = m.staging_buffer();
@@ -225,7 +217,7 @@ void VkCompute::record_clone(const VkMat& src, const VkMat& dst)
         return copy_buffer(src.buffer(), src.buffer_offset(), dst.buffer(), dst.buffer_offset(), src.total() * src.elemsize);
 
     record_type r;
-    r.type = 1;
+    r.type = 0;
     r.copy.src = src.buffer();
     r.copy.src_offset = src.buffer_offset();
     r.copy.dst = dst.buffer();
@@ -248,7 +240,7 @@ void VkCompute::record_copy_regions(const VkMat& src, const VkMat& dst, const st
         return copy_buffer_regions(src.buffer(), dst.buffer(), regions);
 
     record_type r;
-    r.type = 2;
+    r.type = 1;
     r.copy_regions.src = src.buffer();
     r.copy_regions.dst = dst.buffer();
     r.regions = regions;
@@ -277,7 +269,7 @@ void VkCompute::record_bind_pipeline(VkPipeline pipeline)
         return bind_pipeline(pipeline);
 
     record_type r;
-    r.type = 3;
+    r.type = 2;
     r.bind_pipeline.pipeline = pipeline;
     delayed_records.push_back(r);
 }
@@ -369,7 +361,7 @@ void VkCompute::record_update_bindings(VkPipelineLayout pipeline_layout, VkDescr
     }
 
     record_type r;
-    r.type = 4;
+    r.type = 3;
     r.bind_descriptorset.pipeline_layout = pipeline_layout;
     r.bind_descriptorset.descriptorset = descriptorset;
     delayed_records.push_back(r);
@@ -381,7 +373,7 @@ void VkCompute::record_push_constants(VkPipelineLayout pipeline_layout, const st
         return push_constants(pipeline_layout, constants);
 
     record_type r;
-    r.type = 5;
+    r.type = 4;
     r.push_constants.pipeline_layout = pipeline_layout;
     r.constants = constants;
     delayed_records.push_back(r);
@@ -393,7 +385,7 @@ void VkCompute::record_dispatch(const uint32_t* group_count_xyz)
         return dispatch(group_count_xyz);
 
     record_type r;
-    r.type = 6;
+    r.type = 5;
     r.dispatch.group_count_xyz[0] = group_count_xyz[0];
     r.dispatch.group_count_xyz[1] = group_count_xyz[1];
     r.dispatch.group_count_xyz[2] = group_count_xyz[2];
@@ -408,7 +400,7 @@ void VkCompute::record_transfer_compute_barrier(const VkMat& m)
         return transfer_compute_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
 
     record_type r;
-    r.type = 7;
+    r.type = 6;
     r.transfer_compute_barrier.buffer = m.buffer();
     r.transfer_compute_barrier.offset = m.buffer_offset();
     r.transfer_compute_barrier.size = m.total() * m.elemsize;
@@ -423,7 +415,7 @@ void VkCompute::record_compute_transfer_barrier(const VkMat& m)
         return compute_transfer_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
 
     record_type r;
-    r.type = 8;
+    r.type = 7;
     r.compute_transfer_barrier.buffer = m.buffer();
     r.compute_transfer_barrier.offset = m.buffer_offset();
     r.compute_transfer_barrier.size = m.total() * m.elemsize;
@@ -438,15 +430,33 @@ void VkCompute::record_compute_compute_barrier(const VkMat& m)
         return compute_compute_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
 
     record_type r;
-    r.type = 9;
+    r.type = 8;
     r.compute_compute_barrier.buffer = m.buffer();
     r.compute_compute_barrier.offset = m.buffer_offset();
     r.compute_compute_barrier.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
 }
 
+void VkCompute::record_transfer_transfer_barrier(const VkMat& m)
+{
+    m.state = 2;
+
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+        return transfer_transfer_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
+
+    record_type r;
+    r.type = 9;
+    r.transfer_transfer_barrier.buffer = m.buffer();
+    r.transfer_transfer_barrier.offset = m.buffer_offset();
+    r.transfer_transfer_barrier.size = m.total() * m.elemsize;
+    delayed_records.push_back(r);
+}
+
 void VkCompute::record_prepare_transfer_barrier(const VkMat& m)
 {
+    if (m.state == 2)
+        return record_transfer_transfer_barrier(m);
+
     if (m.state == 3)
         return record_compute_transfer_barrier(m);
 
@@ -464,22 +474,16 @@ void VkCompute::record_prepare_compute_barrier(const VkMat& m)
     m.state = 3;
 }
 
-int VkCompute::end()
-{
-    if (vkdev->info.support_VK_KHR_push_descriptor)
-        return end_command_buffer();
-
-    record_type r;
-    r.type = 10;
-    delayed_records.push_back(r);
-
-    return 0;
-}
-
 int VkCompute::submit()
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        end_command_buffer();
+
         return queue_submit();
+    }
+
+    begin_command_buffer();
 
     // handle delayed records
     for (size_t i=0; i<delayed_records.size(); i++)
@@ -489,40 +493,41 @@ int VkCompute::submit()
         switch (r.type)
         {
         case 0:
-            begin_command_buffer();
-            break;
-        case 1:
             copy_buffer(r.copy.src, r.copy.src_offset, r.copy.dst, r.copy.dst_offset, r.copy.size);
             break;
-        case 2:
+        case 1:
             copy_buffer_regions(r.copy_regions.src, r.copy_regions.dst, r.regions);
             break;
-        case 3:
+        case 2:
             bind_pipeline(r.bind_pipeline.pipeline);
             break;
-        case 4:
+        case 3:
             bind_descriptorset(r.bind_descriptorset.pipeline_layout, r.bind_descriptorset.descriptorset);
             break;
-        case 5:
+        case 4:
             push_constants(r.push_constants.pipeline_layout, r.constants);
             break;
-        case 6:
+        case 5:
             dispatch(r.dispatch.group_count_xyz);
             break;
-        case 7:
+        case 6:
             transfer_compute_barrier(r.transfer_compute_barrier.buffer, r.transfer_compute_barrier.offset, r.transfer_compute_barrier.size);
             break;
-        case 8:
+        case 7:
             compute_transfer_barrier(r.compute_transfer_barrier.buffer, r.compute_transfer_barrier.offset, r.compute_transfer_barrier.size);
             break;
-        case 9:
+        case 8:
             compute_compute_barrier(r.compute_compute_barrier.buffer, r.compute_compute_barrier.offset, r.compute_compute_barrier.size);
             break;
-        case 10:
-            end_command_buffer();
+        case 9:
+            transfer_transfer_barrier(r.compute_compute_barrier.buffer, r.compute_compute_barrier.offset, r.compute_compute_barrier.size);
             break;
         }
     }
+
+    end_command_buffer();
+
+    delayed_records.clear();
 
     return queue_submit();
 }
@@ -530,6 +535,32 @@ int VkCompute::submit()
 int VkCompute::wait()
 {
     return wait_fence();
+}
+
+int VkCompute::reset()
+{
+//     fprintf(stderr, "cmd reset\n");
+
+    VkResult ret = vkResetCommandBuffer(command_buffer, 0);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkResetCommandBuffer failed %d\n", ret);
+        return -1;
+    }
+
+    ret = vkResetFences(vkdev->vkdevice(), 1, &fence);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkResetFences failed %d\n", ret);
+        return -1;
+    }
+
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        begin_command_buffer();
+    }
+
+    return 0;
 }
 
 void VkCompute::copy_buffer(VkBuffer src, size_t src_offset, VkBuffer dst, size_t dst_offset, size_t size)
@@ -649,10 +680,31 @@ void VkCompute::compute_compute_barrier(VkBuffer buffer, size_t offset, size_t s
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-VkTransfer::VkTransfer(VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index)
+void VkCompute::transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
+//     fprintf(stderr, "cmd transfer_transfer_barrier %p\n", buffer);
+
+    VkBufferMemoryBarrier bufferBarrier;
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.pNext = 0;
+    bufferBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    bufferBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.buffer = buffer;
+    bufferBarrier.offset = offset;
+    bufferBarrier.size = size;
+
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
+}
+
+VkTransfer::VkTransfer(const VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index)
+{
+    buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
     staging_data = 0;
-    mapped_ptr = 0;
 }
 
 VkTransfer::~VkTransfer()
@@ -672,9 +724,8 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst)
     record_type r;
     r.type = 0;
     r.size = src.total() * src.elemsize;
-    r.upload.src = src.data;
-    r.upload.dst = dst.buffer();
-    r.upload.dst_offset = dst.buffer_offset();
+    r.mat = src;
+    r.vkmat = dst;
     delayed_records.push_back(r);
 }
 
@@ -691,9 +742,8 @@ void VkTransfer::record_download(const VkMat& src, Mat& dst)
     record_type r;
     r.type = 1;
     r.size = src.total() * src.elemsize;
-    r.download.src = src.buffer();
-    r.download.src_offset = src.buffer_offset();
-    r.download.dst = dst.data;
+    r.mat = dst;
+    r.vkmat = src;
     delayed_records.push_back(r);
 }
 
@@ -709,15 +759,12 @@ int VkTransfer::submit()
     for (int i=0; i<transfer_count; i++)
     {
         const record_type& r = delayed_records[i];
-        staging_buffer_size += r.size;
+        staging_buffer_size += alignSize(r.size, buffer_offset_alignment);
     }
 
     // TODO sperated staging buffer for upload and download ?
     // allocate staging buffer
     staging_data = staging_vkallocator->fastMalloc(staging_buffer_size);
-
-    // map
-    vkMapMemory(vkdev->vkdevice(), staging_data->memory, 0, staging_buffer_size, 0, &mapped_ptr);
 
     // copy upload data
     size_t mapped_ptr_offset = 0;
@@ -726,10 +773,10 @@ int VkTransfer::submit()
         const record_type& r = delayed_records[i];
         if (r.type == 0)
         {
-            memcpy((unsigned char*)mapped_ptr + mapped_ptr_offset, r.upload.src, r.size);
+            memcpy((unsigned char*)staging_data->mapped_ptr + mapped_ptr_offset, r.mat.data, r.size);
         }
 
-        mapped_ptr_offset += r.size;
+        mapped_ptr_offset += alignSize(r.size, buffer_offset_alignment);
     }
 
     begin_command_buffer();
@@ -745,14 +792,14 @@ int VkTransfer::submit()
         switch (r.type)
         {
         case 0:
-            copy_buffer(staging_data->buffer, staging_buffer_offset, r.upload.dst, r.upload.dst_offset, r.size);
+            copy_buffer(staging_data->buffer, staging_buffer_offset, r.vkmat.buffer(), r.vkmat.buffer_offset(), r.size);
             break;
         case 1:
-            copy_buffer(r.download.src, r.download.src_offset, staging_data->buffer, staging_buffer_offset, r.size);
+            copy_buffer(r.vkmat.buffer(), r.vkmat.buffer_offset(), staging_data->buffer, staging_buffer_offset, r.size);
             break;
         }
 
-        staging_buffer_offset += r.size;
+        staging_buffer_offset += alignSize(r.size, buffer_offset_alignment);
     }
 
     end_command_buffer();
@@ -776,20 +823,18 @@ int VkTransfer::wait()
         const record_type& r = delayed_records[i];
         if (r.type == 1)
         {
-            memcpy(r.download.dst, (unsigned char*)mapped_ptr + mapped_ptr_offset, r.size);
+            memcpy(r.mat.data, (unsigned char*)staging_data->mapped_ptr + mapped_ptr_offset, r.size);
         }
 
-        mapped_ptr_offset += r.size;
+        mapped_ptr_offset += alignSize(r.size, buffer_offset_alignment);
     }
-
-    // unmap
-    vkUnmapMemory(vkdev->vkdevice(), staging_data->memory);
-    mapped_ptr = 0;
 
     // deallocate staging buffer
     staging_vkallocator->fastFree(staging_data);
 
     staging_data = 0;
+
+    delayed_records.clear();
 
     return ret;
 }

@@ -120,6 +120,7 @@ public:
     virtual int upload_model(VkTransfer& cmd);
 
     virtual int create_pipeline();
+    virtual int destroy_pipeline();
 
 public:
     // implement inference
@@ -133,10 +134,8 @@ public:
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt = get_default_option()) const;
 
 public:
+    // assigned immediately after creating this layer
     const VulkanDevice* vkdev;
-
-    // compute pipeline
-    Pipeline* pipeline;
 #endif // NCNN_VULKAN
 
 public:
@@ -173,15 +172,6 @@ Layer* create_layer(const char* type);
 #endif // NCNN_STRING
 // create layer from layer type
 Layer* create_layer(int index);
-
-#if NCNN_VULKAN
-#if NCNN_STRING
-// create layer from type name, enable vulkan if possible
-Layer* create_layer(const char* type, const VulkanDevice* vkdev);
-#endif // NCNN_STRING
-// create layer from layer type, enable vulkan if possible
-Layer* create_layer(int index, const VulkanDevice* vkdev);
-#endif // NCNN_VULKAN
 
 #define DEFINE_LAYER_CREATOR(name) \
     ::ncnn::Layer* name##_layer_creator() { return new name; }

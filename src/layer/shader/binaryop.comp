@@ -60,7 +60,7 @@ void main()
 
     float v1 = a_blob_data[gi];
 
-    float res = 233;
+    float res;
 
     if (with_scalar == 1)
     {

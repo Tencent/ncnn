@@ -299,6 +299,7 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo;
     memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
     memoryDedicatedAllocateInfo.pNext = 0;
+    memoryDedicatedAllocateInfo.image = 0;
     memoryDedicatedAllocateInfo.buffer = buffer;
     memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
 
@@ -828,7 +829,7 @@ VkBufferMemory* VkUnlockedStagingBufferAllocator::fastMalloc(size_t size)
         {
             budgets.erase(it);
 
-//             fprintf(stderr, "VkUnlockedStagingBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, bs);
+//             fprintf(stderr, "VkUnlockedStagingBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, capacity);
 
             return ptr;
         }

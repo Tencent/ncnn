@@ -24,6 +24,11 @@ Eltwise::Eltwise()
     one_blob_only = false;
     support_inplace = false;// TODO inplace reduction
     support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_eltwise = 0;
+    pipeline_eltwise_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int Eltwise::load_param(const ParamDict& pd)
@@ -193,13 +198,32 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 #if NCNN_VULKAN
 int Eltwise::create_pipeline()
 {
-    pipeline->set_optimal_local_size_xyz();
+    pipeline_eltwise = new Pipeline(vkdev);
+    pipeline_eltwise->set_optimal_local_size_xyz();
 
     std::vector<vk_specialization_type> specializations(2);
     specializations[0].i = op_type;
     specializations[1].i = coeffs.w == 0 ? 0 : 1;
 
-    pipeline->create("eltwise", specializations, 3, 5+2);
+    pipeline_eltwise->create("eltwise", specializations, 3, 5+2);
+
+    // pack4
+    {
+        pipeline_eltwise_pack4 = new Pipeline(vkdev);
+        pipeline_eltwise_pack4->set_optimal_local_size_xyz();
+        pipeline_eltwise_pack4->create("eltwise_pack4", specializations, 3, 5+2);
+    }
+
+    return 0;
+}
+
+int Eltwise::destroy_pipeline()
+{
+    delete pipeline_eltwise;
+    pipeline_eltwise = 0;
+
+    delete pipeline_eltwise_pack4;
+    pipeline_eltwise_pack4 = 0;
 
     return 0;
 }
@@ -208,12 +232,15 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
 {
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& bottom_blob1 = bottom_blobs[1];
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(w, h, channels, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(w, h, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -232,6 +259,8 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
     constants[4].i = top_blob.cstep;
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4 : pipeline_eltwise;
 
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);

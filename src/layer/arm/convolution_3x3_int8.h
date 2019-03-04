@@ -2380,8 +2380,6 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
     w = outw + 2;
     h = outh + 2;
     copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);  
-    
-    // double start = ncnn::get_current_time();
 
     // BEGIN transform input
     Mat bottom_blob_tm;
@@ -2403,7 +2401,8 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         //     {0.0f, -1.0f,  1.00f, 0.0f},
         //     {0.0f, -1.0f,  0.00f, 1.0f}
         // };        
-
+        
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<inch; q++)
         {
             const signed char* img = bottom_blob_bordered.channel(q);
@@ -2524,10 +2523,6 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
     }
     bottom_blob_bordered = Mat();
 
-    // double end = ncnn::get_current_time();
-    // printf("trans A : %.3f ms\n", end - start);
-    // start = ncnn::get_current_time();
-
     // BEGIN dot
     Mat top_blob_tm;
     {
@@ -2541,6 +2536,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
         top_blob_tm.create(16, tiles, outch, 4u, opt.workspace_allocator);
 
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int r=0; r<4; r++)
         {
             int nn_outch = 0;
@@ -2549,7 +2545,6 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
             nn_outch = outch >> 3;
             remain_outch_start = nn_outch << 3;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
             for (int pp=0; pp<nn_outch; pp++)
             {
                 int p = pp * 8;
@@ -2696,7 +2691,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
             nn_outch = (outch - remain_outch_start) >> 2;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+            //#pragma omp parallel for num_threads(opt.num_threads)
             for (int pp=0; pp<nn_outch; pp++)
             {
                 int p = remain_outch_start + pp * 4;
@@ -2794,7 +2789,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
             }
 
             remain_outch_start += nn_outch << 2;
-            #pragma omp parallel for num_threads(opt.num_threads)
+            //#pragma omp parallel for num_threads(opt.num_threads)
             for (int p=remain_outch_start; p<outch; p++)
             {
                 int* output0_tm = top_blob_tm.channel(p);
@@ -2857,10 +2852,6 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
     }
     bottom_blob_tm = Mat();
     // END dot    
-
-    // end = ncnn::get_current_time();
-    // printf("dot B   : %.3f ms\n", end - start);
-    // start = ncnn::get_current_time();
 
     // BEGIN transform output
     Mat top_blob_bordered;
@@ -2973,9 +2964,6 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         }        
     }
     // END transform output 
-
-    // end = ncnn::get_current_time();
-    // printf("trans C : %.3f ms\n", end - start);
     
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);  

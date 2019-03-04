@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -63,49 +63,19 @@ void main()
         sum = bias_data[gz];
     }
 
-    if (p.c == group && group == p.outc)
+    // depth-wise convolution
+    int w_offset = gz * kernel_w * kernel_h;
+    int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
+
+    for (int y = 0; y < kernel_h; y++)
     {
-        // depth-wise convolution
-        int w_offset = gz * kernel_w * kernel_h;
-        int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
-
-        for (int y = 0; y < kernel_h; y++)
+        for (int x = 0; x < kernel_w; x++)
         {
-            for (int x = 0; x < kernel_w; x++)
-            {
-                sum += weight_data[w_offset + x] * bottom_blob_data[v_offset + x * dilation_w];
-            }
-
-            v_offset += dilation_h * p.w;
-            w_offset += kernel_w;
+            sum += weight_data[w_offset + x] * bottom_blob_data[v_offset + x * dilation_w];
         }
 
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sum;
-
-        return;
-    }
-
-    // group convolution
-    const int c_g = p.c / group;
-    const int outc_g = p.outc / group;
-    const int g = gz / outc_g;
-
-    int w_offset = gz * c_g * kernel_w * kernel_h;
-
-    for (int z = 0; z < c_g; z++)
-    {
-        int v_offset = (g * c_g + z) * p.cstep + gy * stride_h * p.w + gx * stride_w;
-
-        for (int y = 0; y < kernel_h; y++)
-        {
-            for (int x = 0; x < kernel_w; x++)
-            {
-                sum += weight_data[w_offset + x] * bottom_blob_data[v_offset + x * dilation_w];
-            }
-
-            v_offset += dilation_h * p.w;
-            w_offset += kernel_w;
-        }
+        v_offset += dilation_h * p.w;
+        w_offset += kernel_w;
     }
 
     top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sum;

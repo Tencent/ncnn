@@ -106,7 +106,7 @@ public:
 
 #if NCNN_VULKAN
 
-    void set_vulkan_device(VulkanDevice* vkdev);
+    void set_vulkan_device(const VulkanDevice* vkdev);
 
 #endif // NCNN_VULKAN
 
@@ -122,7 +122,7 @@ protected:
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt) const;
 
 #if NCNN_VULKAN
-    int forward_layer(int layer_index, std::vector<VkMat>& blob_mats, std::vector<int>& wait_barrier_counts, VkCompute& cmd, Option& opt) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<int>& wait_barrier_counts, VkCompute& cmd, Option& opt) const;
 #endif // NCNN_VULKAN
 
 protected:
@@ -132,7 +132,8 @@ protected:
     std::vector<layer_registry_entry> custom_layer_registry;
 
 #if NCNN_VULKAN
-    VulkanDevice* vkdev;
+    const VulkanDevice* vkdev;
+    const VulkanDevice* vkdev_local;
 
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;

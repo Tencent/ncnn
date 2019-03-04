@@ -1482,7 +1482,7 @@ int main(int argc, char** argv)
             const caffe::ReorgParameter& reorg_param = layer.reorg_param();
             fprintf(pp, " 0=%d", reorg_param.stride());
         }
-        else if (layer.type() == "Reshape")// -1 1 512
+        else if (layer.type() == "Reshape")
         {
             const caffe::ReshapeParameter& reshape_param = layer.reshape_param();
             const caffe::BlobShape& bs = reshape_param.shape();
@@ -1492,11 +1492,11 @@ int main(int argc, char** argv)
             }
             else if (bs.dim_size() == 2)
             {
-                fprintf(pp, " 0=%ld 1=%ld 2=-233", bs.dim(1), bs.dim(0));
+                fprintf(pp, " 0=%ld 1=-233 2=-233", bs.dim(1));
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(2), bs.dim(1), bs.dim(0));
+                fprintf(pp, " 0=%ld 1=%ld 2=-233", bs.dim(2), bs.dim(1));
             }
             else // bs.dim_size() == 4
             {

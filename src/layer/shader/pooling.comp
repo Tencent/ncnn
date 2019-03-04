@@ -55,6 +55,63 @@ void main()
 
     float res;
 
+    if (pad_mode == 0)
+    {
+        // full padding, use out of bound check
+        if (pooling_type == 0)
+        {
+            res = -99999999;
+
+            int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
+
+            for (int y = 0; y < kernel_h; y++)
+            {
+                if (gy * stride_h + y >= p.h)
+                    break;
+
+                for (int x = 0; x < kernel_w; x++)
+                {
+                    if (gx * stride_w + x >= p.w)
+                        break;
+
+                    res = max(res, bottom_blob_data[v_offset + x]);
+                }
+
+                v_offset += p.w;
+            }
+        }
+        else if (pooling_type == 1)
+        {
+            res = 0;
+
+            int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
+            int area = 0;
+
+            for (int y = 0; y < kernel_h; y++)
+            {
+                if (gy * stride_h + y >= p.h)
+                    break;
+
+                for (int x = 0; x < kernel_w; x++)
+                {
+                    if (gx * stride_w + x >= p.w)
+                        break;
+
+                    res += bottom_blob_data[v_offset + x];
+                    area += 1;
+                }
+
+                v_offset += p.w;
+            }
+
+            res /= area;
+        }
+
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = res;
+
+        return;
+    }
+
     if (pooling_type == 0)
     {
         res = -99999999;
