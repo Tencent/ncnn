@@ -496,13 +496,16 @@ int create_gpu_instance()
         gpu_info.host_visible_memory_index = find_host_visible_memory(physicalDeviceMemoryProperties);
 
         // treat as unified memory architecture if memory heap is the same
-        int unified_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.unified_memory_index].heapIndex;
-        int device_local_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.device_local_memory_index].heapIndex;
-        int host_visible_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.host_visible_memory_index].heapIndex;
-        if (unified_memory_heap_index == device_local_memory_heap_index && unified_memory_heap_index == host_visible_memory_heap_index)
+        if (gpu_info.unified_memory_index != -1)
         {
-            gpu_info.device_local_memory_index = gpu_info.unified_memory_index;
-            gpu_info.host_visible_memory_index = gpu_info.unified_memory_index;
+            int unified_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.unified_memory_index].heapIndex;
+            int device_local_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.device_local_memory_index].heapIndex;
+            int host_visible_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.host_visible_memory_index].heapIndex;
+            if (unified_memory_heap_index == device_local_memory_heap_index && unified_memory_heap_index == host_visible_memory_heap_index)
+            {
+                gpu_info.device_local_memory_index = gpu_info.unified_memory_index;
+                gpu_info.host_visible_memory_index = gpu_info.unified_memory_index;
+            }
         }
 
         // get device extension
