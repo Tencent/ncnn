@@ -141,15 +141,8 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         return -100;
     }
 
-#if DEBUG_FEATURE
-    if (elemsize == 4)
-        extract_feature_in_f32(0, this->name.c_str(), bottom_blob);
-#endif
-
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    // double start, end;
 
     Mat bottom_blob_unbordered = bottom_blob;
     if (use_int8_inference && elemsize != 1)
@@ -176,16 +169,8 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
             quantize_ops[g]->forward(bottom_blob_g, bottom_blob_int8_g, opt_g);
         }
 
-        bottom_blob_unbordered = bottom_blob_int8;
-
-        // end = ncnn::get_current_time();
-        // printf("quantize    : %.3f ms\n", end - start);        
-    }
-
-#if DEBUG_FEATURE
-    if (use_int8_inference)
-        extract_feature_in_s8(0, this->name.c_str(), bottom_blob_unbordered);
-#endif     
+        bottom_blob_unbordered = bottom_blob_int8;    
+    }    
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
@@ -230,8 +215,6 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     if (use_int8_requantize)
                     {
-                        // start = ncnn::get_current_time();
-
                         Mat top_blob_tm;
                         top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
                         if (top_blob_tm.empty())
@@ -248,11 +231,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                         else if (stride_w == 2 && stride_h == 2)
                         {
                             convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob_tm, weight_data, opt);
-                        }
-
-                        // end = ncnn::get_current_time();
-                        // printf("convdw int8 : %.3f ms\n", end - start);
-                        // start = ncnn::get_current_time();                        
+                        }                     
 
                         // requantize, reverse scale inplace
                         #pragma omp parallel for num_threads(opt.num_threads)
@@ -265,15 +244,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                             Mat top_blob_tm_g = top_blob_tm.channel_range(g, 1);
                             Mat top_blob_g = top_blob.channel_range(g, 1);
                             requantize_ops[g]->forward(top_blob_tm_g, top_blob_g, opt_g);
-                        }
-
-                        // end = ncnn::get_current_time();
-                        // printf("requantize  : %.3f ms\n", end - start);                        
-#if DEBUG_FEATURE
-                        extract_feature_out_s32(0, this->name.c_str(), top_blob_tm);
-                        extract_feature_blob_s8("D_Out_S8", this->name.c_str(), top_blob);
-                        extract_kernel_dw_s8(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_w);
-#endif                         
+                        }                
                     }
                     else
                     {
@@ -290,11 +261,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                         else if (stride_w == 2 && stride_h == 2)
                         {
                             convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
-                        }
-
-                        // end = ncnn::get_current_time();
-                        // printf("convdw int8 : %.3f ms\n", end - start);
-                        // start = ncnn::get_current_time();                          
+                        }                        
 
                         // dequantize, reverse scale inplace
                         #pragma omp parallel for num_threads(opt.num_threads)
@@ -306,14 +273,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                             Mat top_blob_g = top_blob.channel_range(g, 1);
                             dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
-                        }
-
-                        // end = ncnn::get_current_time();
-                        // printf("dequantize  : %.3f ms\n", end - start);                    
-#if DEBUG_FEATURE
-                        extract_kernel_dw_s8(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_w);
-                        extract_feature_out_f32(0, this->name.c_str(), top_blob);
-#endif                        
+                        }           
                     }
 
                     return 0;

@@ -327,11 +327,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-#if DEBUG_FEATURE
-    if (elemsize == 4)
-        extract_feature_in_f32(0, this->name.c_str(), bottom_blob);
-#endif
-
     Mat bottom_blob_unbordered = bottom_blob;
     if (use_int8_inference && elemsize != 1)
     {
@@ -350,11 +345,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         bottom_blob_unbordered = bottom_blob_int8;
     }
-
-#if DEBUG_FEATURE
-    if (use_int8_inference)
-        extract_feature_in_s8(0, this->name.c_str(), bottom_blob_unbordered);
-#endif    
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
@@ -417,12 +407,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 requantize_ops[p]->forward(top_blob_tm_g, top_blob_g, opt_g);
-            }  
-
-#if DEBUG_FEATURE
-            extract_feature_out_s32(0, this->name.c_str(), top_blob_tm);
-            extract_feature_blob_s8("D_Out_S8", this->name.c_str(), top_blob);
-#endif                                         
+            }                                       
         }
         else
         {
@@ -445,14 +430,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
-            }
-#if DEBUG_FEATURE 
-            extract_feature_out_f32(0, this->name.c_str(), top_blob);
-#endif                        
+            }                    
         } 
-#if DEBUG_FEATURE 
-        extract_kernel_s8(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_size);
-#endif        
+      
         return 0;
     }
 
@@ -462,13 +442,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }    
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-
-#if DEBUG_FEATURE
-    extract_feature_out_f32(0, this->name.c_str(), top_blob);
-    extract_kernel_f32(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_size);
-#endif
         
-
     return 0;
 }
 

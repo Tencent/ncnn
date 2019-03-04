@@ -134,12 +134,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     }
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;    
-
-#if DEBUG_FEATURE
-    if (elemsize == 4)
-        extract_feature_in_f32(0, this->name.c_str(), bottom_blob);
-#endif  
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;     
 
     Mat bottom_blob_unbordered = bottom_blob;
     if (use_int8_inference && elemsize != 1)
@@ -165,12 +160,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         }
 
         bottom_blob_unbordered = bottom_blob_int8;       
-    }    
-
-#if DEBUG_FEATURE
-    if (use_int8_inference)
-        extract_feature_in_s8(0, this->name.c_str(), bottom_blob_unbordered);
-#endif     
+    }     
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
@@ -244,12 +234,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                             Mat top_blob_tm_g = top_blob_tm.channel_range(g, 1);
                             Mat top_blob_g = top_blob.channel_range(g, 1);
                             requantize_ops[g]->forward(top_blob_tm_g, top_blob_g, opt_g);
-                        }
-#if DEBUG_FEATURE
-                        extract_feature_out_s32(0, this->name.c_str(), top_blob_tm);
-                        extract_feature_blob_s8("D_Out_S8", this->name.c_str(), top_blob);
-                        extract_kernel_dw_s8(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_w);
-#endif                         
+                        }                      
                     }
                     else
                     {
@@ -277,10 +262,6 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                             Mat top_blob_g = top_blob.channel(g);
                             dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
                         }
-#if DEBUG_FEATURE
-                        extract_kernel_dw_s8(0, this->name.c_str(), weight_data, bias_data, bottom_blob.c, num_output, kernel_w);
-                        extract_feature_out_f32(0, this->name.c_str(), top_blob);
-#endif
                     }
 
                     return 0;

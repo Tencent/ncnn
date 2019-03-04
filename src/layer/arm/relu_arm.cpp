@@ -29,8 +29,6 @@ int ReLU_arm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) cons
     int channels = bottom_top_blob.c;
     int size = w * h;
 
-    //fprintf(stderr, "ReLU int8 arm %s\n", name.c_str());    
-
     if (slope == 0.f)
     {
         #pragma omp parallel for num_threads(opt.num_threads)

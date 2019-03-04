@@ -380,47 +380,6 @@ void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, i
     delete padding;
 }
 
-void resize_downsample2(const Mat& src, Mat& dst, Allocator* allocator, int num_threads)
-{
-    int w = (src.w + 1)/2;
-    int h = (src.h + 1)/2;
-
-    if (src.dims != 3)
-    {
-    	printf("--this is not supported\n");
-    	return;
-    }
-
-    {
-        int channels = src.c;
-
-        dst.create(w, h, channels, 1u, allocator);
-        if (dst.empty())
-            return;
-        
-        // unroll image channel
-        #pragma omp parallel for num_threads(num_threads)
-        for (int q=0; q<channels; q++)
-        {
-            const Mat mSrc = src.channel(q);
-            Mat mDst = dst.channel(q);
-
-			const signed char* ptr = mSrc;
-			signed char* outptr = mDst;
-
-            for(int x = 0; x < h; x++)
-            {
-				for(int y = 0; y < w; y++)
-				{
-					outptr[x*w + y] = ptr[2*y];
-				}
-				
-				ptr += 2*src.w;
-            }
-        }
-    }
-}
-
 static void copy_cut_border_image(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;

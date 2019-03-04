@@ -625,7 +625,7 @@ int Net::load_model(FILE* fp)
 
     // set the int8 op fusion:relu
 #if NCNN_REQUANT   
-    fprintf(stderr, "Test op fusion to int8 implement:\n");
+    // fprintf(stderr, "Test op fusion to int8 implement:\n");
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
@@ -647,7 +647,7 @@ int Net::load_model(FILE* fp)
 
                     if (layer_next_2->type == "Convolution" || layer_next_2->type == "ConvolutionDepthWise")
                     {
-                        fprintf(stderr, "%s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
+                        // fprintf(stderr, "%s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
 
                         if (layer->type == "Convolution" && layer_next_2->type == "Convolution")
                         {
@@ -690,13 +690,13 @@ int Net::load_model(FILE* fp)
 
                         if (all_conv == true && layer_next_2->tops.size() >= size_t(2))
                         {
-                            fprintf(stderr, "%s, %s, %s, ", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
+                            // fprintf(stderr, "%s, %s, %s, ", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
                             for (size_t i=0; i<layer_next_2->tops.size(); i++)
                             {
                                 int layer_next_3_index = blobs[layer_next_2->tops[i]].consumers[0];
                                 Layer* layer_next_3 = layers[layer_next_3_index];
 
-                                fprintf(stderr, "%s, ", layer_next_3->name.c_str());
+                                // fprintf(stderr, "%s, ", layer_next_3->name.c_str());
 
                                 if (layer_next_3->type == "Convolution")
                                 {
@@ -707,7 +707,7 @@ int Net::load_model(FILE* fp)
                             ((Convolution*)layer)->use_int8_requantize = true;
                             ((Convolution*)layer)->create_requantize_op();    
 
-                            fprintf(stderr, "\n");
+                            // fprintf(stderr, "\n");
                         }
                     }
                     else
@@ -717,7 +717,7 @@ int Net::load_model(FILE* fp)
                 }
                 else if (layer_next->type == "Pooling")
                 {
-                    
+                    //ToDo
                 }
                 else
                 {
