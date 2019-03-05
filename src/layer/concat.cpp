@@ -26,9 +26,12 @@ Concat::Concat()
     support_vulkan = true;
 
 #if NCNN_VULKAN
-    pipeline_concat = 0;
-    pipeline_concat_pack4 = 0;
-    pipeline_concat_pack4to1 = 0;
+    pipeline_concat[0] = 0;
+    pipeline_concat[1] = 0;
+    pipeline_concat_pack4[0] = 0;
+    pipeline_concat_pack4[1] = 0;
+    pipeline_concat_pack4to1[0] = 0;
+    pipeline_concat_pack4to1[1] = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -275,23 +278,32 @@ int Concat::create_pipeline()
 
     // pack1
     {
-        pipeline_concat = new Pipeline(vkdev);
-        pipeline_concat->set_optimal_local_size_xyz();
-        pipeline_concat->create("concat", specializations, 2, 11);
+        pipeline_concat[0] = new Pipeline(vkdev);
+        pipeline_concat[0]->set_optimal_local_size_xyz();
+        pipeline_concat[0]->create("concat", specializations, 2, 11);
+        pipeline_concat[1] = new Pipeline(vkdev);
+        pipeline_concat[1]->set_optimal_local_size_xyz();
+        pipeline_concat[1]->create("concat", specializations, 2, 11);
     }
 
     // pack4
     {
-        pipeline_concat_pack4 = new Pipeline(vkdev);
-        pipeline_concat_pack4->set_optimal_local_size_xyz();
-        pipeline_concat_pack4->create("concat_pack4", specializations, 2, 11);
+        pipeline_concat_pack4[0] = new Pipeline(vkdev);
+        pipeline_concat_pack4[0]->set_optimal_local_size_xyz();
+        pipeline_concat_pack4[0]->create("concat_pack4", specializations, 2, 11);
+        pipeline_concat_pack4[1] = new Pipeline(vkdev);
+        pipeline_concat_pack4[1]->set_optimal_local_size_xyz();
+        pipeline_concat_pack4[1]->create("concat_pack4", specializations, 2, 11);
     }
 
     // pack4to1
     {
-        pipeline_concat_pack4to1 = new Pipeline(vkdev);
-        pipeline_concat_pack4to1->set_optimal_local_size_xyz();
-        pipeline_concat_pack4to1->create("concat_pack4to1", specializations, 2, 11);
+        pipeline_concat_pack4to1[0] = new Pipeline(vkdev);
+        pipeline_concat_pack4to1[0]->set_optimal_local_size_xyz();
+        pipeline_concat_pack4to1[0]->create("concat_pack4to1", specializations, 2, 11);
+        pipeline_concat_pack4to1[1] = new Pipeline(vkdev);
+        pipeline_concat_pack4to1[1]->set_optimal_local_size_xyz();
+        pipeline_concat_pack4to1[1]->create("concat_pack4to1", specializations, 2, 11);
     }
 
     return 0;
@@ -299,14 +311,20 @@ int Concat::create_pipeline()
 
 int Concat::destroy_pipeline()
 {
-    delete pipeline_concat;
-    pipeline_concat = 0;
+    delete pipeline_concat[0];
+    delete pipeline_concat[1];
+    pipeline_concat[0] = 0;
+    pipeline_concat[1] = 0;
 
-    delete pipeline_concat_pack4;
-    pipeline_concat_pack4 = 0;
+    delete pipeline_concat_pack4[0];
+    delete pipeline_concat_pack4[1];
+    pipeline_concat_pack4[0] = 0;
+    pipeline_concat_pack4[1] = 0;
 
-    delete pipeline_concat_pack4to1;
-    pipeline_concat_pack4to1 = 0;
+    delete pipeline_concat_pack4to1[0];
+    delete pipeline_concat_pack4to1[1];
+    pipeline_concat_pack4to1[0] = 0;
+    pipeline_concat_pack4to1[1] = 0;
 
     return 0;
 }
@@ -372,15 +390,15 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             const Pipeline* pipeline = 0;
             if (bottom_blob.packing == 1 && out_packing == 1)
             {
-                pipeline = pipeline_concat;
+                pipeline = pipeline_concat[b%2];
             }
             else if (bottom_blob.packing == 4 && out_packing == 4)
             {
-                pipeline = pipeline_concat_pack4;
+                pipeline = pipeline_concat_pack4[b%2];
             }
             else if (bottom_blob.packing == 4 && out_packing == 1)
             {
-                pipeline = pipeline_concat_pack4to1;
+                pipeline = pipeline_concat_pack4to1[b%2];
             }
 
             // record
@@ -452,15 +470,15 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             const Pipeline* pipeline = 0;
             if (bottom_blob.packing == 1 && out_packing == 1)
             {
-                pipeline = pipeline_concat;
+                pipeline = pipeline_concat[b%2];
             }
             else if (bottom_blob.packing == 4 && out_packing == 4)
             {
-                pipeline = pipeline_concat_pack4;
+                pipeline = pipeline_concat_pack4[b%2];
             }
             else if (bottom_blob.packing == 4 && out_packing == 1)
             {
-                pipeline = pipeline_concat_pack4to1;
+                pipeline = pipeline_concat_pack4to1[b%2];
             }
 
             // record
@@ -517,7 +535,7 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             constants[9].i = top_blob.cstep;
             constants[10].i = woffset;
 
-            const Pipeline* pipeline = packing == 4 ? pipeline_concat_pack4 : pipeline_concat;
+            const Pipeline* pipeline = packing == 4 ? pipeline_concat_pack4[b%2] : pipeline_concat[b%2];
 
             // record
             cmd.record_prepare_compute_barrier(bottom_blob);
@@ -589,15 +607,15 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             const Pipeline* pipeline = 0;
             if (bottom_blob.packing == 1 && out_packing == 1)
             {
-                pipeline = pipeline_concat;
+                pipeline = pipeline_concat[b%2];
             }
             else if (bottom_blob.packing == 4 && out_packing == 4)
             {
-                pipeline = pipeline_concat_pack4;
+                pipeline = pipeline_concat_pack4[b%2];
             }
             else if (bottom_blob.packing == 4 && out_packing == 1)
             {
-                pipeline = pipeline_concat_pack4to1;
+                pipeline = pipeline_concat_pack4to1[b%2];
             }
 
             // record
@@ -655,7 +673,7 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             constants[9].i = top_blob.cstep;
             constants[10].i = hoffset;
 
-            const Pipeline* pipeline = packing == 4 ? pipeline_concat_pack4 : pipeline_concat;
+            const Pipeline* pipeline = packing == 4 ? pipeline_concat_pack4[b%2] : pipeline_concat[b%2];
 
             // record
             cmd.record_prepare_compute_barrier(bottom_blob);
@@ -712,7 +730,7 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             constants[9].i = top_blob.cstep;
             constants[10].i = woffset;
 
-            const Pipeline* pipeline = packing == 4 ? pipeline_concat_pack4 : pipeline_concat;
+            const Pipeline* pipeline = packing == 4 ? pipeline_concat_pack4[b%2] : pipeline_concat[b%2];
 
             // record
             cmd.record_prepare_compute_barrier(bottom_blob);

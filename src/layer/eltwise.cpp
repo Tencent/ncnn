@@ -26,8 +26,10 @@ Eltwise::Eltwise()
     support_vulkan = true;
 
 #if NCNN_VULKAN
-    pipeline_eltwise = 0;
-    pipeline_eltwise_pack4 = 0;
+    pipeline_eltwise[0] = 0;
+    pipeline_eltwise[1] = 0;
+    pipeline_eltwise_pack4[0] = 0;
+    pipeline_eltwise_pack4[1] = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -198,20 +200,28 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 #if NCNN_VULKAN
 int Eltwise::create_pipeline()
 {
-    pipeline_eltwise = new Pipeline(vkdev);
-    pipeline_eltwise->set_optimal_local_size_xyz();
-
     std::vector<vk_specialization_type> specializations(2);
     specializations[0].i = op_type;
     specializations[1].i = coeffs.w == 0 ? 0 : 1;
 
-    pipeline_eltwise->create("eltwise", specializations, 3, 5+2);
+    // pack1
+    {
+        pipeline_eltwise[0] = new Pipeline(vkdev);
+        pipeline_eltwise[0]->set_optimal_local_size_xyz();
+        pipeline_eltwise[0]->create("eltwise", specializations, 3, 5+2);
+        pipeline_eltwise[1] = new Pipeline(vkdev);
+        pipeline_eltwise[1]->set_optimal_local_size_xyz();
+        pipeline_eltwise[1]->create("eltwise", specializations, 3, 5+2);
+    }
 
     // pack4
     {
-        pipeline_eltwise_pack4 = new Pipeline(vkdev);
-        pipeline_eltwise_pack4->set_optimal_local_size_xyz();
-        pipeline_eltwise_pack4->create("eltwise_pack4", specializations, 3, 5+2);
+        pipeline_eltwise_pack4[0] = new Pipeline(vkdev);
+        pipeline_eltwise_pack4[0]->set_optimal_local_size_xyz();
+        pipeline_eltwise_pack4[0]->create("eltwise_pack4", specializations, 3, 5+2);
+        pipeline_eltwise_pack4[1] = new Pipeline(vkdev);
+        pipeline_eltwise_pack4[1]->set_optimal_local_size_xyz();
+        pipeline_eltwise_pack4[1]->create("eltwise_pack4", specializations, 3, 5+2);
     }
 
     return 0;
@@ -219,11 +229,15 @@ int Eltwise::create_pipeline()
 
 int Eltwise::destroy_pipeline()
 {
-    delete pipeline_eltwise;
-    pipeline_eltwise = 0;
+    delete pipeline_eltwise[0];
+    delete pipeline_eltwise[1];
+    pipeline_eltwise[0] = 0;
+    pipeline_eltwise[1] = 0;
 
-    delete pipeline_eltwise_pack4;
-    pipeline_eltwise_pack4 = 0;
+    delete pipeline_eltwise_pack4[0];
+    delete pipeline_eltwise_pack4[1];
+    pipeline_eltwise_pack4[0] = 0;
+    pipeline_eltwise_pack4[1] = 0;
 
     return 0;
 }
@@ -260,7 +274,7 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4 : pipeline_eltwise;
+    const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4[1] : pipeline_eltwise[1];
 
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);
@@ -284,6 +298,8 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
         constants[4].i = top_blob.cstep;
         constants[5].f = 1.f;
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
+
+        const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4[b%2] : pipeline_eltwise[b%2];
 
         // record
         cmd.record_prepare_compute_barrier(top_blob);
