@@ -1,6 +1,6 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+// SenseNets is pleased to support the open source community by supporting ncnn available.
 //
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2019 SenseNets Technology Ltd. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,17 +12,19 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef NCNN_PLATFORM_H
-#define NCNN_PLATFORM_H
+#ifndef LAYER_REQUANTIZE_ARM_H
+#define LAYER_REQUANTIZE_ARM_H
 
-#cmakedefine01 NCNN_STDIO
-#cmakedefine01 NCNN_STRING
-#cmakedefine01 NCNN_OPENCV
-#cmakedefine01 NCNN_BENCHMARK
-#cmakedefine01 NCNN_PIXEL
-#cmakedefine01 NCNN_PIXEL_ROTATE
-#cmakedefine01 NCNN_VULKAN
-#cmakedefine01 NCNN_REQUANT
-#cmakedefine01 NCNN_IM2COL_SGEMM
+#include "requantize.h"
 
-#endif // NCNN_PLATFORM_H
+namespace ncnn {
+
+class Requantize_arm : public Requantize
+{
+public:
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+};
+
+} // namespace ncnn
+
+#endif // LAYER_REQUANTIZE_ARM_H

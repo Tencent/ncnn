@@ -32,6 +32,8 @@ option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
 option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
 option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
 option(NCNN_VULKAN "vulkan compute support" OFF)
+option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
+option(NCNN_IM2COL_SGEMM "im2col sgemm support" OFF)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)

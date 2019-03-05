@@ -183,6 +183,7 @@ ncnn_add_layer(Yolov3DetectionOutput)
 ncnn_add_layer(PSROIPooling)
 ncnn_add_layer(ROIAlign OFF)
 ncnn_add_layer(Packing)
+ncnn_add_layer(Requantize)
 
 # message("SHADER_SPV_HEX_FILES = ${SHADER_SPV_HEX_FILES}")
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})

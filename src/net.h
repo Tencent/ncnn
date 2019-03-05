@@ -76,6 +76,10 @@ public:
     // return bytes consumed
     int load_model(const unsigned char* mem);
 
+    // parse the structure of network
+    // fuse int8 op dequantize and quantize by requantize
+    void fuse_network();
+
     // unload network structure and weight data
     void clear();
 

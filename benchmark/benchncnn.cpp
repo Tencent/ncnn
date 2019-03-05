@@ -202,12 +202,17 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
 
     time_avg /= g_loop_count;
 
-    fprintf(stderr, "%16s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
+    fprintf(stderr, "%-20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
 }
 
 void squeezenet_init(ncnn::Net& net)
 {
     net.load_param("squeezenet.param");
+}
+
+void squeezenet_int8_init(ncnn::Net& net)
+{
+    net.load_param("squeezenet_int8.param");
 }
 
 void squeezenet_run(const ncnn::Net& net)
@@ -224,6 +229,11 @@ void squeezenet_run(const ncnn::Net& net)
 void mobilenet_init(ncnn::Net& net)
 {
     net.load_param("mobilenet.param");
+}
+
+void mobilenet_int8_init(ncnn::Net& net)
+{
+    net.load_param("mobilenet_int8.param");
 }
 
 void mobilenet_run(const ncnn::Net& net)
@@ -306,6 +316,11 @@ void googlenet_init(ncnn::Net& net)
     net.load_param("googlenet.param");
 }
 
+void googlenet_int8_init(ncnn::Net& net)
+{
+    net.load_param("googlenet_int8.param");
+}
+
 void googlenet_run(const ncnn::Net& net)
 {
     ncnn::Extractor ex = net.create_extractor();
@@ -320,6 +335,11 @@ void googlenet_run(const ncnn::Net& net)
 void resnet18_init(ncnn::Net& net)
 {
     net.load_param("resnet18.param");
+}
+
+void resnet18_int8_init(ncnn::Net& net)
+{
+    net.load_param("resnet18_int8.param");
 }
 
 void resnet18_run(const ncnn::Net& net)
@@ -354,7 +374,33 @@ void vgg16_init(ncnn::Net& net)
     net.load_param("vgg16.param");
 }
 
+void vgg16_int8_init(ncnn::Net& net)
+{
+    net.load_param("vgg16_int8.param");
+}
+
 void vgg16_run(const ncnn::Net& net)
+{
+    ncnn::Extractor ex = net.create_extractor();
+
+    ncnn::Mat in(224, 224, 3);
+    ex.input("data", in);
+
+    ncnn::Mat out;
+    ex.extract("prob", out);
+}
+
+void resnet50_init(ncnn::Net& net)
+{
+    net.load_param("resnet50.param");
+}
+
+void resnet50_int8_init(ncnn::Net& net)
+{
+    net.load_param("resnet50_int8.param");
+}
+
+void resnet50_run(const ncnn::Net& net)
 {
     ncnn::Extractor ex = net.create_extractor();
 
@@ -368,6 +414,11 @@ void vgg16_run(const ncnn::Net& net)
 void squeezenet_ssd_init(ncnn::Net& net)
 {
     net.load_param("squeezenet_ssd.param");
+}
+
+void squeezenet_ssd_int8_init(ncnn::Net& net)
+{
+    net.load_param("squeezenet_ssd_int8.param");
 }
 
 void squeezenet_ssd_run(const ncnn::Net& net)
@@ -384,6 +435,11 @@ void squeezenet_ssd_run(const ncnn::Net& net)
 void mobilenet_ssd_init(ncnn::Net& net)
 {
     net.load_param("mobilenet_ssd.param");
+}
+
+void mobilenet_ssd_int8_init(ncnn::Net& net)
+{
+    net.load_param("mobilenet_ssd_int8.param");
 }
 
 void mobilenet_ssd_run(const ncnn::Net& net)
@@ -497,7 +553,11 @@ int main(int argc, char** argv)
     // run
     benchmark("squeezenet", squeezenet_init, squeezenet_run);
 
+    benchmark("squeezenet-int8", squeezenet_int8_init, squeezenet_run);
+
     benchmark("mobilenet", mobilenet_init, mobilenet_run);
+
+    benchmark("mobilenet-int8", mobilenet_int8_init, mobilenet_run);
 
     benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
 
@@ -509,15 +569,27 @@ int main(int argc, char** argv)
 
     benchmark("googlenet", googlenet_init, googlenet_run);
 
+    benchmark("googlenet-int8", googlenet_int8_init, googlenet_run);
+
     benchmark("resnet18", resnet18_init, resnet18_run);
+
+    benchmark("resnet18-int8", resnet18_int8_init, resnet18_run);
 
     benchmark("alexnet", alexnet_init, alexnet_run);
 
     benchmark("vgg16", vgg16_init, vgg16_run);
 
+    benchmark("resnet50", resnet50_init, resnet50_run);
+
+    benchmark("resnet50-int8", resnet50_int8_init, resnet50_run);
+
     benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
 
+    benchmark("squeezenet-ssd-int8", squeezenet_ssd_int8_init, squeezenet_ssd_run);
+
     benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
+
+    benchmark("mobilenet-ssd-int8", mobilenet_ssd_int8_init, mobilenet_ssd_run);
 
     benchmark("mobilenet-yolo", mobilenet_yolo_init, mobilenet_yolo_run);
 
