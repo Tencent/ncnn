@@ -29,6 +29,8 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
+    virtual int create_requantize_op(void);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 #if NCNN_VULKAN
@@ -92,11 +94,14 @@ public:
 
     Mat weight_data_int8_scales;
     Mat bottom_blob_int8_scales;
+    float top_blob_int8_scale;
 
     bool use_int8_inference;
+    bool use_int8_requantize;
 
     std::vector<ncnn::Layer*> quantize_ops;
     std::vector<ncnn::Layer*> dequantize_ops;
+    std::vector<ncnn::Layer*> requantize_ops;
 };
 
 } // namespace ncnn

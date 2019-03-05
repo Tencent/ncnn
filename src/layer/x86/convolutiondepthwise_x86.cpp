@@ -134,7 +134,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     }
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;     
 
     Mat bottom_blob_unbordered = bottom_blob;
     if (use_int8_inference && elemsize != 1)
@@ -159,8 +159,8 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             quantize_ops[g]->forward(bottom_blob_g, bottom_blob_int8_g, opt_g);
         }
 
-        bottom_blob_unbordered = bottom_blob_int8;
-    }
+        bottom_blob_unbordered = bottom_blob_int8;       
+    }     
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
@@ -203,25 +203,65 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             {
                 if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
                 {
-                    if (stride_w == 1 && stride_h == 1)
+                    if (use_int8_requantize)
                     {
-                        convdw3x3s1_int8_sse(bottom_blob_bordered, top_blob, weight_data, opt);
-                    }
-                    else if (stride_w == 2 && stride_h == 2)
-                    {
-                        convdw3x3s2_int8_sse(bottom_blob_bordered, top_blob, weight_data, opt);
-                    }
+                        Mat top_blob_tm;
+                        top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
+                        if (top_blob_tm.empty())
+                            return -100;
+                        
+                        top_blob.create(outw, outh, num_output, (size_t)1u, opt.blob_allocator);
+                        if (top_blob.empty())
+                            return -100;
 
-                    // dequantize, reverse scale inplace
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int g=0; g<group; g++)
-                    {
-                        ncnn::Option opt_g = opt;
-                        opt_g.num_threads = 1;
-                        opt_g.blob_allocator = top_blob.allocator;
+                        if (stride_w == 1 && stride_h == 1)
+                        {
+                            convdw3x3s1_int8_sse(bottom_blob_bordered, top_blob_tm, weight_data, opt);
+                        }
+                        else if (stride_w == 2 && stride_h == 2)
+                        {
+                            convdw3x3s2_int8_sse(bottom_blob_bordered, top_blob_tm, weight_data, opt);
+                        }
 
-                        Mat top_blob_g = top_blob.channel(g);
-                        dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
+                        // requantize, reverse scale inplace
+                        #pragma omp parallel for num_threads(opt.num_threads)
+                        for (int g=0; g<group; g++)
+                        {
+                            ncnn::Option opt_g = opt;
+                            opt_g.num_threads = 1;
+                            opt_g.blob_allocator = top_blob.allocator;
+
+                            Mat top_blob_tm_g = top_blob_tm.channel_range(g, 1);
+                            Mat top_blob_g = top_blob.channel_range(g, 1);
+                            requantize_ops[g]->forward(top_blob_tm_g, top_blob_g, opt_g);
+                        }                      
+                    }
+                    else
+                    {
+                        top_blob.create(outw, outh, num_output, (size_t)4u, opt.blob_allocator);
+                        if (top_blob.empty())
+                            return -100;                       
+
+                        if (stride_w == 1 && stride_h == 1)
+                        {
+                            convdw3x3s1_int8_sse(bottom_blob_bordered, top_blob, weight_data, opt);
+                        }
+                        else if (stride_w == 2 && stride_h == 2)
+                        {
+                            convdw3x3s2_int8_sse(bottom_blob_bordered, top_blob, weight_data, opt);
+                        }
+
+                        // dequantize, reverse scale inplace
+                        #pragma omp parallel for num_threads(opt.num_threads)
+                        for (int g=0; g<group; g++)
+                        {
+                            ncnn::Option opt_g = opt;
+                            opt_g.num_threads = 1;
+                            opt_g.blob_allocator = top_blob.allocator;
+
+                            Mat top_blob_g = top_blob.channel(g);
+                            dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
+                        }
                     }
 
                     return 0;

@@ -25,6 +25,7 @@ ConvolutionDepthWise::ConvolutionDepthWise()
     one_blob_only = true;
     support_inplace = false;
     support_vulkan = true;
+    use_int8_requantize = false;
 
 #if NCNN_VULKAN
     padding = 0;
@@ -58,6 +59,11 @@ ConvolutionDepthWise::~ConvolutionDepthWise()
         delete dequantize_ops[i];
 
     dequantize_ops.clear();
+
+    for (int i=0; i<(int)requantize_ops.size(); i++)
+        delete requantize_ops[i];
+
+    requantize_ops.clear();    
 }
 
 int ConvolutionDepthWise::load_param(const ParamDict& pd)
@@ -150,7 +156,11 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
     if (int8_scale_term == 1)
     {
         weight_data_int8_scales = mb.load(group, 1);
-        bottom_blob_int8_scales = mb.load(group, 1);
+        bottom_blob_int8_scales = mb.load(1, 1);
+
+        float bottom_blob_int8_scale = bottom_blob_int8_scales[0];
+        bottom_blob_int8_scales = Mat(group);
+        bottom_blob_int8_scales.fill(bottom_blob_int8_scale);
     }
     else if (int8_scale_term == 2)
     {
@@ -176,6 +186,11 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
         delete dequantize_ops[i];
 
     dequantize_ops.clear();
+
+    for (int i=0; i<(int)requantize_ops.size(); i++)
+        delete requantize_ops[i];
+
+    requantize_ops.clear();    
 
     bool weight_data_is_int8 = (weight_data.elemsize == (size_t)1u);
     bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
@@ -236,7 +251,11 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
         {
             dequantize_ops[g] = ncnn::create_layer(ncnn::LayerType::Dequantize);
 
-            float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+            float top_rescale = 1.f;
+            if (weight_data_int8_scales[g] == 0)
+                top_rescale = 0;
+            else
+                top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
 
             ncnn::ParamDict pd;
             pd.set(0, top_rescale);// scale
@@ -250,6 +269,50 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
 
             dequantize_ops[g]->load_model(ModelBinFromMatArray(weights));
         }
+    }
+
+    return 0;
+}
+
+int ConvolutionDepthWise::create_requantize_op(void)
+{
+    if (!use_int8_requantize)
+    {
+        fprintf(stderr, "requantized op set but use_int8_requantize disabled\n");
+        return -1;
+    }
+
+    requantize_ops.resize(group);
+    for (int g=0; g<group; g++)
+    {
+        requantize_ops[g] = ncnn::create_layer(ncnn::LayerType::Requantize);
+
+        float scale_in = 1.f;
+        float scale_out = 1.f;
+
+        if (weight_data_int8_scales[g] == 0)
+        {
+            scale_in = 0;
+        }
+        else
+        {
+            scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+        }
+
+        scale_out = top_blob_int8_scale;
+
+        ncnn::ParamDict pd;
+        pd.set(0, scale_in);   // scale in
+        pd.set(1, scale_out);  // scale_out
+        pd.set(2, bias_term);  // bias_term
+        pd.set(3, 1);          // bias_data_size
+
+        requantize_ops[g]->load_param(pd);
+
+        ncnn::Mat weights[1];
+        weights[0] = bias_data.range(g, 1);
+
+        requantize_ops[g]->load_model(ModelBinFromMatArray(weights));
     }
 
     return 0;

@@ -29,6 +29,8 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
+    virtual int create_requantize_op(void);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 #if NCNN_VULKAN
@@ -91,13 +93,16 @@ public:
     Pipeline* pipeline_innerproduct_pack4to1;
 #endif // NCNN_VULKAN
 
-    float weight_data_int8_scale;
+    Mat weight_data_int8_scales;
     float bottom_blob_int8_scale;
+    float top_blob_int8_scale;
 
     bool use_int8_inference;
+    bool use_int8_requantize;
 
     ncnn::Layer* quantize;
-    ncnn::Layer* dequantize;
+    std::vector<ncnn::Layer*> dequantize_ops;
+    std::vector<ncnn::Layer*> requantize_ops;
 };
 
 } // namespace ncnn
