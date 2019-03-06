@@ -278,22 +278,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                     ncnn::Option opt_g = opt;
                     opt_g.num_threads = 1;
                     opt_g.blob_allocator = top_blob.allocator;
+                    opt_g.sub_op = true;
 
                     // forward
                     op->forward(bottom_blob_bordered_g, top_blob_tm_g, opt_g);
-                }
-
-                // requantize, reverse scale inplace
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g=0; g<group; g++)
-                {
-                    ncnn::Option opt_g = opt;
-                    opt_g.num_threads = 1;
-                    opt_g.blob_allocator = top_blob.allocator;
-
-                    Mat top_blob_tm_g = top_blob_tm.channel_range(g, 1);
-                    Mat top_blob_g = top_blob.channel_range(g, 1);
-                    requantize_ops[g]->forward(top_blob_tm_g, top_blob_g, opt_g);
                 }
 
                 return 0;
@@ -312,23 +300,11 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                 ncnn::Option opt_g = opt;
                 opt_g.blob_allocator = top_blob.allocator;
+                opt_g.sub_op = true;
 
                 // forward
                 op->forward(bottom_blob_bordered_g, top_blob_tm_g, opt_g);
-            }
-
-            // requantize, reverse scale inplace
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int g=0; g<group; g++)
-            {
-                ncnn::Option opt_g = opt;
-                opt_g.num_threads = 1;
-                opt_g.blob_allocator = top_blob.allocator;
-
-                Mat top_blob_tm_g = top_blob_tm.channel_range(num_output_g * g, num_output_g);
-                Mat top_blob_g = top_blob.channel_range(num_output_g * g, num_output_g);
-                requantize_ops[g]->forward(top_blob_tm_g, top_blob_g, opt_g);
-            }         
+            }     
         }
         else
         {
@@ -379,22 +355,11 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                     ncnn::Option opt_g = opt;
                     opt_g.num_threads = 1;
                     opt_g.blob_allocator = top_blob.allocator;
+                    opt_g.sub_op = true;
 
                     // forward
                     op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
                 }
-
-                // dequantize, reverse scale inplace
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g=0; g<group; g++)
-                {
-                    ncnn::Option opt_g = opt;
-                    opt_g.num_threads = 1;
-                    opt_g.blob_allocator = top_blob.allocator;
-
-                    Mat top_blob_g = top_blob.channel(g);
-                    dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
-                } 
 
                 return 0;
             }
@@ -412,22 +377,11 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                 ncnn::Option opt_g = opt;
                 opt_g.blob_allocator = top_blob.allocator;
+                opt_g.sub_op = true;
 
                 // forward
                 op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
-            }
-
-            // dequantize, reverse scale inplace
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int g=0; g<group; g++)
-            {
-                ncnn::Option opt_g = opt;
-                opt_g.num_threads = 1;
-                opt_g.blob_allocator = top_blob.allocator;
-
-                Mat top_blob_g = top_blob.channel(g);
-                dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
-            }                       
+            }                    
         }
 
         return 0;

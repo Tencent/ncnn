@@ -48,6 +48,9 @@ public:
     // enabled by default
     bool lightmode;
 
+    // indicate this op is a sub layer op
+    bool sub_op;
+
     // thread count
     // default value is the one returned by get_cpu_count()
     int num_threads;

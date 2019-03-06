@@ -374,9 +374,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     int outw = (w - kernel_size) / stride + 1;
     int outh = (h - kernel_size) / stride + 1;
 
-    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
+    if (opt.sub_op == false)
+    {
+        top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+    }
 
     if (use_int8_inference)
     {
@@ -413,7 +416,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         {
             top_blob.create(outw, outh, num_output, (size_t)4u, opt.blob_allocator);
             if (top_blob.empty())
-                return -100; 
+                return -100;
 
             if (use_winograd3x3)
                 conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, opt);
@@ -430,9 +433,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
-            }                    
-        } 
-      
+            }
+        }
+    
         return 0;
     }
 
@@ -442,7 +445,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }    
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-        
+       
     return 0;
 }
 

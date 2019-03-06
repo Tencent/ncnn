@@ -361,9 +361,12 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
+    if (opt.sub_op == false)
+    {
+        top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+    }
 
     const int maxk = kernel_w * kernel_h;
 
