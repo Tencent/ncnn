@@ -43,8 +43,8 @@ public:
     Mat coeffs;
 
 #if NCNN_VULKAN
-    Pipeline* pipeline_eltwise;
-    Pipeline* pipeline_eltwise_pack4;
+    Pipeline* pipeline_eltwise[2];
+    Pipeline* pipeline_eltwise_pack4[2];
 #endif // NCNN_VULKAN
 };
 

@@ -39,9 +39,9 @@ public:
     int axis;
 
 #if NCNN_VULKAN
-    Pipeline* pipeline_concat;
-    Pipeline* pipeline_concat_pack4;
-    Pipeline* pipeline_concat_pack4to1;
+    Pipeline* pipeline_concat[2];
+    Pipeline* pipeline_concat_pack4[2];
+    Pipeline* pipeline_concat_pack4to1[2];
 #endif // NCNN_VULKAN
 
 };
