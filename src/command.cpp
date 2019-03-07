@@ -394,7 +394,7 @@ void VkCompute::record_dispatch(const uint32_t* group_count_xyz)
 
 void VkCompute::record_transfer_compute_barrier(const VkMat& m)
 {
-    m.state = 3;
+    m.data->state = 3;
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return transfer_compute_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
@@ -409,7 +409,7 @@ void VkCompute::record_transfer_compute_barrier(const VkMat& m)
 
 void VkCompute::record_compute_transfer_barrier(const VkMat& m)
 {
-    m.state = 2;
+    m.data->state = 2;
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return compute_transfer_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
@@ -424,7 +424,7 @@ void VkCompute::record_compute_transfer_barrier(const VkMat& m)
 
 void VkCompute::record_compute_compute_barrier(const VkMat& m)
 {
-    m.state = 3;
+    m.data->state = 3;
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return compute_compute_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
@@ -439,7 +439,7 @@ void VkCompute::record_compute_compute_barrier(const VkMat& m)
 
 void VkCompute::record_transfer_transfer_barrier(const VkMat& m)
 {
-    m.state = 2;
+    m.data->state = 2;
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return transfer_transfer_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
@@ -454,24 +454,24 @@ void VkCompute::record_transfer_transfer_barrier(const VkMat& m)
 
 void VkCompute::record_prepare_transfer_barrier(const VkMat& m)
 {
-    if (m.state == 2)
+    if (m.data->state == 2)
         return record_transfer_transfer_barrier(m);
 
-    if (m.state == 3)
+    if (m.data->state == 3)
         return record_compute_transfer_barrier(m);
 
-    m.state = 2;
+    m.data->state = 2;
 }
 
 void VkCompute::record_prepare_compute_barrier(const VkMat& m)
 {
-    if (m.state == 2)
+    if (m.data->state == 2)
         return record_transfer_compute_barrier(m);
 
-    if (m.state == 3)
+    if (m.data->state == 3)
         return record_compute_compute_barrier(m);
 
-    m.state = 3;
+    m.data->state = 3;
 }
 
 int VkCompute::submit()

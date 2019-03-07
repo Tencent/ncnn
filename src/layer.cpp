@@ -149,6 +149,7 @@ int Layer::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& t
             return -100;
 
         cmd.record_prepare_transfer_barrier(bottom_blobs[i]);
+        cmd.record_prepare_transfer_barrier(top_blobs[i]);
         cmd.record_clone(bottom_blobs[i], top_blobs[i]);
     }
 
@@ -165,6 +166,7 @@ int Layer::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, co
         return -100;
 
     cmd.record_prepare_transfer_barrier(bottom_blob);
+    cmd.record_prepare_transfer_barrier(top_blob);
     cmd.record_clone(bottom_blob, top_blob);
 
     return forward_inplace(top_blob, cmd, opt);

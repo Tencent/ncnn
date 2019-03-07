@@ -261,9 +261,6 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 #if NCNN_VULKAN
 int Padding::create_pipeline()
 {
-    pipeline_padding = new Pipeline(vkdev);
-    pipeline_padding->set_optimal_local_size_xyz();
-
     std::vector<vk_specialization_type> specializations(6);
     specializations[0].i = top;
     specializations[1].i = bottom;
@@ -272,7 +269,12 @@ int Padding::create_pipeline()
     specializations[4].i = type;
     specializations[5].f = value;
 
-    pipeline_padding->create("padding", specializations, 2, 10);
+    // pack1
+    {
+        pipeline_padding = new Pipeline(vkdev);
+        pipeline_padding->set_optimal_local_size_xyz();
+        pipeline_padding->create("padding", specializations, 2, 10);
+    }
 
     // pack4
     {
