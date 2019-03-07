@@ -44,6 +44,15 @@ int Softmax::load_param(const ParamDict& pd)
 {
     axis = pd.get(0, 0);
 
+    // the original softmax handle axis on 3-dim blob incorrectly
+    // ask user to regenerate param instead of producing wrong result
+    int fixbug0 = pd.get(1, 0);
+    if (fixbug0 == 0 && axis != 0)
+    {
+        fprintf(stderr, "param is too old, please regenerate!\n");
+        return -1;
+    }
+
     return 0;
 }
 

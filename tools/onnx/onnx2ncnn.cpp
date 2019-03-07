@@ -1346,6 +1346,7 @@ int main(int argc, char** argv)
         {
             int axis = get_node_attr_i(node, "axis", 1);
             fprintf(pp, " 0=%d", axis-1);
+            fprintf(pp, " 1=1");
         }
         else if (op == "Sqrt")
         {

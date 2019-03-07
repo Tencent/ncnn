@@ -1171,11 +1171,11 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Slice");
         }
-        else if (n.op == "SoftmaxOutput")
+        else if (n.op == "SoftmaxActivation")
         {
             fprintf(pp, "%-16s", "Softmax");
         }
-        else if (n.op == "SoftmaxActivation")
+        else if (n.op == "SoftmaxOutput")
         {
             fprintf(pp, "%-16s", "Softmax");
         }
@@ -2016,8 +2016,13 @@ int main(int argc, char** argv)
                 fprintf(pp, ",-233");
             }
         }
+        else if (n.op == "SoftmaxActivation")
+        {
+            fprintf(pp, " 1=1");
+        }
         else if (n.op == "SoftmaxOutput")
         {
+            fprintf(pp, " 1=1");
         }
         else if (n.op == "sqrt")
         {

@@ -1580,6 +1580,7 @@ int main(int argc, char** argv)
             const caffe::SoftmaxParameter& softmax_param = layer.softmax_param();
             int dim = softmax_param.axis() - 1;
             fprintf(pp, " 0=%d", dim);
+            fprintf(pp, " 1=1");
         }
         else if (layer.type() == "Threshold")
         {
