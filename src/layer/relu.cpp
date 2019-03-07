@@ -123,13 +123,15 @@ int ReLU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_VULKAN
 int ReLU::create_pipeline()
 {
-    pipeline_relu = new Pipeline(vkdev);
-    pipeline_relu->set_optimal_local_size_xyz();
-
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].f = slope;
 
-    pipeline_relu->create("relu", specializations, 1, 5);
+    // pack1
+    {
+        pipeline_relu = new Pipeline(vkdev);
+        pipeline_relu->set_optimal_local_size_xyz();
+        pipeline_relu->create("relu", specializations, 1, 5);
+    }
 
     // pack4
     {

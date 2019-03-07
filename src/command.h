@@ -90,7 +90,8 @@ public:
 
     int reset();
 
-protected:
+// protected:
+public:
     // record pipeline things
     void record_bind_pipeline(VkPipeline pipeline);
     void record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const std::vector<VkMat>& bindings);
