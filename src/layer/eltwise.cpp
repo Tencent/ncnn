@@ -261,8 +261,8 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
 //     fprintf(stderr, "Eltwise::forward %p %p %p\n", bottom_blob.buffer(), bottom_blob1.buffer(), top_blob.buffer());
 
     std::vector<VkMat> bindings(3);
-    bindings[0] = bottom_blobs[0];
-    bindings[1] = bottom_blobs[1];
+    bindings[0] = bottom_blob;
+    bindings[1] = bottom_blob1;
     bindings[2] = top_blob;
 
     std::vector<vk_constant_type> constants(5 + 2);
@@ -279,6 +279,7 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
     // record
     cmd.record_prepare_compute_barrier(bottom_blob);
     cmd.record_prepare_compute_barrier(bottom_blob1);
+    cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     for (size_t b=2; b<bottom_blobs.size(); b++)
