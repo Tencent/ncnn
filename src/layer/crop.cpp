@@ -220,7 +220,7 @@ int Crop::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& to
 
     int _outw = reference_blob.w;
     int _outh = reference_blob.h;
-    int _outc = reference_blob.dims == 3 ? reference_blob.c : channels;
+    int _outc = reference_blob.dims == 3 ? reference_blob.c : channels * packing;
 
     int out_packing = _outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;

@@ -23,6 +23,7 @@ class Deconvolution : public Layer
 {
 public:
     Deconvolution();
+    ~Deconvolution();
 
     virtual int load_param(const ParamDict& pd);
 
@@ -61,6 +62,8 @@ public:
 #if NCNN_VULKAN
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
+
+    ncnn::Layer* crop;
 
     Pipeline* pipeline_deconvolution;
 

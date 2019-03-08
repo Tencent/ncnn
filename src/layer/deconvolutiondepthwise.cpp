@@ -27,6 +27,7 @@ DeconvolutionDepthWise::DeconvolutionDepthWise()
     support_vulkan = true;
 
 #if NCNN_VULKAN
+    crop = 0;
     packing_pack1 = 0;
     packing_pack4 = 0;
 
@@ -43,6 +44,7 @@ DeconvolutionDepthWise::DeconvolutionDepthWise()
 DeconvolutionDepthWise::~DeconvolutionDepthWise()
 {
 #if NCNN_VULKAN
+    delete crop;
     delete packing_pack1;
     delete packing_pack4;
 #endif // NCNN_VULKAN
@@ -66,6 +68,20 @@ int DeconvolutionDepthWise::load_param(const ParamDict& pd)
 #if NCNN_VULKAN
     if (pd.use_vulkan_compute)
     {
+        {
+        crop = ncnn::create_layer(ncnn::LayerType::Crop);
+        crop->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, pad_w);
+        pd.set(1, pad_h);
+        pd.set(2, 0);
+
+        pd.use_vulkan_compute = 1;
+
+        crop->load_param(pd);
+        }
+
         {
         packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
         packing_pack1->vkdev = vkdev;
@@ -541,6 +557,8 @@ int DeconvolutionDepthWise::upload_model(VkTransfer& cmd)
 
 int DeconvolutionDepthWise::create_pipeline()
 {
+    crop->create_pipeline();
+
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
@@ -637,6 +655,9 @@ int DeconvolutionDepthWise::create_pipeline()
 
 int DeconvolutionDepthWise::destroy_pipeline()
 {
+    if (crop)
+        crop->destroy_pipeline();
+
     if (packing_pack1)
         packing_pack1->destroy_pipeline();
 
@@ -680,9 +701,19 @@ int DeconvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, V
     int out_packing = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
-    top_blob.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
-    if (top_blob.empty())
-        return -100;
+    VkMat top_blob_bordered;
+    if (pad_w > 0 || pad_h > 0)
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
 
 //     fprintf(stderr, "DeconvolutionDepthWise::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
 
@@ -691,7 +722,7 @@ int DeconvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, V
     {
         std::vector<VkMat> bindings(4);
         bindings[0] = bottom_blob;
-        bindings[1] = top_blob;
+        bindings[1] = top_blob_bordered;
         bindings[2] = packing == 4 ? weight_data_gpu_pack4 : weight_data_gpu;
         bindings[3] = bias_term ? (packing == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : bindings[2];// TODO use dummy buffer
 
@@ -701,18 +732,40 @@ int DeconvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, V
         constants[2].i = bottom_blob.h;
         constants[3].i = bottom_blob.c;
         constants[4].i = bottom_blob.cstep;
-        constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
-        constants[8].i = top_blob.c;
-        constants[9].i = top_blob.cstep;
+        constants[5].i = top_blob_bordered.dims;
+        constants[6].i = top_blob_bordered.w;
+        constants[7].i = top_blob_bordered.h;
+        constants[8].i = top_blob_bordered.c;
+        constants[9].i = top_blob_bordered.cstep;
 
         const Pipeline* pipeline = packing == 4 ? pipeline_deconvolutiondepthwise_pack4 : pipeline_deconvolutiondepthwise;
 
         // record
         cmd.record_prepare_compute_barrier(bottom_blob);
-        cmd.record_prepare_compute_barrier(top_blob);
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_prepare_compute_barrier(top_blob_bordered);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
+
+        if (pad_w > 0 || pad_h > 0)
+        {
+            VkMat reference_blob;
+            reference_blob.dims = 2;
+            reference_blob.w = top_blob_bordered.w - pad_w - pad_w;
+            reference_blob.h = top_blob_bordered.h - pad_h - pad_h;
+
+            std::vector<VkMat> crop_bottom_blobs(2);
+            crop_bottom_blobs[0] = top_blob_bordered;
+            crop_bottom_blobs[1] = reference_blob;
+            std::vector<VkMat> crop_top_blobs(1);
+            crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
+            top_blob = crop_top_blobs[0];
+
+            outw = top_blob.w;
+            outh = top_blob.h;
+        }
+        else
+        {
+            top_blob = top_blob_bordered;
+        }
 
         return 0;
     }
@@ -730,7 +783,7 @@ int DeconvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, V
         packing_pack1->forward(bottom_blob, bottom_blob_unpacked, cmd, opt_pack1);
     }
 
-    VkMat top_blob_unpacked = top_blob;
+    VkMat top_blob_unpacked = top_blob_bordered;
     if (num_output_g % 4 != 0 && out_packing == 4)
     {
         top_blob_unpacked.create(outw, outh, num_output, elemsize / packing, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
@@ -800,11 +853,33 @@ int DeconvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, V
     // packing
     if (num_output_g % 4 != 0 && out_packing == 4)
     {
-        packing_pack4->forward(top_blob_unpacked, top_blob, cmd, opt);
+        packing_pack4->forward(top_blob_unpacked, top_blob_bordered, cmd, opt);
     }
     else
     {
-        top_blob = top_blob_unpacked;
+        top_blob_bordered = top_blob_unpacked;
+    }
+
+    if (pad_w > 0 || pad_h > 0)
+    {
+        VkMat reference_blob;
+        reference_blob.dims = 2;
+        reference_blob.w = top_blob_bordered.w - pad_w - pad_w;
+        reference_blob.h = top_blob_bordered.h - pad_h - pad_h;
+
+        std::vector<VkMat> crop_bottom_blobs(2);
+        crop_bottom_blobs[0] = top_blob_bordered;
+        crop_bottom_blobs[1] = reference_blob;
+        std::vector<VkMat> crop_top_blobs(1);
+        crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
+        top_blob = crop_top_blobs[0];
+
+        outw = top_blob.w;
+        outh = top_blob.h;
+    }
+    else
+    {
+        top_blob = top_blob_bordered;
     }
 
     return 0;

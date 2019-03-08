@@ -64,6 +64,7 @@ public:
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
 
+    ncnn::Layer* crop;
     ncnn::Layer* packing_pack1;
     ncnn::Layer* packing_pack4;
 

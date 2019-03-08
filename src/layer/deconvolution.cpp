@@ -14,6 +14,7 @@
 
 #include "deconvolution.h"
 #include <algorithm>
+#include "layer_type.h"
 
 namespace ncnn {
 
@@ -26,10 +27,18 @@ Deconvolution::Deconvolution()
     support_vulkan = true;
 
 #if NCNN_VULKAN
+    crop = 0;
     pipeline_deconvolution = 0;
     pipeline_deconvolution_pack4 = 0;
     pipeline_deconvolution_pack1to4 = 0;
     pipeline_deconvolution_pack4to1 = 0;
+#endif // NCNN_VULKAN
+}
+
+Deconvolution::~Deconvolution()
+{
+#if NCNN_VULKAN
+    delete crop;
 #endif // NCNN_VULKAN
 }
 
@@ -46,6 +55,25 @@ int Deconvolution::load_param(const ParamDict& pd)
     pad_h = pd.get(14, pad_w);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
+
+#if NCNN_VULKAN
+    if (pd.use_vulkan_compute)
+    {
+        {
+        crop = ncnn::create_layer(ncnn::LayerType::Crop);
+        crop->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, pad_w);
+        pd.set(1, pad_h);
+        pd.set(2, 0);
+
+        pd.use_vulkan_compute = 1;
+
+        crop->load_param(pd);
+        }
+    }
+#endif // NCNN_VULKAN
 
     return 0;
 }
@@ -386,6 +414,8 @@ int Deconvolution::upload_model(VkTransfer& cmd)
 
 int Deconvolution::create_pipeline()
 {
+    crop->create_pipeline();
+
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
@@ -435,6 +465,9 @@ int Deconvolution::create_pipeline()
 
 int Deconvolution::destroy_pipeline()
 {
+    if (crop)
+        crop->destroy_pipeline();
+
     delete pipeline_deconvolution;
     pipeline_deconvolution = 0;
 
@@ -466,15 +499,25 @@ int Deconvolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     int out_packing = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
-    top_blob.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
-    if (top_blob.empty())
-        return -100;
+    VkMat top_blob_bordered;
+    if (pad_w > 0 || pad_h > 0)
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
 
 //     fprintf(stderr, "Deconvolution::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
 
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob;
-    bindings[1] = top_blob;
+    bindings[1] = top_blob_bordered;
     if (packing == 1 && out_packing == 1)
     {
         bindings[2] = weight_data_gpu;
@@ -496,21 +539,17 @@ int Deconvolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
     }
 
-    // record
-    cmd.record_prepare_compute_barrier(bottom_blob);
-    cmd.record_prepare_compute_barrier(top_blob);
-
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
     constants[3].i = bottom_blob.c;
     constants[4].i = bottom_blob.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = top_blob.cstep;
+    constants[5].i = top_blob_bordered.dims;
+    constants[6].i = top_blob_bordered.w;
+    constants[7].i = top_blob_bordered.h;
+    constants[8].i = top_blob_bordered.c;
+    constants[9].i = top_blob_bordered.cstep;
 
     const Pipeline* pipeline = 0;
     if (packing == 1 && out_packing == 1)
@@ -530,7 +569,32 @@ int Deconvolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         pipeline = pipeline_deconvolution_pack4to1;
     }
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    // record
+    cmd.record_prepare_compute_barrier(bottom_blob);
+    cmd.record_prepare_compute_barrier(top_blob_bordered);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
+
+    if (pad_w > 0 || pad_h > 0)
+    {
+        VkMat reference_blob;
+        reference_blob.dims = 2;
+        reference_blob.w = top_blob_bordered.w - pad_w - pad_w;
+        reference_blob.h = top_blob_bordered.h - pad_h - pad_h;
+
+        std::vector<VkMat> crop_bottom_blobs(2);
+        crop_bottom_blobs[0] = top_blob_bordered;
+        crop_bottom_blobs[1] = reference_blob;
+        std::vector<VkMat> crop_top_blobs(1);
+        crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
+        top_blob = crop_top_blobs[0];
+
+        outw = top_blob.w;
+        outh = top_blob.h;
+    }
+    else
+    {
+        top_blob = top_blob_bordered;
+    }
 
     return 0;
 }
