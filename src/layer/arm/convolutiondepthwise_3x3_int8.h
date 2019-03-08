@@ -63,6 +63,125 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 #endif // __ARM_NEON            
 
 #if __ARM_NEON
+#if __aarch64__
+            if (nn > 0)
+            {
+            asm volatile(
+                "0:                                   \n"
+                "ld1    {v4.8b, v5.8b}, [%3]          \n"
+                "ld1    {v6.8b, v7.8b}, [%4]          \n"
+                "ld1    {v8.8b, v9.8b}, [%5]          \n"
+                "ld1    {v10.8b, v11.8b}, [%6]        \n"
+                "add    %3, %3, #8                    \n"
+                "add    %4, %4, #8                    \n"
+                "add    %5, %5, #8                    \n"
+                "add    %6, %6, #8                    \n"
+
+                "ext    v12.8b, v4.8b, v5.8b, #1      \n"
+                "ext    v13.8b, v4.8b, v5.8b, #2      \n"
+                "ext    v14.8b, v6.8b, v7.8b, #1      \n"
+                "ext    v15.8b, v6.8b, v7.8b, #2      \n"
+                "ext    v16.8b, v8.8b, v9.8b, #1      \n"
+                "ext    v17.8b, v8.8b, v9.8b, #2      \n"
+                "ext    v18.8b, v10.8b, v11.8b, #1    \n"
+                "ext    v19.8b, v10.8b, v11.8b, #2    \n"
+                
+                "sshll  v4.8h, v4.8b, #0              \n"// r00
+                "sshll  v12.8h, v12.8b, #0            \n"// r01
+                "sshll  v13.8h, v13.8b, #0            \n"// r02
+                "sshll  v6.8h, v6.8b, #0              \n"// r10
+                "sshll  v14.8h, v14.8b, #0            \n"// r11
+                "sshll  v15.8h, v15.8b, #0            \n"// r12
+                "sshll  v8.8h, v8.8b, #0              \n"// r20
+                "sshll  v16.8h, v16.8b, #0            \n"// r21
+                "sshll  v17.8h, v17.8b, #0            \n"// r22
+                "sshll  v10.8h, v10.8b, #0            \n"// r30
+                "sshll  v18.8h, v18.8b, #0            \n"// r31
+                "sshll  v19.8h, v19.8b, #0            \n"// r32
+
+                // r0
+                "smull  v20.4s, v4.4h, %14.h[0]       \n"// (r00 - r07) * k00
+                "smull2  v21.4s, v4.8h, %14.h[0]      \n"
+                "smull  v22.4s, v12.4h, %14.h[1]      \n"// (r01 - r08) * k01
+                "smull2  v23.4s, v12.8h, %14.h[1]     \n"
+                "smull  v24.4s, v13.4h, %14.h[2]      \n"// (r02 - r09) * k02
+                "smull2  v25.4s, v13.8h, %14.h[2]     \n"
+
+                // r1
+                "smull  v26.4s, v6.4h, %14.h[0]       \n"// (r10 - r17) * k00
+                "smull2  v27.4s, v6.8h, %14.h[0]      \n"
+                "smull  v28.4s, v14.4h, %14.h[1]      \n"// (r11 - r18) * k01
+                "smull2  v29.4s, v14.8h, %14.h[1]     \n"
+                "smull  v30.4s, v15.4h, %14.h[2]      \n"// (r12 - r19) * k02
+                "smull2  v31.4s, v15.8h, %14.h[2]     \n"
+
+                "smlal  v20.4s, v6.4h, %14.h[3]       \n"// (r10 - r17) * k03
+                "smlal2  v21.4s, v6.8h, %14.h[3]      \n"
+                "smlal  v22.4s, v14.4h, %15.h[0]      \n"// (r11 - r18) * k04
+                "smlal2  v23.4s, v14.8h, %15.h[0]     \n"
+                "smlal  v24.4s, v15.4h, %15.h[1]      \n"// (r12 - r19) * k05
+                "smlal2  v25.4s, v15.8h, %15.h[1]     \n"
+
+                // r2
+                "smlal  v26.4s, v8.4h, %14.h[3]       \n"// (r20 - r27) * k03
+                "smlal2  v27.4s, v8.8h, %14.h[3]      \n"
+                "smlal  v28.4s, v16.4h, %15.h[0]      \n"// (r21 - r28) * k04
+                "smlal2  v29.4s, v16.8h, %15.h[0]     \n"
+                "smlal  v30.4s, v17.4h, %15.h[1]      \n"// (r22 - r29) * k05
+                "smlal2  v31.4s, v17.8h, %15.h[1]     \n"
+
+                "smlal  v20.4s, v8.4h, %15.h[2]       \n"// (r20 - r27) * k06
+                "smlal2  v21.4s, v8.8h, %15.h[2]      \n"
+                "smlal  v22.4s, v16.4h, %15.h[3]      \n"// (r21 - r28) * k07
+                "smlal2  v23.4s, v16.8h, %15.h[3]     \n"
+                "smlal  v24.4s, v17.4h, %16.h[0]      \n"// (r22 - r29) * k08
+                "smlal2  v25.4s, v17.8h, %16.h[0]     \n"
+
+                // r3
+                "smlal  v26.4s, v10.4h, %15.h[2]      \n"// (r30 - r37) * k06
+                "smlal2  v27.4s, v10.8h, %15.h[2]     \n"
+                "smlal  v28.4s, v18.4h, %15.h[3]      \n"// (r31 - r38) * k07
+                "smlal2  v29.4s, v18.8h, %15.h[3]     \n"
+                "smlal  v30.4s, v19.4h, %16.h[0]      \n"// (r32 - r39) * k08
+                "smlal2  v31.4s, v19.8h, %16.h[0]     \n"
+
+                // add and save
+                "add    v20.4s, v20.4s, v22.4s        \n"
+                "add    v21.4s, v21.4s, v23.4s        \n"
+                "add    v26.4s, v26.4s, v28.4s        \n"
+                "add    v27.4s, v27.4s, v29.4s        \n"
+                "add    v20.4s, v20.4s, v24.4s        \n"
+                "add    v21.4s, v21.4s, v25.4s        \n"
+                "add    v26.4s, v26.4s, v30.4s        \n"
+                "add    v27.4s, v27.4s, v31.4s        \n"
+
+                "st1    {v20.4s, v21.4s}, [%1], #32   \n"
+                "st1    {v26.4s, v27.4s}, [%2], #32   \n"
+
+                "subs   %w0, %w0, #1                  \n"
+                "bne    0b                            \n"
+
+                : "=r"(nn),       // %0
+                  "=r"(outptr0),  // %1
+                  "=r"(outptr0n), // %2
+                  "=r"(r0),       // %3
+                  "=r"(r1),       // %4
+                  "=r"(r2),       // %5
+                  "=r"(r3)        // %6
+                : "0"(nn),
+                  "1"(outptr0),
+                  "2"(outptr0n),
+                  "3"(r0),
+                  "4"(r1),
+                  "5"(r2),
+                  "6"(r3),
+                  "w"(_k0123),    // %14
+                  "w"(_k4567),    // %15
+                  "w"(_k8xxx)     // %16
+                : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"               
+            );
+            }
+#else
             for (; nn >0; nn--)
             {
                 // r0
@@ -176,8 +295,9 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                 r2 += 8;
                 r3 += 8;
                 outptr0 += 8;
-                outptr0n += 8;
+                outptr0n += 8;                
             }
+#endif // __aarch64__            
 #endif // __ARM_NEON
             for (; remain>0; remain--)
             {
@@ -235,6 +355,87 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 #endif // __ARM_NEON
 
 #if __ARM_NEON
+#if __aarch64__
+            if (nn > 0)
+            {
+            asm volatile(
+                "0:                                   \n"
+                "ld1    {v4.8b, v5.8b}, [%2]          \n"
+                "ld1    {v6.8b, v7.8b}, [%3]          \n"
+                "ld1    {v8.8b, v9.8b}, [%4]          \n"
+                "add    %2, %2, #8                    \n"
+                "add    %3, %3, #8                    \n"
+                "add    %4, %4, #8                    \n"
+
+                "ext    v12.8b, v4.8b, v5.8b, #1      \n"
+                "ext    v13.8b, v4.8b, v5.8b, #2      \n"
+                "ext    v14.8b, v6.8b, v7.8b, #1      \n"
+                "ext    v15.8b, v6.8b, v7.8b, #2      \n"
+                "ext    v16.8b, v8.8b, v9.8b, #1      \n"
+                "ext    v17.8b, v8.8b, v9.8b, #2      \n"
+                
+                "sshll  v4.8h, v4.8b, #0              \n"// r00
+                "sshll  v12.8h, v12.8b, #0            \n"// r01
+                "sshll  v13.8h, v13.8b, #0            \n"// r02
+                "sshll  v6.8h, v6.8b, #0              \n"// r10
+                "sshll  v14.8h, v14.8b, #0            \n"// r11
+                "sshll  v15.8h, v15.8b, #0            \n"// r12
+                "sshll  v8.8h, v8.8b, #0              \n"// r20
+                "sshll  v16.8h, v16.8b, #0            \n"// r21
+                "sshll  v17.8h, v17.8b, #0            \n"// r22
+
+                // r0
+                "smull  v20.4s, v4.4h, %10.h[0]       \n"// (r00 - r07) * k00
+                "smull2  v21.4s, v4.8h, %10.h[0]      \n"
+                "smull  v22.4s, v12.4h, %10.h[1]      \n"// (r01 - r08) * k01
+                "smull2  v23.4s, v12.8h, %10.h[1]     \n"
+                "smull  v24.4s, v13.4h, %10.h[2]      \n"// (r02 - r09) * k02
+                "smull2  v25.4s, v13.8h, %10.h[2]     \n"
+
+                // r1
+                "smlal  v20.4s, v6.4h, %10.h[3]       \n"// (r10 - r17) * k03
+                "smlal2  v21.4s, v6.8h, %10.h[3]      \n"
+                "smlal  v22.4s, v14.4h, %11.h[0]      \n"// (r11 - r18) * k04
+                "smlal2  v23.4s, v14.8h, %11.h[0]     \n"
+                "smlal  v24.4s, v15.4h, %11.h[1]      \n"// (r12 - r19) * k05
+                "smlal2  v25.4s, v15.8h, %11.h[1]     \n"
+
+                // r2
+                "smlal  v20.4s, v8.4h, %11.h[2]       \n"// (r20 - r27) * k06
+                "smlal2  v21.4s, v8.8h, %11.h[2]      \n"
+                "smlal  v22.4s, v16.4h, %11.h[3]      \n"// (r21 - r28) * k07
+                "smlal2  v23.4s, v16.8h, %11.h[3]     \n"
+                "smlal  v24.4s, v17.4h, %12.h[0]      \n"// (r22 - r29) * k08
+                "smlal2  v25.4s, v17.8h, %12.h[0]     \n"
+
+                // add and save
+                "add    v20.4s, v20.4s, v22.4s        \n"
+                "add    v21.4s, v21.4s, v23.4s        \n"
+                "add    v20.4s, v20.4s, v24.4s        \n"
+                "add    v21.4s, v21.4s, v25.4s        \n"
+
+                "st1    {v20.4s, v21.4s}, [%1], #32   \n"
+
+                "subs   %w0, %w0, #1                  \n"
+                "bne    0b                            \n"
+
+                : "=r"(nn),       // %0
+                  "=r"(outptr0),  // %1
+                  "=r"(r0),       // %2
+                  "=r"(r1),       // %3
+                  "=r"(r2)        // %4
+                : "0"(nn),
+                  "1"(outptr0),
+                  "2"(r0),
+                  "3"(r1),
+                  "4"(r2),
+                  "w"(_k0123),    // %10
+                  "w"(_k4567),    // %11
+                  "w"(_k8xxx)     // %12
+                : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25"              
+            );
+            }
+#else
             for (; nn >0; nn--)
             {
                 // r0
@@ -304,6 +505,7 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                 r2 += 8;
                 outptr0 += 8;
             }
+#endif // __aarch64__            
 #endif // __ARM_NEON
             for (; remain>0; remain--)
             {

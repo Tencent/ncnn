@@ -14,8 +14,6 @@
 
 #include "convolution_arm.h"
 
-#include "benchmark.h"
-
 namespace ncnn {
 
 #include "convolution_1x1.h"
