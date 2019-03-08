@@ -25,7 +25,6 @@ namespace ncnn {
 Option::Option()
 {
     lightmode = true;
-    sub_op = false;
     num_threads = get_cpu_count();
     blob_allocator = 0;
     workspace_allocator = 0;

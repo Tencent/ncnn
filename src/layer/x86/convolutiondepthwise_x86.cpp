@@ -206,10 +206,6 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
     // int8
     if (use_int8_inference)
     {
@@ -343,7 +339,6 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                     ncnn::Option opt_g = opt;
                     opt_g.num_threads = 1;
                     opt_g.blob_allocator = top_blob.allocator;
-                    opt_g.sub_op = true;
 
                     // forward
                     op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
@@ -365,7 +360,6 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                 ncnn::Option opt_g = opt;
                 opt_g.blob_allocator = top_blob.allocator;
-                opt_g.sub_op = true;
 
                 // forward
                 op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
@@ -376,6 +370,10 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     }
 
     // float32
+    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+    
     // depth-wise
     if (channels == group && group == num_output)
     {
