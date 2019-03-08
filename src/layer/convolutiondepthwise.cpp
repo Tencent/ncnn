@@ -393,10 +393,6 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
     const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
@@ -418,6 +414,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
         }
     }
 
+    // int8
     if (use_int8_inference)
     {
         if (use_int8_requantize == true)
@@ -651,6 +648,11 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
         return 0;
     }
 
+    // float32
+    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+    
     // depth-wise
     if (channels == group && group == num_output)
     {
