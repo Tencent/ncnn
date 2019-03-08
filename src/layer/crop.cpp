@@ -20,6 +20,14 @@ DEFINE_LAYER_CREATOR(Crop)
 
 Crop::Crop()
 {
+    one_blob_only = false;
+    support_inplace = false;
+    support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_crop = 0;
+    pipeline_crop_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int Crop::load_param(const ParamDict& pd)
@@ -91,5 +99,183 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int Crop::create_pipeline()
+{
+    std::vector<vk_specialization_type> specializations(3);
+    specializations[0].i = woffset;
+    specializations[1].i = hoffset;
+    specializations[2].i = coffset;
+
+    // pack1
+    {
+        pipeline_crop = new Pipeline(vkdev);
+        pipeline_crop->set_optimal_local_size_xyz();
+        pipeline_crop->create("crop", specializations, 2, 10);
+    }
+
+    // pack4
+    {
+        pipeline_crop_pack4 = new Pipeline(vkdev);
+        pipeline_crop_pack4->set_optimal_local_size_xyz();
+        pipeline_crop_pack4->create("crop_pack4", specializations, 2, 10);
+    }
+
+    return 0;
+}
+
+int Crop::destroy_pipeline()
+{
+    delete pipeline_crop;
+    pipeline_crop = 0;
+
+    delete pipeline_crop_pack4;
+    pipeline_crop_pack4 = 0;
+
+    return 0;
+}
+
+int Crop::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
+    // TODO vec and image crop
+    int dims = bottom_blob.dims;
+
+    int _outw = outw == -233 ? w - woffset : outw;
+    int _outh = outh == -233 ? h - hoffset : outh;
+    int _outc = outc == -233 ? channels * packing - coffset : outc;
+
+    int out_packing = _outc % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / packing * out_packing;
+
+    top_blob.create(_outw, _outh, _outc / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+//     fprintf(stderr, "Crop::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = 0;
+    if (packing == 1 && out_packing == 1)
+    {
+        pipeline = pipeline_crop;
+    }
+    else if (packing == 4 && out_packing == 4)
+    {
+        pipeline = pipeline_crop_pack4;
+    }
+    else if (packing == 1 && out_packing == 4)
+    {
+        // TODO
+        return -1;
+    }
+    else if (packing == 4 && out_packing == 1)
+    {
+        // TODO
+        return -1;
+    }
+
+    // record
+    cmd.record_prepare_compute_barrier(bottom_blob);
+    cmd.record_prepare_compute_barrier(top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    return 0;
+}
+
+int Crop::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    const VkMat& bottom_blob = bottom_blobs[0];
+    const VkMat& reference_blob = bottom_blobs[1];
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
+    // TODO vec and image crop
+    int dims = bottom_blob.dims;
+
+    int _outw = reference_blob.w;
+    int _outh = reference_blob.h;
+    int _outc = reference_blob.dims == 3 ? reference_blob.c : channels;
+
+    int out_packing = _outc % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / packing * out_packing;
+
+    VkMat& top_blob = top_blobs[0];
+
+    top_blob.create(_outw, _outh, _outc / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+//     fprintf(stderr, "Crop::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = 0;
+    if (packing == 1 && out_packing == 1)
+    {
+        pipeline = pipeline_crop;
+    }
+    else if (packing == 4 && out_packing == 4)
+    {
+        pipeline = pipeline_crop_pack4;
+    }
+    else if (packing == 1 && out_packing == 4)
+    {
+        // TODO
+        return -1;
+    }
+    else if (packing == 4 && out_packing == 1)
+    {
+        // TODO
+        return -1;
+    }
+
+    // record
+    cmd.record_prepare_compute_barrier(bottom_blob);
+    cmd.record_prepare_compute_barrier(top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
