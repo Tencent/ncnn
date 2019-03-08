@@ -432,10 +432,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     int outw = (w - kernel_size) / stride + 1;
     int outh = (h - kernel_size) / stride + 1;
 
-    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
+    // int8
     if (use_int8_inference)
     {
         if (use_int8_requantize == true)
@@ -525,6 +522,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         return 0;
     }
+
+    // float32
+    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
 
     if (use_winograd3x3 && w <= 120 && h <= 120)
     {
