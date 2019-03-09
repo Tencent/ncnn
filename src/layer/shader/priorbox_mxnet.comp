@@ -71,8 +71,6 @@ void main()
             float ratio = sqrt(aspect_ratios_data[pi]);
             float cwr = size * p.h / p.w * ratio / 2;
             float chr = size / ratio / 2;
-//             float cwr = cw * ratio;
-//             float chr = ch / ratio;
 
             vec4 box = center + vec4(-cwr, -chr, cwr, chr);
 
