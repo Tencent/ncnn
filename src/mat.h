@@ -1421,6 +1421,7 @@ inline void VkMat::discard_staging_buffer()
     }
 
     staging_data = 0;
+    staging_refcount = 0;
 }
 
 inline void VkMat::upload(const Mat& m)
