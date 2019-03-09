@@ -61,7 +61,7 @@ void main()
         }
         if (order_type == 1)
         {
-            v_offset = ivec4(gx * p.outw + gy) + ivec4(0, 1, 2, 3);
+            v_offset = ivec4(gx * p.outw + gy * 4) + ivec4(0, 1, 2, 3);
         }
     }
     else if (p.dims == 3)
