@@ -36,6 +36,13 @@ Pooling::Pooling()
 #endif // NCNN_VULKAN
 }
 
+Pooling::~Pooling()
+{
+#if NCNN_VULKAN
+    delete padding;
+#endif // NCNN_VULKAN
+}
+
 int Pooling::load_param(const ParamDict& pd)
 {
     pooling_type = pd.get(0, 0);
