@@ -422,6 +422,13 @@ int create_gpu_instance()
 //         fprintf(stderr, "[%u] deviceName = %s\n", i, physicalDeviceProperties.deviceName);
 //         fprintf(stderr, "[%u] pipelineCacheUUID = %u\n", i, physicalDeviceProperties.pipelineCacheUUID);
 
+        // info
+        gpu_info.api_version = physicalDeviceProperties.apiVersion;
+        gpu_info.driver_version = physicalDeviceProperties.driverVersion;
+        gpu_info.vendor_id = physicalDeviceProperties.vendorID;
+        gpu_info.device_id = physicalDeviceProperties.deviceID;
+        memcpy(gpu_info.pipeline_cache_uuid, physicalDeviceProperties.pipelineCacheUUID, VK_UUID_SIZE);
+
         if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
             gpu_info.type = 0;
         else if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
