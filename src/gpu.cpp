@@ -456,10 +456,10 @@ int create_gpu_instance()
         gpu_info.memory_map_alignment = physicalDeviceProperties.limits.minMemoryMapAlignment;
         gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
 
-//         fprintf(stderr, "[%u] max_shared_memory_size = %d\n", i, gpu_info.max_shared_memory_size);
-//         fprintf(stderr, "[%u] max_workgroup_count = %d %d %d\n", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
-//         fprintf(stderr, "[%u] max_workgroup_invocations = %d\n", i, gpu_info.max_workgroup_invocations);
-//         fprintf(stderr, "[%u] max_workgroup_size = %d %d %d\n", i, gpu_info.max_workgroup_size[0], gpu_info.max_workgroup_size[1], gpu_info.max_workgroup_size[2]);
+//         fprintf(stderr, "[%u] max_shared_memory_size = %u\n", i, gpu_info.max_shared_memory_size);
+//         fprintf(stderr, "[%u] max_workgroup_count = %u %u %u\n", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
+//         fprintf(stderr, "[%u] max_workgroup_invocations = %u\n", i, gpu_info.max_workgroup_invocations);
+//         fprintf(stderr, "[%u] max_workgroup_size = %u %u %u\n", i, gpu_info.max_workgroup_size[0], gpu_info.max_workgroup_size[1], gpu_info.max_workgroup_size[2]);
 //         fprintf(stderr, "[%u] memory_map_alignment = %lu\n", i, gpu_info.memory_map_alignment);
 //         fprintf(stderr, "[%u] buffer_offset_alignment = %lu\n", i, gpu_info.buffer_offset_alignment);
 

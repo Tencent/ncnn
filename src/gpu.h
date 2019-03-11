@@ -52,10 +52,10 @@ public:
     int type;
 
     // hardware capability
-    int max_shared_memory_size;
-    int max_workgroup_count[3];
-    int max_workgroup_invocations;
-    int max_workgroup_size[3];
+    uint32_t max_shared_memory_size;
+    uint32_t max_workgroup_count[3];
+    uint32_t max_workgroup_invocations;
+    uint32_t max_workgroup_size[3];
     size_t memory_map_alignment;
     size_t buffer_offset_alignment;
 

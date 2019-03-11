@@ -659,9 +659,12 @@ int Net::load_model(FILE* fp)
         {
             Layer* layer = layers[i];
 
-            if (layer->support_vulkan)
+            int uret = layer->upload_model(cmd);
+            if (uret != 0)
             {
-                layer->upload_model(cmd);
+                fprintf(stderr, "layer upload_model %d failed\n", (int)i);
+                ret = -1;
+                break;
             }
         }
 
@@ -674,9 +677,10 @@ int Net::load_model(FILE* fp)
         {
             Layer* layer = layers[i];
 
-            if (layer->support_vulkan)
+            int cret = layer->create_pipeline();
+            if (cret != 0)
             {
-                layer->create_pipeline();
+                fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
             }
         }
     }
@@ -877,9 +881,11 @@ int Net::load_model(const unsigned char* _mem)
         {
             Layer* layer = layers[i];
 
-            if (layer->support_vulkan)
+            int uret = layer->upload_model(cmd);
+            if (uret != 0)
             {
-                layer->upload_model(cmd);
+                fprintf(stderr, "layer upload_model %d failed\n", (int)i);
+                return -1;
             }
         }
 
@@ -892,9 +898,10 @@ int Net::load_model(const unsigned char* _mem)
         {
             Layer* layer = layers[i];
 
-            if (layer->support_vulkan)
+            int cret = layer->create_pipeline();
+            if (cret != 0)
             {
-                layer->create_pipeline();
+                fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
             }
         }
     }
