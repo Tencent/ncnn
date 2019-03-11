@@ -23,6 +23,7 @@ class Pooling : public Layer
 {
 public:
     Pooling();
+    ~Pooling();
 
     virtual int load_param(const ParamDict& pd);
 
