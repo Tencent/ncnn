@@ -76,6 +76,14 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     if (dims == 1)
     {
+        if (out_packing == 1)
+        {
+            top_blob = bottom_blob;
+            top_blob.w = w * packing;
+            top_blob.elemsize = elemsize / packing;
+            return 0;
+        }
+
         int outw = (w * packing + out_packing - 1) / out_packing;
         size_t out_elemsize = elemsize / packing * out_packing;
 

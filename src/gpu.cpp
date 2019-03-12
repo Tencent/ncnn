@@ -503,7 +503,7 @@ int create_gpu_instance()
         gpu_info.host_visible_memory_index = find_host_visible_memory(physicalDeviceMemoryProperties);
 
         // treat as unified memory architecture if memory heap is the same
-        if (gpu_info.unified_memory_index != -1)
+        if (gpu_info.unified_memory_index != (uint32_t)-1)
         {
             int unified_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.unified_memory_index].heapIndex;
             int device_local_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.device_local_memory_index].heapIndex;

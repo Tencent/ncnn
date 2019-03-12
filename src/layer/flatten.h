@@ -35,6 +35,7 @@ public:
 
 public:
 #if NCNN_VULKAN
+    Pipeline* pipeline_flatten;
     Pipeline* pipeline_flatten_pack4;
 #endif // NCNN_VULKAN
 };
