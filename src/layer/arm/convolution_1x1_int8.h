@@ -24,7 +24,7 @@ static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& 
     kernel_tm.create(4*8, inch/4 + inch%4, outch/8 + (outch%8)/4 + outch%4, (size_t)1u);
 #else
     kernel_tm.create(4*4, inch/4 + inch%4, outch/4 + outch%4, (size_t)1u);
-#endif    
+#endif // __ARM_NEON && __aarch64__    
 
     int p = 0;
 #if __ARM_NEON && __aarch64__
@@ -64,7 +64,7 @@ static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& 
             kernel7 += 1;
         }
     }
-#endif    
+#endif // __ARM_NEON && __aarch64__    
     for (; p+3<outch; p+=4)
     {
         const signed char* kernel0 = kernel + (p+0)*inch;
@@ -77,7 +77,6 @@ static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& 
 #else
         signed char* ktmp = kernel_tm.channel(p/4);
 #endif // __ARM_NEON && __aarch64__
-
 
         for (int q=0; q<inch; q++)
         {
@@ -1840,7 +1839,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
                 "add      v16.4s, v16.4s, v18.4s     \n"
                 "add      v17.4s, v17.4s, v19.4s     \n"
-                "add      v14.4s, v16.4s, v20.4s     \n"
+                "add      v14.4s, v16.4s, v17.4s     \n"
 
                 "1:                                  \n"
 
@@ -1852,9 +1851,10 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "2:                                  \n"
 
                 //"prfm   pldl1keep, [%5, #128]      \n"
-                "ld1    {v0.8b}, [%5], #8            \n"// k
+                "ld1    {v0.8b}, [%5]                \n"// k
                 "ld1    {v4.8b}, [%4]                \n"// d
                 "add    %4, %4, #1                   \n"
+                "add    %5, %5, #4                   \n"
 
                 "sshll    v0.8h, v0.8b, #0           \n" // k00 - k30
                 "sshll    v4.8h, v4.8b, #0           \n" // a00 - a30

@@ -85,12 +85,17 @@ int Convolution_arm::load_model(const ModelBin& mb)
             int num_input = weight_data_size / 9 / num_output;
             conv3x3s2_transform_kernel_int8_neon(weight_data, weight_3x3s2_int8_data, num_input, num_output);
         }
-
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             int num_input = weight_data_size / num_output;
             conv1x1s1_sgemm_transform_kernel_int8_neon(weight_data, weight_1x1s1_sgemm_int8_data, num_input, num_output);
             use_sgemm1x1 = true;
+        }
+        else
+        {
+            int kernel_size = kernel_w * kernel_h;
+            int num_input = weight_data_size / kernel_size / num_output;
+            conv_im2col_sgemm_transform_kernel_int8_neon(weight_data, weight_sgemm_int8_data, num_input, num_output, kernel_size);
         }
         
         return 0;
@@ -462,7 +467,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }        
             else
             {
-                conv_int8(bottom_blob_bordered, top_blob_tm, weight_data, opt);
+                conv_int8(bottom_blob_bordered, top_blob_tm, weight_sgemm_int8_data, opt);
             }
 
             // requantize, reverse scale inplace
@@ -502,7 +507,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }        
             else
             {
-                conv_int8(bottom_blob_bordered, top_blob, weight_data, opt);
+                conv_int8(bottom_blob_bordered, top_blob, weight_sgemm_int8_data, opt);
             }          
 
             // dequantize, reverse scale inplace
