@@ -25,6 +25,7 @@ Flatten::Flatten()
     support_vulkan = true;
 
 #if NCNN_VULKAN
+    pipeline_flatten = 0;
     pipeline_flatten_pack4 = 0;
 #endif // NCNN_VULKAN
 }
@@ -61,6 +62,13 @@ int Flatten::create_pipeline()
 {
     std::vector<vk_specialization_type> specializations;
 
+    // pack1
+    {
+        pipeline_flatten = new Pipeline(vkdev);
+        pipeline_flatten->set_optimal_local_size_xyz();
+        pipeline_flatten->create("flatten", specializations, 2, 10);
+    }
+
     // pack4
     {
         pipeline_flatten_pack4 = new Pipeline(vkdev);
@@ -73,6 +81,9 @@ int Flatten::create_pipeline()
 
 int Flatten::destroy_pipeline()
 {
+    delete pipeline_flatten;
+    pipeline_flatten = 0;
+
     delete pipeline_flatten_pack4;
     pipeline_flatten_pack4 = 0;
 
@@ -89,73 +100,55 @@ int Flatten::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
         return 0;
     }
 
-    if (dims == 2)
-    {
-        top_blob = bottom_blob;
-        top_blob.dims = 1;
-        top_blob.w = bottom_blob.w * bottom_blob.h;
-        top_blob.h = 1;
-        return 0;
-    }
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int packing = bottom_blob.packing;
 
-    int out_packing = (w * h * channels * packing) % 4 == 0 ? 4 : 1;
+    int total = w * h * channels * packing;
+
+    int out_packing = total % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
-    top_blob.create(w * h * channels * packing / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
-    if (top_blob.empty())
-        return -100;
-
-    if (packing == 4 && out_packing == 4)
+    if (dims == 2 && packing == 1)
     {
-        std::vector<VkMat> bindings(2);
-        bindings[0] = bottom_blob;
-        bindings[1] = top_blob;
-
-        std::vector<vk_constant_type> constants(10);
-        constants[0].i = bottom_blob.dims;
-        constants[1].i = bottom_blob.w;
-        constants[2].i = bottom_blob.h;
-        constants[3].i = bottom_blob.c;
-        constants[4].i = bottom_blob.cstep;
-        constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
-        constants[8].i = top_blob.c;
-        constants[9].i = top_blob.cstep;
-
-        // record
-        cmd.record_prepare_compute_barrier(bottom_blob);
-        cmd.record_prepare_compute_barrier(top_blob);
-        cmd.record_pipeline(pipeline_flatten_pack4, bindings, constants, top_blob);
-
+        top_blob = bottom_blob;
+        top_blob.dims = 1;
+        top_blob.w = total / out_packing;
+        top_blob.h = 1;
+        top_blob.cstep = top_blob.w;
+        top_blob.elemsize = out_elemsize;
+        top_blob.packing = out_packing;
         return 0;
     }
 
-    std::vector<VkBufferCopy> regions(channels);
+    top_blob.create(total / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
 
-    int srcOffset = 0;
-    int dstOffset = 0;
-    for (int q=0; q<channels; q++)
-    {
-        int size = w * h * elemsize;
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
 
-        regions[q].srcOffset = bottom_blob.buffer_offset() + srcOffset;
-        regions[q].dstOffset = top_blob.buffer_offset() + dstOffset;
-        regions[q].size = size;
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = (packing == 1 && out_packing == 4) ? top_blob.w * out_packing : top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
 
-        srcOffset += bottom_blob.cstep * elemsize;
-        dstOffset += size;
-    }
+    const Pipeline* pipeline = packing == 4 ? pipeline_flatten_pack4 : pipeline_flatten;
 
-    cmd.record_prepare_transfer_barrier(bottom_blob);
-    cmd.record_prepare_transfer_barrier(top_blob);
-    cmd.record_copy_regions(bottom_blob, top_blob, regions);
+    // record
+    cmd.record_prepare_compute_barrier(bottom_blob);
+    cmd.record_prepare_compute_barrier(top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }

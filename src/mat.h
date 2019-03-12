@@ -1412,6 +1412,9 @@ inline void VkMat::prepare_staging_buffer()
 
 inline void VkMat::discard_staging_buffer()
 {
+    if (allocator->mappable)
+        return;
+
     if (staging_refcount && NCNN_XADD(staging_refcount, -1) == 1)
     {
         if (staging_allocator && staging_data)
