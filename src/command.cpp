@@ -183,6 +183,9 @@ VkCompute::~VkCompute()
 
 void VkCompute::record_upload(const VkMat& m)
 {
+    if (m.allocator->mappable)
+        return;
+
     record_prepare_transfer_barrier(m);
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
@@ -200,6 +203,9 @@ void VkCompute::record_upload(const VkMat& m)
 
 void VkCompute::record_download(const VkMat& m)
 {
+    if (m.allocator->mappable)
+        return;
+
     record_prepare_transfer_barrier(m);
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
