@@ -355,6 +355,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         //     {0.0f, -1.0f,  0.00f, 1.0f}
         // };        
 
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<inch; q++)
         {
             const signed char* img = bottom_blob_bordered.channel(q);
@@ -372,7 +373,61 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     short* out_tm1 = bottom_blob_tm.channel(tiles*1+j*nRowBlocks+i).row<short>(q);
                     short* out_tm2 = bottom_blob_tm.channel(tiles*2+j*nRowBlocks+i).row<short>(q);
                     short* out_tm3 = bottom_blob_tm.channel(tiles*3+j*nRowBlocks+i).row<short>(q);
+#if __ARM_NEON
+                    asm volatile(
+                        // load
+                        //"prfm   pldl1keep, [%0, #64]    \n"
+                        "ld1    {v0.8b}, [%0]           \n"
+                        //"prfm   pldl1keep, [%1, #64]    \n"
+                        "ld1    {v1.8b}, [%1]           \n"
+                        //"prfm   pldl1keep, [%2, #64]    \n"
+                        "ld1    {v2.8b}, [%2]           \n"
+                        //"prfm   pldl1keep, [%3, #64]    \n"
+                        "ld1    {v3.8b}, [%3]           \n"
+                        // w = B_t * d, trans int8 to int16
+                        "ssubl    v4.8h, v0.8b, v2.8b   \n" // d4
+                        "saddl    v5.8h, v1.8b, v2.8b   \n" // d6
+                        "ssubl    v6.8h, v2.8b, v1.8b   \n" // d8
+                        "ssubl    v7.8h, v3.8b, v1.8b   \n" // d10
+                        // transpose w to w_t
+                        "trn1   v8.4h, v4.4h, v5.4h    \n"
+                        "trn2   v9.4h, v4.4h, v5.4h    \n"
+                        "trn1   v10.4h, v6.4h, v7.4h    \n"
+                        "trn2   v11.4h, v6.4h, v7.4h    \n"
 
+                        "trn1   v0.2s, v8.2s, v10.2s    \n"
+                        "trn2   v2.2s, v8.2s, v10.2s    \n"
+                        "trn1   v1.2s, v9.2s, v11.2s    \n"
+                        "trn2   v3.2s, v9.2s, v11.2s    \n"
+                        // U = B_t * d_t
+                        "sub    v4.4h, v0.4h, v2.4h   \n"
+                        "add    v5.4h, v1.4h, v2.4h   \n"
+                        "sub    v6.4h, v2.4h, v1.4h   \n"
+                        "sub    v7.4h, v3.4h, v1.4h   \n"
+                        // save
+                        "st1    {v4.4h}, [%4]   \n"
+                        "st1    {v5.4h}, [%5]   \n"
+                        "st1    {v6.4h}, [%6]   \n"
+                        "st1    {v7.4h}, [%7]   \n"
+                        : "=r"(r0),      // %0
+                          "=r"(r1),      // %1
+                          "=r"(r2),      // %2
+                          "=r"(r3),      // %3
+                          "=r"(out_tm0), // %4
+                          "=r"(out_tm1), // %5
+                          "=r"(out_tm2), // %6
+                          "=r"(out_tm3)  // %7
+                        : "0"(r0),
+                          "1"(r1),
+                          "2"(r2),
+                          "3"(r3),
+                          "4"(out_tm0),
+                          "5"(out_tm1),
+                          "6"(out_tm2),
+                          "7"(out_tm3)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
+                    );
+#else
                     short d0[4],d1[4],d2[4],d3[4];
                     short w0[4],w1[4],w2[4],w3[4];
                     short t0[4],t1[4],t2[4],t3[4];
@@ -415,7 +470,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         out_tm2[n] = d2[n];
                         out_tm3[n] = d3[n];
                     }
-                        
+#endif // __ARM_NEON                       
                     r0 += 2;
                     r1 += 2;
                     r2 += 2;
@@ -443,6 +498,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
         top_blob_tm.create(16, tiles, outch, 4u, opt.workspace_allocator);
 
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int r=0; r<4; r++)
         {
             int nn_outch = 0;
@@ -451,7 +507,6 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
             nn_outch = outch >> 3;
             remain_outch_start = nn_outch << 3;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
             for (int pp=0; pp<nn_outch; pp++)
             {
                 int p = pp * 8;
@@ -479,6 +534,78 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     const short* kptr = kernel_tm_test[r].channel(p/8);
                     const short* r0 = bottom_blob_tm.channel(tiles*r+i);
 
+#if __ARM_NEON
+                    asm volatile(
+                        // inch loop
+                        "eor    v0.16b, v0.16b, v0.16b    \n"
+                        "eor    v1.16b, v1.16b, v1.16b    \n"
+                        "eor    v2.16b, v2.16b, v2.16b    \n"
+                        "eor    v3.16b, v3.16b, v3.16b    \n"
+                        "eor    v4.16b, v4.16b, v4.16b    \n"
+                        "eor    v5.16b, v5.16b, v5.16b    \n"
+                        "eor    v6.16b, v6.16b, v6.16b    \n"
+                        "eor    v7.16b, v7.16b, v7.16b    \n"
+                        "mov    w4, %w20                  \n"
+                        
+                        "0:                               \n" // for (int q=0; q<inch; q++)
+                        "prfm    pldl1keep, [%9, #128]    \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "ld1     {v8.4h}, [%8]            \n" 
+                        "ld1     {v9.4h, v10.4h}, [%9]    \n" // _k0 = vld1q_s16(kptr);
+                        "add     %9, %9, #16              \n"
+                        "ld1     {v11.4h, v12.4h}, [%9]   \n" // _k0n = vld1q_s16(kptr+8);
+                        "add     %9, %9, #16              \n"
+                        "ld1     {v13.4h, v14.4h}, [%9]   \n" // _k1 = vld1q_s16(kptr+16);
+                        "add     %9, %9, #16              \n"
+                        "ld1     {v15.4h, v16.4h}, [%9]   \n" // _k1n = vld1q_s16(kptr+24);
+                        "add     %8, %8, #8               \n"
+                        "add     %9, %9, #16              \n"
+
+                        "subs    w4, w4, #1               \n"
+
+                        "smlal   v0.4s, v8.4h, v9.4h      \n" // sum0 += (a00-a03) * (k00-k03)
+                        "smlal   v1.4s, v8.4h, v10.4h     \n" // sum1 += (a00-a03) * (k10-k13)
+                        "smlal   v2.4s, v8.4h, v11.4h     \n" // sum2 += (a00-a03) * (k20-k23)
+                        "smlal   v3.4s, v8.4h, v12.4h     \n" // sum3 += (a00-a03) * (k30-k33)
+                        "smlal   v4.4s, v8.4h, v13.4h     \n" // sum4 += (a00-a03) * (k40-k43)
+                        "smlal   v5.4s, v8.4h, v14.4h     \n" // sum5 += (a00-a03) * (k50-k53)
+                        "smlal   v6.4s, v8.4h, v15.4h     \n" // sum6 += (a00-a03) * (k60-k63)
+                        "smlal   v7.4s, v8.4h, v16.4h     \n" // sum7 += (a00-a03) * (k70-k73)
+                        
+                        "bne     0b                       \n" // end for
+
+                        "st1     {v0.4s}, [%0]            \n" // store the result to memory
+                        "st1     {v1.4s}, [%1]            \n" //
+                        "st1     {v2.4s}, [%2]            \n" //
+                        "st1     {v3.4s}, [%3]            \n" //
+                        "st1     {v4.4s}, [%4]            \n" //
+                        "st1     {v5.4s}, [%5]            \n" //
+                        "st1     {v6.4s}, [%6]            \n" //
+                        "st1     {v7.4s}, [%7]            \n" //
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(output4_tm), // %4
+                          "=r"(output5_tm), // %5
+                          "=r"(output6_tm), // %6
+                          "=r"(output7_tm), // %7
+                          "=r"(r0),         // %8
+                          "=r"(kptr)        // %9
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(output4_tm),
+                          "5"(output5_tm),
+                          "6"(output6_tm),
+                          "7"(output7_tm),
+                          "8"(r0),
+                          "9"(kptr),
+                          "r"(inch)         // %20
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16"
+                    );
+#else                  
                     int sum0[4] = {0};
                     int sum1[4] = {0};
                     int sum2[4] = {0};
@@ -516,7 +643,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         output6_tm[n] = sum6[n];
                         output7_tm[n] = sum7[n];
                     }
-
+#endif // __ARM_NEOM
                     output0_tm += 16;
                     output1_tm += 16;
                     output2_tm += 16;
@@ -530,7 +657,6 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
             nn_outch = (outch - remain_outch_start) >> 2;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
             for (int pp=0; pp<nn_outch; pp++)
             {
                 int p = remain_outch_start + pp * 4;
@@ -549,7 +675,54 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                 {
                     const short* kptr = kernel_tm_test[r].channel(p/8 + (p%8)/4);
                     const short* r0 = bottom_blob_tm.channel(tiles*r+i);
+#if __ARM_NEON
+                    asm volatile(
+                        // inch loop
+                        "eor    v0.16b, v0.16b, v0.16b    \n"
+                        "eor    v1.16b, v1.16b, v1.16b    \n"
+                        "eor    v2.16b, v2.16b, v2.16b    \n"
+                        "eor    v3.16b, v3.16b, v3.16b    \n"
+                        "mov    w4, %w12                  \n"
+                        
+                        "0:                               \n" // for (int q=0; q<inch; q++)
+                        "prfm    pldl1keep, [%5, #128]    \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "ld1     {v8.4h}, [%4]            \n" 
+                        "ld1     {v9.4h, v10.4h}, [%5]    \n" // _k0 = vld1q_s16(kptr);
+                        "add     %5, %5, #16              \n"
+                        "ld1     {v11.4h, v12.4h}, [%5]   \n" // _k0n = vld1q_s16(kptr+8);
+                        "add     %4, %4, #8               \n"
+                        "add     %5, %5, #16              \n"
 
+                        "subs    w4, w4, #1               \n"
+
+                        "smlal   v0.4s, v8.4h, v9.4h      \n" // sum0 += (a00-a03) * (k00-k03)
+                        "smlal   v1.4s, v8.4h, v10.4h     \n" // sum1 += (a00-a03) * (k10-k13)
+                        "smlal   v2.4s, v8.4h, v11.4h     \n" // sum2 += (a00-a03) * (k20-k23)
+                        "smlal   v3.4s, v8.4h, v12.4h     \n" // sum3 += (a00-a03) * (k30-k33)
+                        
+                        "bne     0b                       \n" // end for
+
+                        "st1     {v0.4s}, [%0]            \n" // store the result to memory
+                        "st1     {v1.4s}, [%1]            \n" //
+                        "st1     {v2.4s}, [%2]            \n" //
+                        "st1     {v3.4s}, [%3]            \n" //
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(r0),         // %4
+                          "=r"(kptr)        // %5
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(r0),
+                          "5"(kptr),
+                          "r"(inch)         // %12
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12"
+                    );
+#else
                     int sum0[4] = {0};
                     int sum1[4] = {0};
                     int sum2[4] = {0};
@@ -575,7 +748,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         output2_tm[n] = sum2[n];
                         output3_tm[n] = sum3[n];
                     }
-
+#endif // __ARM_NEON
                     output0_tm += 16;
                     output1_tm += 16;
                     output2_tm += 16;
@@ -585,7 +758,6 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
             remain_outch_start += nn_outch << 2;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
             for (int p=remain_outch_start; p<outch; p++)
             {
                 int* output0_tm = top_blob_tm.channel(p);
@@ -596,7 +768,37 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                 {
                     const short* kptr = kernel_tm_test[r].channel(p/8 + (p%8)/4 + p%4);
                     const short* r0 = bottom_blob_tm.channel(tiles*r+i);
+#if __ARM_NEON
+                    asm volatile(
+                        // inch loop
+                        "eor    v0.16b, v0.16b, v0.16b    \n"
+                        "mov    w4, %w6                   \n"
+                        
+                        "0:                               \n" // for (int q=0; q<inch; q++)
+                        //"prfm    pldl1keep, [%2, #128]    \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "ld1     {v8.4h}, [%1]            \n" 
+                        "ld1     {v9.4h}, [%2]            \n" // _k0 = vld1q_s16(kptr);
+                        "add     %1, %1, #8               \n"
+                        "add     %2, %2, #8               \n"
 
+                        "subs    w4, w4, #1               \n"
+
+                        "smlal   v0.4s, v8.4h, v9.4h      \n" // sum0 += (a00-a03) * (k00-k03)
+
+                        "bne     0b                       \n" // end for
+
+                        "st1     {v0.4s}, [%0]            \n" // store the result to memory
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(r0),         // %1
+                          "=r"(kptr)        // %2
+                        : "0"(output0_tm),
+                          "1"(r0),
+                          "2"(kptr),
+                          "r"(inch)         // %6
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9"
+                    );
+#else
                     int sum0[4] = {0};
 
                     for (int q=0; q<inch; q++)
@@ -613,6 +815,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     {
                         output0_tm[n] = sum0[n];
                     }
+#endif // __ARM_NEON                    
                     output0_tm += 16;
                 }
             }
@@ -640,6 +843,8 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         int nColBlocks = h_tm/4; // may be the block num in FeatherCNN
         int nRowBlocks = w_tm/4;
 
+        int32x2_t _shift = vdup_n_s32(-2);
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<outch; p++)
         {
@@ -651,6 +856,42 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
             {
                 for(int i=0; i<nRowBlocks; i++)
                 {
+#if __ARM_NEON
+                    asm volatile(
+                        "prfm   pldl1keep, [%0, #512]  \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64    \n"
+
+                        "add    v0.4s, v0.4s, v1.4s    \n" // s0 = s0 + s1 + s2;
+                        "sub    v1.4s, v1.4s, v2.4s    \n"
+                        "add    v0.4s, v0.4s, v2.4s    \n" // s1 = s1 - s2 + s3;
+                        "add    v1.4s, v1.4s, v3.4s    \n"
+
+                        "trn1   v4.4s, v0.4s, v1.4s    \n"
+                        "trn2   v5.4s, v0.4s, v1.4s    \n"
+
+                        "dup    v6.2d, v4.d[1]         \n"
+                        "dup    v7.2d, v5.d[1]         \n"
+                        
+                        "add    v0.2s, v4.2s, v5.2s    \n" // o0 = d0 + d1 + d2;
+                        "sub    v1.2s, v5.2s, v6.2s    \n"
+                        "add    v0.2s, v0.2s, v6.2s    \n" // o1 = d1 - d2 + d3;
+                        "add    v1.2s, v1.2s, v7.2s    \n"
+
+                        "sshl    v0.2s, v0.2s, %6.2s   \n" // o0 = o0 >> 2
+                        "sshl    v1.2s, v1.2s, %6.2s   \n" // o1 = o1 >> 2
+
+                        "st1     {v0.2s}, [%1], #8     \n"
+                        "st1     {v1.2s}, [%2], #8     \n"
+                        : "=r"(out_tile), // %0
+                          "=r"(outRow0),  // %1
+                          "=r"(outRow1)   // %2
+                        : "0"(out_tile),
+                          "1"(outRow0),
+                          "2"(outRow1),
+                          "w"(_shift)     // %6
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
+                    );
+#else
                     int s0[4],s1[4],s2[4],s3[4];
                     int w0[4],w1[4];
                     int d0[2],d1[2],d2[2],d3[2];
@@ -692,6 +933,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
                     outRow0 += 2;
                     outRow1 += 2;
+#endif                    
                 }
 
                 outRow0 += outw;

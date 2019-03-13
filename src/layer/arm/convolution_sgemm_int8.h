@@ -274,7 +274,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             for (; j+7<N; j=j+8)
             {
                 signed char* vb = bottom_tm.channel(j/8);
-                signed char* va = kernel_tm.channel(i/8);
+                const signed char* va = kernel_tm.channel(i/8);
 #if __aarch64__
                 asm volatile(
                     "eor    v16.16b, v16.16b, v16.16b    \n" // sum0
@@ -294,37 +294,27 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     "eor    v30.16b, v30.16b, v30.16b    \n" // sum7
                     "eor    v31.16b, v31.16b, v31.16b    \n" // sum7n
 
-                    "lsr         w4, %w20, #3            \n"// r4 = nn = L >> 3
+                    "lsr         w4, %w20, #2            \n"// r4 = nn = L >> 2
                     "cmp         w4, #0                  \n"
                     "beq         1f                      \n"
 
-                    "0:                                  \n"// for (; k+7<L; k=k+8)
+                    "0:                                  \n"// for (; k+3<L; k=k+4)
 
                     "prfm   pldl1keep, [%9, #128]                       \n"
                     "ld1    {v0.8b, v1.8b, v2.8b, v3.8b}, [%9], #32     \n"
-                    "ld1    {v4.8b, v5.8b, v6.8b, v7.8b}, [%9], #32     \n"
 
                     "prfm   pldl1keep, [%8, #128]                       \n"
                     "ld1    {v8.8b, v9.8b, v10.8b, v11.8b}, [%8], #32   \n"
-                    "ld1    {v12.8b, v13.8b, v14.8b, v15.8b}, [%8], #32 \n"
 
                     "sshll    v0.8h, v0.8b, #0           \n" // k00 - k70
                     "sshll    v1.8h, v1.8b, #0           \n" // k01 - k71
                     "sshll    v2.8h, v2.8b, #0           \n" // k02 - k72
                     "sshll    v3.8h, v3.8b, #0           \n" // k03 - k73
-                    "sshll    v4.8h, v4.8b, #0           \n" // k04 - k74
-                    "sshll    v5.8h, v5.8b, #0           \n" // k05 - k75
-                    "sshll    v6.8h, v6.8b, #0           \n" // k06 - k76
-                    "sshll    v7.8h, v7.8b, #0           \n" // k07 - k77
 
                     "sshll    v8.8h, v8.8b, #0           \n" // a00 - a70
                     "sshll    v9.8h, v9.8b, #0           \n" // a01 - a71
                     "sshll    v10.8h, v10.8b, #0         \n" // a02 - a72
                     "sshll    v11.8h, v11.8b, #0         \n" // a03 - a73
-                    "sshll    v12.8h, v12.8b, #0         \n" // a04 - a74
-                    "sshll    v13.8h, v13.8b, #0         \n" // a05 - a75
-                    "sshll    v14.8h, v14.8b, #0         \n" // a06 - a76
-                    "sshll    v15.8h, v15.8b, #0         \n" // a07 - a77
                     // k0
                     "smlal    v16.4s, v8.4h, v0.h[0]     \n"// sum0 += (a00-a70) * k00
                     "smlal2   v17.4s, v8.8h, v0.h[0]     \n"//
@@ -360,107 +350,39 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     "smlal    v30.4s, v9.4h, v1.h[7]     \n"// sum7 += (a01-a71) * k71
                     "smlal2   v31.4s, v9.8h, v1.h[7]     \n"//
                     // k2
-                    "smlal    v16.4s, v10.4h, v2.h[0]    \n"// sum0 += (a00-a70) * k00
+                    "smlal    v16.4s, v10.4h, v2.h[0]    \n"// sum0 += (a02-a72) * k02
                     "smlal2   v17.4s, v10.8h, v2.h[0]    \n"//
-                    "smlal    v18.4s, v10.4h, v2.h[1]    \n"// sum1 += (a00-a70) * k10
+                    "smlal    v18.4s, v10.4h, v2.h[1]    \n"// sum1 += (a02-a72) * k12
                     "smlal2   v19.4s, v10.8h, v2.h[1]    \n"//
-                    "smlal    v20.4s, v10.4h, v2.h[2]    \n"// sum2 += (a00-a70) * k20
+                    "smlal    v20.4s, v10.4h, v2.h[2]    \n"// sum2 += (a02-a72) * k22
                     "smlal2   v21.4s, v10.8h, v2.h[2]    \n"//
-                    "smlal    v22.4s, v10.4h, v2.h[3]    \n"// sum3 += (a00-a70) * k30
+                    "smlal    v22.4s, v10.4h, v2.h[3]    \n"// sum3 += (a02-a72) * k32
                     "smlal2   v23.4s, v10.8h, v2.h[3]    \n"//
-                    "smlal    v24.4s, v10.4h, v2.h[4]    \n"// sum4 += (a00-a70) * k40
+                    "smlal    v24.4s, v10.4h, v2.h[4]    \n"// sum4 += (a02-a72) * k42
                     "smlal2   v25.4s, v10.8h, v2.h[4]    \n"//
-                    "smlal    v26.4s, v10.4h, v2.h[5]    \n"// sum5 += (a00-a70) * k50
+                    "smlal    v26.4s, v10.4h, v2.h[5]    \n"// sum5 += (a02-a72) * k52
                     "smlal2   v27.4s, v10.8h, v2.h[5]    \n"//
-                    "smlal    v28.4s, v10.4h, v2.h[6]    \n"// sum6 += (a00-a70) * k60
+                    "smlal    v28.4s, v10.4h, v2.h[6]    \n"// sum6 += (a02-a72) * k62
                     "smlal2   v29.4s, v10.8h, v2.h[6]    \n"//
-                    "smlal    v30.4s, v10.4h, v2.h[7]    \n"// sum7 += (a00-a70) * k70
+                    "smlal    v30.4s, v10.4h, v2.h[7]    \n"// sum7 += (a02-a72) * k72
                     "smlal2   v31.4s, v10.8h, v2.h[7]    \n"//
                     // k3
-                    "smlal    v16.4s, v11.4h, v3.h[0]    \n"// sum0 += (a00-a70) * k00
+                    "smlal    v16.4s, v11.4h, v3.h[0]    \n"// sum0 += (a03-a73) * k03
                     "smlal2   v17.4s, v11.8h, v3.h[0]    \n"//
-                    "smlal    v18.4s, v11.4h, v3.h[1]    \n"// sum1 += (a00-a70) * k10
+                    "smlal    v18.4s, v11.4h, v3.h[1]    \n"// sum1 += (a03-a73) * k13
                     "smlal2   v19.4s, v11.8h, v3.h[1]    \n"//
-                    "smlal    v20.4s, v11.4h, v3.h[2]    \n"// sum2 += (a00-a70) * k20
+                    "smlal    v20.4s, v11.4h, v3.h[2]    \n"// sum2 += (a03-a73) * k23
                     "smlal2   v21.4s, v11.8h, v3.h[2]    \n"//
-                    "smlal    v22.4s, v11.4h, v3.h[3]    \n"// sum3 += (a00-a70) * k30
+                    "smlal    v22.4s, v11.4h, v3.h[3]    \n"// sum3 += (a03-a73) * k33
                     "smlal2   v23.4s, v11.8h, v3.h[3]    \n"//
-                    "smlal    v24.4s, v11.4h, v3.h[4]    \n"// sum4 += (a00-a70) * k40
+                    "smlal    v24.4s, v11.4h, v3.h[4]    \n"// sum4 += (a03-a73) * k43
                     "smlal2   v25.4s, v11.8h, v3.h[4]    \n"//
-                    "smlal    v26.4s, v11.4h, v3.h[5]    \n"// sum5 += (a00-a70) * k50
+                    "smlal    v26.4s, v11.4h, v3.h[5]    \n"// sum5 += (a03-a73) * k53
                     "smlal2   v27.4s, v11.8h, v3.h[5]    \n"//
-                    "smlal    v28.4s, v11.4h, v3.h[6]    \n"// sum6 += (a00-a70) * k60
+                    "smlal    v28.4s, v11.4h, v3.h[6]    \n"// sum6 += (a03-a73) * k63
                     "smlal2   v29.4s, v11.8h, v3.h[6]    \n"//
-                    "smlal    v30.4s, v11.4h, v3.h[7]    \n"// sum7 += (a00-a70) * k70
+                    "smlal    v30.4s, v11.4h, v3.h[7]    \n"// sum7 += (a03-a73) * k73
                     "smlal2   v31.4s, v11.8h, v3.h[7]    \n"//
-                    // k4
-                    "smlal    v16.4s, v12.4h, v4.h[0]    \n"// sum0 += (a00-a70) * k00
-                    "smlal2   v17.4s, v12.8h, v4.h[0]    \n"//
-                    "smlal    v18.4s, v12.4h, v4.h[1]    \n"// sum1 += (a00-a70) * k10
-                    "smlal2   v19.4s, v12.8h, v4.h[1]    \n"//
-                    "smlal    v20.4s, v12.4h, v4.h[2]    \n"// sum2 += (a00-a70) * k20
-                    "smlal2   v21.4s, v12.8h, v4.h[2]    \n"//
-                    "smlal    v22.4s, v12.4h, v4.h[3]    \n"// sum3 += (a00-a70) * k30
-                    "smlal2   v23.4s, v12.8h, v4.h[3]    \n"//
-                    "smlal    v24.4s, v12.4h, v4.h[4]    \n"// sum4 += (a00-a70) * k40
-                    "smlal2   v25.4s, v12.8h, v4.h[4]    \n"//
-                    "smlal    v26.4s, v12.4h, v4.h[5]    \n"// sum5 += (a00-a70) * k50
-                    "smlal2   v27.4s, v12.8h, v4.h[5]    \n"//
-                    "smlal    v28.4s, v12.4h, v4.h[6]    \n"// sum6 += (a00-a70) * k60
-                    "smlal2   v29.4s, v12.8h, v4.h[6]    \n"//
-                    "smlal    v30.4s, v12.4h, v4.h[7]    \n"// sum7 += (a00-a70) * k70
-                    "smlal2   v31.4s, v12.8h, v4.h[7]    \n"//
-                    // k5
-                    "smlal    v16.4s, v13.4h, v5.h[0]    \n"// sum0 += (a00-a70) * k00
-                    "smlal2   v17.4s, v13.8h, v5.h[0]    \n"//
-                    "smlal    v18.4s, v13.4h, v5.h[1]    \n"// sum1 += (a00-a70) * k10
-                    "smlal2   v19.4s, v13.8h, v5.h[1]    \n"//
-                    "smlal    v20.4s, v13.4h, v5.h[2]    \n"// sum2 += (a00-a70) * k20
-                    "smlal2   v21.4s, v13.8h, v5.h[2]    \n"//
-                    "smlal    v22.4s, v13.4h, v5.h[3]    \n"// sum3 += (a00-a70) * k30
-                    "smlal2   v23.4s, v13.8h, v5.h[3]    \n"//
-                    "smlal    v24.4s, v13.4h, v5.h[4]    \n"// sum4 += (a00-a70) * k40
-                    "smlal2   v25.4s, v13.8h, v5.h[4]    \n"//
-                    "smlal    v26.4s, v13.4h, v5.h[5]    \n"// sum5 += (a00-a70) * k50
-                    "smlal2   v27.4s, v13.8h, v5.h[5]    \n"//
-                    "smlal    v28.4s, v13.4h, v5.h[6]    \n"// sum6 += (a00-a70) * k60
-                    "smlal2   v29.4s, v13.8h, v5.h[6]    \n"//
-                    "smlal    v30.4s, v13.4h, v5.h[7]    \n"// sum7 += (a00-a70) * k70
-                    "smlal2   v31.4s, v13.8h, v5.h[7]    \n"//
-                    // k6
-                    "smlal    v16.4s, v14.4h, v6.h[0]    \n"// sum0 += (a00-a70) * k00
-                    "smlal2   v17.4s, v14.8h, v6.h[0]    \n"//
-                    "smlal    v18.4s, v14.4h, v6.h[1]    \n"// sum1 += (a00-a70) * k10
-                    "smlal2   v19.4s, v14.8h, v6.h[1]    \n"//
-                    "smlal    v20.4s, v14.4h, v6.h[2]    \n"// sum2 += (a00-a70) * k20
-                    "smlal2   v21.4s, v14.8h, v6.h[2]    \n"//
-                    "smlal    v22.4s, v14.4h, v6.h[3]    \n"// sum3 += (a00-a70) * k30
-                    "smlal2   v23.4s, v14.8h, v6.h[3]    \n"//
-                    "smlal    v24.4s, v14.4h, v6.h[4]    \n"// sum4 += (a00-a70) * k40
-                    "smlal2   v25.4s, v14.8h, v6.h[4]    \n"//
-                    "smlal    v26.4s, v14.4h, v6.h[5]    \n"// sum5 += (a00-a70) * k50
-                    "smlal2   v27.4s, v14.8h, v6.h[5]    \n"//
-                    "smlal    v28.4s, v14.4h, v6.h[6]    \n"// sum6 += (a00-a70) * k60
-                    "smlal2   v29.4s, v14.8h, v6.h[6]    \n"//
-                    "smlal    v30.4s, v14.4h, v6.h[7]    \n"// sum7 += (a00-a70) * k70
-                    "smlal2   v31.4s, v14.8h, v6.h[7]    \n"//
-                    // k7
-                    "smlal    v16.4s, v15.4h, v7.h[0]    \n"// sum0 += (a07-a77) * k07
-                    "smlal2   v17.4s, v15.8h, v7.h[0]    \n"//
-                    "smlal    v18.4s, v15.4h, v7.h[1]    \n"// sum1 += (a07-a77) * k17
-                    "smlal2   v19.4s, v15.8h, v7.h[1]    \n"//
-                    "smlal    v20.4s, v15.4h, v7.h[2]    \n"// sum2 += (a07-a77) * k27
-                    "smlal2   v21.4s, v15.8h, v7.h[2]    \n"//
-                    "smlal    v22.4s, v15.4h, v7.h[3]    \n"// sum3 += (a07-a77) * k37
-                    "smlal2   v23.4s, v15.8h, v7.h[3]    \n"//
-                    "smlal    v24.4s, v15.4h, v7.h[4]    \n"// sum4 += (a07-a77) * k47
-                    "smlal2   v25.4s, v15.8h, v7.h[4]    \n"//
-                    "smlal    v26.4s, v15.4h, v7.h[5]    \n"// sum5 += (a07-a77) * k57
-                    "smlal2   v27.4s, v15.8h, v7.h[5]    \n"//
-                    "smlal    v28.4s, v15.4h, v7.h[6]    \n"// sum6 += (a07-a77) * k67
-                    "smlal2   v29.4s, v15.8h, v7.h[6]    \n"//
-                    "smlal    v30.4s, v15.4h, v7.h[7]    \n"// sum7 += (a07-a77) * k77
-                    "smlal2   v31.4s, v15.8h, v7.h[7]    \n"//
 
                     "subs   w4, w4, #1                   \n"
                     "bne    0b                           \n"
@@ -468,7 +390,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                     "1:                                  \n"
 
                     // remain loop
-                    "and    w4, %w20, #7                 \n"// w4 = remain = inch & 7;
+                    "and    w4, %w20, #3                 \n"// w4 = remain = inch & 3;
                     "cmp    w4, #0                       \n"
                     "beq    3f                           \n"
 
@@ -682,7 +604,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             for (; j<N; j++)
             {
                 signed char* vb = bottom_tm.channel(j/8 + j%8);
-                signed char* va = kernel_tm.channel(i/8);
+                const signed char* va = kernel_tm.channel(i/8);
 
 #if __aarch64__
                 asm volatile(
