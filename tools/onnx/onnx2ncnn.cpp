@@ -1160,14 +1160,14 @@ int main(int argc, char** argv)
         else if (op == "InstanceNormalization")
         {
             float eps = get_node_attr_f(node, "epsilon", 1e-5f);
-            std::vector<float> scale = get_node_attr_af(node, "scale");
-            std::vector<float> bias = get_node_attr_af(node, "B");
+            const onnx::TensorProto& scale = weights[node.input(1)];
+            const onnx::TensorProto& B = weights[node.input(2)];
+            int channels = get_tensor_proto_data_size(scale);
 
-            fprintf(pp, " 0=%d", (int)scale.size());
+            fprintf(pp, " 0=%d", channels);
             fprintf(pp, " 1=%f", eps);
-
-            fwrite(scale.data(), sizeof(float), scale.size(), bp);
-            fwrite(bias.data(), sizeof(float), bias.size(), bp);
+            fwrite_tensor_proto_data(scale, bp);
+            fwrite_tensor_proto_data(B, bp);
         }
         else if (op == "LeakyRelu")
         {
