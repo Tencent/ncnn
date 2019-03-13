@@ -223,7 +223,9 @@ Layer* create_layer(int index)
     if (!layer_creator)
         return 0;
 
-    return layer_creator();
+    Layer* layer = layer_creator();
+    layer->typeindex = index;
+    return layer;
 }
 
 } // namespace ncnn
