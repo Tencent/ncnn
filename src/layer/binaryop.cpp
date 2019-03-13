@@ -544,7 +544,7 @@ int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
     if (top_blob.empty())
         return -100;
 
-//     fprintf(stderr, "BinaryOp::forward %p %p %p\n", (void*)bottom_blob.buffer() + bottom_blob.buffer_offset(), (void*)bottom_blob1.buffer() + bottom_blob1.buffer_offset(), (void*)top_blob.buffer() + top_blob.buffer_offset());
+//     fprintf(stderr, "BinaryOp::forward %p %p %p\n", bottom_blob.buffer(), bottom_blob1.buffer(), top_blob.buffer());
 
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_blob;
@@ -571,9 +571,6 @@ int BinaryOp::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
     const Pipeline* pipeline = packing == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob);
-    cmd.record_prepare_compute_barrier(bottom_blob1);
-    cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
@@ -599,7 +596,6 @@ int BinaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Opti
     const Pipeline* pipeline = packing == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
     return 0;

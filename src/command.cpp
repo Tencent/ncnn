@@ -183,6 +183,8 @@ VkCompute::~VkCompute()
 
 void VkCompute::record_upload(const VkMat& m)
 {
+    record_prepare_transfer_barrier(m);
+
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer(m.staging_buffer(), 0, m.buffer(), m.buffer_offset(), m.total() * m.elemsize);
 
@@ -198,6 +200,8 @@ void VkCompute::record_upload(const VkMat& m)
 
 void VkCompute::record_download(const VkMat& m)
 {
+    record_prepare_transfer_barrier(m);
+
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer(m.buffer(), m.buffer_offset(), m.staging_buffer(), 0, m.total() * m.elemsize);
 
@@ -213,6 +217,8 @@ void VkCompute::record_download(const VkMat& m)
 
 void VkCompute::record_clone(const VkMat& src, const VkMat& dst)
 {
+    record_prepare_transfer_barrier(src);
+
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer(src.buffer(), src.buffer_offset(), dst.buffer(), dst.buffer_offset(), src.total() * src.elemsize);
 
@@ -236,6 +242,8 @@ void VkCompute::record_copy_region(const VkMat& src, const VkMat& dst, const VkB
 
 void VkCompute::record_copy_regions(const VkMat& src, const VkMat& dst, const std::vector<VkBufferCopy>& regions)
 {
+    record_prepare_transfer_barrier(src);
+
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer_regions(src.buffer(), dst.buffer(), regions);
 
@@ -249,6 +257,16 @@ void VkCompute::record_copy_regions(const VkMat& src, const VkMat& dst, const st
 
 void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& m)
 {
+    const int binding_count = bindings.size();
+    for (int i=0; i<binding_count; i++)
+    {
+        // skip readonly weight blob
+        if (bindings[i].data->state == 4)
+            continue;
+
+        record_prepare_compute_barrier(bindings[i]);
+    }
+
     record_bind_pipeline(pipeline->pipeline);
 
     record_update_bindings(pipeline->pipeline_layout, pipeline->descriptorset_layout, pipeline->descriptor_update_template, bindings);
@@ -714,6 +732,9 @@ VkTransfer::~VkTransfer()
 void VkTransfer::record_upload(const Mat& src, VkMat& dst)
 {
     dst.create_like(src, weight_vkallocator, staging_vkallocator);
+
+    // set weight blob as readonly
+    dst.data->state = 4;
 
     if (dst.allocator->mappable)
     {

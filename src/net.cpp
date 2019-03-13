@@ -1317,7 +1317,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     if (!bottom_blob.allocator->mappable)
                     {
-                        cmd.record_prepare_transfer_barrier(bottom_blob);
                         cmd.record_upload(bottom_blob);
                     }
 
@@ -1340,7 +1339,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
 //                     fprintf(stderr, "clone %p %p\n", bottom_blob.buffer(), bottom_blob_copy.buffer());
 
-                    cmd.record_prepare_transfer_barrier(bottom_blob);
                     cmd.record_clone(bottom_blob, bottom_blob_copy);
                     bottom_blob = bottom_blob_copy;
 
@@ -1426,7 +1424,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                         if (!bottom_blob.allocator->mappable)
                         {
-                            cmd.record_prepare_transfer_barrier(bottom_blob);
                             cmd.record_upload(bottom_blob);
                         }
 
@@ -1449,7 +1446,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
 //                         fprintf(stderr, "clone %p %p\n", bottom_blobs[i].buffer(), bottom_blob_copy.buffer());
 
-                        cmd.record_prepare_transfer_barrier(bottom_blobs[i]);
                         cmd.record_clone(bottom_blobs[i], bottom_blob_copy);
                         bottom_blobs[i] = bottom_blob_copy;
 
@@ -1541,7 +1537,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     if (!bottom_blob.allocator->mappable)
                     {
-                        cmd.record_prepare_transfer_barrier(bottom_blob);
                         bottom_blob.prepare_staging_buffer();
                         cmd.record_download(bottom_blob);
                     }
@@ -1632,7 +1627,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                         if (!bottom_blob.allocator->mappable)
                         {
-                            cmd.record_prepare_transfer_barrier(bottom_blob);
                             bottom_blob.prepare_staging_buffer();
                             cmd.record_download(bottom_blob);
                         }
@@ -1855,7 +1849,6 @@ int Extractor::extract(int blob_index, Mat& feat)
                 // download
                 if (!feat_gpu.allocator->mappable)
                 {
-                    cmd.record_prepare_transfer_barrier(feat_gpu);
                     feat_gpu.prepare_staging_buffer();
                     cmd.record_download(feat_gpu);
                 }

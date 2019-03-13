@@ -118,7 +118,6 @@ int Clip::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& 
     const Pipeline* pipeline = packing == 4 ? pipeline_clip_pack4 : pipeline_clip;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
     return 0;

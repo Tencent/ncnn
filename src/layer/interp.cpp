@@ -197,8 +197,6 @@ int Interp::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, c
     const Pipeline* pipeline = packing == 4 ? pipeline_interp_pack4 : pipeline_interp;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob);
-    cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;

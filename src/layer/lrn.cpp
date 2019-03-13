@@ -327,8 +327,6 @@ int LRN::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& o
     }
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_prepare_compute_barrier(square_workspace);
     cmd.record_pipeline(pipeline, bindings, constants, square_workspace);
     }
 
@@ -362,8 +360,6 @@ int LRN::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& o
     }
 
     // record
-    cmd.record_prepare_compute_barrier(square_workspace);
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 

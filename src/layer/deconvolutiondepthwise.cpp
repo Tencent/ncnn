@@ -741,8 +741,6 @@ int DeconvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, V
         const Pipeline* pipeline = packing == 4 ? pipeline_deconvolutiondepthwise_pack4 : pipeline_deconvolutiondepthwise;
 
         // record
-        cmd.record_prepare_compute_barrier(bottom_blob);
-        cmd.record_prepare_compute_barrier(top_blob_bordered);
         cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
 
         if (pad_w > 0 || pad_h > 0)
@@ -846,8 +844,6 @@ int DeconvolutionDepthWise::forward(const VkMat& bottom_blob, VkMat& top_blob, V
     }
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob_unpacked);
-    cmd.record_prepare_compute_barrier(top_blob_unpacked);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked);
 
     // packing

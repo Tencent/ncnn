@@ -238,7 +238,6 @@ int UnaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     const Pipeline* pipeline = packing == 4 ? pipeline_unaryop_pack4 : pipeline_unaryop;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
     return 0;

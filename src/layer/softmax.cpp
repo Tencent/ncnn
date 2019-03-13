@@ -599,8 +599,6 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     const Pipeline* pipeline = packing == 4 ? pipeline_softmax_reduce_max_pack4 : pipeline_softmax_reduce_max;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_prepare_compute_barrier(max_workspace);
     cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
     }
 
@@ -625,8 +623,6 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     const Pipeline* pipeline = packing == 4 ? pipeline_softmax_exp_sub_max_pack4 : pipeline_softmax_exp_sub_max;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_prepare_compute_barrier(max_workspace);
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
@@ -651,8 +647,6 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     const Pipeline* pipeline = packing == 4 ? pipeline_softmax_reduce_sum_pack4 : pipeline_softmax_reduce_sum;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_prepare_compute_barrier(sum_workspace);
     cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
     }
 
@@ -677,8 +671,6 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     const Pipeline* pipeline = packing == 4 ? pipeline_softmax_div_sum_pack4 : pipeline_softmax_div_sum;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_prepare_compute_barrier(sum_workspace);
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 

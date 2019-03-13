@@ -207,6 +207,7 @@ public:
     // 1=created
     // 2=transfer
     // 3=compute
+    // 4=readonly
     mutable int state;
 
     // initialize and modified by mat
