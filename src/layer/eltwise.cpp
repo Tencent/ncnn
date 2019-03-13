@@ -277,19 +277,14 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
     const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4[1] : pipeline_eltwise[1];
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob);
-    cmd.record_prepare_compute_barrier(bottom_blob1);
-    cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     for (size_t b=2; b<bottom_blobs.size(); b++)
     {
-        cmd.record_compute_compute_barrier(top_blob);
-
         std::vector<VkMat> bindings(3);
         bindings[0] = top_blob;
         bindings[1] = bottom_blobs[b];
-        bindings[2] = top_blob;
+        bindings[2] = top_blob;// TODO use separated pipeline ?
 
         std::vector<vk_constant_type> constants(5 + 2);
         constants[0].i = top_blob.dims;
@@ -303,8 +298,6 @@ int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>&
         const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4[b%2] : pipeline_eltwise[b%2];
 
         // record
-        cmd.record_prepare_compute_barrier(top_blob);
-        cmd.record_prepare_compute_barrier(bottom_blobs[b]);
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
 

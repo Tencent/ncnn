@@ -104,7 +104,6 @@ int Sigmoid::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     const Pipeline* pipeline = packing == 4 ? pipeline_sigmoid_pack4 : pipeline_sigmoid;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
     return 0;

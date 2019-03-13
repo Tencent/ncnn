@@ -336,9 +336,6 @@ int Permute::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     constants[9].i = top_blob.cstep;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob);
-    cmd.record_prepare_compute_barrier(top_blob);
-
     if (packing == 1)
     {
         cmd.record_pipeline(pipeline_permute, bindings, constants, top_blob);

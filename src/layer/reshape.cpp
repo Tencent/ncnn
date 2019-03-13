@@ -322,8 +322,6 @@ int Reshape::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     }
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob);
-    cmd.record_prepare_compute_barrier(top_blob);
     if (packing == 4 && out_packing == 1)
     {
         cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);

@@ -70,18 +70,6 @@ public:
 
     void record_copy_regions(const VkMat& src, const VkMat& dst, const std::vector<VkBufferCopy>& regions);
 
-    void record_transfer_compute_barrier(const VkMat& m);
-
-    void record_compute_transfer_barrier(const VkMat& m);
-
-    void record_compute_compute_barrier(const VkMat& m);
-
-    void record_transfer_transfer_barrier(const VkMat& m);
-
-    void record_prepare_transfer_barrier(const VkMat& m);
-
-    void record_prepare_compute_barrier(const VkMat& m);
-
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& m);
 
     int submit();
@@ -90,13 +78,22 @@ public:
 
     int reset();
 
-// protected:
-public:
+protected:
     // record pipeline things
     void record_bind_pipeline(VkPipeline pipeline);
     void record_update_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const std::vector<VkMat>& bindings);
     void record_push_constants(VkPipelineLayout pipeline_layout, const std::vector<vk_constant_type>& constants);
     void record_dispatch(const uint32_t* group_count_xyz);
+
+    // record barrier things
+    void record_transfer_compute_barrier(const VkMat& m);
+    void record_compute_transfer_barrier(const VkMat& m);
+    void record_compute_compute_barrier(const VkMat& m);
+    void record_transfer_transfer_barrier(const VkMat& m);
+
+    // record prepare things
+    void record_prepare_transfer_barrier(const VkMat& m);
+    void record_prepare_compute_barrier(const VkMat& m);
 
 protected:
     // recording issue

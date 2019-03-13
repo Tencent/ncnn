@@ -369,8 +369,6 @@ int PriorBox::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
         constants[3].f = step_h;
 
         // record
-        cmd.record_prepare_compute_barrier(top_blob);
-
         VkMat dispatcher;
         dispatcher.w = num_sizes;
         dispatcher.h = w;
@@ -425,8 +423,6 @@ int PriorBox::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>
     constants[5].f = step_h;
 
     // record
-    cmd.record_prepare_compute_barrier(top_blob);
-
     VkMat dispatcher;
     dispatcher.w = num_min_size;
     dispatcher.h = w;

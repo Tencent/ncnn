@@ -146,8 +146,6 @@ int Flatten::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     const Pipeline* pipeline = packing == 4 ? pipeline_flatten_pack4 : pipeline_flatten;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob);
-    cmd.record_prepare_compute_barrier(top_blob);
     if (packing == 1 && out_packing == 4)
     {
         VkMat dispatcher;

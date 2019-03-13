@@ -197,8 +197,6 @@ int Crop::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, con
     }
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob);
-    cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
@@ -270,8 +268,6 @@ int Crop::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& to
     }
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob);
-    cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;

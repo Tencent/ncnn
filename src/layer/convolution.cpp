@@ -958,8 +958,6 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             }
 
             // record
-            cmd.record_prepare_compute_barrier(bottom_blob);
-            cmd.record_prepare_compute_barrier(top_blob);
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             return 0;
@@ -1017,9 +1015,6 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     }
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob_bordered);
-    cmd.record_prepare_compute_barrier(top_blob);
-
     if (packing == 1 && out_packing == 1 && kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
     {
         std::vector<vk_constant_type> constants(8);
