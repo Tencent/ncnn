@@ -1211,6 +1211,18 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Permute");
         }
+        else if (n.op == "UpSampling")
+        {
+            std::string sample_type = n.attr("sample_type");
+            if (sample_type == "nearest")
+            {
+                fprintf(pp, "%-16s", "Interp");
+            }
+            else if (sample_type == "bilinear")
+            {
+                fprintf(pp, "%-16s", "DeconvolutionDepthWise");
+            }
+        }
         else
         {
             fprintf(stderr, "%s not supported yet!\n", n.op.c_str());
@@ -2171,6 +2183,43 @@ int main(int argc, char** argv)
             else
             {
                 fprintf(stderr, "Unsupported transpose type !\n");
+            }
+        }
+        else if (n.op == "UpSampling")
+        {
+            int scale = n.attr("scale");
+            std::string sample_type = n.attr("sample_type");
+
+            if (sample_type == "nearest")
+            {
+                fprintf(pp, " 0=1");
+                fprintf(pp, " 1=%f", (float)scale);
+                fprintf(pp, " 2=%f", (float)scale);
+            }
+            else if (sample_type == "bilinear")
+            {
+                // DeconvolutionDepthWise
+                int num_filter = n.attr("num_filter");
+
+                std::vector<float> weight_data = n.weight(0);
+
+                int kernel = scale * 2 - scale % 2;
+                int stride = scale;
+                int pad = (scale - 1) / 2;
+
+                fprintf(pp, " 0=%d", num_filter);
+                fprintf(pp, " 1=%d", kernel);
+                fprintf(pp, " 2=1");
+                fprintf(pp, " 3=%d", stride);
+                fprintf(pp, " 4=%d", pad);
+                fprintf(pp, " 5=0");
+                fprintf(pp, " 6=%d", (int)weight_data.size());
+                fprintf(pp, " 7=%d", num_filter);
+
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             }
         }
         else

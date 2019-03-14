@@ -700,6 +700,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Permute");
         }
+        else if (op == "Upsample")
+        {
+            fprintf(pp, "%-16s", "Interp");
+        }
         else
         {
             // TODO
@@ -1454,6 +1458,68 @@ int main(int argc, char** argv)
                 else
                     fprintf(stderr, "Unsupported transpose type !\n");
             }
+        }
+        else if (op == "Upsample")
+        {
+            std::string mode = get_node_attr_s(node, "mode");
+
+            std::vector<float> scales;
+
+            if (node.input_size() == 1)
+            {
+                scales = get_node_attr_af(node, "scales");
+            }
+            else
+            {
+                const onnx::TensorProto& scales_tp = weights[node.input(1)];
+                const float* shape_data = scales_tp.float_data().data();
+                for (int j=0; j<scales_tp.float_data_size(); j++)
+                {
+                    scales.push_back(shape_data[j]);
+                }
+            }
+
+            int resize_type = 1;
+            if (mode == "nearest")
+            {
+                resize_type = 1;
+            }
+            else if (mode == "bilinear")
+            {
+                resize_type = 2;
+            }
+            else if (mode == "trilinear")
+            {
+                fprintf(stderr, "Unsupported Upsample mode !\n");
+            }
+
+            float h_scale = 1.f;
+            float w_scale = 1.f;
+            if (scales.size() == 2)
+            {
+                w_scale = scales[2];
+            }
+            else if (scales.size() == 3)
+            {
+                h_scale = scales[1];
+                w_scale = scales[2];
+            }
+            else if (scales.size() == 4)
+            {
+                h_scale = scales[2];
+                w_scale = scales[3];
+
+                if (scales[1] != 1.f)
+                    fprintf(stderr, "Unsupported Upsample scales !\n");
+            }
+            else
+            {
+                fprintf(stderr, "Unsupported Upsample scales !\n");
+            }
+
+            fprintf(pp, " 0=%d", resize_type);
+            fprintf(pp, " 1=%f", h_scale);
+            fprintf(pp, " 2=%f", w_scale);
         }
         else
         {
