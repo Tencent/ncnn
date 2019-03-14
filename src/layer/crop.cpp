@@ -79,7 +79,22 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     else
         _outc = std::min(outc, channels - coffset);
 
-    const Mat bottom_blob_sliced(w, h, _outc, (void*)(const float*)bottom_blob.channel(coffset));
+    if (_outw == w && _outh == h && _outc == channels)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    const Mat bottom_blob_sliced = bottom_blob.channel_range(coffset, _outc);
+
+    if (_outw == w && _outh == h)
+    {
+        top_blob = bottom_blob_sliced.clone();
+        if (top_blob.empty())
+            return -100;
+
+        return 0;
+    }
 
     int top = hoffset;
     int bottom = h - _outh - hoffset;
@@ -102,18 +117,33 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
 
+    Mat& top_blob = top_blobs[0];
+
     int _outw = reference_blob.w;
     int _outh = reference_blob.h;
     int _outc = reference_blob.dims == 3 ? reference_blob.c : channels;
 
-    const Mat bottom_blob_sliced(w, h, _outc, (void*)(const float*)bottom_blob.channel(coffset));
+    if (_outw == w && _outh == h && _outc == channels)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    const Mat bottom_blob_sliced = bottom_blob.channel_range(coffset, _outc);
+
+    if (_outw == w && _outh == h)
+    {
+        top_blob = bottom_blob_sliced.clone();
+        if (top_blob.empty())
+            return -100;
+
+        return 0;
+    }
 
     int top = hoffset;
     int bottom = h - _outh - hoffset;
     int left = woffset;
     int right = w - _outw - woffset;
-
-    Mat& top_blob = top_blobs[0];
 
     copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right, opt.blob_allocator, opt.num_threads);
     if (top_blob.empty())
