@@ -1497,7 +1497,7 @@ int main(int argc, char** argv)
             float w_scale = 1.f;
             if (scales.size() == 2)
             {
-                w_scale = scales[2];
+                w_scale = scales[1];
             }
             else if (scales.size() == 3)
             {
