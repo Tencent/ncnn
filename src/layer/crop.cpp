@@ -53,9 +53,30 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
 
-    int _outw = outw == -233 ? w - woffset : outw;
-    int _outh = outh == -233 ? h - hoffset : outh;
-    int _outc = outc == -233 ? channels - coffset : outc;
+    int _outw;
+    int _outh;
+    int _outc;
+
+    if (outw == -233)
+        _outw = w - woffset;
+    else if (outw == -234)
+        _outw = w - 1 - woffset;
+    else
+        _outw = std::min(outw, w - woffset);
+
+    if (outh == -233)
+        _outh = h - hoffset;
+    else if (outh == -234)
+        _outh = h - 1 - hoffset;
+    else
+        _outh = std::min(outh, h - hoffset);
+
+    if (outc == -233)
+        _outc = channels - coffset;
+    else if (outc == -234)
+        _outc = channels - 1 - coffset;
+    else
+        _outc = std::min(outc, channels - coffset);
 
     const Mat bottom_blob_sliced(w, h, _outc, (void*)(const float*)bottom_blob.channel(coffset));
 
@@ -147,9 +168,30 @@ int Crop::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, con
     // TODO vec and image crop
     int dims = bottom_blob.dims;
 
-    int _outw = outw == -233 ? w - woffset : outw;
-    int _outh = outh == -233 ? h - hoffset : outh;
-    int _outc = outc == -233 ? channels * packing - coffset : outc;
+    int _outw;
+    int _outh;
+    int _outc;
+
+    if (outw == -233)
+        _outw = w - woffset;
+    else if (outw == -234)
+        _outw = w - 1 - woffset;
+    else
+        _outw = std::min(outw, w - woffset);
+
+    if (outh == -233)
+        _outh = h - hoffset;
+    else if (outh == -234)
+        _outh = h - 1 - hoffset;
+    else
+        _outh = std::min(outh, h - hoffset);
+
+    if (outc == -233)
+        _outc = channels * packing - coffset;
+    else if (outc == -234)
+        _outc = channels * packing - 1 - coffset;
+    else
+        _outc = std::min(outc, channels * packing - coffset);
 
     int out_packing = _outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
