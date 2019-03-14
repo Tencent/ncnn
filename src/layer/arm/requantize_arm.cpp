@@ -1,6 +1,6 @@
-// SenseNets is pleased to support the open source community by supporting ncnn available.
+// BUG1989 is pleased to support the open source community by supporting ncnn available.
 //
-// Copyright (C) 2019 SenseNets Technology Ltd. All rights reserved.
+// Copyright (C) 2019 BUG1989. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -125,7 +125,9 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
-        int size = w * h;      
+        int size = w * h;
+
+        double scale_fuse = scale_in * scale_out;
 
         if (bias_term)
         {
@@ -142,19 +144,50 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 int remain = size & 7;
 
 #if __aarch64__
-                for (; nn>0; nn--)
+                if (nn > 0)
                 {
-                    ptr[0] = float2int8(((intptr[0] * scale_in) + bias) * scale_out);
-                    ptr[1] = float2int8(((intptr[1] * scale_in) + bias) * scale_out);
-                    ptr[2] = float2int8(((intptr[2] * scale_in) + bias) * scale_out);
-                    ptr[3] = float2int8(((intptr[3] * scale_in) + bias) * scale_out);
-                    ptr[4] = float2int8(((intptr[4] * scale_in) + bias) * scale_out);
-                    ptr[5] = float2int8(((intptr[5] * scale_in) + bias) * scale_out);
-                    ptr[6] = float2int8(((intptr[6] * scale_in) + bias) * scale_out);
-                    ptr[7] = float2int8(((intptr[7] * scale_in) + bias) * scale_out);
-
-                    ptr += 8;
-                    intptr += 8;
+                asm volatile(
+                    "dup    v2.4s, %w6                   \n" // scale_in
+                    "dup    v3.4s, %w7                   \n" // scale_out
+                    "dup    v4.4s, %w8                   \n" // bias
+                    "0:                                  \n"
+                    "prfm   pldl1keep, [%1, #128]        \n"
+                    "ld1    {v0.4s, v1.4s}, [%1], #32    \n" // data
+                    // top_s32 -> top_f32
+                    "scvtf  v5.4s, v0.4s                 \n"
+                    "scvtf  v6.4s, v1.4s                 \n"
+                    // top_f32 = top_f32 * scale_in
+                    "fmul   v5.4s, v5.4s, v2.4s          \n"
+                    "fmul   v6.4s, v6.4s, v2.4s          \n"
+                    // top_f32 = top_f32 + bias
+                    "fadd   v5.4s, v5.4s, v4.4s          \n"
+                    "fadd   v6.4s, v6.4s, v4.4s          \n"
+                    // top_f32 = top_f32 * scale_out
+                    "fmul   v5.4s, v5.4s, v3.4s          \n"
+                    "fmul   v6.4s, v6.4s, v3.4s          \n"
+                    // top_f32 -> top_s32
+                    "fcvtas v5.4s, v5.4s                 \n"
+                    "fcvtas v6.4s, v6.4s                 \n"
+                    // top_s32 -> top_s16
+                    "sqxtn  v7.4h, v5.4s                 \n"
+                    "sqxtn2 v7.8h, v6.4s                 \n"
+                    // top_s16 -> top_s8
+                    "sqxtn  v8.8b, v7.8h                 \n"
+                    // save top_s8
+                    "st1    {v8.8b}, [%2], #8            \n"
+                    "subs   %w0, %w0, #1                 \n"
+                    "bne    0b                           \n"
+                    : "=r"(nn),         // %0
+                      "=r"(intptr),     // %1
+                      "=r"(ptr)         // %2
+                    : "0"(nn),
+                      "1"(intptr),
+                      "2"(ptr),
+                      "r"(scale_in),    // %6
+                      "r"(scale_out),   // %7
+                      "r"(bias)         // %8
+                    : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"
+                );                    
                 }
 #else
                 if (nn > 0)
@@ -238,20 +271,40 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 int remain = size & 7;
 
 #if __aarch64__
-                //TODO
-                for (; nn>0; nn--)
+                if (nn > 0)
                 {
-                    ptr[0] = float2int8(intptr[0] * scale_in * scale_out);
-                    ptr[1] = float2int8(intptr[1] * scale_in * scale_out);
-                    ptr[2] = float2int8(intptr[2] * scale_in * scale_out);
-                    ptr[3] = float2int8(intptr[3] * scale_in * scale_out);
-                    ptr[4] = float2int8(intptr[4] * scale_in * scale_out);
-                    ptr[5] = float2int8(intptr[5] * scale_in * scale_out);
-                    ptr[6] = float2int8(intptr[6] * scale_in * scale_out);
-                    ptr[7] = float2int8(intptr[7] * scale_in * scale_out);
-
-                    ptr += 8;
-                    intptr += 8;
+                asm volatile(
+                    "dup    v2.4s, %w6                   \n" // scale_fuse
+                    "0:                                  \n"
+                    "prfm   pldl1keep, [%1, #128]        \n"
+                    "ld1    {v0.4s, v1.4s}, [%1], #32    \n" // data
+                    // top_s32 -> top_f32
+                    "scvtf  v5.4s, v0.4s                 \n"
+                    "scvtf  v6.4s, v1.4s                 \n"
+                    // top_f32 = top_f32 * scale_fuse
+                    "fmul   v5.4s, v5.4s, v2.4s          \n"
+                    "fmul   v6.4s, v6.4s, v2.4s          \n"
+                    // top_f32 -> top_s32
+                    "fcvtas v5.4s, v5.4s                 \n"
+                    "fcvtas v6.4s, v6.4s                 \n"
+                    // top_s32 -> top_s16
+                    "sqxtn  v7.4h, v5.4s                 \n"
+                    "sqxtn2 v7.8h, v6.4s                 \n"
+                    // top_s16 -> top_s8
+                    "sqxtn  v8.8b, v7.8h                 \n"
+                    // save top_s8
+                    "st1    {v8.8b}, [%2], #8            \n"
+                    "subs   %w0, %w0, #1                 \n"
+                    "bne    0b                           \n"
+                    : "=r"(nn),         // %0
+                      "=r"(intptr),     // %1
+                      "=r"(ptr)         // %2
+                    : "0"(nn),
+                      "1"(intptr),
+                      "2"(ptr),
+                      "r"(scale_fuse)   // %6
+                    : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"
+                );
                 }                
 #else
                 if (nn > 0)
@@ -259,18 +312,14 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 asm volatile(
                     "pld        [%1, #256]          \n"
                     "vld1.s32   {d0-d3}, [%1:128]!  \n" //q0-q1 data
-                    "vdup.f32   q10, %6             \n" //q10 scale_in
-                    "vdup.f32   q11, %7             \n" //q11 scale_out
+                    "vdup.f32   q10, %6             \n" //q10 scale_fuse
                     "0:                             \n"
                     // top_s32 -> top_f32
                     "vcvt.f32.s32 q0, q0            \n"
                     "vcvt.f32.s32 q1, q1            \n"
-                    // top_f32 = top_f32 * scale_int
+                    // top_f32 = top_f32 * scale_fuse
                     "vmul.f32   q0, q0, q10         \n"
                     "vmul.f32   q1, q1, q10         \n"
-                    // top_f32 = top_f32 * scale_out
-                    "vmul.f32   q0, q0, q11         \n"
-                    "vmul.f32   q1, q1, q11         \n"
                     // top_f32 -> top_s32
                     "vcvtr.s32.f32 s0, s0           \n"
                     "vcvtr.s32.f32 s1, s1           \n"
@@ -298,8 +347,7 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     : "0"(nn),
                       "1"(intptr),
                       "2"(ptr),
-                      "r"(scale_in),    // %6
-                      "r"(scale_out)    // %7
+                      "r"(scale_fuse)   // %6
                     : "cc", "memory", "q0", "q1", "q2", "q10", "q11"
                 );
                 } 
@@ -310,7 +358,7 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                 for (; remain > 0; remain--)
                 {
-                    *ptr = float2int8(*intptr * scale_in * scale_out);
+                    *ptr = float2int8(*intptr * scale_fuse);
 
                     intptr++;
                     ptr ++;
