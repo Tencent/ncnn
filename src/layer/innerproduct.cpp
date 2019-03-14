@@ -573,8 +573,6 @@ int InnerProduct::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     }
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob_flattened);
-    cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;

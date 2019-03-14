@@ -363,8 +363,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
         if (top_blob.empty())
             return -100;
 
-        cmd.record_prepare_compute_barrier(top_blob);
-
         int woffset = 0;
         for (size_t b=0; b<bottom_blobs.size(); b++)
         {
@@ -402,7 +400,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             }
 
             // record
-            cmd.record_prepare_compute_barrier(bottom_blob);
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             woffset += bottom_blob.w * bottom_blob.packing / out_packing;
@@ -443,8 +440,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
         if (top_blob.empty())
             return -100;
 
-        cmd.record_prepare_compute_barrier(top_blob);
-
         int hoffset = 0;
         for (size_t b=0; b<bottom_blobs.size(); b++)
         {
@@ -482,7 +477,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             }
 
             // record
-            cmd.record_prepare_compute_barrier(bottom_blob);
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             hoffset += bottom_blob.h * bottom_blob.packing / out_packing;
@@ -511,8 +505,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
         if (top_blob.empty())
             return -100;
 
-        cmd.record_prepare_compute_barrier(top_blob);
-
         int woffset = 0;
         for (size_t b=0; b<bottom_blobs.size(); b++)
         {
@@ -538,7 +530,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             const Pipeline* pipeline = packing == 4 ? pipeline_concat_pack4[b%2] : pipeline_concat[b%2];
 
             // record
-            cmd.record_prepare_compute_barrier(bottom_blob);
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             woffset += bottom_blob.w;
@@ -580,8 +571,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
         if (top_blob.empty())
             return -100;
 
-        cmd.record_prepare_compute_barrier(top_blob);
-
         int coffset = 0;
         for (size_t b=0; b<bottom_blobs.size(); b++)
         {
@@ -619,7 +608,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             }
 
             // record
-            cmd.record_prepare_compute_barrier(bottom_blob);
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             coffset += bottom_blob.c * bottom_blob.packing / out_packing;
@@ -649,8 +637,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
         if (top_blob.empty())
             return -100;
 
-        cmd.record_prepare_compute_barrier(top_blob);
-
         int hoffset = 0;
         for (size_t b=0; b<bottom_blobs.size(); b++)
         {
@@ -676,7 +662,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             const Pipeline* pipeline = packing == 4 ? pipeline_concat_pack4[b%2] : pipeline_concat[b%2];
 
             // record
-            cmd.record_prepare_compute_barrier(bottom_blob);
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             hoffset += bottom_blob.h;
@@ -706,8 +691,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
         if (top_blob.empty())
             return -100;
 
-        cmd.record_prepare_compute_barrier(top_blob);
-
         int woffset = 0;
         for (size_t b=0; b<bottom_blobs.size(); b++)
         {
@@ -733,7 +716,6 @@ int Concat::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& 
             const Pipeline* pipeline = packing == 4 ? pipeline_concat_pack4[b%2] : pipeline_concat[b%2];
 
             // record
-            cmd.record_prepare_compute_barrier(bottom_blob);
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             woffset += bottom_blob.w;

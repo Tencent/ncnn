@@ -297,9 +297,6 @@ int Scale::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd,
     const Pipeline* pipeline = packing == 4 ? pipeline_scale_pack4 : pipeline_scale;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
-    if (scale_data_size == -233)
-        cmd.record_prepare_compute_barrier(scale_blob);
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
     return 0;

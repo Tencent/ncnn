@@ -58,9 +58,9 @@ public:
 
     VkDescriptorUpdateTemplateKHR descriptor_update_template;
 
-    int local_size_x;
-    int local_size_y;
-    int local_size_z;
+    uint32_t local_size_x;
+    uint32_t local_size_y;
+    uint32_t local_size_z;
 };
 #endif // NCNN_VULKAN
 

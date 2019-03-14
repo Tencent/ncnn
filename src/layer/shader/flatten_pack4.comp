@@ -45,20 +45,32 @@ void main()
     if (gx >= p.outw || gy >= 1 || gz >= 1)
         return;
 
-    const int size = p.w * p.h;
+    ivec4 v_offset;
 
-    const int z = (gx / size) * 4;
-    const int i = (gx % size) * 4;
+    if (p.dims == 2)
+    {
+        int y = gx / p.w;
+        ivec4 i4 = (gx % p.w) * 4 + ivec4(0, 1, 2, 3);
 
-    ivec4 i4 = ivec4(i, i+1, i+2, i+3);
+        ivec4 k4 = i4 / p.w;
+        ivec4 si4 = i4 % p.w;
 
-    ivec4 k4 = i4 / size;
-    ivec4 si4 = i4 % size;
+        v_offset = ivec4(y * 4 * p.w) + si4 * 4 + k4;
+    }
+    else // if (p.dims == 3)
+    {
+        int size = p.w * p.h;
 
-    ivec4 v_offset = ivec4(z * p.cstep) + si4 * 4 + k4;
+        int z = gx / size;
+        ivec4 i4 = (gx % size) * 4 + ivec4(0, 1, 2, 3);
+
+        ivec4 k4 = i4 / size;
+        ivec4 si4 = i4 % size;
+
+        v_offset = ivec4(z * 4 * p.cstep) + si4 * 4 + k4;
+    }
 
     vec4 v;
-
     v.r = bottom_blob_data[v_offset.r];
     v.g = bottom_blob_data[v_offset.g];
     v.b = bottom_blob_data[v_offset.b];

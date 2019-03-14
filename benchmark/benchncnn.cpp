@@ -91,11 +91,12 @@ public:
 
             for (size_t i=0; i<layers.size(); i++)
             {
-                Layer* layer = layers[i];
-
-                if (layer->support_vulkan)
+                int uret = layers[i]->upload_model(cmd);
+                if (uret != 0)
                 {
-                    layer->upload_model(cmd);
+                    fprintf(stderr, "layer upload_model %d failed\n", (int)i);
+                    ret = -1;
+                    break;
                 }
             }
 
@@ -106,11 +107,10 @@ public:
             #pragma omp parallel for
             for (int i=0; i<layers.size(); i++)
             {
-                Layer* layer = layers[i];
-
-                if (layer->support_vulkan)
+                int cret = layers[i]->create_pipeline();
+                if (cret != 0)
                 {
-                    layer->create_pipeline();
+                    fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
                 }
             }
         }

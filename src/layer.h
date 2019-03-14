@@ -139,6 +139,8 @@ public:
 #endif // NCNN_VULKAN
 
 public:
+    // layer type index
+    int typeindex;
 #if NCNN_STRING
     // layer type name
     std::string type;

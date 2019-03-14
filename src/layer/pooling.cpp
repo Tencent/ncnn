@@ -36,6 +36,13 @@ Pooling::Pooling()
 #endif // NCNN_VULKAN
 }
 
+Pooling::~Pooling()
+{
+#if NCNN_VULKAN
+    delete padding;
+#endif // NCNN_VULKAN
+}
+
 int Pooling::load_param(const ParamDict& pd)
 {
     pooling_type = pd.get(0, 0);
@@ -428,8 +435,6 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
         const Pipeline* pipeline = packing == 4 ? pipeline_pooling_global_pack4 : pipeline_pooling_global;
 
         // record
-        cmd.record_prepare_compute_barrier(bottom_blob);
-        cmd.record_prepare_compute_barrier(top_blob);
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
         return 0;
@@ -486,8 +491,6 @@ int Pooling::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     const Pipeline* pipeline = packing == 4 ? pipeline_pooling_pack4 : pipeline_pooling;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_blob_bordered);
-    cmd.record_prepare_compute_barrier(top_blob);
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     // TODO avgpool exclude padding

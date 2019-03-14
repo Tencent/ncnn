@@ -422,6 +422,13 @@ int create_gpu_instance()
 //         fprintf(stderr, "[%u] deviceName = %s\n", i, physicalDeviceProperties.deviceName);
 //         fprintf(stderr, "[%u] pipelineCacheUUID = %u\n", i, physicalDeviceProperties.pipelineCacheUUID);
 
+        // info
+        gpu_info.api_version = physicalDeviceProperties.apiVersion;
+        gpu_info.driver_version = physicalDeviceProperties.driverVersion;
+        gpu_info.vendor_id = physicalDeviceProperties.vendorID;
+        gpu_info.device_id = physicalDeviceProperties.deviceID;
+        memcpy(gpu_info.pipeline_cache_uuid, physicalDeviceProperties.pipelineCacheUUID, VK_UUID_SIZE);
+
         if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
             gpu_info.type = 0;
         else if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
@@ -449,10 +456,10 @@ int create_gpu_instance()
         gpu_info.memory_map_alignment = physicalDeviceProperties.limits.minMemoryMapAlignment;
         gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
 
-//         fprintf(stderr, "[%u] max_shared_memory_size = %d\n", i, gpu_info.max_shared_memory_size);
-//         fprintf(stderr, "[%u] max_workgroup_count = %d %d %d\n", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
-//         fprintf(stderr, "[%u] max_workgroup_invocations = %d\n", i, gpu_info.max_workgroup_invocations);
-//         fprintf(stderr, "[%u] max_workgroup_size = %d %d %d\n", i, gpu_info.max_workgroup_size[0], gpu_info.max_workgroup_size[1], gpu_info.max_workgroup_size[2]);
+//         fprintf(stderr, "[%u] max_shared_memory_size = %u\n", i, gpu_info.max_shared_memory_size);
+//         fprintf(stderr, "[%u] max_workgroup_count = %u %u %u\n", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
+//         fprintf(stderr, "[%u] max_workgroup_invocations = %u\n", i, gpu_info.max_workgroup_invocations);
+//         fprintf(stderr, "[%u] max_workgroup_size = %u %u %u\n", i, gpu_info.max_workgroup_size[0], gpu_info.max_workgroup_size[1], gpu_info.max_workgroup_size[2]);
 //         fprintf(stderr, "[%u] memory_map_alignment = %lu\n", i, gpu_info.memory_map_alignment);
 //         fprintf(stderr, "[%u] buffer_offset_alignment = %lu\n", i, gpu_info.buffer_offset_alignment);
 
@@ -496,7 +503,7 @@ int create_gpu_instance()
         gpu_info.host_visible_memory_index = find_host_visible_memory(physicalDeviceMemoryProperties);
 
         // treat as unified memory architecture if memory heap is the same
-        if (gpu_info.unified_memory_index != -1)
+        if (gpu_info.unified_memory_index != (uint32_t)-1)
         {
             int unified_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.unified_memory_index].heapIndex;
             int device_local_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.device_local_memory_index].heapIndex;

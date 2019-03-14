@@ -44,6 +44,15 @@ int Softmax::load_param(const ParamDict& pd)
 {
     axis = pd.get(0, 0);
 
+    // the original softmax handle axis on 3-dim blob incorrectly
+    // ask user to regenerate param instead of producing wrong result
+    int fixbug0 = pd.get(1, 0);
+    if (fixbug0 == 0 && axis != 0)
+    {
+        fprintf(stderr, "param is too old, please regenerate!\n");
+        return -1;
+    }
+
     return 0;
 }
 
@@ -590,8 +599,6 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     const Pipeline* pipeline = packing == 4 ? pipeline_softmax_reduce_max_pack4 : pipeline_softmax_reduce_max;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_prepare_compute_barrier(max_workspace);
     cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
     }
 
@@ -616,8 +623,6 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     const Pipeline* pipeline = packing == 4 ? pipeline_softmax_exp_sub_max_pack4 : pipeline_softmax_exp_sub_max;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_prepare_compute_barrier(max_workspace);
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
@@ -642,8 +647,6 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     const Pipeline* pipeline = packing == 4 ? pipeline_softmax_reduce_sum_pack4 : pipeline_softmax_reduce_sum;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_prepare_compute_barrier(sum_workspace);
     cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
     }
 
@@ -668,8 +671,6 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     const Pipeline* pipeline = packing == 4 ? pipeline_softmax_div_sum_pack4 : pipeline_softmax_div_sum;
 
     // record
-    cmd.record_prepare_compute_barrier(bottom_top_blob);
-    cmd.record_prepare_compute_barrier(sum_workspace);
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 

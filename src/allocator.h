@@ -194,11 +194,22 @@ class VkBufferMemory
 {
 public:
     VkBuffer buffer;
+
     // the base offset assigned by allocator
     size_t offset;
     size_t capacity;
+
     VkDeviceMemory memory;
     void* mapped_ptr;
+
+    // buffer state, modified by command functions internally
+    // 0=null
+    // 1=created
+    // 2=transfer
+    // 3=compute
+    // 4=readonly
+    mutable int state;
+
     // initialize and modified by mat
     int refcount;
 };

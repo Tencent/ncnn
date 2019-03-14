@@ -38,6 +38,13 @@ public:
     // vulkan physical device
     VkPhysicalDevice physical_device;
 
+    // info
+    uint32_t api_version;
+    uint32_t driver_version;
+    uint32_t vendor_id;
+    uint32_t device_id;
+    uint8_t pipeline_cache_uuid[VK_UUID_SIZE];
+
     // 0 = discrete gpu
     // 1 = integrated gpu
     // 2 = virtual gpu
@@ -45,10 +52,10 @@ public:
     int type;
 
     // hardware capability
-    int max_shared_memory_size;
-    int max_workgroup_count[3];
-    int max_workgroup_invocations;
-    int max_workgroup_size[3];
+    uint32_t max_shared_memory_size;
+    uint32_t max_workgroup_count[3];
+    uint32_t max_workgroup_invocations;
+    uint32_t max_workgroup_size[3];
     size_t memory_map_alignment;
     size_t buffer_offset_alignment;
 
