@@ -135,7 +135,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff, co
                 float sum = v0;
                 for (int j=0; j<w; j++)
                 {
-                    sum = op(sum, ptr[i]);
+                    sum = op(sum, ptr[j]);
                 }
 
                 outptr[i] = sum * coeff;

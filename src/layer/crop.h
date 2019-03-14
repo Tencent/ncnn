@@ -43,6 +43,9 @@ public:
     int woffset;
     int hoffset;
     int coffset;
+
+    // -233 = remaining
+    // -234 = remaining - 1
     int outw;
     int outh;
     int outc;

@@ -1022,6 +1022,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (n.op == "Crop")
+        {
+            fprintf(pp, "%-16s", "Crop");
+        }
         else if (n.op == "Deconvolution")
         {
             int num_group = n.attr("num_group");
@@ -1166,6 +1170,10 @@ int main(int argc, char** argv)
         else if (n.op == "sin")
         {
             fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (n.op == "slice")
+        {
+            fprintf(pp, "%-16s", "Crop");
         }
         else if (n.op == "SliceChannel")
         {
@@ -1674,6 +1682,31 @@ int main(int argc, char** argv)
             int op_type = 10;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (n.op == "Crop")
+        {
+            int num_args = n.attr("num_args");
+            std::vector<int> offset = n.attr("offset");
+
+            int woffset = 0;
+            int hoffset = 0;
+            if (offset.size() == 2)
+            {
+                woffset = offset[1];
+                hoffset = offset[0];
+            }
+
+            fprintf(pp, " 0=%d", woffset);
+            fprintf(pp, " 1=%d", hoffset);
+            fprintf(pp, " 2=0");
+
+            if (num_args == 1)
+            {
+                std::vector<int> h_w = n.attr("h_w");
+                fprintf(pp, " 3=%d", h_w[1]);
+                fprintf(pp, " 4=%d", h_w[0]);
+                fprintf(pp, " 5=0");
+            }
+        }
         else if (n.op == "Dropout")
         {
 //             float p = n.attr("p");
@@ -2004,6 +2037,55 @@ int main(int argc, char** argv)
         {
             int op_type = 9;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "slice")
+        {
+            std::vector<int> begin = n.attr("begin");
+            std::vector<int> end = n.attr("end");
+            std::vector<int> step = n.attr("step");// TODO
+
+            // assert step == 1
+            for (int i=0; i<(int)step.size(); i++)
+            {
+                if (step[i] != 1)
+                    fprintf(stderr, "Unsupported slice step !\n");
+            }
+
+            int woffset = 0;
+            int hoffset = 0;
+            int coffset = 0;
+            int outw = -233;
+            int outh = -233;
+            int outc = -233;
+
+            if (begin.size() == 2)
+            {
+                woffset = begin[1];
+                outw = end[1] == -1 ? -234 : end[1] - begin[1];
+            }
+            else if (begin.size() == 3)
+            {
+                woffset = begin[2];
+                hoffset = begin[1];
+                outw = end[2] == -1 ? -234 : end[2] - begin[2];
+                outh = end[1] == -1 ? -234 : end[1] - begin[1];
+            }
+            else if (begin.size() == 4)
+            {
+                woffset = begin[3];
+                hoffset = begin[2];
+                coffset = begin[1];
+                outw = end[3] == -1 ? -234 : end[3] - begin[3];
+                outh = end[2] == -1 ? -234 : end[2] - begin[2];
+                outc = end[1] == -1 ? -234 : end[1] - begin[1];
+            }
+
+            fprintf(pp, " 0=%d", woffset);
+            fprintf(pp, " 1=%d", hoffset);
+            fprintf(pp, " 2=%d", coffset);
+            fprintf(pp, " 3=%d", outw);
+            fprintf(pp, " 4=%d", outh);
+            fprintf(pp, " 5=%d", outc);
         }
         else if (n.op == "SliceChannel")
         {

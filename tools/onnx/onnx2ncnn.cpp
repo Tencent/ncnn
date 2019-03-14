@@ -672,6 +672,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Slice")
+        {
+            fprintf(pp, "%-16s", "Crop");
+        }
         else if (op == "Softmax")
         {
             fprintf(pp, "%-16s", "Softmax");
@@ -1341,6 +1345,55 @@ int main(int argc, char** argv)
         {
             int op_type = 9;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Slice")
+        {
+            std::vector<int> starts = get_node_attr_ai(node, "starts");
+            std::vector<int> ends = get_node_attr_ai(node, "ends");
+            std::vector<int> steps = get_node_attr_ai(node, "steps");// TODO
+
+            // assert step == 1
+            for (int i=0; i<(int)steps.size(); i++)
+            {
+                if (steps[i] != 1)
+                    fprintf(stderr, "Unsupported slice step !\n");
+            }
+
+            int woffset = 0;
+            int hoffset = 0;
+            int coffset = 0;
+            int outw = -233;
+            int outh = -233;
+            int outc = -233;
+
+            if (starts.size() == 2)
+            {
+                woffset = starts[1];
+                outw = ends[1] == -1 ? -234 : ends[1] - starts[1];
+            }
+            else if (starts.size() == 3)
+            {
+                woffset = starts[2];
+                hoffset = starts[1];
+                outw = ends[2] == -1 ? -234 : ends[2] - starts[2];
+                outh = ends[1] == -1 ? -234 : ends[1] - starts[1];
+            }
+            else if (starts.size() == 4)
+            {
+                woffset = starts[3];
+                hoffset = starts[2];
+                coffset = starts[1];
+                outw = ends[3] == -1 ? -234 : ends[3] - starts[3];
+                outh = ends[2] == -1 ? -234 : ends[2] - starts[2];
+                outc = ends[1] == -1 ? -234 : ends[1] - starts[1];
+            }
+
+            fprintf(pp, " 0=%d", woffset);
+            fprintf(pp, " 1=%d", hoffset);
+            fprintf(pp, " 2=%d", coffset);
+            fprintf(pp, " 3=%d", outw);
+            fprintf(pp, " 4=%d", outh);
+            fprintf(pp, " 5=%d", outc);
         }
         else if (op == "Softmax")
         {
