@@ -414,7 +414,14 @@ void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, in
 
     if (w == src.w && h == src.h)
     {
-        dst = src;
+        if(src.refcount)
+        {
+            dst = src;
+        }
+        else
+        {
+            dst = src.clone();
+        }
         return;
     }
 
