@@ -252,6 +252,11 @@ void mobilenet_v2_init(ncnn::Net& net)
     net.load_param("mobilenet_v2.param");
 }
 
+void mobilenet_v2_int8_init(ncnn::Net& net)
+{
+    net.load_param("mobilenet_v2_int8.param");
+}
+
 void mobilenet_v2_run(const ncnn::Net& net)
 {
     ncnn::Extractor ex = net.create_extractor();
@@ -560,6 +565,8 @@ int main(int argc, char** argv)
     benchmark("mobilenet-int8", mobilenet_int8_init, mobilenet_run);
 
     benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
+
+    benchmark("mobilenet_v2-int8", mobilenet_v2_int8_init, mobilenet_v2_run);
 
     benchmark("shufflenet", shufflenet_init, shufflenet_run);
 

@@ -977,7 +977,9 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         int nColBlocks = h_tm/4; // may be the block num in FeatherCNN
         int nRowBlocks = w_tm/4;
 
+#if __ARM_NEON
         int32x2_t _shift = vdup_n_s32(-2);
+#endif        
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<outch; p++)
