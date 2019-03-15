@@ -80,7 +80,9 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         {
             top_blob = bottom_blob;
             top_blob.w = w * packing;
+            top_blob.cstep = w * packing;
             top_blob.elemsize = elemsize / packing;
+            top_blob.packing = out_packing;
             return 0;
         }
 
@@ -186,13 +188,19 @@ int Packing::create_pipeline()
 {
     std::vector<vk_specialization_type> specializations;
 
-    pipeline_packing_1to4 = new Pipeline(vkdev);
-    pipeline_packing_1to4->set_optimal_local_size_xyz();
-    pipeline_packing_1to4->create("packing_1to4", specializations, 2, 10);
+    if (out_packing == 4)
+    {
+        pipeline_packing_1to4 = new Pipeline(vkdev);
+        pipeline_packing_1to4->set_optimal_local_size_xyz();
+        pipeline_packing_1to4->create("packing_1to4", specializations, 2, 10);
+    }
 
-    pipeline_packing_4to1 = new Pipeline(vkdev);
-    pipeline_packing_4to1->set_optimal_local_size_xyz();
-    pipeline_packing_4to1->create("packing_4to1", specializations, 2, 10);
+    if (out_packing == 1)
+    {
+        pipeline_packing_4to1 = new Pipeline(vkdev);
+        pipeline_packing_4to1->set_optimal_local_size_xyz();
+        pipeline_packing_4to1->create("packing_4to1", specializations, 2, 10);
+    }
 
     return 0;
 }
@@ -224,16 +232,54 @@ int Packing::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, 
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
 
+    if (!use_padding)
+    {
+        // identity if use_padding not allowed
+        if (dims == 1 && w * packing % out_packing != 0)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+        if (dims == 2 && h * packing % out_packing != 0)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+        if (dims == 3 && channels * packing % out_packing != 0)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+    }
+
     if (dims == 1)
     {
-        // TODO
-        return -1;
+        if (out_packing == 1)
+        {
+            top_blob = bottom_blob;
+            top_blob.w = w * packing;
+            top_blob.cstep = w * packing;
+            top_blob.elemsize = elemsize / packing;
+            top_blob.packing = out_packing;
+            return 0;
+        }
+
+        int outw = (w * packing + out_packing - 1) / out_packing;
+        size_t out_elemsize = elemsize / packing * out_packing;
+
+        top_blob.create(outw, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        if (top_blob.empty())
+            return -100;
     }
 
     if (dims == 2)
     {
-        // TODO
-        return -1;
+        int outh = (h * packing + out_packing - 1) / out_packing;
+        size_t out_elemsize = elemsize / packing * out_packing;
+
+        top_blob.create(w, outh, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        if (top_blob.empty())
+            return -100;
     }
 
     if (dims == 3)

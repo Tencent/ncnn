@@ -45,9 +45,26 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    ivec4 z4 = ivec4(gz * 4) + ivec4(0, 1, 2, 3);
+    ivec4 v_offset;
 
-    ivec4 v_offset = z4 * p.outcstep + ivec4(gy * p.outw + gx);
+    if (p.dims == 1)
+    {
+        ivec4 x4 = ivec4(gx * 4) + ivec4(0, 1, 2, 3);
+
+        v_offset = x4;
+    }
+    else if (p.dims == 2)
+    {
+        ivec4 y4 = ivec4(gy * 4) + ivec4(0, 1, 2, 3);
+
+        v_offset = y4 * p.outw + gx;
+    }
+    else // if (p.dims == 3)
+    {
+        ivec4 z4 = ivec4(gz * 4) + ivec4(0, 1, 2, 3);
+
+        v_offset = z4 * p.outcstep + ivec4(gy * p.outw + gx);
+    }
 
     vec4 v = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
 
