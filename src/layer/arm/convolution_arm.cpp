@@ -22,14 +22,11 @@ namespace ncnn {
 #include "convolution_4x4.h"
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
-
-#if __ARM_NEON
 #include "convolution_sgemm_int8.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
 #include "convolution_5x5_int8.h"
 #include "convolution_7x7_int8.h"
-#endif // __ARM_NEON
 
 DEFINE_LAYER_CREATOR(Convolution_arm)
 
@@ -297,7 +294,6 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     typedef void (*conv_int8_func)(const Mat&, Mat&, const Mat&, const Option&);
 
-#if __ARM_NEON
     // kernel_size x stride
     conv_int8_func conv_int8_func_table[7][4] =
     {
@@ -344,22 +340,17 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             0
         }  // kernel_size = 7                
     };
-#endif // __ARM_NEON
 
     conv_func conv = 0;
     conv_int8_func conv_int8 = 0;
 
     if (use_int8_inference)
     {
-#if __ARM_NEON
         conv_int8 = conv_int8_func_table[kernel_size-1][stride-1];
         if (!conv_int8)
         {
             return Convolution::forward(bottom_blob, top_blob, opt);
         }
-#else
-        return Convolution::forward(bottom_blob, top_blob, opt);
-#endif // __ARM_NEON
     }
     else
     {
