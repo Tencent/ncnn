@@ -74,45 +74,9 @@ public:
 #if NCNN_VULKAN
         if (use_vulkan_compute)
         {
-            ncnn::VkTransfer cmd(vkdev);
+            upload_model();
 
-            // create gpu device allocator if null
-            if (!weight_vkallocator)
-            {
-                weight_vkallocator = new VkWeightBufferAllocator(vkdev);
-            }
-            if (!weight_staging_vkallocator)
-            {
-                weight_staging_vkallocator = new VkWeightStagingBufferAllocator(vkdev);
-            }
-
-            cmd.weight_vkallocator = weight_vkallocator;
-            cmd.staging_vkallocator = weight_staging_vkallocator;
-
-            for (size_t i=0; i<layers.size(); i++)
-            {
-                int uret = layers[i]->upload_model(cmd);
-                if (uret != 0)
-                {
-                    fprintf(stderr, "layer upload_model %d failed\n", (int)i);
-                    ret = -1;
-                    break;
-                }
-            }
-
-            cmd.submit();
-
-            cmd.wait();
-
-            #pragma omp parallel for
-            for (int i=0; i<layers.size(); i++)
-            {
-                int cret = layers[i]->create_pipeline();
-                if (cret != 0)
-                {
-                    fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
-                }
-            }
+            create_pipeline();
         }
 #endif // NCNN_VULKAN
 
@@ -566,7 +530,7 @@ int main(int argc, char** argv)
 
     benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
 
-    benchmark("mobilenet_v2-int8", mobilenet_v2_int8_init, mobilenet_v2_run);
+//     benchmark("mobilenet_v2-int8", mobilenet_v2_int8_init, mobilenet_v2_run);
 
     benchmark("shufflenet", shufflenet_init, shufflenet_run);
 

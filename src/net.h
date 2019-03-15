@@ -76,10 +76,6 @@ public:
     // return bytes consumed
     int load_model(const unsigned char* mem);
 
-    // parse the structure of network
-    // fuse int8 op dequantize and quantize by requantize
-    void fuse_network();
-
     // unload network structure and weight data
     void clear();
 
@@ -115,6 +111,20 @@ public:
 #endif // NCNN_VULKAN
 
 protected:
+    // parse the structure of network
+    // fuse int8 op dequantize and quantize by requantize
+    void fuse_network();
+
+#if NCNN_VULKAN
+
+    int upload_model();
+
+    int create_pipeline();
+
+    int destroy_pipeline();
+
+#endif // NCNN_VULKAN
+
     friend class Extractor;
 #if NCNN_STRING
     int find_blob_index_by_name(const char* name) const;
@@ -141,6 +151,9 @@ protected:
 
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
+
+    ncnn::Layer* packing_pack1;
+    ncnn::Layer* packing_pack4;
 #endif // NCNN_VULKAN
 };
 
