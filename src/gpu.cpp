@@ -398,15 +398,12 @@ int create_gpu_instance()
         return -1;
     }
 
-    g_gpu_count = physicalDeviceCount;
-
     // find proper device and queue
+    int gpu_info_index = 0;
     for (uint32_t i=0; i<physicalDeviceCount; i++)
     {
         const VkPhysicalDevice& physicalDevice = physicalDevices[i];
-        GpuInfo& gpu_info = g_gpu_infos[i];
-
-        gpu_info.physical_device = physicalDevice;
+        GpuInfo& gpu_info = g_gpu_infos[gpu_info_index];
 
         // device type
         VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -421,6 +418,22 @@ int create_gpu_instance()
 //         fprintf(stderr, "[%u] deviceType = %x\n", i, physicalDeviceProperties.deviceType);
 //         fprintf(stderr, "[%u] deviceName = %s\n", i, physicalDeviceProperties.deviceName);
 //         fprintf(stderr, "[%u] pipelineCacheUUID = %u\n", i, physicalDeviceProperties.pipelineCacheUUID);
+
+        if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
+        {
+            // ignore arm mali with old buggy driver
+            fprintf(stderr, "arm mali driver is too old\n");
+            continue;
+        }
+
+        if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49))
+        {
+            // ignore qcom adreno with old buggy driver
+            fprintf(stderr, "qcom adreno driver is too old\n");
+            continue;
+        }
+
+        gpu_info.physical_device = physicalDevice;
 
         // info
         gpu_info.api_version = physicalDeviceProperties.apiVersion;
@@ -588,7 +601,11 @@ int create_gpu_instance()
         fprintf(stderr, "[%u %s]  queueC=%u  queueT=%u  memU=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_index, gpu_info.transfer_queue_index,
                 gpu_info.unified_memory_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
+
+        gpu_info_index++;
     }
+
+    g_gpu_count = gpu_info_index;
 
     // the default gpu device
     g_default_gpu_index = find_default_vulkan_device_index();
