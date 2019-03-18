@@ -717,6 +717,7 @@ int Net::load_param(const unsigned char* _mem)
     pd.use_winograd_convolution = use_winograd_convolution;
     pd.use_sgemm_convolution = use_sgemm_convolution;
     pd.use_int8_inference = use_int8_inference;
+    pd.use_vulkan_compute = use_vulkan_compute;
 
     for (int i=0; i<layer_count; i++)
     {
@@ -741,6 +742,11 @@ int Net::load_param(const unsigned char* _mem)
             clear();
             return 0;
         }
+
+#if NCNN_VULKAN
+        if (use_vulkan_compute)
+            layer->vkdev = vkdev;
+#endif // NCNN_VULKAN
 
 //         layer->type = std::string(layer_type);
 //         layer->name = std::string(layer_name);
