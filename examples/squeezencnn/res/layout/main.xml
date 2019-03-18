@@ -18,7 +18,12 @@
         android:id="@+id/buttonDetect"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="识别" />
+        android:text="识别-cpu" />
+    <Button
+        android:id="@+id/buttonDetectGPU"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="识别-gpu" />
     </LinearLayout>
 
     <TextView
