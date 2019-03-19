@@ -1562,8 +1562,15 @@ int main(int argc, char** argv)
             else
             {
                 const onnx::TensorProto& scales_tp = weights[node.input(1)];
-                const float* shape_data = scales_tp.float_data().data();
-                for (int j=0; j<scales_tp.float_data_size(); j++)
+                const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
+                
+                int float_data_size = scales_tp.float_data_size();
+                //float data is None, use raw data instead
+                if (float_data_size == 0) {
+                    float_data_size = scales_tp.dims().Get(0);
+                }
+
+                for (int j=0; j<float_data_size; j++)
                 {
                     scales.push_back(shape_data[j]);
                 }
