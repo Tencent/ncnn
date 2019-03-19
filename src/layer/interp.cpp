@@ -22,6 +22,13 @@ DEFINE_LAYER_CREATOR(Interp);
 Interp::Interp()
 {
     one_blob_only = true;
+    support_inplace = false;
+    support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_interp = 0;
+    pipeline_interp_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int Interp::load_param(const ParamDict& pd)
@@ -109,5 +116,91 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) co
     }
 }
 
+#if NCNN_VULKAN
+int Interp::create_pipeline()
+{
+    pipeline_interp = new Pipeline(vkdev);
+    pipeline_interp->set_optimal_local_size_xyz();
+
+    std::vector<vk_specialization_type> specializations(1);
+    specializations[0].i = resize_type;
+
+    pipeline_interp->create("interp", specializations, 2, 12);
+
+    // pack4
+    {
+        pipeline_interp_pack4 = new Pipeline(vkdev);
+        pipeline_interp_pack4->set_optimal_local_size_xyz();
+        pipeline_interp_pack4->create("interp_pack4", specializations, 2, 12);
+    }
+
+    return 0;
+}
+
+int Interp::destroy_pipeline()
+{
+    delete pipeline_interp;
+    pipeline_interp = 0;
+
+    delete pipeline_interp_pack4;
+    pipeline_interp_pack4 = 0;
+
+    return 0;
+}
+
+int Interp::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
+    int outw = output_width;
+    int outh = output_height;
+    if (outw == 0 || outh == 0)
+    {
+        outw = w * width_scale;
+        outh = h * height_scale;
+    }
+
+    if (outh == h && outw == w)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    top_blob.create(outw, outh, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+//     fprintf(stderr, "Interp::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(12);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
+    constants[10].f = w / (float)outw;
+    constants[11].f = h / (float)outh;
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_interp_pack4 : pipeline_interp;
+
+    // record
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

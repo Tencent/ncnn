@@ -1,0 +1,131 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+layout (constant_id = 0) const int flip = 0;
+layout (constant_id = 1) const int clip = 0;
+layout (constant_id = 2) const float offset = 0;
+layout (constant_id = 3) const float variances_0 = 0;
+layout (constant_id = 4) const float variances_1 = 0;
+layout (constant_id = 5) const float variances_2 = 0;
+layout (constant_id = 6) const float variances_3 = 0;
+layout (constant_id = 7) const int num_min_size = 0;
+layout (constant_id = 8) const int num_max_size = 0;
+layout (constant_id = 9) const int num_aspect_ratio = 0;
+layout (constant_id = 10) const int num_prior = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) writeonly buffer top_blob { vec4 top_blob_data[]; };
+layout (binding = 1) readonly buffer min_sizes { float min_sizes_data[]; };
+layout (binding = 2) readonly buffer max_sizes { float max_sizes_data[]; };
+layout (binding = 3) readonly buffer aspect_ratios { float aspect_ratios_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+
+    float image_w;
+    float image_h;
+    float step_w;
+    float step_h;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= num_min_size || gy >= p.w || gz >= p.h)
+        return;
+
+    // anchor and variance
+    int v_offset = (gz * p.w + gy) * num_prior + gx;
+    int var_offset = p.w * p.h * num_prior + v_offset;
+
+    float center_x = (gy + offset) * p.step_w;
+    float center_y = (gz + offset) * p.step_h;
+    vec4 center = vec4(center_x, center_y, center_x, center_y);
+
+    vec4 image_norm = 1.f / vec4(p.image_w, p.image_h, p.image_w, p.image_h);
+
+    vec4 variance = vec4(variances_0, variances_1, variances_2, variances_3);
+
+    vec4 box;
+
+    float box_w;
+    float box_h;
+
+    float min_size = min_sizes_data[gx];
+
+    // min size box
+    box_w = box_h = min_size;
+
+    box = (center + vec4(-box_w, -box_h, box_w, box_h) * 0.5f) * image_norm;
+
+    top_blob_data[v_offset] = clip == 1 ? clamp(box, 0.f, 1.f) : box;
+    top_blob_data[var_offset] = variance;
+
+    v_offset += 1;
+    var_offset += 1;
+
+    if (num_max_size > 0)
+    {
+        float max_size = max_sizes_data[gx];
+
+        // max size box
+        box_w = box_h = sqrt(min_size * max_size);
+
+        box = (center + vec4(-box_w, -box_h, box_w, box_h) * 0.5f) * image_norm;
+
+        top_blob_data[v_offset] = clip == 1 ? clamp(box, 0.f, 1.f) : box;
+        top_blob_data[var_offset] = variance;
+
+        v_offset += 1;
+        var_offset += 1;
+    }
+
+    // all aspect_ratios
+    for (int pi = 0; pi < num_aspect_ratio; pi++)
+    {
+        float ar = aspect_ratios_data[pi];
+
+        box_w = min_size * sqrt(ar);
+        box_h = min_size / sqrt(ar);
+
+        box = (center + vec4(-box_w, -box_h, box_w, box_h) * 0.5f) * image_norm;
+
+        top_blob_data[v_offset] = clip == 1 ? clamp(box, 0.f, 1.f) : box;
+        top_blob_data[var_offset] = variance;
+
+        v_offset += 1;
+        var_offset += 1;
+
+        if (flip == 1)
+        {
+            box = (center + vec4(-box_h, -box_w, box_h, box_w) * 0.5f) * image_norm;
+
+            top_blob_data[v_offset] = clip == 1 ? clamp(box, 0.f, 1.f) : box;
+            top_blob_data[var_offset] = variance;
+
+            v_offset += 1;
+            var_offset += 1;
+        }
+    }
+}

@@ -21,5 +21,8 @@
 #cmakedefine01 NCNN_BENCHMARK
 #cmakedefine01 NCNN_PIXEL
 #cmakedefine01 NCNN_PIXEL_ROTATE
+#cmakedefine01 NCNN_VULKAN
+#cmakedefine01 NCNN_REQUANT
+#cmakedefine01 NCNN_IM2COL_SGEMM
 
 #endif // NCNN_PLATFORM_H

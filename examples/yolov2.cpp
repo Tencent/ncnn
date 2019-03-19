@@ -18,7 +18,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "platform.h"
 #include "net.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -30,6 +34,10 @@ struct Object
 static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net yolov2;
+
+#if NCNN_VULKAN
+    yolov2.use_vulkan_compute = true;
+#endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/eric612/MobileNet-YOLO
     // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy.prototxt
@@ -46,7 +54,7 @@ static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // the Caffe-YOLOv2-Windows style
     // X' = X * scale - mean
-    const float mean_vals[3] = {0.5f, 0.5f, 0.5f};
+    const float mean_vals[3] = {1.0f, 1.0f, 1.0f};
     const float norm_vals[3] = {0.007843f, 0.007843f, 0.007843f};
     in.substract_mean_normalize(0, norm_vals);
     in.substract_mean_normalize(mean_vals, 0);
@@ -114,7 +122,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
         cv::rectangle(image, cv::Rect(cv::Point(x, y),
                                       cv::Size(label_size.width, label_size.height + baseLine)),
-                      cv::Scalar(255, 255, 255), CV_FILLED);
+                      cv::Scalar(255, 255, 255), -1);
 
         cv::putText(image, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
@@ -134,15 +142,23 @@ int main(int argc, char** argv)
 
     const char* imagepath = argv[1];
 
-    cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);
+    cv::Mat m = cv::imread(imagepath, 1);
     if (m.empty())
     {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }
 
+#if NCNN_VULKAN
+    ncnn::create_gpu_instance();
+#endif // NCNN_VULKAN
+
     std::vector<Object> objects;
     detect_yolov2(m, objects);
+
+#if NCNN_VULKAN
+    ncnn::destroy_gpu_instance();
+#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 

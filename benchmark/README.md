@@ -23,7 +23,7 @@ $ make -j4
 Usage
 ```
 # copy all param files to the current directory
-$ ./benchncnn [loop count] [num threads] [powersave]
+$ ./benchncnn [loop count] [num threads] [powersave] [gpu device]
 ```
 run benchncnn on android device
 ```
@@ -34,7 +34,7 @@ $ adb shell
 
 # executed in android adb shell
 $ cd /data/local/tmp/
-$ ./benchncnn [loop count] [num threads] [powersave]
+$ ./benchncnn [loop count] [num threads] [powersave] [gpu device]
 ```
 
 Parameter
@@ -44,6 +44,7 @@ Parameter
 |loop count|1~N|4|
 |num threads|1~N|max_cpu_count|
 |powersave|0=all cores, 1=little cores only, 2=big cores only|0|
+|gpu device|-1=cpu-only, 0=gpu0, 1=gpu1 ...|-1|
 
 ---
 

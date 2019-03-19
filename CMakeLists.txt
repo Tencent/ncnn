@@ -31,6 +31,9 @@ option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
 option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
 option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
 option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
+option(NCNN_VULKAN "vulkan compute support" OFF)
+option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
+option(NCNN_IM2COL_SGEMM "im2col sgemm support" OFF)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
@@ -44,6 +47,10 @@ if(NCNN_OPENMP)
         set_property(TARGET OpenMP::OpenMP_CXX
           PROPERTY INTERFACE_LINK_LIBRARIES ${OpenMP_CXX_FLAGS} Threads::Threads)
     endif()
+endif()
+
+if(NCNN_VULKAN)
+    find_package(Vulkan REQUIRED)
 endif()
 
 if(WIN32)
@@ -84,7 +91,7 @@ endif()
 ##############################################
 
 # add_subdirectory(examples)
-# add_subdirectory(benchmark)
+add_subdirectory(benchmark)
 add_subdirectory(src)
 if(NOT ANDROID AND NOT IOS)
 add_subdirectory(tools)

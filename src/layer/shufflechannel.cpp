@@ -22,6 +22,12 @@ ShuffleChannel::ShuffleChannel()
 {
     one_blob_only = true;
     support_inplace = false;
+    support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_shufflechannel = 0;
+    pipeline_shufflechannel_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int ShuffleChannel::load_param(const ParamDict& pd)
@@ -61,5 +67,75 @@ int ShuffleChannel::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
     }
     return 0;
 }
+
+#if NCNN_VULKAN
+int ShuffleChannel::create_pipeline()
+{
+    std::vector<vk_specialization_type> specializations(1);
+    specializations[0].i = group;
+
+    pipeline_shufflechannel = new Pipeline(vkdev);
+    pipeline_shufflechannel->set_optimal_local_size_xyz();
+    pipeline_shufflechannel->create("shufflechannel", specializations, 2, 10);
+
+    // pack4
+    {
+        pipeline_shufflechannel_pack4 = new Pipeline(vkdev);
+        pipeline_shufflechannel_pack4->set_optimal_local_size_xyz();
+        pipeline_shufflechannel_pack4->create("shufflechannel_pack4", specializations, 2, 10);
+    }
+
+    return 0;
+}
+
+int ShuffleChannel::destroy_pipeline()
+{
+    delete pipeline_shufflechannel;
+    pipeline_shufflechannel = 0;
+
+    delete pipeline_shufflechannel_pack4;
+    pipeline_shufflechannel_pack4 = 0;
+
+    return 0;
+}
+
+int ShuffleChannel::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
+    top_blob.create(w, h, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+//     fprintf(stderr, "ShuffleChannel::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_shufflechannel_pack4 : pipeline_shufflechannel;
+
+    // record
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
