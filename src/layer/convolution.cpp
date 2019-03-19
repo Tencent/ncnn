@@ -77,6 +77,12 @@ int Convolution::load_param(const ParamDict& pd)
     weight_data_size = pd.get(6, 0);
     int8_scale_term = pd.get(8, 0);
 
+    if (pad_w == -233 && pad_h == -233)
+    {
+        // TODO
+        support_vulkan = false;
+    }
+
     use_int8_inference = pd.use_int8_inference;
 
     if (int8_scale_term == 0)
