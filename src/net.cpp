@@ -1004,11 +1004,14 @@ int Net::upload_model()
 
     for (size_t i=0; i<layers.size(); i++)
     {
-        int uret = layers[i]->upload_model(cmd);
-        if (uret != 0)
+        if (layers[i]->support_vulkan)
         {
-            fprintf(stderr, "layer upload_model %d failed\n", (int)i);
-            return -1;
+            int uret = layers[i]->upload_model(cmd);
+            if (uret != 0)
+            {
+                fprintf(stderr, "layer upload_model %d failed\n", (int)i);
+                return -1;
+            }
         }
     }
 
@@ -1024,10 +1027,13 @@ int Net::create_pipeline()
     #pragma omp parallel for
     for (int i=0; i<(int)layers.size(); i++)
     {
-        int cret = layers[i]->create_pipeline();
-        if (cret != 0)
+        if (layers[i]->support_vulkan)
         {
-            fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
+            int cret = layers[i]->create_pipeline();
+            if (cret != 0)
+            {
+                fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
+            }
         }
     }
 
@@ -1065,7 +1071,10 @@ int Net::destroy_pipeline()
     #pragma omp parallel for
     for (int i=0; i<(int)layers.size(); i++)
     {
-        layers[i]->destroy_pipeline();
+        if (layers[i]->support_vulkan)
+        {
+            layers[i]->destroy_pipeline();
+        }
     }
 
     if (packing_pack1)
