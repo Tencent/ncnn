@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "convolution_arm.h"
+#include "benchmark.h"
 
 namespace ncnn {
 
@@ -87,6 +88,7 @@ int Convolution_arm::load_model(const ModelBin& mb)
         {
             int kernel_size = kernel_w * kernel_h;
             int num_input = weight_data_size / kernel_size / num_output;
+
             conv_im2col_sgemm_transform_kernel_int8_neon(weight_data, weight_sgemm_int8_data, num_input, num_output, kernel_size);
         }
         
@@ -449,7 +451,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
             else
             {
-                conv_int8(bottom_blob_bordered, top_blob_tm, weight_sgemm_int8_data, opt);
+                conv_int8(bottom_blob_bordered, top_blob_tm, weight_sgemm_int8_data, opt);     
             }
 
             // requantize, reverse scale inplace

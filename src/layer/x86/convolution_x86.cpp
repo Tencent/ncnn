@@ -404,7 +404,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 requantize_ops[p]->forward(top_blob_tm_g, top_blob_g, opt_g);
-            }                                       
+            } 
+
+#if DEBUG_FEATURE
+            extract_feature_out_s32(0, this->name.c_str(), top_blob_tm);
+            extract_feature_blob_s8("D_Out_S8", this->name.c_str(), top_blob);
+#endif                                                          
         }
         else
         {
@@ -428,8 +433,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
             }
+
+#if DEBUG_FEATURE 
+            extract_feature_out_f32(0, this->name.c_str(), top_blob);
+#endif             
         }
     
+
+
         return 0;
     }
 
