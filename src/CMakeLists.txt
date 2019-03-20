@@ -210,8 +210,9 @@ if(COVERAGE)
     target_compile_options(ncnn PRIVATE --coverage)
 endif()
 
-install(TARGETS ncnn ARCHIVE DESTINATION lib)
-install(FILES
+if(NCNN_INSTALL_SDK)
+  install(TARGETS ncnn ARCHIVE DESTINATION lib)
+  install(FILES
     allocator.h
     blob.h
     command.h
@@ -229,4 +230,5 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
     ${CMAKE_CURRENT_BINARY_DIR}/platform.h
     DESTINATION include
-)
+  )
+endif()
