@@ -1024,7 +1024,7 @@ int Net::upload_model()
 
 int Net::create_pipeline()
 {
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (int i=0; i<(int)layers.size(); i++)
     {
         if (layers[i]->support_vulkan)
@@ -1068,7 +1068,7 @@ int Net::create_pipeline()
 
 int Net::destroy_pipeline()
 {
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (int i=0; i<(int)layers.size(); i++)
     {
         if (layers[i]->support_vulkan)
