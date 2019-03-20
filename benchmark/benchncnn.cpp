@@ -139,12 +139,6 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
     run(net);
     run(net);
 
-    run(net);
-    run(net);
-    run(net);
-    run(net);
-    run(net);
-
     double time_min = DBL_MAX;
     double time_max = -DBL_MAX;
     double time_avg = 0;
@@ -166,7 +160,7 @@ void benchmark(const char* comment, void (*init)(ncnn::Net&), void (*run)(const 
 
     time_avg /= g_loop_count;
 
-    fprintf(stderr, "%-20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
+    fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
 }
 
 void squeezenet_init(ncnn::Net& net)
@@ -522,14 +516,23 @@ int main(int argc, char** argv)
     // run
     benchmark("squeezenet", squeezenet_init, squeezenet_run);
 
+#if NCNN_VULKAN
+    if (!g_use_vulkan_compute)
+#endif // NCNN_VULKAN
     benchmark("squeezenet-int8", squeezenet_int8_init, squeezenet_run);
 
     benchmark("mobilenet", mobilenet_init, mobilenet_run);
 
+#if NCNN_VULKAN
+    if (!g_use_vulkan_compute)
+#endif // NCNN_VULKAN
     benchmark("mobilenet-int8", mobilenet_int8_init, mobilenet_run);
 
     benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
 
+// #if NCNN_VULKAN
+//     if (!g_use_vulkan_compute)
+// #endif // NCNN_VULKAN
 //     benchmark("mobilenet_v2-int8", mobilenet_v2_int8_init, mobilenet_v2_run);
 
     benchmark("shufflenet", shufflenet_init, shufflenet_run);
@@ -540,10 +543,16 @@ int main(int argc, char** argv)
 
     benchmark("googlenet", googlenet_init, googlenet_run);
 
+#if NCNN_VULKAN
+    if (!g_use_vulkan_compute)
+#endif // NCNN_VULKAN
     benchmark("googlenet-int8", googlenet_int8_init, googlenet_run);
 
     benchmark("resnet18", resnet18_init, resnet18_run);
 
+#if NCNN_VULKAN
+    if (!g_use_vulkan_compute)
+#endif // NCNN_VULKAN
     benchmark("resnet18-int8", resnet18_int8_init, resnet18_run);
 
     benchmark("alexnet", alexnet_init, alexnet_run);
@@ -552,14 +561,23 @@ int main(int argc, char** argv)
 
     benchmark("resnet50", resnet50_init, resnet50_run);
 
+#if NCNN_VULKAN
+    if (!g_use_vulkan_compute)
+#endif // NCNN_VULKAN
     benchmark("resnet50-int8", resnet50_int8_init, resnet50_run);
 
     benchmark("squeezenet-ssd", squeezenet_ssd_init, squeezenet_ssd_run);
 
+#if NCNN_VULKAN
+    if (!g_use_vulkan_compute)
+#endif // NCNN_VULKAN
     benchmark("squeezenet-ssd-int8", squeezenet_ssd_int8_init, squeezenet_ssd_run);
 
     benchmark("mobilenet-ssd", mobilenet_ssd_init, mobilenet_ssd_run);
 
+#if NCNN_VULKAN
+    if (!g_use_vulkan_compute)
+#endif // NCNN_VULKAN
     benchmark("mobilenet-ssd-int8", mobilenet_ssd_int8_init, mobilenet_ssd_run);
 
     benchmark("mobilenet-yolo", mobilenet_yolo_init, mobilenet_yolo_run);

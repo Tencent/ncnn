@@ -10,7 +10,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/layer)
 if(NCNN_VULKAN)
     find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin NO_CMAKE_FIND_ROOT_PATH)
     message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
-    include_directories(${Vulkan_INCLUDE_DIR})
 endif()
 
 set(ncnn_SRCS
@@ -185,7 +184,6 @@ ncnn_add_layer(ROIAlign OFF)
 ncnn_add_layer(Packing)
 ncnn_add_layer(Requantize)
 
-# message("SHADER_SPV_HEX_FILES = ${SHADER_SPV_HEX_FILES}")
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 
 # create new
@@ -204,10 +202,6 @@ if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
         message("Building with OpenMP")
     endif()
     target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
-endif()
-
-if(COVERAGE)
-    target_compile_options(ncnn PRIVATE --coverage)
 endif()
 
 if(NCNN_INSTALL_SDK)
