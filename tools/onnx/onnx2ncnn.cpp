@@ -1601,7 +1601,7 @@ int main(int argc, char** argv)
             {
                 resize_type = 1;
             }
-            else if (mode == "bilinear")
+            else if (mode == "bilinear" || mode == "linear")
             {
                 resize_type = 2;
             }
