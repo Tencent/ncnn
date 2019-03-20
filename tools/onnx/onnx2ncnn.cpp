@@ -482,6 +482,26 @@ int main(int argc, char** argv)
             continue;
 
         fprintf(pp, "%-16s %-24s 0 1 %s\n", "Input", input_name.c_str(), input_name.c_str());
+
+        // split the input
+        if (node_reference.find(input_name) == node_reference.end()){
+            continue;
+        }
+
+        int refcount = node_reference[input_name];
+        if (refcount <= 1){
+            continue;
+        }
+
+        char splitname[256];
+        sprintf(splitname, "splitncnn_input%d", j);
+        fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
+        fprintf(pp, " %s", input_name.c_str());
+
+        for (int k=0; k<refcount; k++){
+            fprintf(pp, " %s_splitncnn_%d", input_name.c_str(), k);
+        }
+        fprintf(pp, "\n");
     }
 
     // place MemoryData next
