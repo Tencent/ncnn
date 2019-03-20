@@ -19,8 +19,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
 endif()
 
-set(COVERAGE OFF CACHE BOOL "Coverage")
-
 project(ncnn)
 
 option(NCNN_OPENMP "openmp support" ON)
@@ -52,6 +50,7 @@ endif()
 
 if(NCNN_VULKAN)
     find_package(Vulkan REQUIRED)
+    include_directories(${Vulkan_INCLUDE_DIR})
 endif()
 
 if(WIN32)
