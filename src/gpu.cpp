@@ -676,8 +676,8 @@ int create_gpu_instance()
             }
             if (gpu_info.support_VK_KHR_shader_float16_int8)
             {
-                gpu_info.int8_arithmetic = queryFloat16Int8Features.shaderFloat16;
-                gpu_info.fp16_arithmetic = queryFloat16Int8Features.shaderInt8;
+                gpu_info.fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
+                gpu_info.int8_arithmetic = queryFloat16Int8Features.shaderInt8;
             }
         }
         else
