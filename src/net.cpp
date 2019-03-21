@@ -830,6 +830,12 @@ int Net::load_model(const unsigned char* _mem)
     {
         Layer* layer = layers[i];
 
+        //Here we found inconsistent content in the parameter file.
+        if (!layer){
+            fprintf(stderr, "load_model error at layer %d, parameter file has inconsistent content.\n", (int)i);
+            return -1;
+        }
+
         int lret = layer->load_model(mb);
         if (lret != 0)
         {
