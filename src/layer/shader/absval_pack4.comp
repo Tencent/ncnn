@@ -14,11 +14,33 @@
 
 #version 450
 
+#if NCNN_fp16_storage
+#extension GL_AMD_gpu_shader_half_float: require
+#define sfp float16_t
+#define sfpvec4 f16vec4
+#define sfpmat4 f16mat4
+#else
+#define sfp float
+#define sfpvec4 vec4
+#define sfpmat4 mat4
+#endif
+
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#define afp float16_t
+#define afpvec4 f16vec4
+#define afpmat4 f16mat4
+#else
+#define afp float
+#define afpvec4 vec4
+#define afpmat4 mat4
+#endif
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) buffer bottom_top_blob { vec4 bottom_top_blob_data[]; };
+layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -40,7 +62,7 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    vec4 v = bottom_top_blob_data[gi];
+    afpvec4 v = bottom_top_blob_data[gi];
 
-    bottom_top_blob_data[gi] = abs(v);
+    bottom_top_blob_data[gi] = sfpvec4(abs(v));
 }

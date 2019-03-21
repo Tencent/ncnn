@@ -87,7 +87,6 @@ macro(ncnn_add_layer class)
         file(GLOB_RECURSE SHADER_SUBSRCS "layer/shader/${name}_*.comp")
         list(APPEND SHADER_SRCS ${SHADER_SUBSRCS})
         foreach(SHADER_SRC ${SHADER_SRCS})
-            get_filename_component(SHADER_SRC_NAME ${SHADER_SRC} NAME)
             get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
 
             set(SHADER_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.spv.hex.h)
@@ -105,6 +104,44 @@ macro(ncnn_add_layer class)
             string(APPEND layer_shader_registry "{\"${SHADER_SRC_NAME_WE}\",${SHADER_SRC_NAME_WE}_spv_data,sizeof(${SHADER_SRC_NAME_WE}_spv_data)},\n")
 
             list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEX_FILE})
+
+            # fp16 storage
+            set(SHADER_fp16s_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_fp16s")
+
+            set(SHADER_fp16s_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_fp16s_SRC_NAME_WE}.spv.hex.h)
+            add_custom_command(
+                OUTPUT ${SHADER_fp16s_SPV_HEX_FILE}
+                COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
+                ARGS -DNCNN_fp16_storage=1 -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
+                DEPENDS ${SHADER_SRC}
+                COMMENT "Building SPIR-V module ${SHADER_fp16s_SRC_NAME_WE}.spv"
+                VERBATIM
+            )
+            set_source_files_properties(${SHADER_fp16s_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+
+            string(APPEND layer_shader_spv_data "static const uint32_t ${SHADER_fp16s_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16s_SRC_NAME_WE}.spv.hex.h\"\n};\n")
+            string(APPEND layer_shader_registry "{\"${SHADER_fp16s_SRC_NAME_WE}\",${SHADER_fp16s_SRC_NAME_WE}_spv_data,sizeof(${SHADER_fp16s_SRC_NAME_WE}_spv_data)},\n")
+
+            list(APPEND SHADER_SPV_HEX_FILES ${SHADER_fp16s_SPV_HEX_FILE})
+
+            # fp16 storage + fp16 arithmetic
+            set(SHADER_fp16a_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_fp16a")
+
+            set(SHADER_fp16a_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_fp16a_SRC_NAME_WE}.spv.hex.h)
+            add_custom_command(
+                OUTPUT ${SHADER_fp16a_SPV_HEX_FILE}
+                COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
+                ARGS -DNCNN_fp16_storage=1 -DNCNN_fp16_arithmetic=1 -V -s -e ${SHADER_fp16a_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16a_SPV_HEX_FILE} ${SHADER_SRC}
+                DEPENDS ${SHADER_SRC}
+                COMMENT "Building SPIR-V module ${SHADER_fp16a_SRC_NAME_WE}.spv"
+                VERBATIM
+            )
+            set_source_files_properties(${SHADER_fp16a_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+
+            string(APPEND layer_shader_spv_data "static const uint32_t ${SHADER_fp16a_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16a_SRC_NAME_WE}.spv.hex.h\"\n};\n")
+            string(APPEND layer_shader_registry "{\"${SHADER_fp16a_SRC_NAME_WE}\",${SHADER_fp16a_SRC_NAME_WE}_spv_data,sizeof(${SHADER_fp16a_SRC_NAME_WE}_spv_data)},\n")
+
+            list(APPEND SHADER_SPV_HEX_FILES ${SHADER_fp16a_SPV_HEX_FILE})
         endforeach()
     endif()
 
