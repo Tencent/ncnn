@@ -28,6 +28,19 @@ namespace ncnn {
 int create_gpu_instance();
 void destroy_gpu_instance();
 
+// instance extension capability
+extern int support_VK_KHR_get_physical_device_properties2;
+extern int support_VK_EXT_debug_utils;
+
+// VK_KHR_get_physical_device_properties2
+extern PFN_vkGetPhysicalDeviceFeatures2KHR vkGetPhysicalDeviceFeatures2KHR;
+extern PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR;
+extern PFN_vkGetPhysicalDeviceFormatProperties2KHR vkGetPhysicalDeviceFormatProperties2KHR;
+extern PFN_vkGetPhysicalDeviceImageFormatProperties2KHR vkGetPhysicalDeviceImageFormatProperties2KHR;
+extern PFN_vkGetPhysicalDeviceQueueFamilyProperties2KHR vkGetPhysicalDeviceQueueFamilyProperties2KHR;
+extern PFN_vkGetPhysicalDeviceMemoryProperties2KHR vkGetPhysicalDeviceMemoryProperties2KHR;
+extern PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR vkGetPhysicalDeviceSparseImageFormatProperties2KHR;
+
 // get info
 int get_gpu_count();
 int get_default_gpu_index();
@@ -67,6 +80,12 @@ public:
     uint32_t device_local_memory_index;
     uint32_t host_visible_memory_index;
 
+    // fp16 and int8 feature
+    bool fp16_storage;
+    bool fp16_arithmetic;
+    bool int8_storage;
+    bool int8_arithmetic;
+
     // extension capability
     int support_VK_KHR_8bit_storage;
     int support_VK_KHR_16bit_storage;
@@ -74,7 +93,6 @@ public:
     int support_VK_KHR_dedicated_allocation;
     int support_VK_KHR_descriptor_update_template;
     int support_VK_KHR_get_memory_requirements2;
-    int support_VK_KHR_get_physical_device_properties2;
     int support_VK_KHR_push_descriptor;
     int support_VK_KHR_shader_float16_int8;
     int support_VK_KHR_shader_float_controls;
