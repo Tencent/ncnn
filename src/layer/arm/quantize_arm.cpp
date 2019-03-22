@@ -31,6 +31,19 @@ static inline signed char float2int8(float v)
 
 int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if !__aarch64__ && __ARM_NEON
+    int FPSCR_value = 0;
+
+    asm volatile(
+        "vmrs   %0, FPSCR               \n"
+        "bic    r10, %0, #0x00c00000    \n"
+        "vmsr   FPSCR, r10              \n"
+        : "=r"(FPSCR_value)
+        :
+        : "memory", "r10"
+    );
+#endif
+
     int dims = bottom_blob.dims;
 
     if (dims == 1)
@@ -97,6 +110,8 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
 #if __ARM_NEON
 #if __aarch64__
+            float32x4_t _scale = vdupq_n_f32(scale);
+
             if (nn > 0)
             {
             asm volatile(
@@ -125,7 +140,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 : "0"(nn),
                   "1"(ptr),
                   "2"(outptr),
-                  "r"(scale)      // %6
+                  "r"(_scale)     // %6
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"
             );
             }
@@ -184,6 +199,15 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             }
         }
     }
+
+#if !__aarch64__ && __ARM_NEON
+    asm volatile(
+        "vmsr   FPSCR, %0           \n"
+        :
+        : "r"(FPSCR_value)
+        : "memory"
+    );
+#endif
 
     return 0;
 }
