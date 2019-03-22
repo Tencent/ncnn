@@ -687,7 +687,7 @@ int Net::load_param(const unsigned char* _mem)
     {
         // reject unaligned memory
         fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
-        return 0;
+        return -1;
     }
 
     const unsigned char* mem = _mem;
@@ -698,7 +698,7 @@ int Net::load_param(const unsigned char* _mem)
     if (magic != 7767517)
     {
         fprintf(stderr, "param is too old, please regenerate\n");
-        return 0;
+        return -1;
     }
 
     int layer_count = *(int*)(mem);
@@ -747,7 +747,7 @@ int Net::load_param(const unsigned char* _mem)
         {
             fprintf(stderr, "layer %d not exists or registered\n", typeindex);
             clear();
-            return 0;
+            return -1;
         }
 
 #if NCNN_VULKAN
@@ -814,14 +814,14 @@ int Net::load_model(const unsigned char* _mem)
     if (layers.empty())
     {
         fprintf(stderr, "network graph not ready\n");
-        return 0;
+        return -1;
     }
 
     if ((unsigned long)_mem & 0x3)
     {
         // reject unaligned memory
         fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
-        return 0;
+        return -1;
     }
 
     const unsigned char* mem = _mem;
