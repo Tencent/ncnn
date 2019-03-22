@@ -286,6 +286,29 @@ int Padding::create_pipeline()
     return 0;
 }
 
+int Padding::update_pipeline()
+{
+    std::vector<vk_specialization_type> specializations(6);
+    specializations[0].i = top;
+    specializations[1].i = bottom;
+    specializations[2].i = left;
+    specializations[3].i = right;
+    specializations[4].i = type;
+    specializations[5].f = value;
+    
+    if (pipeline_padding) {
+        pipeline_padding->destroy();
+        pipeline_padding->create("padding", specializations, 2, 10);
+    }
+
+    if (pipeline_padding_pack4) {
+        pipeline_padding_pack4->destroy();
+        pipeline_padding_pack4->create("padding_pack4", specializations, 2, 10);
+    }
+
+    return 0;
+}
+
 int Padding::destroy_pipeline()
 {
     delete pipeline_padding;

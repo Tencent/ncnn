@@ -131,6 +131,11 @@ int Layer::create_pipeline()
     return 0;
 }
 
+int Layer::update_pipeline()
+{
+    return 0;
+}
+
 int Layer::destroy_pipeline()
 {
     return 0;

@@ -77,12 +77,6 @@ int Convolution::load_param(const ParamDict& pd)
     weight_data_size = pd.get(6, 0);
     int8_scale_term = pd.get(8, 0);
 
-    if (pad_w == -233 && pad_h == -233)
-    {
-        // TODO
-        support_vulkan = false;
-    }
-
     use_int8_inference = pd.use_int8_inference;
 
     if (int8_scale_term == 0)
@@ -976,6 +970,31 @@ int Convolution::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     VkMat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
     {
+        ncnn::Option opt_pad = opt;
+        opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+
+        padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt_pad);
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+    else if (pad_w == -233 && pad_h == -233)
+    {
+        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, hpad / 2);
+            pd.set(1, hpad - hpad / 2);
+            pd.set(2, wpad / 2);
+            pd.set(3, wpad - wpad / 2);
+            pd.set(4, 0);
+            pd.set(5, 0.f);
+            pd.use_vulkan_compute = 1;
+            padding->load_param(pd);
+        }
+        padding->update_pipeline();
         ncnn::Option opt_pad = opt;
         opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 

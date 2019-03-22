@@ -120,6 +120,7 @@ public:
     virtual int upload_model(VkTransfer& cmd);
 
     virtual int create_pipeline();
+    virtual int update_pipeline();
     virtual int destroy_pipeline();
 
 public:
