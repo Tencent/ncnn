@@ -14,6 +14,10 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const int pooling_type = 0;
 layout (constant_id = 1) const int kernel_w = 1;
 layout (constant_id = 2) const int kernel_h = 1;
@@ -26,8 +30,8 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -53,14 +57,14 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    vec4 res;
+    afpvec4 res;
 
     if (pad_mode == 0)
     {
         // full padding, use out of bound check
         if (pooling_type == 0)
         {
-            res = vec4(-99999999);
+            res = afpvec4(-99999999.f);
 
             int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
 
@@ -74,7 +78,7 @@ void main()
                     if (gx * stride_w + x >= p.w)
                         continue;
 
-                    res = max(res, bottom_blob_data[v_offset + x]);
+                    res = max(res, afpvec4(bottom_blob_data[v_offset + x]));
                 }
 
                 v_offset += p.w;
@@ -82,7 +86,7 @@ void main()
         }
         else if (pooling_type == 1)
         {
-            res = vec4(0.0);
+            res = afpvec4(0.f);
 
             int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
             int area = 0;
@@ -97,24 +101,24 @@ void main()
                     if (gx * stride_w + x >= p.w)
                         continue;
 
-                    res += bottom_blob_data[v_offset + x];
+                    res += afpvec4(bottom_blob_data[v_offset + x]);
                     area += 1;
                 }
 
                 v_offset += p.w;
             }
 
-            res /= area;
+            res /= afp(area);
         }
 
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = res;
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(res);
 
         return;
     }
 
     if (pooling_type == 0)
     {
-        res = vec4(-99999999);
+        res = afpvec4(-99999999.f);
 
         int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
 
@@ -122,7 +126,7 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res = max(res, bottom_blob_data[v_offset + x]);
+                res = max(res, afpvec4(bottom_blob_data[v_offset + x]));
             }
 
             v_offset += p.w;
@@ -130,7 +134,7 @@ void main()
     }
     else if (pooling_type == 1)
     {
-        res = vec4(0.0);
+        res = afpvec4(0.f);
 
         int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
 
@@ -138,14 +142,14 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res += bottom_blob_data[v_offset + x];
+                res += afpvec4(bottom_blob_data[v_offset + x]);
             }
 
             v_offset += p.w;
         }
 
-        res /= kernel_w * kernel_h;
+        res /= afp(kernel_w * kernel_h);
     }
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = res;
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(res);
 }
