@@ -106,21 +106,22 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
     int outh = top_blob.h;
     int outch = top_blob.c;
 
-    double start = ncnn::get_current_time();
     // im2row
     Mat bottom_im2row(kernel_h*kernel_w*inch, outw*outh, 1UL, opt.workspace_allocator);
     {
+        int out_stride = kernel_h*kernel_w*inch*outw;
         signed char* ret = (signed char*)bottom_im2row;
-        int retID = 0;
     
         // #pragma omp parallel for num_threads(opt.num_threads)
         for (int i=0; i<outh; i++)
         {
+            int retID = out_stride * i;
             for (int j=0; j<outw; j++)
             {
                 for (int p=0; p<inch; p++)
                 {
                     const signed char* input = bottom_blob.channel(p);
+
                     for (int u=0; u<kernel_h; u++)
                     {
                         for (int v=0; v<kernel_w; v++)
@@ -137,14 +138,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
         }
     }    
 
-    // double end = ncnn::get_current_time();
-    // printf("im2row : %8.3f ms\n", end - start);
-    // start = ncnn::get_current_time();
-
     int kernel_size = kernel_w * kernel_h;
     int out_size = outw * outh;
 
-    int M = outch;  // outch
+    // int M = outch;  // outch
     int N = outw * outh; // outsize or out stride
     int K = kernel_w * kernel_h * inch; // ksize * inch
 
@@ -226,10 +223,6 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             }
         }       
     }
-
-    // end = ncnn::get_current_time();
-    // printf("d_pack : %8.3f ms\n", end - start);
-    // start = ncnn::get_current_time();
 
     // 4x4
     // sgemm(int M, int N, int K, float* A, float* B, float* C)
@@ -675,8 +668,6 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             }
         }
     }
-    // end = ncnn::get_current_time();
-    // printf("sgemm  : %8.3f ms\n", end - start);
 
     // // sgemm(int M, int N, int K, float* A, float* B, float* C)
     // {
@@ -828,8 +819,6 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
     int outh = top_blob.h;
     int outch = top_blob.c;
 
-    double start = ncnn::get_current_time();
-
     // im2col
     Mat bottom_im2col(outw*outh, kernel_h*kernel_w*inch, 1UL, opt.workspace_allocator);
     {
@@ -860,10 +849,6 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             }
         }
     }
-
-    double end = ncnn::get_current_time();
-    printf("im2col : %8.3f ms\n", end - start);
-    start = ncnn::get_current_time();
 
     int kernel_size = kernel_w * kernel_h;
     int out_size = outw * outh;
@@ -942,11 +927,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             }
         }       
     }
-
-    end = ncnn::get_current_time();
-    printf("d_pack : %8.3f ms\n", end - start);
-    start = ncnn::get_current_time();
-
+    
     // sgemm(int M, int N, int L, float* A, float* B, float* C)
     {
         //int M = outch;  // outch
@@ -2332,9 +2313,6 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                 output++;
             }
         }
-    }
-
-    end = ncnn::get_current_time();
-    printf("sgemm  : %8.3f ms\n", end - start);    
+    }   
 }
 #endif

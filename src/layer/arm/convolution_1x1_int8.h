@@ -16,7 +16,7 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
-#if 1
+#if __aarch64__
 static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
 {
     const signed char* kernel = _kernel;
@@ -109,8 +109,6 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
     const int size = w * h;
 
-    // double start = ncnn::get_current_time();
-
     // bottom_tm memory packed 4 x 4
     ncnn::Mat bottom_tm(4, inch, size/4 + size%4, (size_t)1u, opt.workspace_allocator);
     {
@@ -178,10 +176,6 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
         }
     }
 
-    // double end = ncnn::get_current_time();
-    // printf("pack d : %8.3f ms\n", end - start);
-    // start = ncnn::get_current_time();
-
     // sgemm process
     int nn_outch = 0;
     int remain_outch_start = 0;
@@ -232,8 +226,8 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "smull	  v10.8h, v4.8b, v2.8b       \n"
                 "smull	  v11.8h, v4.8b, v3.8b       \n"
 
-                "prfm     pldl1keep, [%4, #128]      \n"
-                "prfm     pldl1keep, [%5, #128]      \n"
+                "prfm     pldl1keep, [%4, #1024]      \n"
+                "prfm     pldl1keep, [%5, #1024]      \n"
 
                 "smlal2	  v8.8h, v4.16b, v0.16b      \n"
                 "smlal2	  v9.8h, v4.16b, v1.16b      \n"
@@ -347,7 +341,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                   "5"(kptr),
                   "r"(inch)      // %12 
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
-            );
+            );          
 #else          
             int sum0_0 = 0;
             int sum0_1 = 0;
@@ -688,10 +682,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
             outptr0++;
         }
-    } 
-
-    // end = ncnn::get_current_time();
-    // printf("sgemm  : %8.3f ms\n", end - start);          
+    }       
 }
 
 #else
@@ -904,7 +895,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 img0 += bottom_blob.cstep;
             }
         }
-    }
+    }  
 
     // sgemm process
     int nn_outch = 0;
@@ -3069,7 +3060,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
             outptr0++;
         }
-    }   
+    }      
 
 //     // NOTE sgemm int8
 //     for (; p<outch; p++)

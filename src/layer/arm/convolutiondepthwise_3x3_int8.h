@@ -842,15 +842,10 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
         int8x16_t _k0123456789x = vld1q_s8(kernel);
         int16x8_t _k_s16 = vmovl_s8(vget_low_s8(_k0123456789x));
         int16x8_t _kn_s16 = vmovl_s8(vget_high_s8(_k0123456789x));
-#if __aarch64__
+
         int16x4_t _k0123 = vget_low_s16(_k_s16);
         int16x4_t _k4567 = vget_high_s16(_k_s16);
         int16x4_t _k8xxx = vget_low_s16(_kn_s16);
-#else
-        register int16x4_t _k0123 asm("q2") = vget_low_s16(_k_s16);
-        register int16x4_t _k4567 asm("q3") = vget_high_s16(_k_s16);
-        register int16x4_t _k8xxx asm("q4") = vget_low_s16(_kn_s16);
-#endif // __aarch64__        
 #endif // __ARM_NEON 
 
         for (; i+1 < outh; i+=2)
@@ -1374,7 +1369,7 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                   "r"(bias0),     // %13
                   "r"(scale_requant_in), // %14
                   "r"(scale_requant_out) // %15                  
-                : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28"              
+                : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"               
             );
             }
 #else
@@ -1561,31 +1556,13 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
 
         int i = 0;
 #if __ARM_NEON 
-#if __aarch64__
-        register float32x4_t _bias0 asm("v26") = vdupq_n_f32(bias0);
-        register float32x4_t _scale_in asm("v27") = vdupq_n_f32(scale_requant_in);
-        register float32x4_t _scale_out asm("v28") = vdupq_n_f32(scale_requant_out);
-
         int8x16_t _k0123456789x = vld1q_s8(kernel);
         int16x8_t _k_s16 = vmovl_s8(vget_low_s8(_k0123456789x));
         int16x8_t _kn_s16 = vmovl_s8(vget_high_s8(_k0123456789x));
 
-        register int16x4_t _k0123 asm("v0") = vget_low_s16(_k_s16);
-        register int16x4_t _k4567 asm("v1") = vget_high_s16(_k_s16);
-        register int16x4_t _k8xxx asm("v2") = vget_low_s16(_kn_s16);
-#else
-        register float32x4_t _bias0 asm("q11") = vdupq_n_f32(bias0);
-        register float32x4_t _scale_in asm("q12") = vdupq_n_f32(scale_requant_in);
-        register float32x4_t _scale_out asm("q13") = vdupq_n_f32(scale_requant_out);
-
-        int8x16_t _k0123456789x = vld1q_s8(kernel);
-        int16x8_t _k_s16 = vmovl_s8(vget_low_s8(_k0123456789x));
-        int16x8_t _kn_s16 = vmovl_s8(vget_high_s8(_k0123456789x));
-
-        register int16x4_t _k0123 asm("q2") = vget_low_s16(_k_s16);
-        register int16x4_t _k4567 asm("q3") = vget_high_s16(_k_s16);
-        register int16x4_t _k8xxx asm("q4") = vget_low_s16(_kn_s16);
-#endif // __aarch64__    
+        int16x4_t _k0123 = vget_low_s16(_k_s16);
+        int16x4_t _k4567 = vget_high_s16(_k_s16);
+        int16x4_t _k8xxx = vget_low_s16(_kn_s16);     
 #endif // __ARM_NEON 
         for (; i < outh; i++)
         {     
@@ -1601,6 +1578,9 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
             if (nn > 0)
             {
             asm volatile(
+                "dup    v26.4s, %w13                  \n"
+                "dup    v27.4s, %w14                  \n"
+                "dup    v28.4s, %w15                  \n"                
                 "0:                                   \n"
                 "ld2    {v4.8b, v5.8b}, [%2], #16     \n"
                 "ld2    {v6.8b, v7.8b}, [%2]          \n"
@@ -1657,14 +1637,14 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                 "scvtf  v20.4s, v20.4s                \n"
                 "scvtf  v21.4s, v21.4s                \n"
                 // top_f32 = top_f32 * scale_in
-                "fmul   v20.4s, v20.4s, %14.4s        \n"
-                "fmul   v21.4s, v21.4s, %14.4s        \n"
+                "fmul   v20.4s, v20.4s, v27.4s        \n"
+                "fmul   v21.4s, v21.4s, v27.4s        \n"
                 // top_f32 = top_f32 + bias
-                "fadd   v20.4s, v20.4s, %13.4s        \n"
-                "fadd   v21.4s, v21.4s, %13.4s        \n"
+                "fadd   v20.4s, v20.4s, v26.4s        \n"
+                "fadd   v21.4s, v21.4s, v26.4s        \n"
                 // top_f32 = top_f32 * scale_out
-                "fmul   v20.4s, v20.4s, %15.4s        \n"
-                "fmul   v21.4s, v21.4s, %15.4s        \n"
+                "fmul   v20.4s, v20.4s, v28.4s        \n"
+                "fmul   v21.4s, v21.4s, v28.4s        \n"
                 // top_f32 -> top_s32
                 "fcvtas v20.4s, v20.4s                \n"
                 "fcvtas v21.4s, v21.4s                \n"
@@ -1692,10 +1672,10 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                   "w"(_k0123),    // %10
                   "w"(_k4567),    // %11
                   "w"(_k8xxx),    // %12
-                  "w"(_bias0),    // %13
-                  "w"(_scale_in), // %14
-                  "w"(_scale_out) // %15                   
-                : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25"
+                  "r"(bias0),            // %13
+                  "r"(scale_requant_in), // %14
+                  "r"(scale_requant_out) // %15                   
+                : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
             );
             }
 #else
@@ -1758,8 +1738,12 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                 "vadd.s32    q7, q7, q9          \n"
                 "vadd.s32    q8, q8, q10         \n"
 
-             // top_s32 -> top_f32
-                "vcvt.f32.s32 q7, q7             \n" 
+                "vdup.f32   q11, %13             \n" // bias
+                "vdup.f32   q12, %14             \n" // scale_in
+                "vdup.f32   q13, %15             \n" // scale_out
+
+                // top_s32 -> top_f32
+                "vcvt.f32.s32 q7, q7             \n"
                 "vcvt.f32.s32 q8, q8             \n"
                 // top_f32 = top_f32 * scale_int
                 "vmul.f32   q0, q7, q12          \n"
@@ -1778,14 +1762,14 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                 "vcvtr.s32.f32 s4, s4            \n"
                 "vcvtr.s32.f32 s5, s5            \n"
                 "vcvtr.s32.f32 s6, s6            \n"
-                "vcvtr.s32.f32 s7, s7            \n" 
+                "vcvtr.s32.f32 s7, s7            \n"
                 // top_s32 -> top_s16
                 "vqmovn.s32 d14, q0              \n"
                 "vqmovn.s32 d15, q1              \n"
                 // top_s16 -> top_s8
                 "vqmovn.s16   d14, q7            \n"
                 // save top_s8
-                "vst1.8     {d14}, [%1]!         \n"  
+                "vst1.8     {d14}, [%1]!         \n"
 
                 "bne    0b                       \n"
 
@@ -1802,10 +1786,10 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                   "w"(_k0123),    // %10
                   "w"(_k4567),    // %11
                   "w"(_k8xxx),     // %12
-                  "w"(_bias0),    // %13
-                  "w"(_scale_in), // %14
-                  "w"(_scale_out) // %15                   
-                : "cc", "memory", "q0", "q1", "q5", "q6", "q7", "q8", "q9", "q10", "q14", "q15"
+                  "r"(bias0),            // %13
+                  "r"(scale_requant_in), // %14
+                  "r"(scale_requant_out) // %15                 
+                : "cc", "memory", "q0", "q1", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
             );
             }
 #endif // __aarch64__             
