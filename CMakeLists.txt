@@ -63,8 +63,6 @@ else()
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
         if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
             add_definitions(-Ofast)
-        else()
-            add_definitions(-O3)
         endif()
 
         add_definitions(-ffast-math)
