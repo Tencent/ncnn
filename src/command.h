@@ -156,8 +156,6 @@ public:
 
     void record_upload(const Mat& src, VkMat& dst);
 
-    void record_download(const VkMat& src, Mat& dst);
-
     int submit();
 
     int wait();
@@ -178,9 +176,6 @@ protected:
     // delayed record
     struct record_type
     {
-        // 0=upload
-        // 1=download
-        int type;
         size_t size;
         Mat mat;
         VkMat vkmat;
