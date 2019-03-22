@@ -185,15 +185,6 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         }
     }
 
-#if !__aarch64__ && __ARM_NEON
-    asm volatile(
-        "vmsr   FPSCR, %0           \n"
-        :
-        : "r"(FPSCR_value)
-        : "memory"
-    );
-#endif
-
     return 0;
 }
 
