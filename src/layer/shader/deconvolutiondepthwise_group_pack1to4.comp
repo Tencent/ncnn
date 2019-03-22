@@ -14,6 +14,10 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const int kernel_w = 1;
 layout (constant_id = 1) const int kernel_h = 1;
 layout (constant_id = 2) const int dilation_w = 1;
@@ -27,10 +31,10 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
-layout (binding = 2) readonly buffer weight_blob { vec4 weight_data[]; };
-layout (binding = 3) readonly buffer bias_blob { vec4 bias_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -56,7 +60,7 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    vec4 sum;
+    afpvec4 sum;
 
     if (bias_term == 1)
     {
@@ -64,7 +68,7 @@ void main()
     }
     else
     {
-        sum = vec4(0.f);
+        sum = afpvec4(0.f);
     }
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
@@ -105,9 +109,9 @@ void main()
 
             for (int z = 0; z < channels_g; z++)
             {
-                float v = bottom_blob_data[v_offset];
+                afp v = bottom_blob_data[v_offset];
 
-                vec4 k = weight_data[w_offset];
+                afpvec4 k = weight_data[w_offset];
 
                 sum += v * k;
 
@@ -117,5 +121,5 @@ void main()
         }
     }
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sum;
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(sum);
 }

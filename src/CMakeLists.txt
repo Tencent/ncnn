@@ -93,7 +93,7 @@ macro(ncnn_add_layer class)
             add_custom_command(
                 OUTPUT ${SHADER_SPV_HEX_FILE}
                 COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-                ARGS -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
+                ARGS -Dsfp=float -Dsfpvec2=vec2 -Dsfpvec4=vec4 -Dsfpmat4=mat4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
                 DEPENDS ${SHADER_SRC}
                 COMMENT "Building SPIR-V module ${SHADER_SRC_NAME_WE}.spv"
                 VERBATIM
@@ -116,7 +116,7 @@ macro(ncnn_add_layer class)
             add_custom_command(
                 OUTPUT ${SHADER_fp16s_SPV_HEX_FILE}
                 COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-                ARGS -DNCNN_fp16_storage=1 -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
+                ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dsfpmat4=f16mat4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -DNCNN_fp16_storage=1 -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
                 DEPENDS ${SHADER_SRC}
                 COMMENT "Building SPIR-V module ${SHADER_fp16s_SRC_NAME_WE}.spv"
                 VERBATIM
@@ -135,7 +135,7 @@ macro(ncnn_add_layer class)
             add_custom_command(
                 OUTPUT ${SHADER_fp16a_SPV_HEX_FILE}
                 COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-                ARGS -DNCNN_fp16_storage=1 -DNCNN_fp16_arithmetic=1 -V -s -e ${SHADER_fp16a_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16a_SPV_HEX_FILE} ${SHADER_SRC}
+                ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dsfpmat4=f16mat4 -Dafp=float16_t -Dafpvec2=f16vec2 -Dafpvec4=f16vec4 -Dafpmat4=f16mat4 -DNCNN_fp16_storage=1 -DNCNN_fp16_arithmetic=1 -V -s -e ${SHADER_fp16a_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16a_SPV_HEX_FILE} ${SHADER_SRC}
                 DEPENDS ${SHADER_SRC}
                 COMMENT "Building SPIR-V module ${SHADER_fp16a_SRC_NAME_WE}.spv"
                 VERBATIM

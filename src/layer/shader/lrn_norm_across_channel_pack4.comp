@@ -14,6 +14,10 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const int region_type = 0;
 layout (constant_id = 1) const int local_size = 0;
 layout (constant_id = 2) const float alpha = 0;
@@ -24,8 +28,8 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer square_workspace { float square_workspace_data[]; };
-layout (binding = 1) buffer bottom_top_blob { vec4 bottom_top_blob_data[]; };
+layout (binding = 0) readonly buffer square_workspace { sfp square_workspace_data[]; };
+layout (binding = 1) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -53,27 +57,27 @@ void main()
 
     // support region_type == 0 only
 
-    vec4 sum = vec4(0.f);
+    afpvec4 sum = afpvec4(0.f);
 
     ivec4 v_offset = ivec4(gz * p.cstep + gy * p.w + gx) + ivec4(0, 1, 2, 3) * p.cstep;
 
     for (int z = 0; z < local_size; z++)
     {
-        sum.r += square_workspace_data[v_offset.r];
-        sum.g += square_workspace_data[v_offset.g];
-        sum.b += square_workspace_data[v_offset.b];
-        sum.a += square_workspace_data[v_offset.a];
+        sum.r += afp(square_workspace_data[v_offset.r]);
+        sum.g += afp(square_workspace_data[v_offset.g]);
+        sum.b += afp(square_workspace_data[v_offset.b]);
+        sum.a += afp(square_workspace_data[v_offset.a]);
 
         v_offset += p.cstep;
     }
 
-    const float alpha_div_size = alpha / local_size;
+    const afp alpha_div_size = afp(alpha / local_size);
 
-    vec4 scale = pow(bias_constant + alpha_div_size * sum, vec4(-beta));
+    afpvec4 scale = pow(afp(bias_constant) + alpha_div_size * sum, afpvec4(-beta));
 
-    vec4 v = bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx];
+    afpvec4 v = bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx];
 
     v *= scale;
 
-    bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx] = v;
+    bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(v);
 }

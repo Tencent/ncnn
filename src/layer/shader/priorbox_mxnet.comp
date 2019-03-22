@@ -14,6 +14,10 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const int clip = 0;
 layout (constant_id = 1) const float offset = 0;
 layout (constant_id = 2) const int num_sizes = 0;
@@ -24,9 +28,9 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) writeonly buffer top_blob { vec4 top_blob_data[]; };
-layout (binding = 1) readonly buffer min_sizes { float min_sizes_data[]; };
-layout (binding = 2) readonly buffer aspect_ratios { float aspect_ratios_data[]; };
+layout (binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout (binding = 1) readonly buffer min_sizes { sfp min_sizes_data[]; };
+layout (binding = 2) readonly buffer aspect_ratios { sfp aspect_ratios_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -49,32 +53,32 @@ void main()
     // mxnet style _contrib_MultiBoxPrior
     int v_offset = (gz * p.w + gy) * num_prior + gx;
 
-    float center_x = (gy + offset) * p.step_w;
-    float center_y = (gz + offset) * p.step_h;
-    vec4 center = vec4(center_x, center_y, center_x, center_y);
+    afp center_x = (afp(gy) + afp(offset)) * afp(p.step_w);
+    afp center_y = (afp(gz) + afp(offset)) * afp(p.step_h);
+    afpvec4 center = afpvec4(center_x, center_y, center_x, center_y);
 
     // ratio = 1, various sizes
-    float size = min_sizes_data[gx];
-    float cw = size * p.h / p.w / 2;
-    float ch = size / 2;
+    afp size = min_sizes_data[gx];
+    afp cw = size * afp(p.h) / afp(p.w) / afp(2);
+    afp ch = size / afp(2);
 
-    vec4 box = center + vec4(-cw, -ch, cw, ch);
+    afpvec4 box = center + afpvec4(-cw, -ch, cw, ch);
 
-    top_blob_data[v_offset] = clip == 1 ? clamp(box, 0.f, 1.f) : box;
+    top_blob_data[v_offset] = clip == 1 ? sfpvec4(clamp(box, afp(0.f), afp(1.f))) : sfpvec4(box);
 
     if (gx == num_sizes - 1)
     {
         // various ratios, size = min_size = size[0]
-        float size = min_sizes_data[0];
+        afp size = min_sizes_data[0];
         for (int pi = 1; pi < num_ratios; pi++)
         {
-            float ratio = sqrt(aspect_ratios_data[pi]);
-            float cwr = size * p.h / p.w * ratio / 2;
-            float chr = size / ratio / 2;
+            afp ratio = sqrt(afp(aspect_ratios_data[pi]));
+            afp cwr = size * afp(p.h) / afp(p.w) * ratio / afp(2);
+            afp chr = size / ratio / afp(2);
 
-            vec4 box = center + vec4(-cwr, -chr, cwr, chr);
+            afpvec4 box = center + afpvec4(-cwr, -chr, cwr, chr);
 
-            top_blob_data[v_offset + pi] = clip == 1 ? clamp(box, 0.f, 1.f) : box;
+            top_blob_data[v_offset + pi] = clip == 1 ? sfpvec4(clamp(box, afp(0.f), afp(1.f))) : sfpvec4(box);
         }
     }
 }

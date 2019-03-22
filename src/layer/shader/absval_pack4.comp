@@ -14,26 +14,8 @@
 
 #version 450
 
-#if NCNN_fp16_storage
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
-#define sfp float16_t
-#define sfpvec4 f16vec4
-#define sfpmat4 f16mat4
-#else
-#define sfp float
-#define sfpvec4 vec4
-#define sfpmat4 mat4
-#endif
-
-#if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
-#define afp float16_t
-#define afpvec4 f16vec4
-#define afpmat4 f16mat4
-#else
-#define afp float
-#define afpvec4 vec4
-#define afpmat4 mat4
 #endif
 
 layout (local_size_x_id = 233) in;

@@ -14,6 +14,10 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const int op_type = 0;
 layout (constant_id = 1) const int coeff_term = 0;
 
@@ -21,9 +25,9 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob1 { float bottom_blob1_data[]; };
-layout (binding = 1) readonly buffer bottom_blob2 { float bottom_blob2_data[]; };
-layout (binding = 2) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob1 { sfp bottom_blob1_data[]; };
+layout (binding = 1) readonly buffer bottom_blob2 { sfp bottom_blob2_data[]; };
+layout (binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -48,10 +52,10 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    float v1 = bottom_blob1_data[gi];
-    float v2 = bottom_blob2_data[gi];
+    afp v1 = bottom_blob1_data[gi];
+    afp v2 = bottom_blob2_data[gi];
 
-    float res = 233;
+    afp res;
 
     if (coeff_term == 0)
     {
@@ -67,14 +71,14 @@ void main()
     else
     {
         if (op_type == 0)
-            res = v1 * p.coeff0 * v2 * p.coeff1;
+            res = v1 * afp(p.coeff0) * v2 * afp(p.coeff1);
 
         if (op_type == 1)
-            res = v1 * p.coeff0 + v2 * p.coeff1;
+            res = v1 * afp(p.coeff0) + v2 * afp(p.coeff1);
 
         if (op_type == 2)
-            res = max(v1 * p.coeff0, v2 * p.coeff1);
+            res = max(v1 * afp(p.coeff0), v2 * afp(p.coeff1));
     }
 
-    top_blob_data[gi] = res;
+    top_blob_data[gi] = sfp(res);
 }

@@ -14,17 +14,21 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const int op_type = 0;
 layout (constant_id = 1) const int with_scalar = 0;
-layout (constant_id = 2) const float b = 0;
+layout (constant_id = 2) const float const_b = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) buffer a_blob { float a_blob_data[]; };
-layout (binding = 1) readonly buffer b_blob { float b_blob_data[]; };
-layout (binding = 2) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 0) buffer a_blob { sfp a_blob_data[]; };
+layout (binding = 1) readonly buffer b_blob { sfp b_blob_data[]; };
+layout (binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -58,12 +62,14 @@ void main()
 
     const int gi = gz * p.outcstep + gy * p.outw + gx;
 
-    float v1 = a_blob_data[gi];
+    afp v1 = a_blob_data[gi];
 
-    float res;
+    afp res;
 
     if (with_scalar == 1)
     {
+        afp b = afp(const_b);
+
         if (op_type == 0) res = v1 + b;
         if (op_type == 1) res = v1 - b;
         if (op_type == 2) res = v1 * b;
@@ -74,14 +80,14 @@ void main()
         if (op_type == 7) res = b - v1;
         if (op_type == 8) res = b / v1;
 
-        a_blob_data[gi] = res;
+        a_blob_data[gi] = sfp(res);
 
         return;
     }
 
     if (p.adims == p.bdims)
     {
-        float v2 = b_blob_data[gi];
+        afp v2 = b_blob_data[gi];
 
         if (op_type == 0) res = v1 + v2;
         if (op_type == 1) res = v1 - v2;
@@ -93,7 +99,7 @@ void main()
         if (op_type == 7) res = v2 - v1;
         if (op_type == 8) res = v2 / v1;
 
-        top_blob_data[gi] = res;
+        top_blob_data[gi] = sfp(res);
 
         return;
     }
