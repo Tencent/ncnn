@@ -749,28 +749,9 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst)
     }
 
     record_type r;
-    r.type = 0;
     r.size = src.total() * src.elemsize;
     r.mat = src;
     r.vkmat = dst;
-    delayed_records.push_back(r);
-}
-
-void VkTransfer::record_download(const VkMat& src, Mat& dst)
-{
-    dst.create_like(src);// TODO respect blob allocator
-
-    if (src.allocator->mappable)
-    {
-        src.download(dst);
-        return;
-    }
-
-    record_type r;
-    r.type = 1;
-    r.size = src.total() * src.elemsize;
-    r.mat = dst;
-    r.vkmat = src;
     delayed_records.push_back(r);
 }
 
@@ -789,7 +770,6 @@ int VkTransfer::submit()
         staging_buffer_size += alignSize(r.size, buffer_offset_alignment);
     }
 
-    // TODO sperated staging buffer for upload and download ?
     // allocate staging buffer
     staging_data = staging_vkallocator->fastMalloc(staging_buffer_size);
 
@@ -798,10 +778,8 @@ int VkTransfer::submit()
     for (int i=0; i<transfer_count; i++)
     {
         const record_type& r = delayed_records[i];
-        if (r.type == 0)
-        {
-            memcpy((unsigned char*)staging_data->mapped_ptr + mapped_ptr_offset, r.mat.data, r.size);
-        }
+
+        memcpy((unsigned char*)staging_data->mapped_ptr + mapped_ptr_offset, r.mat.data, r.size);
 
         mapped_ptr_offset += alignSize(r.size, buffer_offset_alignment);
     }
@@ -816,15 +794,7 @@ int VkTransfer::submit()
     {
         const record_type& r = delayed_records[i];
 
-        switch (r.type)
-        {
-        case 0:
-            copy_buffer(staging_data->buffer, staging_buffer_offset, r.vkmat.buffer(), r.vkmat.buffer_offset(), r.size);
-            break;
-        case 1:
-            copy_buffer(r.vkmat.buffer(), r.vkmat.buffer_offset(), staging_data->buffer, staging_buffer_offset, r.size);
-            break;
-        }
+        copy_buffer(staging_data->buffer, staging_buffer_offset, r.vkmat.buffer(), r.vkmat.buffer_offset(), r.size);
 
         staging_buffer_offset += alignSize(r.size, buffer_offset_alignment);
     }
@@ -841,24 +811,8 @@ int VkTransfer::wait()
 
     int ret = wait_fence();
 
-    int transfer_count = delayed_records.size();
-
-    // copy download data
-    size_t mapped_ptr_offset = 0;
-    for (int i=0; i<transfer_count; i++)
-    {
-        const record_type& r = delayed_records[i];
-        if (r.type == 1)
-        {
-            memcpy(r.mat.data, (unsigned char*)staging_data->mapped_ptr + mapped_ptr_offset, r.size);
-        }
-
-        mapped_ptr_offset += alignSize(r.size, buffer_offset_alignment);
-    }
-
     // deallocate staging buffer
     staging_vkallocator->fastFree(staging_data);
-
     staging_data = 0;
 
     delayed_records.clear();
