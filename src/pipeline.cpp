@@ -17,6 +17,7 @@
 #include <math.h>
 #include <algorithm>
 #include "mat.h"
+#include <string>
 
 namespace ncnn {
 
