@@ -567,13 +567,13 @@ int main(int argc, char** argv)
 
 //             fprintf(stderr, "  input = %s\n", input_name.c_str());
         }
-
+        /*
         for (int j=0; j<(int)node.output_size(); j++)
         {
             const std::string& output_name = node.output(j);
-
-//             fprintf(stderr, "  output = %s\n", output_name.c_str());
-        }
+            fprintf(stderr, "  output = %s\n", output_name.c_str());
+        } 
+        */
 
         if (op == "Abs")
         {
@@ -1650,7 +1650,7 @@ int main(int argc, char** argv)
                 }
                 else if (attr.type() == 2)
                 {
-                    fprintf(stderr, "  # %s=%d\n", attr.name().c_str(), attr.i());
+                    fprintf(stderr, "  # %s=%ld\n", attr.name().c_str(), attr.i());
                 }
                 else if (attr.type() == 3)
                 {
