@@ -125,7 +125,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 : "0"(nn),
                   "1"(ptr),
                   "2"(outptr),
-                  "r"(scale)     // %6
+                  "r"(scale)      // %6
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"
             );
             }
