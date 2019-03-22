@@ -1,7 +1,7 @@
 LOCAL_PATH := $(call my-dir)
 
 # change this folder path to yours
-NCNN_INSTALL_PATH := /home/nihui/osd/ncnn/ncnn-android-lib
+NCNN_INSTALL_PATH := /home/nihui/osd/ncnn-release/ncnn-android-vulkan-lib
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := ncnn
@@ -25,6 +25,6 @@ LOCAL_CFLAGS += -fopenmp
 LOCAL_CPPFLAGS += -fopenmp
 LOCAL_LDFLAGS += -fopenmp
 
-LOCAL_LDLIBS := -lz -llog -ljnigraphics
+LOCAL_LDLIBS := -lz -llog -ljnigraphics -lvulkan
 
 include $(BUILD_SHARED_LIBRARY)

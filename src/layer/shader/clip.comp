@@ -14,6 +14,10 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const float const_min = 0;
 layout (constant_id = 1) const float const_max = 0;
 
@@ -21,7 +25,7 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) buffer bottom_top_blob { float bottom_top_blob_data[]; };
+layout (binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -43,7 +47,7 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    float v = bottom_top_blob_data[gi];
+    afp v = bottom_top_blob_data[gi];
 
-    bottom_top_blob_data[gi] = clamp(v, const_min, const_max);
+    bottom_top_blob_data[gi] = sfp(clamp(v, afp(const_min), afp(const_max)));
 }

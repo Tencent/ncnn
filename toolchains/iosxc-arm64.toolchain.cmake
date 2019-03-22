@@ -22,8 +22,7 @@ set(CMAKE_IOS_SDK_ROOT "/home/nihui/osd/cctools-port/usage_examples/ios_toolchai
 set(CMAKE_OSX_SYSROOT ${CMAKE_IOS_SDK_ROOT} CACHE PATH "Sysroot used for iOS support")
 
 # set the architecture for iOS
-# set(IOS_ARCH arm64)
-set(IOS_ARCH armv7;arm64)
+set(IOS_ARCH arm64)
 
 set(CMAKE_OSX_ARCHITECTURES ${IOS_ARCH} CACHE string "Build architecture for iOS")
 

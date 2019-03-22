@@ -14,6 +14,10 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const int region_type = 0;
 layout (constant_id = 1) const int pad_head = 0;
 layout (constant_id = 2) const int pad_tail = 0;
@@ -22,8 +26,8 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer square_workspace { vec4 square_workspace_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer square_workspace { sfpvec4 square_workspace_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -51,7 +55,7 @@ void main()
 
     // support region_type == 1 only
 
-    vec4 res;
+    afpvec4 res;
 
     int x = gx - pad_head;
     int y = gy - pad_head;
@@ -59,13 +63,13 @@ void main()
     if (x >= 0 && x < p.w && y >= 0 && y < p.h)
     {
         int v_offset = gz * p.cstep + y * p.w + x;
-        vec4 v = bottom_blob_data[v_offset];
+        afpvec4 v = bottom_blob_data[v_offset];
         res = v * v;
     }
     else
     {
-        res = vec4(0.f);
+        res = afpvec4(0.f);
     }
 
-    square_workspace_data[gz * p.outcstep + gy * p.outw + gx] = res;
+    square_workspace_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(res);
 }

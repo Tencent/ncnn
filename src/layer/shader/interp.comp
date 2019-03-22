@@ -14,14 +14,18 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const int resize_type = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -50,13 +54,13 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    float res;
+    afp res;
 
     if (resize_type == 1) // nearest
     {
-        vec2 gxy = vec2(gx, gy);
+        afpvec2 gxy = afpvec2(gx, gy);
         ivec2 sxy_max = ivec2(p.w - 1, p.h - 1);
-        ivec2 sxy = min(ivec2(floor(gxy * vec2(p.scale_x, p.scale_y))), sxy_max);
+        ivec2 sxy = min(ivec2(floor(gxy * afpvec2(p.scale_x, p.scale_y))), sxy_max);
 
         int sx = sxy.r;
         int sy = sxy.g;
@@ -67,12 +71,12 @@ void main()
     }
     else if (resize_type == 2) // bilinear
     {
-        vec2 gxy = vec2(gx, gy);
-        vec2 fxy = (gxy + 0.5f) * vec2(p.scale_x, p.scale_y) - 0.5f;
+        afpvec2 gxy = afpvec2(gx, gy);
+        afpvec2 fxy = (gxy + afp(0.5f)) * afpvec2(p.scale_x, p.scale_y) - afp(0.5f);
 
         ivec2 sxy = ivec2(floor(fxy));
 
-        fxy -= sxy;
+        fxy -= afpvec2(sxy);
 
         ivec2 sxy_max = ivec2(p.w - 2, p.h - 2);
 
@@ -81,8 +85,8 @@ void main()
 
         sxy = clamp(sxy, ivec2(0), sxy_max);
 
-        fxy = mix(fxy, vec2(0.f), underflow);
-        fxy = mix(fxy, vec2(1.f), overflow);
+        fxy = mix(fxy, afpvec2(0.f), underflow);
+        fxy = mix(fxy, afpvec2(1.f), overflow);
 
         int sx = sxy.r;
         int sy = sxy.g;
@@ -90,17 +94,17 @@ void main()
         int v_offset_0 = gz * p.cstep + sy * p.w + sx;
         int v_offset_1 = gz * p.cstep + (sy + 1) * p.w + sx;
 
-        float a0 = bottom_blob_data[v_offset_0];
-        float a1 = bottom_blob_data[v_offset_0 + 1];
-        float b0 = bottom_blob_data[v_offset_1];
-        float b1 = bottom_blob_data[v_offset_1 + 1];
+        afp a0 = bottom_blob_data[v_offset_0];
+        afp a1 = bottom_blob_data[v_offset_0 + 1];
+        afp b0 = bottom_blob_data[v_offset_1];
+        afp b1 = bottom_blob_data[v_offset_1 + 1];
 
-        float fx = fxy.r;
-        float fy = fxy.g;
+        afp fx = fxy.r;
+        afp fy = fxy.g;
 
-        vec2 ab = vec2(a0, b0) * (1.f - fx) + vec2(a1, b1) * fx;
-        res = ab.r * (1.f - fy) + ab.g * fy;
+        afpvec2 ab = afpvec2(a0, b0) * (afp(1.f) - fx) + afpvec2(a1, b1) * fx;
+        res = ab.r * (afp(1.f) - fy) + ab.g * fy;
     }
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = res;
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(res);
 }

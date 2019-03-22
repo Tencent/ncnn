@@ -14,6 +14,10 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const int region_type = 0;
 layout (constant_id = 1) const int local_size = 0;
 layout (constant_id = 2) const float alpha = 0;
@@ -24,8 +28,8 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer square_workspace { float square_workspace_data[]; };
-layout (binding = 1) buffer bottom_top_blob { float bottom_top_blob_data[]; };
+layout (binding = 0) readonly buffer square_workspace { sfp square_workspace_data[]; };
+layout (binding = 1) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -51,28 +55,28 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    float scale;
+    afp scale;
 
     if (region_type == 0)
     {
-        float sum = 0.f;
+        afp sum = afp(0.f);
 
         int v_offset = gz * p.cstep + gy * p.w + gx;
 
         for (int z = 0; z < local_size; z++)
         {
-            sum += square_workspace_data[v_offset];
+            sum += afp(square_workspace_data[v_offset]);
 
             v_offset += p.cstep;
         }
 
-        const float alpha_div_size = alpha / local_size;
+        const afp alpha_div_size = afp(alpha / local_size);
 
-        scale = pow(bias_constant + alpha_div_size * sum, -beta);
+        scale = pow(afp(bias_constant) + alpha_div_size * sum, afp(-beta));
     }
     else
     {
-        float sum = 0.f;
+        afp sum = afp(0.f);
 
         int v_offset = gz * p.cstep + gy * p.w + gx;
 
@@ -80,20 +84,20 @@ void main()
         {
             for (int x = 0; x < local_size; x++)
             {
-                sum += square_workspace_data[v_offset + x];
+                sum += afp(square_workspace_data[v_offset + x]);
             }
 
             v_offset += p.w;
         }
 
-        const float alpha_div_size = alpha / (local_size * local_size);
+        const afp alpha_div_size = afp(alpha / (local_size * local_size));
 
-        scale = pow(bias_constant + alpha_div_size * sum, -beta);
+        scale = pow(afp(bias_constant) + alpha_div_size * sum, afp(-beta));
     }
 
-    float v = bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx];
+    afp v = bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx];
 
     v *= scale;
 
-    bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx] = v;
+    bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(v);
 }

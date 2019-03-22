@@ -14,14 +14,18 @@
 
 #version 450
 
+#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
 layout (constant_id = 0) const int num_slope = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) buffer bottom_top_blob { vec4 bottom_top_blob_data[]; };
-layout (binding = 1) readonly buffer slope_blob { vec4 slope_blob_data[]; };
+layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout (binding = 1) readonly buffer slope_blob { sfpvec4 slope_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -43,13 +47,13 @@ void main()
 
     if (p.dims == 1)
     {
-        vec4 v = bottom_top_blob_data[gx];
+        afpvec4 v = bottom_top_blob_data[gx];
 
-        vec4 slope = num_slope > 1 ? slope_blob_data[gx] : slope_blob_data[0];
+        afpvec4 slope = num_slope > 1 ? slope_blob_data[gx] : afpvec4(slope_blob_data[0]);
 
-        v = mix(v, v * slope, lessThan(v, vec4(0.0)));
+        v = mix(v, v * slope, lessThan(v, afpvec4(0.f)));
 
-        bottom_top_blob_data[gx] = v;
+        bottom_top_blob_data[gx] = sfpvec4(v);
 
         return;
     }
@@ -58,13 +62,13 @@ void main()
     {
         const int gi = gy * p.w + gx;
 
-        vec4 v = bottom_top_blob_data[gi];
+        afpvec4 v = bottom_top_blob_data[gi];
 
-        vec4 slope = num_slope > 1 ? slope_blob_data[gy] : slope_blob_data[0];
+        afpvec4 slope = num_slope > 1 ? slope_blob_data[gy] : afpvec4(slope_blob_data[0]);
 
-        v = mix(v, v * slope, lessThan(v, vec4(0.0)));
+        v = mix(v, v * slope, lessThan(v, afpvec4(0.f)));
 
-        bottom_top_blob_data[gi] = v;
+        bottom_top_blob_data[gi] = sfpvec4(v);
 
         return;
     }
@@ -73,13 +77,13 @@ void main()
     {
         const int gi = gz * p.cstep + gy * p.w + gx;
 
-        vec4 v = bottom_top_blob_data[gi];
+        afpvec4 v = bottom_top_blob_data[gi];
 
-        vec4 slope = num_slope > 1 ? slope_blob_data[gz] : slope_blob_data[0];
+        afpvec4 slope = num_slope > 1 ? slope_blob_data[gz] : afpvec4(slope_blob_data[0]);
 
-        v = mix(v, v * slope, lessThan(v, vec4(0.0)));
+        v = mix(v, v * slope, lessThan(v, afpvec4(0.f)));
 
-        bottom_top_blob_data[gi] = v;
+        bottom_top_blob_data[gi] = sfpvec4(v);
 
         return;
     }

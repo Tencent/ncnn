@@ -14,15 +14,14 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
-#endif
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { float16_t bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -31,6 +30,12 @@ layout (push_constant) uniform parameter
     int h;
     int c;
     int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
 } p;
 
 void main()
@@ -42,9 +47,7 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    const int gi = gz * p.cstep + gy * p.w + gx;
+    float16_t v = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
 
-    afpvec4 v = bottom_top_blob_data[gi];
-
-    bottom_top_blob_data[gi] = sfpvec4(tanh(v));
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = float(v);
 }

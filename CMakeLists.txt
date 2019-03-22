@@ -19,13 +19,12 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
 endif()
 
-set(COVERAGE OFF CACHE BOOL "Coverage")
-
 project(ncnn)
 
 option(NCNN_OPENMP "openmp support" ON)
 option(NCNN_STDIO "load model from external file" ON)
 option(NCNN_STRING "plain and verbose string" ON)
+option(NCNN_INSTALL_SDK "Install ncnn library and headers" ON)
 option(NCNN_OPENCV "minimal opencv structure emulation" OFF)
 option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
 option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
@@ -51,6 +50,7 @@ endif()
 
 if(NCNN_VULKAN)
     find_package(Vulkan REQUIRED)
+    include_directories(${Vulkan_INCLUDE_DIR})
 endif()
 
 if(WIN32)

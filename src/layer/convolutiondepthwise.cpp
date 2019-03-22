@@ -82,6 +82,12 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
     group = pd.get(7, 1);
     int8_scale_term = pd.get(8, 0);
 
+    if (pad_w == -233 && pad_h == -233)
+    {
+        // TODO
+        support_vulkan = false;
+    }
+
     use_int8_inference = pd.use_int8_inference;
 
     if (num_output % group != 0)
