@@ -60,6 +60,9 @@ Convolution::~Convolution()
     for (int i=0; i<(int)requantize_ops.size(); i++)
         delete requantize_ops[i];
     requantize_ops.clear();
+
+    dequantize_scales.clear();
+    requantize_scales.clear();
 }
 
 int Convolution::load_param(const ParamDict& pd)
@@ -131,6 +134,9 @@ int Convolution::load_model(const ModelBin& mb)
     for (int i=0; i<(int)requantize_ops.size(); i++)
         delete requantize_ops[i];
     requantize_ops.clear();
+
+    dequantize_scales.clear();
+    requantize_scales.clear();    
 
     bool weight_data_is_int8 = (weight_data.elemsize == (size_t)1u);
     bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
@@ -207,6 +213,8 @@ int Convolution::load_model(const ModelBin& mb)
             weights[0] = bias_data.range(n, 1);
 
             dequantize_ops[n]->load_model(ModelBinFromMatArray(weights));
+
+            dequantize_scales.push_back(top_rescale);
         }
     }
 
@@ -252,6 +260,9 @@ int Convolution::create_requantize_op(void)
         weights[0] = bias_data.range(n, 1);
 
         requantize_ops[n]->load_model(ModelBinFromMatArray(weights));
+
+        requantize_scales.push_back(scale_in);
+        requantize_scales.push_back(scale_out);
     }
 
     return 0;

@@ -113,7 +113,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
         signed char* ret = (signed char*)bottom_im2row;
         int retID = 0;
     
-        //#pragma omp parallel for num_threads(opt.num_threads)
+        // #pragma omp parallel for num_threads(opt.num_threads)
         for (int i=0; i<outh; i++)
         {
             for (int j=0; j<outw; j++)
@@ -137,9 +137,9 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
         }
     }    
 
-    double end = ncnn::get_current_time();
-    printf("im2row : %8.3f ms\n", end - start);
-    start = ncnn::get_current_time();
+    // double end = ncnn::get_current_time();
+    // printf("im2row : %8.3f ms\n", end - start);
+    // start = ncnn::get_current_time();
 
     int kernel_size = kernel_w * kernel_h;
     int out_size = outw * outh;
@@ -227,9 +227,9 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
         }       
     }
 
-    end = ncnn::get_current_time();
-    printf("d_pack : %8.3f ms\n", end - start);
-    start = ncnn::get_current_time();
+    // end = ncnn::get_current_time();
+    // printf("d_pack : %8.3f ms\n", end - start);
+    // start = ncnn::get_current_time();
 
     // 4x4
     // sgemm(int M, int N, int K, float* A, float* B, float* C)
@@ -257,8 +257,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             int j=0;
             for (; j+3<N; j=j+4)
             {
-                signed char* vb = bottom_tm.channel(j/4);
-                signed char* va = kernel_tm.channel(i/4);
+                const signed char* vb = bottom_tm.channel(j/4);
+                const signed char* va = kernel_tm.channel(i/4);
                 
 #if __ARM_NEON
                 asm volatile(
@@ -463,8 +463,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
 
             for (; j<N; j++)
             {                
-                signed char* vb = bottom_tm.channel(j/4 + j%4);
-                signed char* va = kernel_tm.channel(i/4);
+                const signed char* vb = bottom_tm.channel(j/4 + j%4);
+                const signed char* va = kernel_tm.channel(i/4);
 
 #if __ARM_NEON
                 int32x4_t _sum = vdupq_n_s32(0);
@@ -582,8 +582,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             int j=0;
             for (; j+3<N; j=j+4)
             {
-                signed char* vb = bottom_tm.channel(j/4);
-                signed char* va = kernel_tm.channel(i/4 + i%4);
+                const signed char* vb = bottom_tm.channel(j/4);
+                const signed char* va = kernel_tm.channel(i/4 + i%4);
 
 #if __ARM_NEON
                 int32x4_t _sum = vdupq_n_s32(0);
@@ -659,8 +659,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             {
                 int sum = 0;
 
-                signed char* vb = bottom_tm.channel(j/4 + j%4);
-                signed char* va = kernel_tm.channel(i/4 + i%4);
+                const signed char* vb = bottom_tm.channel(j/4 + j%4);
+                const signed char* va = kernel_tm.channel(i/4 + i%4);
 
                 for (int k=0; k<K; k++)
                 {
@@ -675,8 +675,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             }
         }
     }
-    end = ncnn::get_current_time();
-    printf("sgemm  : %8.3f ms\n", end - start);
+    // end = ncnn::get_current_time();
+    // printf("sgemm  : %8.3f ms\n", end - start);
 
     // // sgemm(int M, int N, int K, float* A, float* B, float* C)
     // {

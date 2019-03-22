@@ -103,6 +103,10 @@ public:
     ncnn::Layer* quantize;
     std::vector<ncnn::Layer*> dequantize_ops;
     std::vector<ncnn::Layer*> requantize_ops;
+
+    // merge de/requantize op into convolution op
+    std::vector<float> dequantize_scales;
+    std::vector<float> requantize_scales;    
 };
 
 } // namespace ncnn
