@@ -254,9 +254,22 @@ int Pipeline::create_pipeline_layout(int push_constant_count)
     return 0;
 }
 
-int Pipeline::create_pipeline(const char* name, const std::vector<vk_specialization_type>& specializations)
+int Pipeline::create_pipeline(const char* _name, const std::vector<vk_specialization_type>& specializations)
 {
-    VkShaderModule shader_module = vkdev->get_shader_module(name);
+    std::string name = _name;
+
+    /* TODO enable me
+    if (vkdev->info.support_fp16_arithmetic)
+    {
+        name += "_fp16a";
+    }
+    else if (vkdev->info.support_fp16_storage)
+    {
+        name += "_fp16s";
+    }
+    */
+
+    VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
 
     const int specialization_count = specializations.size();
 
@@ -307,7 +320,7 @@ int Pipeline::create_pipeline(const char* name, const std::vector<vk_specializat
     pipelineShaderStageCreateInfo.flags = 0;
     pipelineShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineShaderStageCreateInfo.module = shader_module;
-    pipelineShaderStageCreateInfo.pName = name;
+    pipelineShaderStageCreateInfo.pName = name.c_str();
     pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
 
     VkComputePipelineCreateInfo computePipelineCreateInfo;

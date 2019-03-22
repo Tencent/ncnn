@@ -874,28 +874,15 @@ VulkanDevice::~VulkanDevice()
     vkDestroyDevice(device, 0);
 }
 
-VkShaderModule VulkanDevice::get_shader_module(const char* _name) const
+VkShaderModule VulkanDevice::get_shader_module(const char* name) const
 {
-    std::string name = _name;
-
-//     if (info.support_fp16_arithmetic)
-//     {
-//         name += "_fp16a";
-//     }
-//     else if (info.support_fp16_storage)
-//     {
-//         name += "_fp16s";
-//     }
-//
-//     fprintf(stderr, "get_shader_module %s\n", name.c_str());
-
     for (int i=0; i<layer_shader_registry_entry_count; i++)
     {
-        if (strcmp(layer_shader_registry[i].name, name.c_str()) == 0)
+        if (strcmp(layer_shader_registry[i].name, name) == 0)
             return shader_modules[i];
     }
 
-    fprintf(stderr, "no such shader module %s\n", name.c_str());
+    fprintf(stderr, "no such shader module %s\n", name);
     return 0;
 }
 
