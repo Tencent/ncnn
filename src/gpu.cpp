@@ -622,10 +622,10 @@ int create_gpu_instance()
         }
 
         // check features
-        gpu_info.fp16_storage = false;
-        gpu_info.fp16_arithmetic = false;
-        gpu_info.int8_storage = false;
-        gpu_info.int8_arithmetic = false;
+        gpu_info.support_fp16_storage = false;
+        gpu_info.support_fp16_arithmetic = false;
+        gpu_info.support_int8_storage = false;
+        gpu_info.support_int8_arithmetic = false;
         if (support_VK_KHR_get_physical_device_properties2)
         {
             void* queryExtensionFeatures = 0;
@@ -668,16 +668,16 @@ int create_gpu_instance()
 
             if (gpu_info.support_VK_KHR_8bit_storage)
             {
-                gpu_info.int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess;
+                gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess;
             }
             if (gpu_info.support_VK_KHR_16bit_storage)
             {
-                gpu_info.fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess;
+                gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess;
             }
             if (gpu_info.support_VK_KHR_shader_float16_int8)
             {
-                gpu_info.fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
-                gpu_info.int8_arithmetic = queryFloat16Int8Features.shaderInt8;
+                gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
+                gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
             }
         }
         else
@@ -692,7 +692,8 @@ int create_gpu_instance()
                 gpu_info.unified_memory_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
 
         fprintf(stderr, "[%u %s]  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d\n", i, physicalDeviceProperties.deviceName,
-                gpu_info.fp16_storage, gpu_info.fp16_arithmetic, gpu_info.int8_storage, gpu_info.int8_arithmetic);
+                gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
+                gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
 
         gpu_info_index++;
     }
@@ -781,7 +782,7 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         VkPhysicalDevice8BitStorageFeaturesKHR enabled8BitStorageFeatures;
         enabled8BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR;
         enabled8BitStorageFeatures.pNext = 0;
-        enabled8BitStorageFeatures.storageBuffer8BitAccess = info.int8_storage;
+        enabled8BitStorageFeatures.storageBuffer8BitAccess = info.support_int8_storage;
         enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = VK_FALSE;
         enabled8BitStorageFeatures.storagePushConstant8 = VK_FALSE;
         if (info.support_VK_KHR_8bit_storage)
@@ -794,7 +795,7 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         VkPhysicalDevice16BitStorageFeaturesKHR enabled16BitStorageFeatures;
         enabled16BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
         enabled16BitStorageFeatures.pNext = 0;
-        enabled16BitStorageFeatures.storageBuffer16BitAccess = info.fp16_storage;
+        enabled16BitStorageFeatures.storageBuffer16BitAccess = info.support_fp16_storage;
         enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = VK_FALSE;
         enabled16BitStorageFeatures.storagePushConstant16 = VK_FALSE;
         enabled16BitStorageFeatures.storageInputOutput16 = VK_FALSE;
@@ -808,8 +809,8 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         VkPhysicalDeviceFloat16Int8FeaturesKHR enabledFloat16Int8Features;
         enabledFloat16Int8Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT16_INT8_FEATURES_KHR;
         enabledFloat16Int8Features.pNext = 0;
-        enabledFloat16Int8Features.shaderFloat16 = info.fp16_arithmetic;
-        enabledFloat16Int8Features.shaderInt8 = info.int8_arithmetic;
+        enabledFloat16Int8Features.shaderFloat16 = info.support_fp16_arithmetic;
+        enabledFloat16Int8Features.shaderInt8 = info.support_int8_arithmetic;
         if (info.support_VK_KHR_shader_float16_int8)
         {
             enabledFloat16Int8Features.pNext = enabledExtensionFeatures;

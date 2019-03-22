@@ -81,10 +81,10 @@ public:
     uint32_t host_visible_memory_index;
 
     // fp16 and int8 feature
-    bool fp16_storage;
-    bool fp16_arithmetic;
-    bool int8_storage;
-    bool int8_arithmetic;
+    bool support_fp16_storage;
+    bool support_fp16_arithmetic;
+    bool support_int8_storage;
+    bool support_int8_arithmetic;
 
     // extension capability
     int support_VK_KHR_8bit_storage;
