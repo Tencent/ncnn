@@ -259,7 +259,6 @@ int Pipeline::create_pipeline(const char* _name, const std::vector<vk_specializa
 {
     std::string name = _name;
 
-    /* TODO enable me
     if (vkdev->info.support_fp16_arithmetic)
     {
         name += "_fp16a";
@@ -268,7 +267,6 @@ int Pipeline::create_pipeline(const char* _name, const std::vector<vk_specializa
     {
         name += "_fp16s";
     }
-    */
 
     VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
 
