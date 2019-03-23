@@ -105,10 +105,6 @@ macro(ncnn_add_layer class)
 
             list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEX_FILE})
 
-            if("${name}" STREQUAL "cast")
-                continue()
-            endif()
-
             # fp16 storage
             set(SHADER_fp16s_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_fp16s")
 
