@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -53,39 +56,34 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    int v_offset;
-    sfpvec4 v;
-
     if (p.dims == 1) // axis == 0
     {
-        v_offset = gx + p.offset;
-        v = bottom_blob_data[gx];
+        int v_offset = gx + p.offset;
+        top_blob_data[v_offset] = bottom_blob_data[gx];
     }
     else if (p.dims == 2 && axis == 0)
     {
-        v_offset = (gy + p.offset) * p.outw + gx;
-        v = bottom_blob_data[gy * p.w + gx];
+        int v_offset = (gy + p.offset) * p.outw + gx;
+        top_blob_data[v_offset] = bottom_blob_data[gy * p.w + gx];
     }
     else if (p.dims == 2 && axis == 1)
     {
-        v_offset = gy * p.outw + gx + p.offset;
-        v = bottom_blob_data[gy * p.w + gx];
+        int v_offset = gy * p.outw + gx + p.offset;
+        top_blob_data[v_offset] = bottom_blob_data[gy * p.w + gx];
     }
     else if (p.dims == 3 && axis == 0)
     {
-        v_offset = (gz + p.offset) * p.outcstep + gy * p.outw + gx;
-        v = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
+        int v_offset = (gz + p.offset) * p.outcstep + gy * p.outw + gx;
+        top_blob_data[v_offset] = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
     }
     else if (p.dims == 3 && axis == 1)
     {
-        v_offset = gz * p.outcstep + (gy + p.offset) * p.outw + gx;
-        v = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
+        int v_offset = gz * p.outcstep + (gy + p.offset) * p.outw + gx;
+        top_blob_data[v_offset] = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
     }
     else if (p.dims == 3 && axis == 2)
     {
-        v_offset = gz * p.outcstep + gy * p.outw + gx + p.offset;
-        v = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
+        int v_offset = gz * p.outcstep + gy * p.outw + gx + p.offset;
+        top_blob_data[v_offset] = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
     }
-
-    top_blob_data[v_offset] = v;
 }

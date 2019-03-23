@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -63,33 +66,25 @@ void main()
     ivec4 lane4 = z4 % 4;
 
     // v = v4[lane]
-    sfpvec4 v;
+    int gi = gz * p.outcstep + gy * p.outw + gx;
 
-    sfpvec4 v4;
+    if (lane4.r == 0) top_blob_data[gi].r = bottom_blob_data[v_offset.r].r;
+    else if (lane4.r == 1) top_blob_data[gi].r = bottom_blob_data[v_offset.r].g;
+    else if (lane4.r == 2) top_blob_data[gi].r = bottom_blob_data[v_offset.r].b;
+    else /* if (lane4.r == 3) */ top_blob_data[gi].r = bottom_blob_data[v_offset.r].a;
 
-    v4 = bottom_blob_data[v_offset.r];
-    if (lane4.r == 0) v.r = v4.r;
-    else if (lane4.r == 1) v.r = v4.g;
-    else if (lane4.r == 2) v.r = v4.b;
-    else /* if (lane4.r == 3) */ v.r = v4.a;
+    if (lane4.g == 0) top_blob_data[gi].g = bottom_blob_data[v_offset.g].r;
+    else if (lane4.g == 1) top_blob_data[gi].g = bottom_blob_data[v_offset.g].g;
+    else if (lane4.g == 2) top_blob_data[gi].g = bottom_blob_data[v_offset.g].b;
+    else /* if (lane4.g == 3) */ top_blob_data[gi].g = bottom_blob_data[v_offset.g].a;
 
-    v4 = bottom_blob_data[v_offset.g];
-    if (lane4.g == 0) v.g = v4.r;
-    else if (lane4.g == 1) v.g = v4.g;
-    else if (lane4.g == 2) v.g = v4.b;
-    else /* if (lane4.g == 3) */ v.g = v4.a;
+    if (lane4.b == 0) top_blob_data[gi].b = bottom_blob_data[v_offset.b].r;
+    else if (lane4.b == 1) top_blob_data[gi].b = bottom_blob_data[v_offset.b].g;
+    else if (lane4.b == 2) top_blob_data[gi].b = bottom_blob_data[v_offset.b].b;
+    else /* if (lane4.b == 3) */ top_blob_data[gi].b = bottom_blob_data[v_offset.b].a;
 
-    v4 = bottom_blob_data[v_offset.b];
-    if (lane4.b == 0) v.b = v4.r;
-    else if (lane4.b == 1) v.b = v4.g;
-    else if (lane4.b == 2) v.b = v4.b;
-    else /* if (lane4.b == 3) */ v.b = v4.a;
-
-    v4 = bottom_blob_data[v_offset.a];
-    if (lane4.a == 0) v.a = v4.r;
-    else if (lane4.a == 1) v.a = v4.g;
-    else if (lane4.a == 2) v.a = v4.b;
-    else /* if (lane4.a == 3) */ v.a = v4.a;
-
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = v;
+    if (lane4.a == 0) top_blob_data[gi].a = bottom_blob_data[v_offset.a].r;
+    else if (lane4.a == 1) top_blob_data[gi].a = bottom_blob_data[v_offset.a].g;
+    else if (lane4.a == 2) top_blob_data[gi].a = bottom_blob_data[v_offset.a].b;
+    else /* if (lane4.a == 3) */ top_blob_data[gi].a = bottom_blob_data[v_offset.a].a;
 }

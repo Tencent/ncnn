@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -48,7 +51,7 @@ void main()
 
     if (p.dims == 1)
     {
-        afp v = bottom_top_blob_data[gx];
+        afp v = afp(bottom_top_blob_data[gx]);
 
         if (bias_term == 1)
             v = afp(scale_blob_data[gx]) * v + afp(bias_blob_data[gx]);
@@ -64,7 +67,7 @@ void main()
     {
         const int gi = gy * p.w + gx;
 
-        afp v = bottom_top_blob_data[gi];
+        afp v = afp(bottom_top_blob_data[gi]);
 
         if (bias_term == 1)
             v = afp(scale_blob_data[gy]) * v + afp(bias_blob_data[gy]);
@@ -80,7 +83,7 @@ void main()
     {
         const int gi = gz * p.cstep + gy * p.w + gx;
 
-        afp v = bottom_top_blob_data[gi];
+        afp v = afp(bottom_top_blob_data[gi]);
 
         if (bias_term == 1)
             v = afp(scale_blob_data[gz]) * v + afp(bias_blob_data[gz]);

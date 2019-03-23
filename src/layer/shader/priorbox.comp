@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -69,14 +72,12 @@ void main()
 
     afpvec4 image_norm = afp(1.f) / afpvec4(p.image_w, p.image_h, p.image_w, p.image_h);
 
-    sfpvec4 variance = sfpvec4(variances_0, variances_1, variances_2, variances_3);
-
     afpvec4 box;
 
     afp box_w;
     afp box_h;
 
-    afp min_size = min_sizes_data[gx];
+    afp min_size = afp(min_sizes_data[gx]);
 
     // min size box
     box_w = box_h = min_size;
@@ -84,14 +85,17 @@ void main()
     box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
 
     top_blob_data[v_offset] = clip == 1 ? sfpvec4(clamp(box, afp(0.f), afp(1.f))) : sfpvec4(box);
-    top_blob_data[var_offset] = variance;
+    top_blob_data[var_offset].r = sfp(variances_0);
+    top_blob_data[var_offset].g = sfp(variances_1);
+    top_blob_data[var_offset].b = sfp(variances_2);
+    top_blob_data[var_offset].a = sfp(variances_3);
 
     v_offset += 1;
     var_offset += 1;
 
     if (num_max_size > 0)
     {
-        afp max_size = max_sizes_data[gx];
+        afp max_size = afp(max_sizes_data[gx]);
 
         // max size box
         box_w = box_h = sqrt(min_size * max_size);
@@ -99,7 +103,10 @@ void main()
         box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
 
         top_blob_data[v_offset] = clip == 1 ? sfpvec4(clamp(box, afp(0.f), afp(1.f))) : sfpvec4(box);
-        top_blob_data[var_offset] = variance;
+        top_blob_data[var_offset].r = sfp(variances_0);
+        top_blob_data[var_offset].g = sfp(variances_1);
+        top_blob_data[var_offset].b = sfp(variances_2);
+        top_blob_data[var_offset].a = sfp(variances_3);
 
         v_offset += 1;
         var_offset += 1;
@@ -108,7 +115,7 @@ void main()
     // all aspect_ratios
     for (int pi = 0; pi < num_aspect_ratio; pi++)
     {
-        afp ar = aspect_ratios_data[pi];
+        afp ar = afp(aspect_ratios_data[pi]);
 
         box_w = min_size * sqrt(ar);
         box_h = min_size / sqrt(ar);
@@ -116,7 +123,10 @@ void main()
         box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
 
         top_blob_data[v_offset] = clip == 1 ? sfpvec4(clamp(box, afp(0.f), afp(1.f))) : sfpvec4(box);
-        top_blob_data[var_offset] = variance;
+        top_blob_data[var_offset].r = sfp(variances_0);
+        top_blob_data[var_offset].g = sfp(variances_1);
+        top_blob_data[var_offset].b = sfp(variances_2);
+        top_blob_data[var_offset].a = sfp(variances_3);
 
         v_offset += 1;
         var_offset += 1;
@@ -126,7 +136,10 @@ void main()
             box = (center + afpvec4(-box_h, -box_w, box_h, box_w) * afp(0.5f)) * image_norm;
 
             top_blob_data[v_offset] = clip == 1 ? sfpvec4(clamp(box, afp(0.f), afp(1.f))) : sfpvec4(box);
-            top_blob_data[var_offset] = variance;
+            top_blob_data[var_offset].r = sfp(variances_0);
+            top_blob_data[var_offset].g = sfp(variances_1);
+            top_blob_data[var_offset].b = sfp(variances_2);
+            top_blob_data[var_offset].a = sfp(variances_3);
 
             v_offset += 1;
             var_offset += 1;

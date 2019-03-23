@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -58,7 +61,7 @@ void main()
     afpvec4 center = afpvec4(center_x, center_y, center_x, center_y);
 
     // ratio = 1, various sizes
-    afp size = min_sizes_data[gx];
+    afp size = afp(min_sizes_data[gx]);
     afp cw = size * afp(p.h) / afp(p.w) / afp(2);
     afp ch = size / afp(2);
 
@@ -69,7 +72,7 @@ void main()
     if (gx == num_sizes - 1)
     {
         // various ratios, size = min_size = size[0]
-        afp size = min_sizes_data[0];
+        afp size = afp(min_sizes_data[0]);
         for (int pi = 1; pi < num_ratios; pi++)
         {
             afp ratio = sqrt(afp(aspect_ratios_data[pi]));
