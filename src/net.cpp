@@ -1054,33 +1054,36 @@ int Net::create_pipeline()
         }
     }
 
+    if (vkdev->info.support_fp16_storage)
     {
-    cast_float32_to_float16 = ncnn::create_layer(ncnn::LayerType::Cast);
-    cast_float32_to_float16->vkdev = vkdev;
+        {
+        cast_float32_to_float16 = ncnn::create_layer(ncnn::LayerType::Cast);
+        cast_float32_to_float16->vkdev = vkdev;
 
-    ncnn::ParamDict pd;
-    pd.set(0, 1);
-    pd.set(1, 2);
-    pd.use_vulkan_compute = 1;
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        pd.set(1, 2);
+        pd.use_vulkan_compute = 1;
 
-    cast_float32_to_float16->load_param(pd);
+        cast_float32_to_float16->load_param(pd);
+        }
+
+        {
+        cast_float16_to_float32 = ncnn::create_layer(ncnn::LayerType::Cast);
+        cast_float16_to_float32->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 2);
+        pd.set(1, 1);
+        pd.use_vulkan_compute = 1;
+
+        cast_float16_to_float32->load_param(pd);
+        }
+
+        cast_float32_to_float16->create_pipeline();
+
+        cast_float16_to_float32->create_pipeline();
     }
-
-    {
-    cast_float16_to_float32 = ncnn::create_layer(ncnn::LayerType::Cast);
-    cast_float16_to_float32->vkdev = vkdev;
-
-    ncnn::ParamDict pd;
-    pd.set(0, 2);
-    pd.set(1, 1);
-    pd.use_vulkan_compute = 1;
-
-    cast_float16_to_float32->load_param(pd);
-    }
-
-    cast_float32_to_float16->create_pipeline();
-
-    cast_float16_to_float32->create_pipeline();
 
     {
     packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
