@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -64,7 +67,7 @@ void main()
 
     if (bias_term == 1)
     {
-        sum = bias_data[gz];
+        sum = afp(bias_data[gz]);
     }
     else
     {

@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -58,7 +61,5 @@ void main()
 
     int v_offset = z * p.cstep + y * p.w + x;
 
-    sfp v = bottom_blob_data[v_offset];
-
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = v;
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
 }

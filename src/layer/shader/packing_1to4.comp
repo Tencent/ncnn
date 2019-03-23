@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -55,17 +58,11 @@ void main()
     {
         ivec4 x4 = ivec4(gx * 4) + ivec4(0, 1, 2, 3);
 
-        // prevent out of range access
-//         x4 = min(x4, p.w - 1);
-
         v_offset = x4;
     }
     else if (p.dims == 2)
     {
         ivec4 y4 = ivec4(gy * 4) + ivec4(0, 1, 2, 3);
-
-        // prevent out of range access
-//         y4 = min(y4, p.h - 1);
 
         v_offset = y4 * p.w + gx;
     }
@@ -73,17 +70,13 @@ void main()
     {
         ivec4 z4 = ivec4(gz * 4) + ivec4(0, 1, 2, 3);
 
-        // prevent out of range access
-        z4 = min(z4, p.c - 1);
-
         v_offset = z4 * p.cstep + ivec4(gy * p.w + gx);
     }
 
-    sfpvec4 v;
-    v.r = bottom_blob_data[v_offset.r];
-    v.g = bottom_blob_data[v_offset.g];
-    v.b = bottom_blob_data[v_offset.b];
-    v.a = bottom_blob_data[v_offset.a];
+    int gi = gz * p.outcstep + gy * p.outw + gx;
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = v;
+    top_blob_data[gi].r = bottom_blob_data[v_offset.r];
+    top_blob_data[gi].g = bottom_blob_data[v_offset.g];
+    top_blob_data[gi].b = bottom_blob_data[v_offset.b];
+    top_blob_data[gi].a = bottom_blob_data[v_offset.a];
 }

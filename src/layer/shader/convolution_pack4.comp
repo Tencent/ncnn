@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -32,7 +35,12 @@ layout (local_size_z_id = 235) in;
 
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#if NCNN_fp16_storage && !NCNN_fp16_arithmetic
+// GL_EXT_shader_16bit_storage does not define f16mat4 type :(
+layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+#else
 layout (binding = 2) readonly buffer weight_blob { sfpmat4 weight_data[]; };
+#endif
 layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 
 layout (push_constant) uniform parameter
@@ -63,7 +71,7 @@ void main()
 
     if (bias_term == 1)
     {
-        sum = bias_data[gz];
+        sum = afpvec4(bias_data[gz]);
     }
     else
     {
@@ -80,9 +88,19 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                afpvec4 v = bottom_blob_data[v_offset + x * dilation_w];
+                afpvec4 v = afpvec4(bottom_blob_data[v_offset + x * dilation_w]);
 
-                afpmat4 k = weight_data[w_offset + x];
+#if NCNN_fp16_storage && !NCNN_fp16_arithmetic
+                // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
+                afpmat4 k = afpmat4(
+                    afpvec4(weight_data[(w_offset + x) * 4 + 0]),
+                    afpvec4(weight_data[(w_offset + x) * 4 + 1]),
+                    afpvec4(weight_data[(w_offset + x) * 4 + 2]),
+                    afpvec4(weight_data[(w_offset + x) * 4 + 3])
+                );
+#else
+                afpmat4 k = afpmat4(weight_data[w_offset + x]);
+#endif
 
                 sum += v * k;
             }

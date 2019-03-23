@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -54,41 +57,41 @@ void main()
         return;
 
     ivec4 v_offset;
-    sfpvec4 v;
+    int gi;
 
     if (p.dims == 1) // axis == 0
     {
         v_offset = ivec4(gx * 4 + p.offset) + ivec4(0, 1, 2, 3);
-        v = bottom_blob_data[gx];
+        gi = gx;
     }
     else if (p.dims == 2 && axis == 0)
     {
         v_offset = (ivec4(gx * 4 + p.offset) + ivec4(0, 1, 2, 3)) * p.outw + gx;
-        v = bottom_blob_data[gy * p.w + gx];
+        gi = gy * p.w + gx;
     }
     else if (p.dims == 2 && axis == 1)
     {
         v_offset = (ivec4(gx * 4) + ivec4(0, 1, 2, 3)) * p.outw + gx + p.offset;
-        v = bottom_blob_data[gy * p.w + gx];
+        gi = gy * p.w + gx;
     }
     else if (p.dims == 3 && axis == 0)
     {
         v_offset = (ivec4(gz * 4 + p.offset) + ivec4(0, 1, 2, 3)) * p.outcstep + gy * p.outw + gx;
-        v = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
+        gi = gz * p.cstep + gy * p.w + gx;
     }
     else if (p.dims == 3 && axis == 1)
     {
         v_offset = (ivec4(gz * 4) + ivec4(0, 1, 2, 3)) * p.outcstep + (gy + p.offset) * p.outw + gx;
-        v = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
+        gi = gz * p.cstep + gy * p.w + gx;
     }
     else if (p.dims == 3 && axis == 2)
     {
         v_offset = (ivec4(gz * 4) + ivec4(0, 1, 2, 3)) * p.outcstep + gy * p.outw + gx + p.offset;
-        v = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
+        gi = gz * p.cstep + gy * p.w + gx;
     }
 
-    top_blob_data[v_offset.r] = v.r;
-    top_blob_data[v_offset.g] = v.g;
-    top_blob_data[v_offset.b] = v.b;
-    top_blob_data[v_offset.a] = v.a;
+    top_blob_data[v_offset.r] = bottom_blob_data[gi].r;
+    top_blob_data[v_offset.g] = bottom_blob_data[gi].g;
+    top_blob_data[v_offset.b] = bottom_blob_data[gi].b;
+    top_blob_data[v_offset.a] = bottom_blob_data[gi].a;
 }

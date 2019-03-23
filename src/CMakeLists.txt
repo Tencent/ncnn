@@ -112,7 +112,7 @@ macro(ncnn_add_layer class)
             add_custom_command(
                 OUTPUT ${SHADER_fp16s_SPV_HEX_FILE}
                 COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-                ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dsfpmat4=f16mat4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -DNCNN_fp16_storage=1 -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
+                ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -DNCNN_fp16_storage=1 -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
                 DEPENDS ${SHADER_SRC}
                 COMMENT "Building SPIR-V module ${SHADER_fp16s_SRC_NAME_WE}.spv"
                 VERBATIM

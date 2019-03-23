@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -52,8 +55,8 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    afpvec4 v1 = bottom_blob1_data[gi];
-    afpvec4 v2 = bottom_blob2_data[gi];
+    afpvec4 v1 = afpvec4(bottom_blob1_data[gi]);
+    afpvec4 v2 = afpvec4(bottom_blob2_data[gi]);
 
     afpvec4 res;
 

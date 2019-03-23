@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -53,8 +56,8 @@ void main()
 
     if (p.dims == 1) // axis == 0
     {
-        afp sum = sum_workspace_data[0];
-        afpvec4 v = bottom_top_blob_data[gx];
+        afp sum = afp(sum_workspace_data[0]);
+        afpvec4 v = afpvec4(bottom_top_blob_data[gx]);
         bottom_top_blob_data[gx] = sfpvec4(v / sum);
         return;
     }
@@ -62,8 +65,8 @@ void main()
     if (p.dims == 2 && axis == 0)
     {
         int gi = gy * p.w + gx;
-        afp sum = sum_workspace_data[gx];
-        afpvec4 v = bottom_top_blob_data[gi];
+        afp sum = afp(sum_workspace_data[gx]);
+        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
         bottom_top_blob_data[gi] = sfpvec4(v / sum);
         return;
     }
@@ -71,8 +74,8 @@ void main()
     if (p.dims == 2 && axis == 1)
     {
         int gi = gy * p.w + gx;
-        afp sum = sum_workspace_data[gy];
-        afpvec4 v = bottom_top_blob_data[gi];
+        afp sum = afp(sum_workspace_data[gy]);
+        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
         bottom_top_blob_data[gi] = sfpvec4(v / sum);
         return;
     }
@@ -80,8 +83,8 @@ void main()
     if (p.dims == 3 && axis == 0)
     {
         int gi = gz * p.cstep + gy * p.w + gx;
-        afp sum = sum_workspace_data[gy * p.w + gx];
-        afpvec4 v = bottom_top_blob_data[gi];
+        afp sum = afp(sum_workspace_data[gy * p.w + gx]);
+        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
         bottom_top_blob_data[gi] = sfpvec4(v / sum);
         return;
     }
@@ -89,8 +92,8 @@ void main()
     if (p.dims == 3 && axis == 1)
     {
         int gi = gz * p.cstep + gy * p.w + gx;
-        afp sum = sum_workspace_data[gz * p.w + gx];
-        afpvec4 v = bottom_top_blob_data[gi];
+        afp sum = afp(sum_workspace_data[gz * p.w + gx]);
+        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
         bottom_top_blob_data[gi] = sfpvec4(v / sum);
         return;
     }
@@ -98,8 +101,8 @@ void main()
     if (p.dims == 3 && axis == 2)
     {
         int gi = gz * p.cstep + gy * p.w + gx;
-        afp sum = sum_workspace_data[gz * p.h + gy];
-        afpvec4 v = bottom_top_blob_data[gi];
+        afp sum = afp(sum_workspace_data[gz * p.h + gy]);
+        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
         bottom_top_blob_data[gi] = sfpvec4(v / sum);
         return;
     }

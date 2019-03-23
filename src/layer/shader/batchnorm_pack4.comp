@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -46,9 +49,9 @@ void main()
 
     if (p.dims == 1)
     {
-        afpvec4 v = bottom_top_blob_data[gx];
+        afpvec4 v = afpvec4(bottom_top_blob_data[gx]);
 
-        v = b_data[gx] * v + a_data[gx];
+        v = afpvec4(b_data[gx]) * v + afpvec4(a_data[gx]);
 
         bottom_top_blob_data[gx] = sfpvec4(v);
 
@@ -59,9 +62,9 @@ void main()
     {
         const int gi = gy * p.w + gx;
 
-        afpvec4 v = bottom_top_blob_data[gi];
+        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
 
-        v = b_data[gy] * v + a_data[gy];
+        v = afpvec4(b_data[gy]) * v + afpvec4(a_data[gy]);
 
         bottom_top_blob_data[gi] = sfpvec4(v);
 
@@ -72,9 +75,9 @@ void main()
     {
         const int gi = gz * p.cstep + gy * p.w + gx;
 
-        afpvec4 v = bottom_top_blob_data[gi];
+        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
 
-        v = b_data[gz] * v + a_data[gz];
+        v = afpvec4(b_data[gz]) * v + afpvec4(a_data[gz]);
 
         bottom_top_blob_data[gi] = sfpvec4(v);
 
