@@ -376,9 +376,13 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
+    // double start, end;
+
     Mat bottom_blob_unbordered = bottom_blob;
     if (use_int8_inference && elemsize != 1)
     {
+        // start = ncnn::get_current_time();
+
         Mat bottom_blob_int8;
         bottom_blob_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
         if (bottom_blob_int8.empty())
@@ -392,7 +396,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             quantize->forward(bottom_blob, bottom_blob_int8, opt_g);
         }       
 
-        bottom_blob_unbordered = bottom_blob_int8;       
+        bottom_blob_unbordered = bottom_blob_int8;     
+
+        // end = ncnn::get_current_time();
+        // printf("quantize   : %8.3f ms\n", end - start);          
     }
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
@@ -428,6 +435,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         if (use_int8_requantize == true)
         {
+            // start = ncnn::get_current_time();
+
             Mat top_blob_tm;
             top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
             if (top_blob_tm.empty())
@@ -438,8 +447,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 return -100; 
 
             if (use_sgemm1x1)
-            {
-                conv1x1s1_sgemm_int8_neon(bottom_blob_bordered, top_blob_tm, weight_1x1s1_sgemm_int8_data, opt);
+            {              
+                conv1x1s1_sgemm_int8_requant_neon(bottom_blob_bordered, top_blob, weight_1x1s1_sgemm_int8_data, bias_data, requantize_scales, opt);
+                
+                return 0;
             }
             else if (use_winograd3x3)
             {
@@ -454,6 +465,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 conv_int8(bottom_blob_bordered, top_blob_tm, weight_sgemm_int8_data, opt);     
             }
 
+            // end = ncnn::get_current_time();
+            // printf("conv int8  : %8.3f ms\n", end - start);
+            // start = ncnn::get_current_time();            
             // requantize, reverse scale inplace
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p=0; p<num_output; p++)
@@ -465,10 +479,14 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 requantize_ops[p]->forward(top_blob_tm_g, top_blob_g, opt_g);
-            }          
+            }           
+            // end = ncnn::get_current_time();
+            // printf("requantize : %8.3f ms\n", end - start);            
         }
         else
         {
+            // start = ncnn::get_current_time();
+
             top_blob.create(outw, outh, num_output, (size_t)4u, opt.blob_allocator);
             if (top_blob.empty())
                 return -100; 
@@ -490,6 +508,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 conv_int8(bottom_blob_bordered, top_blob, weight_sgemm_int8_data, opt);
             }
 
+            // end = ncnn::get_current_time();
+            // printf("conv int8  : %8.3f ms\n", end - start);
+            // start = ncnn::get_current_time();            
+
             // dequantize, reverse scale inplace
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p=0; p<num_output; p++)
@@ -501,6 +523,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
             }
+
+            // end = ncnn::get_current_time();
+            // printf("dequantize : %8.3f ms\n", end - start);               
         } 
 
         return 0;

@@ -821,8 +821,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float scale_requant_in = scales_requant[2*p];      
-        const float scale_requant_out = scales_requant[2*p+1];          
+        const float scale_requant_in = scales_requant[2*p];
+        const float scale_requant_out = scales_requant[2*p+1];
 
         const signed char* kernel = (const signed char *)_kernel + p*9;
         
