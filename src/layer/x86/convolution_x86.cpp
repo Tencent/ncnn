@@ -245,57 +245,10 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }  // kernel_size = 7        
     };
 
-    typedef void (*conv_int8_func)(const Mat&, Mat&, const Mat&, const Option&);
     typedef void (*conv_int8_dequant_func)(const Mat&, Mat&, const Mat&, const Mat&, std::vector<float>, const Option&);
     typedef void (*conv_int8_requant_func)(const Mat&, Mat&, const Mat&, const Mat&, std::vector<float>, const Option&);
 
     // kernel_size x stride
-    conv_int8_func conv_int8_func_table[7][4] =
-    {
-        {
-            conv1x1s1_int8_sse,
-            conv1x1s2_int8_sse,
-            0,
-            0
-        }, // kernel_size = 1
-        {
-            0,
-            0,
-            0,
-            0
-        }, // kernel_size = 2
-        {
-            conv3x3s1_int8_sse,
-            conv3x3s2_int8_sse,
-            0,
-            0,
-        }, // kernel_size = 3
-        {
-            0,
-            0,
-            0,
-            0
-        }, // kernel_size = 4
-        {        
-            conv5x5s1_int8_sse,
-            conv5x5s2_int8_sse,    
-            0,
-            0
-        }, // kernel_size = 5
-        {
-            0,
-            0,
-            0,
-            0
-        }, // kernel_size = 6
-        {
-            conv7x7s1_int8_sse,          
-            conv7x7s2_int8_sse, 
-            0,
-            0
-        }  // kernel_size = 7
-    };
-
     conv_int8_dequant_func conv_int8_dequant_func_table[7][4] =
     {
         {
@@ -389,7 +342,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     };    
 
     conv_func conv = 0;
-    conv_int8_func conv_int8 = 0;
     conv_int8_dequant_func conv_int8_dequant = 0;
     conv_int8_requant_func conv_int8_requant = 0;
 

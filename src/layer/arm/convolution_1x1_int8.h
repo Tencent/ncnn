@@ -16,8 +16,6 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
-#include <math.h>
-
 static inline signed char float2int8(float v)
 {
     int int32 = round(v);
