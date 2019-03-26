@@ -563,3 +563,47 @@ static void conv3x3s2_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Mat 
         }
     }
 }
+
+static void conv3x3s1_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
+{
+    int kernel_w = 3;
+    int kernel_h = 3;
+
+    int stride_w = 1;
+    int stride_h = 1;
+
+    conv_im2col_sgemm_int8_dequant_sse(bottom_blob, top_blob, _kernel, kernel_w, kernel_h, stride_w, stride_h, _bias, scales_dequant, opt);
+}
+
+static void conv3x3s2_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
+{
+    int kernel_w = 3;
+    int kernel_h = 3;
+
+    int stride_w = 2;
+    int stride_h = 2;
+
+    conv_im2col_sgemm_int8_dequant_sse(bottom_blob, top_blob, _kernel, kernel_w, kernel_h, stride_w, stride_h, _bias, scales_dequant, opt);
+}
+
+static void conv3x3s1_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+{
+    int kernel_w = 3;
+    int kernel_h = 3;
+
+    int stride_w = 1;
+    int stride_h = 1;
+
+    conv_im2col_sgemm_int8_requant_sse(bottom_blob, top_blob, _kernel, kernel_w, kernel_h, stride_w, stride_h, _bias, scales_requant, opt);
+}
+
+static void conv3x3s2_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+{
+    int kernel_w = 3;
+    int kernel_h = 3;
+
+    int stride_w = 2;
+    int stride_h = 2;
+
+    conv_im2col_sgemm_int8_requant_sse(bottom_blob, top_blob, _kernel, kernel_w, kernel_h, stride_w, stride_h, _bias, scales_requant, opt);
+}

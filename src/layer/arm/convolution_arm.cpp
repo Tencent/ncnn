@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "convolution_arm.h"
+#include "benchmark.h"
 
 namespace ncnn {
 
@@ -87,6 +88,7 @@ int Convolution_arm::load_model(const ModelBin& mb)
         {
             int kernel_size = kernel_w * kernel_h;
             int num_input = weight_data_size / kernel_size / num_output;
+
             conv_im2col_sgemm_transform_kernel_int8_neon(weight_data, weight_sgemm_int8_data, num_input, num_output, kernel_size);
         }
         
@@ -390,7 +392,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             quantize->forward(bottom_blob, bottom_blob_int8, opt_g);
         }       
 
-        bottom_blob_unbordered = bottom_blob_int8;       
+        bottom_blob_unbordered = bottom_blob_int8;             
     }
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
@@ -436,8 +438,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 return -100; 
 
             if (use_sgemm1x1)
-            {
-                conv1x1s1_sgemm_int8_neon(bottom_blob_bordered, top_blob_tm, weight_1x1s1_sgemm_int8_data, opt);
+            {              
+                conv1x1s1_sgemm_int8_requant_neon(bottom_blob_bordered, top_blob, weight_1x1s1_sgemm_int8_data, bias_data, requantize_scales, opt);
+                
+                return 0;
             }
             else if (use_winograd3x3)
             {
@@ -449,7 +453,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
             else
             {
-                conv_int8(bottom_blob_bordered, top_blob_tm, weight_sgemm_int8_data, opt);
+                conv_int8(bottom_blob_bordered, top_blob_tm, weight_sgemm_int8_data, opt);     
             }
 
             // requantize, reverse scale inplace
@@ -463,7 +467,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 requantize_ops[p]->forward(top_blob_tm_g, top_blob_g, opt_g);
-            }
+            }                     
         }
         else
         {
@@ -486,7 +490,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             else
             {
                 conv_int8(bottom_blob_bordered, top_blob, weight_sgemm_int8_data, opt);
-            }
+            }        
 
             // dequantize, reverse scale inplace
             #pragma omp parallel for num_threads(opt.num_threads)
