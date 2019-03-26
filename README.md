@@ -40,6 +40,8 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * [Build for iOS on Linux with cctools-port](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-ios-on-linux-with-cctools-port)
 * [Build for Hisilicon platform with cross-compiling](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-hisilicon-platform-with-cross-compiling)
 
+**[download prebuild binary package for android and ios](https://github.com/Tencent/ncnn/releases)**
+
 **[how to use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/how-to-use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
 
 **[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/ncnn-%E7%BB%84%E4%BB%B6%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8C%97-alexnet) 附带详细步骤，新人强烈推荐 :)**
@@ -60,6 +62,8 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 **[ncnn produce wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)**
 
+**[ncnn vulkan](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-vulkan)**
+
 ---
 
 ### Features
@@ -70,7 +74,8 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * ARM NEON assembly level of careful optimization, calculation speed is extremely high
 * Sophisticated memory management and data structure design, very low memory footprint
 * Supports multi-core parallel computing acceleration, ARM big.LITTLE cpu scheduling optimization
-* The overall library size is less than 500K, and can be easily reduced to less than 300K
+* Supports GPU acceleration via the next-generation low-overhead vulkan api
+* The overall library size is less than 700K, and can be easily reduced to less than 300K
 * Extensible model design, supports 8bit quantization and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx models
 * Support direct memory zero copy reference load network model
 * Can be registered with custom layer implementation and extended
@@ -84,11 +89,35 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * ARM NEON 汇编级良心优化，计算速度极快
 * 精细的内存管理和数据结构设计，内存占用极低
 * 支持多核并行计算加速，ARM big.LITTLE cpu 调度优化
-* 整体库体积小于 500K，并可轻松精简到小于 300K
+* 支持基于全新低消耗的 vulkan api GPU 加速
+* 整体库体积小于 700K，并可轻松精简到小于 300K
 * 可扩展的模型设计，支持 8bit 量化和半精度浮点存储，可导入 caffe/pytorch/mxnet/onnx 模型
 * 支持直接内存零拷贝引用加载网络模型
 * 可注册自定义层实现并扩展
 * 恩，很强就是了，不怕被塞卷 QvQ
+
+---
+### supported platform matrix
+
+* YY = known work and runs fast with good optimization
+* Y = known work, but speed may not be fast enough
+* ? = shall work, not confirmed
+* / = not applied
+
+|    |Windows|Linux|Android|MacOS|iOS|
+|---|---|---|---|---|---|
+|intel-cpu|Y|Y|?|Y|/|
+|intel-gpu|Y|Y|?|?|/|
+|amd-cpu|Y|Y|?|Y|/|
+|amd-gpu|Y|Y|?|?|/|
+|nvidia-gpu|Y|Y|?|?|/|
+|qcom-cpu|?|Y|YY|/|/|
+|qcom-gpu|?|Y|Y|/|/|
+|arm-cpu|?|?|YY|/|/|
+|arm-gpu|?|?|Y|/|/|
+|apple-cpu|/|/|/|/|YY|
+|apple-gpu|/|/|/|/|Y|
+
 
 ---
 
@@ -98,7 +127,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * https://github.com/chehongshu/ncnnforandroid_objectiondetection_Mobilenetssd
 * https://github.com/moli232777144/mtcnn_ncnn
 
-![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-1.jpg)
+![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-2.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-23.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png)
 

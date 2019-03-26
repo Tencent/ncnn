@@ -482,6 +482,26 @@ int main(int argc, char** argv)
             continue;
 
         fprintf(pp, "%-16s %-24s 0 1 %s\n", "Input", input_name.c_str(), input_name.c_str());
+
+        // split the input
+        if (node_reference.find(input_name) == node_reference.end()){
+            continue;
+        }
+
+        int refcount = node_reference[input_name];
+        if (refcount <= 1){
+            continue;
+        }
+
+        char splitname[256];
+        sprintf(splitname, "splitncnn_input%d", j);
+        fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
+        fprintf(pp, " %s", input_name.c_str());
+
+        for (int k=0; k<refcount; k++){
+            fprintf(pp, " %s_splitncnn_%d", input_name.c_str(), k);
+        }
+        fprintf(pp, "\n");
     }
 
     // place MemoryData next
@@ -547,13 +567,13 @@ int main(int argc, char** argv)
 
 //             fprintf(stderr, "  input = %s\n", input_name.c_str());
         }
-
+        /*
         for (int j=0; j<(int)node.output_size(); j++)
         {
             const std::string& output_name = node.output(j);
-
-//             fprintf(stderr, "  output = %s\n", output_name.c_str());
-        }
+            fprintf(stderr, "  output = %s\n", output_name.c_str());
+        } 
+        */
 
         if (op == "Abs")
         {
@@ -1562,8 +1582,15 @@ int main(int argc, char** argv)
             else
             {
                 const onnx::TensorProto& scales_tp = weights[node.input(1)];
-                const float* shape_data = scales_tp.float_data().data();
-                for (int j=0; j<scales_tp.float_data_size(); j++)
+                const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
+                
+                int float_data_size = scales_tp.float_data_size();
+                //float data is None, use raw data instead
+                if (float_data_size == 0) {
+                    float_data_size = scales_tp.dims().Get(0);
+                }
+
+                for (int j=0; j<float_data_size; j++)
                 {
                     scales.push_back(shape_data[j]);
                 }
@@ -1574,7 +1601,7 @@ int main(int argc, char** argv)
             {
                 resize_type = 1;
             }
-            else if (mode == "bilinear")
+            else if (mode == "bilinear" || mode == "linear")
             {
                 resize_type = 2;
             }
@@ -1623,7 +1650,7 @@ int main(int argc, char** argv)
                 }
                 else if (attr.type() == 2)
                 {
-                    fprintf(stderr, "  # %s=%d\n", attr.name().c_str(), attr.i());
+                    fprintf(stderr, "  # %s=%ld\n", attr.name().c_str(), attr.i());
                 }
                 else if (attr.type() == 3)
                 {
