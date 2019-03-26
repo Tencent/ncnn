@@ -36,3 +36,13 @@
 *.exe
 *.out
 *.app
+
+/benchmark/*
+/CMakeFiles/*
+/tools/*
+
+*.txt
+*.cmake
+*.h
+*.bat
+Makefile
