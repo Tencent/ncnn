@@ -119,8 +119,6 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
     const int size = w * h;
 
-    // double start = ncnn::get_current_time();
-
     // bottom_tm memory packed 4 x 4
     ncnn::Mat bottom_tm(4, inch, size/4 + size%4, (size_t)1u, opt.workspace_allocator);
     {
@@ -187,10 +185,6 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
             }
         }
     }
-
-    // double end = ncnn::get_current_time();
-    // printf("d_pack     : %8.3f ms\n", end - start);
-    // start = ncnn::get_current_time();
 
     // sgemm process
     int nn_outch = 0;
@@ -698,10 +692,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
             outptr0++;
         }
-    }       
-
-    // end = ncnn::get_current_time();
-    // printf("sgemm      : %8.3f ms\n", end - start);    
+    }        
 }
 
 
@@ -713,10 +704,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
     int outch = top_blob.c;
 
     const int size = w * h;
-
     const float* bias = _bias;
-
-    // double start = ncnn::get_current_time();
 
     // bottom_tm memory packed 4 x 4
     ncnn::Mat bottom_tm(4, inch, size/4 + size%4, (size_t)1u, opt.workspace_allocator);
@@ -784,10 +772,6 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
             }
         }
     }
-
-    // double end = ncnn::get_current_time();
-    // printf("d_pack     : %8.3f ms\n", end - start);
-    // start = ncnn::get_current_time();
 
     // sgemm process
     int nn_outch = 0;
@@ -1412,9 +1396,6 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
             outptr0++;
         }
     }
-
-    // end = ncnn::get_current_time();
-    // printf("sgemm      : %8.3f ms\n", end - start);    
 }
 
 #else
@@ -2570,7 +2551,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "vmlal.s16   q10, d10, d3[2]   \n"// sum2 += (a30-a37) * k23
                 "vmlal.s16   q11, d11, d3[2]   \n"
                 "vmlal.s16   q12, d10, d3[3]   \n"// sum3 += (a30-a37) * k33
-                "vmlal.s16   q13, d11, d3[3]   \n"                  
+                "vmlal.s16   q13, d11, d3[3]   \n"
 
                 "subs        r4, r4, #1        \n"
                 "bne         0b                \n"// end for
@@ -2609,20 +2590,20 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
                 // sum0
                 // top_s32 -> top_f32
-                "vcvt.f32.s32 q6, q6            \n" 
+                "vcvt.f32.s32 q6, q6            \n"
                 "vcvt.f32.s32 q7, q7            \n"
-                "vcvt.f32.s32 q8, q8            \n" 
-                "vcvt.f32.s32 q9, q9            \n"                
+                "vcvt.f32.s32 q8, q8            \n"
+                "vcvt.f32.s32 q9, q9            \n"
                 // top_f32 = top_f32 * scale_int
                 "vmul.f32   q6, q6, %e17[0]     \n"
                 "vmul.f32   q7, q7, %e17[0]     \n"
                 "vmul.f32   q8, q8, %e17[1]     \n"
-                "vmul.f32   q9, q9, %e17[1]     \n"                
+                "vmul.f32   q9, q9, %e17[1]     \n"
                 // top_f32 = top_f32 + bias
                 "vadd.f32   q6, q6, q14         \n"
                 "vadd.f32   q7, q7, q14         \n"
                 "vadd.f32   q8, q8, q15         \n"
-                "vadd.f32   q9, q9, q15         \n"                
+                "vadd.f32   q9, q9, q15         \n"
                 // top_f32 = top_f32 * scale_out
                 "vmul.f32   q0, q6, %e18[0]     \n"
                 "vmul.f32   q1, q7, %e18[0]     \n"
@@ -2665,20 +2646,20 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
                 // sum2
                 // top_s32 -> top_f32
-                "vcvt.f32.s32 q10, q10          \n" 
+                "vcvt.f32.s32 q10, q10          \n"
                 "vcvt.f32.s32 q11, q11          \n"
-                "vcvt.f32.s32 q12, q12          \n" 
-                "vcvt.f32.s32 q13, q13          \n"                
+                "vcvt.f32.s32 q12, q12          \n"
+                "vcvt.f32.s32 q13, q13          \n"
                 // top_f32 = top_f32 * scale_int
                 "vmul.f32   q10, q10, %f17[0]   \n"
                 "vmul.f32   q11, q11, %f17[0]   \n"
                 "vmul.f32   q12, q12, %f17[1]   \n"
-                "vmul.f32   q13, q13, %f17[1]   \n"                
+                "vmul.f32   q13, q13, %f17[1]   \n"
                 // top_f32 = top_f32 + bias
                 "vadd.f32   q10, q10, q4        \n"
                 "vadd.f32   q11, q11, q4        \n"
                 "vadd.f32   q12, q12, q5        \n"
-                "vadd.f32   q13, q13, q5        \n"                
+                "vadd.f32   q13, q13, q5        \n"
                 // top_f32 = top_f32 * scale_out
                 "vmul.f32   q0, q10, %f18[0]    \n"
                 "vmul.f32   q1, q11, %f18[0]    \n"
@@ -2943,20 +2924,20 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
                 // sum0-1
                 // top_s32 -> top_f32
-                "vcvt.f32.s32 q6, q6            \n" 
+                "vcvt.f32.s32 q6, q6            \n"
                 "vcvt.f32.s32 q7, q7            \n"
-                "vcvt.f32.s32 q8, q8            \n" 
-                "vcvt.f32.s32 q9, q9            \n"                
+                "vcvt.f32.s32 q8, q8            \n"
+                "vcvt.f32.s32 q9, q9            \n"
                 // top_f32 = top_f32 * scale_int
                 "vmul.f32   q6, q6, %e17[0]     \n"
                 "vmul.f32   q7, q7, %e17[1]     \n"
                 "vmul.f32   q8, q8, %f17[0]     \n"
-                "vmul.f32   q9, q9, %f17[1]     \n"                
+                "vmul.f32   q9, q9, %f17[1]     \n"
                 // top_f32 = top_f32 + bias
                 "vadd.f32   q6, q6, q14         \n"
                 "vadd.f32   q7, q7, q15         \n"
                 "vadd.f32   q8, q8, q4          \n"
-                "vadd.f32   q9, q9, q5          \n"                
+                "vadd.f32   q9, q9, q5          \n"
                 // top_f32 = top_f32 * scale_out
                 "vmul.f32   q0, q6, %e18[0]     \n"
                 "vmul.f32   q1, q7, %e18[1]     \n"
@@ -3159,11 +3140,11 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "3:                            \n"// store the result to memory
 
                 // top_s32 -> top_f32
-                "vcvt.f32.s32 q10, q10         \n"                
+                "vcvt.f32.s32 q10, q10         \n"
                 // top_f32 = top_f32 * scale_int
-                "vmul.f32   q10, q10, %q14     \n"               
+                "vmul.f32   q10, q10, %q14     \n"
                 // top_f32 = top_f32 + bias
-                "vadd.f32   q10, q10, %q13     \n"               
+                "vadd.f32   q10, q10, %q13     \n"
                 // top_f32 = top_f32 * scale_out
                 "vmul.f32   q0, q10, %q15      \n"
                 // top_f32 -> top_s32

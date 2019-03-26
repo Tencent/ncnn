@@ -530,14 +530,10 @@ int main(int argc, char** argv)
 
     benchmark("mobilenet_v2", mobilenet_v2_init, mobilenet_v2_run);
 
-<<<<<<< HEAD
-    benchmark("mobilenet_v2-int8", mobilenet_v2_int8_init, mobilenet_v2_run);
-=======
 // #if NCNN_VULKAN
 //     if (!g_use_vulkan_compute)
 // #endif // NCNN_VULKAN
 //     benchmark("mobilenet_v2-int8", mobilenet_v2_int8_init, mobilenet_v2_run);
->>>>>>> upstream/master
 
     benchmark("shufflenet", shufflenet_init, shufflenet_run);
 
