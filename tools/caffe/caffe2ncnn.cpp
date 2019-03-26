@@ -789,7 +789,27 @@ int main(int argc, char** argv)
         {
             const caffe::CropParameter& crop_param = layer.crop_param();
             int num_offset = crop_param.offset_size();
-            if (num_offset == 2)
+            if (num_offset == 1)
+            {
+                int offset = crop_param.offset(0);
+                int axis = crop_param.axis();
+                if (axis == 1)
+                {
+                    fprintf(pp, " 0=%d", offset);
+                    fprintf(pp, " 1=%d", offset);
+                    fprintf(pp, " 2=%d", offset);
+                }
+                else if (axis == 2)
+                {
+                    fprintf(pp, " 0=%d", offset);
+                    fprintf(pp, " 1=%d", offset);
+                }
+                else if (axis == 3)
+                {
+                    fprintf(pp, " 0=%d", offset);
+                }
+            }
+            else if (num_offset == 2)
             {
                 int woffset = crop_param.offset(1);
                 int hoffset = crop_param.offset(0);

@@ -737,6 +737,16 @@ VkTransfer::~VkTransfer()
 
 void VkTransfer::record_upload(const Mat& src, VkMat& dst)
 {
+    if (vkdev->info.support_fp16_storage && src.elemsize / src.packing == 4)
+    {
+        Mat src_fp16;
+        cast_float32_to_float16(src, src_fp16);
+
+        record_upload(src_fp16, dst);
+
+        return;
+    }
+
     dst.create_like(src, weight_vkallocator, staging_vkallocator);
 
     // set weight blob as readonly

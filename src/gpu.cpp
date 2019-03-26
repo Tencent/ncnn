@@ -874,28 +874,15 @@ VulkanDevice::~VulkanDevice()
     vkDestroyDevice(device, 0);
 }
 
-VkShaderModule VulkanDevice::get_shader_module(const char* _name) const
+VkShaderModule VulkanDevice::get_shader_module(const char* name) const
 {
-    std::string name = _name;
-
-//     if (info.support_fp16_arithmetic)
-//     {
-//         name += "_fp16a";
-//     }
-//     else if (info.support_fp16_storage)
-//     {
-//         name += "_fp16s";
-//     }
-//
-//     fprintf(stderr, "get_shader_module %s\n", name.c_str());
-
     for (int i=0; i<layer_shader_registry_entry_count; i++)
     {
-        if (strcmp(layer_shader_registry[i].name, name.c_str()) == 0)
+        if (strcmp(layer_shader_registry[i].name, name) == 0)
             return shader_modules[i];
     }
 
-    fprintf(stderr, "no such shader module %s\n", name.c_str());
+    fprintf(stderr, "no such shader module %s\n", name);
     return 0;
 }
 
@@ -909,12 +896,50 @@ VkAllocator* VulkanDevice::staging_allocator() const
     return staging_buffer_allocator;
 }
 
+static inline bool string_ends_with_fp16s(const char* name)
+{
+    int len = strlen(name);
+    if (len < 6)
+        return false;
+
+    return memcmp(name + len - 6, "_fp16s", 6) == 0;
+}
+
+static inline bool string_ends_with_fp16a(const char* name)
+{
+    int len = strlen(name);
+    if (len < 6)
+        return false;
+
+    return memcmp(name + len - 6, "_fp16a", 6) == 0;
+}
+
 int VulkanDevice::create_shader_module()
 {
     shader_modules.resize(layer_shader_registry_entry_count, VK_NULL_HANDLE);
 
     for (int i=0; i<layer_shader_registry_entry_count; i++)
     {
+        const char* shader_name = layer_shader_registry[i].name;
+
+        if (!info.support_fp16_storage)
+        {
+            if (string_ends_with_fp16s(shader_name))
+                continue;
+            
+            if (strcmp(shader_name, "cast_fp16_to_fp32") == 0 || strcmp(shader_name, "cast_fp16_to_fp32_pack4") == 0)
+                continue;
+
+            if (strcmp(shader_name, "cast_fp32_to_fp16") == 0 || strcmp(shader_name, "cast_fp32_to_fp16_pack4") == 0)
+                continue;
+        }
+
+        if (!info.support_fp16_arithmetic)
+        {
+            if (string_ends_with_fp16a(layer_shader_registry[i].name))
+                continue;
+        }
+
         VkShaderModuleCreateInfo shaderModuleCreateInfo;
         shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         shaderModuleCreateInfo.pNext = 0;

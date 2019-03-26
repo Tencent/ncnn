@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -63,7 +66,7 @@ void main()
 
     if (bias_term == 1)
     {
-        sum = bias_data[gz];
+        sum = afpvec4(bias_data[gz]);
     }
     else
     {
@@ -100,9 +103,9 @@ void main()
 
             for (int z = 0; z < p.c; z++)
             {
-                afp v = bottom_blob_data[v_offset];
+                afp v = afp(bottom_blob_data[v_offset]);
 
-                afpvec4 k = weight_data[w_offset];
+                afpvec4 k = afpvec4(weight_data[w_offset]);
 
                 sum += v * k;
 

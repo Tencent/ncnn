@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -62,7 +65,7 @@ void main()
 
     const int gi = gz * p.outcstep + gy * p.outw + gx;
 
-    afp v1 = a_blob_data[gi];
+    afp v1 = afp(a_blob_data[gi]);
 
     afp res;
 
@@ -87,7 +90,7 @@ void main()
 
     if (p.adims == p.bdims)
     {
-        afp v2 = b_blob_data[gi];
+        afp v2 = afp(b_blob_data[gi]);
 
         if (op_type == 0) res = v1 + v2;
         if (op_type == 1) res = v1 - v2;

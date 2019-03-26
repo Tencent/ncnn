@@ -14,7 +14,10 @@
 
 #version 450
 
-#if NCNN_fp16_storage || NCNN_fp16_arithmetic
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
@@ -54,8 +57,6 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    afp res;
-
     if (resize_type == 1) // nearest
     {
         afpvec2 gxy = afpvec2(gx, gy);
@@ -67,7 +68,7 @@ void main()
 
         int v_offset = gz * p.cstep + sy * p.w + sx;
 
-        res = bottom_blob_data[v_offset];
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
     }
     else if (resize_type == 2) // bilinear
     {
@@ -94,17 +95,15 @@ void main()
         int v_offset_0 = gz * p.cstep + sy * p.w + sx;
         int v_offset_1 = gz * p.cstep + (sy + 1) * p.w + sx;
 
-        afp a0 = bottom_blob_data[v_offset_0];
-        afp a1 = bottom_blob_data[v_offset_0 + 1];
-        afp b0 = bottom_blob_data[v_offset_1];
-        afp b1 = bottom_blob_data[v_offset_1 + 1];
+        afp a0 = afp(bottom_blob_data[v_offset_0]);
+        afp a1 = afp(bottom_blob_data[v_offset_0 + 1]);
+        afp b0 = afp(bottom_blob_data[v_offset_1]);
+        afp b1 = afp(bottom_blob_data[v_offset_1 + 1]);
 
         afp fx = fxy.r;
         afp fy = fxy.g;
 
         afpvec2 ab = afpvec2(a0, b0) * (afp(1.f) - fx) + afpvec2(a1, b1) * fx;
-        res = ab.r * (afp(1.f) - fy) + ab.g * fy;
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(ab.r * (afp(1.f) - fy) + ab.g * fy);
     }
-
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(res);
 }

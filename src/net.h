@@ -152,6 +152,8 @@ protected:
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
 
+    ncnn::Layer* cast_float32_to_float16;
+    ncnn::Layer* cast_float16_to_float32;
     ncnn::Layer* packing_pack1;
     ncnn::Layer* packing_pack4;
 #endif // NCNN_VULKAN
