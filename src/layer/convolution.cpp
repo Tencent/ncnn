@@ -126,7 +126,8 @@ int Convolution::load_model(const ModelBin& mb)
 
     if (int8_scale_term)
     {
-        weight_data_int8_scales = mb.load(num_output, 1);
+        //weight_data_int8_scales = mb.load(num_output, 1);
+		weight_data_int8_scales = mb.load(1, 1);
         bottom_blob_int8_scale = mb.load(1, 1)[0];
     }
 
@@ -162,7 +163,8 @@ int Convolution::load_model(const ModelBin& mb)
             Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
 
             ncnn::ParamDict pd;
-            pd.set(0, weight_data_int8_scales[n]);// scale
+            //pd.set(0, weight_data_int8_scales[n]);// scale
+            pd.set(0, weight_data_int8_scales[0]);// scale
 
             op->load_param(pd);
 
@@ -197,10 +199,15 @@ int Convolution::load_model(const ModelBin& mb)
 
             float top_rescale = 1.f;
 
-            if (weight_data_int8_scales[n] == 0)
-                top_rescale = 0;
-            else
-                top_rescale = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[n]);
+            //if (weight_data_int8_scales[n] == 0)
+                //top_rescale = 0;
+            //else
+                //top_rescale = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[n]);
+            
+            if (weight_data_int8_scales[0] == 0)
+				top_rescale = 0;
+			else
+				top_rescale = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[0]);
 
             ncnn::ParamDict pd;
             pd.set(0, top_rescale);// scale
@@ -234,15 +241,24 @@ int Convolution::create_requantize_op(void)
 
         float scale_in = 1.f;
         float scale_out = 1.f;
+        
+        //if (weight_data_int8_scales[n] == 0)
+        //{
+        //    scale_in = 0;
+        //}
+        //else
+        //{
+        //    scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[n]);
+        //}
 
-        if (weight_data_int8_scales[n] == 0)
-        {
-            scale_in = 0;
-        }
-        else
-        {
-            scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[n]);
-        }
+		if (weight_data_int8_scales[0] == 0)
+		{
+			scale_in = 0;
+		}
+		else
+		{
+			scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[0]);
+		}
 
         scale_out = top_blob_int8_scale;
 
