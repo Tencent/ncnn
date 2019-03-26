@@ -222,7 +222,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
             top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
             if (top_blob_tm.empty())
                 return -100;
-            
+  
             top_blob.create(outw, outh, num_output, (size_t)1u, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
@@ -233,28 +233,15 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
                 {
                     if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
-                    {
+                    {                  
                         if (stride_w == 1 && stride_h == 1)
                         {
-                            convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob_tm, weight_data, opt);
+                            convdw3x3s1_int8_requant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
                         }
                         else if (stride_w == 2 && stride_h == 2)
                         {
-                            convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob_tm, weight_data, opt);
-                        }
-
-                        // requantize, reverse scale inplace
-                        #pragma omp parallel for num_threads(opt.num_threads)
-                        for (int g=0; g<group; g++)
-                        {
-                            ncnn::Option opt_g = opt;
-                            opt_g.num_threads = 1;
-                            opt_g.blob_allocator = top_blob.allocator;
-
-                            Mat top_blob_tm_g = top_blob_tm.channel_range(g, 1);
-                            Mat top_blob_g = top_blob.channel_range(g, 1);
-                            requantize_ops[g]->forward(top_blob_tm_g, top_blob_g, opt_g);
-                        }
+                            convdw3x3s2_int8_requant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
+                        }                   
 
                         return 0;
                     }
@@ -301,7 +288,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         {
             top_blob.create(outw, outh, num_output, (size_t)4u, opt.blob_allocator);
             if (top_blob.empty())
-                return -100;
+                return -100;               
 
             // depth-wise
             if (channels == group && group == num_output)
@@ -329,7 +316,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                             Mat top_blob_g = top_blob.channel(g);
                             dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
-                        } 
+                        }
 
                         return 0;
                     }

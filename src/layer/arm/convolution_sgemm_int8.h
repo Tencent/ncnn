@@ -12,6 +12,691 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if __aarch64__
+static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_size)
+{
+    const signed char* kernel = _kernel;
+
+    // kernel memory packed 4 x 4
+    kernel_tm.create(4*kernel_size, inch, outch/4 + outch%4, (size_t)1u);
+
+    int nn_outch = 0;
+    int remain_outch_start = 0;
+
+    nn_outch = outch >> 2;
+    remain_outch_start = nn_outch << 2;
+    
+    for (int pp=0; pp<nn_outch; pp++)
+    {
+        int p = pp * 4;
+
+        const signed char* k0 = kernel + (p+0)*inch*kernel_size;
+        const signed char* k1 = kernel + (p+1)*inch*kernel_size;
+        const signed char* k2 = kernel + (p+2)*inch*kernel_size;
+        const signed char* k3 = kernel + (p+3)*inch*kernel_size;
+
+        signed char* ktmp = kernel_tm.channel(p/4);
+
+        int q=0;
+        for (; q+1<inch*kernel_size; q+=2)
+        {
+            ktmp[0] = k0[0];
+            ktmp[1] = k0[1];
+            ktmp[2] = k1[0];
+            ktmp[3] = k1[1];
+            ktmp[4] = k2[0];
+            ktmp[5] = k2[1];
+            ktmp[6] = k3[0];
+            ktmp[7] = k3[1];
+
+            ktmp += 8;
+
+            k0 += 2;
+            k1 += 2;
+            k2 += 2;
+            k3 += 2;
+        }
+
+        for (; q<inch*kernel_size; q++)
+        { 
+            ktmp[0] = k0[0];
+            ktmp[1] = k1[0];
+            ktmp[2] = k2[0];
+            ktmp[3] = k3[0];
+            ktmp += 4;
+
+            k0 += 1;
+            k1 += 1;
+            k2 += 1;
+            k3 += 1;
+        }           
+    }
+
+    for (int p=remain_outch_start; p<outch; p++)
+    {
+        const signed char* k0 = kernel + (p+0)*inch*kernel_size;
+
+        signed char* ktmp = kernel_tm.channel(p/4 + p%4);
+
+        int q=0;
+        for (; q+1<inch*kernel_size; q=q+2)
+        {
+            ktmp[0] = k0[0];
+            ktmp[1] = k0[1];
+            ktmp += 2;
+            k0 += 2;
+        }
+
+        for (; q<inch*kernel_size; q++)
+        {
+            ktmp[0] = k0[0];
+            ktmp++;
+            k0++;
+        }
+    }
+}
+
+static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &kernel_tm, \
+            const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Option& opt)
+{
+    int w = bottom_blob.w;
+    int inch = bottom_blob.c;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    // im2row
+    Mat bottom_im2row(kernel_h*kernel_w*inch, outw*outh, 1UL, opt.workspace_allocator);
+    {
+        int out_stride = kernel_h*kernel_w*inch*outw;
+        signed char* ret = (signed char*)bottom_im2row;
+    
+        // #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i=0; i<outh; i++)
+        {
+            int retID = out_stride * i;
+            for (int j=0; j<outw; j++)
+            {
+                for (int p=0; p<inch; p++)
+                {
+                    const signed char* input = bottom_blob.channel(p);
+
+                    for (int u=0; u<kernel_h; u++)
+                    {
+                        for (int v=0; v<kernel_w; v++)
+                        {    
+                            int row = u + i * stride_h;
+                            int col = v + j * stride_w;
+                            int index = row * w + col;
+                            ret[retID] = input[index];
+                            retID++;
+                        }
+                    }
+                }
+            }
+        }
+    }    
+
+    int kernel_size = kernel_w * kernel_h;
+    int out_size = outw * outh;
+
+    // int M = outch;  // outch
+    int N = outw * outh; // outsize or out stride
+    int K = kernel_w * kernel_h * inch; // ksize * inch
+
+    // bottom_im2row memory packed 4 x 4
+    Mat bottom_tm(4*kernel_size, inch, out_size/4 + out_size%4, (size_t)1u, opt.workspace_allocator);
+    {
+        int nn_size = out_size >> 2;
+        int remain_size_start = nn_size << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii=0; ii<nn_size; ii++)
+        {
+            int i = ii * 4;
+
+            const signed char* img0 = bottom_im2row.row<signed char>(i);
+            const signed char* img1 = bottom_im2row.row<signed char>(i+1);
+            const signed char* img2 = bottom_im2row.row<signed char>(i+2);
+            const signed char* img3 = bottom_im2row.row<signed char>(i+3);
+
+            signed char* tmpptr = bottom_tm.channel(i/4);
+
+            int q = 0;
+            for (; q+1<inch*kernel_size; q=q+2)
+            {
+                tmpptr[0] = img0[0];
+                tmpptr[1] = img0[1];
+                tmpptr[2] = img1[0];
+                tmpptr[3] = img1[1];
+                tmpptr[4] = img2[0];
+                tmpptr[5] = img2[1];
+                tmpptr[6] = img3[0];
+                tmpptr[7] = img3[1];
+
+                tmpptr += 8;
+                img0 += 2;
+                img1 += 2;
+                img2 += 2;
+                img3 += 2;
+            }
+
+            for (; q<inch*kernel_size; q++)
+            {
+                tmpptr[0] = img0[0];
+                tmpptr[1] = img1[0];
+                tmpptr[2] = img2[0];
+                tmpptr[3] = img3[0];
+
+                tmpptr += 4;
+                img0 += 1;
+                img1 += 1;
+                img2 += 1;
+                img3 += 1;                
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i=remain_size_start; i<out_size; i++)
+        {
+            const signed char* img0 = bottom_im2row.row<signed char>(i);
+
+            signed char* tmpptr = bottom_tm.channel(i/4 + i%4);
+
+            int q=0;
+            for (; q+1<inch*kernel_size; q=q+2)
+            {
+                tmpptr[0] = img0[0];
+                tmpptr[1] = img0[1];
+
+                tmpptr += 2;
+                img0 += 2;
+            }
+
+            for (; q<inch*kernel_size; q++)
+            {
+                tmpptr[0] = img0[0];
+
+                tmpptr += 1;
+                img0 += 1;
+            }
+        }       
+    }
+
+    // 4x4
+    // sgemm(int M, int N, int K, float* A, float* B, float* C)
+    {
+        // int M = outch;  // outch
+        // int N = outw * outh; // outsize or out stride
+        // int L = kernel_w * kernel_h * inch; // ksize * inch
+
+        int nn_outch = 0;
+        int remain_outch_start = 0;
+
+        nn_outch = outch >> 2;
+        remain_outch_start = nn_outch << 2;
+        
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp=0; pp<nn_outch; pp++)
+        {
+            int i = pp * 4;
+
+            int* output0 = top_blob.channel(i);
+            int* output1 = top_blob.channel(i+1);
+            int* output2 = top_blob.channel(i+2);
+            int* output3 = top_blob.channel(i+3);
+
+            int j=0;
+            for (; j+3<N; j=j+4)
+            {
+                const signed char* vb = bottom_tm.channel(j/4);
+                const signed char* va = kernel_tm.channel(i/4);
+                
+#if __ARM_NEON
+                asm volatile(
+                    "prfm   pldl1keep, [%4, #128]        \n"
+                    "prfm   pldl1keep, [%5, #128]        \n"
+                    "eor    v16.16b, v16.16b, v16.16b    \n" // sum0
+                    "eor    v17.16b, v17.16b, v17.16b    \n" // sum1
+                    "eor    v18.16b, v18.16b, v18.16b    \n" // sum2
+                    "eor    v19.16b, v19.16b, v19.16b    \n" // sum3
+
+                    "lsr    w4, %w12, #2                 \n"// r4 = nn = L >> 2
+                    "cmp    w4, #0                       \n"
+                    "beq    1f                           \n"
+
+                    "0:                                  \n"// for (; k+3<L; k=k+4)
+                    "ld1    {v0.16b}, [%4]               \n"// i0, i1, i2, i3
+                    "ld1    {v4.16b}, [%5]               \n"// k0, k1, k2, k3
+                    "add    %4, %4, #16                  \n"
+                    "add    %5, %5, #16                  \n"
+
+                    "rev32    v1.8h, v0.8h               \n"// i1, i0, i3, i2
+                    "rev64    v2.4s, v0.4s               \n"// i2, i3, i0, i1
+                    "rev64    v3.8h, v0.8h               \n"// i3, i2, i1, i0
+
+                    "smull	  v8.8h, v4.8b, v0.8b        \n"
+                    "smull	  v9.8h, v4.8b, v1.8b        \n"
+                    "smull	  v10.8h, v4.8b, v2.8b       \n"
+                    "smull	  v11.8h, v4.8b, v3.8b       \n"
+
+                    "prfm     pldl1keep, [%4, #128]      \n"
+                    "prfm     pldl1keep, [%5, #128]      \n"
+
+                    "smlal2	  v8.8h, v4.16b, v0.16b      \n"
+                    "smlal2	  v9.8h, v4.16b, v1.16b      \n"
+                    "smlal2	  v10.8h, v4.16b, v2.16b     \n"
+                    "smlal2	  v11.8h, v4.16b, v3.16b     \n"
+
+                    "sadalp	  v16.4s, v8.8h              \n"// i0k0, i1k1, i2k2, i3k3
+                    "sadalp	  v17.4s, v9.8h              \n"// i1k0, i0k1, i3k2, i2k3
+                    "sadalp	  v18.4s, v10.8h             \n"// i2k0, i3k1, i0k2, i1k3
+                    "sadalp	  v19.4s, v11.8h             \n"// i3k0, i2k1, i1k2, i0k3
+
+                    "subs     w4, w4, #1                 \n"
+                    "bne      0b                         \n"
+
+                    "1:                                  \n"// for (; k+1<L; k=k+2)
+
+                    // remain loop
+                    "and      w4, %w12, #3               \n"// w4 = remain = K & 3;
+                    "cmp      w4, #0                     \n"
+                    "beq      3f                         \n"
+
+                    "lsr      w4, w4, #1                 \n"// r4 = nn = L >> 1
+                    "cmp      w4, #0                     \n"
+                    "beq      3f                         \n"
+
+                    "2:                                  \n"// for (; k+1<L; k=k+2)
+
+                    "ld1      {v0.8b}, [%4]              \n"// i0, i1, i2, i3
+                    "ld1      {v4.8b}, [%5]              \n"// k0, k1, k2, k3
+                    "add      %4, %4, #8                 \n"
+                    "add      %5, %5, #8                 \n"
+
+                    "rev32	  v1.4h, v0.4h               \n"// i2, i3, i0, i1
+                    "rev64    v2.2s, v0.2s               \n"// i1, i0, i3, i2
+                    "rev64    v3.4h, v0.4h               \n"// i0, i1, i2, i3
+
+                    "smull	  v8.8h, v4.8b, v0.8b        \n"
+                    "smull	  v9.8h, v4.8b, v1.8b        \n"
+                    "smull    v10.8h, v4.8b, v2.8b       \n"
+                    "smull	  v11.8h, v4.8b, v3.8b       \n"
+                    "sadalp	  v16.4s, v8.8h              \n"
+                    "sadalp	  v17.4s, v9.8h              \n"
+                    "sadalp	  v18.4s,v10.8h              \n"
+                    "sadalp	  v19.4s,v11.8h              \n"
+
+                    "subs     w4, w4, #1                 \n"
+                    "bne      2b                         \n"
+
+                    "3:                                  \n"// realloc
+
+                    "mov      v20.s[0], v16.s[0]         \n"
+                    "mov      v20.s[1], v17.s[0]         \n"
+                    "mov      v20.s[2], v18.s[0]         \n"
+                    "mov      v20.s[3], v19.s[0]         \n"
+
+                    "mov      v21.s[0], v17.s[1]         \n"
+                    "mov      v21.s[1], v16.s[1]         \n"
+                    "mov      v21.s[2], v19.s[1]         \n"
+                    "mov      v21.s[3], v18.s[1]         \n"
+
+                    "mov      v22.s[0], v18.s[2]         \n"
+                    "mov      v22.s[1], v19.s[2]         \n"
+                    "mov      v22.s[2], v16.s[2]         \n"
+                    "mov      v22.s[3], v17.s[2]         \n"
+
+                    "mov      v23.s[0], v19.s[3]         \n"
+                    "mov      v23.s[1], v18.s[3]         \n"
+                    "mov      v23.s[2], v17.s[3]         \n"
+                    "mov      v23.s[3], v16.s[3]         \n"
+
+                    "and      w4, %w12, #1               \n"// w4 = remain = K & 1;
+                    "cmp      w4, #0                     \n"
+                    "beq      5f                         \n"
+
+                    "4:                                  \n"
+                    "ld1      {v0.8b}, [%4]              \n"
+                    "ld1      {v1.8b}, [%5]              \n"
+                    "add      %4, %4, #4                 \n"
+                    "add      %5, %5, #4                 \n"
+
+                    "sshll    v0.8h, v0.8b, #0           \n"// i0[0], i1[0], i2[0], i3[0]
+                    "sshll    v1.8h, v1.8b, #0           \n"// k0[0], k1[0], k2[0], k3[0]
+
+                    "smlal    v20.4s, v0.4h, v1.h[0]     \n"// i0k0, i1k0, i2k0, i3k0
+                    "smlal    v21.4s, v0.4h, v1.h[1]     \n"// i0k1, i1k1, i2k1, i3k1
+                    "smlal    v22.4s, v0.4h, v1.h[2]     \n"// i0k2, i1k2, i2k2, i3k2
+                    "smlal    v23.4s, v0.4h, v1.h[3]     \n"// i0k3, i1k3, i2k3, i3k3
+
+                    "subs     w4, w4, #1                 \n"
+
+                    "bne      2b                         \n"
+
+                    "5:                                  \n"
+
+                    "st1      {v20.4s}, [%0]             \n"
+                    "st1      {v21.4s}, [%1]             \n"
+                    "st1      {v22.4s}, [%2]             \n"
+                    "st1      {v23.4s}, [%3]             \n"
+                    
+                    : "=r"(output0), // %0
+                      "=r"(output1), // %1
+                      "=r"(output2), // %2
+                      "=r"(output3), // %3
+                      "=r"(vb),      // %4
+                      "=r"(va)       // %5
+                    : "0"(output0),
+                      "1"(output1),
+                      "2"(output2),
+                      "3"(output3),
+                      "4"(vb),
+                      "5"(va),
+                      "r"(K)         // %12 
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
+                );
+#else                
+                int sum0[4] = {0};
+                int sum1[4] = {0};
+                int sum2[4] = {0};
+                int sum3[4] = {0};
+               
+                int k=0;
+
+                for (; k+1<K; k=k+2)
+                {
+                    for (int n=0; n<4; n++)
+                    {
+                        sum0[n] += (int)va[0] * vb[2*n];   // k0
+                        sum0[n] += (int)va[1] * vb[2*n+1];
+
+                        sum1[n] += (int)va[2] * vb[2*n];   // k1
+                        sum1[n] += (int)va[3] * vb[2*n+1];
+
+                        sum2[n] += (int)va[4] * vb[2*n];   // k2
+                        sum2[n] += (int)va[5] * vb[2*n+1];
+
+                        sum3[n] += (int)va[6] * vb[2*n];   // k3
+                        sum3[n] += (int)va[7] * vb[2*n+1];
+                    }
+
+                    va += 8;
+                    vb += 8;
+                }
+
+                for (; k<K; k++)
+                {
+                    for (int n=0; n<4; n++)
+                    {
+                        sum0[n] += (int)va[0] * vb[n];
+                        sum1[n] += (int)va[1] * vb[n];
+                        sum2[n] += (int)va[2] * vb[n];
+                        sum3[n] += (int)va[3] * vb[n];
+                    }
+                    
+                    va += 4;
+                    vb += 4;
+                }
+
+                for (int n=0; n<4; n++)
+                {
+                    output0[n] = sum0[n];
+                    output1[n] = sum1[n];
+                    output2[n] = sum2[n];
+                    output3[n] = sum3[n];
+                }
+#endif                
+                output0 += 4;
+                output1 += 4;
+                output2 += 4;
+                output3 += 4;
+            }
+
+            for (; j<N; j++)
+            {                
+                const signed char* vb = bottom_tm.channel(j/4 + j%4);
+                const signed char* va = kernel_tm.channel(i/4);
+
+#if __ARM_NEON
+                int32x4_t _sum = vdupq_n_s32(0);
+
+                int k=0;
+
+                for (; k+3<K; k=k+4)
+                {
+                    int8x8_t _r0 = vld1_s8(vb);     // i0[0-3]
+                    int8x8x2_t _k = vld2_s8(va);    // k0[0-1], k1[0-1], k2[0-1], k3[0-1];k0[2-3], k1[2-3], k2[2-3], k3[2-3]
+
+                    int16x8_t _r0_s16 = vmovl_s8(_r0);          // i0[0],i0[1],i0[2],i0[3]
+                    int16x8_t _k02_s16 = vmovl_s8(_k.val[0]);   // k0[0],k1[0],k2[0],k3[0],k0[2],k1[2],k2[2],k3[2]
+                    int16x8_t _k13_s16 = vmovl_s8(_k.val[1]);   // k0[1],k1[1],k2[1],k3[1],k0[3],k1[3],k2[3],k3[3]
+
+                    _sum = vmlal_lane_s16(_sum, vget_low_s16(_k02_s16), vget_low_s16(_r0_s16), 0);    // i0[0]*k[0-3][0]
+                    _sum = vmlal_lane_s16(_sum, vget_low_s16(_k13_s16), vget_low_s16(_r0_s16), 1);    // i0[1]*k[0-3][1]
+                    _sum = vmlal_lane_s16(_sum, vget_high_s16(_k02_s16), vget_low_s16(_r0_s16), 2);   // i0[2]*k[0-3][2]
+                    _sum = vmlal_lane_s16(_sum, vget_high_s16(_k13_s16), vget_low_s16(_r0_s16), 3);   // i0[3]*k[0-3][3]
+
+                    va += 16;
+                    vb += 4;
+                }
+
+                for (; k+1<K; k=k+2)
+                {
+                    int8x8_t _r0 = vld1_s8(vb);     // i0[0-3]
+                    int8x8_t _k = vld1_s8(va);      // k0[0-1], k1[0-1], k2[0-1], k3[0-1]
+
+                    _r0[2] = _r0[0];
+                    _r0[3] = _r0[1];
+                    _r0[4] = _r0[0];
+                    _r0[5] = _r0[1];
+                    _r0[6] = _r0[0];
+                    _r0[7] = _r0[1];
+
+                    int16x8_t _tp0 = vmull_s8(_k, _r0);
+                    _sum = vpadalq_s16(_sum, _tp0);
+
+                    va += 8;
+                    vb += 2;
+                }   
+
+                for (; k<K; k++)
+                {             
+                    int8x8_t _r0 = vld1_s8(vb);     // i0[0-3]
+                    int8x8_t _k = vld1_s8(va);      // k[0-3][0]
+
+                    int16x8_t _tp0 = vmull_s8(_k, _r0);
+
+                    _sum = vaddw_s16(_sum, vget_low_s16(_tp0));
+
+                    va += 4;
+                    vb += 1;
+                }
+
+                vst1q_lane_s32(output0, _sum, 0);
+                vst1q_lane_s32(output1, _sum, 1);
+                vst1q_lane_s32(output2, _sum, 2);
+                vst1q_lane_s32(output3, _sum, 3);
+#else
+                int sum0 = 0;
+                int sum1 = 0;
+                int sum2 = 0;
+                int sum3 = 0;
+
+                int k=0;
+
+                for (; k+1<K; k=k+2)
+                {
+                    sum0 += (int)va[0] * vb[0];
+                    sum0 += (int)va[1] * vb[1];
+
+                    sum1 += (int)va[2] * vb[0];
+                    sum1 += (int)va[3] * vb[1];
+
+                    sum2 += (int)va[4] * vb[0];
+                    sum2 += (int)va[5] * vb[1];
+
+                    sum3 += (int)va[6] * vb[0];
+                    sum3 += (int)va[7] * vb[1];
+
+                    va += 8;
+                    vb += 2;
+                }
+
+                for (; k<K; k++)
+                {
+                    sum0 += (int)va[0] * vb[0];
+                    sum1 += (int)va[1] * vb[0];
+                    sum2 += (int)va[2] * vb[0];
+                    sum3 += (int)va[3] * vb[0];
+
+                    va += 4;
+                    vb += 1;
+                }
+                
+                output0[0] = sum0;
+                output1[0] = sum1;
+                output2[0] = sum2;
+                output3[0] = sum3;
+#endif
+                output0++;
+                output1++;
+                output2++;
+                output3++;
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i=remain_outch_start; i<outch; i++)
+        {
+            int* output = top_blob.channel(i);
+
+            int j=0;
+            for (; j+3<N; j=j+4)
+            {
+                const signed char* vb = bottom_tm.channel(j/4);
+                const signed char* va = kernel_tm.channel(i/4 + i%4);
+
+#if __ARM_NEON
+                int32x4_t _sum = vdupq_n_s32(0);
+
+                int k=0;
+                for (; k+1<K; k=k+2)
+                {
+                    int8x8_t _r0 = vld1_s8(vb);     // i0[0-1], i1[0-1], i2[0-1], i3[0-1]
+                    int8x8_t _k = vld1_s8(va);      // k0[0-1]
+
+                    _k[2] = _k[0];
+                    _k[3] = _k[1];
+                    _k[4] = _k[0];
+                    _k[5] = _k[1];
+                    _k[6] = _k[0];
+                    _k[7] = _k[1];
+
+                    int16x8_t _tp0 = vmull_s8(_k, _r0);
+                    _sum = vpadalq_s16(_sum, _tp0);                    
+
+                    va += 2;
+                    vb += 8;
+                }
+
+                for (; k<K; k++)
+                {
+                    int8x8_t _r0 = vld1_s8(vb);     // i0[0], i1[0], i2[0], i3[0]
+                    int8x8_t _k = vld1_s8(va);      // k[0][0]
+
+                    int16x8_t _r0_s16 = vmovl_s8(_r0);
+                    int16x8_t _k_s16 = vmovl_s8(_k);
+
+                    _sum = vmlal_lane_s16(_sum, vget_low_s16(_r0_s16), vget_low_s16(_k_s16), 0); // i0k0, i1k0, i2k0, i3k0             
+
+                    va += 1;
+                    vb += 4;
+                }
+
+                vst1q_s32(output, _sum);
+#else                
+                int sum[4] = {0};
+                int k=0;
+                for (; k+1<K; k=k+2)
+                {
+                    for (int n=0; n<4; n++)
+                    {
+                        sum[n] += (int)va[0] * vb[2*n];
+                        sum[n] += (int)va[1] * vb[2*n+1];
+                    }
+                    va += 2;
+                    vb += 8;
+                }
+
+                for (; k<K; k++)
+                {
+                    for (int n=0; n<4; n++)
+                    {
+                        sum[n] += (int)va[0] * vb[n];
+                    }
+                    va += 1;
+                    vb += 4;
+                }
+
+                for (int n=0; n<4; n++)
+                {
+                    output[n] = sum[n];
+                }
+#endif                
+                output += 4;
+            }
+
+            for (; j<N; j++)
+            {
+                int sum = 0;
+
+                const signed char* vb = bottom_tm.channel(j/4 + j%4);
+                const signed char* va = kernel_tm.channel(i/4 + i%4);
+
+                for (int k=0; k<K; k++)
+                {
+                    sum += (int)va[0] * vb[0];
+
+                    va += 1;
+                    vb += 1;
+                }
+                output[0] = sum;
+
+                output++;
+            }
+        }
+    }
+
+    // // sgemm(int M, int N, int K, float* A, float* B, float* C)
+    // {
+    //     for (int i=0; i<M; i++)
+    //     {
+    //         int* output = top_blob.channel(i);
+
+    //         for (int j=0; j<N; j++)
+    //         {
+    //             int sum = 0;
+
+    //             signed char* vb = (signed char*)bottom_im2row + K * j;
+    //             const signed char* va = kernel + K * i;
+
+    //             for (int k=0; k<K; k++)
+    //             {
+    //                 sum += (int)va[0] * vb[0];
+
+    //                 va += 1;
+    //                 vb += 1;
+    //             }
+    //             output[0] = sum;
+
+    //             output++;
+    //         }
+    //     }
+    // }
+}
+#else
 static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_size)
 {
 
@@ -67,9 +752,9 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
             k5 += 1;
             k6 += 1;
             k7 += 1;
-        }            
+        }
     }
-#endif        
+#endif
 
     nn_outch = (outch - remain_outch_start) >> 2;
 
@@ -242,7 +927,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
             }
         }       
     }
-
+    
     // sgemm(int M, int N, int L, float* A, float* B, float* C)
     {
         //int M = outch;  // outch
@@ -1628,5 +2313,6 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
                 output++;
             }
         }
-    }
+    }   
 }
+#endif
