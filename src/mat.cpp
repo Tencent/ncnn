@@ -28,213 +28,76 @@ namespace ncnn {
 
 void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_vals)
 {
-    int size = w * h;
+    ncnn::Layer* op;
 
     if (mean_vals && !norm_vals)
     {
         // substract mean only
-        #pragma omp parallel for
+        op = ncnn::create_layer(ncnn::LayerType::Bias);
+
+        ncnn::ParamDict pd;
+        pd.set(0, c);
+
+        op->load_param(pd);
+
+        ncnn::Mat weights[1];
+        weights[0] = Mat(c);
         for (int q=0; q<c; q++)
         {
-            float* ptr = channel(q);//data + cstep * q;
-            const float mean = mean_vals[q];
-
-#if __ARM_NEON
-            int nn = size >> 2;
-            int remain = size - (nn << 2);
-#else
-            int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-#if __aarch64__
-            if (nn > 0)
-            {
-            asm volatile(
-                "dup        v1.4s, %w4            \n"
-                "0:                               \n"
-                "prfm       pldl1keep, [%1, #128] \n"
-                "ld1        {v0.4s}, [%1]         \n"
-                "fsub       v0.4s, v0.4s, v1.4s   \n"
-                "subs       %w0, %w0, #1          \n"
-                "st1        {v0.4s}, [%1], #16    \n"
-                "bne        0b                    \n"
-                : "=r"(nn),     // %0
-                  "=r"(ptr)     // %1
-                : "0"(nn),
-                  "1"(ptr),
-                  "r"(mean)     // %4
-                : "cc", "memory", "v0", "v1"
-            );
-            }
-#else
-            if (nn > 0)
-            {
-            asm volatile(
-                "vdup.f32   q1, %4              \n"
-                "0:                             \n"
-                "pld        [%1, #128]          \n"
-                "vld1.f32   {d0-d1}, [%1 :128]  \n"
-                "vsub.f32   q0, q0, q1          \n"
-                "subs       %0, #1              \n"
-                "vst1.f32   {d0-d1}, [%1 :128]! \n"
-                "bne        0b                  \n"
-                : "=r"(nn),     // %0
-                  "=r"(ptr)     // %1
-                : "0"(nn),
-                  "1"(ptr),
-                  "r"(mean)     // %4
-                : "cc", "memory", "q0", "q1"
-            );
-            }
-#endif // __aarch64__
-#endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
-                *ptr -= mean;
-                ptr++;
-            }
+            weights[0][q] = -mean_vals[q];
         }
+
+        op->load_model(ncnn::ModelBinFromMatArray(weights));
     }
     else if (!mean_vals && norm_vals)
     {
         // normalize only
-        #pragma omp parallel for
+        op = ncnn::create_layer(ncnn::LayerType::Scale);
+
+        ncnn::ParamDict pd;
+        pd.set(0, c);
+
+        op->load_param(pd);
+
+        ncnn::Mat weights[1];
+        weights[0] = Mat(c);
         for (int q=0; q<c; q++)
         {
-            float* ptr = channel(q);//data + cstep * q;
-            const float norm = norm_vals[q];
-
-#if __ARM_NEON
-            int nn = size >> 2;
-            int remain = size - (nn << 2);
-#else
-            int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-#if __aarch64__
-            if (nn > 0)
-            {
-            asm volatile(
-                "dup        v1.4s, %w4            \n"
-                "0:                               \n"
-                "prfm       pldl1keep, [%1, #128] \n"
-                "ld1        {v0.4s}, [%1]         \n"
-                "fmul       v0.4s, v0.4s, v1.4s   \n"
-                "subs       %w0, %w0, #1          \n"
-                "st1        {v0.4s}, [%1], #16    \n"
-                "bne        0b                    \n"
-                : "=r"(nn),     // %0
-                  "=r"(ptr)     // %1
-                : "0"(nn),
-                  "1"(ptr),
-                  "r"(norm)     // %4
-                : "cc", "memory", "v0", "v1"
-            );
-            }
-#else
-            if (nn > 0)
-            {
-            asm volatile(
-                "vdup.f32   q1, %4              \n"
-                "0:                             \n"
-                "pld        [%1, #128]          \n"
-                "vld1.f32   {d0-d1}, [%1 :128]  \n"
-                "vmul.f32   q0, q0, q1          \n"
-                "subs       %0, #1              \n"
-                "vst1.f32   {d0-d1}, [%1 :128]! \n"
-                "bne        0b                  \n"
-                : "=r"(nn),     // %0
-                  "=r"(ptr)     // %1
-                : "0"(nn),
-                  "1"(ptr),
-                  "r"(norm)     // %4
-                : "cc", "memory", "q0", "q1"
-            );
-            }
-#endif // __aarch64__
-#endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
-                *ptr *= norm;
-                ptr++;
-            }
+            weights[0][q] = norm_vals[q];
         }
+
+        op->load_model(ncnn::ModelBinFromMatArray(weights));
     }
     else if (mean_vals && norm_vals)
     {
         // substract mean and normalize
-        #pragma omp parallel for
+        op = ncnn::create_layer(ncnn::LayerType::Scale);
+
+        ncnn::ParamDict pd;
+        pd.set(0, c);
+        pd.set(1, 1);
+
+        op->load_param(pd);
+
+        ncnn::Mat weights[2];
+        weights[0] = Mat(c);
+        weights[1] = Mat(c);
         for (int q=0; q<c; q++)
         {
-            float* ptr = channel(q);//data + cstep * q;
-            const float mean = mean_vals[q];
-            const float norm = norm_vals[q];
-
-#if __ARM_NEON
-            int nn = size >> 2;
-            int remain = size - (nn << 2);
-#else
-            int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-#if __aarch64__
-            if (nn > 0)
-            {
-            asm volatile(
-                "dup        v1.4s, %w4            \n"
-                "dup        v2.4s, %w5            \n"
-                "0:                               \n"
-                "prfm       pldl1keep, [%1, #128] \n"
-                "ld1        {v0.4s}, [%1]         \n"
-                "fsub       v0.4s, v0.4s, v1.4s   \n"
-                "fmul       v0.4s, v0.4s, v2.4s   \n"
-                "subs       %w0, %w0, #1          \n"
-                "st1        {v0.4s}, [%1], #16    \n"
-                "bne        0b                    \n"
-                : "=r"(nn),     // %0
-                  "=r"(ptr)     // %1
-                : "0"(nn),
-                  "1"(ptr),
-                  "r"(mean),    // %4
-                  "r"(norm)     // %5
-                : "cc", "memory", "v0", "v1", "v2"
-            );  
-            }
-#else
-            if (nn > 0)
-            {
-            asm volatile(
-                "vdup.f32   q1, %4              \n"
-                "vdup.f32   q2, %5              \n"
-                "0:                             \n"
-                "pld        [%1, #128]          \n"
-                "vld1.f32   {d0-d1}, [%1 :128]  \n"
-                "vsub.f32   q0, q0, q1          \n"
-                "vmul.f32   q0, q0, q2          \n"
-                "subs       %0, #1              \n"
-                "vst1.f32   {d0-d1}, [%1 :128]! \n"
-                "bne        0b                  \n"
-                : "=r"(nn),     // %0
-                  "=r"(ptr)     // %1
-                : "0"(nn),
-                  "1"(ptr),
-                  "r"(mean),    // %4
-                  "r"(norm)     // %5
-                : "cc", "memory", "q0", "q1", "q2"
-            );
-            }
-#endif // __aarch64__
-#endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
-                *ptr = (*ptr - mean) * norm;
-                ptr++;
-            }
+            weights[0][q] = norm_vals[q];
+            weights[1][q] = - mean_vals[q] * norm_vals[q];
         }
+
+        op->load_model(ncnn::ModelBinFromMatArray(weights));
     }
+    else // if (!mean_vals && !norm_vals)
+    {
+        return;
+    }
+
+    op->forward_inplace(*this, ncnn::get_default_option());
+
+    delete op;
 }
 
 // convert half precision floating point to float
