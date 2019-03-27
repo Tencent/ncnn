@@ -243,70 +243,27 @@ void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, i
     delete padding;
 }
 
-static void copy_cut_border_image(const Mat& src, Mat& dst, int top, int left)
-{
-    int w = dst.w;
-    int h = dst.h;
-
-    const float* ptr = src.row(top) + left;//.data + src.w * top + left;
-    float* outptr = dst;//.data;
-
-    for (int y = 0; y < h; y++)
-    {
-        if(w < 12)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                outptr[x] = ptr[x];
-            }
-        }
-        else
-        {
-            memcpy(outptr, ptr, w*sizeof(float));
-        }
-        outptr += w;
-        ptr += src.w;
-    }
-}
-
 void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, Allocator* allocator, int num_threads)
 {
-    int w = src.w - left - right;
-    int h = src.h - top - bottom;
-    size_t elemsize = src.elemsize;
+    ncnn::Layer* crop = ncnn::create_layer(ncnn::LayerType::Crop);
 
-    if (w == src.w && h == src.h)
-    {
-        dst = src;
-        return;
-    }
+    ncnn::ParamDict pd;
+    pd.set(0, left);
+    pd.set(1, top);
+    pd.set(2, 0);
+    pd.set(3, src.w - left - right);
+    pd.set(4, src.h - top - bottom);
+    pd.set(5, src.c);
 
-    if (src.dims == 2)
-    {
-        dst.create(w, h, elemsize, allocator);
-        if (dst.empty())
-            return;
+    crop->load_param(pd);
 
-        copy_cut_border_image(src, dst, top, left);
-    }
-    else if (src.dims == 3)
-    {
-        int channels = src.c;
+    ncnn::Option opt = ncnn::get_default_option();
+    opt.num_threads = num_threads;
+    opt.blob_allocator = allocator;
 
-        dst.create(w, h, channels, elemsize, allocator);
-        if (dst.empty())
-            return;
+    crop->forward(src, dst, opt);
 
-        // unroll image channel
-        #pragma omp parallel for num_threads(num_threads)
-        for (int q=0; q<channels; q++)
-        {
-            const Mat m = src.channel(q);
-            Mat cutm = dst.channel(q);
-
-            copy_cut_border_image(m, cutm, top, left);
-        }
-    }
+    delete crop;
 }
 
 void resize_bilinear(const Mat& src, Mat& dst, int w, int h, Allocator* allocator, int num_threads)
