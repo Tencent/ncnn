@@ -22,6 +22,12 @@ PReLU::PReLU()
 {
     one_blob_only = true;
     support_inplace = true;
+    support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_prelu = 0;
+    pipeline_prelu_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int PReLU::load_param(const ParamDict& pd)
@@ -114,5 +120,84 @@ int PReLU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int PReLU::upload_model(VkTransfer& cmd)
+{
+    if (num_slope == 1)
+    {
+        // dup4 for pack4
+        Mat slope_data4(4);
+        slope_data4.fill(slope_data[0]);
+        cmd.record_upload(slope_data4, slope_data_gpu);
+    }
+    else
+    {
+        cmd.record_upload(slope_data, slope_data_gpu);
+    }
+
+    return 0;
+}
+
+int PReLU::create_pipeline()
+{
+    std::vector<vk_specialization_type> specializations(1);
+    specializations[0].i = num_slope;
+
+    // pack1
+    if (num_slope == 1 || num_slope % 4 != 0)
+    {
+        pipeline_prelu = new Pipeline(vkdev);
+        pipeline_prelu->set_optimal_local_size_xyz(8, 8, num_slope);
+        pipeline_prelu->create("prelu", specializations, 2, 5);
+    }
+
+    // pack4
+    if (num_slope == 1 || num_slope % 4 == 0)
+    {
+        pipeline_prelu_pack4 = new Pipeline(vkdev);
+        pipeline_prelu_pack4->set_optimal_local_size_xyz(8, 8, num_slope / 4);
+        pipeline_prelu_pack4->create("prelu_pack4", specializations, 2, 5);
+    }
+
+    return 0;
+}
+
+int PReLU::destroy_pipeline()
+{
+    delete pipeline_prelu;
+    pipeline_prelu = 0;
+
+    delete pipeline_prelu_pack4;
+    pipeline_prelu_pack4 = 0;
+
+    return 0;
+}
+
+int PReLU::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int packing = bottom_top_blob.packing;
+
+//     fprintf(stderr, "PReLU::forward_inplace %p\n", bottom_top_blob.buffer());
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = slope_data_gpu;
+
+    std::vector<vk_constant_type> constants(5);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = bottom_top_blob.cstep;
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_prelu_pack4 : pipeline_prelu;
+
+    // record
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

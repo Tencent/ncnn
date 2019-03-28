@@ -1,0 +1,97 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (constant_id = 0) const int bias_term = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
+layout (binding = 1) readonly buffer scale_blob { sfp scale_blob_data[]; };
+layout (binding = 2) readonly buffer bias_blob { sfp bias_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.w || gy >= p.h || gz >= p.c)
+        return;
+
+    if (p.dims == 1)
+    {
+        afp v = afp(bottom_top_blob_data[gx]);
+
+        if (bias_term == 1)
+            v = afp(scale_blob_data[gx]) * v + afp(bias_blob_data[gx]);
+        else
+            v = afp(scale_blob_data[gx]) * v;
+
+        bottom_top_blob_data[gx] = sfp(v);
+
+        return;
+    }
+
+    if (p.dims == 2)
+    {
+        const int gi = gy * p.w + gx;
+
+        afp v = afp(bottom_top_blob_data[gi]);
+
+        if (bias_term == 1)
+            v = afp(scale_blob_data[gy]) * v + afp(bias_blob_data[gy]);
+        else
+            v = afp(scale_blob_data[gy]) * v;
+
+        bottom_top_blob_data[gi] = sfp(v);
+
+        return;
+    }
+
+    if (p.dims == 3)
+    {
+        const int gi = gz * p.cstep + gy * p.w + gx;
+
+        afp v = afp(bottom_top_blob_data[gi]);
+
+        if (bias_term == 1)
+            v = afp(scale_blob_data[gz]) * v + afp(bias_blob_data[gz]);
+        else
+            v = afp(scale_blob_data[gz]) * v;
+
+        bottom_top_blob_data[gi] = sfp(v);
+
+        return;
+    }
+}

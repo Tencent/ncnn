@@ -18,7 +18,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "platform.h"
 #include "net.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -30,6 +34,10 @@ struct Object
 static int detect_squeezenet(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net squeezenet;
+
+#if NCNN_VULKAN
+    squeezenet.use_vulkan_compute = true;
+#endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/chuanqi305/SqueezeNet-SSD
     // squeezenet_ssd_voc_deploy.prototxt
@@ -110,7 +118,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
         cv::rectangle(image, cv::Rect(cv::Point(x, y),
                                       cv::Size(label_size.width, label_size.height + baseLine)),
-                      cv::Scalar(255, 255, 255), CV_FILLED);
+                      cv::Scalar(255, 255, 255), -1);
 
         cv::putText(image, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
@@ -130,15 +138,23 @@ int main(int argc, char** argv)
 
     const char* imagepath = argv[1];
 
-    cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);
+    cv::Mat m = cv::imread(imagepath, 1);
     if (m.empty())
     {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }
 
+#if NCNN_VULKAN
+    ncnn::create_gpu_instance();
+#endif // NCNN_VULKAN
+
     std::vector<Object> objects;
     detect_squeezenet(m, objects);
+
+#if NCNN_VULKAN
+    ncnn::destroy_gpu_instance();
+#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 

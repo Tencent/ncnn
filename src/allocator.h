@@ -24,6 +24,13 @@
 
 #include <stdlib.h>
 #include <list>
+#include <vector>
+#include "platform.h"
+
+#if NCNN_VULKAN
+#include <vulkan/vulkan.h>
+#include "gpu.h"
+#endif // NCNN_VULKAN
 
 namespace ncnn {
 
@@ -118,6 +125,15 @@ private:
 };
 #endif // _WIN32
 
+class MutexLockGuard
+{
+public:
+    MutexLockGuard(Mutex& _mutex) : mutex(_mutex) { mutex.lock(); }
+    ~MutexLockGuard() { mutex.unlock(); }
+private:
+    Mutex& mutex;
+};
+
 class Allocator
 {
 public:
@@ -171,6 +187,168 @@ private:
     std::list< std::pair<size_t, void*> > budgets;
     std::list< std::pair<size_t, void*> > payouts;
 };
+
+#if NCNN_VULKAN
+
+class VkBufferMemory
+{
+public:
+    VkBuffer buffer;
+
+    // the base offset assigned by allocator
+    size_t offset;
+    size_t capacity;
+
+    VkDeviceMemory memory;
+    void* mapped_ptr;
+
+    // buffer state, modified by command functions internally
+    // 0=null
+    // 1=created
+    // 2=transfer
+    // 3=compute
+    // 4=readonly
+    mutable int state;
+
+    // initialize and modified by mat
+    int refcount;
+};
+
+class VkAllocator
+{
+public:
+    VkAllocator(const VulkanDevice* _vkdev);
+    virtual ~VkAllocator() { clear(); }
+    virtual void clear() {}
+    virtual VkBufferMemory* fastMalloc(size_t size) = 0;
+    virtual void fastFree(VkBufferMemory* ptr) = 0;
+
+public:
+    const VulkanDevice* vkdev;
+    bool mappable;
+
+protected:
+    VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
+    VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
+    VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkBuffer buffer);
+};
+
+class VkUnlockedBlobBufferAllocator : public VkAllocator
+{
+public:
+    VkUnlockedBlobBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkUnlockedBlobBufferAllocator();
+
+public:
+    // buffer block size, default=16M
+    void set_block_size(size_t size);
+
+    // release all budgets immediately
+    virtual void clear();
+
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+private:
+    size_t block_size;
+    size_t buffer_offset_alignment;
+    std::vector< std::list< std::pair<size_t, size_t> > > budgets;
+    std::vector<VkBufferMemory*> buffer_blocks;
+};
+
+class VkBlobBufferAllocator : public VkUnlockedBlobBufferAllocator
+{
+public:
+    VkBlobBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkBlobBufferAllocator();
+
+public:
+    virtual void clear();
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+private:
+    Mutex budgets_lock;
+};
+
+class VkWeightBufferAllocator : public VkAllocator
+{
+public:
+    VkWeightBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkWeightBufferAllocator();
+
+public:
+    // buffer block size, default=8M
+    void set_block_size(size_t block_size);
+
+    // release all blocks immediately
+    virtual void clear();
+
+public:
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+private:
+    size_t block_size;
+    size_t buffer_offset_alignment;
+    std::vector<size_t> buffer_block_free_spaces;
+    std::vector<VkBufferMemory*> buffer_blocks;
+    std::vector<VkBufferMemory*> dedicated_buffer_blocks;
+};
+
+class VkUnlockedStagingBufferAllocator : public VkAllocator
+{
+public:
+    VkUnlockedStagingBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkUnlockedStagingBufferAllocator();
+
+public:
+    // ratio range 0 ~ 1
+    // default cr = 0.75
+    void set_size_compare_ratio(float scr);
+
+    // release all budgets immediately
+    virtual void clear();
+
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+private:
+    uint32_t memory_type_index;
+    unsigned int size_compare_ratio;// 0~256
+    std::list<VkBufferMemory*> budgets;
+};
+
+class VkStagingBufferAllocator : public VkUnlockedStagingBufferAllocator
+{
+public:
+    VkStagingBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkStagingBufferAllocator();
+
+public:
+    virtual void clear();
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+private:
+    Mutex budgets_lock;
+};
+
+class VkWeightStagingBufferAllocator : public VkAllocator
+{
+public:
+    VkWeightStagingBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkWeightStagingBufferAllocator();
+
+public:
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+
+private:
+    uint32_t memory_type_index;
+};
+
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
 

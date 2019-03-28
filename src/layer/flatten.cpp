@@ -22,6 +22,12 @@ Flatten::Flatten()
 {
     one_blob_only = true;
     support_inplace = false;
+    support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_flatten = 0;
+    pipeline_flatten_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int Flatten::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -50,5 +56,111 @@ int Flatten::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int Flatten::create_pipeline()
+{
+    std::vector<vk_specialization_type> specializations;
+
+    // pack1
+    {
+        pipeline_flatten = new Pipeline(vkdev);
+        pipeline_flatten->set_optimal_local_size_xyz();
+        pipeline_flatten->create("flatten", specializations, 2, 10);
+    }
+
+    // pack4
+    {
+        pipeline_flatten_pack4 = new Pipeline(vkdev);
+        pipeline_flatten_pack4->set_optimal_local_size_xyz();
+        pipeline_flatten_pack4->create("flatten_pack4", specializations, 2, 10);
+    }
+
+    return 0;
+}
+
+int Flatten::destroy_pipeline()
+{
+    delete pipeline_flatten;
+    pipeline_flatten = 0;
+
+    delete pipeline_flatten_pack4;
+    pipeline_flatten_pack4 = 0;
+
+    return 0;
+}
+
+int Flatten::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int dims = bottom_blob.dims;
+
+    if (dims == 1)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
+    int total = w * h * channels * packing;
+
+    int out_packing = total % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / packing * out_packing;
+
+    if (dims == 2 && packing == 1)
+    {
+        top_blob = bottom_blob;
+        top_blob.dims = 1;
+        top_blob.w = total / out_packing;
+        top_blob.h = 1;
+        top_blob.cstep = top_blob.w;
+        top_blob.elemsize = out_elemsize;
+        top_blob.packing = out_packing;
+        return 0;
+    }
+
+    top_blob.create(total / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = (packing == 1 && out_packing == 4) ? total : top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_flatten_pack4 : pipeline_flatten;
+
+    // record
+    if (packing == 1 && out_packing == 4)
+    {
+        VkMat dispatcher;
+        dispatcher.w = total;
+        dispatcher.h = 1;
+        dispatcher.c = 1;
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+    }
+    else
+    {
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    }
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

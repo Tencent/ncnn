@@ -29,7 +29,18 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
+    virtual int create_requantize_op(void);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+#if NCNN_VULKAN
+    virtual int upload_model(VkTransfer& cmd);
+
+    virtual int create_pipeline();
+    virtual int destroy_pipeline();
+
+    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+#endif // NCNN_VULKAN
 
 public:
     // param
@@ -52,13 +63,50 @@ public:
     Mat weight_data;
     Mat bias_data;
 
-    float weight_data_int8_scale;
+#if NCNN_VULKAN
+    ncnn::Layer* padding;
+
+    VkMat weight_data_gpu;
+    VkMat bias_data_gpu;
+
+    Pipeline* pipeline_convolution;
+    Pipeline* pipeline_convolution_1x1s1d1;
+
+    VkMat bias_data_gpu_pack4;
+
+    // pack4
+    VkMat weight_data_gpu_pack4;
+    Pipeline* pipeline_convolution_pack4;
+
+    // pack1to4
+    VkMat weight_data_gpu_pack1to4;
+    Pipeline* pipeline_convolution_pack1to4;
+
+    // pack4to1
+    VkMat weight_data_gpu_pack4to1;
+    Pipeline* pipeline_convolution_pack4to1;
+
+    // convolution as fc
+    Pipeline* pipeline_innerproduct;
+    Pipeline* pipeline_innerproduct_pack4;
+    Pipeline* pipeline_innerproduct_pack1to4;
+    Pipeline* pipeline_innerproduct_pack4to1;
+#endif // NCNN_VULKAN
+
+    Mat weight_data_int8_scales;
     float bottom_blob_int8_scale;
+    float top_blob_int8_scale;
 
     bool use_int8_inference;
+    bool use_int8_requantize;
 
     ncnn::Layer* quantize;
-    ncnn::Layer* dequantize;
+    std::vector<ncnn::Layer*> dequantize_ops;
+    std::vector<ncnn::Layer*> requantize_ops;
+
+    // merge de/requantize op into convolution op
+    std::vector<float> dequantize_scales;
+    std::vector<float> requantize_scales;    
 };
 
 } // namespace ncnn

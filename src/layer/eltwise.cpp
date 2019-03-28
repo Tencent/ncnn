@@ -21,6 +21,16 @@ DEFINE_LAYER_CREATOR(Eltwise)
 
 Eltwise::Eltwise()
 {
+    one_blob_only = false;
+    support_inplace = false;// TODO inplace reduction
+    support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_eltwise[0] = 0;
+    pipeline_eltwise[1] = 0;
+    pipeline_eltwise_pack4[0] = 0;
+    pipeline_eltwise_pack4[1] = 0;
+#endif // NCNN_VULKAN
 }
 
 int Eltwise::load_param(const ParamDict& pd)
@@ -186,5 +196,113 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int Eltwise::create_pipeline()
+{
+    std::vector<vk_specialization_type> specializations(2);
+    specializations[0].i = op_type;
+    specializations[1].i = coeffs.w == 0 ? 0 : 1;
+
+    // pack1
+    {
+        pipeline_eltwise[0] = new Pipeline(vkdev);
+        pipeline_eltwise[0]->set_optimal_local_size_xyz();
+        pipeline_eltwise[0]->create("eltwise", specializations, 3, 5+2);
+        pipeline_eltwise[1] = new Pipeline(vkdev);
+        pipeline_eltwise[1]->set_optimal_local_size_xyz();
+        pipeline_eltwise[1]->create("eltwise", specializations, 3, 5+2);
+    }
+
+    // pack4
+    {
+        pipeline_eltwise_pack4[0] = new Pipeline(vkdev);
+        pipeline_eltwise_pack4[0]->set_optimal_local_size_xyz();
+        pipeline_eltwise_pack4[0]->create("eltwise_pack4", specializations, 3, 5+2);
+        pipeline_eltwise_pack4[1] = new Pipeline(vkdev);
+        pipeline_eltwise_pack4[1]->set_optimal_local_size_xyz();
+        pipeline_eltwise_pack4[1]->create("eltwise_pack4", specializations, 3, 5+2);
+    }
+
+    return 0;
+}
+
+int Eltwise::destroy_pipeline()
+{
+    delete pipeline_eltwise[0];
+    delete pipeline_eltwise[1];
+    pipeline_eltwise[0] = 0;
+    pipeline_eltwise[1] = 0;
+
+    delete pipeline_eltwise_pack4[0];
+    delete pipeline_eltwise_pack4[1];
+    pipeline_eltwise_pack4[0] = 0;
+    pipeline_eltwise_pack4[1] = 0;
+
+    return 0;
+}
+
+int Eltwise::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    const VkMat& bottom_blob = bottom_blobs[0];
+    const VkMat& bottom_blob1 = bottom_blobs[1];
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
+    VkMat& top_blob = top_blobs[0];
+    top_blob.create(w, h, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+//     fprintf(stderr, "Eltwise::forward %p %p %p\n", bottom_blob.buffer(), bottom_blob1.buffer(), top_blob.buffer());
+
+    std::vector<VkMat> bindings(3);
+    bindings[0] = bottom_blob;
+    bindings[1] = bottom_blob1;
+    bindings[2] = top_blob;
+
+    std::vector<vk_constant_type> constants(5 + 2);
+    constants[0].i = top_blob.dims;
+    constants[1].i = top_blob.w;
+    constants[2].i = top_blob.h;
+    constants[3].i = top_blob.c;
+    constants[4].i = top_blob.cstep;
+    constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
+    constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
+
+    const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4[1] : pipeline_eltwise[1];
+
+    // record
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    for (size_t b=2; b<bottom_blobs.size(); b++)
+    {
+        std::vector<VkMat> bindings(3);
+        bindings[0] = top_blob;
+        bindings[1] = bottom_blobs[b];
+        bindings[2] = top_blob;// TODO use separated pipeline ?
+
+        std::vector<vk_constant_type> constants(5 + 2);
+        constants[0].i = top_blob.dims;
+        constants[1].i = top_blob.w;
+        constants[2].i = top_blob.h;
+        constants[3].i = top_blob.c;
+        constants[4].i = top_blob.cstep;
+        constants[5].f = 1.f;
+        constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
+
+        const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4[b%2] : pipeline_eltwise[b%2];
+
+        // record
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    }
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

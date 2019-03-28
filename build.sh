@@ -24,6 +24,22 @@ make
 make install
 popd
 
+##### android armv7 vulkan
+mkdir -p build-android-armv7-vulkan
+pushd build-android-armv7-vulkan
+cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+make
+make install
+popd
+
+##### android aarch64 vulkan
+mkdir -p build-android-aarch64-vulkan
+pushd build-android-aarch64-vulkan
+cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+make
+make install
+popd
+
 ##### linux of hisiv300 (forgot the chip name) toolchain with neon and openmp
 mkdir -p build-hisiv300-linux
 pushd build-hisiv300-linux
@@ -92,6 +108,22 @@ popd
 mkdir -p build-ios-sim
 pushd build-ios-sim
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/iossimxc.toolchain.cmake ..
+make
+make install
+popd
+
+##### ios arm64 vulkan
+mkdir -p build-ios-vulkan
+pushd build-ios-vulkan
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/iosxc-arm64.toolchain.cmake -DVulkan_INCLUDE_DIR=${VULKAN_SDK}/MoltenVK/include -DVulkan_LIBRARY=${VULKAN_SDK}/MoltenVK/iOS/MoltenVK.framework/MoltenVK -DNCNN_VULKAN=ON ..
+make
+make install
+popd
+
+##### ios simulator x86_64 vulkan
+mkdir -p build-ios-sim-vulkan
+pushd build-ios-sim-vulkan
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/iossimxc-x64.toolchain.cmake -DVulkan_INCLUDE_DIR=${VULKAN_SDK}/MoltenVK/include -DVulkan_LIBRARY=${VULKAN_SDK}/MoltenVK/iOS/MoltenVK.framework/MoltenVK -DNCNN_VULKAN=ON ..
 make
 make install
 popd

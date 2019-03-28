@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "crop.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -20,6 +21,14 @@ DEFINE_LAYER_CREATOR(Crop)
 
 Crop::Crop()
 {
+    one_blob_only = false;
+    support_inplace = false;
+    support_vulkan = true;
+
+#if NCNN_VULKAN
+    pipeline_crop = 0;
+    pipeline_crop_pack4 = 0;
+#endif // NCNN_VULKAN
 }
 
 int Crop::load_param(const ParamDict& pd)
@@ -39,26 +48,114 @@ int Crop::load_param(const ParamDict& pd)
     return 0;
 }
 
+template<typename T>
+static void copy_cut_border_image(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+
+    const T* ptr = src.row<T>(top) + left;
+    T* outptr = dst;//.data;
+
+    for (int y = 0; y < h; y++)
+    {
+        if(w < 12)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                outptr[x] = ptr[x];
+            }
+        }
+        else
+        {
+            memcpy(outptr, ptr, w*sizeof(T));
+        }
+        outptr += w;
+        ptr += src.w;
+    }
+}
+
 int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
 
-    int _outw = outw == -233 ? w - woffset : outw;
-    int _outh = outh == -233 ? h - hoffset : outh;
-    int _outc = outc == -233 ? channels - coffset : outc;
+    int _outw;
+    int _outh;
+    int _outc;
 
-    const Mat bottom_blob_sliced(w, h, _outc, (void*)(const float*)bottom_blob.channel(coffset));
+    if (outw == -233)
+        _outw = w - woffset;
+    else if (outw == -234)
+        _outw = w - 1 - woffset;
+    else
+        _outw = std::min(outw, w - woffset);
+
+    if (outh == -233)
+        _outh = h - hoffset;
+    else if (outh == -234)
+        _outh = h - 1 - hoffset;
+    else
+        _outh = std::min(outh, h - hoffset);
+
+    if (outc == -233)
+        _outc = channels - coffset;
+    else if (outc == -234)
+        _outc = channels - 1 - coffset;
+    else
+        _outc = std::min(outc, channels - coffset);
+
+    if (_outw == w && _outh == h && _outc == channels)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    const Mat bottom_blob_sliced = bottom_blob.channel_range(coffset, _outc);
+
+    if (_outw == w && _outh == h)
+    {
+        top_blob = bottom_blob_sliced.clone();
+        if (top_blob.empty())
+            return -100;
+    }
 
     int top = hoffset;
-    int bottom = h - _outh - hoffset;
     int left = woffset;
-    int right = w - _outw - woffset;
 
-    copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right, opt.blob_allocator, opt.num_threads);
-    if (top_blob.empty())
-        return -100;
+    if (dims == 2)
+    {
+        top_blob.create(_outh, _outh, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (elemsize == 1)
+            copy_cut_border_image<signed char>(bottom_blob_sliced, top_blob, top, left);
+        else if (elemsize == 4)
+            copy_cut_border_image<float>(bottom_blob_sliced, top_blob, top, left);
+    }
+
+    if (dims == 3)
+    {
+        top_blob.create(_outw, _outh, channels, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const Mat m = bottom_blob_sliced.channel(q);
+            Mat borderm = top_blob.channel(q);
+
+            if (elemsize == 1)
+                copy_cut_border_image<signed char>(m, borderm, top, left);
+            else if (elemsize == 4)
+                copy_cut_border_image<float>(m, borderm, top, left);
+        }
+    }
 
     return 0;
 }
@@ -71,25 +168,262 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
+
+    Mat& top_blob = top_blobs[0];
 
     int _outw = reference_blob.w;
     int _outh = reference_blob.h;
     int _outc = reference_blob.dims == 3 ? reference_blob.c : channels;
 
-    const Mat bottom_blob_sliced(w, h, _outc, (void*)(const float*)bottom_blob.channel(coffset));
+    if (_outw == w && _outh == h && _outc == channels)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    const Mat bottom_blob_sliced = bottom_blob.channel_range(coffset, _outc);
+
+    if (_outw == w && _outh == h)
+    {
+        top_blob = bottom_blob_sliced.clone();
+        if (top_blob.empty())
+            return -100;
+
+        return 0;
+    }
 
     int top = hoffset;
-    int bottom = h - _outh - hoffset;
     int left = woffset;
-    int right = w - _outw - woffset;
 
-    Mat& top_blob = top_blobs[0];
+    if (dims == 2)
+    {
+        top_blob.create(_outh, _outh, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-    copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right, opt.blob_allocator, opt.num_threads);
-    if (top_blob.empty())
-        return -100;
+        if (elemsize == 1)
+            copy_cut_border_image<signed char>(bottom_blob_sliced, top_blob, top, left);
+        else if (elemsize == 4)
+            copy_cut_border_image<float>(bottom_blob_sliced, top_blob, top, left);
+    }
+
+    if (dims == 3)
+    {
+        top_blob.create(_outw, _outh, channels, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const Mat m = bottom_blob_sliced.channel(q);
+            Mat borderm = top_blob.channel(q);
+
+            if (elemsize == 1)
+                copy_cut_border_image<signed char>(m, borderm, top, left);
+            else if (elemsize == 4)
+                copy_cut_border_image<float>(m, borderm, top, left);
+        }
+    }
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int Crop::create_pipeline()
+{
+    std::vector<vk_specialization_type> specializations(3);
+    specializations[0].i = woffset;
+    specializations[1].i = hoffset;
+    specializations[2].i = coffset;
+
+    // pack1
+    {
+        pipeline_crop = new Pipeline(vkdev);
+        pipeline_crop->set_optimal_local_size_xyz();
+        pipeline_crop->create("crop", specializations, 2, 10);
+    }
+
+    // pack4
+    {
+        pipeline_crop_pack4 = new Pipeline(vkdev);
+        pipeline_crop_pack4->set_optimal_local_size_xyz();
+        pipeline_crop_pack4->create("crop_pack4", specializations, 2, 10);
+    }
+
+    return 0;
+}
+
+int Crop::destroy_pipeline()
+{
+    delete pipeline_crop;
+    pipeline_crop = 0;
+
+    delete pipeline_crop_pack4;
+    pipeline_crop_pack4 = 0;
+
+    return 0;
+}
+
+int Crop::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
+    // TODO vec and image crop
+    int dims = bottom_blob.dims;
+
+    int _outw;
+    int _outh;
+    int _outc;
+
+    if (outw == -233)
+        _outw = w - woffset;
+    else if (outw == -234)
+        _outw = w - 1 - woffset;
+    else
+        _outw = std::min(outw, w - woffset);
+
+    if (outh == -233)
+        _outh = h - hoffset;
+    else if (outh == -234)
+        _outh = h - 1 - hoffset;
+    else
+        _outh = std::min(outh, h - hoffset);
+
+    if (outc == -233)
+        _outc = channels * packing - coffset;
+    else if (outc == -234)
+        _outc = channels * packing - 1 - coffset;
+    else
+        _outc = std::min(outc, channels * packing - coffset);
+
+    int out_packing = _outc % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / packing * out_packing;
+
+    top_blob.create(_outw, _outh, _outc / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+//     fprintf(stderr, "Crop::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = 0;
+    if (packing == 1 && out_packing == 1)
+    {
+        pipeline = pipeline_crop;
+    }
+    else if (packing == 4 && out_packing == 4)
+    {
+        pipeline = pipeline_crop_pack4;
+    }
+    else if (packing == 1 && out_packing == 4)
+    {
+        // TODO
+        return -1;
+    }
+    else if (packing == 4 && out_packing == 1)
+    {
+        // TODO
+        return -1;
+    }
+
+    // record
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    return 0;
+}
+
+int Crop::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    const VkMat& bottom_blob = bottom_blobs[0];
+    const VkMat& reference_blob = bottom_blobs[1];
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int packing = bottom_blob.packing;
+
+    // TODO vec and image crop
+    int dims = bottom_blob.dims;
+
+    int _outw = reference_blob.w;
+    int _outh = reference_blob.h;
+    int _outc = reference_blob.dims == 3 ? reference_blob.c * reference_blob.packing : channels * packing;
+
+    int out_packing = _outc % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / packing * out_packing;
+
+    VkMat& top_blob = top_blobs[0];
+
+    top_blob.create(_outw, _outh, _outc / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+//     fprintf(stderr, "Crop::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = bottom_blob.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = 0;
+    if (packing == 1 && out_packing == 1)
+    {
+        pipeline = pipeline_crop;
+    }
+    else if (packing == 4 && out_packing == 4)
+    {
+        pipeline = pipeline_crop_pack4;
+    }
+    else if (packing == 1 && out_packing == 4)
+    {
+        // TODO
+        return -1;
+    }
+    else if (packing == 4 && out_packing == 1)
+    {
+        // TODO
+        return -1;
+    }
+
+    // record
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

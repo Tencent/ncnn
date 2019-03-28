@@ -56,7 +56,6 @@ int LSTM::load_model(const ModelBin& mb)
 
 int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    fprintf(stdout, "lstm forward start!\n");
     // size x T
     const Mat& input_blob = bottom_blobs[0];
 
@@ -163,15 +162,15 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             float F = gates_data[1];
             float O = gates_data[2];
             float G = gates_data[3];
-
+	    
             I = 1.f / (1.f + exp(-I));
             F = cont ? 1.f / (1.f + exp(-F)) : 0.f;
             O = 1.f / (1.f + exp(-O));
             G = tanh(G);
 
-            float cell2 = F * cell[q] + I * G;
+            //cell[q] is not initialized and so might be nan, and 0*nan evals to nan
+            float cell2 = cont ? F * cell[q] + I * G  : I * G;
             float H = O * tanh(cell2);
-
             cell[q] = cell2;
             hidden[q] = H;
             output_data[q] = H;
@@ -179,8 +178,6 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
         // no cell output here
     }
-    fprintf(stdout, "lstm forward end!\n");
-
     return 0;
 }
 

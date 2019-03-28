@@ -83,7 +83,27 @@ public class MainActivity extends Activity
                 if (yourSelectedImage == null)
                     return;
 
-                String result = squeezencnn.Detect(yourSelectedImage);
+                String result = squeezencnn.Detect(yourSelectedImage, false);
+
+                if (result == null)
+                {
+                    infoResult.setText("detect failed");
+                }
+                else
+                {
+                    infoResult.setText(result);
+                }
+            }
+        });
+
+        Button buttonDetectGPU = (Button) findViewById(R.id.buttonDetectGPU);
+        buttonDetectGPU.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View arg0) {
+                if (yourSelectedImage == null)
+                    return;
+
+                String result = squeezencnn.Detect(yourSelectedImage, true);
 
                 if (result == null)
                 {

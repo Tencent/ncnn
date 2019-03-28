@@ -12,6 +12,6 @@ add_executable(ncnn2mem ncnn2mem.cpp)
 
 target_link_libraries(ncnn2mem PRIVATE ncnn)
 
-if(COVERAGE)
-    target_link_libraries(ncnn2mem PRIVATE --coverage)
+if(NCNN_VULKAN)
+    target_link_libraries(ncnn2mem PRIVATE ${Vulkan_LIBRARY})
 endif()
