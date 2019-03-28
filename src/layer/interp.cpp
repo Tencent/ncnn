@@ -115,13 +115,17 @@ static void resize_bilinear_image(const Mat& src, Mat& dst)
     float* rows0 = rowsbuf0;
     float* rows1 = rowsbuf1;
 
-    int prev_sy1 = -1;
+    int prev_sy1 = -2;
 
     for (int dy = 0; dy < h; dy++ )
     {
         int sy = yofs[dy];
 
         if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 1)
         {
             // hresize one row
             float* rows0_old = rows0;
@@ -167,7 +171,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst)
             }
         }
 
-        prev_sy1 = sy + 1;
+        prev_sy1 = sy;
 
         // vresize
         float b0 = beta[0];
