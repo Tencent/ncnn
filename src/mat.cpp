@@ -286,6 +286,26 @@ void resize_bilinear(const Mat& src, Mat& dst, int w, int h, Allocator* allocato
     delete interp;
 }
 
+void resize_bicubic(const Mat& src, Mat& dst, int w, int h, Allocator* allocator, int num_threads)
+{
+    ncnn::Layer* interp = ncnn::create_layer(ncnn::LayerType::Interp);
+
+    ncnn::ParamDict pd;
+    pd.set(0, 3);
+    pd.set(3, h);
+    pd.set(4, w);
+
+    interp->load_param(pd);
+
+    ncnn::Option opt = ncnn::get_default_option();
+    opt.num_threads = num_threads;
+    opt.blob_allocator = allocator;
+
+    interp->forward(src, dst, opt);
+
+    delete interp;
+}
+
 void convert_packing(const Mat& src, Mat& dst, int _packing, Allocator* allocator, int num_threads)
 {
     ncnn::Layer* packing = ncnn::create_layer(ncnn::LayerType::Packing);

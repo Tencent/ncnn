@@ -87,8 +87,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst)
     }
 
     // loop body
-    Mat rowsbuf0(w + 1);
-    Mat rowsbuf1(w + 1);
+    Mat rowsbuf0(w);
+    Mat rowsbuf1(w);
     float* rows0 = rowsbuf0;
     float* rows1 = rowsbuf1;
 

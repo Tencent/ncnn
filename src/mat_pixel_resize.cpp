@@ -103,8 +103,8 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w >> 1) + 1);
-    Mat rowsbuf1((w >> 1) + 1);
+    Mat rowsbuf0(w, (size_t)2u);
+    Mat rowsbuf1(w, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
@@ -358,8 +358,8 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w*2 >> 1) + 2);
-    Mat rowsbuf1((w*2 >> 1) + 2);
+    Mat rowsbuf0(w*2, (size_t)2u);
+    Mat rowsbuf1(w*2, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
@@ -651,8 +651,8 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w*3 >> 1) + 3);
-    Mat rowsbuf1((w*3 >> 1) + 3);
+    Mat rowsbuf0(w*3, (size_t)2u);
+    Mat rowsbuf1(w*3, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
@@ -949,8 +949,8 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w*4 >> 1) + 4);
-    Mat rowsbuf1((w*4 >> 1) + 4);
+    Mat rowsbuf0(w*4, (size_t)2u);
+    Mat rowsbuf1(w*4, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
