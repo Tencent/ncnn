@@ -1052,9 +1052,9 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);  
 }
 
-static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
+static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat> &kernel_tm2, int inch, int outch)
 {
-    kernel_tm.create(6*6, inch, outch, 2ul);
+    Mat kernel_tm(6*6, inch, outch, 2ul);
 
     // G
     // const float ktm[6][3] = {
@@ -1108,9 +1108,166 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, M
             }
         }
     }
+
+    for (int r=0; r<6; r++)
+    {
+        Mat kernel_tm_test(6*8, inch, outch/8 + (outch%8)/4 + outch%4, 2u);
+
+        int p = 0;
+        for (; p+7<outch; p+=8)
+        {
+            const short* kernel0 = (const short*)kernel_tm + (p+0)*inch*36;
+            const short* kernel1 = (const short*)kernel_tm + (p+1)*inch*36;
+            const short* kernel2 = (const short*)kernel_tm + (p+2)*inch*36;
+            const short* kernel3 = (const short*)kernel_tm + (p+3)*inch*36;
+            const short* kernel4 = (const short*)kernel_tm + (p+4)*inch*36;
+            const short* kernel5 = (const short*)kernel_tm + (p+5)*inch*36;
+            const short* kernel6 = (const short*)kernel_tm + (p+6)*inch*36;
+            const short* kernel7 = (const short*)kernel_tm + (p+7)*inch*36;
+
+            short* ktmp = kernel_tm_test.channel(p/8);
+
+            for (int q=0; q<inch; q++)
+            {
+                ktmp[0] = kernel0[r*6+0];
+                ktmp[1] = kernel0[r*6+1];
+                ktmp[2] = kernel0[r*6+2];
+                ktmp[3] = kernel0[r*6+3];
+                ktmp[4] = kernel0[r*6+4];
+                ktmp[5] = kernel0[r*6+5];
+
+                ktmp[6] = kernel1[r*6+0];
+                ktmp[7] = kernel1[r*6+1];
+                ktmp[8] = kernel1[r*6+2];
+                ktmp[9] = kernel1[r*6+3];
+                ktmp[10] = kernel1[r*6+4];
+                ktmp[11] = kernel1[r*6+5];
+
+                ktmp[12] = kernel2[r*6+0];
+                ktmp[13] = kernel2[r*6+1];
+                ktmp[14] = kernel2[r*6+2];
+                ktmp[15] = kernel2[r*6+3];
+                ktmp[16] = kernel2[r*6+4];
+                ktmp[17] = kernel2[r*6+5];
+
+                ktmp[18] = kernel3[r*6+0];
+                ktmp[19] = kernel3[r*6+1];
+                ktmp[20] = kernel3[r*6+2];
+                ktmp[21] = kernel3[r*6+3];
+                ktmp[22] = kernel3[r*6+4];
+                ktmp[23] = kernel3[r*6+5];
+
+                ktmp[24] = kernel4[r*6+0];
+                ktmp[25] = kernel4[r*6+1];
+                ktmp[26] = kernel4[r*6+2];
+                ktmp[27] = kernel4[r*6+3];
+                ktmp[28] = kernel4[r*6+4];
+                ktmp[29] = kernel4[r*6+5];
+
+                ktmp[30] = kernel5[r*6+0];
+                ktmp[31] = kernel5[r*6+1];
+                ktmp[32] = kernel5[r*6+2];
+                ktmp[33] = kernel5[r*6+3];
+                ktmp[34] = kernel5[r*6+4];
+                ktmp[35] = kernel5[r*6+5];
+
+                ktmp[36] = kernel6[r*6+0];
+                ktmp[37] = kernel6[r*6+1];
+                ktmp[38] = kernel6[r*6+2];
+                ktmp[39] = kernel6[r*6+3];
+                ktmp[40] = kernel6[r*6+4];
+                ktmp[41] = kernel6[r*6+5];
+
+                ktmp[42] = kernel7[r*6+0];
+                ktmp[43] = kernel7[r*6+1];
+                ktmp[44] = kernel7[r*6+2];
+                ktmp[45] = kernel7[r*6+3];
+                ktmp[46] = kernel7[r*6+4];
+                ktmp[47] = kernel7[r*6+5];
+
+                ktmp += 48;
+                kernel0 += 36;
+                kernel1 += 36;
+                kernel2 += 36;
+                kernel3 += 36;
+                kernel4 += 36;
+                kernel5 += 36;
+                kernel6 += 36;
+                kernel7 += 36;
+            }
+        }
+
+        for (; p+3<outch; p+=4)
+        {
+            const short* kernel0 = (const short*)kernel_tm + (p+0)*inch*36;
+            const short* kernel1 = (const short*)kernel_tm + (p+1)*inch*36;
+            const short* kernel2 = (const short*)kernel_tm + (p+2)*inch*36;
+            const short* kernel3 = (const short*)kernel_tm + (p+3)*inch*36;
+
+            short* ktmp = kernel_tm_test.channel(p/8 + (p%8)/4);
+
+            for (int q=0; q<inch; q++)
+            {
+                ktmp[0] = kernel0[r*6+0];
+                ktmp[1] = kernel0[r*6+1];
+                ktmp[2] = kernel0[r*6+2];
+                ktmp[3] = kernel0[r*6+3];
+                ktmp[4] = kernel0[r*6+4];
+                ktmp[5] = kernel0[r*6+5];
+
+                ktmp[6] = kernel1[r*6+0];
+                ktmp[7] = kernel1[r*6+1];
+                ktmp[8] = kernel1[r*6+2];
+                ktmp[9] = kernel1[r*6+3];
+                ktmp[10] = kernel1[r*6+4];
+                ktmp[11] = kernel1[r*6+5];
+
+                ktmp[12] = kernel2[r*6+0];
+                ktmp[13] = kernel2[r*6+1];
+                ktmp[14] = kernel2[r*6+2];
+                ktmp[15] = kernel2[r*6+3];
+                ktmp[16] = kernel2[r*6+4];
+                ktmp[17] = kernel2[r*6+5];
+
+                ktmp[18] = kernel3[r*6+0];
+                ktmp[19] = kernel3[r*6+1];
+                ktmp[20] = kernel3[r*6+2];
+                ktmp[21] = kernel3[r*6+3];
+                ktmp[22] = kernel3[r*6+4];
+                ktmp[23] = kernel3[r*6+5];
+
+                ktmp += 24;
+                kernel0 += 36;
+                kernel1 += 36;
+                kernel2 += 36;
+                kernel3 += 36;
+            }
+        }
+
+        for (; p<outch; p++)
+        {
+            const short* kernel0 = (const short*)kernel_tm + p*inch*36;
+
+            short* ktmp = kernel_tm_test.channel(p/8 + (p%8)/4 + p%4);
+
+            for (int q=0; q<inch; q++)
+            {
+                ktmp[0] = kernel0[r*6+0];
+                ktmp[1] = kernel0[r*6+1];
+                ktmp[2] = kernel0[r*6+2];
+                ktmp[3] = kernel0[r*6+3];
+                ktmp[4] = kernel0[r*6+4];
+                ktmp[5] = kernel0[r*6+5];
+
+                ktmp += 6;
+                kernel0 += 36;
+            }        
+        }
+        kernel_tm2.push_back(kernel_tm_test);
+    }    
 }
 
-static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Option& opt)
+static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -1130,6 +1287,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
     h = outh + 2;
     copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);
 
+    double start = ncnn::get_current_time();
+
     // BEGIN transform input
     Mat bottom_blob_tm;
     {
@@ -1141,7 +1300,7 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
         const int tiles = nColBlocks * nRowBlocks;
 
-        bottom_blob_tm.create(6*6, tiles, inch, 2u, opt.workspace_allocator);
+        bottom_blob_tm.create(6, inch, tiles*6, 2u, opt.workspace_allocator);
 
         // BT
         // const float itm[4][4] = {
@@ -1160,11 +1319,10 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
         // 4 =	2 * r01 - r02 - 2 * r03 + r04
 		// 5 =	4 * r01 - 5 * r03 + r05
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+        // #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<inch; q++)
         {
             const signed char* img = bottom_blob_bordered.channel(q);
-            short* out_tm0 = bottom_blob_tm.channel(q);
 
             for (int j = 0; j < nColBlocks; j++)
             {
@@ -1177,6 +1335,13 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
                 for (int i = 0; i < nRowBlocks; i++)
                 {
+                    short* out_tm0 = bottom_blob_tm.channel(tiles*0+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm1 = bottom_blob_tm.channel(tiles*1+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm2 = bottom_blob_tm.channel(tiles*2+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm3 = bottom_blob_tm.channel(tiles*3+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm4 = bottom_blob_tm.channel(tiles*4+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm5 = bottom_blob_tm.channel(tiles*5+j*nRowBlocks+i).row<short>(q);                    
+
                     short d0[6],d1[6],d2[6],d3[6],d4[6],d5[6];
                     short w0[6],w1[6],w2[6],w3[6],w4[6],w5[6];
                     short t0[6],t1[6],t2[6],t3[6],t4[6],t5[6];
@@ -1223,12 +1388,12 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     // save to out_tm
                     for (int n = 0; n < 6; n++)
                     {
-                        out_tm0[n   ] = d0[n];
-                        out_tm0[n+ 6] = d1[n];
-                        out_tm0[n+12] = d2[n];
-                        out_tm0[n+18] = d3[n];
-                        out_tm0[n+24] = d4[n];
-                        out_tm0[n+30] = d5[n];
+                        out_tm0[n] = d0[n];
+                        out_tm1[n] = d1[n];
+                        out_tm2[n] = d2[n];
+                        out_tm3[n] = d3[n];   
+                        out_tm4[n] = d4[n];
+                        out_tm5[n] = d5[n];                     
                     }
 
                     r0 += 4;
@@ -1237,13 +1402,15 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     r3 += 4;
                     r4 += 4;
                     r5 += 4;
-
-                    out_tm0 += 36;
                 }
             }
         }
     }
     bottom_blob_bordered = Mat();
+
+    double end = ncnn::get_current_time();
+    printf("trans A : %.3f ms\n", end - start);
+    start = ncnn::get_current_time();    
 
     // BEGIN dot
     Mat top_blob_tm;
@@ -1258,38 +1425,216 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
         top_blob_tm.create(36, tiles, outch, 4u, opt.workspace_allocator);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<outch; p++)
+        // #pragma omp parallel for num_threads(opt.num_threads)
+        for (int r=0; r<6; r++)
         {
-            Mat out0_tm = top_blob_tm.channel(p);
-            const Mat kernel0_tm = kernel_tm.channel(p);
+            int nn_outch = 0;
+            int remain_outch_start = 0;
 
-            for (int i=0; i<tiles; i++)
+            nn_outch = outch >> 3;
+            remain_outch_start = nn_outch << 3;
+
+            for (int pp=0; pp<nn_outch; pp++)
             {
-                int* output0_tm = out0_tm.row<int>(i);
+                int p = pp * 8;
 
-                int sum0[36] = {0};
+                int* output0_tm = top_blob_tm.channel(p);
+                int* output1_tm = top_blob_tm.channel(p+1);
+                int* output2_tm = top_blob_tm.channel(p+2);
+                int* output3_tm = top_blob_tm.channel(p+3);
+                int* output4_tm = top_blob_tm.channel(p+4);
+                int* output5_tm = top_blob_tm.channel(p+5);
+                int* output6_tm = top_blob_tm.channel(p+6);
+                int* output7_tm = top_blob_tm.channel(p+7);
 
-                for (int q=0; q<inch; q++)
+                output0_tm = output0_tm + r*6;
+                output1_tm = output1_tm + r*6;
+                output2_tm = output2_tm + r*6;
+                output3_tm = output3_tm + r*6;
+                output4_tm = output4_tm + r*6;
+                output5_tm = output5_tm + r*6;
+                output6_tm = output6_tm + r*6;
+                output7_tm = output7_tm + r*6;
+
+                for (int i=0; i<tiles; i++)
                 {
-                    const short* r0 = bottom_blob_tm.channel(q).row<short>(i);
-                    const short* k0 = kernel0_tm.row<short>(q);
+                    const short* kptr = kernel_tm_test[r].channel(p/8);
+                    const short* r0 = bottom_blob_tm.channel(tiles*r+i);
 
-                    for (int n=0; n<36; n++)
+                    int sum0[6] = {0};
+                    int sum1[6] = {0};
+                    int sum2[6] = {0};
+                    int sum3[6] = {0};
+                    int sum4[6] = {0};
+                    int sum5[6] = {0};
+                    int sum6[6] = {0};
+                    int sum7[6] = {0};
+
+                    for (int q=0; q<inch; q++)
                     {
-                        sum0[n] += (int)r0[n] * k0[n];
+                        for (int n=0; n<6; n++)
+                        {
+                            sum0[n] += (int)r0[n] * kptr[n];
+                            sum1[n] += (int)r0[n] * kptr[n+6];
+                            sum2[n] += (int)r0[n] * kptr[n+12];
+                            sum3[n] += (int)r0[n] * kptr[n+18];
+                            sum4[n] += (int)r0[n] * kptr[n+24];
+                            sum5[n] += (int)r0[n] * kptr[n+30];
+                            sum6[n] += (int)r0[n] * kptr[n+36];
+                            sum7[n] += (int)r0[n] * kptr[n+42];
+                        }
+                        kptr += 48;
+                        r0 += 6;
                     }
-                }
 
-                for (int n=0; n<36; n++)
-                {
-                    output0_tm[n] = sum0[n];
+                    for (int n=0; n<6; n++)
+                    {
+                        output0_tm[n] = sum0[n];
+                        output1_tm[n] = sum1[n];
+                        output2_tm[n] = sum2[n];
+                        output3_tm[n] = sum3[n];
+                        output4_tm[n] = sum4[n];
+                        output5_tm[n] = sum5[n];
+                        output6_tm[n] = sum6[n];
+                        output7_tm[n] = sum7[n];
+                    }
+
+                    output0_tm += 36;
+                    output1_tm += 36;
+                    output2_tm += 36;
+                    output3_tm += 36;
+                    output4_tm += 36;
+                    output5_tm += 36;
+                    output6_tm += 36;
+                    output7_tm += 36;
                 }
             }
+
+            nn_outch = (outch - remain_outch_start) >> 2;
+
+            for (int pp=0; pp<nn_outch; pp++)
+            {
+                int p = remain_outch_start + pp * 4;
+
+                int* output0_tm = top_blob_tm.channel(p);
+                int* output1_tm = top_blob_tm.channel(p+1);
+                int* output2_tm = top_blob_tm.channel(p+2);
+                int* output3_tm = top_blob_tm.channel(p+3);
+
+                output0_tm = output0_tm + r*6;
+                output1_tm = output1_tm + r*6;
+                output2_tm = output2_tm + r*6;
+                output3_tm = output3_tm + r*6;
+
+                for (int i=0; i<tiles; i++)
+                {
+                    const short* kptr = kernel_tm_test[r].channel(p/8 + (p%8)/4);
+                    const short* r0 = bottom_blob_tm.channel(tiles*r+i);
+
+                    int sum0[6] = {0};
+                    int sum1[6] = {0};
+                    int sum2[6] = {0};
+                    int sum3[6] = {0};
+
+                    for (int q=0; q<inch; q++)
+                    {   
+                        for (int n=0; n<6; n++)
+                        {
+                            sum0[n] += (int)r0[n] * kptr[n];
+                            sum1[n] += (int)r0[n] * kptr[n+6];
+                            sum2[n] += (int)r0[n] * kptr[n+12];
+                            sum3[n] += (int)r0[n] * kptr[n+18];
+                        }
+                        kptr += 24;
+                        r0 += 6;
+                    }
+
+                    for (int n=0; n<6; n++)
+                    {
+                        output0_tm[n] = sum0[n];
+                        output1_tm[n] = sum1[n];
+                        output2_tm[n] = sum2[n];
+                        output3_tm[n] = sum3[n];
+                    }
+
+                    output0_tm += 36;
+                    output1_tm += 36;
+                    output2_tm += 36;
+                    output3_tm += 36;
+                }
+            }
+
+            remain_outch_start += nn_outch << 2;
+
+            for (int p=remain_outch_start; p<outch; p++)
+            {
+                int* output0_tm = top_blob_tm.channel(p);
+
+                output0_tm = output0_tm + r*6;
+
+                for (int i=0; i<tiles; i++)
+                {
+                    const short* kptr = kernel_tm_test[r].channel(p/8 + (p%8)/4 + p%4);
+                    const short* r0 = bottom_blob_tm.channel(tiles*r+i);
+
+                    int sum0[6] = {0};
+
+                    for (int q=0; q<inch; q++)
+                    {
+                        for (int n=0; n<6; n++)
+                        {
+                            sum0[n] += (int)r0[n] * kptr[n];
+                        }
+                        kptr += 6; 
+                        r0 += 6;
+                    }
+
+                    for (int n=0; n<6; n++)
+                    {
+                        output0_tm[n] = sum0[n];
+                    }           
+                           
+                    output0_tm += 36;
+                }
+            }
+
+            // for (int p=0; p<outch; p++)
+            // {
+            //     Mat out0_tm = top_blob_tm.channel(p);
+            //     const Mat kernel0_tm = kernel_tm.channel(p);
+
+            //     for (int i=0; i<tiles; i++)
+            //     {
+            //         int* output0_tm = out0_tm.row<int>(i);
+
+            //         int sum0[36] = {0};
+
+            //         for (int q=0; q<inch; q++)
+            //         {
+            //             const short* r0 = bottom_blob_tm.channel(q).row<short>(i);
+            //             const short* k0 = kernel0_tm.row<short>(q);
+
+            //             for (int n=0; n<36; n++)
+            //             {
+            //                 sum0[n] += (int)r0[n] * k0[n];
+            //             }
+            //         }
+
+            //         for (int n=0; n<36; n++)
+            //         {
+            //             output0_tm[n] = sum0[n];
+            //         }
+            //     }
+            // }
         }
+
     }
     bottom_blob_tm = Mat();
     // END dot
+
+    end = ncnn::get_current_time();
+    printf("dot B   : %.3f ms\n", end - start);
+    start = ncnn::get_current_time();    
 
     // BEGIN transform output
     Mat top_blob_bordered;
@@ -1315,23 +1660,19 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
         int nColBlocks = h_tm/6; // may be the block num in Feathercnn
         int nRowBlocks = w_tm/6;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+        // #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<outch; p++)
         {
-            Mat out_tm = top_blob_tm.channel(p);
-            Mat out = top_blob_bordered.channel(p);
+            int* out_tile = top_blob_tm.channel(p);
+            int* outRow0 = top_blob_bordered.channel(p);
+            int* outRow1 = outRow0 + outw;
+            int* outRow2 = outRow0 + outw * 2;
+            int* outRow3 = outRow0 + outw * 3;
 
             for (int j=0; j<nColBlocks; j++)
             {
-                int* outRow0 = out.row<int>(j*4);
-                int* outRow1 = out.row<int>(j*4+1);
-                int* outRow2 = out.row<int>(j*4+2);
-                int* outRow3 = out.row<int>(j*4+3);                
-
                 for(int i=0; i<nRowBlocks; i++)
                 {
-                    int* out_tile = out_tm.row<int>(j*nRowBlocks + i);
-
                     int s0[6],s1[6],s2[6],s3[6],s4[6],s5[6];
                     int w0[6],w1[6],w2[6],w3[6];
                     int d0[4],d1[4],d2[4],d3[4],d4[4],d5[4];
@@ -1380,15 +1721,25 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         outRow3[n] = o3[n] / 576;
                     }
 
+                    out_tile += 36;
+
                     outRow0 += 4;
                     outRow1 += 4;
                     outRow2 += 4;
                     outRow3 += 4;
                 }
+
+                outRow0 += outw * 3;
+                outRow1 += outw * 3;
+                outRow2 += outw * 3;
+                outRow3 += outw * 3;
             }
         }
     }
     // END transform output 
+
+    end = ncnn::get_current_time();
+    printf("trans C : %.3f ms\n", end - start);
 
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);

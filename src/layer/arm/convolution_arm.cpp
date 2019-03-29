@@ -71,7 +71,7 @@ int Convolution_arm::load_model(const ModelBin& mb)
         {
             int num_input = weight_data_size / 9 / num_output;
             // conv3x3s1_winograd23_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_int8_data, num_input, num_output);
-             conv3x3s1_winograd43_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+            conv3x3s1_winograd43_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_int8_data, num_input, num_output);
         }
 
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
@@ -377,6 +377,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
+#if DEBUG_FEATURE
+    if (elemsize == 4)
+        extract_feature_in_f32(0, this->name.c_str(), bottom_blob);
+#endif
+
     Mat bottom_blob_unbordered = bottom_blob;
     if (use_int8_inference && elemsize != 1)
     {
@@ -395,6 +400,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         bottom_blob_unbordered = bottom_blob_int8;             
     }
+
+#if DEBUG_FEATURE
+    if (use_int8_inference)
+        extract_feature_in_s8(0, this->name.c_str(), bottom_blob_unbordered);
+#endif    
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
@@ -447,7 +457,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             else if (use_winograd3x3)
             {
                 // conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_int8_data, opt);
-                conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data, opt);
+                conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_int8_data, opt);
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
@@ -469,7 +479,12 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 requantize_ops[p]->forward(top_blob_tm_g, top_blob_g, opt_g);
-            }                     
+            }
+
+#if DEBUG_FEATURE
+            extract_feature_out_s32(0, this->name.c_str(), top_blob_tm);
+            extract_feature_blob_s8("D_Out_S8", this->name.c_str(), top_blob);
+#endif                      
         }
         else
         {
@@ -484,7 +499,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             else if (use_winograd3x3)
             {
                 // conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, opt);
-                conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, opt);
+                conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, opt);
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
@@ -506,6 +521,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
             }
+
+#if DEBUG_FEATURE 
+            extract_feature_out_f32(0, this->name.c_str(), top_blob);
+#endif               
         } 
 
         return 0;
