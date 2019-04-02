@@ -45,7 +45,7 @@ int Interp::load_param(const ParamDict& pd)
 static void resize_bilinear_image(const Mat& src, Mat& dst)
 {
     int w = dst.w;
-    int h = dst.w;
+    int h = dst.h;
 
     double scale_x = (double)src.w / w;
     double scale_y = (double)src.h / h;
@@ -210,7 +210,7 @@ static inline void interpolate_cubic(float fx, float* coeffs)
 static void resize_bicubic_image(const Mat& src, Mat& dst)
 {
     int w = dst.w;
-    int h = dst.w;
+    int h = dst.h;
 
     double scale_x = (double)src.w / w;
     double scale_y = (double)src.h / h;
