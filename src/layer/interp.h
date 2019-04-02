@@ -37,7 +37,7 @@ public:
 
 public:
     // param
-    int resize_type;//1:near 2: bilinear
+    int resize_type;//1=nearest  2=bilinear  3=bicubic
     float width_scale;
     float height_scale;
     int output_width;
