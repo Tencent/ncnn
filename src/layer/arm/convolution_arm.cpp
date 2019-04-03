@@ -46,6 +46,9 @@ int Convolution_arm::load_param(const ParamDict& pd)
         // winograd is slow on small channel count
         if (num_input >= 16 && num_output >= 16)
             use_winograd3x3 = true;
+        
+        if (use_int8_inference)
+            use_winograd3x3 = true;
     }
 
     // TODO assume more proper condition
