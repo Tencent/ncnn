@@ -46,6 +46,11 @@ public:
 #if NCNN_VULKAN
     Pipeline* pipeline_interp;
     Pipeline* pipeline_interp_pack4;
+
+    Pipeline* pipeline_interp_bicubic_coeffs_x;
+    Pipeline* pipeline_interp_bicubic_coeffs_y;
+    Pipeline* pipeline_interp_bicubic;
+    Pipeline* pipeline_interp_bicubic_pack4;
 #endif // NCNN_VULKAN
 };
 

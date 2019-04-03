@@ -926,7 +926,7 @@ int VulkanDevice::create_shader_module()
         {
             if (string_ends_with_fp16s(shader_name))
                 continue;
-            
+
             if (strcmp(shader_name, "cast_fp16_to_fp32") == 0 || strcmp(shader_name, "cast_fp16_to_fp32_pack4") == 0)
                 continue;
 
