@@ -379,37 +379,37 @@ inline Mat::Mat()
 }
 
 inline Mat::Mat(int _w, size_t _elemsize, Allocator* _allocator)
-    : data(0), refcount(0), dims(0)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _elemsize, _allocator);
 }
 
 inline Mat::Mat(int _w, int _h, size_t _elemsize, Allocator* _allocator)
-    : data(0), refcount(0), dims(0)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _h, _elemsize, _allocator);
 }
 
 inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator)
-    : data(0), refcount(0), dims(0)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _h, _c, _elemsize, _allocator);
 }
 
 inline Mat::Mat(int _w, size_t _elemsize, int _packing, Allocator* _allocator)
-    : data(0), refcount(0), dims(0)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _elemsize, _packing, _allocator);
 }
 
 inline Mat::Mat(int _w, int _h, size_t _elemsize, int _packing, Allocator* _allocator)
-    : data(0), refcount(0), dims(0)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _h, _elemsize, _packing, _allocator);
 }
 
 inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize, int _packing, Allocator* _allocator)
-    : data(0), refcount(0), dims(0)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _h, _c, _elemsize, _packing, _allocator);
 }
@@ -1071,37 +1071,37 @@ inline VkMat::VkMat()
 }
 
 inline VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
-    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _elemsize, _allocator, _staging_allocator);
 }
 
 inline VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
-    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _h, _elemsize, _allocator, _staging_allocator);
 }
 
 inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
-    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _h, _c, _elemsize, _allocator, _staging_allocator);
 }
 
 inline VkMat::VkMat(int _w, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
-    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _elemsize, _packing, _allocator, _staging_allocator);
 }
 
 inline VkMat::VkMat(int _w, int _h, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
-    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _h, _elemsize, _packing, _allocator, _staging_allocator);
 }
 
 inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
-    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
     create(_w, _h, _c, _elemsize, _packing, _allocator, _staging_allocator);
 }
