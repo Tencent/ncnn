@@ -56,20 +56,39 @@ static inline size_t alignSize(size_t sz, int n)
 
 static inline void* fastMalloc(size_t size)
 {
+#if _MSC_VER
+    return _aligned_malloc(size, MALLOC_ALIGN);
+#elif __ANDROID__
+    return memalign(MALLOC_ALIGN, size);
+#elif _POSIX_C_SOURCE >= 200112L
+    void* ptr = 0;
+    if (posix_memalign(&ptr, MALLOC_ALIGN, size))
+        ptr = 0;
+    return ptr;
+#else
     unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + MALLOC_ALIGN);
     if (!udata)
         return 0;
     unsigned char** adata = alignPtr((unsigned char**)udata + 1, MALLOC_ALIGN);
     adata[-1] = udata;
     return adata;
+#endif
 }
 
 static inline void fastFree(void* ptr)
 {
     if (ptr)
     {
+#if _MSC_VER
+        _aligned_free(ptr);
+#elif __ANDROID__
+        free(ptr);
+#elif _POSIX_C_SOURCE >= 200112L
+        free(ptr);
+#else
         unsigned char* udata = ((unsigned char**)ptr)[-1];
         free(udata);
+#endif
     }
 }
 
