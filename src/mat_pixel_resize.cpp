@@ -103,18 +103,22 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w >> 1) + 1);
-    Mat rowsbuf1((w >> 1) + 1);
+    Mat rowsbuf0(w, (size_t)2u);
+    Mat rowsbuf1(w, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -1;
+    int prev_sy1 = -2;
 
     for (int dy = 0; dy < h; dy++ )
     {
         int sy = yofs[dy];
 
         if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 1)
         {
             // hresize one row
             short* rows0_old = rows0;
@@ -160,7 +164,7 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
             }
         }
 
-        prev_sy1 = sy + 1;
+        prev_sy1 = sy;
 
         // vresize
         short b0 = ibeta[0];
@@ -354,18 +358,22 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w*2 >> 1) + 2);
-    Mat rowsbuf1((w*2 >> 1) + 2);
+    Mat rowsbuf0(w*2, (size_t)2u);
+    Mat rowsbuf1(w*2, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -1;
+    int prev_sy1 = -4;
 
     for (int dy = 0; dy < h; dy++ )
     {
         int sy = yofs[dy];
 
         if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 2)
         {
             // hresize one row
             short* rows0_old = rows0;
@@ -449,7 +457,7 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
             }
         }
 
-        prev_sy1 = sy + 1;
+        prev_sy1 = sy;
 
         // vresize
         short b0 = ibeta[0];
@@ -643,18 +651,22 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w*3 >> 1) + 3);
-    Mat rowsbuf1((w*3 >> 1) + 3);
+    Mat rowsbuf0(w*3, (size_t)2u);
+    Mat rowsbuf1(w*3, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -1;
+    int prev_sy1 = -6;
 
     for (int dy = 0; dy < h; dy++ )
     {
         int sy = yofs[dy];
 
         if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 3)
         {
             // hresize one row
             short* rows0_old = rows0;
@@ -743,7 +755,7 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
             }
         }
 
-        prev_sy1 = sy + 1;
+        prev_sy1 = sy;
 
         // vresize
         short b0 = ibeta[0];
@@ -937,18 +949,22 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w*4 >> 1) + 4);
-    Mat rowsbuf1((w*4 >> 1) + 4);
+    Mat rowsbuf0(w*4, (size_t)2u);
+    Mat rowsbuf1(w*4, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -1;
+    int prev_sy1 = -8;
 
     for (int dy = 0; dy < h; dy++ )
     {
         int sy = yofs[dy];
 
         if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 4)
         {
             // hresize one row
             short* rows0_old = rows0;
@@ -1040,7 +1056,7 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
             }
         }
 
-        prev_sy1 = sy + 1;
+        prev_sy1 = sy;
 
         // vresize
         short b0 = ibeta[0];

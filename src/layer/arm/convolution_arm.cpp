@@ -396,7 +396,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             quantize->forward(bottom_blob, bottom_blob_int8, opt_g);
         }
 
-        bottom_blob_unbordered = bottom_blob_int8;
+        bottom_blob_unbordered = bottom_blob_int8;             
     }
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
@@ -444,6 +444,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             if (use_sgemm1x1)
             {              
                 conv1x1s1_sgemm_int8_requant_neon(bottom_blob_bordered, top_blob, weight_1x1s1_sgemm_int8_data, bias_data, requantize_scales, opt);
+                
                 return 0;
             }
             else if (use_winograd3x3)
@@ -471,7 +472,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 requantize_ops[p]->forward(top_blob_tm_g, top_blob_g, opt_g);
-            }             
+            }                     
         }
         else
         {

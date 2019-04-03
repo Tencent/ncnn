@@ -48,11 +48,40 @@ int Crop::load_param(const ParamDict& pd)
     return 0;
 }
 
+template<typename T>
+static void copy_cut_border_image(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+
+    const T* ptr = src.row<T>(top) + left;
+    T* outptr = dst;//.data;
+
+    for (int y = 0; y < h; y++)
+    {
+        if(w < 12)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                outptr[x] = ptr[x];
+            }
+        }
+        else
+        {
+            memcpy(outptr, ptr, w*sizeof(T));
+        }
+        outptr += w;
+        ptr += src.w;
+    }
+}
+
 int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
 
     int _outw;
     int _outh;
@@ -92,18 +121,41 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         top_blob = bottom_blob_sliced.clone();
         if (top_blob.empty())
             return -100;
-
-        return 0;
     }
 
     int top = hoffset;
-    int bottom = h - _outh - hoffset;
     int left = woffset;
-    int right = w - _outw - woffset;
 
-    copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right, opt.blob_allocator, opt.num_threads);
-    if (top_blob.empty())
-        return -100;
+    if (dims == 2)
+    {
+        top_blob.create(_outh, _outh, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (elemsize == 1)
+            copy_cut_border_image<signed char>(bottom_blob_sliced, top_blob, top, left);
+        else if (elemsize == 4)
+            copy_cut_border_image<float>(bottom_blob_sliced, top_blob, top, left);
+    }
+
+    if (dims == 3)
+    {
+        top_blob.create(_outw, _outh, channels, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const Mat m = bottom_blob_sliced.channel(q);
+            Mat borderm = top_blob.channel(q);
+
+            if (elemsize == 1)
+                copy_cut_border_image<signed char>(m, borderm, top, left);
+            else if (elemsize == 4)
+                copy_cut_border_image<float>(m, borderm, top, left);
+        }
+    }
 
     return 0;
 }
@@ -116,6 +168,8 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
 
     Mat& top_blob = top_blobs[0];
 
@@ -141,13 +195,38 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     }
 
     int top = hoffset;
-    int bottom = h - _outh - hoffset;
     int left = woffset;
-    int right = w - _outw - woffset;
 
-    copy_cut_border(bottom_blob_sliced, top_blob, top, bottom, left, right, opt.blob_allocator, opt.num_threads);
-    if (top_blob.empty())
-        return -100;
+    if (dims == 2)
+    {
+        top_blob.create(_outh, _outh, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (elemsize == 1)
+            copy_cut_border_image<signed char>(bottom_blob_sliced, top_blob, top, left);
+        else if (elemsize == 4)
+            copy_cut_border_image<float>(bottom_blob_sliced, top_blob, top, left);
+    }
+
+    if (dims == 3)
+    {
+        top_blob.create(_outw, _outh, channels, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const Mat m = bottom_blob_sliced.channel(q);
+            Mat borderm = top_blob.channel(q);
+
+            if (elemsize == 1)
+                copy_cut_border_image<signed char>(m, borderm, top, left);
+            else if (elemsize == 4)
+                copy_cut_border_image<float>(m, borderm, top, left);
+        }
+    }
 
     return 0;
 }
