@@ -46,6 +46,9 @@ int Convolution_arm::load_param(const ParamDict& pd)
         // winograd is slow on small channel count
         if (num_input >= 16 && num_output >= 16)
             use_winograd3x3 = true;
+        
+        if (use_int8_inference)
+            use_winograd3x3 = true;
     }
 
     // TODO assume more proper condition
@@ -70,7 +73,8 @@ int Convolution_arm::load_model(const ModelBin& mb)
         if (use_winograd3x3)
         {
             int num_input = weight_data_size / 9 / num_output;
-            conv3x3s1_winograd23_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_int8_data, num_input, num_output);
+            // conv3x3s1_winograd23_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_int8_data, num_input, num_output);
+            conv3x3s1_winograd43_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_int8_data, num_input, num_output);
         }
 
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
@@ -390,7 +394,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             opt_g.blob_allocator = bottom_blob_int8.allocator;
 
             quantize->forward(bottom_blob, bottom_blob_int8, opt_g);
-        }       
+        }
 
         bottom_blob_unbordered = bottom_blob_int8;             
     }
@@ -445,7 +449,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
             else if (use_winograd3x3)
             {
-                conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_int8_data, opt);
+                // conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_int8_data, opt);
+                conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_int8_data, opt);
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
@@ -481,7 +486,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
             else if (use_winograd3x3)
             {
-                conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, opt);
+                // conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, opt);
+                // conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, opt);
+                conv3x3s1_winograd43_dequant_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, bias_data, dequantize_scales, opt);
+                return 0;
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
@@ -502,7 +510,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
-            }
+            }          
         } 
 
         return 0;
