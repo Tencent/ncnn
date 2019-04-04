@@ -61,9 +61,11 @@ int Convolution_x86::load_model(const ModelBin& mb)
         int num_input = weight_data_size / 9 / num_output;
 
         if (use_int8_inference)
-            conv3x3s1_winograd23_transform_kernel_int8_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+            // conv3x3s1_winograd23_transform_kernel_int8_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+            conv3x3s1_winograd43_transform_kernel_int8_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
         else
-            conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+            // conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+            conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
     }
 
     return 0;
@@ -441,7 +443,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
             if (use_winograd3x3)
             {
-                conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data, opt);
+                // conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data, opt);
+                conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data, opt);
 
                 // requantize, reverse scale inplace
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -457,12 +460,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
             }
             else
-                conv_int8_requant(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
-
-#if DEBUG_FEATURE
-            extract_feature_out_s32(0, this->name.c_str(), top_blob_tm);
-            extract_feature_blob_s8("D_Out_S8", this->name.c_str(), top_blob);
-#endif                                                          
+                conv_int8_requant(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);                                                    
         }
         else
         {
@@ -472,7 +470,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
             if (use_winograd3x3)
             {
-                conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, opt);
+                // conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, opt);
+                conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, opt);
 
                 // dequantize, reverse scale inplace
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -487,11 +486,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
             }
             else
-                conv_int8_dequant(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
-
-#if DEBUG_FEATURE 
-            extract_feature_out_f32(0, this->name.c_str(), top_blob);
-#endif             
+                conv_int8_dequant(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);     
         }
     
         return 0;
@@ -504,7 +499,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (use_winograd3x3)
     {
-        conv3x3s1_winograd23_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
+        //conv3x3s1_winograd23_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
+        conv3x3s1_winograd43_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
     }    
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
