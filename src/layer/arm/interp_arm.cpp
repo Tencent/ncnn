@@ -19,31 +19,14 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Interp_arm)
 
-static void resize_bilinear_image(const Mat& src, Mat& dst)
+static void linear_coeffs(int w, int outw, int* xofs, float* alpha)
 {
-    int w = dst.w;
-    int h = dst.h;
+    double scale = (double)w / outw;
 
-    double scale_x = (double)src.w / w;
-    double scale_y = (double)src.h / h;
-
-    int* buf = new int[w + h + w*2 + h*2];
-
-    int* xofs = buf;//new int[w];
-    int* yofs = buf + w;//new int[h];
-
-    float* alpha = (float*)(buf + w + h);//new float[w * 2];
-    float* beta = (float*)(buf + w + h + w*2);//new float[h * 2];
-
-    float fx;
-    float fy;
-    int sx;
-    int sy;
-
-    for (int dx = 0; dx < w; dx++)
+    for (int dx = 0; dx < outw; dx++)
     {
-        fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = floor(fx);
+        float fx = (float)((dx + 0.5) * scale - 0.5);
+        int sx = floor(fx);
         fx -= sx;
 
         if (sx < 0)
@@ -51,9 +34,9 @@ static void resize_bilinear_image(const Mat& src, Mat& dst)
             sx = 0;
             fx = 0.f;
         }
-        if (sx >= src.w - 1)
+        if (sx >= w - 1)
         {
-            sx = src.w - 2;
+            sx = w - 2;
             fx = 1.f;
         }
 
@@ -62,29 +45,12 @@ static void resize_bilinear_image(const Mat& src, Mat& dst)
         alpha[dx*2    ] = 1.f - fx;
         alpha[dx*2 + 1] = fx;
     }
+}
 
-    for (int dy = 0; dy < h; dy++)
-    {
-        fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = floor(fy);
-        fy -= sy;
-
-        if (sy < 0)
-        {
-            sy = 0;
-            fy = 0.f;
-        }
-        if (sy >= src.h - 1)
-        {
-            sy = src.h - 2;
-            fy = 1.f;
-        }
-
-        yofs[dy] = sy;
-
-        beta[dy*2    ] = 1.f - fy;
-        beta[dy*2 + 1] = fy;
-    }
+static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
+{
+    int w = dst.w;
+    int h = dst.h;
 
     // loop body
     Mat rowsbuf0(w);
@@ -251,8 +217,6 @@ static void resize_bilinear_image(const Mat& src, Mat& dst)
 
         beta += 2;
     }
-
-    delete[] buf;
 }
 
 int Interp_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -287,14 +251,27 @@ int Interp_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     if (top_blob.empty())
         return -100;
 
+    int* buf = new int[outw + outh + outw*2 + outh*2];
+
+    int* xofs = buf;//new int[outw];
+    int* yofs = buf + outw;//new int[outh];
+
+    float* alpha = (float*)(buf + outw + outh);//new float[outw * 2];
+    float* beta = (float*)(buf + outw + outh + outw*2);//new float[outh * 2];
+
+    linear_coeffs(w, outw, xofs, alpha);
+    linear_coeffs(h, outh, yofs, beta);
+
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const Mat src = bottom_blob.channel(q);
         Mat dst = top_blob.channel(q);
 
-        resize_bilinear_image(src, dst);
+        resize_bilinear_image(src, dst, alpha, xofs, beta, yofs);
     }
+
+    delete[] buf;
 
     return 0;
 }

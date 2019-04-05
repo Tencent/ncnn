@@ -47,31 +47,14 @@ int Interp::load_param(const ParamDict& pd)
     return 0;
 }
 
-static void resize_bilinear_image(const Mat& src, Mat& dst)
+static void linear_coeffs(int w, int outw, int* xofs, float* alpha)
 {
-    int w = dst.w;
-    int h = dst.h;
+    double scale = (double)w / outw;
 
-    double scale_x = (double)src.w / w;
-    double scale_y = (double)src.h / h;
-
-    int* buf = new int[w + h + w*2 + h*2];
-
-    int* xofs = buf;//new int[w];
-    int* yofs = buf + w;//new int[h];
-
-    float* alpha = (float*)(buf + w + h);//new float[w * 2];
-    float* beta = (float*)(buf + w + h + w*2);//new float[h * 2];
-
-    float fx;
-    float fy;
-    int sx;
-    int sy;
-
-    for (int dx = 0; dx < w; dx++)
+    for (int dx = 0; dx < outw; dx++)
     {
-        fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = floor(fx);
+        float fx = (float)((dx + 0.5) * scale - 0.5);
+        int sx = floor(fx);
         fx -= sx;
 
         if (sx < 0)
@@ -79,9 +62,9 @@ static void resize_bilinear_image(const Mat& src, Mat& dst)
             sx = 0;
             fx = 0.f;
         }
-        if (sx >= src.w - 1)
+        if (sx >= w - 1)
         {
-            sx = src.w - 2;
+            sx = w - 2;
             fx = 1.f;
         }
 
@@ -90,29 +73,12 @@ static void resize_bilinear_image(const Mat& src, Mat& dst)
         alpha[dx*2    ] = 1.f - fx;
         alpha[dx*2 + 1] = fx;
     }
+}
 
-    for (int dy = 0; dy < h; dy++)
-    {
-        fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = floor(fy);
-        fy -= sy;
-
-        if (sy < 0)
-        {
-            sy = 0;
-            fy = 0.f;
-        }
-        if (sy >= src.h - 1)
-        {
-            sy = src.h - 2;
-            fy = 1.f;
-        }
-
-        yofs[dy] = sy;
-
-        beta[dy*2    ] = 1.f - fy;
-        beta[dy*2 + 1] = fy;
-    }
+static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
+{
+    int w = dst.w;
+    int h = dst.h;
 
     // loop body
     Mat rowsbuf0(w);
@@ -193,8 +159,6 @@ static void resize_bilinear_image(const Mat& src, Mat& dst)
 
         beta += 2;
     }
-
-    delete[] buf;
 }
 
 static inline void interpolate_cubic(float fx, float* coeffs)
@@ -212,31 +176,14 @@ static inline void interpolate_cubic(float fx, float* coeffs)
     coeffs[3] = 1.f - coeffs[0] - coeffs[1] - coeffs[2];
 }
 
-static void resize_bicubic_image(const Mat& src, Mat& dst)
+static void cubic_coeffs(int w, int outw, int* xofs, float* alpha)
 {
-    int w = dst.w;
-    int h = dst.h;
+    double scale = (double)w / outw;
 
-    double scale_x = (double)src.w / w;
-    double scale_y = (double)src.h / h;
-
-    int* buf = new int[w + h + w*4 + h*4];
-
-    int* xofs = buf;//new int[w];
-    int* yofs = buf + w;//new int[h];
-
-    float* alpha = (float*)(buf + w + h);//new float[w * 4];
-    float* beta = (float*)(buf + w + h + w*4);//new float[h * 4];
-
-    float fx;
-    float fy;
-    int sx;
-    int sy;
-
-    for (int dx = 0; dx < w; dx++)
+    for (int dx = 0; dx < outw; dx++)
     {
-        fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = floor(fx);
+        float fx = (float)((dx + 0.5) * scale - 0.5);
+        int sx = floor(fx);
         fx -= sx;
 
         interpolate_cubic(fx, alpha + dx*4);
@@ -257,17 +204,17 @@ static void resize_bicubic_image(const Mat& src, Mat& dst)
             alpha[dx*4 +2] = alpha[dx*4 +3];
             alpha[dx*4 +3] = 0.f;
         }
-        if (sx == src.w - 2)
+        if (sx == w - 2)
         {
-            sx = src.w - 3;
+            sx = w - 3;
             alpha[dx*4 +3] = alpha[dx*4 +2] + alpha[dx*4 +3];
             alpha[dx*4 +2] = alpha[dx*4 +1];
             alpha[dx*4 +1] = alpha[dx*4 +0];
             alpha[dx*4 +0] = 0.f;
         }
-        if (sx >= src.w - 1)
+        if (sx >= w - 1)
         {
-            sx = src.w - 3;
+            sx = w - 3;
             alpha[dx*4 +3] = 1.f - alpha[dx*4 +0];
             alpha[dx*4 +2] = alpha[dx*4 +0];
             alpha[dx*4 +1] = 0.f;
@@ -276,50 +223,12 @@ static void resize_bicubic_image(const Mat& src, Mat& dst)
 
         xofs[dx] = sx;
     }
+}
 
-    for (int dy = 0; dy < h; dy++)
-    {
-        fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = floor(fy);
-        fy -= sy;
-
-        interpolate_cubic(fy, beta + dy*4);
-
-        if (sy <= -1)
-        {
-            sy = 1;
-            beta[dy*4 +0] = 1.f - beta[dy*4 +3];
-            beta[dy*4 +1] = beta[dy*4 +3];
-            beta[dy*4 +2] = 0.f;
-            beta[dy*4 +3] = 0.f;
-        }
-        if (sy == 0)
-        {
-            sy = 1;
-            beta[dy*4 +0] = beta[dy*4 +0] + beta[dy*4 +1];
-            beta[dy*4 +1] = beta[dy*4 +2];
-            beta[dy*4 +2] = beta[dy*4 +3];
-            beta[dy*4 +3] = 0.f;
-        }
-        if (sy == src.h - 2)
-        {
-            sy = src.h - 3;
-            beta[dy*4 +3] = beta[dy*4 +2] + beta[dy*4 +3];
-            beta[dy*4 +2] = beta[dy*4 +1];
-            beta[dy*4 +1] = beta[dy*4 +0];
-            beta[dy*4 +0] = 0.f;
-        }
-        if (sy >= src.h - 1)
-        {
-            sy = src.h - 3;
-            beta[dy*4 +3] = 1.f - beta[dy*4 +0];
-            beta[dy*4 +2] = beta[dy*4 +0];
-            beta[dy*4 +1] = 0.f;
-            beta[dy*4 +0] = 0.f;
-        }
-
-        yofs[dy] = sy;
-    }
+static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
+{
+    int w = dst.w;
+    int h = dst.h;
 
     // loop body
     Mat rowsbuf0(w);
@@ -489,8 +398,6 @@ static void resize_bicubic_image(const Mat& src, Mat& dst)
 
         beta += 4;
     }
-
-    delete[] buf;
 }
 
 int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) const
@@ -556,27 +463,53 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) co
     }
     else if (resize_type == 2)// bilinear
     {
+        int* buf = new int[ow + oh + ow*2 + oh*2];
+
+        int* xofs = buf;//new int[ow];
+        int* yofs = buf + ow;//new int[oh];
+
+        float* alpha = (float*)(buf + ow + oh);//new float[ow * 2];
+        float* beta = (float*)(buf + ow + oh + ow*2);//new float[oh * 2];
+
+        linear_coeffs(w, ow, xofs, alpha);
+        linear_coeffs(h, oh, yofs, beta);
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; ++q)
         {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
 
-            resize_bilinear_image(src, dst);
+            resize_bilinear_image(src, dst, alpha, xofs, beta, yofs);
         }
+
+        delete[] buf;
 
         return 0;
     }
     else if (resize_type == 3)// bicubic
     {
+        int* buf = new int[ow + oh + ow*4 + oh*4];
+
+        int* xofs = buf;//new int[ow];
+        int* yofs = buf + ow;//new int[oh];
+
+        float* alpha = (float*)(buf + ow + oh);//new float[ow * 4];
+        float* beta = (float*)(buf + ow + oh + ow*4);//new float[oh * 4];
+
+        cubic_coeffs(w, ow, xofs, alpha);
+        cubic_coeffs(h, oh, yofs, beta);
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; ++q)
         {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
 
-            resize_bicubic_image(src, dst);
+            resize_bicubic_image(src, dst, alpha, xofs, beta, yofs);
         }
+
+        delete[] buf;
 
         return 0;
     }
