@@ -21,10 +21,6 @@
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
-layout (constant_id = 0) const int woffset = 0;
-layout (constant_id = 1) const int hoffset = 0;
-layout (constant_id = 2) const int coffset = 0;
-
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -45,6 +41,10 @@ layout (push_constant) uniform parameter
     int outh;
     int outc;
     int outcstep;
+
+    int woffset;
+    int hoffset;
+    int coffset;
 } p;
 
 void main()
@@ -56,9 +56,9 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    int x = gx + woffset;
-    int y = gy + hoffset;
-    int z = gz + coffset;
+    int x = gx + p.woffset;
+    int y = gy + p.hoffset;
+    int z = gz + p.coffset;
 
     int v_offset = z * p.cstep + y * p.w + x;
 
