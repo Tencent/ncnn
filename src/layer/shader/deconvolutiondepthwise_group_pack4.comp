@@ -122,10 +122,10 @@ void main()
 #if NCNN_fp16_storage && !NCNN_fp16_arithmetic
                 // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
                 afpmat4 k = afpmat4(
-                    afpvec4(weight_data[(w_offset + x) * 4 + 0]),
-                    afpvec4(weight_data[(w_offset + x) * 4 + 1]),
-                    afpvec4(weight_data[(w_offset + x) * 4 + 2]),
-                    afpvec4(weight_data[(w_offset + x) * 4 + 3])
+                    afpvec4(weight_data[w_offset * 4 + 0]),
+                    afpvec4(weight_data[w_offset * 4 + 1]),
+                    afpvec4(weight_data[w_offset * 4 + 2]),
+                    afpvec4(weight_data[w_offset * 4 + 3])
                 );
 #else
                 afpmat4 k = afpmat4(weight_data[w_offset]);
