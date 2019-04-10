@@ -58,13 +58,13 @@ static inline void* fastMalloc(size_t size)
 {
 #if _MSC_VER
     return _aligned_malloc(size, MALLOC_ALIGN);
-#elif __ANDROID__
-    return memalign(MALLOC_ALIGN, size);
-#elif _POSIX_C_SOURCE >= 200112L
+#elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
     void* ptr = 0;
     if (posix_memalign(&ptr, MALLOC_ALIGN, size))
         ptr = 0;
     return ptr;
+#elif __ANDROID__ && __ANDROID_API__ < 17
+    return memalign(MALLOC_ALIGN, size);
 #else
     unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + MALLOC_ALIGN);
     if (!udata)
@@ -81,9 +81,9 @@ static inline void fastFree(void* ptr)
     {
 #if _MSC_VER
         _aligned_free(ptr);
-#elif __ANDROID__
+#elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
         free(ptr);
-#elif _POSIX_C_SOURCE >= 200112L
+#elif __ANDROID__ && __ANDROID_API__ < 17
         free(ptr);
 #else
         unsigned char* udata = ((unsigned char**)ptr)[-1];
