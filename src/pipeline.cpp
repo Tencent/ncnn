@@ -24,6 +24,8 @@ namespace ncnn {
 #if NCNN_VULKAN
 Pipeline::Pipeline(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
+    local_shader_module = 0;
+
     descriptorset_layout = 0;
     pipeline_layout = 0;
     pipeline = 0;
@@ -39,13 +41,17 @@ Pipeline::~Pipeline()
     destroy();
 }
 
-int Pipeline::create(const char* name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
 {
+    local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
+
+    fprintf(stderr, "local_shader_module %p %s created\n", local_shader_module, entry_name);
+
     create_descriptorset_layout(binding_count);
 
     create_pipeline_layout(push_constant_count);
 
-    create_pipeline(name, specializations);
+    create_pipeline(local_shader_module, entry_name, specializations);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
@@ -53,6 +59,40 @@ int Pipeline::create(const char* name, const std::vector<vk_specialization_type>
     }
 
     return 0;
+}
+
+int Pipeline::create(VkShaderModule shader_module, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+{
+    create_descriptorset_layout(binding_count);
+
+    create_pipeline_layout(push_constant_count);
+
+    create_pipeline(shader_module, entry_name, specializations);
+
+    if (vkdev->info.support_VK_KHR_descriptor_update_template)
+    {
+        create_descriptor_update_template(binding_count);
+    }
+
+    return 0;
+}
+
+int Pipeline::create(const char* _name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+{
+    std::string name = _name;
+
+    if (vkdev->info.support_fp16_arithmetic)
+    {
+        name += "_fp16a";
+    }
+    else if (vkdev->info.support_fp16_storage)
+    {
+        name += "_fp16s";
+    }
+
+    VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
+
+    return create(shader_module, name.c_str(), specializations, binding_count, push_constant_count);
 }
 
 void Pipeline::destroy()
@@ -82,6 +122,12 @@ void Pipeline::destroy()
     {
         vkDestroyDescriptorSetLayout(vkdev->vkdevice(), descriptorset_layout, 0);
         descriptorset_layout = 0;
+    }
+
+    if (local_shader_module)
+    {
+        vkDestroyShaderModule(vkdev->vkdevice(), local_shader_module, 0);
+        local_shader_module = 0;
     }
 }
 
@@ -255,21 +301,8 @@ int Pipeline::create_pipeline_layout(int push_constant_count)
     return 0;
 }
 
-int Pipeline::create_pipeline(const char* _name, const std::vector<vk_specialization_type>& specializations)
+int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_name, const std::vector<vk_specialization_type>& specializations)
 {
-    std::string name = _name;
-
-    if (vkdev->info.support_fp16_arithmetic)
-    {
-        name += "_fp16a";
-    }
-    else if (vkdev->info.support_fp16_storage)
-    {
-        name += "_fp16s";
-    }
-
-    VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
-
     const int specialization_count = specializations.size();
 
     // +3 for local_size_xyz
@@ -319,7 +352,7 @@ int Pipeline::create_pipeline(const char* _name, const std::vector<vk_specializa
     pipelineShaderStageCreateInfo.flags = 0;
     pipelineShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineShaderStageCreateInfo.module = shader_module;
-    pipelineShaderStageCreateInfo.pName = name.c_str();
+    pipelineShaderStageCreateInfo.pName = entry_name;
     pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
 
     VkComputePipelineCreateInfo computePipelineCreateInfo;

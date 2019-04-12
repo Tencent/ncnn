@@ -114,6 +114,8 @@ public:
 
     VkShaderModule get_shader_module(const char* name) const;
 
+    VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
+
     // create allocator on this device
     VkAllocator* allocator() const;
     VkAllocator* staging_allocator() const;
