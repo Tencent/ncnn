@@ -886,6 +886,26 @@ VkShaderModule VulkanDevice::get_shader_module(const char* name) const
     return 0;
 }
 
+VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const
+{
+    VkShaderModuleCreateInfo shaderModuleCreateInfo;
+    shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    shaderModuleCreateInfo.pNext = 0;
+    shaderModuleCreateInfo.flags = 0;
+    shaderModuleCreateInfo.codeSize = spv_data_size;
+    shaderModuleCreateInfo.pCode = spv_data;
+
+    VkShaderModule shader_module;
+    VkResult ret = vkCreateShaderModule(device, &shaderModuleCreateInfo, 0, &shader_module);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateShaderModule failed %d\n", ret);
+        return 0;
+    }
+
+    return shader_module;
+}
+
 VkAllocator* VulkanDevice::allocator() const
 {
     return blob_buffer_allocator;
@@ -936,25 +956,20 @@ int VulkanDevice::create_shader_module()
 
         if (!info.support_fp16_arithmetic)
         {
-            if (string_ends_with_fp16a(layer_shader_registry[i].name))
+            if (string_ends_with_fp16a(shader_name))
                 continue;
         }
 
-        VkShaderModuleCreateInfo shaderModuleCreateInfo;
-        shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        shaderModuleCreateInfo.pNext = 0;
-        shaderModuleCreateInfo.flags = 0;
-        shaderModuleCreateInfo.codeSize = layer_shader_registry[i].spv_data_size;
-        shaderModuleCreateInfo.pCode = layer_shader_registry[i].spv_data;
-
-        VkResult ret = vkCreateShaderModule(device, &shaderModuleCreateInfo, 0, &shader_modules[i]);
-        if (ret != VK_SUCCESS)
+        VkShaderModule shader_module = compile_shader_module(layer_shader_registry[i].spv_data, layer_shader_registry[i].spv_data_size);
+        if (shader_module == 0)
         {
-            fprintf(stderr, "vkCreateShaderModule %s failed %d\n", layer_shader_registry[i].name, ret);
+            fprintf(stderr, "compile_shader_module %s failed\n", shader_name);
             return -1;
         }
 
-//         fprintf(stderr, "shader_module %s created\n", layer_shader_registry[i].name);
+        shader_modules[i] = shader_module;
+
+//         fprintf(stderr, "shader_module %s created\n", shader_name);
     }
 
     return 0;
