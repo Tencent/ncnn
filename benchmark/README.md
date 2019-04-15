@@ -195,34 +195,6 @@ gpu_device = -1
   mobilenet-ssd-int8  min =  451.12  max =  462.66  avg =  454.15
       mobilenet-yolo  min =  922.58  max =  924.53  avg =  923.63
     mobilenet-yolov3  min =  897.05  max =  908.41  avg =  901.31
-    
-chiron:/data/local/tmp/ncnn $ ./benchncnn 8 1 1 0
-loop_count = 8
-num_threads = 1
-powersave = 1
-gpu_device = 0
-          squeezenet  min =  132.37  max =  133.70  avg =  132.93
-     squeezenet-int8  min =  126.03  max =  131.91  avg =  130.04
-           mobilenet  min =  188.93  max =  191.73  avg =  189.56
-      mobilenet-int8  min =  234.09  max =  242.58  avg =  237.70
-        mobilenet_v2  min =  167.38  max =  168.70  avg =  168.11
-          shufflenet  min =   82.22  max =   85.10  avg =   83.98
-             mnasnet  min =  142.59  max =  143.46  avg =  143.00
-     proxylessnasnet  min =  173.17  max =  176.41  avg =  174.99
-           googlenet  min =  515.87  max =  527.00  avg =  519.25
-      googlenet-int8  min =  469.62  max =  478.21  avg =  472.05
-            resnet18  min =  514.43  max =  522.21  avg =  518.67
-       resnet18-int8  min =  430.92  max =  436.20  avg =  433.53
-             alexnet  min =  600.88  max =  604.74  avg =  603.00
-               vgg16  min = 2560.83  max = 2574.10  avg = 2568.22
-            resnet50  min = 2299.05  max = 2309.38  avg = 2301.75
-       resnet50-int8  min =  998.82  max = 1010.28  avg = 1002.70
-      squeezenet-ssd  min =  324.99  max =  326.99  avg =  325.90
- squeezenet-ssd-int8  min =  333.94  max =  343.45  avg =  337.99
-       mobilenet-ssd  min =  395.95  max =  402.56  avg =  397.69
-  mobilenet-ssd-int8  min =  448.18  max =  459.66  avg =  454.65
-      mobilenet-yolo  min =  923.50  max =  928.08  avg =  925.08
-    mobilenet-yolov3  min =  898.08  max =  904.30  avg =  900.84
 ```
 
 Qualcomm MSM8996 Snapdragon 820 (Kyro 2.15GHz x 2 + Kyro 1.6GHz x 2)
