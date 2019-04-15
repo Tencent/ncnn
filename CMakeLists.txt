@@ -12,8 +12,8 @@ endif()
 message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
 
 # This is the minimum cmake version supporting the modern cmake OpenMP module below
-# modern cmake requires 3.0 anyway and android cmake requires 3.6
-cmake_minimum_required(VERSION 3.1.3)
+# modern cmake requires 3.0 anyway and android cmake requires 3.11
+cmake_minimum_required(VERSION 3.11)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
