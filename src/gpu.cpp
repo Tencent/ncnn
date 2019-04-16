@@ -57,6 +57,16 @@ PFN_vkGetPhysicalDeviceMemoryProperties2KHR vkGetPhysicalDeviceMemoryProperties2
 PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR vkGetPhysicalDeviceSparseImageFormatProperties2KHR = 0;
 
 // compile with old vulkan sdk
+#if VK_HEADER_VERSION < 80
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR (VkStructureType)1000177000
+typedef struct VkPhysicalDevice8BitStorageFeaturesKHR {
+    VkStructureType    sType;
+    void*              pNext;
+    VkBool32           storageBuffer8BitAccess;
+    VkBool32           uniformAndStorageBuffer8BitAccess;
+    VkBool32           storagePushConstant8;
+} VkPhysicalDevice8BitStorageFeaturesKHR;
+#endif // VK_HEADER_VERSION < 80
 #if VK_HEADER_VERSION < 95
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT16_INT8_FEATURES_KHR (VkStructureType)1000082000
 typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR {
