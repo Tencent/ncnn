@@ -195,6 +195,34 @@ gpu_device = -1
   mobilenet-ssd-int8  min =  451.12  max =  462.66  avg =  454.15
       mobilenet-yolo  min =  922.58  max =  924.53  avg =  923.63
     mobilenet-yolov3  min =  897.05  max =  908.41  avg =  901.31
+    
+chiron:/data/local/tmp/ncnn $ ./benchncnn 8 1 1 0                
+[0 Adreno (TM) 540]  queueC=0  queueT=0  memU=2  memDL=2  memHV=2
+[0 Adreno (TM) 540]  fp16s=0  fp16a=0  int8s=0  int8a=0          
+loop_count = 8                                                   
+num_threads = 1                                                  
+powersave = 1           
+gpu_device = 0                                                   
+          squeezenet  min =   99.87  max =  100.37  avg =  100.18
+           mobilenet  min =  152.85  max =  154.95  avg =  153.70
+        mobilenet_v2  min =  105.75  max =  106.83  avg =  106.37
+          shufflenet  min =   51.94  max =   53.05  avg =   52.46
+             mnasnet  min =   93.11  max =   94.35  avg =   93.76
+     proxylessnasnet  min =   94.90  max =   99.87  avg =   98.62
+           googlenet  min =  400.21  max =  403.04  avg =  401.75
+            resnet18  min =  481.49  max =  487.42  avg =  485.33
+             alexnet  min =  610.22  max =  616.31  avg =  613.54
+###############################################################################
+# below models have problems with vkQueueSubmit and  vkWaitForFences failed ###
+###############################################################################
+vkQueueSubmit failed -3 
+vkWaitForFences failed 2
+               vgg16  min =    1.16  max =    1.51  avg =    1.37
+            resnet50  min =    5.75  max =    8.85  avg =    6.84
+      squeezenet-ssd  min =   18.65  max =   19.15  avg =   18.88
+       mobilenet-ssd  min =    7.05  max =    8.74  avg =    7.64
+      mobilenet-yolo  min =   11.29  max =   12.74  avg =   11.64
+    mobilenet-yolov3  min =    7.47  max =    9.95  avg =    8.25
 ```
 
 Qualcomm MSM8996 Snapdragon 820 (Kyro 2.15GHz x 2 + Kyro 1.6GHz x 2)
