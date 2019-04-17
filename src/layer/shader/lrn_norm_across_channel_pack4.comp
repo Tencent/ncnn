@@ -62,7 +62,9 @@ void main()
 
     afpvec4 sum = afpvec4(0.f);
 
-    ivec4 v_offset = ivec4(gz * p.cstep + gy * p.w + gx) + ivec4(0, 1, 2, 3) * p.cstep;
+    ivec4 z4 = gz * 4 + ivec4(0, 1, 2, 3);
+
+    ivec4 v_offset = z4 * p.cstep + gy * p.w + gx;
 
     for (int z = 0; z < local_size; z++)
     {
