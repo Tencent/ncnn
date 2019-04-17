@@ -205,6 +205,7 @@ int main(int argc, char** argv)
     fprintf(pp, "7767517\n");
 
     const onnx::GraphProto& graph = model.graph();
+    onnx::GraphProto* mutable_graph = model.mutable_graph();
 
     int node_count = graph.node_size();
 
@@ -220,6 +221,8 @@ int main(int argc, char** argv)
     for (int j=0; j<graph.initializer_size(); j++)
     {
         const onnx::TensorProto& initializer = graph.initializer(j);
+
+//         fprintf(stderr, "weight = %s\n", initializer.name().c_str());
 
         weights[initializer.name()] = initializer;
     }
@@ -364,6 +367,86 @@ int main(int argc, char** argv)
         input_node_count++;
     }
 
+    // op chain fusion
+    int reduced_node_count = 0;
+    for (int i=0; i<node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // MatMul <= Transpose(weight) - MatMul
+        if (node->op_type() == "Transpose")
+        {
+            // check weight
+            if (weights.find(node->input(0)) == weights.end())
+                continue;
+
+            onnx::TensorProto& B = weights[node->input(0)];
+            if (B.dims_size() != 2)
+                continue;
+
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            // perm = (1, 0)
+            std::vector<int> perm = get_node_attr_ai(*node, "perm");
+            if (perm.size() != 2)
+                continue;
+            if (perm[0] != 1 || perm[1] != 0)
+                continue;
+
+            if (i+1 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
+
+            if (node2->op_type() != "MatMul")
+                continue;
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+
+            node_reference.erase(node_reference.find(node->output(0)));
+            blob_names.erase(node->output(0));
+
+            node2->set_input(1, node->input(0));
+
+            // permute weight
+            {
+                const int h = B.dims(0);
+                const int w = B.dims(1);
+
+                std::vector<float> permuted_data;
+                permuted_data.reserve(h * w);
+                const float* bptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+
+                for (int j=0; j<w; j++)
+                {
+                    for (int k=0; k<h; k++)
+                    {
+                        float vb = bptr[ k*w + j ];
+                        permuted_data.push_back(vb);
+                    }
+                }
+
+                B.set_dims(0, w);
+                B.set_dims(1, h);
+
+                if (B.has_raw_data())
+                {
+                    B.set_raw_data(permuted_data.data(), permuted_data.size() * sizeof(float));
+                }
+                else
+                {
+                    for (int j=0; j<(int)permuted_data.size(); j++)
+                        B.set_float_data(j, permuted_data[j]);
+                }
+            }
+
+            reduced_node_count += 1;
+            i += 1;
+        }
+    }
+
     // remove node_reference entry with reference equals to one
     int splitncnn_blob_count = 0;
     std::map<std::string, int>::iterator it = node_reference.begin();
@@ -381,7 +464,7 @@ int main(int argc, char** argv)
         }
     }
 
-    fprintf(pp, "%lu %lu\n", node_count + input_node_count + node_reference.size() + graph.initializer_size() - weights.size(), blob_names.size() + splitncnn_blob_count);
+    fprintf(pp, "%lu %lu\n", node_count - reduced_node_count + input_node_count + node_reference.size() + graph.initializer_size() - weights.size(), blob_names.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 
@@ -399,6 +482,26 @@ int main(int argc, char** argv)
             continue;
 
         fprintf(pp, "%-16s %-24s 0 1 %s\n", "Input", input_name.c_str(), input_name.c_str());
+
+        // split the input
+        if (node_reference.find(input_name) == node_reference.end()){
+            continue;
+        }
+
+        int refcount = node_reference[input_name];
+        if (refcount <= 1){
+            continue;
+        }
+
+        char splitname[256];
+        sprintf(splitname, "splitncnn_input%d", j);
+        fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
+        fprintf(pp, " %s", input_name.c_str());
+
+        for (int k=0; k<refcount; k++){
+            fprintf(pp, " %s_splitncnn_%d", input_name.c_str(), k);
+        }
+        fprintf(pp, "\n");
     }
 
     // place MemoryData next
@@ -436,6 +539,13 @@ int main(int argc, char** argv)
 
         const std::string& op = node.op_type();
 
+//         fprintf(stderr, "op = %s\n", op.c_str());
+
+        if (op == "noop_reducedncnn")
+        {
+            continue;
+        }
+
         std::string name = node.name();
         if (name.empty())
         {
@@ -457,13 +567,13 @@ int main(int argc, char** argv)
 
 //             fprintf(stderr, "  input = %s\n", input_name.c_str());
         }
-
+        /*
         for (int j=0; j<(int)node.output_size(); j++)
         {
             const std::string& output_name = node.output(j);
-
-//             fprintf(stderr, "  output = %s\n", output_name.c_str());
-        }
+            fprintf(stderr, "  output = %s\n", output_name.c_str());
+        } 
+        */
 
         if (op == "Abs")
         {
@@ -672,6 +782,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Slice")
+        {
+            fprintf(pp, "%-16s", "Crop");
+        }
         else if (op == "Softmax")
         {
             fprintf(pp, "%-16s", "Softmax");
@@ -695,6 +809,10 @@ int main(int argc, char** argv)
         else if (op == "Transpose")
         {
             fprintf(pp, "%-16s", "Permute");
+        }
+        else if (op == "Upsample")
+        {
+            fprintf(pp, "%-16s", "Interp");
         }
         else
         {
@@ -1160,14 +1278,14 @@ int main(int argc, char** argv)
         else if (op == "InstanceNormalization")
         {
             float eps = get_node_attr_f(node, "epsilon", 1e-5f);
-            std::vector<float> scale = get_node_attr_af(node, "scale");
-            std::vector<float> bias = get_node_attr_af(node, "B");
+            const onnx::TensorProto& scale = weights[node.input(1)];
+            const onnx::TensorProto& B = weights[node.input(2)];
+            int channels = get_tensor_proto_data_size(scale);
 
-            fprintf(pp, " 0=%d", (int)scale.size());
+            fprintf(pp, " 0=%d", channels);
             fprintf(pp, " 1=%f", eps);
-
-            fwrite(scale.data(), sizeof(float), scale.size(), bp);
-            fwrite(bias.data(), sizeof(float), bias.size(), bp);
+            fwrite_tensor_proto_data(scale, bp);
+            fwrite_tensor_proto_data(B, bp);
         }
         else if (op == "LeakyRelu")
         {
@@ -1342,10 +1460,60 @@ int main(int argc, char** argv)
             int op_type = 9;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (op == "Slice")
+        {
+            std::vector<int> starts = get_node_attr_ai(node, "starts");
+            std::vector<int> ends = get_node_attr_ai(node, "ends");
+            std::vector<int> steps = get_node_attr_ai(node, "steps");// TODO
+
+            // assert step == 1
+            for (int i=0; i<(int)steps.size(); i++)
+            {
+                if (steps[i] != 1)
+                    fprintf(stderr, "Unsupported slice step !\n");
+            }
+
+            int woffset = 0;
+            int hoffset = 0;
+            int coffset = 0;
+            int outw = -233;
+            int outh = -233;
+            int outc = -233;
+
+            if (starts.size() == 2)
+            {
+                woffset = starts[1];
+                outw = ends[1] == -1 ? -234 : ends[1] - starts[1];
+            }
+            else if (starts.size() == 3)
+            {
+                woffset = starts[2];
+                hoffset = starts[1];
+                outw = ends[2] == -1 ? -234 : ends[2] - starts[2];
+                outh = ends[1] == -1 ? -234 : ends[1] - starts[1];
+            }
+            else if (starts.size() == 4)
+            {
+                woffset = starts[3];
+                hoffset = starts[2];
+                coffset = starts[1];
+                outw = ends[3] == -1 ? -234 : ends[3] - starts[3];
+                outh = ends[2] == -1 ? -234 : ends[2] - starts[2];
+                outc = ends[1] == -1 ? -234 : ends[1] - starts[1];
+            }
+
+            fprintf(pp, " 0=%d", woffset);
+            fprintf(pp, " 1=%d", hoffset);
+            fprintf(pp, " 2=%d", coffset);
+            fprintf(pp, " 3=%d", outw);
+            fprintf(pp, " 4=%d", outh);
+            fprintf(pp, " 5=%d", outc);
+        }
         else if (op == "Softmax")
         {
             int axis = get_node_attr_i(node, "axis", 1);
             fprintf(pp, " 0=%d", axis-1);
+            fprintf(pp, " 1=1");
         }
         else if (op == "Sqrt")
         {
@@ -1401,6 +1569,75 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported transpose type !\n");
             }
         }
+        else if (op == "Upsample")
+        {
+            std::string mode = get_node_attr_s(node, "mode");
+
+            std::vector<float> scales;
+
+            if (node.input_size() == 1)
+            {
+                scales = get_node_attr_af(node, "scales");
+            }
+            else
+            {
+                const onnx::TensorProto& scales_tp = weights[node.input(1)];
+                const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
+                
+                int float_data_size = scales_tp.float_data_size();
+                //float data is None, use raw data instead
+                if (float_data_size == 0) {
+                    float_data_size = scales_tp.dims().Get(0);
+                }
+
+                for (int j=0; j<float_data_size; j++)
+                {
+                    scales.push_back(shape_data[j]);
+                }
+            }
+
+            int resize_type = 1;
+            if (mode == "nearest")
+            {
+                resize_type = 1;
+            }
+            else if (mode == "bilinear" || mode == "linear")
+            {
+                resize_type = 2;
+            }
+            else if (mode == "trilinear")
+            {
+                fprintf(stderr, "Unsupported Upsample mode !\n");
+            }
+
+            float h_scale = 1.f;
+            float w_scale = 1.f;
+            if (scales.size() == 2)
+            {
+                w_scale = scales[1];
+            }
+            else if (scales.size() == 3)
+            {
+                h_scale = scales[1];
+                w_scale = scales[2];
+            }
+            else if (scales.size() == 4)
+            {
+                h_scale = scales[2];
+                w_scale = scales[3];
+
+                if (scales[1] != 1.f)
+                    fprintf(stderr, "Unsupported Upsample scales !\n");
+            }
+            else
+            {
+                fprintf(stderr, "Unsupported Upsample scales !\n");
+            }
+
+            fprintf(pp, " 0=%d", resize_type);
+            fprintf(pp, " 1=%f", h_scale);
+            fprintf(pp, " 2=%f", w_scale);
+        }
         else
         {
             // TODO op specific param
@@ -1413,7 +1650,7 @@ int main(int argc, char** argv)
                 }
                 else if (attr.type() == 2)
                 {
-                    fprintf(stderr, "  # %s=%d\n", attr.name().c_str(), attr.i());
+                    fprintf(stderr, "  # %s=%ld\n", attr.name().c_str(), attr.i());
                 }
                 else if (attr.type() == 3)
                 {

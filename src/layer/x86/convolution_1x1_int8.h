@@ -1,6 +1,6 @@
-// SenseNets is pleased to support the open source community by supporting ncnn available.
+// BUG1989 is pleased to support the open source community by supporting ncnn available.
 //
-// Copyright (C) 2018 SenseNets Technology Ltd. All rights reserved.
+// Copyright (C) 2019 BUG1989. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -195,4 +195,48 @@ static void conv1x1s2_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Mat 
             }
         }
     }
+}
+
+static void conv1x1s1_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
+{
+    int kernel_w = 1;
+    int kernel_h = 1;
+
+    int stride_w = 1;
+    int stride_h = 1;
+
+    conv_im2col_sgemm_int8_dequant_sse(bottom_blob, top_blob, _kernel, kernel_w, kernel_h, stride_w, stride_h, _bias, scales_dequant, opt);
+}
+
+static void conv1x1s2_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
+{
+    int kernel_w = 1;
+    int kernel_h = 1;
+
+    int stride_w = 2;
+    int stride_h = 2;
+
+    conv_im2col_sgemm_int8_dequant_sse(bottom_blob, top_blob, _kernel, kernel_w, kernel_h, stride_w, stride_h, _bias, scales_dequant, opt);
+}
+
+static void conv1x1s1_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+{
+    int kernel_w = 1;
+    int kernel_h = 1;
+
+    int stride_w = 1;
+    int stride_h = 1;
+
+    conv_im2col_sgemm_int8_requant_sse(bottom_blob, top_blob, _kernel, kernel_w, kernel_h, stride_w, stride_h, _bias, scales_requant, opt);
+}
+
+static void conv1x1s2_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+{
+    int kernel_w = 1;
+    int kernel_h = 1;
+
+    int stride_w = 2;
+    int stride_h = 2;
+
+    conv_im2col_sgemm_int8_requant_sse(bottom_blob, top_blob, _kernel, kernel_w, kernel_h, stride_w, stride_h, _bias, scales_requant, opt);
 }

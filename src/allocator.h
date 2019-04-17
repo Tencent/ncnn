@@ -56,20 +56,39 @@ static inline size_t alignSize(size_t sz, int n)
 
 static inline void* fastMalloc(size_t size)
 {
+#if _MSC_VER
+    return _aligned_malloc(size, MALLOC_ALIGN);
+#elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+    void* ptr = 0;
+    if (posix_memalign(&ptr, MALLOC_ALIGN, size))
+        ptr = 0;
+    return ptr;
+#elif __ANDROID__ && __ANDROID_API__ < 17
+    return memalign(MALLOC_ALIGN, size);
+#else
     unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + MALLOC_ALIGN);
     if (!udata)
         return 0;
     unsigned char** adata = alignPtr((unsigned char**)udata + 1, MALLOC_ALIGN);
     adata[-1] = udata;
     return adata;
+#endif
 }
 
 static inline void fastFree(void* ptr)
 {
     if (ptr)
     {
+#if _MSC_VER
+        _aligned_free(ptr);
+#elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+        free(ptr);
+#elif __ANDROID__ && __ANDROID_API__ < 17
+        free(ptr);
+#else
         unsigned char* udata = ((unsigned char**)ptr)[-1];
         free(udata);
+#endif
     }
 }
 
@@ -194,11 +213,24 @@ class VkBufferMemory
 {
 public:
     VkBuffer buffer;
+
     // the base offset assigned by allocator
     size_t offset;
     size_t capacity;
+
     VkDeviceMemory memory;
     void* mapped_ptr;
+
+    // buffer state, modified by command functions internally
+    // 0=null
+    // 1=created
+    // 2=transfer
+    // 3=compute
+    // 4=readonly
+    mutable int state;
+
+    // initialize and modified by mat
+    int refcount;
 };
 
 class VkAllocator

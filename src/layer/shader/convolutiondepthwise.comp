@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -13,6 +13,13 @@
 // specific language governing permissions and limitations under the License.
 
 #version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
 
 layout (constant_id = 0) const int kernel_w = 1;
 layout (constant_id = 1) const int kernel_h = 1;
@@ -27,10 +34,10 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { float bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { float top_blob_data[]; };
-layout (binding = 2) readonly buffer weight_blob { float weight_data[]; };
-layout (binding = 3) readonly buffer bias_blob { float bias_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 2) readonly buffer weight_blob { sfp weight_data[]; };
+layout (binding = 3) readonly buffer bias_blob { sfp bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -56,57 +63,31 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    float sum = 0;
+    afp sum;
 
     if (bias_term == 1)
     {
-        sum = bias_data[gz];
+        sum = afp(bias_data[gz]);
+    }
+    else
+    {
+        sum = afp(0.f);
     }
 
-    if (p.c == group && group == p.outc)
+    // depth-wise convolution
+    int w_offset = gz * kernel_w * kernel_h;
+    int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
+
+    for (int y = 0; y < kernel_h; y++)
     {
-        // depth-wise convolution
-        int w_offset = gz * kernel_w * kernel_h;
-        int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
-
-        for (int y = 0; y < kernel_h; y++)
+        for (int x = 0; x < kernel_w; x++)
         {
-            for (int x = 0; x < kernel_w; x++)
-            {
-                sum += weight_data[w_offset + x] * bottom_blob_data[v_offset + x * dilation_w];
-            }
-
-            v_offset += dilation_h * p.w;
-            w_offset += kernel_w;
+            sum += afp(weight_data[w_offset + x]) * afp(bottom_blob_data[v_offset + x * dilation_w]);
         }
 
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sum;
-
-        return;
+        v_offset += dilation_h * p.w;
+        w_offset += kernel_w;
     }
 
-    // group convolution
-    const int c_g = p.c / group;
-    const int outc_g = p.outc / group;
-    const int g = gz / outc_g;
-
-    int w_offset = gz * c_g * kernel_w * kernel_h;
-
-    for (int z = 0; z < c_g; z++)
-    {
-        int v_offset = (g * c_g + z) * p.cstep + gy * stride_h * p.w + gx * stride_w;
-
-        for (int y = 0; y < kernel_h; y++)
-        {
-            for (int x = 0; x < kernel_w; x++)
-            {
-                sum += weight_data[w_offset + x] * bottom_blob_data[v_offset + x * dilation_w];
-            }
-
-            v_offset += dilation_h * p.w;
-            w_offset += kernel_w;
-        }
-    }
-
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sum;
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(sum);
 }

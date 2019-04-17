@@ -299,6 +299,7 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo;
     memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
     memoryDedicatedAllocateInfo.pNext = 0;
+    memoryDedicatedAllocateInfo.image = 0;
     memoryDedicatedAllocateInfo.buffer = buffer;
     memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
 
@@ -410,6 +411,7 @@ VkBufferMemory* VkUnlockedBlobBufferAllocator::fastMalloc(size_t size)
             ptr->memory = buffer_blocks[i]->memory;
             ptr->capacity = aligned_size;
             ptr->mapped_ptr = buffer_blocks[i]->mapped_ptr;
+            ptr->state = 1;
 
             // adjust budgets
             if (budget_size == aligned_size)
@@ -461,6 +463,7 @@ VkBufferMemory* VkUnlockedBlobBufferAllocator::fastMalloc(size_t size)
     ptr->memory = block->memory;
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
+    ptr->state = 1;
 
     // adjust budgets
     std::list< std::pair<size_t, size_t> > budget;
@@ -666,6 +669,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
         ptr->memory = buffer_blocks[block_index]->memory;
         ptr->capacity = aligned_size;
         ptr->mapped_ptr = buffer_blocks[block_index]->mapped_ptr;
+        ptr->state = 1;
 
         buffer_block_free_spaces[block_index] -= aligned_size;
 
@@ -722,6 +726,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
             ptr->memory = block->memory;
             ptr->capacity = new_block_size;
             ptr->mapped_ptr = block->mapped_ptr;
+            ptr->state = 1;
 
             return ptr;
         }
@@ -754,6 +759,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
     ptr->memory = block->memory;
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
+    ptr->state = 1;
 
     return ptr;
 }
@@ -828,7 +834,7 @@ VkBufferMemory* VkUnlockedStagingBufferAllocator::fastMalloc(size_t size)
         {
             budgets.erase(it);
 
-//             fprintf(stderr, "VkUnlockedStagingBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, bs);
+//             fprintf(stderr, "VkUnlockedStagingBufferAllocator M %p %lu reused %lu\n", ptr->buffer, size, capacity);
 
             return ptr;
         }
@@ -849,6 +855,8 @@ VkBufferMemory* VkUnlockedStagingBufferAllocator::fastMalloc(size_t size)
     ptr->capacity = size;
 
     vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
+
+    ptr->state = 1;
 
 //     fprintf(stderr, "VkUnlockedStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
 
@@ -918,6 +926,8 @@ VkBufferMemory* VkWeightStagingBufferAllocator::fastMalloc(size_t size)
     ptr->capacity = size;
 
     vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
+
+    ptr->state = 1;
 
 //     fprintf(stderr, "VkWeightStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
 

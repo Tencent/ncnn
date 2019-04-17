@@ -685,7 +685,7 @@ int main(int argc, char** argv)
 
                 if (int8_scale_term)
                 {
-                    if ((int)weight_int8scale.size() == num_group && (int)blob_int8scale.size() == num_group)
+                    if ((int)weight_int8scale.size() == num_group)
                     {
                         fprintf(pp, " 8=1");
                     }
@@ -789,7 +789,27 @@ int main(int argc, char** argv)
         {
             const caffe::CropParameter& crop_param = layer.crop_param();
             int num_offset = crop_param.offset_size();
-            if (num_offset == 2)
+            if (num_offset == 1)
+            {
+                int offset = crop_param.offset(0);
+                int axis = crop_param.axis();
+                if (axis == 1)
+                {
+                    fprintf(pp, " 0=%d", offset);
+                    fprintf(pp, " 1=%d", offset);
+                    fprintf(pp, " 2=%d", offset);
+                }
+                else if (axis == 2)
+                {
+                    fprintf(pp, " 0=%d", offset);
+                    fprintf(pp, " 1=%d", offset);
+                }
+                else if (axis == 3)
+                {
+                    fprintf(pp, " 0=%d", offset);
+                }
+            }
+            else if (num_offset == 2)
             {
                 int woffset = crop_param.offset(1);
                 int hoffset = crop_param.offset(0);
@@ -1482,7 +1502,7 @@ int main(int argc, char** argv)
             const caffe::ReorgParameter& reorg_param = layer.reorg_param();
             fprintf(pp, " 0=%d", reorg_param.stride());
         }
-        else if (layer.type() == "Reshape")// -1 1 512
+        else if (layer.type() == "Reshape")
         {
             const caffe::ReshapeParameter& reshape_param = layer.reshape_param();
             const caffe::BlobShape& bs = reshape_param.shape();
@@ -1492,11 +1512,11 @@ int main(int argc, char** argv)
             }
             else if (bs.dim_size() == 2)
             {
-                fprintf(pp, " 0=%ld 1=%ld 2=-233", bs.dim(1), bs.dim(0));
+                fprintf(pp, " 0=%ld 1=-233 2=-233", bs.dim(1));
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(2), bs.dim(1), bs.dim(0));
+                fprintf(pp, " 0=%ld 1=%ld 2=-233", bs.dim(2), bs.dim(1));
             }
             else // bs.dim_size() == 4
             {
@@ -1580,6 +1600,7 @@ int main(int argc, char** argv)
             const caffe::SoftmaxParameter& softmax_param = layer.softmax_param();
             int dim = softmax_param.axis() - 1;
             fprintf(pp, " 0=%d", dim);
+            fprintf(pp, " 1=1");
         }
         else if (layer.type() == "Threshold")
         {

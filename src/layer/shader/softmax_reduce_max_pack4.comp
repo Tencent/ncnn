@@ -1,0 +1,139 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (constant_id = 0) const int axis = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout (binding = 1) writeonly buffer max_workspace { sfp max_workspace_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+        return;
+
+    if (p.dims == 1) // axis == 0
+    {
+        afpvec4 max_value = afpvec4(-99999999.f);
+        for (int i = 0; i < p.w; i++)
+        {
+            max_value = max(max_value, afpvec4(bottom_top_blob_data[i]));
+        }
+        afpvec2 max2 = max(max_value.rg, max_value.ba);
+        max_workspace_data[0] = sfp(max(max2.r, max2.g));
+
+        return;
+    }
+
+    if (p.dims == 2 && axis == 0)
+    {
+        afpvec4 max_value = afpvec4(-99999999.f);
+        for (int i = 0; i < p.h; i++)
+        {
+            int v_offset = i * p.w + gx;
+            max_value = max(max_value, afpvec4(bottom_top_blob_data[v_offset]));
+        }
+        afpvec2 max2 = max(max_value.rg, max_value.ba);
+        max_workspace_data[gx] = sfp(max(max2.r, max2.g));
+
+        return;
+    }
+
+    if (p.dims == 2 && axis == 1)
+    {
+        afpvec4 max_value = afpvec4(-99999999.f);
+        for (int i = 0; i < p.w; i++)
+        {
+            int v_offset = gx * p.w + i;
+            max_value = max(max_value, afpvec4(bottom_top_blob_data[v_offset]));
+        }
+        afpvec2 max2 = max(max_value.rg, max_value.ba);
+        max_workspace_data[gx] = sfp(max(max2.r, max2.g));
+
+        return;
+    }
+
+    if (p.dims == 3 && axis == 0)
+    {
+        afpvec4 max_value = afpvec4(-99999999.f);
+        for (int i = 0; i < p.c; i++)
+        {
+            int v_offset = i * p.cstep + gy * p.w + gx;
+            max_value = max(max_value, afpvec4(bottom_top_blob_data[v_offset]));
+        }
+        afpvec2 max2 = max(max_value.rg, max_value.ba);
+        max_workspace_data[gy * p.w + gx] = sfp(max(max2.r, max2.g));
+
+        return;
+    }
+
+    if (p.dims == 3 && axis == 1)
+    {
+        afpvec4 max_value = afpvec4(-99999999.f);
+        for (int i = 0; i < p.h; i++)
+        {
+            int v_offset = gy * p.cstep + i * p.w + gx;
+            max_value = max(max_value, afpvec4(bottom_top_blob_data[v_offset]));
+        }
+        afpvec2 max2 = max(max_value.rg, max_value.ba);
+        max_workspace_data[gy * p.w + gx] = sfp(max(max2.r, max2.g));
+
+        return;
+    }
+
+    if (p.dims == 3 && axis == 2)
+    {
+        afpvec4 max_value = afpvec4(-99999999.f);
+        for (int i = 0; i < p.w; i++)
+        {
+            int v_offset = gy * p.cstep + gx * p.w + i;
+            max_value = max(max_value, afpvec4(bottom_top_blob_data[v_offset]));
+        }
+        afpvec2 max2 = max(max_value.rg, max_value.ba);
+        max_workspace_data[gy * p.h + gx] = sfp(max(max2.r, max2.g));
+
+        return;
+    }
+}

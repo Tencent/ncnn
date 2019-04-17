@@ -1,0 +1,113 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (constant_id = 0) const int resize_type = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+
+    float scale_x;
+    float scale_y;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+        return;
+
+//     afpvec4 res;
+
+    if (resize_type == 1) // nearest
+    {
+        afpvec2 gxy = afpvec2(gx, gy);
+        ivec2 sxy_max = ivec2(p.w - 1, p.h - 1);
+        ivec2 sxy = min(ivec2(floor(gxy * afpvec2(p.scale_x, p.scale_y))), sxy_max);
+
+        int sx = sxy.r;
+        int sy = sxy.g;
+
+        int v_offset = gz * p.cstep + sy * p.w + sx;
+
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+    }
+    else if (resize_type == 2) // bilinear
+    {
+        afpvec2 gxy = afpvec2(gx, gy);
+        afpvec2 fxy = (gxy + afp(0.5f)) * afpvec2(p.scale_x, p.scale_y) - afp(0.5f);
+
+        ivec2 sxy = ivec2(floor(fxy));
+
+        fxy -= afpvec2(sxy);
+
+        ivec2 sxy_max = ivec2(p.w - 2, p.h - 2);
+
+        bvec2 underflow = lessThan(sxy, ivec2(0));
+        bvec2 overflow = greaterThan(sxy, sxy_max);
+
+        sxy = clamp(sxy, ivec2(0), sxy_max);
+
+        fxy = mix(fxy, afpvec2(0.f), underflow);
+        fxy = mix(fxy, afpvec2(1.f), overflow);
+
+        int sx = sxy.r;
+        int sy = sxy.g;
+
+        int v_offset_0 = gz * p.cstep + sy * p.w + sx;
+        int v_offset_1 = gz * p.cstep + (sy + 1) * p.w + sx;
+
+        afpvec4 a0 = afpvec4(bottom_blob_data[v_offset_0]);
+        afpvec4 a1 = afpvec4(bottom_blob_data[v_offset_0 + 1]);
+        afpvec4 b0 = afpvec4(bottom_blob_data[v_offset_1]);
+        afpvec4 b1 = afpvec4(bottom_blob_data[v_offset_1 + 1]);
+
+        afp fx = fxy.r;
+        afp fy = fxy.g;
+
+        afpvec4 a = a0 * (afp(1.f) - fx) + a1 * fx;
+        afpvec4 b = b0 * (afp(1.f) - fx) + b1 * fx;
+
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(a * (afp(1.f) - fy) + b * fy);
+    }
+}

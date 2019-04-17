@@ -16,6 +16,9 @@
 #include "layer_type.h"
 #include "modelbin.h"
 #include "paramdict.h"
+#include "convolution.h"
+#include "convolutiondepthwise.h"
+#include "relu.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -44,14 +47,29 @@ Net::Net()
 
 #if NCNN_VULKAN
     vkdev = 0;
+    vkdev_local = 0;
     weight_vkallocator = 0;
     weight_staging_vkallocator = 0;
+
+    cast_float32_to_float16 = 0;
+    cast_float16_to_float32 = 0;
+    packing_pack1 = 0;
+    packing_pack4 = 0;
 #endif // NCNN_VULKAN
 }
 
 Net::~Net()
 {
     clear();
+
+#if NCNN_VULKAN
+    delete vkdev_local;
+
+    delete cast_float32_to_float16;
+    delete cast_float16_to_float32;
+    delete packing_pack1;
+    delete packing_pack4;
+#endif // NCNN_VULKAN
 }
 
 #if NCNN_STRING
@@ -142,8 +160,10 @@ int Net::load_param(FILE* fp)
 #if NCNN_VULKAN
     if (use_vulkan_compute && !vkdev)
     {
-        fprintf(stderr, "vulkan device not set, vulkan compute disabled\n");
-        use_vulkan_compute = false;
+        // use default vulkan device
+        if (!vkdev_local)
+            vkdev_local = new VulkanDevice;
+        vkdev = vkdev_local;
     }
 #endif // NCNN_VULKAN
 
@@ -168,11 +188,7 @@ int Net::load_param(FILE* fp)
             continue;
         }
 
-#if NCNN_VULKAN
-        Layer* layer = use_vulkan_compute ? create_layer(layer_type, vkdev) : create_layer(layer_type);
-#else
         Layer* layer = create_layer(layer_type);
-#endif // NCNN_VULKAN
         if (!layer)
         {
             layer = create_custom_layer(layer_type);
@@ -183,6 +199,11 @@ int Net::load_param(FILE* fp)
             clear();
             return -1;
         }
+
+#if NCNN_VULKAN
+        if (use_vulkan_compute)
+            layer->vkdev = vkdev;
+#endif // NCNN_VULKAN
 
         layer->type = std::string(layer_type);
         layer->name = std::string(layer_name);
@@ -310,8 +331,10 @@ int Net::load_param_mem(const char* _mem)
 #if NCNN_VULKAN
     if (use_vulkan_compute && !vkdev)
     {
-        fprintf(stderr, "vulkan device not set, vulkan compute disabled\n");
-        use_vulkan_compute = false;
+        // use default vulkan device
+        if (!vkdev_local)
+            vkdev_local = new VulkanDevice;
+        vkdev = vkdev_local;
     }
 #endif // NCNN_VULKAN
 
@@ -336,11 +359,7 @@ int Net::load_param_mem(const char* _mem)
             continue;
         }
 
-#if NCNN_VULKAN
-        Layer* layer = use_vulkan_compute ? create_layer(layer_type, vkdev) : create_layer(layer_type);
-#else
         Layer* layer = create_layer(layer_type);
-#endif // NCNN_VULKAN
         if (!layer)
         {
             layer = create_custom_layer(layer_type);
@@ -351,6 +370,11 @@ int Net::load_param_mem(const char* _mem)
             clear();
             return -1;
         }
+
+#if NCNN_VULKAN
+        if (use_vulkan_compute)
+            layer->vkdev = vkdev;
+#endif // NCNN_VULKAN
 
         layer->type = std::string(layer_type);
         layer->name = std::string(layer_name);
@@ -481,8 +505,10 @@ int Net::load_param_bin(FILE* fp)
 #if NCNN_VULKAN
     if (use_vulkan_compute && !vkdev)
     {
-        fprintf(stderr, "vulkan device not set, vulkan compute disabled\n");
-        use_vulkan_compute = false;
+        // use default vulkan device
+        if (!vkdev_local)
+            vkdev_local = new VulkanDevice;
+        vkdev = vkdev_local;
     }
 #endif // NCNN_VULKAN
 
@@ -506,11 +532,7 @@ int Net::load_param_bin(FILE* fp)
         if (!readValue(top_count, fp))
             return -1;
 
-#if NCNN_VULKAN
-        Layer* layer = use_vulkan_compute ? create_layer(typeindex, vkdev) : create_layer(typeindex);
-#else
         Layer* layer = create_layer(typeindex);
-#endif // NCNN_VULKAN
         if (!layer)
         {
             int custom_index = typeindex & ~LayerType::CustomBit;
@@ -522,6 +544,11 @@ int Net::load_param_bin(FILE* fp)
             clear();
             return -1;
         }
+
+#if NCNN_VULKAN
+        if (use_vulkan_compute)
+            layer->vkdev = vkdev;
+#endif // NCNN_VULKAN
 
 //         layer->type = std::string(layer_type);
 //         layer->name = std::string(layer_name);
@@ -610,6 +637,13 @@ int Net::load_model(FILE* fp)
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
+        
+        //Here we found inconsistent content in the parameter file.
+        if (!layer){
+            fprintf(stderr, "load_model error at layer %d, parameter file has inconsistent content.\n", (int)i);
+            ret = -1;
+            break;
+        }
 
         int lret = layer->load_model(mb);
         if (lret != 0)
@@ -623,47 +657,13 @@ int Net::load_model(FILE* fp)
 #if NCNN_VULKAN
     if (use_vulkan_compute)
     {
-        ncnn::VkTransfer cmd(vkdev);
+        upload_model();
 
-        // create gpu device allocator if null
-        if (!weight_vkallocator)
-        {
-            weight_vkallocator = new VkWeightBufferAllocator(vkdev);
-        }
-        if (!weight_staging_vkallocator)
-        {
-            weight_staging_vkallocator = new VkWeightStagingBufferAllocator(vkdev);
-        }
-
-        cmd.weight_vkallocator = weight_vkallocator;
-        cmd.staging_vkallocator = weight_staging_vkallocator;
-
-        for (size_t i=0; i<layers.size(); i++)
-        {
-            Layer* layer = layers[i];
-
-            if (layer->support_vulkan)
-            {
-                layer->upload_model(cmd);
-            }
-        }
-
-        cmd.submit();
-
-        cmd.wait();
-
-        #pragma omp parallel for
-        for (int i=0; i<layers.size(); i++)
-        {
-            Layer* layer = layers[i];
-
-            if (layer->support_vulkan)
-            {
-                layer->create_pipeline();
-            }
-        }
+        create_pipeline();
     }
 #endif // NCNN_VULKAN
+
+    fuse_network();
 
     return ret;
 }
@@ -691,7 +691,7 @@ int Net::load_param(const unsigned char* _mem)
     {
         // reject unaligned memory
         fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
-        return 0;
+        return -1;
     }
 
     const unsigned char* mem = _mem;
@@ -702,7 +702,7 @@ int Net::load_param(const unsigned char* _mem)
     if (magic != 7767517)
     {
         fprintf(stderr, "param is too old, please regenerate\n");
-        return 0;
+        return -1;
     }
 
     int layer_count = *(int*)(mem);
@@ -717,8 +717,10 @@ int Net::load_param(const unsigned char* _mem)
 #if NCNN_VULKAN
     if (use_vulkan_compute && !vkdev)
     {
-        fprintf(stderr, "vulkan device not set, vulkan compute disabled\n");
-        use_vulkan_compute = false;
+        // use default vulkan device
+        if (!vkdev_local)
+            vkdev_local = new VulkanDevice;
+        vkdev = vkdev_local;
     }
 #endif // NCNN_VULKAN
 
@@ -726,6 +728,7 @@ int Net::load_param(const unsigned char* _mem)
     pd.use_winograd_convolution = use_winograd_convolution;
     pd.use_sgemm_convolution = use_sgemm_convolution;
     pd.use_int8_inference = use_int8_inference;
+    pd.use_vulkan_compute = use_vulkan_compute;
 
     for (int i=0; i<layer_count; i++)
     {
@@ -748,8 +751,13 @@ int Net::load_param(const unsigned char* _mem)
         {
             fprintf(stderr, "layer %d not exists or registered\n", typeindex);
             clear();
-            return 0;
+            return -1;
         }
+
+#if NCNN_VULKAN
+        if (use_vulkan_compute)
+            layer->vkdev = vkdev;
+#endif // NCNN_VULKAN
 
 //         layer->type = std::string(layer_type);
 //         layer->name = std::string(layer_name);
@@ -810,14 +818,14 @@ int Net::load_model(const unsigned char* _mem)
     if (layers.empty())
     {
         fprintf(stderr, "network graph not ready\n");
-        return 0;
+        return -1;
     }
 
     if ((unsigned long)_mem & 0x3)
     {
         // reject unaligned memory
         fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
-        return 0;
+        return -1;
     }
 
     const unsigned char* mem = _mem;
@@ -825,6 +833,12 @@ int Net::load_model(const unsigned char* _mem)
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
+
+        //Here we found inconsistent content in the parameter file.
+        if (!layer){
+            fprintf(stderr, "load_model error at layer %d, parameter file has inconsistent content.\n", (int)i);
+            return -1;
+        }
 
         int lret = layer->load_model(mb);
         if (lret != 0)
@@ -837,53 +851,125 @@ int Net::load_model(const unsigned char* _mem)
 #if NCNN_VULKAN
     if (use_vulkan_compute)
     {
-        ncnn::VkTransfer cmd(vkdev);
+        upload_model();
 
-        // create gpu device allocator if null
-        if (!weight_vkallocator)
-        {
-            weight_vkallocator = new VkWeightBufferAllocator(vkdev);
-        }
-        if (!weight_staging_vkallocator)
-        {
-            weight_staging_vkallocator = new VkWeightStagingBufferAllocator(vkdev);
-        }
-
-        cmd.weight_vkallocator = weight_vkallocator;
-        cmd.staging_vkallocator = weight_staging_vkallocator;
-
-        for (size_t i=0; i<layers.size(); i++)
-        {
-            Layer* layer = layers[i];
-
-            if (layer->support_vulkan)
-            {
-                layer->upload_model(cmd);
-            }
-        }
-
-        cmd.submit();
-
-        cmd.wait();
-
-        #pragma omp parallel for
-        for (int i=0; i<layers.size(); i++)
-        {
-            Layer* layer = layers[i];
-
-            if (layer->support_vulkan)
-            {
-                layer->create_pipeline();
-            }
-        }
+        create_pipeline();
     }
 #endif // NCNN_VULKAN
 
     return mem - _mem;
 }
 
+void Net::fuse_network()
+{
+    // set the int8 op fusion:requantize
+#if NCNN_STRING && NCNN_REQUANT    
+    // fprintf(stderr, "Test op fusion to int8 implement:\n");
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        Layer* layer = layers[i];
+
+        if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise")
+        {
+            if (((Convolution*)layer)->use_int8_inference == false)
+                continue;
+
+            for (size_t n=0; n<blobs[layer->tops[0]].consumers.size(); n++)
+            {
+                int layer_next_index = blobs[layer->tops[0]].consumers[n];
+                Layer* layer_next = layers[layer_next_index];
+
+                if (layer_next->type == "ReLU")
+                {
+                    int layer_next_2_index = blobs[layer_next->tops[0]].consumers[0];
+                    Layer* layer_next_2 = layers[layer_next_2_index];
+
+                    if (layer_next_2->type == "Convolution" || layer_next_2->type == "ConvolutionDepthWise")
+                    {
+                        // fprintf(stderr, "%s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
+                        if (layer->type == "Convolution" && layer_next_2->type == "Convolution")
+                        {
+                            ((Convolution*)layer)->use_int8_requantize = true;
+                            ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
+                            ((Convolution*)layer)->create_requantize_op();
+                        }
+                        else if (layer->type == "ConvolutionDepthWise" && layer_next_2->type == "Convolution")
+                        {
+                            ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
+                            ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
+                            ((ConvolutionDepthWise*)layer)->create_requantize_op();
+                        }
+                        else if (layer->type == "Convolution" && layer_next_2->type == "ConvolutionDepthWise")
+                        {
+                            ((Convolution*)layer)->use_int8_requantize = true;
+                            ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
+                            ((Convolution*)layer)->create_requantize_op();
+                        }
+                        else
+                        {
+                            ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
+                            ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
+                            ((ConvolutionDepthWise*)layer)->create_requantize_op();
+                        }
+                    }
+                    else if (layer_next_2->type == "Split")
+                    {
+                        bool all_conv = true;
+                        for (size_t i=0; i<layer_next_2->tops.size(); i++)
+                        {
+                            int layer_next_3_index = blobs[layer_next_2->tops[i]].consumers[0];
+                            if (layers[layer_next_3_index]->type != "Convolution" && layers[layer_next_3_index]->type != "ConvolutionDepthWise" && layers[layer_next_3_index]->type != "PriorBox" )
+                            {
+                                // fprintf(stderr, "%s, %s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str(), layers[layer_next_3_index]->name.c_str());
+                                all_conv = false;
+                            }
+                        }
+
+                        if (all_conv == true && layer_next_2->tops.size() >= size_t(2))
+                        {
+                            // fprintf(stderr, "%s, %s, %s, ", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
+                            for (size_t i=0; i<layer_next_2->tops.size(); i++)
+                            {
+                                int layer_next_3_index = blobs[layer_next_2->tops[i]].consumers[0];
+                                Layer* layer_next_3 = layers[layer_next_3_index];
+
+                                // fprintf(stderr, "%s, ", layer_next_3->name.c_str());
+                                if (layer_next_3->type == "Convolution")
+                                {
+                                    ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_3)->bottom_blob_int8_scale; 
+                                }    
+                            }
+
+                            ((Convolution*)layer)->use_int8_requantize = true;
+                            ((Convolution*)layer)->create_requantize_op();    
+                            // fprintf(stderr, "\n");
+                        }
+                    }
+                    else
+                    {
+                        // fprintf(stderr, "%s, %s\n", layer->name.c_str(), layer_next->name.c_str());
+                    }
+                }
+                else if (layer_next->type == "Pooling")
+                {
+                    // ToDo
+                }
+                else
+                {
+                    // fprintf(stderr, "%s\n", layer->name.c_str());
+                }                  
+            }
+        }
+    }
+#endif
+}
+
 void Net::clear()
 {
+#if NCNN_VULKAN
+    destroy_pipeline();
+#endif // NCNN_VULKAN
+
     blobs.clear();
     for (size_t i=0; i<layers.size(); i++)
     {
@@ -911,9 +997,147 @@ Extractor Net::create_extractor() const
 }
 
 #if NCNN_VULKAN
-void Net::set_vulkan_device(VulkanDevice* _vkdev)
+void Net::set_vulkan_device(const VulkanDevice* _vkdev)
 {
     vkdev = _vkdev;
+}
+
+int Net::upload_model()
+{
+    ncnn::VkTransfer cmd(vkdev);
+
+    // create gpu device allocator if null
+    if (!weight_vkallocator)
+    {
+        weight_vkallocator = new VkWeightBufferAllocator(vkdev);
+    }
+    if (!weight_staging_vkallocator)
+    {
+        weight_staging_vkallocator = new VkWeightStagingBufferAllocator(vkdev);
+    }
+
+    cmd.weight_vkallocator = weight_vkallocator;
+    cmd.staging_vkallocator = weight_staging_vkallocator;
+
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        if (layers[i]->support_vulkan)
+        {
+            int uret = layers[i]->upload_model(cmd);
+            if (uret != 0)
+            {
+                fprintf(stderr, "layer upload_model %d failed\n", (int)i);
+                return -1;
+            }
+        }
+    }
+
+    cmd.submit();
+
+    cmd.wait();
+
+    return 0;
+}
+
+int Net::create_pipeline()
+{
+    //#pragma omp parallel for
+    for (int i=0; i<(int)layers.size(); i++)
+    {
+        if (layers[i]->support_vulkan)
+        {
+            int cret = layers[i]->create_pipeline();
+            if (cret != 0)
+            {
+                fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
+            }
+        }
+    }
+
+    if (vkdev->info.support_fp16_storage)
+    {
+        {
+        cast_float32_to_float16 = ncnn::create_layer(ncnn::LayerType::Cast);
+        cast_float32_to_float16->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        pd.set(1, 2);
+        pd.use_vulkan_compute = 1;
+
+        cast_float32_to_float16->load_param(pd);
+        }
+
+        {
+        cast_float16_to_float32 = ncnn::create_layer(ncnn::LayerType::Cast);
+        cast_float16_to_float32->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 2);
+        pd.set(1, 1);
+        pd.use_vulkan_compute = 1;
+
+        cast_float16_to_float32->load_param(pd);
+        }
+
+        cast_float32_to_float16->create_pipeline();
+
+        cast_float16_to_float32->create_pipeline();
+    }
+
+    {
+    packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
+    packing_pack1->vkdev = vkdev;
+
+    ncnn::ParamDict pd;
+    pd.set(0, 1);
+    pd.use_vulkan_compute = 1;
+
+    packing_pack1->load_param(pd);
+    }
+
+    {
+    packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
+    packing_pack4->vkdev = vkdev;
+
+    ncnn::ParamDict pd;
+    pd.set(0, 4);
+    pd.use_vulkan_compute = 1;
+
+    packing_pack4->load_param(pd);
+    }
+
+    packing_pack1->create_pipeline();
+
+    packing_pack4->create_pipeline();
+
+    return 0;
+}
+
+int Net::destroy_pipeline()
+{
+    //#pragma omp parallel for
+    for (int i=0; i<(int)layers.size(); i++)
+    {
+        if (layers[i]->support_vulkan)
+        {
+            layers[i]->destroy_pipeline();
+        }
+    }
+
+    if (cast_float32_to_float16)
+        cast_float32_to_float16->destroy_pipeline();
+
+    if (cast_float16_to_float32)
+        cast_float16_to_float32->destroy_pipeline();
+
+    if (packing_pack1)
+        packing_pack1->destroy_pipeline();
+
+    if (packing_pack4)
+        packing_pack4->destroy_pipeline();
+
+    return 0;
 }
 #endif // NCNN_VULKAN
 
@@ -1138,181 +1362,107 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
 }
 
 #if NCNN_VULKAN
-int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, std::vector<int>& wait_barrier_counts, VkCompute& cmd, Option& opt) const
+int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<int>& wait_barrier_counts, VkCompute& cmd, Option& opt) const
 {
     const Layer* layer = layers[layer_index];
 
-//     fprintf(stderr, "forward_layer %d %s\n", layer_index, layer->name.c_str());
+//     fprintf(stderr, "forward_layer %d %d %s\n", layer->support_vulkan, layer_index, layer->name.c_str());
 
-    if (layer->one_blob_only)
+    if (layer->support_vulkan)
     {
-        // load bottom blob
-        int bottom_blob_index = layer->bottoms[0];
-        int top_blob_index = layer->tops[0];
-
-        if (blob_mats[bottom_blob_index].dims == 0)
+        if (layer->one_blob_only)
         {
-            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, wait_barrier_counts, cmd, opt);
-            if (ret != 0)
-                return ret;
-        }
-        else if (blob_mats[bottom_blob_index].staging_data)
-        {
-            // upload
-            const VkMat& bottom_blob = blob_mats[bottom_blob_index];
-            cmd.record_prepare_transfer_barrier(bottom_blob);
-            cmd.record_upload(bottom_blob);
-        }
+            // load bottom blob
+            int bottom_blob_index = layer->bottoms[0];
+            int top_blob_index = layer->tops[0];
 
-        VkMat bottom_blob = blob_mats[bottom_blob_index];
-
-        if (opt.lightmode)
-        {
-
-            wait_barrier_counts[bottom_blob_index] += layer->tops.size();
-
-            // deep copy for inplace forward if data is shared
-            if (layer->support_inplace && wait_barrier_counts[bottom_blob_index] != 1)
+            if (blob_mats_gpu[bottom_blob_index].dims == 0)
             {
-                VkMat bottom_blob_copy;
-                bottom_blob_copy.create_like(bottom_blob, bottom_blob.allocator, bottom_blob.staging_allocator);
-
-//                 fprintf(stderr, "clone %p %p\n", bottom_blob.buffer(), bottom_blob_copy.buffer());
-
-                cmd.record_prepare_transfer_barrier(bottom_blob);
-                cmd.record_clone(bottom_blob, bottom_blob_copy);
-                bottom_blob = bottom_blob_copy;
-
-                wait_barrier_counts[bottom_blob_index]--;
-            }
-        }
-
-        // forward
-        if (opt.lightmode && layer->support_inplace)
-        {
-            VkMat& bottom_top_blob = bottom_blob;
-            int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blob
-            blob_mats[top_blob_index] = bottom_top_blob;
-        }
-        else
-        {
-            VkMat top_blob;
-            int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blob
-            blob_mats[top_blob_index] = top_blob;
-        }
-
-        if (opt.lightmode)
-        {
-            // reclaim producer bottom_blob as free when consuming bottom_blob
-            const Layer* producer = layers[ blobs[bottom_blob_index].producer ];
-            for (size_t i=0; i<producer->bottoms.size(); i++)
-            {
-                int producer_bottom_blob_index = producer->bottoms[i];
-
-                wait_barrier_counts[producer_bottom_blob_index]--;
-                if (wait_barrier_counts[producer_bottom_blob_index] == 0)
+                if (blob_mats[bottom_blob_index].dims == 0)
                 {
-//                     fprintf(stderr, "reclaim free %p\n", blob_mats[producer_bottom_blob_index].buffer());
+                    int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, wait_barrier_counts, cmd, opt);
+                    if (ret != 0)
+                        return ret;
+                }
 
-                    blob_mats[producer_bottom_blob_index].release();
+                if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                {
+                    const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+
+                    // upload
+                    VkMat bottom_blob_unpacked;
+                    bottom_blob_unpacked.create_like(bottom_blob_cpu, opt.blob_vkallocator, opt.staging_vkallocator);
+
+                    bottom_blob_unpacked.prepare_staging_buffer();
+                    bottom_blob_unpacked.upload(bottom_blob_cpu);
+
+                    cmd.record_upload(bottom_blob_unpacked);
+
+                    // cast to fp16
+                    VkMat bottom_blob_unpacked_fp16;
+                    if (vkdev->info.support_fp16_storage)
+                    {
+                        cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
+                    }
+                    else
+                    {
+                        bottom_blob_unpacked_fp16 = bottom_blob_unpacked;
+                    }
+
+                    // packing
+                    VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
+                    packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+
+//                     fprintf(stderr, "upload %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
                 }
             }
-        }
-    }
-    else
-    {
-        // load bottom blobs
-        std::vector<VkMat> bottom_blobs;
-        bottom_blobs.resize(layer->bottoms.size());
-        for (size_t i=0; i<layer->bottoms.size(); i++)
-        {
-            int bottom_blob_index = layer->bottoms[i];
 
-            if (blob_mats[bottom_blob_index].dims == 0)
-            {
-                int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, wait_barrier_counts, cmd, opt);
-                if (ret != 0)
-                    return ret;
-            }
-            else if (blob_mats[bottom_blob_index].staging_data)
-            {
-                // upload
-                const VkMat& bottom_blob = blob_mats[bottom_blob_index];
-                cmd.record_prepare_transfer_barrier(bottom_blob);
-                cmd.record_upload(bottom_blob);
-            }
-
-            bottom_blobs[i] = blob_mats[bottom_blob_index];
+            VkMat bottom_blob = blob_mats_gpu[bottom_blob_index];
 
             if (opt.lightmode)
             {
 
-                wait_barrier_counts[bottom_blob_index] = layer->tops.size();
+                wait_barrier_counts[bottom_blob_index] += layer->tops.size();
 
                 // deep copy for inplace forward if data is shared
                 if (layer->support_inplace && wait_barrier_counts[bottom_blob_index] != 1)
                 {
                     VkMat bottom_blob_copy;
-                    bottom_blob_copy.create_like(bottom_blobs[i], bottom_blobs[i].allocator, bottom_blobs[i].staging_allocator);
+                    bottom_blob_copy.create_like(bottom_blob, bottom_blob.allocator, bottom_blob.staging_allocator);
 
-//                     fprintf(stderr, "clone %p %p\n", bottom_blobs[i].buffer(), bottom_blob_copy.buffer());
+//                     fprintf(stderr, "clone %p %p\n", bottom_blob.buffer(), bottom_blob_copy.buffer());
 
-                    cmd.record_prepare_transfer_barrier(bottom_blobs[i]);
-                    cmd.record_clone(bottom_blobs[i], bottom_blob_copy);
-                    bottom_blobs[i] = bottom_blob_copy;
+                    cmd.record_clone(bottom_blob, bottom_blob_copy);
+                    bottom_blob = bottom_blob_copy;
 
                     wait_barrier_counts[bottom_blob_index]--;
                 }
             }
-        }
 
-        // forward
-        if (opt.lightmode && layer->support_inplace)
-        {
-            std::vector<VkMat>& bottom_top_blobs = bottom_blobs;
-            int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blobs
-            for (size_t i=0; i<layer->tops.size(); i++)
+            // forward
+            if (opt.lightmode && layer->support_inplace)
             {
-                int top_blob_index = layer->tops[i];
+                VkMat& bottom_top_blob = bottom_blob;
+                int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
+                if (ret != 0)
+                    return ret;
 
-                blob_mats[top_blob_index] = bottom_top_blobs[i];
+                // store top blob
+                blob_mats_gpu[top_blob_index] = bottom_top_blob;
             }
-        }
-        else
-        {
-            std::vector<VkMat> top_blobs;
-            top_blobs.resize(layer->tops.size());
-            int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blobs
-            for (size_t i=0; i<layer->tops.size(); i++)
+            else
             {
-                int top_blob_index = layer->tops[i];
+                VkMat top_blob;
+                int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
+                if (ret != 0)
+                    return ret;
 
-                blob_mats[top_blob_index] = top_blobs[i];
+                // store top blob
+                blob_mats_gpu[top_blob_index] = top_blob;
             }
-        }
 
-        if (opt.lightmode)
-        {
-            for (size_t i=0; i<layer->bottoms.size(); i++)
+            if (opt.lightmode)
             {
-                int bottom_blob_index = layer->bottoms[i];
-
                 // reclaim producer bottom_blob as free when consuming bottom_blob
                 const Layer* producer = layers[ blobs[bottom_blob_index].producer ];
                 for (size_t i=0; i<producer->bottoms.size(); i++)
@@ -1322,17 +1472,360 @@ int Net::forward_layer(int layer_index, std::vector<VkMat>& blob_mats, std::vect
                     wait_barrier_counts[producer_bottom_blob_index]--;
                     if (wait_barrier_counts[producer_bottom_blob_index] == 0)
                     {
-//                         fprintf(stderr, "reclaim free %p\n", blob_mats[producer_bottom_blob_index].buffer());
+//                         fprintf(stderr, "reclaim free %p\n", blob_mats_gpu[producer_bottom_blob_index].buffer());
 
-                        blob_mats[producer_bottom_blob_index].release();
+                        blob_mats_gpu[producer_bottom_blob_index].release();
                     }
                 }
             }
         }
+        else
+        {
+            // load bottom blobs
+            std::vector<VkMat> bottom_blobs;
+            bottom_blobs.resize(layer->bottoms.size());
+            for (size_t i=0; i<layer->bottoms.size(); i++)
+            {
+                int bottom_blob_index = layer->bottoms[i];
+
+                if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                {
+                    if (blob_mats[bottom_blob_index].dims == 0)
+                    {
+                        int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, wait_barrier_counts, cmd, opt);
+                        if (ret != 0)
+                            return ret;
+                    }
+
+                    if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                    {
+                        const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+
+                        // upload
+                        VkMat bottom_blob_unpacked;
+                        bottom_blob_unpacked.create_like(bottom_blob_cpu, opt.blob_vkallocator, opt.staging_vkallocator);
+
+                        bottom_blob_unpacked.prepare_staging_buffer();
+                        bottom_blob_unpacked.upload(bottom_blob_cpu);
+
+                        cmd.record_upload(bottom_blob_unpacked);
+
+                        // cast to fp16
+                        VkMat bottom_blob_unpacked_fp16;
+                        if (vkdev->info.support_fp16_storage)
+                        {
+                            cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
+                        }
+                        else
+                        {
+                            bottom_blob_unpacked_fp16 = bottom_blob_unpacked;
+                        }
+
+                        // packing
+                        VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
+                        packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+
+//                         fprintf(stderr, "upload %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
+                    }
+                }
+
+                bottom_blobs[i] = blob_mats_gpu[bottom_blob_index];
+
+                if (opt.lightmode)
+                {
+
+                    wait_barrier_counts[bottom_blob_index] = layer->tops.size();
+
+                    // deep copy for inplace forward if data is shared
+                    if (layer->support_inplace && wait_barrier_counts[bottom_blob_index] != 1)
+                    {
+                        VkMat bottom_blob_copy;
+                        bottom_blob_copy.create_like(bottom_blobs[i], bottom_blobs[i].allocator, bottom_blobs[i].staging_allocator);
+
+//                         fprintf(stderr, "clone %p %p\n", bottom_blobs[i].buffer(), bottom_blob_copy.buffer());
+
+                        cmd.record_clone(bottom_blobs[i], bottom_blob_copy);
+                        bottom_blobs[i] = bottom_blob_copy;
+
+                        wait_barrier_counts[bottom_blob_index]--;
+                    }
+                }
+            }
+
+            // forward
+            if (opt.lightmode && layer->support_inplace)
+            {
+                std::vector<VkMat>& bottom_top_blobs = bottom_blobs;
+                int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
+                if (ret != 0)
+                    return ret;
+
+                // store top blobs
+                for (size_t i=0; i<layer->tops.size(); i++)
+                {
+                    int top_blob_index = layer->tops[i];
+
+                    blob_mats_gpu[top_blob_index] = bottom_top_blobs[i];
+                }
+            }
+            else
+            {
+                std::vector<VkMat> top_blobs;
+                top_blobs.resize(layer->tops.size());
+                int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
+                if (ret != 0)
+                    return ret;
+
+                // store top blobs
+                for (size_t i=0; i<layer->tops.size(); i++)
+                {
+                    int top_blob_index = layer->tops[i];
+
+                    blob_mats_gpu[top_blob_index] = top_blobs[i];
+                }
+            }
+
+            if (opt.lightmode)
+            {
+                for (size_t i=0; i<layer->bottoms.size(); i++)
+                {
+                    int bottom_blob_index = layer->bottoms[i];
+
+                    // reclaim producer bottom_blob as free when consuming bottom_blob
+                    const Layer* producer = layers[ blobs[bottom_blob_index].producer ];
+                    for (size_t i=0; i<producer->bottoms.size(); i++)
+                    {
+                        int producer_bottom_blob_index = producer->bottoms[i];
+
+                        wait_barrier_counts[producer_bottom_blob_index]--;
+                        if (wait_barrier_counts[producer_bottom_blob_index] == 0)
+                        {
+//                             fprintf(stderr, "reclaim free %p\n", blob_mats_gpu[producer_bottom_blob_index].buffer());
+
+                            blob_mats_gpu[producer_bottom_blob_index].release();
+                        }
+                    }
+                }
+            }
+
+        }
 
     }
+    else
+    {
+        if (layer->one_blob_only)
+        {
+            // load bottom blob
+            int bottom_blob_index = layer->bottoms[0];
+            int top_blob_index = layer->tops[0];
 
-//     fprintf(stderr, "forward_layer %d %s done\n", layer_index, layer->name.c_str());
+            if (blob_mats[bottom_blob_index].dims == 0)
+            {
+                if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                {
+                    int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, wait_barrier_counts, cmd, opt);
+                    if (ret != 0)
+                        return ret;
+                }
+
+                if (blob_mats[bottom_blob_index].dims == 0)
+                {
+                    const VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
+
+                    // unpacking
+                    VkMat bottom_blob_unpacked;
+                    packing_pack1->forward(bottom_blob, bottom_blob_unpacked, cmd, opt);
+
+                    // cast to fp32
+                    VkMat bottom_blob_unpacked_fp32;
+                    if (vkdev->info.support_fp16_storage)
+                    {
+                        cast_float16_to_float32->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp32, cmd, opt);
+                    }
+                    else
+                    {
+                        bottom_blob_unpacked_fp32 = bottom_blob_unpacked;
+                    }
+
+                    // download
+                    bottom_blob_unpacked_fp32.prepare_staging_buffer();
+                    cmd.record_download(bottom_blob_unpacked_fp32);
+
+                    cmd.submit();
+
+                    cmd.wait();
+
+                    cmd.reset();
+
+                    Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+                    bottom_blob_cpu.create_like(bottom_blob_unpacked_fp32, opt.blob_allocator);
+                    bottom_blob_unpacked_fp32.download(bottom_blob_cpu);
+
+                    bottom_blob_unpacked_fp32.discard_staging_buffer();
+
+//                     fprintf(stderr, "download %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
+                }
+            }
+
+            Mat bottom_blob = blob_mats[bottom_blob_index];
+
+            if (opt.lightmode)
+            {
+                // delete after taken in light mode
+                blob_mats[bottom_blob_index].release();
+                // deep copy for inplace forward if data is shared
+                if (layer->support_inplace && *bottom_blob.refcount != 1)
+                {
+                    bottom_blob = bottom_blob.clone();
+                }
+            }
+
+            // forward
+            if (opt.lightmode && layer->support_inplace)
+            {
+                Mat& bottom_top_blob = bottom_blob;
+
+                int ret = layer->forward_inplace(bottom_top_blob, opt);
+                if (ret != 0)
+                    return ret;
+
+                // store top blob
+                blob_mats[top_blob_index] = bottom_top_blob;
+            }
+            else
+            {
+                Mat top_blob;
+
+                int ret = layer->forward(bottom_blob, top_blob, opt);
+                if (ret != 0)
+                    return ret;
+
+                // store top blob
+                blob_mats[top_blob_index] = top_blob;
+            }
+
+        }
+        else
+        {
+            // load bottom blobs
+            std::vector<VkMat> bottom_blobs_unpacked_fp32;
+            bottom_blobs_unpacked_fp32.resize(layer->bottoms.size());
+            for (size_t i=0; i<layer->bottoms.size(); i++)
+            {
+                int bottom_blob_index = layer->bottoms[i];
+
+                if (blob_mats[bottom_blob_index].dims == 0)
+                {
+                    if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                    {
+                        int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, wait_barrier_counts, cmd, opt);
+                        if (ret != 0)
+                            return ret;
+                    }
+
+                    if (blob_mats[bottom_blob_index].dims == 0)
+                    {
+                        const VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
+
+                        // unpacking
+                        VkMat bottom_blob_unpacked;
+                        packing_pack1->forward(bottom_blob, bottom_blob_unpacked, cmd, opt);
+
+                        // cast to fp32
+                        if (vkdev->info.support_fp16_storage)
+                        {
+                            cast_float16_to_float32->forward(bottom_blob_unpacked, bottom_blobs_unpacked_fp32[i], cmd, opt);
+                        }
+                        else
+                        {
+                            bottom_blobs_unpacked_fp32[i] = bottom_blob_unpacked;
+                        }
+
+                        // download
+                        bottom_blobs_unpacked_fp32[i].prepare_staging_buffer();
+                        cmd.record_download(bottom_blobs_unpacked_fp32[i]);
+                    }
+                }
+            }
+
+            {
+                cmd.submit();
+
+                cmd.wait();
+
+                cmd.reset();
+            }
+
+            std::vector<Mat> bottom_blobs;
+            bottom_blobs.resize(layer->bottoms.size());
+            for (size_t i=0; i<layer->bottoms.size(); i++)
+            {
+                int bottom_blob_index = layer->bottoms[i];
+
+                if (blob_mats[bottom_blob_index].dims == 0)
+                {
+                    Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+                    bottom_blob_cpu.create_like(bottom_blobs_unpacked_fp32[i], opt.blob_allocator);
+                    bottom_blobs_unpacked_fp32[i].download(bottom_blob_cpu);
+
+                    bottom_blobs_unpacked_fp32[i].discard_staging_buffer();
+
+//                     fprintf(stderr, "download %d %d %d %d  %lu %d\n", bottom_blob.total() * bottom_blob.elemsize, bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elemsize, bottom_blob.packing);
+                }
+
+                bottom_blobs[i] = blob_mats[bottom_blob_index];
+
+                if (opt.lightmode)
+                {
+                    // delete after taken in light mode
+                    blob_mats[bottom_blob_index].release();
+                    // deep copy for inplace forward if data is shared
+                    if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                    {
+                        bottom_blobs[i] = bottom_blobs[i].clone();
+                    }
+                }
+            }
+
+            // forward
+            if (opt.lightmode && layer->support_inplace)
+            {
+                std::vector<Mat>& bottom_top_blobs = bottom_blobs;
+
+                int ret = layer->forward_inplace(bottom_top_blobs, opt);
+                if (ret != 0)
+                    return ret;
+
+                // store top blobs
+                for (size_t i=0; i<layer->tops.size(); i++)
+                {
+                    int top_blob_index = layer->tops[i];
+
+                    blob_mats[top_blob_index] = bottom_top_blobs[i];
+                }
+            }
+            else
+            {
+                std::vector<Mat> top_blobs;
+                top_blobs.resize(layer->tops.size());
+
+                int ret = layer->forward(bottom_blobs, top_blobs, opt);
+                if (ret != 0)
+                    return ret;
+
+                // store top blobs
+                for (size_t i=0; i<layer->tops.size(); i++)
+                {
+                    int top_blob_index = layer->tops[i];
+
+                    blob_mats[top_blob_index] = top_blobs[i];
+                }
+            }
+
+        }
+    }
+
+//     fprintf(stderr, "forward_layer %d %d %s done\n", layer->support_vulkan, layer_index, layer->name.c_str());
 
     return 0;
 }
@@ -1344,6 +1837,8 @@ Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
     opt = get_default_option();
 
 #if NCNN_VULKAN
+    opt.vulkan_compute = net->use_vulkan_compute;
+
     if (net->use_vulkan_compute)
     {
         blob_mats_gpu.resize(blob_count);
@@ -1433,22 +1928,6 @@ int Extractor::input(int blob_index, const Mat& in)
 
     blob_mats[blob_index] = in;
 
-#if NCNN_VULKAN
-    if (opt.vulkan_compute)
-    {
-        VkMat& in_gpu = blob_mats_gpu[blob_index];
-
-        in_gpu.create_like(in, opt.blob_vkallocator, opt.staging_vkallocator);
-
-        if (!in_gpu.allocator->mappable)
-        {
-            in_gpu.prepare_staging_buffer();
-        }
-
-        in_gpu.upload(in);
-    }
-#endif // NCNN_VULKAN
-
     return 0;
 }
 
@@ -1466,37 +1945,41 @@ int Extractor::extract(int blob_index, Mat& feat)
 #if NCNN_VULKAN
         if (opt.vulkan_compute)
         {
-            VkMat feat_gpu;
-
             ncnn::VkCompute cmd(net->vkdev);
 
-            cmd.begin();
-
+            VkMat feat_gpu;
             ret = extract(blob_index, feat_gpu, cmd);
 
-            if (!feat_gpu.allocator->mappable)
+            if (blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
             {
+                // unpacking
+                VkMat feat_gpu_unpacked;
+                net->packing_pack1->forward(feat_gpu, feat_gpu_unpacked, cmd, opt);
+
+                // cast to fp32
+                VkMat feat_gpu_unpacked_fp32;
+                if (net->vkdev->info.support_fp16_storage)
+                {
+                    net->cast_float16_to_float32->forward(feat_gpu_unpacked, feat_gpu_unpacked_fp32, cmd, opt);
+                }
+                else
+                {
+                    feat_gpu_unpacked_fp32 = feat_gpu_unpacked;
+                }
+
                 // download
-                cmd.record_prepare_transfer_barrier(feat_gpu);
+                feat_gpu_unpacked_fp32.prepare_staging_buffer();
+                cmd.record_download(feat_gpu_unpacked_fp32);
 
-                feat_gpu.prepare_staging_buffer();
+                cmd.submit();
 
-                cmd.record_download(feat_gpu);
-            }
+                cmd.wait();
 
-            cmd.end();
+                Mat& feat_cpu = blob_mats[blob_index];
+                feat_cpu.create_like(feat_gpu_unpacked_fp32, opt.blob_allocator);
+                feat_gpu_unpacked_fp32.download(feat_cpu);
 
-            cmd.submit();
-
-            cmd.wait();
-
-            blob_mats[blob_index].create_like(feat_gpu, opt.blob_allocator);
-
-            feat_gpu.download(blob_mats[blob_index]);
-
-            if (!feat_gpu.allocator->mappable)
-            {
-                feat_gpu.discard_staging_buffer();
+                feat_gpu_unpacked_fp32.discard_staging_buffer();
             }
         }
         else
@@ -1555,7 +2038,7 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
     if (blob_mats_gpu[blob_index].dims == 0)
     {
         int layer_index = net->blobs[blob_index].producer;
-        ret = net->forward_layer(layer_index, blob_mats_gpu, wait_barrier_counts, cmd, opt);
+        ret = net->forward_layer(layer_index, blob_mats, blob_mats_gpu, wait_barrier_counts, cmd, opt);
     }
 
     feat = blob_mats_gpu[blob_index];

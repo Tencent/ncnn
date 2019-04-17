@@ -17,12 +17,15 @@
 #include <math.h>
 #include <algorithm>
 #include "mat.h"
+#include <string>
 
 namespace ncnn {
 
 #if NCNN_VULKAN
 Pipeline::Pipeline(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
+    local_shader_module = 0;
+
     descriptorset_layout = 0;
     pipeline_layout = 0;
     pipeline = 0;
@@ -38,13 +41,17 @@ Pipeline::~Pipeline()
     destroy();
 }
 
-int Pipeline::create(const char* name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
 {
+    local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
+
+    fprintf(stderr, "local_shader_module %p %s created\n", local_shader_module, entry_name);
+
     create_descriptorset_layout(binding_count);
 
     create_pipeline_layout(push_constant_count);
 
-    create_pipeline(name, specializations);
+    create_pipeline(local_shader_module, entry_name, specializations);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
@@ -52,6 +59,40 @@ int Pipeline::create(const char* name, const std::vector<vk_specialization_type>
     }
 
     return 0;
+}
+
+int Pipeline::create(VkShaderModule shader_module, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+{
+    create_descriptorset_layout(binding_count);
+
+    create_pipeline_layout(push_constant_count);
+
+    create_pipeline(shader_module, entry_name, specializations);
+
+    if (vkdev->info.support_VK_KHR_descriptor_update_template)
+    {
+        create_descriptor_update_template(binding_count);
+    }
+
+    return 0;
+}
+
+int Pipeline::create(const char* _name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+{
+    std::string name = _name;
+
+    if (vkdev->info.support_fp16_arithmetic)
+    {
+        name += "_fp16a";
+    }
+    else if (vkdev->info.support_fp16_storage)
+    {
+        name += "_fp16s";
+    }
+
+    VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
+
+    return create(shader_module, name.c_str(), specializations, binding_count, push_constant_count);
 }
 
 void Pipeline::destroy()
@@ -82,6 +123,12 @@ void Pipeline::destroy()
         vkDestroyDescriptorSetLayout(vkdev->vkdevice(), descriptorset_layout, 0);
         descriptorset_layout = 0;
     }
+
+    if (local_shader_module)
+    {
+        vkDestroyShaderModule(vkdev->vkdevice(), local_shader_module, 0);
+        local_shader_module = 0;
+    }
 }
 
 void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
@@ -89,22 +136,22 @@ void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
     if (c > 0)
     {
         local_size_z = vkdev->info.max_workgroup_size[2];
-        while (c < local_size_z)
+        while ((uint32_t)c < local_size_z)
         {
             local_size_z /= 2;
         }
     }
     else
     {
-        local_size_z = std::min(128, vkdev->info.max_workgroup_size[2]);
+        local_size_z = std::min((uint32_t)128, vkdev->info.max_workgroup_size[2]);
     }
 
-    int max_local_size_xy = vkdev->info.max_workgroup_invocations / local_size_z;
+    uint32_t max_local_size_xy = vkdev->info.max_workgroup_invocations / local_size_z;
 
     if (h == w || (h < 0 && w < 0))
     {
-        int local_size_xy = sqrt(max_local_size_xy);
-        int local_size_xy_prefer = 128;
+        uint32_t local_size_xy = sqrt(max_local_size_xy);
+        uint32_t local_size_xy_prefer = 128;
         while (local_size_xy < local_size_xy_prefer)
         {
             local_size_xy_prefer /= 2;
@@ -119,23 +166,23 @@ void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
             float ps = h / (float)w;
             float local_size_xy = sqrt(max_local_size_xy / ps);
             local_size_y = local_size_xy * ps;
-            local_size_x = std::max((int)local_size_xy, 1);
+            local_size_x = std::max((uint32_t)local_size_xy, (uint32_t)1);
         }
         else
         {
             float ps = w / (float)h;
             float local_size_xy = sqrt(max_local_size_xy / ps);
-            local_size_y = std::max((int)local_size_xy, 1);
+            local_size_y = std::max((uint32_t)local_size_xy, (uint32_t)1);
             local_size_x = local_size_xy * ps;
         }
 
-        int local_size_y_prefer = std::min(128, vkdev->info.max_workgroup_size[1]);
+        uint32_t local_size_y_prefer = std::min((uint32_t)128, vkdev->info.max_workgroup_size[1]);
         while (local_size_y < local_size_y_prefer)
         {
             local_size_y_prefer /= 2;
         }
 
-        int local_size_x_prefer = std::min(128, vkdev->info.max_workgroup_size[0]);
+        uint32_t local_size_x_prefer = std::min((uint32_t)128, vkdev->info.max_workgroup_size[0]);
         while (local_size_x < local_size_x_prefer)
         {
             local_size_x_prefer /= 2;
@@ -147,23 +194,23 @@ void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
     else if (h > 0)
     {
         local_size_y = std::min(max_local_size_xy, vkdev->info.max_workgroup_size[1]);
-        while (h < local_size_y)
+        while ((uint32_t)h < local_size_y)
         {
             local_size_y /= 2;
         }
 
-        int max_local_size_x = max_local_size_xy / local_size_y;
+        uint32_t max_local_size_x = max_local_size_xy / local_size_y;
         local_size_x = std::min(max_local_size_x, vkdev->info.max_workgroup_size[0]);
     }
     else if (w > 0)
     {
         local_size_x = std::min(max_local_size_xy, vkdev->info.max_workgroup_size[0]);
-        while (w < local_size_x)
+        while ((uint32_t)w < local_size_x)
         {
             local_size_x /= 2;
         }
 
-        int max_local_size_y = max_local_size_xy / local_size_x;
+        uint32_t max_local_size_y = max_local_size_xy / local_size_x;
         local_size_y = std::min(max_local_size_y, vkdev->info.max_workgroup_size[1]);
     }
 
@@ -254,10 +301,8 @@ int Pipeline::create_pipeline_layout(int push_constant_count)
     return 0;
 }
 
-int Pipeline::create_pipeline(const char* name, const std::vector<vk_specialization_type>& specializations)
+int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_name, const std::vector<vk_specialization_type>& specializations)
 {
-    VkShaderModule shader_module = vkdev->get_shader_module(name);
-
     const int specialization_count = specializations.size();
 
     // +3 for local_size_xyz
@@ -290,9 +335,9 @@ int Pipeline::create_pipeline(const char* name, const std::vector<vk_specializat
         local_size_xyz_entries[2].size = sizeof(vk_specialization_type);
 
         specialization_data.resize(specialization_count + 3);
-        specialization_data[ specialization_count+0 ].i = local_size_x;
-        specialization_data[ specialization_count+1 ].i = local_size_y;
-        specialization_data[ specialization_count+2 ].i = local_size_z;
+        specialization_data[ specialization_count+0 ].u32 = local_size_x;
+        specialization_data[ specialization_count+1 ].u32 = local_size_y;
+        specialization_data[ specialization_count+2 ].u32 = local_size_z;
     }
 
     VkSpecializationInfo specializationInfo;
@@ -307,7 +352,7 @@ int Pipeline::create_pipeline(const char* name, const std::vector<vk_specializat
     pipelineShaderStageCreateInfo.flags = 0;
     pipelineShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineShaderStageCreateInfo.module = shader_module;
-    pipelineShaderStageCreateInfo.pName = name;
+    pipelineShaderStageCreateInfo.pName = entry_name;
     pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
 
     VkComputePipelineCreateInfo computePipelineCreateInfo;

@@ -31,6 +31,7 @@ public:
 
 #if NCNN_VULKAN
     virtual int create_pipeline();
+    virtual int destroy_pipeline();
 
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
@@ -54,7 +55,10 @@ public:
 #if NCNN_VULKAN
     ncnn::Layer* padding;
 
-    Pipeline* pooling_global;
+    Pipeline* pipeline_pooling;
+    Pipeline* pipeline_pooling_global;
+    Pipeline* pipeline_pooling_pack4;
+    Pipeline* pipeline_pooling_global_pack4;
 #endif // NCNN_VULKAN
 
 };
