@@ -40,6 +40,7 @@ public:
 #endif // NCNN_VULKAN
 
 public:
+    // -233 = dynamic offset from reference blob
     int woffset;
     int hoffset;
     int coffset;

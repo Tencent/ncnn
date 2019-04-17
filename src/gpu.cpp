@@ -57,6 +57,16 @@ PFN_vkGetPhysicalDeviceMemoryProperties2KHR vkGetPhysicalDeviceMemoryProperties2
 PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR vkGetPhysicalDeviceSparseImageFormatProperties2KHR = 0;
 
 // compile with old vulkan sdk
+#if VK_HEADER_VERSION < 80
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR (VkStructureType)1000177000
+typedef struct VkPhysicalDevice8BitStorageFeaturesKHR {
+    VkStructureType    sType;
+    void*              pNext;
+    VkBool32           storageBuffer8BitAccess;
+    VkBool32           uniformAndStorageBuffer8BitAccess;
+    VkBool32           storagePushConstant8;
+} VkPhysicalDevice8BitStorageFeaturesKHR;
+#endif // VK_HEADER_VERSION < 80
 #if VK_HEADER_VERSION < 95
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT16_INT8_FEATURES_KHR (VkStructureType)1000082000
 typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR {
@@ -669,11 +679,11 @@ int create_gpu_instance()
 
             if (gpu_info.support_VK_KHR_8bit_storage)
             {
-                gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess;
+                gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess && query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
             }
             if (gpu_info.support_VK_KHR_16bit_storage)
             {
-                gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess;
+                gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
             }
             if (gpu_info.support_VK_KHR_shader_float16_int8)
             {
@@ -783,7 +793,7 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     enabled8BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR;
     enabled8BitStorageFeatures.pNext = 0;
     enabled8BitStorageFeatures.storageBuffer8BitAccess = info.support_int8_storage;
-    enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = VK_FALSE;
+    enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = info.support_int8_storage;
     enabled8BitStorageFeatures.storagePushConstant8 = VK_FALSE;
     if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_8bit_storage)
     {
@@ -796,7 +806,7 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     enabled16BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
     enabled16BitStorageFeatures.pNext = 0;
     enabled16BitStorageFeatures.storageBuffer16BitAccess = info.support_fp16_storage;
-    enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = VK_FALSE;
+    enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = info.support_fp16_storage;
     enabled16BitStorageFeatures.storagePushConstant16 = VK_FALSE;
     enabled16BitStorageFeatures.storageInputOutput16 = VK_FALSE;
     if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_16bit_storage)
@@ -886,6 +896,26 @@ VkShaderModule VulkanDevice::get_shader_module(const char* name) const
     return 0;
 }
 
+VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const
+{
+    VkShaderModuleCreateInfo shaderModuleCreateInfo;
+    shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    shaderModuleCreateInfo.pNext = 0;
+    shaderModuleCreateInfo.flags = 0;
+    shaderModuleCreateInfo.codeSize = spv_data_size;
+    shaderModuleCreateInfo.pCode = spv_data;
+
+    VkShaderModule shader_module;
+    VkResult ret = vkCreateShaderModule(device, &shaderModuleCreateInfo, 0, &shader_module);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateShaderModule failed %d\n", ret);
+        return 0;
+    }
+
+    return shader_module;
+}
+
 VkAllocator* VulkanDevice::allocator() const
 {
     return blob_buffer_allocator;
@@ -936,25 +966,20 @@ int VulkanDevice::create_shader_module()
 
         if (!info.support_fp16_arithmetic)
         {
-            if (string_ends_with_fp16a(layer_shader_registry[i].name))
+            if (string_ends_with_fp16a(shader_name))
                 continue;
         }
 
-        VkShaderModuleCreateInfo shaderModuleCreateInfo;
-        shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        shaderModuleCreateInfo.pNext = 0;
-        shaderModuleCreateInfo.flags = 0;
-        shaderModuleCreateInfo.codeSize = layer_shader_registry[i].spv_data_size;
-        shaderModuleCreateInfo.pCode = layer_shader_registry[i].spv_data;
-
-        VkResult ret = vkCreateShaderModule(device, &shaderModuleCreateInfo, 0, &shader_modules[i]);
-        if (ret != VK_SUCCESS)
+        VkShaderModule shader_module = compile_shader_module(layer_shader_registry[i].spv_data, layer_shader_registry[i].spv_data_size);
+        if (shader_module == 0)
         {
-            fprintf(stderr, "vkCreateShaderModule %s failed %d\n", layer_shader_registry[i].name, ret);
+            fprintf(stderr, "compile_shader_module %s failed\n", shader_name);
             return -1;
         }
 
-//         fprintf(stderr, "shader_module %s created\n", layer_shader_registry[i].name);
+        shader_modules[i] = shader_module;
+
+//         fprintf(stderr, "shader_module %s created\n", shader_name);
     }
 
     return 0;
