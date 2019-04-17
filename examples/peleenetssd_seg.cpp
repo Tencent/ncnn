@@ -51,8 +51,8 @@ static int detect_peleenet(const cv::Mat& bgr, std::vector<Object>& objects)
 
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, target_size, target_size);
 
-    const float mean_vals[3] = {127.5f, 127.5f, 127.5f};
-    const float norm_vals[3] = {1.0/127.5,1.0/127.5,1.0/127.5};
+    const float mean_vals[3] = {103.9f, 116.7f, 123.6f};
+    const float norm_vals[3] = {0.017f,0.017f,0.017f};
     in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = peleenet.create_extractor();
@@ -86,11 +86,9 @@ static int detect_peleenet(const cv::Mat& bgr, std::vector<Object>& objects)
 static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 {
     static const char* class_names[] = {"background",
-        "aeroplane", "bicycle", "bird", "boat",
-        "bottle", "bus", "car", "cat", "chair",
-        "cow", "diningtable", "dog", "horse",
-        "motorbike", "person", "pottedplant",
-        "sheep", "sofa", "train", "tvmonitor"};
+          "person","rider", "car","bus",
+          "truck","bike","motor",
+          "traffic light","traffic sign","train"};
 
     cv::Mat image = bgr.clone();
 
