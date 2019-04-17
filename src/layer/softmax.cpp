@@ -77,12 +77,12 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             max = std::max(max, ptr[i]);
         }
 
-		float sum = 0.f;
-		for (int i=0; i<w; i++)
-		{
-			ptr[i] = exp(ptr[i] - max);
-			sum += ptr[i];
-		}
+        float sum = 0.f;
+        for (int i=0; i<w; i++)
+        {
+            ptr[i] = exp(ptr[i] - max);
+            sum += ptr[i];
+        }
 
         for (int i=0; i<w; i++)
         {
@@ -112,21 +112,21 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
 
-		Mat sum;
-		sum.create(w, elemsize, opt.workspace_allocator);
-		if (sum.empty())
-			return -100;
-		sum.fill(0.f);
+        Mat sum;
+        sum.create(w, elemsize, opt.workspace_allocator);
+        if (sum.empty())
+            return -100;
+        sum.fill(0.f);
 
-		for (int i = 0; i<h; i++)
-		{
-			float* ptr = bottom_top_blob.row(i);
-			for (int j=0; j<w; j++)
-			{
-				ptr[j] = exp(ptr[j] - max[j]);
-				sum[j] += ptr[j];
-			}
-		}
+        for (int i = 0; i<h; i++)
+        {
+            float* ptr = bottom_top_blob.row(i);
+            for (int j=0; j<w; j++)
+            {
+                ptr[j] = exp(ptr[j] - max[j]);
+                sum[j] += ptr[j];
+            }
+        }
 
         for (int i=0; i<h; i++)
         {
@@ -145,27 +145,27 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-		for (int i=0; i<h; i++)
-		{
-			float* ptr = bottom_top_blob.row(i);
-			float m = -FLT_MAX;
-			for (int j=0; j<w; j++)
-			{
-			    m = std::max(m, ptr[j]);
-			}
+        for (int i=0; i<h; i++)
+        {
+            float* ptr = bottom_top_blob.row(i);
+            float m = -FLT_MAX;
+            for (int j=0; j<w; j++)
+            {
+                m = std::max(m, ptr[j]);
+            }
 
-			float s = 0.f;
-			for (int j=0; j<w; j++)
-			{
-			    ptr[j] = exp(ptr[j] - m);
-				s += ptr[j];
-			}
+            float s = 0.f;
+            for (int j=0; j<w; j++)
+            {
+                ptr[j] = exp(ptr[j] - m);
+                s += ptr[j];
+            }
 
-			for (int j=0; j<w; j++)
-			{
-				ptr[j] /= s;
-			}
-		}
+            for (int j=0; j<w; j++)
+            {
+                ptr[j] /= s;
+            }
+        }
 
         return 0;
     }
@@ -192,21 +192,21 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
 
-		Mat sum;
-		sum.create(w, h, elemsize, opt.workspace_allocator);
-		if (sum.empty())
-			return -100;
-		sum.fill(0.f);
-		for (int q=0; q<channels; q++)
-		{
-			float* ptr = bottom_top_blob.channel(q);
+        Mat sum;
+        sum.create(w, h, elemsize, opt.workspace_allocator);
+        if (sum.empty())
+            return -100;
+        sum.fill(0.f);
+        for (int q=0; q<channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
 
-			for (int i=0; i<size; i++)
-			{
-				ptr[i] = exp(ptr[i] - max[i]);
-				sum[i] += ptr[i];
-			}
-		}
+            for (int i=0; i<size; i++)
+            {
+                ptr[i] = exp(ptr[i] - max[i]);
+                sum[i] += ptr[i];
+            }
+        }
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
@@ -250,29 +250,29 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
 
-		Mat sum;
-		sum.create(w, channels, elemsize, opt.workspace_allocator);
-		if (sum.empty())
-			return -100;
-		sum.fill(0.f);
-		#pragma omp parallel for num_threads(opt.num_threads)
-		for (int q=0; q<channels; q++)
-		{
-			float* ptr = bottom_top_blob.channel(q);
-			float* maxptr = max.row(q);
-			float* sumptr = sum.row(q);
+        Mat sum;
+        sum.create(w, channels, elemsize, opt.workspace_allocator);
+        if (sum.empty())
+            return -100;
+        sum.fill(0.f);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+            float* maxptr = max.row(q);
+            float* sumptr = sum.row(q);
 
-			for (int i=0; i<h; i++)
-			{
-				for (int j=0; j<w; j++)
-				{
-					ptr[j] = exp(ptr[j] - maxptr[j]);
-					sumptr[j] += ptr[j];
-				}
+            for (int i=0; i<h; i++)
+            {
+                for (int j=0; j<w; j++)
+                {
+                    ptr[j] = exp(ptr[j] - maxptr[j]);
+                    sumptr[j] += ptr[j];
+                }
 
-				ptr += w;
-			}
-		}
+                ptr += w;
+            }
+        }
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
@@ -300,34 +300,34 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int h = bottom_top_blob.h;
         int channels = bottom_top_blob.c;
 
-		#pragma omp parallel for num_threads(opt.num_threads)
-		for (int q=0; q<channels; q++)
-		{
-			float* ptr = bottom_top_blob.channel(q);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
 
-			for (int i=0; i<h; i++)
-			{
-				float max = -FLT_MAX;
-				for (int j=0; j<w; j++)
-				{
-					max = std::max(max, ptr[j]);
-				}
+            for (int i=0; i<h; i++)
+            {
+                float max = -FLT_MAX;
+                for (int j=0; j<w; j++)
+                {
+                    max = std::max(max, ptr[j]);
+                }
 
-				float sum = 0.f;
-				for (int j=0; j<w; j++)
-				{
-					ptr[j] = exp(ptr[j] - max);
-					sum += ptr[j];
-				}
+                float sum = 0.f;
+                for (int j=0; j<w; j++)
+                {
+                    ptr[j] = exp(ptr[j] - max);
+                    sum += ptr[j];
+                }
 
-				for (int j=0; j<w; j++)
-				{
-					ptr[j] /= sum;
-				}
+                for (int j=0; j<w; j++)
+                {
+                    ptr[j] /= sum;
+                }
 
-				ptr += w;
-			}
-		}
+                ptr += w;
+            }
+        }
 
         return 0;
     }
