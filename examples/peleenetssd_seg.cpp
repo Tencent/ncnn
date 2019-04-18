@@ -130,6 +130,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
     int size = map.c;
     int img_index2 = 0;
     float threshold = 0.45;
+    const float* ptr2 = map;
     for (int i = 0; i < height; i++) {
         unsigned char* ptr1 = image.ptr<unsigned char>(i);        
         int img_index1 = 0;        
@@ -137,9 +138,10 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
             float maxima = threshold; 
             int index = -1;
             for (int c = 0; c < size; c++) {
-                const float* ptr2 = map.channel(c);              
-                if(ptr2[img_index2]>maxima) {
-                    maxima = ptr2[img_index2];
+                //const float* ptr3 = map.channel(c);  
+                const float* ptr3 = ptr2 + c*width*height;
+                if(ptr3[img_index2]>maxima) {
+                    maxima = ptr3[img_index2];
                     index = c;
                 }
             }
