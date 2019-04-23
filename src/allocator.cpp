@@ -412,7 +412,6 @@ VkBufferMemory* VkUnlockedBlobBufferAllocator::fastMalloc(size_t size)
             ptr->capacity = aligned_size;
             ptr->mapped_ptr = buffer_blocks[i]->mapped_ptr;
             ptr->state = 1;
-            ptr->wait_barrier_count = 0;
 
             // adjust budgets
             if (budget_size == aligned_size)
@@ -465,7 +464,6 @@ VkBufferMemory* VkUnlockedBlobBufferAllocator::fastMalloc(size_t size)
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
     ptr->state = 1;
-    ptr->wait_barrier_count = 0;
 
     // adjust budgets
     std::list< std::pair<size_t, size_t> > budget;
@@ -672,7 +670,6 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
         ptr->capacity = aligned_size;
         ptr->mapped_ptr = buffer_blocks[block_index]->mapped_ptr;
         ptr->state = 1;
-        ptr->wait_barrier_count = 0;
 
         buffer_block_free_spaces[block_index] -= aligned_size;
 
@@ -730,7 +727,6 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
             ptr->capacity = new_block_size;
             ptr->mapped_ptr = block->mapped_ptr;
             ptr->state = 1;
-            ptr->wait_barrier_count = 0;
 
             return ptr;
         }
@@ -764,7 +760,6 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
     ptr->state = 1;
-    ptr->wait_barrier_count = 0;
 
     return ptr;
 }
@@ -862,7 +857,6 @@ VkBufferMemory* VkUnlockedStagingBufferAllocator::fastMalloc(size_t size)
     vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
 
     ptr->state = 1;
-    ptr->wait_barrier_count = 0;
 
 //     fprintf(stderr, "VkUnlockedStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
 
@@ -934,7 +928,6 @@ VkBufferMemory* VkWeightStagingBufferAllocator::fastMalloc(size_t size)
     vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
 
     ptr->state = 1;
-    ptr->wait_barrier_count = 0;
 
 //     fprintf(stderr, "VkWeightStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
 

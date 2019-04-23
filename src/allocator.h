@@ -229,10 +229,6 @@ public:
     // 4=readonly
     mutable int state;
 
-    // the barrier count must be hit before reclaiming buffer memory alias-able
-    // modified by net forward internally
-    mutable int wait_barrier_count;
-
     // initialize and modified by mat
     int refcount;
 };
