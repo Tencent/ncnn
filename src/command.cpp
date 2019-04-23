@@ -643,7 +643,7 @@ void VkCompute::dispatch(const uint32_t* group_count_xyz)
 
 void VkCompute::transfer_compute_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
-//     fprintf(stderr, "cmd transfer_compute_barrier %p\n", buffer);
+//     fprintf(stderr, "cmd transfer_compute_barrier %p[+%lu]\n", buffer, offset);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -664,7 +664,7 @@ void VkCompute::transfer_compute_barrier(VkBuffer buffer, size_t offset, size_t 
 
 void VkCompute::compute_transfer_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
-//     fprintf(stderr, "cmd compute_transfer_barrier %p\n", buffer);
+//     fprintf(stderr, "cmd compute_transfer_barrier %p[+%lu]\n", buffer, offset);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -685,7 +685,7 @@ void VkCompute::compute_transfer_barrier(VkBuffer buffer, size_t offset, size_t 
 
 void VkCompute::compute_compute_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
-//     fprintf(stderr, "cmd compute_compute_barrier %p\n", buffer);
+//     fprintf(stderr, "cmd compute_compute_barrier %p[+%lu]\n", buffer, offset);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -706,7 +706,7 @@ void VkCompute::compute_compute_barrier(VkBuffer buffer, size_t offset, size_t s
 
 void VkCompute::transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
-//     fprintf(stderr, "cmd transfer_transfer_barrier %p\n", buffer);
+//     fprintf(stderr, "cmd transfer_transfer_barrier %p[+%lu]\n", buffer, offset);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
