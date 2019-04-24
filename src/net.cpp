@@ -1460,8 +1460,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
         {
             // load bottom blobs
             std::vector<VkMat> bottom_blobs(layer->bottoms.size());
-            std::vector<VkMat> bottom_blobs_unpacked(layer->bottoms.size());
-            std::vector<VkMat> bottom_blobs_unpacked_fp16(layer->bottoms.size());
             for (size_t i=0; i<layer->bottoms.size(); i++)
             {
                 int bottom_blob_index = layer->bottoms[i];
@@ -1480,26 +1478,28 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
 
                         // upload
-                        bottom_blobs_unpacked[i].create_like(bottom_blob_cpu, opt.blob_vkallocator, opt.staging_vkallocator);
+                        VkMat bottom_blob_unpacked;
+                        bottom_blob_unpacked.create_like(bottom_blob_cpu, opt.blob_vkallocator, opt.staging_vkallocator);
 
-                        bottom_blobs_unpacked[i].prepare_staging_buffer();
-                        bottom_blobs_unpacked[i].upload(bottom_blob_cpu);
+                        bottom_blob_unpacked.prepare_staging_buffer();
+                        bottom_blob_unpacked.upload(bottom_blob_cpu);
 
-                        cmd.record_upload(bottom_blobs_unpacked[i]);
+                        cmd.record_upload(bottom_blob_unpacked);
 
                         // cast to fp16
+                        VkMat bottom_blob_unpacked_fp16;
                         if (vkdev->info.support_fp16_storage)
                         {
-                            cast_float32_to_float16->forward(bottom_blobs_unpacked[i], bottom_blobs_unpacked_fp16[i], cmd, opt);
+                            cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
                         }
                         else
                         {
-                            bottom_blobs_unpacked_fp16[i] = bottom_blobs_unpacked[i];
+                            bottom_blob_unpacked_fp16 = bottom_blob_unpacked;
                         }
 
                         // packing
                         VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
-                        packing_pack4->forward(bottom_blobs_unpacked_fp16[i], bottom_blob, cmd, opt);
+                        packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
 
 //                         fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
                     }
@@ -1524,9 +1524,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     }
                 }
             }
-
-            bottom_blobs_unpacked.clear();
-            bottom_blobs_unpacked_fp16.clear();
 
             // forward
             if (opt.lightmode && layer->support_inplace)
@@ -1675,7 +1672,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
         else
         {
             // load bottom blobs
-            std::vector<VkMat> bottom_blobs_unpacked(layer->bottoms.size());
             std::vector<VkMat> bottom_blobs_unpacked_fp32(layer->bottoms.size());
             for (size_t i=0; i<layer->bottoms.size(); i++)
             {
@@ -1714,16 +1710,17 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         }
 
                         // unpacking
-                        packing_pack1->forward(bottom_blob, bottom_blobs_unpacked[i], cmd, opt);
+                        VkMat bottom_blob_unpacked;
+                        packing_pack1->forward(bottom_blob, bottom_blob_unpacked, cmd, opt);
 
                         // cast to fp32
                         if (vkdev->info.support_fp16_storage)
                         {
-                            cast_float16_to_float32->forward(bottom_blobs_unpacked[i], bottom_blobs_unpacked_fp32[i], cmd, opt);
+                            cast_float16_to_float32->forward(bottom_blob_unpacked, bottom_blobs_unpacked_fp32[i], cmd, opt);
                         }
                         else
                         {
-                            bottom_blobs_unpacked_fp32[i] = bottom_blobs_unpacked[i];
+                            bottom_blobs_unpacked_fp32[i] = bottom_blob_unpacked;
                         }
 
                         // download
@@ -1732,8 +1729,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     }
                 }
             }
-
-            bottom_blobs_unpacked.clear();
 
             {
                 cmd.submit();
