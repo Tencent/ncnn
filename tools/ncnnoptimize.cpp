@@ -74,6 +74,8 @@ public:
     int fuse_batchnorm_scale();
     int fuse_convolution_batchnorm();
     int fuse_convolutiondepthwise_batchnorm();
+    int fuse_deconvolution_batchnorm();
+    int fuse_deconvolutiondepthwise_batchnorm();
     int fuse_innerproduct_batchnorm();
     int fuse_convolution_relu();
     int fuse_convolutiondepthwise_relu();
@@ -311,6 +313,172 @@ int NetOptimize::fuse_convolutiondepthwise_batchnorm()
 
         int top_blob_index_final = batchnorm->tops[0];
         convolutiondepthwise->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        batchnorm->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::fuse_deconvolution_batchnorm()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "Deconvolution")
+            continue;
+
+        // Deconvolution - BatchNorm
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "BatchNorm")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse Deconvolution - BatchNorm to Deconvolution
+        ncnn::Deconvolution* deconvolution = (ncnn::Deconvolution*)layers[i];
+        ncnn::BatchNorm* batchnorm = (ncnn::BatchNorm*)layers[j];
+
+        fprintf(stderr, "fuse_deconvolution_batchnorm %s %s\n", deconvolution->name.c_str(), batchnorm->name.c_str());
+
+        {
+            int channels = batchnorm->channels;
+            float eps = batchnorm->eps;
+
+            // a = bias - slope * mean / sqrt(var + eps)
+            // b = slope / sqrt(var + eps)
+            // value = value * b + a
+
+            std::vector<float> a(channels);
+            std::vector<float> b(channels);
+            for (int i=0; i<channels; i++)
+            {
+                float sqrt_var = sqrt(batchnorm->var_data[i] + eps);
+                a[i] = batchnorm->bias_data[i] - batchnorm->slope_data[i] * batchnorm->mean_data[i] / sqrt_var;
+                b[i] = batchnorm->slope_data[i] / sqrt_var;
+            }
+
+            if (deconvolution->bias_term == 0)
+            {
+                // init bias as zero
+                deconvolution->bias_term = 1;
+                deconvolution->bias_data = ncnn::Mat(channels);
+                deconvolution->bias_data.fill(0.f);
+            }
+
+            const int weight_per_outch = deconvolution->weight_data_size / channels;
+
+            float* weight = deconvolution->weight_data;
+            float* bias = deconvolution->bias_data;
+            for (int i=0; i<channels; i++)
+            {
+                float* conv_weight_outch = weight + weight_per_outch * i;
+                for (int j=0; j<weight_per_outch; j++)
+                {
+                    conv_weight_outch[j] *= b[i];
+                }
+
+                bias[i] += a[i];
+            }
+        }
+
+        int top_blob_index_final = batchnorm->tops[0];
+        deconvolution->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        batchnorm->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::fuse_deconvolutiondepthwise_batchnorm()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "DeconvolutionDepthWise")
+            continue;
+
+        // DeconvolutionDepthWise - BatchNorm
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "BatchNorm")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse DeconvolutionDepthWise - BatchNorm to DeconvolutionDepthWise
+        ncnn::DeconvolutionDepthWise* deconvolutiondepthwise = (ncnn::DeconvolutionDepthWise*)layers[i];
+        ncnn::BatchNorm* batchnorm = (ncnn::BatchNorm*)layers[j];
+
+        fprintf(stderr, "fuse_deconvolutiondepthwise_batchnorm %s %s\n", deconvolutiondepthwise->name.c_str(), batchnorm->name.c_str());
+
+        {
+            int channels = batchnorm->channels;
+            float eps = batchnorm->eps;
+
+            // a = bias - slope * mean / sqrt(var + eps)
+            // b = slope / sqrt(var + eps)
+            // value = value * b + a
+
+            std::vector<float> a(channels);
+            std::vector<float> b(channels);
+            for (int i=0; i<channels; i++)
+            {
+                float sqrt_var = sqrt(batchnorm->var_data[i] + eps);
+                a[i] = batchnorm->bias_data[i] - batchnorm->slope_data[i] * batchnorm->mean_data[i] / sqrt_var;
+                b[i] = batchnorm->slope_data[i] / sqrt_var;
+            }
+
+            if (deconvolutiondepthwise->bias_term == 0)
+            {
+                // init bias as zero
+                deconvolutiondepthwise->bias_term = 1;
+                deconvolutiondepthwise->bias_data = ncnn::Mat(channels);
+                deconvolutiondepthwise->bias_data.fill(0.f);
+            }
+
+            const int weight_per_outch = deconvolutiondepthwise->weight_data_size / channels;
+
+            float* weight = deconvolutiondepthwise->weight_data;
+            float* bias = deconvolutiondepthwise->bias_data;
+            for (int i=0; i<channels; i++)
+            {
+                float* conv_weight_outch = weight + weight_per_outch * i;
+                for (int j=0; j<weight_per_outch; j++)
+                {
+                    conv_weight_outch[j] *= b[i];
+                }
+
+                bias[i] += a[i];
+            }
+        }
+
+        int top_blob_index_final = batchnorm->tops[0];
+        deconvolutiondepthwise->tops[0] = top_blob_index_final;
         blobs[top_blob_index_final].producer = i;
         batchnorm->type = "ncnnfused";
     }
@@ -1212,6 +1380,8 @@ int main(int argc, char** argv)
     optimizer.fuse_batchnorm_scale();
     optimizer.fuse_convolution_batchnorm();
     optimizer.fuse_convolutiondepthwise_batchnorm();
+    optimizer.fuse_deconvolution_batchnorm();
+    optimizer.fuse_deconvolutiondepthwise_batchnorm();
     optimizer.fuse_innerproduct_batchnorm();
 //     optimizer.fuse_convolution_relu();
 //     optimizer.fuse_convolutiondepthwise_relu();
