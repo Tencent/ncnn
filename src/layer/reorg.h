@@ -35,7 +35,7 @@ public:
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
-private:
+public:
     int stride;
 
 #if NCNN_VULKAN
