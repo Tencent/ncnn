@@ -1187,6 +1187,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Softmax");
         }
+        else if (n.op == "softmax")
+        {
+            fprintf(pp, "%-16s", "Softmax");
+        }
         else if (n.op == "sqrt")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -2116,6 +2120,10 @@ int main(int argc, char** argv)
             fprintf(pp, " 1=1");
         }
         else if (n.op == "SoftmaxOutput")
+        {
+            fprintf(pp, " 1=1");
+        }
+        else if (n.op == "softmax")
         {
             fprintf(pp, " 1=1");
         }
