@@ -28,7 +28,7 @@ layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
 layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
-layout (binding = 1) readonly buffer sum_workspace { sfp sum_workspace_data[]; };
+layout (binding = 1) readonly buffer sum_workspace { sfpvec4 sum_workspace_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -56,54 +56,42 @@ void main()
 
     if (p.dims == 1) // axis == 0
     {
-        afp sum = afp(sum_workspace_data[0]);
-        afpvec4 v = afpvec4(bottom_top_blob_data[gx]);
-        bottom_top_blob_data[gx] = sfpvec4(v / sum);
+        bottom_top_blob_data[gx] = sfpvec4(afpvec4(bottom_top_blob_data[gx]) / afpvec4(sum_workspace_data[0]));
         return;
     }
 
     if (p.dims == 2 && axis == 0)
     {
         int gi = gy * p.w + gx;
-        afp sum = afp(sum_workspace_data[gx]);
-        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
-        bottom_top_blob_data[gi] = sfpvec4(v / sum);
+        bottom_top_blob_data[gi] = sfpvec4(afpvec4(bottom_top_blob_data[gi]) / afpvec4(sum_workspace_data[gx]));
         return;
     }
 
     if (p.dims == 2 && axis == 1)
     {
         int gi = gy * p.w + gx;
-        afp sum = afp(sum_workspace_data[gy]);
-        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
-        bottom_top_blob_data[gi] = sfpvec4(v / sum);
+        bottom_top_blob_data[gi] = sfpvec4(afpvec4(bottom_top_blob_data[gi]) / afpvec4(sum_workspace_data[gy]));
         return;
     }
 
     if (p.dims == 3 && axis == 0)
     {
         int gi = gz * p.cstep + gy * p.w + gx;
-        afp sum = afp(sum_workspace_data[gy * p.w + gx]);
-        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
-        bottom_top_blob_data[gi] = sfpvec4(v / sum);
+        bottom_top_blob_data[gi] = sfpvec4(afpvec4(bottom_top_blob_data[gi]) / afpvec4(sum_workspace_data[gy * p.w + gx]));
         return;
     }
 
     if (p.dims == 3 && axis == 1)
     {
         int gi = gz * p.cstep + gy * p.w + gx;
-        afp sum = afp(sum_workspace_data[gz * p.w + gx]);
-        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
-        bottom_top_blob_data[gi] = sfpvec4(v / sum);
+        bottom_top_blob_data[gi] = sfpvec4(afpvec4(bottom_top_blob_data[gi]) / afpvec4(sum_workspace_data[gz * p.w + gx]));
         return;
     }
 
     if (p.dims == 3 && axis == 2)
     {
         int gi = gz * p.cstep + gy * p.w + gx;
-        afp sum = afp(sum_workspace_data[gz * p.h + gy]);
-        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
-        bottom_top_blob_data[gi] = sfpvec4(v / sum);
+        bottom_top_blob_data[gi] = sfpvec4(afpvec4(bottom_top_blob_data[gi]) / afpvec4(sum_workspace_data[gz * p.h + gy]));
         return;
     }
 }

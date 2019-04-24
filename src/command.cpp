@@ -224,6 +224,7 @@ void VkCompute::record_download(const VkMat& m)
 void VkCompute::record_clone(const VkMat& src, const VkMat& dst)
 {
     record_prepare_transfer_barrier(src);
+    record_prepare_transfer_barrier(dst);
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer(src.buffer(), src.buffer_offset(), dst.buffer(), dst.buffer_offset(), src.total() * src.elemsize);
@@ -249,6 +250,7 @@ void VkCompute::record_copy_region(const VkMat& src, const VkMat& dst, const VkB
 void VkCompute::record_copy_regions(const VkMat& src, const VkMat& dst, const std::vector<VkBufferCopy>& regions)
 {
     record_prepare_transfer_barrier(src);
+    record_prepare_transfer_barrier(dst);
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
         return copy_buffer_regions(src.buffer(), dst.buffer(), regions);

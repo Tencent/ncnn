@@ -412,6 +412,7 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
+    size_t elemsize = bottom_top_blob.elemsize;
     int packing = bottom_top_blob.packing;
 
     VkMat max_workspace;
@@ -419,33 +420,33 @@ int Softmax::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Optio
 
     if (dims == 1) // axis == 0
     {
-        max_workspace.create(1, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(1, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(1, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(1, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else if (dims == 2 && axis == 0)
     {
-        max_workspace.create(w, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(w, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(w, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(w, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else if (dims == 2 && axis == 1)
     {
-        max_workspace.create(h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(h, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(h, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else if (dims == 3 && axis == 0)
     {
-        max_workspace.create(w, h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(w, h, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(w, h, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(w, h, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else if (dims == 3 && axis == 1)
     {
-        max_workspace.create(w, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(w, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(w, channels, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(w, channels, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else if (dims == 3 && axis == 2)
     {
-        max_workspace.create(h, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(h, channels, 4u, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(h, channels, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(h, channels, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
 
 //     fprintf(stderr, "Softmax::forward_inplace %p\n", bottom_top_blob.buffer());
