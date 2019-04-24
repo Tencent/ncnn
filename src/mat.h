@@ -490,7 +490,7 @@ inline Mat& Mat::operator=(const Mat& m)
 
 inline void Mat::fill(float _v)
 {
-    int size = total();
+    int size = (int)total();
     float* ptr = (float*)data;
 
 #if __ARM_NEON
@@ -544,7 +544,7 @@ inline void Mat::fill(float _v)
 
 inline void Mat::fill(int _v)
 {
-    int size = total();
+    int size = (int)total();
     int* ptr = (int*)data;
 
 #if __ARM_NEON
