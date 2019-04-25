@@ -115,6 +115,9 @@ public:
     virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt = get_default_option()) const;
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt = get_default_option()) const;
 
+public:
+    std::vector<int> get_layer_shape(const char *layer_name);
+
 #if NCNN_VULKAN
 public:
     // upload weight blob from host to device
