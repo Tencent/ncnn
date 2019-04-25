@@ -1039,19 +1039,19 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Dropout");
         }
-        else if (n.op == "elemwise_add")
+        else if (n.op == "elemwise_add" || n.op == "_add" || n.op == "_plus" || n.op == "_Plus")
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
-        else if (n.op == "elemwise_div")
+        else if (n.op == "elemwise_div" || n.op == "_div" || n.op == "_Div")
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
-        else if (n.op == "elemwise_mul")
+        else if (n.op == "elemwise_mul" || n.op == "_mul" || n.op == "_Mul")
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
-        else if (n.op == "elemwise_sub")
+        else if (n.op == "elemwise_sub" || n.op == "_sub" || n.op == "_minus" || n.op == "_Minus")
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
@@ -1184,6 +1184,10 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", "Softmax");
         }
         else if (n.op == "SoftmaxOutput")
+        {
+            fprintf(pp, "%-16s", "Softmax");
+        }
+        else if (n.op == "softmax")
         {
             fprintf(pp, "%-16s", "Softmax");
         }
@@ -1363,7 +1367,8 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(stderr, "Unsupported steps param! %f %f\n", steps[0], steps[1]);
+                fprintf(pp, " 11=%f", steps[1]);
+                fprintf(pp, " 12=%f", steps[0]);
             }
 
             std::vector<float> offsets = n.attr("offsets");
@@ -1724,22 +1729,22 @@ int main(int argc, char** argv)
 //             float p = n.attr("p");
 //             fprintf(pp, " 0=%d", p);
         }
-        else if (n.op == "elemwise_add")
+        else if (n.op == "elemwise_add" || n.op == "_add" || n.op == "_plus" || n.op == "_Plus")
         {
             int op_type = 0;
             fprintf(pp, " 0=%d", op_type);
         }
-        else if (n.op == "elemwise_div")
+        else if (n.op == "elemwise_div" || n.op == "_div" || n.op == "_Div")
         {
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
         }
-        else if (n.op == "elemwise_mul")
+        else if (n.op == "elemwise_mul" || n.op == "_mul" || n.op == "_Mul")
         {
             int op_type = 2;
             fprintf(pp, " 0=%d", op_type);
         }
-        else if (n.op == "elemwise_sub")
+        else if (n.op == "elemwise_sub" || n.op == "_sub" || n.op == "_minus" || n.op == "_Minus")
         {
             int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
@@ -2115,6 +2120,10 @@ int main(int argc, char** argv)
             fprintf(pp, " 1=1");
         }
         else if (n.op == "SoftmaxOutput")
+        {
+            fprintf(pp, " 1=1");
+        }
+        else if (n.op == "softmax")
         {
             fprintf(pp, " 1=1");
         }

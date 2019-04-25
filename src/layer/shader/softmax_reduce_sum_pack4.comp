@@ -28,7 +28,7 @@ layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
 layout (binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
-layout (binding = 1) writeonly buffer sum_workspace { sfp sum_workspace_data[]; };
+layout (binding = 1) writeonly buffer sum_workspace { sfpvec4 sum_workspace_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -62,7 +62,7 @@ void main()
             sum_value += afpvec4(bottom_top_blob_data[i]);
         }
         afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_workspace_data[0] = sfp(sum2.r + sum2.g);
+        sum_workspace_data[0] = sfpvec4(sum2.r + sum2.g);
 
         return;
     }
@@ -76,7 +76,7 @@ void main()
             sum_value += afpvec4(bottom_top_blob_data[v_offset]);
         }
         afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_workspace_data[gx] = sfp(sum2.r + sum2.g);
+        sum_workspace_data[gx] = sfpvec4(sum2.r + sum2.g);
 
         return;
     }
@@ -89,8 +89,7 @@ void main()
             int v_offset = gx * p.w + i;
             sum_value += afpvec4(bottom_top_blob_data[v_offset]);
         }
-        afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_workspace_data[gx] = sfp(sum2.r + sum2.g);
+        sum_workspace_data[gx] = sfpvec4(sum_value);
 
         return;
     }
@@ -104,7 +103,7 @@ void main()
             sum_value += afpvec4(bottom_top_blob_data[v_offset]);
         }
         afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_workspace_data[ gy * p.w + gx ] = sfp(sum2.r + sum2.g);
+        sum_workspace_data[ gy * p.w + gx ] = sfpvec4(sum2.r + sum2.g);
 
         return;
     }
@@ -117,8 +116,7 @@ void main()
             int v_offset = gy * p.cstep + i * p.w + gx;
             sum_value += afpvec4(bottom_top_blob_data[v_offset]);
         }
-        afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_workspace_data[gy * p.w + gx] = sfp(sum2.r + sum2.g);
+        sum_workspace_data[gy * p.w + gx] = sfpvec4(sum_value);
 
         return;
     }
@@ -131,8 +129,7 @@ void main()
             int v_offset = gy * p.cstep + gx * p.w + i;
             sum_value += afpvec4(bottom_top_blob_data[v_offset]);
         }
-        afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_workspace_data[gy * p.h + gx] = sfp(sum2.r + sum2.g);
+        sum_workspace_data[gy * p.h + gx] = sfpvec4(sum_value);
 
         return;
     }
