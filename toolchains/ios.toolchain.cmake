@@ -449,7 +449,7 @@ endif (NOT DEFINED CMAKE_INSTALL_NAME_TOOL)
 
 # Set the find root to the iOS developer roots and to user defined paths.
 set(CMAKE_FIND_ROOT_PATH ${CMAKE_IOS_DEVELOPER_ROOT} ${CMAKE_OSX_SYSROOT}
-  ${CMAKE_PREFIX_PATH} CACHE string  "iOS find search path root" FORCE)
+  ${CMAKE_PREFIX_PATH} CACHE STRING  "iOS find search path root" FORCE)
 # Default to searching for frameworks first.
 set(CMAKE_FIND_FRAMEWORK FIRST)
 # Set up the default search directories for frameworks.
