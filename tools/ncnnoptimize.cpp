@@ -914,7 +914,37 @@ int NetOptimize::eliminate_dropout()
         if (layers[i]->type != "Dropout")
             continue;
 
-        // TODO
+        ncnn::Dropout* dropout = (ncnn::Dropout*)layers[i];
+        if (dropout->scale != 1.f)
+            continue;
+
+        // Any - Dropout
+        int bottom_blob_index = layers[i]->bottoms[0];
+
+        int j = i - 1;
+        for (; j>=0; j--)
+        {
+            if (layers[j]->type == "ncnnfused")
+                continue;
+
+            if (layers[j]->tops.size() != 1)
+                continue;
+
+            if (layers[j]->tops[0] == bottom_blob_index)
+                break;
+        }
+
+        if (j == -1)
+            continue;
+
+        ncnn::Layer* any = layers[j];
+
+        fprintf(stderr, "eliminate_dropout %s %s\n", any->name.c_str(), dropout->name.c_str());
+
+        int top_blob_index_final = dropout->tops[0];
+        any->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = j;
+        dropout->type = "ncnnfused";
     }
 
     return 0;
@@ -1597,6 +1627,8 @@ int main(int argc, char** argv)
     optimizer.fuse_deconvolution_activation();
     optimizer.fuse_deconvolutiondepthwise_activation();
     optimizer.fuse_innerproduct_activation();
+
+    optimizer.eliminate_dropout();
 
     optimizer.save(outparam, outbin);
 
