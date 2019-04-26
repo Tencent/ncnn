@@ -15,6 +15,8 @@
 #include "convolution_arm.h"
 #include "benchmark.h"
 
+#include "layer_type.h"
+
 namespace ncnn {
 
 #include "convolution_1x1.h"
@@ -31,11 +33,46 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Convolution_arm)
 
+Convolution_arm::Convolution_arm()
+{
+    activation = 0;
+}
+
+Convolution_arm::~Convolution_arm()
+{
+    delete activation;
+}
+
 int Convolution_arm::load_param(const ParamDict& pd)
 {
     int ret = Convolution::load_param(pd);
     if (ret != 0)
         return ret;
+
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// min
+        pd.set(1, activation_params[1]);// max
+        activation->load_param(pd);
+    }
 
     use_winograd3x3 = false;
     use_sgemm1x1 = false;
@@ -536,6 +573,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
+    }
 
     return 0;
 }

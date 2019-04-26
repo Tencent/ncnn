@@ -55,6 +55,8 @@ int Deconvolution::load_param(const ParamDict& pd)
     pad_h = pd.get(14, pad_w);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
+    activation_type = pd.get(9, 0);
+    activation_params = pd.get(10, Mat());
 
 #if NCNN_VULKAN
     if (pd.use_vulkan_compute)
@@ -180,6 +182,43 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
                     kptr += maxk;
                 }
+            }
+        }
+
+        if (activation_type == 1)
+        {
+            float* outptr = out;
+            int size = outw * outh;
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = std::max(outptr[i], 0.f);
+            }
+        }
+        else if (activation_type == 2)
+        {
+            float* outptr = out;
+            int size = outw * outh;
+            float slope = activation_params[0];
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = outptr[i] > 0.f ? outptr[i] : outptr[i] * slope;
+            }
+        }
+        else if (activation_type == 3)
+        {
+            float* outptr = out;
+            int size = outw * outh;
+            float min = activation_params[0];
+            float max = activation_params[1];
+
+            for (int i = 0; i < size; i++)
+            {
+                if (outptr[i] < min)
+                    outptr[i] = min;
+                if (outptr[i] > max)
+                    outptr[i] = max;
             }
         }
     }

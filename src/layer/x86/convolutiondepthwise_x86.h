@@ -25,11 +25,14 @@ public:
     ConvolutionDepthWise_x86();
     virtual ~ConvolutionDepthWise_x86();
 
+    virtual int load_param(const ParamDict& pd);
+
     virtual int load_model(const ModelBin& mb);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
+    Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
 };
 

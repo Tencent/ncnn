@@ -31,11 +31,46 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
 
+Convolution_x86::Convolution_x86()
+{
+    activation = 0;
+}
+
+Convolution_x86::~Convolution_x86()
+{
+    delete activation;
+}
+
 int Convolution_x86::load_param(const ParamDict& pd)
 {
     int ret = Convolution::load_param(pd);
     if (ret != 0)
         return ret;
+
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// min
+        pd.set(1, activation_params[1]);// max
+        activation->load_param(pd);
+    }
 
     use_winograd3x3 = false;
 
@@ -504,7 +539,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }    
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-       
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
+    }
+
     return 0;
 }
 

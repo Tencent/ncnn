@@ -24,6 +24,9 @@ typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&, const Option
 class Convolution_arm : public Convolution
 {
 public:
+    Convolution_arm();
+    ~Convolution_arm();
+
     virtual int load_param(const ParamDict& pd);
 
     virtual int load_model(const ModelBin& mb);
@@ -32,6 +35,7 @@ public:
     virtual int forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv, const Option& opt) const;
 
 public:
+    Layer* activation;
     bool use_winograd3x3;
     bool use_sgemm1x1;
     Mat weight_3x3_winograd64_data;

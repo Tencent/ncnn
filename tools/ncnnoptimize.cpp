@@ -77,9 +77,11 @@ public:
     int fuse_deconvolution_batchnorm();
     int fuse_deconvolutiondepthwise_batchnorm();
     int fuse_innerproduct_batchnorm();
-    int fuse_convolution_relu();
-    int fuse_convolutiondepthwise_relu();
-    int fuse_innerproduct_relu();
+    int fuse_convolution_activation();
+    int fuse_convolutiondepthwise_activation();
+    int fuse_deconvolution_activation();
+    int fuse_deconvolutiondepthwise_activation();
+    int fuse_innerproduct_activation();
 
     int eliminate_dropout();
 
@@ -569,7 +571,7 @@ int NetOptimize::fuse_innerproduct_batchnorm()
     return 0;
 }
 
-int NetOptimize::fuse_convolution_relu()
+int NetOptimize::fuse_convolution_activation()
 {
     const int layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
@@ -577,13 +579,13 @@ int NetOptimize::fuse_convolution_relu()
         if (layers[i]->type != "Convolution")
             continue;
 
-        // Convolution - ReLU
+        // Convolution - Activation
         int top_blob_index = layers[i]->tops[0];
 
         int j = i + 1;
         for (; j<layer_count; j++)
         {
-            if (layers[j]->type != "ReLU")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -596,26 +598,47 @@ int NetOptimize::fuse_convolution_relu()
         if (j == layer_count)
             continue;
 
-        // fuse Convolution - ReLU to Convolution
+        // fuse Convolution - Activation to Convolution
         ncnn::Convolution* convolution = (ncnn::Convolution*)layers[i];
-        ncnn::ReLU* relu = (ncnn::ReLU*)layers[j];
+        ncnn::Layer* activation = layers[j];
 
-        fprintf(stderr, "fuse_convolution_relu %s %s\n", convolution->name.c_str(), relu->name.c_str());
+        fprintf(stderr, "fuse_convolution_activation %s %s\n", convolution->name.c_str(), activation->name.c_str());
 
+        if (activation->type == "ReLU")
         {
-            //TODO
+            ncnn::ReLU* relu = (ncnn::ReLU*)activation;
+
+            if (relu->slope == 0.f)
+            {
+                convolution->activation_type = 1;
+            }
+            else
+            {
+                convolution->activation_type = 2;
+                convolution->activation_params = ncnn::Mat(1);
+                convolution->activation_params[0] = relu->slope;
+            }
+        }
+        else if (activation->type == "Clip")
+        {
+            ncnn::Clip* clip = (ncnn::Clip*)activation;
+
+            convolution->activation_type = 3;
+            convolution->activation_params = ncnn::Mat(2);
+            convolution->activation_params[0] = clip->min;
+            convolution->activation_params[1] = clip->max;
         }
 
-        int top_blob_index_final = relu->tops[0];
+        int top_blob_index_final = activation->tops[0];
         convolution->tops[0] = top_blob_index_final;
         blobs[top_blob_index_final].producer = i;
-        relu->type = "ncnnfused";
+        activation->type = "ncnnfused";
     }
 
     return 0;
 }
 
-int NetOptimize::fuse_convolutiondepthwise_relu()
+int NetOptimize::fuse_convolutiondepthwise_activation()
 {
     const int layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
@@ -623,13 +646,13 @@ int NetOptimize::fuse_convolutiondepthwise_relu()
         if (layers[i]->type != "ConvolutionDepthWise")
             continue;
 
-        // ConvolutionDepthWise - ReLU
+        // ConvolutionDepthWise - Activation
         int top_blob_index = layers[i]->tops[0];
 
         int j = i + 1;
         for (; j<layer_count; j++)
         {
-            if (layers[j]->type != "ReLU")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -642,26 +665,181 @@ int NetOptimize::fuse_convolutiondepthwise_relu()
         if (j == layer_count)
             continue;
 
-        // fuse ConvolutionDepthWise - ReLU to ConvolutionDepthWise
+        // fuse ConvolutionDepthWise - Activation to ConvolutionDepthWise
         ncnn::ConvolutionDepthWise* convolutiondepthwise = (ncnn::ConvolutionDepthWise*)layers[i];
-        ncnn::ReLU* relu = (ncnn::ReLU*)layers[j];
+        ncnn::Layer* activation = layers[j];
 
-        fprintf(stderr, "fuse_convolutiondepthwise_relu %s %s\n", convolutiondepthwise->name.c_str(), relu->name.c_str());
+        fprintf(stderr, "fuse_convolutiondepthwise_activation %s %s\n", convolutiondepthwise->name.c_str(), activation->name.c_str());
 
+        if (activation->type == "ReLU")
         {
-            //TODO
+            ncnn::ReLU* relu = (ncnn::ReLU*)activation;
+
+            if (relu->slope == 0.f)
+            {
+                convolutiondepthwise->activation_type = 1;
+            }
+            else
+            {
+                convolutiondepthwise->activation_type = 2;
+                convolutiondepthwise->activation_params = ncnn::Mat(1);
+                convolutiondepthwise->activation_params[0] = relu->slope;
+            }
+        }
+        else if (activation->type == "Clip")
+        {
+            ncnn::Clip* clip = (ncnn::Clip*)activation;
+
+            convolutiondepthwise->activation_type = 3;
+            convolutiondepthwise->activation_params = ncnn::Mat(2);
+            convolutiondepthwise->activation_params[0] = clip->min;
+            convolutiondepthwise->activation_params[1] = clip->max;
         }
 
-        int top_blob_index_final = relu->tops[0];
+        int top_blob_index_final = activation->tops[0];
         convolutiondepthwise->tops[0] = top_blob_index_final;
         blobs[top_blob_index_final].producer = i;
-        relu->type = "ncnnfused";
+        activation->type = "ncnnfused";
     }
 
     return 0;
 }
 
-int NetOptimize::fuse_innerproduct_relu()
+int NetOptimize::fuse_deconvolution_activation()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "Deconvolution")
+            continue;
+
+        // Deconvolution - Activation
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse Deconvolution - Activation to Deconvolution
+        ncnn::Deconvolution* deconvolution = (ncnn::Deconvolution*)layers[i];
+        ncnn::Layer* activation = layers[j];
+
+        fprintf(stderr, "fuse_deconvolution_activation %s %s\n", deconvolution->name.c_str(), activation->name.c_str());
+
+        if (activation->type == "ReLU")
+        {
+            ncnn::ReLU* relu = (ncnn::ReLU*)activation;
+
+            if (relu->slope == 0.f)
+            {
+                deconvolution->activation_type = 1;
+            }
+            else
+            {
+                deconvolution->activation_type = 2;
+                deconvolution->activation_params = ncnn::Mat(1);
+                deconvolution->activation_params[0] = relu->slope;
+            }
+        }
+        else if (activation->type == "Clip")
+        {
+            ncnn::Clip* clip = (ncnn::Clip*)activation;
+
+            deconvolution->activation_type = 3;
+            deconvolution->activation_params = ncnn::Mat(2);
+            deconvolution->activation_params[0] = clip->min;
+            deconvolution->activation_params[1] = clip->max;
+        }
+
+        int top_blob_index_final = activation->tops[0];
+        deconvolution->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        activation->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::fuse_deconvolutiondepthwise_activation()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "DeconvolutionDepthWise")
+            continue;
+
+        // DeconvolutionDepthWise - Activation
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse DeconvolutionDepthWise - Activation to DeconvolutionDepthWise
+        ncnn::DeconvolutionDepthWise* deconvolutiondepthwise = (ncnn::DeconvolutionDepthWise*)layers[i];
+        ncnn::Layer* activation = layers[j];
+
+        fprintf(stderr, "fuse_deconvolutiondepthwise_activation %s %s\n", deconvolutiondepthwise->name.c_str(), activation->name.c_str());
+
+        if (activation->type == "ReLU")
+        {
+            ncnn::ReLU* relu = (ncnn::ReLU*)activation;
+
+            if (relu->slope == 0.f)
+            {
+                deconvolutiondepthwise->activation_type = 1;
+            }
+            else
+            {
+                deconvolutiondepthwise->activation_type = 2;
+                deconvolutiondepthwise->activation_params = ncnn::Mat(1);
+                deconvolutiondepthwise->activation_params[0] = relu->slope;
+            }
+        }
+        else if (activation->type == "Clip")
+        {
+            ncnn::Clip* clip = (ncnn::Clip*)activation;
+
+            deconvolutiondepthwise->activation_type = 3;
+            deconvolutiondepthwise->activation_params = ncnn::Mat(2);
+            deconvolutiondepthwise->activation_params[0] = clip->min;
+            deconvolutiondepthwise->activation_params[1] = clip->max;
+        }
+
+        int top_blob_index_final = activation->tops[0];
+        deconvolutiondepthwise->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        activation->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::fuse_innerproduct_activation()
 {
     const int layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
@@ -669,13 +847,13 @@ int NetOptimize::fuse_innerproduct_relu()
         if (layers[i]->type != "InnerProduct")
             continue;
 
-        // InnerProduct - ReLU
+        // InnerProduct - Activation
         int top_blob_index = layers[i]->tops[0];
 
         int j = i + 1;
         for (; j<layer_count; j++)
         {
-            if (layers[j]->type != "ReLU")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -688,20 +866,41 @@ int NetOptimize::fuse_innerproduct_relu()
         if (j == layer_count)
             continue;
 
-        // fuse InnerProduct - ReLU to InnerProduct
+        // fuse InnerProduct - Activation to InnerProduct
         ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)layers[i];
-        ncnn::ReLU* relu = (ncnn::ReLU*)layers[j];
+        ncnn::Layer* activation = layers[j];
 
-        fprintf(stderr, "fuse_innerproduct_relu %s %s\n", innerproduct->name.c_str(), relu->name.c_str());
+        fprintf(stderr, "fuse_innerproduct_activation %s %s\n", innerproduct->name.c_str(), activation->name.c_str());
 
+        if (activation->type == "ReLU")
         {
-            //TODO
+            ncnn::ReLU* relu = (ncnn::ReLU*)activation;
+
+            if (relu->slope == 0.f)
+            {
+                innerproduct->activation_type = 1;
+            }
+            else
+            {
+                innerproduct->activation_type = 2;
+                innerproduct->activation_params = ncnn::Mat(1);
+                innerproduct->activation_params[0] = relu->slope;
+            }
+        }
+        else if (activation->type == "Clip")
+        {
+            ncnn::Clip* clip = (ncnn::Clip*)activation;
+
+            innerproduct->activation_type = 3;
+            innerproduct->activation_params = ncnn::Mat(2);
+            innerproduct->activation_params[0] = clip->min;
+            innerproduct->activation_params[1] = clip->max;
         }
 
-        int top_blob_index_final = relu->tops[0];
+        int top_blob_index_final = activation->tops[0];
         innerproduct->tops[0] = top_blob_index_final;
         blobs[top_blob_index_final].producer = i;
-        relu->type = "ncnnfused";
+        activation->type = "ncnnfused";
     }
 
     return 0;
@@ -893,6 +1092,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
+            fprintf_param_value(" 9=%d", activation_type)
+            { if (!op->activation_params.empty()) fprintf_param_int_array(10, op->activation_params, pp); }
 
             fwrite_weight_tag(0, bp);
             fwrite_weight_data(op->weight_data, bp);
@@ -916,6 +1117,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
             fprintf_param_value(" 8=%d", int8_scale_term)
+            fprintf_param_value(" 9=%d", activation_type)
+            { if (!op->activation_params.empty()) fprintf_param_int_array(10, op->activation_params, pp); }
 
             fwrite_weight_tag(0, bp);
             fwrite_weight_data(op->weight_data, bp);
@@ -949,6 +1152,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (op->pad_h != op->pad_w) fprintf(pp, " 14=%d", op->pad_h); }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
+            fprintf_param_value(" 9=%d", activation_type)
+            { if (!op->activation_params.empty()) fprintf_param_int_array(10, op->activation_params, pp); }
 
             fwrite_weight_tag(0, bp);
             fwrite_weight_data(op->weight_data, bp);
@@ -971,6 +1176,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
+            fprintf_param_value(" 9=%d", activation_type)
+            { if (!op->activation_params.empty()) fprintf_param_int_array(10, op->activation_params, pp); }
 
             fwrite_weight_tag(0, bp);
             fwrite_weight_data(op->weight_data, bp);
@@ -1031,6 +1238,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", bias_term)
             fprintf_param_value(" 2=%d", weight_data_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
+            fprintf_param_value(" 9=%d", activation_type)
+            { if (!op->activation_params.empty()) fprintf_param_int_array(10, op->activation_params, pp); }
 
             fwrite_weight_tag(0, bp);
             fwrite_weight_data(op->weight_data, bp);
@@ -1383,9 +1592,11 @@ int main(int argc, char** argv)
     optimizer.fuse_deconvolution_batchnorm();
     optimizer.fuse_deconvolutiondepthwise_batchnorm();
     optimizer.fuse_innerproduct_batchnorm();
-//     optimizer.fuse_convolution_relu();
-//     optimizer.fuse_convolutiondepthwise_relu();
-//     optimizer.fuse_innerproduct_relu();
+    optimizer.fuse_convolution_activation();
+    optimizer.fuse_convolutiondepthwise_activation();
+    optimizer.fuse_deconvolution_activation();
+    optimizer.fuse_deconvolutiondepthwise_activation();
+    optimizer.fuse_innerproduct_activation();
 
     optimizer.save(outparam, outbin);
 
