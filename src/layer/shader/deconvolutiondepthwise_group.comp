@@ -29,6 +29,9 @@ layout (constant_id = 4) const int stride_w = 1;
 layout (constant_id = 5) const int stride_h = 1;
 layout (constant_id = 6) const int bias_term = 0;
 layout (constant_id = 7) const int group = 1;
+layout (constant_id = 8) const int activation_type = 0;
+layout (constant_id = 9) const float activation_param_0 = 0;
+layout (constant_id = 10) const float activation_param_1 = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -118,6 +121,22 @@ void main()
                 w_offset += kernel_w * kernel_h;
             }
         }
+    }
+
+    if (activation_type == 1)
+    {
+        sum = max(sum, afp(0.f));
+    }
+    if (activation_type == 2)
+    {
+        const afp slope = afp(activation_param_0);
+        sum = sum < afp(0.f) ? sum * slope : sum;
+    }
+    if (activation_type == 3)
+    {
+        const afp const_min = afp(activation_param_0);
+        const afp const_max = afp(activation_param_1);
+        sum = clamp(sum, const_min, const_max);
     }
 
     top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(sum);

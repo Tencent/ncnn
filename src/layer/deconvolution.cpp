@@ -458,7 +458,7 @@ int Deconvolution::create_pipeline()
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
-    std::vector<vk_specialization_type> specializations(7);
+    std::vector<vk_specialization_type> specializations(10);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
     specializations[2].i = dilation_w;
@@ -466,6 +466,9 @@ int Deconvolution::create_pipeline()
     specializations[4].i = stride_w;
     specializations[5].i = stride_h;
     specializations[6].i = bias_term;
+    specializations[7].i = activation_type;
+    specializations[8].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+    specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
 
     // pack1
     if (num_input % 4 != 0 && num_output % 4 != 0)

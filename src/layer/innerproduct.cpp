@@ -457,8 +457,11 @@ int InnerProduct::create_pipeline()
 
     int num_input = weight_data_size / num_output;
 
-    std::vector<vk_specialization_type> specializations(1);
+    std::vector<vk_specialization_type> specializations(4);
     specializations[0].i = bias_term;
+    specializations[1].i = activation_type;
+    specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+    specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
 
     // pack1
     if (num_input % 4 != 0 && num_output % 4 != 0)

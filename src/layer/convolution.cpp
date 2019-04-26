@@ -784,8 +784,11 @@ int Convolution::create_pipeline()
         pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
         pipeline_convolution_1x1s1d1->set_optimal_local_size_xyz(-1, 1, std::max(1, num_output / 8));
 
-        std::vector<vk_specialization_type> specializations(1);
+        std::vector<vk_specialization_type> specializations(4);
         specializations[0].i = bias_term;
+        specializations[1].i = activation_type;
+        specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+        specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
 
         pipeline_convolution_1x1s1d1->create("convolution_1x1s1d1", specializations, 4, 8);
     }
@@ -793,7 +796,7 @@ int Convolution::create_pipeline()
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
-    std::vector<vk_specialization_type> specializations(7);
+    std::vector<vk_specialization_type> specializations(10);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
     specializations[2].i = dilation_w;
@@ -801,6 +804,9 @@ int Convolution::create_pipeline()
     specializations[4].i = stride_w;
     specializations[5].i = stride_h;
     specializations[6].i = bias_term;
+    specializations[7].i = activation_type;
+    specializations[8].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+    specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
 
     // pack1
     if (num_input % 4 != 0 && num_output % 4 != 0)
@@ -837,8 +843,11 @@ int Convolution::create_pipeline()
     // fc
     if (kernel_w == 1 && kernel_h == 1)
     {
-        std::vector<vk_specialization_type> specializations(1);
+        std::vector<vk_specialization_type> specializations(4);
         specializations[0].i = bias_term;
+        specializations[1].i = activation_type;
+        specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+        specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
 
         // pack1
         if (num_input % 4 != 0 && num_output % 4 != 0)
