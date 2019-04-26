@@ -82,11 +82,6 @@ int Layer::load_model(const ModelBin& /*mb*/)
     return 0;
 }
 
-std::vector<int> get_layer_shape(const char *layer_name){
-  std::vector<int> shape(3,1);  //TODO 待实现
-  return shape;
-}
-
 int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (!support_inplace)

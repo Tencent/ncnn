@@ -19,6 +19,7 @@
 #include "convolution.h"
 #include "convolutiondepthwise.h"
 #include "relu.h"
+#include "layer/input.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -637,7 +638,7 @@ int Net::load_model(FILE* fp)
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
-        
+
         //Here we found inconsistent content in the parameter file.
         if (!layer){
             fprintf(stderr, "load_model error at layer %d, parameter file has inconsistent content.\n", (int)i);
@@ -863,7 +864,7 @@ int Net::load_model(const unsigned char* _mem)
 void Net::fuse_network()
 {
     // set the int8 op fusion:requantize
-#if NCNN_STRING && NCNN_REQUANT    
+#if NCNN_STRING && NCNN_REQUANT
     // fprintf(stderr, "Test op fusion to int8 implement:\n");
     for (size_t i=0; i<layers.size(); i++)
     {
@@ -1170,6 +1171,31 @@ int Net::find_layer_index_by_name(const char* name) const
 
     fprintf(stderr, "find_layer_index_by_name %s failed\n", name);
     return -1;
+}
+
+std::vector<int> Net::get_layer_shape(const char *layer_name){
+  std::vector<int> shape;
+
+  /*1.find the input layer*/
+  const Input* target_layer = nullptr;
+  for (size_t i=0; i<layers.size(); i++)
+  {
+    const Layer* layer = layers[i];
+    if (layer->name == layer_name && layer->typeindex == ncnn::LayerType::Input)
+    {
+      target_layer = (const Input*)layer;
+      break;
+    }
+  }
+
+  /*2.get the layer shape*/
+  if(target_layer){
+    shape.push_back(target_layer->c);
+    shape.push_back(target_layer->h);
+    shape.push_back(target_layer->w);
+  }
+
+  return shape;
 }
 
 int Net::custom_layer_to_index(const char* type)

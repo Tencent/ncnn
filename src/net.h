@@ -82,6 +82,9 @@ public:
     // construct an Extractor from network
     Extractor create_extractor() const;
 
+    // get the target layer shape,just for input layer.
+    std::vector<int> get_layer_shape(const char *layer_name);
+
 public:
     // enable winograd convolution optimization
     // improve convolution 3x3 stride1 performace, may consume more memory
@@ -131,6 +134,8 @@ protected:
     int find_layer_index_by_name(const char* name) const;
     int custom_layer_to_index(const char* type);
     Layer* create_custom_layer(const char* type);
+
+
 #endif // NCNN_STRING
     Layer* create_custom_layer(int index);
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt) const;

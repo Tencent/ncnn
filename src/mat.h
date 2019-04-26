@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif
@@ -83,6 +84,8 @@ public:
     Mat reshape(int w, int h, Allocator* allocator = 0) const;
     // reshape dim
     Mat reshape(int w, int h, int c, Allocator* allocator = 0) const;
+    // shape
+    std::vector<int> shape();
     // allocate vec
     void create(int w, size_t elemsize = 4u, Allocator* allocator = 0);
     // allocate image

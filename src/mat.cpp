@@ -18,6 +18,7 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 #include <math.h>
+#include <vector>
 
 #include "cpu.h"
 
@@ -218,6 +219,16 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     }
 
     return m;
+}
+
+std::vector<int> Mat::shape(){
+  std::vector<int> shape(dims);
+
+  if(dims > 0)shape[0] = w;
+  if(dims > 1)shape[1] = h;
+  if(dims > 2)shape[2] = c;
+
+  return shape;
 }
 
 void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, Allocator* allocator, int num_threads)
