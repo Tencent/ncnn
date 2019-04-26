@@ -636,22 +636,25 @@ int DeconvolutionDepthWise::create_pipeline()
 {
     crop->create_pipeline();
 
+    std::vector<vk_specialization_type> specializations(11);
+    specializations[0].i = kernel_w;
+    specializations[1].i = kernel_h;
+    specializations[2].i = dilation_w;
+    specializations[3].i = dilation_h;
+    specializations[4].i = stride_w;
+    specializations[5].i = stride_h;
+    specializations[6].i = bias_term;
+    specializations[7].i = group;
+    specializations[8].i = activation_type;
+    specializations[9].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+    specializations[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
     // depth-wise
     if (channels == group && group == num_output)
     {
-        std::vector<vk_specialization_type> specializations(8);
-        specializations[0].i = kernel_w;
-        specializations[1].i = kernel_h;
-        specializations[2].i = dilation_w;
-        specializations[3].i = dilation_h;
-        specializations[4].i = stride_w;
-        specializations[5].i = stride_h;
-        specializations[6].i = bias_term;
-        specializations[7].i = group;
-
         // pack1
         if (num_output % 4 != 0)
         {
@@ -674,16 +677,6 @@ int DeconvolutionDepthWise::create_pipeline()
     // group deconvolution
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
-
-    std::vector<vk_specialization_type> specializations(8);
-    specializations[0].i = kernel_w;
-    specializations[1].i = kernel_h;
-    specializations[2].i = dilation_w;
-    specializations[3].i = dilation_h;
-    specializations[4].i = stride_w;
-    specializations[5].i = stride_h;
-    specializations[6].i = bias_term;
-    specializations[7].i = group;
 
     // pack1
     if (channels_g % 4 != 0 && num_output_g % 4 != 0)

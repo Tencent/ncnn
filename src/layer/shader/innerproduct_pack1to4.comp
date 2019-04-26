@@ -22,6 +22,9 @@
 #endif
 
 layout (constant_id = 0) const int bias_term = 0;
+layout (constant_id = 1) const int activation_type = 0;
+layout (constant_id = 2) const float activation_param_0 = 0;
+layout (constant_id = 3) const float activation_param_1 = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -76,6 +79,22 @@ void main()
         afpvec4 k = afpvec4(weight_data[w_offset + i]);
 
         sum += v * k;
+    }
+
+    if (activation_type == 1)
+    {
+        sum = max(sum, afp(0.f));
+    }
+    if (activation_type == 2)
+    {
+        const afp slope = afp(activation_param_0);
+        sum = mix(sum, sum * afp(slope), lessThan(sum, afpvec4(0.f)));
+    }
+    if (activation_type == 3)
+    {
+        const afp const_min = afp(activation_param_0);
+        const afp const_max = afp(activation_param_1);
+        sum = clamp(sum, const_min, const_max);
     }
 
     top_blob_data[gx] = sfpvec4(sum);
