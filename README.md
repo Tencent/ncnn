@@ -28,8 +28,9 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ### HowTo
 
-**[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / Raspberry Pi3 / Android  / iOS**
+**[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / Raspberry Pi3 / Android / NVIDIA Jetson / iOS**
 
+* [Build for Jetson](#build-for-jetson)
 * [Build for Linux x86](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-linux-x86)
 * [Build for Windows x64 using VS2017](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-windows-x64-using-visual-studio-community-2017)
 * [Build for MacOSX](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-macosx)
@@ -53,6 +54,57 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 [ncnn operation param weight table](https://github.com/Tencent/ncnn/wiki/operation-param-weight-table)
 
 [how to implement custom layer step by step](https://github.com/Tencent/ncnn/wiki/how-to-implement-custom-layer-step-by-step)
+
+---
+
+### build for jeston
+
+#### download Vulkan SDK from NVIDIA
+please click the `Vulkan SDK File` link on [https://developer.nvidia.com/embedded/vulkan](https://developer.nvidia.com/embedded/vulkan), at the time of writing we got `Vulkan_loader_demos_1.1.100.tar.gz`
+
+scp the downloaded SDK to your Jetson device
+
+```bash
+scp Vulkan_loader_demos_1.1.100.tar.gz USERNAME@JETSON_IP:~/
+```
+
+from this monment on, we will work on the Jetson device
+```bash
+ssh USERNAME@JETSON_IP
+```
+
+#### install Vulkan SDK
+
+```bash
+cd ~/Vulkanloader_demos_1.1.100
+sudo cp loader/libvulkan.so.1.1.100 /usr/lib/aarch64-linux-gnu/
+cd /usr/lib/aarch64-linux-gnu/
+sudo rm -rf libvulkan.so.1 libvulkan.so
+sudo ln -s libvulkan.so.1.1.100 libvulkan.so
+sudo ln -s libvulkan.so.1.1.100 libvulkan.so.1
+cd ~/
+```
+
+#### install glslang dependency
+glslang is a dependency of Tencent/ncnn
+```bash
+git clone --depth=1 https://github.com/KhronosGroup/glslang.git
+# assure that SPIR-V generated from HLSL is legal for Vulkan
+./update_glslang_sources.py
+cd glslang && mkdir -p build && cd build
+sudo make -j`nproc` install && cd ..
+```
+
+#### compile ncnn
+```
+git clone https://github.com/Tencent/ncnn.git
+# while aarch64-linux-gnu.toolchain.cmake would compile Tencent/ncnn as well
+# but why not compile with more native features w
+cd ncnn && mkdir -p build && cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/jetson.toolchain.cmake -DNCNN_VULKAN=ON -DCMAKE_BUILD_TYPE=Release ..
+make -j`nproc`
+sudo make install
+```
 
 ---
 
