@@ -35,6 +35,7 @@
 #include "layer/eltwise.h"
 #include "layer/elu.h"
 #include "layer/exp.h"
+#include "layer/flatten.h"
 #include "layer/innerproduct.h"
 #include "layer/input.h"
 #include "layer/instancenorm.h"
@@ -77,6 +78,7 @@ public:
     int fuse_deconvolution_batchnorm();
     int fuse_deconvolutiondepthwise_batchnorm();
     int fuse_innerproduct_batchnorm();
+    int fuse_innerproduct_dropout();
     int fuse_convolution_activation();
     int fuse_convolutiondepthwise_activation();
     int fuse_deconvolution_activation();
@@ -84,6 +86,9 @@ public:
     int fuse_innerproduct_activation();
 
     int eliminate_dropout();
+    int eliminate_flatten_after_global_pooling();
+
+    int replace_convolution_with_innerproduct_after_global_pooling();
 
 public:
     int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
@@ -571,6 +576,74 @@ int NetOptimize::fuse_innerproduct_batchnorm()
     return 0;
 }
 
+int NetOptimize::fuse_innerproduct_dropout()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "InnerProduct")
+            continue;
+
+        // InnerProduct - Dropout
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "Dropout")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse InnerProduct - Dropout to InnerProduct
+        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)layers[i];
+        ncnn::Dropout* dropout = (ncnn::Dropout*)layers[j];
+
+        fprintf(stderr, "fuse_innerproduct_dropout %s %s\n", innerproduct->name.c_str(), dropout->name.c_str());
+
+        float scale = dropout->scale;
+        if (scale != 1.f)
+        {
+            const int num_output = innerproduct->num_output;
+            const int weight_per_outch = innerproduct->weight_data_size / num_output;
+
+            float* weight = innerproduct->weight_data;
+            for (int i=0; i<num_output; i++)
+            {
+                float* conv_weight_outch = weight + weight_per_outch * i;
+                for (int j=0; j<weight_per_outch; j++)
+                {
+                    conv_weight_outch[j] *= scale;
+                }
+            }
+
+            if (innerproduct->bias_term)
+            {
+                float* bias = innerproduct->bias_data;
+                for (int i=0; i<num_output; i++)
+                {
+                    bias[i] *= scale;
+                }
+            }
+        }
+
+        int top_blob_index_final = dropout->tops[0];
+        innerproduct->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        dropout->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
 int NetOptimize::fuse_convolution_activation()
 {
     const int layer_count = layers.size();
@@ -945,6 +1018,109 @@ int NetOptimize::eliminate_dropout()
         any->tops[0] = top_blob_index_final;
         blobs[top_blob_index_final].producer = j;
         dropout->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::eliminate_flatten_after_global_pooling()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "Pooling")
+            continue;
+
+        ncnn::Pooling* pooling = (ncnn::Pooling*)layers[i];
+        if (pooling->global_pooling == 0)
+            continue;
+
+        // Pooling - Flatten
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "Flatten")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        ncnn::Flatten* flatten = (ncnn::Flatten*)layers[j];
+
+        fprintf(stderr, "eliminate_flatten_after_global_pooling %s %s\n", pooling->name.c_str(), flatten->name.c_str());
+
+        int top_blob_index_final = flatten->tops[0];
+        pooling->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        flatten->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "Pooling")
+            continue;
+
+        ncnn::Pooling* pooling = (ncnn::Pooling*)layers[i];
+        if (pooling->global_pooling == 0)
+            continue;
+
+        // Pooling - Convolution
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "Convolution")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        ncnn::Convolution* convolution = (ncnn::Convolution*)layers[j];
+
+        fprintf(stderr, "replace_convolution_with_innerproduct_after_global_pooling %s %s\n", pooling->name.c_str(), convolution->name.c_str());
+
+        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)ncnn::create_layer("InnerProduct");
+
+        innerproduct->type = "InnerProduct";
+        innerproduct->name = convolution->name;
+        innerproduct->bottoms = convolution->bottoms;
+        innerproduct->tops = convolution->tops;
+
+        ncnn::ParamDict pd;
+        innerproduct->load_param(pd);
+
+        innerproduct->num_output = convolution->num_output;
+        innerproduct->bias_term = convolution->bias_term;
+        innerproduct->weight_data_size = convolution->weight_data_size;
+
+        innerproduct->weight_data = convolution->weight_data;
+        innerproduct->bias_data = convolution->bias_data;
+
+        layers[j] = innerproduct;
+        delete convolution;
     }
 
     return 0;
@@ -1622,6 +1798,7 @@ int main(int argc, char** argv)
     optimizer.fuse_deconvolution_batchnorm();
     optimizer.fuse_deconvolutiondepthwise_batchnorm();
     optimizer.fuse_innerproduct_batchnorm();
+    optimizer.fuse_innerproduct_dropout();
     optimizer.fuse_convolution_activation();
     optimizer.fuse_convolutiondepthwise_activation();
     optimizer.fuse_deconvolution_activation();
@@ -1629,6 +1806,9 @@ int main(int argc, char** argv)
     optimizer.fuse_innerproduct_activation();
 
     optimizer.eliminate_dropout();
+    optimizer.eliminate_flatten_after_global_pooling();
+
+    optimizer.replace_convolution_with_innerproduct_after_global_pooling();
 
     optimizer.save(outparam, outbin);
 
