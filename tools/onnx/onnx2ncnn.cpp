@@ -23,10 +23,10 @@
 #include <limits>
 #include <algorithm>
 
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/text_format.h>
-#include <google/protobuf/message.h>
+#include <private/protobuf/io/coded_stream.h>
+#include <private/protobuf/io/zero_copy_stream_impl.h>
+#include <private/protobuf/text_format.h>
+#include <private/protobuf/message.h>
 
 #include "onnx.pb.h"
 
