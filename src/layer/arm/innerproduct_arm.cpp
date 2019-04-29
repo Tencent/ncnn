@@ -143,6 +143,35 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
 #endif // __ARM_NEON
 
+        if (activation_type == 1)
+        {
+            sum0 = std::max(sum0, 0.f);
+            sum1 = std::max(sum1, 0.f);
+            sum2 = std::max(sum2, 0.f);
+            sum3 = std::max(sum3, 0.f);
+        }
+        else if (activation_type == 2)
+        {
+            float slope = activation_params[0];
+            sum0 = sum0 > 0.f ? sum0 : sum0 * slope;
+            sum1 = sum1 > 0.f ? sum1 : sum1 * slope;
+            sum2 = sum2 > 0.f ? sum2 : sum2 * slope;
+            sum3 = sum3 > 0.f ? sum3 : sum3 * slope;
+        }
+        else if (activation_type == 3)
+        {
+            float min = activation_params[0];
+            float max = activation_params[1];
+            if (sum0 < min) sum0 = min;
+            if (sum0 > max) sum0 = max;
+            if (sum1 < min) sum1 = min;
+            if (sum1 > max) sum1 = max;
+            if (sum2 < min) sum2 = min;
+            if (sum2 > max) sum2 = max;
+            if (sum3 < min) sum3 = min;
+            if (sum3 > max) sum3 = max;
+        }
+
         top_blob[p] = sum0;
         top_blob[p+1] = sum1;
         top_blob[p+2] = sum2;
@@ -251,6 +280,25 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         sum += vget_lane_f32(_sumss, 0);
 #endif // __aarch64__
 #endif // __ARM_NEON
+
+        if (activation_type == 1)
+        {
+            sum = std::max(sum, 0.f);
+        }
+        else if (activation_type == 2)
+        {
+            float slope = activation_params[0];
+            sum = sum > 0.f ? sum : sum * slope;
+        }
+        else if (activation_type == 3)
+        {
+            float min = activation_params[0];
+            float max = activation_params[1];
+            if (sum < min)
+                sum = min;
+            if (sum > max)
+                sum = max;
+        }
 
         top_blob[p] = sum;
     }

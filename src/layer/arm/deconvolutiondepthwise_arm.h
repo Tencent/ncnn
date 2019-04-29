@@ -22,7 +22,15 @@ namespace ncnn {
 class DeconvolutionDepthWise_arm : public DeconvolutionDepthWise
 {
 public:
+    DeconvolutionDepthWise_arm();
+    ~DeconvolutionDepthWise_arm();
+
+    virtual int load_param(const ParamDict& pd);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+public:
+    Layer* activation;
 };
 
 } // namespace ncnn

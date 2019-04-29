@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolution_arm.h"
+#include "layer_type.h"
 
 namespace ncnn {
 
@@ -20,6 +21,50 @@ namespace ncnn {
 #include "deconvolution_3x3.h"
 
 DEFINE_LAYER_CREATOR(Deconvolution_arm)
+
+Deconvolution_arm::Deconvolution_arm()
+{
+    activation = 0;
+}
+
+Deconvolution_arm::~Deconvolution_arm()
+{
+    delete activation;
+}
+
+int Deconvolution_arm::load_param(const ParamDict& pd)
+{
+    int ret = Deconvolution::load_param(pd);
+    if (ret != 0)
+        return ret;
+
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// min
+        pd.set(1, activation_params[1]);// max
+        activation->load_param(pd);
+    }
+
+    return 0;
+}
 
 int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -96,6 +141,11 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     else
     {
         top_blob = top_blob_bordered;
+    }
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
     }
 
     return 0;
