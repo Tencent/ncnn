@@ -72,6 +72,10 @@
 class NetOptimize : public ncnn::Net
 {
 public:
+    // 0=fp32 1=fp16
+    int storage_type;
+
+public:
     int fuse_batchnorm_scale();
     int fuse_convolution_batchnorm();
     int fuse_convolutiondepthwise_batchnorm();
@@ -1156,14 +1160,31 @@ int NetOptimize::fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp)
 
 int NetOptimize::fwrite_weight_tag(int tag, FILE* bp)
 {
-    fwrite(&tag, sizeof(int), 1, bp);
+    if (storage_type == 1 && tag == 0)
+    {
+        tag = 0x01306B47; // fp16 magic
+        fwrite(&tag, sizeof(int), 1, bp);
+    }
+    else
+    {
+        fwrite(&tag, sizeof(int), 1, bp);
+    }
     return 0;
 }
 
 int NetOptimize::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
 {
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
-    fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
+    if (storage_type == 1)
+    {
+        ncnn::Mat data_flattened_fp16;
+        ncnn::cast_float32_to_float16(data_flattened, data_flattened_fp16);
+        fwrite(data_flattened_fp16.data, data_flattened_fp16.elemsize, data_flattened_fp16.w, bp);
+    }
+    else
+    {
+        fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
+    }
     return 0;
 }
 
@@ -1780,7 +1801,11 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
 int main(int argc, char** argv)
 {
-    // in in out out 65535
+    if (argc != 6)
+    {
+        fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag]\n", argv[0]);
+        return -1;
+    }
 
     const char* inparam = argv[1];
     const char* inbin = argv[2];
@@ -1789,6 +1814,16 @@ int main(int argc, char** argv)
     int flag = atoi(argv[5]);
 
     NetOptimize optimizer;
+
+    if (flag == 65536)
+    {
+        optimizer.storage_type = 1;
+    }
+    else
+    {
+        optimizer.storage_type = 0;
+    }
+
     optimizer.load_param(inparam);
     optimizer.load_model(inbin);
 
