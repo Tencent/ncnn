@@ -13,12 +13,55 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolutiondepthwise_arm.h"
-
 #include "layer_type.h"
 
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(DeconvolutionDepthWise_arm)
+
+DeconvolutionDepthWise_arm::DeconvolutionDepthWise_arm()
+{
+    activation = 0;
+}
+
+DeconvolutionDepthWise_arm::~DeconvolutionDepthWise_arm()
+{
+    delete activation;
+}
+
+int DeconvolutionDepthWise_arm::load_param(const ParamDict& pd)
+{
+    int ret = DeconvolutionDepthWise::load_param(pd);
+    if (ret != 0)
+        return ret;
+
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// min
+        pd.set(1, activation_params[1]);// max
+        activation->load_param(pd);
+    }
+
+    return 0;
+}
 
 int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -173,8 +216,12 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
         top_blob = top_blob_bordered;
     }
 
-    return 0;
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
+    }
 
+    return 0;
 }
 
 } // namespace ncnn

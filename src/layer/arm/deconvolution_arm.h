@@ -22,7 +22,15 @@ namespace ncnn {
 class Deconvolution_arm : public Deconvolution
 {
 public:
+    Deconvolution_arm();
+    ~Deconvolution_arm();
+
+    virtual int load_param(const ParamDict& pd);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+public:
+    Layer* activation;
 };
 
 } // namespace ncnn
