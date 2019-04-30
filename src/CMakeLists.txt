@@ -28,6 +28,7 @@ set(ncnn_SRCS
     paramdict.cpp
     pipeline.cpp
     benchmark.cpp
+    objectdetection.cpp
 )
 
 macro(ncnn_add_layer class)
@@ -221,6 +222,9 @@ ncnn_add_layer(ROIAlign OFF)
 ncnn_add_layer(Packing)
 ncnn_add_layer(Requantize)
 ncnn_add_layer(Cast)
+ncnn_add_layer(Yolov3Detection)
+ncnn_add_layer(DarknetActivation)
+ncnn_add_layer(DarknetShortcut)
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 
