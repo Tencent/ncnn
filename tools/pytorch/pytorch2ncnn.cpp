@@ -361,8 +361,193 @@ static const char* last_strstr(const char* haystack, const char* needle)
     return result;
 }
 
-static int read_model_json(const std::string& model_json, std::map<std::string, int>& tensor_name_id_map)
+class TensorInfo
 {
+public:
+    int id;
+    std::string name;
+    std::string submodule_name;
+    std::vector<int> dims;
+    std::vector<int> strides;
+};
+
+static int parse_submodule_parameter_dict(const char* paramdict, int& _tensorId, std::string& _name)
+{
+    // "isBuffer":false,"tensorId":"0","name":"weight"
+    {
+        const char* keyvalue = strstr(paramdict, "\"tensorId\":");
+        if (!keyvalue)
+        {
+            fprintf(stderr, "no tensorId\n");
+            return -1;
+        }
+
+        int tensorId;
+        int nscan = sscanf(keyvalue, "\"tensorId\":\"%d\"", &tensorId);
+        if (nscan != 1)
+        {
+            fprintf(stderr, "no tensorId\n");
+            return -1;
+        }
+
+        _tensorId = tensorId;
+    }
+
+    {
+        const char* keyvalue = strstr(paramdict, "\"name\":");
+        if (!keyvalue)
+        {
+            fprintf(stderr, "no name\n");
+            return -1;
+        }
+
+        char name[256];
+        int nscan = sscanf(keyvalue, "\"name\":\"%255[^\"]\"", name);
+        if (nscan != 1)
+        {
+            fprintf(stderr, "no tensorId\n");
+            return -1;
+        }
+
+        _name = name;
+    }
+
+    return 0;
+}
+
+static void parse_submodule_parameter_list(const char* s, std::vector<int>& tensorIds, std::vector<std::string>& names)
+{
+// {"isBuffer":false,"tensorId":"0","name":"weight"},{"isBuffer":false,"tensorId":"1","name":"bias"}
+
+    tensorIds.clear();
+    names.clear();
+
+    const char* ps = s + 1;// +1 to skip leading "{"
+
+    const char* parameter_end = strstr(ps, "},{");
+    while (parameter_end)
+    {
+        std::string paramdict_string(ps, parameter_end - ps);
+
+//         fprintf(stderr, "paramdict_string = %s\n", paramdict_string.c_str());
+
+        int tensorId;
+        std::string name;
+        int pr = parse_submodule_parameter_dict(paramdict_string.c_str(), tensorId, name);
+        if (pr == 0)
+        {
+            tensorIds.push_back(tensorId);
+            names.push_back(name);
+        }
+
+        ps = parameter_end + 3;// +3 to skip "},{"
+        parameter_end = strstr(ps, "},{");
+    }
+
+    std::string paramdict_string(ps, strlen(ps) - 1);
+
+//     fprintf(stderr, "paramdict_string = %s\n", paramdict_string.c_str());
+
+    int tensorId;
+    std::string name;
+    int pr = parse_submodule_parameter_dict(paramdict_string.c_str(), tensorId, name);
+    if (pr == 0)
+    {
+        tensorIds.push_back(tensorId);
+        names.push_back(name);
+    }
+}
+
+static std::vector<int> parse_int_array(const char* s)
+{
+    // "512","512","3","3","3"
+
+    std::vector<int> array;
+
+    char* ps = (char*)s;
+    for (char* is = strtok(ps, ","); is; is = strtok(NULL, ","))
+    {
+        int i;
+        int nscan = sscanf(is, "\"%d\"", &i);
+        if (nscan != 1)
+        {
+            fprintf(stderr, "invalid int element\n");
+            continue;
+        }
+
+        array.push_back(i);
+    }
+
+    return array;
+}
+
+static int parse_tensor_info_dict(const char* paramdict, int& _tensorId, std::vector<int>& _dims, std::vector<int>& _strides)
+{
+    // {"dims":["512","512","3","3","3"],"offset":"0","strides":["13824","27","9","3","1"],"requiresGrad":true,"dataType":"FLOAT","data":{"key":"tensors/0"},"device":"cpu"}
+    {
+        const char* keyvalue = strstr(paramdict, "\"key\":\"tensors/");
+        if (!keyvalue)
+        {
+            fprintf(stderr, "no tensor data key\n");
+            return -1;
+        }
+
+        int tensorId;
+        int nscan = sscanf(keyvalue, "\"key\":\"tensors/%d\"", &tensorId);
+        if (nscan != 1)
+        {
+            fprintf(stderr, "no tensorId\n");
+            return -1;
+        }
+
+        _tensorId = tensorId;
+    }
+
+    {
+        const char* keyvalue = strstr(paramdict, "\"dims\":");
+        if (!keyvalue)
+        {
+            fprintf(stderr, "no tensor dims\n");
+            return -1;
+        }
+
+        char dims[256];
+        int nscan = sscanf(keyvalue, "\"dims\":[%255[^]]]", dims);
+        if (nscan != 1)
+        {
+            fprintf(stderr, "no dims\n");
+            return -1;
+        }
+
+        _dims = parse_int_array(dims);
+    }
+
+    {
+        const char* keyvalue = strstr(paramdict, "\"strides\":");
+        if (!keyvalue)
+        {
+            fprintf(stderr, "no tensor strides\n");
+            return -1;
+        }
+
+        char strides[256];
+        int nscan = sscanf(keyvalue, "\"strides\":[%255[^]]]", strides);
+        if (nscan != 1)
+        {
+            fprintf(stderr, "no strides\n");
+            return -1;
+        }
+
+        _strides = parse_int_array(strides);
+    }
+
+    return 0;
+}
+
+static int read_model_json(const std::string& model_json, std::vector<TensorInfo>& tensorinfos)
+{
+    tensorinfos.clear();
+
     const char* ps = model_json.c_str();
 
     const char* submodules = last_strstr(ps, "{\"submodules\":[");
@@ -377,34 +562,49 @@ static int read_model_json(const std::string& model_json, std::map<std::string, 
     for (;;)
     {
         const char* parameters = strstr(ps, "{\"parameters\":[");
-        const char* parameters_end = strstr(ps, "],");
-        if (!parameters || !parameters_end)
-        {
+        if (!parameters)
             break;
-        }
+
+        const char* parameters_end = strstr(parameters, "],");
+        if (!parameters_end)
+            break;
 
         parameters += sizeof("{\"parameters\":[") - 1;
 
         std::string parameters_string(parameters, parameters_end - parameters);
 
-        fprintf(stderr, "parameters = %s\n", parameters_string.c_str());
+//         fprintf(stderr, "parameters = %s\n", parameters_string.c_str());
 
         ps = parameters_end + sizeof("],") - 1;
 
         const char* name = strstr(ps, "\"name\":\"");
-        const char* name_end = strstr(ps, "\",");
-        if (!name || !name_end)
-        {
+        if (!name)
             break;
-        }
+
+        const char* name_end = strstr(name, "\",");
+        if (!name_end)
+            break;
 
         name += sizeof("\"name\":\"") - 1;
 
         std::string name_string(name, name_end - name);
 
-        fprintf(stderr, "name = %s\n", name_string.c_str());
+//         fprintf(stderr, "name = %s\n", name_string.c_str());
 
         ps = name_end + sizeof("\",") - 1;
+
+        std::vector<int> tensorIds;
+        std::vector<std::string> names;
+        parse_submodule_parameter_list(parameters_string.c_str(), tensorIds, names);
+
+        for (int i=0; i<(int)tensorIds.size(); i++)
+        {
+            TensorInfo ti;
+            ti.id = tensorIds[i];
+            ti.name = names[i];
+            ti.submodule_name = name_string;
+            tensorinfos.push_back(ti);
+        }
     }
 
     const char* tensors = strstr(ps, "\"tensors\":[");
@@ -421,16 +621,34 @@ static int read_model_json(const std::string& model_json, std::map<std::string, 
         const char* tensor_end = strstr(ps, "},{");
         if (!tensor_end)
         {
-            break;
+            tensor_end = strstr(ps, "}]");
+            if (!tensor_end)
+            {
+                break;
+            }
         }
 
         tensor_end += 1;// +1 to include "}"
 
         std::string tensor_string(ps, tensor_end - ps);
 
-        fprintf(stderr, "tensor = %s\n", tensor_string.c_str());
+//         fprintf(stderr, "tensor = %s\n", tensor_string.c_str());
 
         ps = tensor_end + 1;// +1 to skip ","
+
+        int tensorId = -1;
+        std::vector<int> dims;
+        std::vector<int> strides;
+        parse_tensor_info_dict(tensor_string.c_str(), tensorId, dims, strides);
+
+        for (int i=0; i<(int)tensorinfos.size(); i++)
+        {
+            if (tensorinfos[i].id != tensorId)
+                continue;
+
+            tensorinfos[i].dims = dims;
+            tensorinfos[i].strides = strides;
+        }
     }
 
     return 0;
@@ -443,7 +661,9 @@ public:
     std::string name;
     std::vector<std::string> inputs;
     std::vector<std::string> outputs;
+    std::vector<std::string> weights;
     std::vector<std::string> args;
+    std::vector<int> weight_tensors;
 };
 
 static std::vector<std::string> parse_op_output_list(const char* s)
@@ -526,12 +746,8 @@ static std::vector<std::string> parse_op_arg_list(const char* s)
             const char* arg_end = strchr(deco_end, ',');
             if (!arg_end)
             {
-                arg_end = strchr(deco_end, ')');
-                if (!arg_end)
-                {
-                    fprintf(stderr, "unterminatied arg list\n");
-                    break;
-                }
+                args.push_back(ps);
+                break;
             }
 
             std::string a(ps, arg_end - ps);
@@ -642,7 +858,7 @@ static int read_code(const std::string& code, std::vector<PyTorchNode>& nodes)
 
 //             fprintf(stderr, "op = %s\n", op);
 //             fprintf(stderr, "outputs = %s\n", outputs);
-//             fprintf(stderr, "op_args = %s\n", op_args.c_str());
+            fprintf(stderr, "op_args = %s\n", op_args.c_str());
 
             PyTorchNode n;
             n.op = op;
@@ -661,7 +877,7 @@ static int read_code(const std::string& code, std::vector<PyTorchNode>& nodes)
 
             nodes.push_back(n);
         }
-        else if (strstr(line, "return torch."))
+        else if (strstr(line, "return "))
         {
             const char* op_args_start = strchr(line, '(');
             const char* op_args_end = strrchr(line, ')');
@@ -681,7 +897,7 @@ static int read_code(const std::string& code, std::vector<PyTorchNode>& nodes)
 
 //             fprintf(stderr, "op = %s\n", op);
 //             fprintf(stderr, "outputs = ncnnoutput_0\n");
-//             fprintf(stderr, "op_args = %s\n", op_args.c_str());
+            fprintf(stderr, "op_args = %s\n", op_args.c_str());
 
             PyTorchNode n;
             n.op = op;
@@ -707,7 +923,9 @@ static int read_code(const std::string& code, std::vector<PyTorchNode>& nodes)
 
 int main(int argc, char** argv)
 {
-    const char* ptpath = "model_base.pt";
+//     const char* ptpath = "model_base.pt";
+//     const char* ptpath = "model_first.pt";
+    const char* ptpath = "model_second.pt";
     const char* ncnn_prototxt = "ncnn.param";
     const char* ncnn_modelbin = "ncnn.bin";
 
@@ -720,9 +938,23 @@ int main(int argc, char** argv)
 //     fprintf(stderr, "model_json = %s\n", model_json.c_str());
 //     fprintf(stderr, "tensors = %lu\n", tensors.size());
 
-    // TODO parse weight map
-    std::map<std::string, int> tensor_name_id_map;
-    read_model_json(model_json, tensor_name_id_map);
+    std::vector<TensorInfo> tensorinfos;
+    read_model_json(model_json, tensorinfos);
+
+    for (int i=0; i<(int)tensorinfos.size(); i++)
+    {
+        const TensorInfo& ti = tensorinfos[i];
+        fprintf(stderr, "%d %s/%s ", ti.id, ti.submodule_name.c_str(), ti.name.c_str());
+
+        fprintf(stderr, "[ ");
+        for (int j=0; j<(int)ti.dims.size(); j++)
+        {
+            fprintf(stderr, "%d ", ti.dims[j]);
+        }
+        fprintf(stderr, "]");
+
+        fprintf(stderr, "\n");
+    }
 
     std::vector<PyTorchNode> nodes;
     read_code(code, nodes);
@@ -758,13 +990,25 @@ int main(int argc, char** argv)
         // distinguish weights and inputs
         std::vector<std::string> op_arg_list = n.args;
         std::vector<std::string> input_list;
+        std::vector<std::string> weight_list;
         std::vector<std::string> arg_list;
         for (int i=0; i<(int)op_arg_list.size(); i++)
         {
             const std::string& arg = op_arg_list[i];
             if (blob_names.find(arg) == blob_names.end())
             {
-                arg_list.push_back(arg);
+                // self.xyz.submodule_name.name
+                // getattr(self.xyz, "submodule_name").name
+                // torch.t(self.xyz.submodule_name.name)
+                const char* argstr = arg.c_str();
+                if (strncmp(argstr, "self.", 5) == 0 || strncmp(argstr, "getattr(", 8) == 0 || strncmp(argstr, "torch.t(", 8) == 0)
+                {
+                    weight_list.push_back(arg);
+                }
+                else
+                {
+                    arg_list.push_back(arg);
+                }
             }
             else
             {
@@ -782,7 +1026,10 @@ int main(int argc, char** argv)
         }
 
         n.inputs = input_list;
+        n.weights = weight_list;
         n.args = arg_list;
+
+        // TODO parse weights for weight_tensors
     }
 
     // remove node_reference entry with reference equals to one
@@ -810,7 +1057,34 @@ int main(int argc, char** argv)
     {
         const PyTorchNode& n = nodes[i];
 
-        fprintf(pp, "%-24s", n.op.c_str());
+        if (n.op == "torch.addmm")
+        {
+            fprintf(pp, "%-16s", "InnerProduct");
+        }
+        else if (n.op == "torch._convolution")
+        {
+            fprintf(pp, "%-16s", "Convolution");
+        }
+        else if (n.op == "torch.dropout")
+        {
+            fprintf(pp, "%-16s", "Dropout");
+        }
+        else if (n.op == "torch.relu_")
+        {
+            fprintf(pp, "%-16s", "ReLU");
+        }
+        else if (n.op == "torch.softmax")
+        {
+            fprintf(pp, "%-16s", "Softmax");
+        }
+        else if (n.op == "torch.view")
+        {
+            fprintf(pp, "%-16s", "Reshape");
+        }
+        else
+        {
+            fprintf(pp, "%-16s", n.op.c_str());
+        }
 
         fprintf(pp, " %-24s %d %d", n.name.c_str(), (int)n.inputs.size(), (int)n.outputs.size());
 
@@ -856,7 +1130,7 @@ int main(int argc, char** argv)
                 {
                     char splitname[256];
                     sprintf(splitname, "splitncnn_%d", internal_split);
-                    fprintf(pp, "%-24s %-24s %d %d", "Split", splitname, 1, refcount);
+                    fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
 
                     fprintf(pp, " %s", output_name.c_str());
 
