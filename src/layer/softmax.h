@@ -28,27 +28,8 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-#if NCNN_VULKAN
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
-
 public:
     int axis;
-
-#if NCNN_VULKAN
-    Pipeline* pipeline_softmax_reduce_max;
-    Pipeline* pipeline_softmax_exp_sub_max;
-    Pipeline* pipeline_softmax_reduce_sum;
-    Pipeline* pipeline_softmax_div_sum;
-
-    Pipeline* pipeline_softmax_reduce_max_pack4;
-    Pipeline* pipeline_softmax_exp_sub_max_pack4;
-    Pipeline* pipeline_softmax_reduce_sum_pack4;
-    Pipeline* pipeline_softmax_div_sum_pack4;
-#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

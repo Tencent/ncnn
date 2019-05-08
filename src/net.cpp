@@ -168,10 +168,6 @@ int Net::load_param(FILE* fp)
 #endif // NCNN_VULKAN
 
     ParamDict pd;
-    pd.use_winograd_convolution = use_winograd_convolution;
-    pd.use_sgemm_convolution = use_sgemm_convolution;
-    pd.use_int8_inference = use_int8_inference;
-    pd.use_vulkan_compute = use_vulkan_compute;
 
     int blob_index = 0;
     for (int i=0; i<layer_count; i++)
@@ -339,10 +335,6 @@ int Net::load_param_mem(const char* _mem)
 #endif // NCNN_VULKAN
 
     ParamDict pd;
-    pd.use_winograd_convolution = use_winograd_convolution;
-    pd.use_sgemm_convolution = use_sgemm_convolution;
-    pd.use_int8_inference = use_int8_inference;
-    pd.use_vulkan_compute = use_vulkan_compute;
 
     int blob_index = 0;
     for (int i=0; i<layer_count; i++)
@@ -453,6 +445,7 @@ int Net::load_param_mem(const char* _mem)
 
     return 0;
 }
+
 int Net::load_param(const char* protopath)
 {
     FILE* fp = fopen(protopath, "rb");
@@ -513,10 +506,6 @@ int Net::load_param_bin(FILE* fp)
 #endif // NCNN_VULKAN
 
     ParamDict pd;
-    pd.use_winograd_convolution = use_winograd_convolution;
-    pd.use_sgemm_convolution = use_sgemm_convolution;
-    pd.use_int8_inference = use_int8_inference;
-    pd.use_vulkan_compute = use_vulkan_compute;
 
     for (int i=0; i<layer_count; i++)
     {
@@ -633,6 +622,12 @@ int Net::load_model(FILE* fp)
     // load file
     int ret = 0;
 
+    Option opt;
+    opt.vulkan_compute = use_vulkan_compute;
+    opt.use_winograd_convolution = use_winograd_convolution;
+    opt.use_sgemm_convolution = use_sgemm_convolution;
+    opt.use_int8_inference = use_int8_inference;
+
     ModelBinFromStdio mb(fp);
     for (size_t i=0; i<layers.size(); i++)
     {
@@ -652,14 +647,22 @@ int Net::load_model(FILE* fp)
             ret = -1;
             break;
         }
+
+        int cret = layer->create_pipeline(opt);
+        if (cret != 0)
+        {
+            fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
+            ret = -1;
+            break;
+        }
     }
 
 #if NCNN_VULKAN
     if (use_vulkan_compute)
     {
-        upload_model();
-
         create_pipeline();
+
+        upload_model();
     }
 #endif // NCNN_VULKAN
 
@@ -725,10 +728,6 @@ int Net::load_param(const unsigned char* _mem)
 #endif // NCNN_VULKAN
 
     ParamDict pd;
-    pd.use_winograd_convolution = use_winograd_convolution;
-    pd.use_sgemm_convolution = use_sgemm_convolution;
-    pd.use_int8_inference = use_int8_inference;
-    pd.use_vulkan_compute = use_vulkan_compute;
 
     for (int i=0; i<layer_count; i++)
     {
@@ -828,6 +827,12 @@ int Net::load_model(const unsigned char* _mem)
         return -1;
     }
 
+    Option opt;
+    opt.vulkan_compute = use_vulkan_compute;
+    opt.use_winograd_convolution = use_winograd_convolution;
+    opt.use_sgemm_convolution = use_sgemm_convolution;
+    opt.use_int8_inference = use_int8_inference;
+
     const unsigned char* mem = _mem;
     ModelBinFromMemory mb(mem);
     for (size_t i=0; i<layers.size(); i++)
@@ -846,14 +851,21 @@ int Net::load_model(const unsigned char* _mem)
             fprintf(stderr, "layer load_model failed\n");
             return -1;
         }
+
+        int cret = layer->create_pipeline(opt);
+        if (cret != 0)
+        {
+            fprintf(stderr, "layer create_pipeline failed\n");
+            return -1;
+        }
     }
 
 #if NCNN_VULKAN
     if (use_vulkan_compute)
     {
-        upload_model();
-
         create_pipeline();
+
+        upload_model();
     }
 #endif // NCNN_VULKAN
 
@@ -970,9 +982,22 @@ void Net::clear()
     destroy_pipeline();
 #endif // NCNN_VULKAN
 
+    Option opt;
+    opt.vulkan_compute = use_vulkan_compute;
+    opt.use_winograd_convolution = use_winograd_convolution;
+    opt.use_sgemm_convolution = use_sgemm_convolution;
+    opt.use_int8_inference = use_int8_inference;
+
     blobs.clear();
     for (size_t i=0; i<layers.size(); i++)
     {
+        int dret = layers[i]->destroy_pipeline(opt);
+        if (dret != 0)
+        {
+            fprintf(stderr, "layer destroy_pipeline failed\n");
+            // ignore anyway
+        }
+
         delete layers[i];
     }
     layers.clear();
@@ -1041,18 +1066,11 @@ int Net::upload_model()
 
 int Net::create_pipeline()
 {
-    //#pragma omp parallel for
-    for (int i=0; i<(int)layers.size(); i++)
-    {
-        if (layers[i]->support_vulkan)
-        {
-            int cret = layers[i]->create_pipeline();
-            if (cret != 0)
-            {
-                fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
-            }
-        }
-    }
+    Option opt;
+    opt.vulkan_compute = use_vulkan_compute;
+    opt.use_winograd_convolution = use_winograd_convolution;
+    opt.use_sgemm_convolution = use_sgemm_convolution;
+    opt.use_int8_inference = use_int8_inference;
 
     if (vkdev->info.support_fp16_storage)
     {
@@ -1063,7 +1081,6 @@ int Net::create_pipeline()
         ncnn::ParamDict pd;
         pd.set(0, 1);
         pd.set(1, 2);
-        pd.use_vulkan_compute = 1;
 
         cast_float32_to_float16->load_param(pd);
         }
@@ -1075,14 +1092,13 @@ int Net::create_pipeline()
         ncnn::ParamDict pd;
         pd.set(0, 2);
         pd.set(1, 1);
-        pd.use_vulkan_compute = 1;
 
         cast_float16_to_float32->load_param(pd);
         }
 
-        cast_float32_to_float16->create_pipeline();
+        cast_float32_to_float16->create_pipeline(opt);
 
-        cast_float16_to_float32->create_pipeline();
+        cast_float16_to_float32->create_pipeline(opt);
     }
 
     {
@@ -1091,7 +1107,6 @@ int Net::create_pipeline()
 
     ncnn::ParamDict pd;
     pd.set(0, 1);
-    pd.use_vulkan_compute = 1;
 
     packing_pack1->load_param(pd);
     }
@@ -1102,40 +1117,36 @@ int Net::create_pipeline()
 
     ncnn::ParamDict pd;
     pd.set(0, 4);
-    pd.use_vulkan_compute = 1;
 
     packing_pack4->load_param(pd);
     }
 
-    packing_pack1->create_pipeline();
+    packing_pack1->create_pipeline(opt);
 
-    packing_pack4->create_pipeline();
+    packing_pack4->create_pipeline(opt);
 
     return 0;
 }
 
 int Net::destroy_pipeline()
 {
-    //#pragma omp parallel for
-    for (int i=0; i<(int)layers.size(); i++)
-    {
-        if (layers[i]->support_vulkan)
-        {
-            layers[i]->destroy_pipeline();
-        }
-    }
+    Option opt;
+    opt.vulkan_compute = use_vulkan_compute;
+    opt.use_winograd_convolution = use_winograd_convolution;
+    opt.use_sgemm_convolution = use_sgemm_convolution;
+    opt.use_int8_inference = use_int8_inference;
 
     if (cast_float32_to_float16)
-        cast_float32_to_float16->destroy_pipeline();
+        cast_float32_to_float16->destroy_pipeline(opt);
 
     if (cast_float16_to_float32)
-        cast_float16_to_float32->destroy_pipeline();
+        cast_float16_to_float32->destroy_pipeline(opt);
 
     if (packing_pack1)
-        packing_pack1->destroy_pipeline();
+        packing_pack1->destroy_pipeline(opt);
 
     if (packing_pack4)
-        packing_pack4->destroy_pipeline();
+        packing_pack4->destroy_pipeline(opt);
 
     return 0;
 }

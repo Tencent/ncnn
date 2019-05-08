@@ -21,15 +21,13 @@ namespace ncnn {
 
 typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&, const Option&);
 
-class Convolution_x86 : public Convolution
+class Convolution_x86 : virtual public Convolution
 {
 public:
     Convolution_x86();
-    ~Convolution_x86();
 
-    virtual int load_param(const ParamDict& pd);
-
-    virtual int load_model(const ModelBin& mb);
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     virtual int forwardDilation(const Mat& bottom_blob, Mat &top_blob, conv_func conv, const Option& opt) const;

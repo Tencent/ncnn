@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Scale_arm : public Scale
+class Scale_arm : virtual public Scale
 {
 public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;

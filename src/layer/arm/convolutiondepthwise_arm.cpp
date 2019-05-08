@@ -33,21 +33,10 @@ ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
     activation = 0;
 }
 
-ConvolutionDepthWise_arm::~ConvolutionDepthWise_arm()
+int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 {
-    delete activation;
-
-    for (int i=0; i<(int)group_ops.size(); i++)
-        delete group_ops[i];
-
-    group_ops.clear();
-}
-
-int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
-{
-    int ret = ConvolutionDepthWise::load_model(mb);
-    if (ret != 0)
-        return ret;
+    Option opt_cpu = opt;
+    opt_cpu.vulkan_compute = false;
 
     if (activation_type == 1)
     {
@@ -72,6 +61,11 @@ int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
         pd.set(0, activation_params[0]);// min
         pd.set(1, activation_params[1]);// max
         activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        activation->create_pipeline(opt_cpu);
     }
 
     // create Convolution op for each group
@@ -143,7 +137,7 @@ int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
             if (int8_scale_term)
             {
                 weights[2] = weight_data_int8_scales.range(g, 1);
-                weights[3] = bottom_blob_int8_scales.range(g, 1);     
+                weights[3] = bottom_blob_int8_scales.range(g, 1);
             }
 
             op->load_model(ModelBinFromMatArray(weights));
@@ -156,14 +150,38 @@ int ConvolutionDepthWise_arm::load_model(const ModelBin& mb)
             if (int8_scale_term)
             {
                 weights[1] = weight_data_int8_scales.range(g, 1);
-                weights[2] = bottom_blob_int8_scales.range(g, 1);     
+                weights[2] = bottom_blob_int8_scales.range(g, 1);
             }
 
             op->load_model(ModelBinFromMatArray(weights));
         }
 
+        op->create_pipeline(opt_cpu);
+
         group_ops[g] = op;
     }
+
+    return 0;
+}
+
+int ConvolutionDepthWise_arm::destroy_pipeline(const Option& opt)
+{
+    Option opt_cpu = opt;
+    opt_cpu.vulkan_compute = false;
+
+    if (activation)
+    {
+        activation->destroy_pipeline(opt_cpu);
+        delete activation;
+        activation = 0;
+    }
+
+    for (int i=0; i<(int)group_ops.size(); i++)
+    {
+        group_ops[i]->destroy_pipeline(opt_cpu);
+        delete group_ops[i];
+    }
+    group_ops.clear();
 
     return 0;
 }

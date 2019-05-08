@@ -24,17 +24,8 @@ DeconvolutionDepthWise_arm::DeconvolutionDepthWise_arm()
     activation = 0;
 }
 
-DeconvolutionDepthWise_arm::~DeconvolutionDepthWise_arm()
+int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
 {
-    delete activation;
-}
-
-int DeconvolutionDepthWise_arm::load_param(const ParamDict& pd)
-{
-    int ret = DeconvolutionDepthWise::load_param(pd);
-    if (ret != 0)
-        return ret;
-
     if (activation_type == 1)
     {
         activation = ncnn::create_layer(ncnn::LayerType::ReLU);
@@ -58,6 +49,27 @@ int DeconvolutionDepthWise_arm::load_param(const ParamDict& pd)
         pd.set(0, activation_params[0]);// min
         pd.set(1, activation_params[1]);// max
         activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        Option opt_cpu = opt;
+        opt_cpu.vulkan_compute = false;
+        activation->create_pipeline(opt_cpu);
+    }
+
+    return 0;
+}
+
+int DeconvolutionDepthWise_arm::destroy_pipeline(const Option& opt)
+{
+    if (activation)
+    {
+        Option opt_cpu = opt;
+        opt_cpu.vulkan_compute = false;
+        activation->destroy_pipeline(opt_cpu);
+        delete activation;
+        activation = 0;
     }
 
     return 0;
