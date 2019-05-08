@@ -23,22 +23,15 @@ class InnerProduct : public Layer
 {
 public:
     InnerProduct();
-    ~InnerProduct();
 
     virtual int load_param(const ParamDict& pd);
 
     virtual int load_model(const ModelBin& mb);
 
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-#if NCNN_VULKAN
-    virtual int upload_model(VkTransfer& cmd);
-
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
 
 public:
     // param
@@ -56,29 +49,6 @@ public:
     // model
     Mat weight_data;
     Mat bias_data;
-
-#if NCNN_VULKAN
-    ncnn::Layer* flatten;
-
-    VkMat weight_data_gpu;
-    VkMat bias_data_gpu;
-
-    Pipeline* pipeline_innerproduct;
-
-    VkMat bias_data_gpu_pack4;
-
-    // pack4
-    VkMat weight_data_gpu_pack4;
-    Pipeline* pipeline_innerproduct_pack4;
-
-    // pack1to4
-    VkMat weight_data_gpu_pack1to4;
-    Pipeline* pipeline_innerproduct_pack1to4;
-
-    // pack4to1
-    VkMat weight_data_gpu_pack4to1;
-    Pipeline* pipeline_innerproduct_pack4to1;
-#endif // NCNN_VULKAN
 
     Mat weight_data_int8_scales;
     float bottom_blob_int8_scale;

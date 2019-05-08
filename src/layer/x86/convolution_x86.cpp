@@ -36,16 +36,10 @@ Convolution_x86::Convolution_x86()
     activation = 0;
 }
 
-Convolution_x86::~Convolution_x86()
+int Convolution_x86::create_pipeline(const Option& opt)
 {
-    delete activation;
-}
-
-int Convolution_x86::load_param(const ParamDict& pd)
-{
-    int ret = Convolution::load_param(pd);
-    if (ret != 0)
-        return ret;
+    Option opt_cpu = opt;
+    opt_cpu.vulkan_compute = false;
 
     if (activation_type == 1)
     {
@@ -72,24 +66,20 @@ int Convolution_x86::load_param(const ParamDict& pd)
         activation->load_param(pd);
     }
 
+    if (activation)
+    {
+        activation->create_pipeline(opt_cpu);
+    }
+
     use_winograd3x3 = false;
 
-    if (pd.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int num_input = weight_data_size / 9 / num_output;
         // winograd is slow on small channel count
         if(num_input >= 16 && num_output >= 16)
             use_winograd3x3 = true;
     }           
-
-    return 0;
-}
-
-int Convolution_x86::load_model(const ModelBin& mb)
-{
-    int ret = Convolution::load_model(mb);
-    if (ret != 0)
-        return ret;
 
     if (use_winograd3x3)
     {
@@ -101,6 +91,21 @@ int Convolution_x86::load_model(const ModelBin& mb)
         else
             // conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
             conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+    }
+
+    return 0;
+}
+
+int Convolution_x86::destroy_pipeline(const Option& opt)
+{
+    Option opt_cpu = opt;
+    opt_cpu.vulkan_compute = false;
+
+    if (activation)
+    {
+        activation->destroy_pipeline(opt_cpu);
+        delete activation;
+        activation = 0;
     }
 
     return 0;

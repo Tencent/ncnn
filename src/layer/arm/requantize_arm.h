@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Requantize_arm : public Requantize
+class Requantize_arm : virtual public Requantize
 {
 public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;

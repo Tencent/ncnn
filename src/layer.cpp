@@ -20,6 +20,11 @@
 #include <algorithm>
 #include "cpu.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Woverloaded-virtual"
+#include "layer_declaration.h"
+#pragma clang diagnostic pop
+
 namespace ncnn {
 
 Option::Option()
@@ -29,12 +34,17 @@ Option::Option()
     blob_allocator = 0;
     workspace_allocator = 0;
 
-#if NCNN_VULKAN
     vulkan_compute = false;
+
+#if NCNN_VULKAN
     blob_vkallocator = 0;
     workspace_vkallocator = 0;
     staging_vkallocator = 0;
 #endif // NCNN_VULKAN
+
+    use_winograd_convolution = 1;
+    use_sgemm_convolution = 1;
+    use_int8_inference = 1;
 }
 
 static Option g_default_option;
@@ -78,6 +88,16 @@ int Layer::load_param(const ParamDict& /*pd*/)
 }
 
 int Layer::load_model(const ModelBin& /*mb*/)
+{
+    return 0;
+}
+
+int Layer::create_pipeline(const Option& /*opt*/)
+{
+    return 0;
+}
+
+int Layer::destroy_pipeline(const Option& /*opt*/)
 {
     return 0;
 }
@@ -126,16 +146,6 @@ int Layer::upload_model(VkTransfer& /*cmd*/)
     return 0;
 }
 
-int Layer::create_pipeline()
-{
-    return 0;
-}
-
-int Layer::destroy_pipeline()
-{
-    return 0;
-}
-
 int Layer::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     if (!support_inplace)
@@ -178,8 +188,6 @@ int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const
     return -1;
 }
 #endif // NCNN_VULKAN
-
-#include "layer_declaration.h"
 
 static const layer_registry_entry layer_registry[] =
 {

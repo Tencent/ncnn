@@ -19,15 +19,13 @@
 
 namespace ncnn {
 
-class ConvolutionDepthWise_x86 : public ConvolutionDepthWise
+class ConvolutionDepthWise_x86 : virtual public ConvolutionDepthWise
 {
 public:
     ConvolutionDepthWise_x86();
-    virtual ~ConvolutionDepthWise_x86();
 
-    virtual int load_param(const ParamDict& pd);
-
-    virtual int load_model(const ModelBin& mb);
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 

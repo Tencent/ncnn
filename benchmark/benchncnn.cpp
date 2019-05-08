@@ -57,6 +57,9 @@ public:
         // load file
         int ret = 0;
 
+        Option opt;
+        opt.vulkan_compute = use_vulkan_compute;
+
         ModelBinFromEmpty mb;
         for (size_t i=0; i<layers.size(); i++)
         {
@@ -66,6 +69,14 @@ public:
             if (lret != 0)
             {
                 fprintf(stderr, "layer load_model %d failed\n", (int)i);
+                ret = -1;
+                break;
+            }
+
+            int cret = layer->create_pipeline(opt);
+            if (cret != 0)
+            {
+                fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
                 ret = -1;
                 break;
             }

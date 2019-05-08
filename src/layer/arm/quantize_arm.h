@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Quantize_arm : public Quantize
+class Quantize_arm : virtual public Quantize
 {
 public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
