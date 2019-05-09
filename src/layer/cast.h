@@ -28,13 +28,6 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-#if NCNN_VULKAN
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
-
 public:
     // element type
     // 0 = auto
@@ -43,13 +36,6 @@ public:
     // 3 = int8
     int type_from;
     int type_to;
-
-#if NCNN_VULKAN
-    Pipeline* pipeline_cast_fp32_to_fp16;
-    Pipeline* pipeline_cast_fp32_to_fp16_pack4;
-    Pipeline* pipeline_cast_fp16_to_fp32;
-    Pipeline* pipeline_cast_fp16_to_fp32_pack4;
-#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

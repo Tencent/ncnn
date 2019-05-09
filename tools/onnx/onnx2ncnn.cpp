@@ -1072,7 +1072,6 @@ int main(int argc, char** argv)
         {
             const onnx::TensorProto& W = weights[node.input(1)];
 
-            int num_filter = W.dims(1);
             int has_bias = node.input_size() == 3 ? 1 : 0;
 
             std::string auto_pad = get_node_attr_s(node, "auto_pad");//TODO
@@ -1083,6 +1082,7 @@ int main(int argc, char** argv)
             std::vector<int> output_shape = get_node_attr_ai(node, "output_shape");//TODO
             std::vector<int> pads = get_node_attr_ai(node, "pads");
             int group = get_node_attr_i(node, "group", 1);
+            int num_filter = W.dims(1) * group;
 
             fprintf(pp, " 0=%d", num_filter);
 

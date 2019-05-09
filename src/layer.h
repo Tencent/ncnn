@@ -59,10 +59,10 @@ public:
     // workspace memory allocator
     Allocator* workspace_allocator;
 
-#if NCNN_VULKAN
     // enable vulkan compute
     bool vulkan_compute;
 
+#if NCNN_VULKAN
     // blob memory allocator
     VkAllocator* blob_vkallocator;
 
@@ -72,6 +72,11 @@ public:
     // staging memory allocator
     VkAllocator* staging_vkallocator;
 #endif // NCNN_VULKAN
+
+public:
+    int use_winograd_convolution;
+    int use_sgemm_convolution;
+    int use_int8_inference;
 };
 
 // the global default option
@@ -93,6 +98,12 @@ public:
     // load layer specific weight data from model binary
     // return 0 if success
     virtual int load_model(const ModelBin& mb);
+
+    //
+    virtual int create_pipeline(const Option& opt = get_default_option());
+
+    //
+    virtual int destroy_pipeline(const Option& opt = get_default_option());
 
 public:
     // one input and one output blob
@@ -119,9 +130,6 @@ public:
 public:
     // upload weight blob from host to device
     virtual int upload_model(VkTransfer& cmd);
-
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
 
 public:
     // implement inference

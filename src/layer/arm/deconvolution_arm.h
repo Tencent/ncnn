@@ -19,10 +19,18 @@
 
 namespace ncnn {
 
-class Deconvolution_arm : public Deconvolution
+class Deconvolution_arm : virtual public Deconvolution
 {
 public:
+    Deconvolution_arm();
+
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+public:
+    Layer* activation;
 };
 
 } // namespace ncnn

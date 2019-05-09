@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ReLU_arm : public ReLU
+class ReLU_arm : virtual public ReLU
 {
 public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Clip_arm : public Clip
+class Clip_arm : virtual public Clip
 {
 public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;

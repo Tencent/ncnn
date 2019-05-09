@@ -136,7 +136,7 @@ protected:
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt) const;
 
 #if NCNN_VULKAN
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<int>& wait_barrier_counts, VkCompute& cmd, Option& opt) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, Option& opt) const;
 #endif // NCNN_VULKAN
 
 protected:
@@ -237,9 +237,6 @@ private:
 
 #if NCNN_VULKAN
     std::vector<VkMat> blob_mats_gpu;
-
-    // the barrier count must be hit before reclaiming buffer memory alias-able
-    std::vector<int> wait_barrier_counts;
 #endif // NCNN_VULKAN
 };
 

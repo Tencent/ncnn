@@ -31,30 +31,55 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
 
-int Convolution_x86::load_param(const ParamDict& pd)
+Convolution_x86::Convolution_x86()
 {
-    int ret = Convolution::load_param(pd);
-    if (ret != 0)
-        return ret;
+    activation = 0;
+}
+
+int Convolution_x86::create_pipeline(const Option& opt)
+{
+    Option opt_cpu = opt;
+    opt_cpu.vulkan_compute = false;
+
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// min
+        pd.set(1, activation_params[1]);// max
+        activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        activation->create_pipeline(opt_cpu);
+    }
 
     use_winograd3x3 = false;
 
-    if (pd.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int num_input = weight_data_size / 9 / num_output;
         // winograd is slow on small channel count
         if(num_input >= 16 && num_output >= 16)
             use_winograd3x3 = true;
     }           
-
-    return 0;
-}
-
-int Convolution_x86::load_model(const ModelBin& mb)
-{
-    int ret = Convolution::load_model(mb);
-    if (ret != 0)
-        return ret;
 
     if (use_winograd3x3)
     {
@@ -66,6 +91,21 @@ int Convolution_x86::load_model(const ModelBin& mb)
         else
             // conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
             conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+    }
+
+    return 0;
+}
+
+int Convolution_x86::destroy_pipeline(const Option& opt)
+{
+    Option opt_cpu = opt;
+    opt_cpu.vulkan_compute = false;
+
+    if (activation)
+    {
+        activation->destroy_pipeline(opt_cpu);
+        delete activation;
+        activation = 0;
     }
 
     return 0;
@@ -504,7 +544,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }    
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-       
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
+    }
+
     return 0;
 }
 

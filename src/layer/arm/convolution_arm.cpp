@@ -15,6 +15,8 @@
 #include "convolution_arm.h"
 #include "benchmark.h"
 
+#include "layer_type.h"
+
 namespace ncnn {
 
 #include "convolution_1x1.h"
@@ -31,42 +33,66 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Convolution_arm)
 
-int Convolution_arm::load_param(const ParamDict& pd)
+Convolution_arm::Convolution_arm()
 {
-    int ret = Convolution::load_param(pd);
-    if (ret != 0)
-        return ret;
+    activation = 0;
+}
+
+int Convolution_arm::create_pipeline(const Option& opt)
+{
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// min
+        pd.set(1, activation_params[1]);// max
+        activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        Option opt_cpu = opt;
+        opt_cpu.vulkan_compute = false;
+        activation->create_pipeline(opt_cpu);
+    }
 
     use_winograd3x3 = false;
     use_sgemm1x1 = false;
 
-    if (pd.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int num_input = weight_data_size / 9 / num_output;
         // winograd is slow on small channel count
         if (num_input >= 16 && num_output >= 16)
             use_winograd3x3 = true;
-        
+
         if (use_int8_inference)
             use_winograd3x3 = true;
     }
 
     // TODO assume more proper condition
-    if (pd.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    if (opt.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int num_input = weight_data_size / num_output;
         if (num_input >= 64 && num_output >= 64)
             use_sgemm1x1 = true;
     }
-
-    return 0;
-}
-
-int Convolution_arm::load_model(const ModelBin& mb)
-{
-    int ret = Convolution::load_model(mb);
-    if (ret != 0)
-        return ret;
 
     if (use_int8_inference)
     {
@@ -95,7 +121,7 @@ int Convolution_arm::load_model(const ModelBin& mb)
 
             conv_im2col_sgemm_transform_kernel_int8_neon(weight_data, weight_sgemm_int8_data, num_input, num_output, kernel_size);
         }
-        
+
         return 0;
     }
 
@@ -116,6 +142,20 @@ int Convolution_arm::load_model(const ModelBin& mb)
     {
         int num_input = weight_data_size / 9 / num_output;
         conv3x3s2_transform_kernel_neon(weight_data, weight_3x3s2_data, num_input, num_output);
+    }
+
+    return 0;
+}
+
+int Convolution_arm::destroy_pipeline(const Option& opt)
+{
+    if (activation)
+    {
+        Option opt_cpu = opt;
+        opt_cpu.vulkan_compute = false;
+        activation->destroy_pipeline(opt_cpu);
+        delete activation;
+        activation = 0;
     }
 
     return 0;
@@ -536,6 +576,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
+    }
 
     return 0;
 }

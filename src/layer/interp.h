@@ -28,13 +28,6 @@ public:
 
     virtual int forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) const;
 
-#if NCNN_VULKAN
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
-
 public:
     // param
     int resize_type;//1=nearest  2=bilinear  3=bicubic
@@ -42,16 +35,6 @@ public:
     float height_scale;
     int output_width;
     int output_height;
-
-#if NCNN_VULKAN
-    Pipeline* pipeline_interp;
-    Pipeline* pipeline_interp_pack4;
-
-    Pipeline* pipeline_interp_bicubic_coeffs_x;
-    Pipeline* pipeline_interp_bicubic_coeffs_y;
-    Pipeline* pipeline_interp_bicubic;
-    Pipeline* pipeline_interp_bicubic_pack4;
-#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

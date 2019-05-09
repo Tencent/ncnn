@@ -30,21 +30,43 @@ DEFINE_LAYER_CREATOR(ConvolutionDepthWise_x86)
 
 ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 {
+    activation = 0;
 }
 
-ConvolutionDepthWise_x86::~ConvolutionDepthWise_x86()
+int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 {
-    for (int i=0; i<(int)group_ops.size(); i++)
-        delete group_ops[i];
+    Option opt_cpu = opt;
+    opt_cpu.vulkan_compute = false;
 
-    group_ops.clear();
-}
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
 
-int ConvolutionDepthWise_x86::load_model(const ModelBin& mb)
-{
-    int ret = ConvolutionDepthWise::load_model(mb);
-    if (ret != 0)
-        return ret;
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// min
+        pd.set(1, activation_params[1]);// max
+        activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        activation->create_pipeline(opt_cpu);
+    }
 
     // create Convolution op for each group
     const int maxk = kernel_w * kernel_h;
@@ -127,8 +149,32 @@ int ConvolutionDepthWise_x86::load_model(const ModelBin& mb)
             op->load_model(ModelBinFromMatArray(weights));
         }
 
+        op->create_pipeline(opt_cpu);
+
         group_ops[g] = op;
     }      
+
+    return 0;
+}
+
+int ConvolutionDepthWise_x86::destroy_pipeline(const Option& opt)
+{
+    Option opt_cpu = opt;
+    opt_cpu.vulkan_compute = false;
+
+    if (activation)
+    {
+        activation->destroy_pipeline(opt_cpu);
+        delete activation;
+        activation = 0;
+    }
+
+    for (int i=0; i<(int)group_ops.size(); i++)
+    {
+        group_ops[i]->destroy_pipeline(opt_cpu);
+        delete group_ops[i];
+    }
+    group_ops.clear();
 
     return 0;
 }
@@ -356,14 +402,19 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         {
             if (stride_w == 1 && stride_h == 1)
             {
-                convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);               
-                return 0;
+                convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
             }
             else if (stride_w == 2 && stride_h == 2)
             {
                 convdw3x3s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-                return 0;
             }
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+
+            return 0;
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -380,6 +431,11 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
          // forward
             op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+        }
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
         }
 
         return 0;
@@ -400,6 +456,11 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         // forward
         op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+    }
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
     }
 
     return 0;
