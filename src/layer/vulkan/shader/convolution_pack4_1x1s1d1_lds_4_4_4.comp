@@ -57,7 +57,10 @@ layout (push_constant) uniform parameter
 
 // local cache
 shared afpvec4 lv[(/*gl_WorkGroupSize.x*/4 + 0) * (/*gl_WorkGroupSize.y*/4 + 0)];
-shared afpmat4 lk[/*gl_WorkGroupSize.z*/4 * 1];
+shared afpvec4 lk0[/*gl_WorkGroupSize.z*/4 * 1];
+shared afpvec4 lk1[/*gl_WorkGroupSize.z*/4 * 1];
+shared afpvec4 lk2[/*gl_WorkGroupSize.z*/4 * 1];
+shared afpvec4 lk3[/*gl_WorkGroupSize.z*/4 * 1];
 
 void main()
 {
@@ -104,24 +107,29 @@ void main()
         {
 #if NCNN_fp16_storage && !NCNN_fp16_arithmetic
             // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
-            afpmat4 k = afpmat4(
-                afpvec4(weight_data[w_offset * 4 + 0]),
-                afpvec4(weight_data[w_offset * 4 + 1]),
-                afpvec4(weight_data[w_offset * 4 + 2]),
-                afpvec4(weight_data[w_offset * 4 + 3])
-            );
+            lk0[lw_offset] = afpvec4(weight_data[w_offset * 4 + 0]);
+            lk1[lw_offset] = afpvec4(weight_data[w_offset * 4 + 1]);
+            lk2[lw_offset] = afpvec4(weight_data[w_offset * 4 + 2]);
+            lk3[lw_offset] = afpvec4(weight_data[w_offset * 4 + 3]);
 #else
             afpmat4 k = afpmat4(weight_data[w_offset]);
+            lk0[lw_offset] = k[0];
+            lk1[lw_offset] = k[1];
+            lk2[lw_offset] = k[2];
+            lk3[lw_offset] = k[3];
 #endif
-
-            lk[lw_offset] = k;
         }
 
         barrier();
         memoryBarrierShared();
 
         afpvec4 v = lv[lv_offset];
-        afpmat4 k = lk[lw_offset];
+        afpmat4 k = afpmat4(
+            lk0[lw_offset],
+            lk1[lw_offset],
+            lk2[lw_offset],
+            lk3[lw_offset]
+        );
         sum += v * k;
 
         v_offset += p.cstep;
