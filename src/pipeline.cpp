@@ -217,6 +217,13 @@ void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
 //     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
 }
 
+void Pipeline::set_local_size_xyz(int w, int h, int c)
+{
+    local_size_x = w;
+    local_size_y = h;
+    local_size_z = c;
+}
+
 int Pipeline::create_descriptorset_layout(int binding_count)
 {
     if (binding_count == 0)
