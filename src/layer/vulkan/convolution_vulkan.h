@@ -45,7 +45,6 @@ public:
     // pack4
     VkMat weight_data_gpu_pack4;
     Pipeline* pipeline_convolution_pack4;
-    Pipeline* pipeline_convolution_pack4_1x1s1d1_lds_4_4_4;
     Pipeline* pipeline_convolution_pack4_3x3s1d1_lds_8_8_2;
 
     // pack1to4
