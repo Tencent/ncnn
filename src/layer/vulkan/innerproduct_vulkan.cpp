@@ -28,6 +28,7 @@ InnerProduct_vulkan::InnerProduct_vulkan()
 
     pipeline_innerproduct = 0;
     pipeline_innerproduct_pack4 = 0;
+    pipeline_innerproduct_pack4_lds_64 = 0;
     pipeline_innerproduct_pack1to4 = 0;
     pipeline_innerproduct_pack4to1 = 0;
 }
@@ -67,6 +68,12 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
         pipeline_innerproduct_pack4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
         pipeline_innerproduct_pack4->create("innerproduct_pack4", specializations, 4, 10);
+
+        {
+            pipeline_innerproduct_pack4_lds_64 = new Pipeline(vkdev);
+            pipeline_innerproduct_pack4_lds_64->set_local_size_xyz(64, 1, 1);
+            pipeline_innerproduct_pack4_lds_64->create("innerproduct_pack4_lds_64", specializations, 4, 10);
+        }
     }
 
     // pack1to4
@@ -331,6 +338,8 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     else if (packing == 4 && out_packing == 4)
     {
         pipeline = pipeline_innerproduct_pack4;
+
+        pipeline = pipeline_innerproduct_pack4_lds_64;
     }
     else if (packing == 1 && out_packing == 4)
     {
