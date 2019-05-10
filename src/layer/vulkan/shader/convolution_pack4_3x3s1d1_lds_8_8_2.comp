@@ -59,7 +59,10 @@ layout (push_constant) uniform parameter
 // size = (lw + 2) * (lh + 2) * 4 * 4 + (lc * 9) * 16 * 4
 //      8/8/2 -> 2752 byte (fp32) / 1376 byte (fp32)
 shared afpvec4 lv[(/*gl_WorkGroupSize.x*/8 + 2) * (/*gl_WorkGroupSize.y*/8 + 2)];
-shared afpmat4 lk[/*gl_WorkGroupSize.z*/2 * 3 * 3];
+shared afpvec4 lk0[/*gl_WorkGroupSize.z*/2 * 3 * 3];
+shared afpvec4 lk1[/*gl_WorkGroupSize.z*/2 * 3 * 3];
+shared afpvec4 lk2[/*gl_WorkGroupSize.z*/2 * 3 * 3];
+shared afpvec4 lk3[/*gl_WorkGroupSize.z*/2 * 3 * 3];
 
 void main()
 {
@@ -146,17 +149,17 @@ void main()
 
 #if NCNN_fp16_storage && !NCNN_fp16_arithmetic
             // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
-            afpmat4 k = afpmat4(
-                afpvec4(weight_data[(w_offset + li) * 4 + 0]),
-                afpvec4(weight_data[(w_offset + li) * 4 + 1]),
-                afpvec4(weight_data[(w_offset + li) * 4 + 2]),
-                afpvec4(weight_data[(w_offset + li) * 4 + 3])
-            );
+            lk0[lw_offset + li] = afpvec4(weight_data[(w_offset + li) * 4 + 0]);
+            lk1[lw_offset + li] = afpvec4(weight_data[(w_offset + li) * 4 + 1]);
+            lk2[lw_offset + li] = afpvec4(weight_data[(w_offset + li) * 4 + 2]);
+            lk3[lw_offset + li] = afpvec4(weight_data[(w_offset + li) * 4 + 3]);
 #else
             afpmat4 k = afpmat4(weight_data[w_offset + li]);
+            lk0[lw_offset + li] = k[0];
+            lk1[lw_offset + li] = k[1];
+            lk2[lw_offset + li] = k[2];
+            lk3[lw_offset + li] = k[3];
 #endif
-
-            lk[lw_offset + li] = k;
         }
 
         barrier();
@@ -169,7 +172,12 @@ void main()
             {
                 afpvec4 v = lv[lv_offset + x];
 
-                afpmat4 k = lk[lw_offset + x];
+                afpmat4 k = afpmat4(
+                    lk0[lw_offset + x],
+                    lk1[lw_offset + x],
+                    lk2[lw_offset + x],
+                    lk3[lw_offset + x]
+                );
 
                 sum += v * k;
             }
