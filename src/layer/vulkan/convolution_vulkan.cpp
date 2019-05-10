@@ -29,7 +29,6 @@ Convolution_vulkan::Convolution_vulkan()
     pipeline_convolution = 0;
     pipeline_convolution_1x1s1d1 = 0;
     pipeline_convolution_pack4 = 0;
-    pipeline_convolution_pack4_1x1s1d1_lds_4_4_4 = 0;
     pipeline_convolution_pack4_3x3s1d1_lds_8_8_2 = 0;
     pipeline_convolution_pack1to4 = 0;
     pipeline_convolution_pack4to1 = 0;
@@ -102,19 +101,6 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         pipeline_convolution_pack4 = new Pipeline(vkdev);
         pipeline_convolution_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
         pipeline_convolution_pack4->create("convolution_pack4", specializations, 4, 10);
-
-        if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
-            std::vector<vk_specialization_type> specializations(4);
-            specializations[0].i = bias_term;
-            specializations[1].i = activation_type;
-            specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
-            specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-
-            pipeline_convolution_pack4_1x1s1d1_lds_4_4_4 = new Pipeline(vkdev);
-            pipeline_convolution_pack4_1x1s1d1_lds_4_4_4->set_local_size_xyz(4, 4, 4);
-            pipeline_convolution_pack4_1x1s1d1_lds_4_4_4->create("convolution_pack4_1x1s1d1_lds_4_4_4", specializations, 4, 10);
-        }
 
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
@@ -208,9 +194,6 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_convolution_pack4;
     pipeline_convolution_pack4 = 0;
-
-    delete pipeline_convolution_pack4_1x1s1d1_lds_4_4_4;
-    pipeline_convolution_pack4_1x1s1d1_lds_4_4_4 = 0;
 
     delete pipeline_convolution_pack4_3x3s1d1_lds_8_8_2;
     pipeline_convolution_pack4_3x3s1d1_lds_8_8_2 = 0;
@@ -608,22 +591,6 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         dispatcher.c = top_blob.c;
 
         cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
-    }
-    else if (packing == 4 && out_packing == 4 && kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-    {
-        std::vector<vk_constant_type> constants(10);
-        constants[0].i = bottom_blob_bordered.dims;
-        constants[1].i = bottom_blob_bordered.w;
-        constants[2].i = bottom_blob_bordered.h;
-        constants[3].i = bottom_blob_bordered.c;
-        constants[4].i = bottom_blob_bordered.cstep;
-        constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
-        constants[8].i = top_blob.c;
-        constants[9].i = top_blob.cstep;
-
-        cmd.record_pipeline(pipeline_convolution_pack4_1x1s1d1_lds_4_4_4, bindings, constants, top_blob);
     }
     else if (packing == 4 && out_packing == 4 && kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
     {
