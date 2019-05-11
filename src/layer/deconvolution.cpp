@@ -186,6 +186,16 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                     outptr[i] = max;
             }
         }
+        else if (activation_type == 4)
+        {
+            float* outptr = out;
+            int size = outw * outh;
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = 1.f / (1.f + exp(-outptr[i]));
+            }
+        }
     }
 
     if (pad_w > 0 || pad_h > 0)

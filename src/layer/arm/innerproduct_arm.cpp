@@ -299,6 +299,10 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             if (sum > max)
                 sum = max;
         }
+        else if (activation_type == 4)
+        {
+            sum = 1.f / (1.f + exp(-sum));
+        }
 
         top_blob[p] = sum;
     }

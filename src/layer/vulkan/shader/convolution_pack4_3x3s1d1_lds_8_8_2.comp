@@ -88,20 +88,25 @@ void main()
     int v_offset = gy * p.w + gx;
     int w_offset = gz * p.c * 3 * 3;
 
+    int lv_offset = ly * (/*gl_WorkGroupSize.x*/8 + 2) + lx;
+    int lw_offset = lz * 3 * 3;
+
     for (int z = 0; z < p.c; z++)
     {
-        int lv_offset = ly * int(/*gl_WorkGroupSize.x*/8 + 2) + lx;
-        int lw_offset = lz * 3 * 3;
-
         barrier();
 
         // load v to local cache
         if (lz == 0)
         {
             int v_offset_1 = v_offset + p.w + 1;
-            int lv_offset_1 = lv_offset + int(/*gl_WorkGroupSize.x*/8 + 2) + 1;
+            int lv_offset_1 = lv_offset + (/*gl_WorkGroupSize.x*/8 + 2) + 1;
 
             lv[lv_offset_1] = afpvec4(bottom_blob_data[v_offset_1]);
+        }
+        else
+        {
+            int v_offset_1 = v_offset + p.w + 1;
+            int lv_offset_1 = lv_offset + (/*gl_WorkGroupSize.x*/8 + 2) + 1;
 
             // left and right border
             if (lx == 0)
@@ -170,20 +175,17 @@ void main()
         {
             for (int x = 0; x < 3; x++)
             {
-                afpvec4 v = lv[lv_offset + x];
+                afpvec4 v = lv[lv_offset + y * (/*gl_WorkGroupSize.x*/8 + 2) + x];
 
                 afpmat4 k = afpmat4(
-                    lk0[lw_offset + x],
-                    lk1[lw_offset + x],
-                    lk2[lw_offset + x],
-                    lk3[lw_offset + x]
+                    lk0[lw_offset + y * 3 + x],
+                    lk1[lw_offset + y * 3 + x],
+                    lk2[lw_offset + y * 3 + x],
+                    lk3[lw_offset + y * 3 + x]
                 );
 
                 sum += v * k;
             }
-
-            lv_offset += int(/*gl_WorkGroupSize.x*/8 + 2);
-            lw_offset += 3;
         }
 
         v_offset += p.cstep;
@@ -207,6 +209,10 @@ void main()
         const afp const_min = afp(activation_param_0);
         const afp const_max = afp(activation_param_1);
         sum = clamp(sum, const_min, const_max);
+    }
+    if (activation_type == 4)
+    {
+        sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
     top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(sum);

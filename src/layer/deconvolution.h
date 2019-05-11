@@ -45,7 +45,7 @@ public:
 
     int weight_data_size;
 
-    // 0=none 1=relu 2=leakyrelu 3=clip
+    // 0=none 1=relu 2=leakyrelu 3=clip 4=sigmoid
     int activation_type;
     Mat activation_params;
 
