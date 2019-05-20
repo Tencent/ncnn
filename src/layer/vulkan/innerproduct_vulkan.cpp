@@ -110,6 +110,9 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_innerproduct_pack4;
     pipeline_innerproduct_pack4 = 0;
 
+    delete pipeline_innerproduct_pack4_lds_64;
+    pipeline_innerproduct_pack4_lds_64 = 0;
+
     delete pipeline_innerproduct_pack1to4;
     pipeline_innerproduct_pack1to4 = 0;
 
