@@ -73,8 +73,11 @@ public:
     size_t buffer_offset_alignment;
 
     // runtime
-    uint32_t compute_queue_index;
-    uint32_t transfer_queue_index;
+    uint32_t compute_queue_family_index;
+    uint32_t transfer_queue_family_index;
+
+    uint32_t compute_queue_count;
+    uint32_t transfer_queue_count;
 
     uint32_t unified_memory_index;
     uint32_t device_local_memory_index;
@@ -116,6 +119,9 @@ public:
 
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
 
+    VkQueue acquire_queue(uint32_t queue_family_index) const;
+    void reclaim_queue(uint32_t queue_family_index, VkQueue queue) const;
+
     // create allocator on this device
     VkAllocator* allocator() const;
     VkAllocator* staging_allocator() const;
@@ -145,6 +151,11 @@ protected:
 private:
     VkDevice device;
     std::vector<VkShaderModule> shader_modules;
+
+    // hardware queue
+    mutable std::vector<VkQueue> compute_queues;
+    mutable std::vector<VkQueue> transfer_queues;
+    mutable Mutex queue_lock;
 
     // default locked allocator
     VkAllocator* blob_buffer_allocator;

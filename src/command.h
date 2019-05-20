@@ -29,7 +29,7 @@ namespace ncnn {
 class Command
 {
 public:
-    Command(const VulkanDevice* vkdev, uint32_t queue_index);
+    Command(const VulkanDevice* vkdev, uint32_t queue_family_index);
     ~Command();
 
 protected:
@@ -39,14 +39,11 @@ protected:
     // record issue
     int begin_command_buffer();
     int end_command_buffer();
-    int queue_submit();
-    int wait_fence();
+    int queue_submit_and_wait_fence();
 
 protected:
     const VulkanDevice* vkdev;
-    uint32_t queue_index;
-
-    VkQueue queue;
+    uint32_t queue_family_index;
 
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
@@ -72,9 +69,7 @@ public:
 
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& m);
 
-    int submit();
-
-    int wait();
+    int submit_and_wait();
 
     int reset();
 
@@ -156,9 +151,7 @@ public:
 
     void record_upload(const Mat& src, VkMat& dst);
 
-    int submit();
-
-    int wait();
+    int submit_and_wait();
 
 public:
     VkAllocator* weight_vkallocator;
