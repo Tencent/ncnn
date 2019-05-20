@@ -119,40 +119,6 @@ static inline void fastFree(void* ptr)
 static inline int NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += delta; return tmp; }
 #endif
 
-#ifdef _WIN32
-class Mutex
-{
-public:
-    Mutex() { InitializeSRWLock(&srwlock); }
-    ~Mutex() {}
-    void lock() { AcquireSRWLockExclusive(&srwlock); }
-    void unlock() { ReleaseSRWLockExclusive(&srwlock); }
-private:
-    // NOTE SRWLock is available from windows vista
-    SRWLOCK srwlock;
-};
-#else // _WIN32
-class Mutex
-{
-public:
-    Mutex() { pthread_mutex_init(&mutex, 0); }
-    ~Mutex() { pthread_mutex_destroy(&mutex); }
-    void lock() { pthread_mutex_lock(&mutex); }
-    void unlock() { pthread_mutex_unlock(&mutex); }
-private:
-    pthread_mutex_t mutex;
-};
-#endif // _WIN32
-
-class MutexLockGuard
-{
-public:
-    MutexLockGuard(Mutex& _mutex) : mutex(_mutex) { mutex.lock(); }
-    ~MutexLockGuard() { mutex.unlock(); }
-private:
-    Mutex& mutex;
-};
-
 class Allocator
 {
 public:
