@@ -131,7 +131,8 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
     {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
-        if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT) && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+        if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
+            && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
         {
             return i;
         }
@@ -159,7 +160,9 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
     {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
-        if ((queueFamilyProperty.queueFlags & VK_QUEUE_TRANSFER_BIT) && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT) && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+        if ((queueFamilyProperty.queueFlags & VK_QUEUE_TRANSFER_BIT)
+            && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
+            && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
         {
             return i;
         }
@@ -541,8 +544,11 @@ int create_gpu_instance()
         std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
 
-        gpu_info.compute_queue_index = find_device_compute_queue(queueFamilyProperties);
-        gpu_info.transfer_queue_index = find_device_transfer_queue(queueFamilyProperties);
+        gpu_info.compute_queue_family_index = find_device_compute_queue(queueFamilyProperties);
+        gpu_info.transfer_queue_family_index = find_device_transfer_queue(queueFamilyProperties);
+
+        gpu_info.compute_queue_count = queueFamilyProperties[gpu_info.compute_queue_family_index].queueCount;
+        gpu_info.transfer_queue_count = queueFamilyProperties[gpu_info.transfer_queue_family_index].queueCount;
 
         // find memory type index
         VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
@@ -677,19 +683,19 @@ int create_gpu_instance()
 
             vkGetPhysicalDeviceFeatures2KHR(physicalDevice, &queryFeatures);
 
-            if (gpu_info.support_VK_KHR_8bit_storage)
-            {
-                gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess && query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
-            }
-            if (gpu_info.support_VK_KHR_16bit_storage)
-            {
-                gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
-            }
-            if (gpu_info.support_VK_KHR_shader_float16_int8)
-            {
-                gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
-                gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
-            }
+//             if (gpu_info.support_VK_KHR_8bit_storage)
+//             {
+//                 gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess && query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
+//             }
+//             if (gpu_info.support_VK_KHR_16bit_storage)
+//             {
+//                 gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
+//             }
+//             if (gpu_info.support_VK_KHR_shader_float16_int8)
+//             {
+//                 gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
+//                 gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
+//             }
         }
         else
         {
@@ -698,8 +704,9 @@ int create_gpu_instance()
 //             vkGetPhysicalDeviceFeatures(physicalDevice, &features);
         }
 
-        fprintf(stderr, "[%u %s]  queueC=%u  queueT=%u  memU=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
-                gpu_info.compute_queue_index, gpu_info.transfer_queue_index,
+        fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueT=%u[%u]  memU=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
+                gpu_info.compute_queue_family_index, gpu_info.compute_queue_count,
+                gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count,
                 gpu_info.unified_memory_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
 
         fprintf(stderr, "[%u %s]  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d\n", i, physicalDeviceProperties.deviceName,
@@ -762,8 +769,6 @@ static const int layer_shader_registry_entry_count = sizeof(layer_shader_registr
 
 VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
 {
-    const float queuePriorities[1] = { 1.f };// 0.f ~ 1.f
-
     std::vector<const char*> enabledExtensions;
     if (info.support_VK_KHR_8bit_storage)
         enabledExtensions.push_back("VK_KHR_8bit_storage");
@@ -827,25 +832,28 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         enabledExtensionFeatures = &enabledFloat16Int8Features;
     }
 
+    std::vector<float> compute_queue_priorities(info.compute_queue_count, 1.f);// 0.f ~ 1.f
+    std::vector<float> transfer_queue_priorities(info.transfer_queue_count, 1.f);// 0.f ~ 1.f
+
     VkDeviceQueueCreateInfo deviceQueueCreateInfos[2];
     deviceQueueCreateInfos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     deviceQueueCreateInfos[0].pNext = 0;
     deviceQueueCreateInfos[0].flags = 0;
-    deviceQueueCreateInfos[0].queueFamilyIndex = info.compute_queue_index;
-    deviceQueueCreateInfos[0].queueCount = 1;
-    deviceQueueCreateInfos[0].pQueuePriorities = queuePriorities;
+    deviceQueueCreateInfos[0].queueFamilyIndex = info.compute_queue_family_index;
+    deviceQueueCreateInfos[0].queueCount = info.compute_queue_count;
+    deviceQueueCreateInfos[0].pQueuePriorities = compute_queue_priorities.data();
     deviceQueueCreateInfos[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     deviceQueueCreateInfos[1].pNext = 0;
     deviceQueueCreateInfos[1].flags = 0;
-    deviceQueueCreateInfos[1].queueFamilyIndex = info.transfer_queue_index;
-    deviceQueueCreateInfos[1].queueCount = 1;
-    deviceQueueCreateInfos[1].pQueuePriorities = queuePriorities;
+    deviceQueueCreateInfos[1].queueFamilyIndex = info.transfer_queue_family_index;
+    deviceQueueCreateInfos[1].queueCount = info.transfer_queue_count;
+    deviceQueueCreateInfos[1].pQueuePriorities = transfer_queue_priorities.data();
 
     VkDeviceCreateInfo deviceCreateInfo;
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.pNext = enabledExtensionFeatures;
     deviceCreateInfo.flags = 0;
-    if (info.compute_queue_index == info.transfer_queue_index)
+    if (info.compute_queue_family_index == info.transfer_queue_family_index)
     {
     deviceCreateInfo.queueCreateInfoCount = 1;
     }
@@ -869,6 +877,20 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     init_device_extension();
 
     create_shader_module();
+
+    compute_queues.resize(info.compute_queue_count);
+    for (uint32_t i = 0; i < info.compute_queue_count; i++)
+    {
+        vkGetDeviceQueue(device, info.compute_queue_family_index, i, &compute_queues[i]);
+    }
+    if (info.compute_queue_family_index != info.transfer_queue_family_index)
+    {
+        transfer_queues.resize(info.transfer_queue_count);
+        for (uint32_t i = 0; i < info.transfer_queue_count; i++)
+        {
+            vkGetDeviceQueue(device, info.transfer_queue_family_index, i, &transfer_queues[i]);
+        }
+    }
 
     blob_buffer_allocator = new VkBlobBufferAllocator(this);
     staging_buffer_allocator = new VkStagingBufferAllocator(this);
@@ -914,6 +936,54 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     }
 
     return shader_module;
+}
+
+VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
+{
+    if (queue_family_index != info.compute_queue_family_index && queue_family_index != info.transfer_queue_family_index)
+    {
+        fprintf(stderr, "invalid queue_family_index %u\n", queue_family_index);
+        return 0;
+    }
+
+    MutexLockGuard lock(queue_lock);
+
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues : transfer_queues;
+    for (int i=0; i<(int)queues.size(); i++)
+    {
+        VkQueue queue = queues[i];
+        if (queue)
+        {
+            queues[i] = 0;
+            return queue;
+        }
+    }
+
+    // out of hardware queue
+    return 0;
+}
+
+void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) const
+{
+    if (queue_family_index != info.compute_queue_family_index && queue_family_index != info.transfer_queue_family_index)
+    {
+        fprintf(stderr, "invalid queue_family_index %u\n", queue_family_index);
+        return;
+    }
+
+    MutexLockGuard lock(queue_lock);
+
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues : transfer_queues;
+    for (int i=0; i<(int)queues.size(); i++)
+    {
+        if (!queues[i])
+        {
+            queues[i] = queue;
+            return;
+        }
+    }
+
+    fprintf(stderr, "FATAL ERROR! reclaim_queue get wild queue %u %p\n", queue_family_index, queue);
 }
 
 VkAllocator* VulkanDevice::allocator() const

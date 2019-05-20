@@ -1057,9 +1057,7 @@ int Net::upload_model()
         }
     }
 
-    cmd.submit();
-
-    cmd.wait();
+    cmd.submit_and_wait();
 
     return 0;
 }
@@ -1629,9 +1627,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     bottom_blob_unpacked_fp32.prepare_staging_buffer();
                     cmd.record_download(bottom_blob_unpacked_fp32);
 
-                    cmd.submit();
-
-                    cmd.wait();
+                    cmd.submit_and_wait();
 
                     cmd.reset();
 
@@ -1742,9 +1738,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
             }
 
             {
-                cmd.submit();
-
-                cmd.wait();
+                cmd.submit_and_wait();
 
                 cmd.reset();
             }
@@ -1960,9 +1954,7 @@ int Extractor::extract(int blob_index, Mat& feat)
                 feat_gpu_unpacked_fp32.prepare_staging_buffer();
                 cmd.record_download(feat_gpu_unpacked_fp32);
 
-                cmd.submit();
-
-                cmd.wait();
+                cmd.submit_and_wait();
 
                 Mat& feat_cpu = blob_mats[blob_index];
                 feat_cpu.create_like(feat_gpu_unpacked_fp32, opt.blob_allocator);

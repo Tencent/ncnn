@@ -20,11 +20,8 @@
 
 namespace ncnn {
 
-Command::Command(const VulkanDevice* _vkdev, uint32_t _queue_index) : vkdev(_vkdev), queue_index(_queue_index)
+Command::Command(const VulkanDevice* _vkdev, uint32_t _queue_family_index) : vkdev(_vkdev), queue_family_index(_queue_family_index)
 {
-    // get queue
-    vkGetDeviceQueue(vkdev->vkdevice(), queue_index, 0, &queue);
-
     create_command_pool();
 
     create_command_buffer();
@@ -57,7 +54,7 @@ int Command::create_command_pool()
     commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     commandPoolCreateInfo.pNext = 0;
     commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    commandPoolCreateInfo.queueFamilyIndex = queue_index;
+    commandPoolCreateInfo.queueFamilyIndex = queue_family_index;
 
     VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &command_pool);
     if (ret != VK_SUCCESS)
@@ -122,46 +119,54 @@ int Command::end_command_buffer()
     return 0;
 }
 
-int Command::queue_submit()
+int Command::queue_submit_and_wait_fence()
 {
+    // acquire queue and reclaim on return
+    VkQueue queue = vkdev->acquire_queue(queue_family_index);
+    if (queue == 0)
+    {
+        fprintf(stderr, "out of compute queue\n");
+        return -1;
+    }
+
 //     fprintf(stderr, "==================== submit\n");
-
-    VkSubmitInfo submitInfo;
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.pNext = 0;
-    submitInfo.waitSemaphoreCount = 0;
-    submitInfo.pWaitSemaphores = 0;
-    submitInfo.pWaitDstStageMask = 0;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &command_buffer;
-    submitInfo.signalSemaphoreCount = 0;
-    submitInfo.pSignalSemaphores = 0;
-
-    VkResult ret = vkQueueSubmit(queue, 1, &submitInfo, fence);
-    if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkQueueSubmit failed %d\n", ret);
-        return -1;
+        VkSubmitInfo submitInfo;
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pNext = 0;
+        submitInfo.waitSemaphoreCount = 0;
+        submitInfo.pWaitSemaphores = 0;
+        submitInfo.pWaitDstStageMask = 0;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &command_buffer;
+        submitInfo.signalSemaphoreCount = 0;
+        submitInfo.pSignalSemaphores = 0;
+
+        VkResult ret = vkQueueSubmit(queue, 1, &submitInfo, fence);
+        if (ret != VK_SUCCESS)
+        {
+            fprintf(stderr, "vkQueueSubmit failed %d\n", ret);
+            vkdev->reclaim_queue(queue_family_index, queue);
+            return -1;
+        }
     }
 
-    return 0;
-}
-
-int Command::wait_fence()
-{
 //     fprintf(stderr, "==================== wait\n");
-
-    VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, UINT64_MAX);
-    if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkWaitForFences failed %d\n", ret);
-        return -1;
+        VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, UINT64_MAX);
+        if (ret != VK_SUCCESS)
+        {
+            fprintf(stderr, "vkWaitForFences failed %d\n", ret);
+            vkdev->reclaim_queue(queue_family_index, queue);
+            return -1;
+        }
     }
 
+    vkdev->reclaim_queue(queue_family_index, queue);
     return 0;
 }
 
-VkCompute::VkCompute(const VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.compute_queue_index)
+VkCompute::VkCompute(const VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.compute_queue_family_index)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
     {
@@ -500,13 +505,13 @@ void VkCompute::record_prepare_compute_barrier(const VkMat& m)
     m.data->state = 3;
 }
 
-int VkCompute::submit()
+int VkCompute::submit_and_wait()
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
     {
         end_command_buffer();
 
-        return queue_submit();
+        return queue_submit_and_wait_fence();
     }
 
     begin_command_buffer();
@@ -555,12 +560,7 @@ int VkCompute::submit()
 
     delayed_records.clear();
 
-    return queue_submit();
-}
-
-int VkCompute::wait()
-{
-    return wait_fence();
+    return queue_submit_and_wait_fence();
 }
 
 int VkCompute::reset()
@@ -727,7 +727,7 @@ void VkCompute::transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
-VkTransfer::VkTransfer(const VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_index)
+VkTransfer::VkTransfer(const VulkanDevice* _vkdev) : Command(_vkdev, _vkdev->info.transfer_queue_family_index)
 {
     buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
     staging_data = 0;
@@ -767,7 +767,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst)
     delayed_records.push_back(r);
 }
 
-int VkTransfer::submit()
+int VkTransfer::submit_and_wait()
 {
     if (delayed_records.empty())
         return 0;
@@ -813,15 +813,7 @@ int VkTransfer::submit()
 
     end_command_buffer();
 
-    return queue_submit();
-}
-
-int VkTransfer::wait()
-{
-    if (delayed_records.empty())
-        return 0;
-
-    int ret = wait_fence();
+    int ret = queue_submit_and_wait_fence();
 
     // deallocate staging buffer
     staging_vkallocator->fastFree(staging_data);
