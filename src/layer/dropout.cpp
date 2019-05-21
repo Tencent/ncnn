@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "dropout.h"
+#include <math.h>
 
 namespace ncnn {
 

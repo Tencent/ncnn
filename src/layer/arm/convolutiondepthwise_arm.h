@@ -19,17 +19,18 @@
 
 namespace ncnn {
 
-class ConvolutionDepthWise_arm : public ConvolutionDepthWise
+class ConvolutionDepthWise_arm : virtual public ConvolutionDepthWise
 {
 public:
     ConvolutionDepthWise_arm();
-    virtual ~ConvolutionDepthWise_arm();
 
-    virtual int load_model(const ModelBin& mb);
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
+    Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
 };
 

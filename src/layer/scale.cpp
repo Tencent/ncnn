@@ -37,12 +37,12 @@ int Scale::load_param(const ParamDict& pd)
 
 int Scale::load_model(const ModelBin& mb)
 {
-    if (scale_data_size != -233)
-    {
-        scale_data = mb.load(scale_data_size, 1);
-        if (scale_data.empty())
-            return -100;
-    }
+    if (scale_data_size == -233)
+        return 0;
+
+    scale_data = mb.load(scale_data_size, 1);
+    if (scale_data.empty())
+        return -100;
 
     if (bias_term)
     {

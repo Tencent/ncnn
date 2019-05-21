@@ -45,11 +45,6 @@ public:
     // set array
     void set(int id, const Mat& v);
 
-public:
-    int use_winograd_convolution;
-    int use_sgemm_convolution;
-    int use_int8_inference;
-
 protected:
     friend class Net;
 
@@ -58,6 +53,7 @@ protected:
 #if NCNN_STDIO
 #if NCNN_STRING
     int load_param(FILE* fp);
+    int load_param_mem(const char*& mem);
 #endif // NCNN_STRING
     int load_param_bin(FILE* fp);
 #endif // NCNN_STDIO

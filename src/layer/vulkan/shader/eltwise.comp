@@ -1,0 +1,87 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (constant_id = 0) const int op_type = 0;
+layout (constant_id = 1) const int coeff_term = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) readonly buffer bottom_blob1 { sfp bottom_blob1_data[]; };
+layout (binding = 1) readonly buffer bottom_blob2 { sfp bottom_blob2_data[]; };
+layout (binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    float coeff0;
+    float coeff1;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.w || gy >= p.h || gz >= p.c)
+        return;
+
+    const int gi = gz * p.cstep + gy * p.w + gx;
+
+    afp v1 = afp(bottom_blob1_data[gi]);
+    afp v2 = afp(bottom_blob2_data[gi]);
+
+    afp res;
+
+    if (coeff_term == 0)
+    {
+        if (op_type == 0)
+            res = v1 * v2;
+
+        if (op_type == 1)
+            res = v1 + v2;
+
+        if (op_type == 2)
+            res = max(v1, v2);
+    }
+    else
+    {
+        if (op_type == 0)
+            res = v1 * afp(p.coeff0) * v2 * afp(p.coeff1);
+
+        if (op_type == 1)
+            res = v1 * afp(p.coeff0) + v2 * afp(p.coeff1);
+
+        if (op_type == 2)
+            res = max(v1 * afp(p.coeff0), v2 * afp(p.coeff1));
+    }
+
+    top_blob_data[gi] = sfp(res);
+}

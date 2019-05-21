@@ -78,6 +78,11 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 {
     FILE* fp = fopen(parampath, "rb");
 
+    if (!fp){
+        fprintf(stderr, "fopen %s failed\n", parampath);
+        return -1;
+    }
+
     FILE* mp = fopen(parambinpath, "wb");
     FILE* ip = fopen(idcpppath, "wb");
 
@@ -251,6 +256,11 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     FILE* mp = fopen(parambinpath, "rb");
 
+    if (!mp){
+        fprintf(stderr, "fopen %s failed\n", parambinpath);
+        return -1;
+    }
+
     fprintf(cppfp, "#ifndef NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
     fprintf(cppfp, "#define NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
 
@@ -280,6 +290,11 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
     std::string model_var = path_to_varname(modelpath);
 
     FILE* bp = fopen(modelpath, "rb");
+
+    if (!bp){
+        fprintf(stderr, "fopen %s failed\n", modelpath);
+        return -1;
+    }
 
     fprintf(cppfp, "\n#ifdef _MSC_VER\n__declspec(align(4))\n#else\n__attribute__((aligned(4)))\n#endif\n");
     fprintf(cppfp, "static const unsigned char %s[] = {\n", model_var.c_str());

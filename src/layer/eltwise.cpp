@@ -21,6 +21,8 @@ DEFINE_LAYER_CREATOR(Eltwise)
 
 Eltwise::Eltwise()
 {
+    one_blob_only = false;
+    support_inplace = false;// TODO inplace reduction
 }
 
 int Eltwise::load_param(const ParamDict& pd)

@@ -18,7 +18,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "platform.h"
 #include "net.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -31,18 +35,15 @@ static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net yolov2;
 
-    // original pretrained model from https://github.com/eric612/Caffe-YOLOv2-Windows
-    // yolov2_deploy.prototxt
-    // yolov2_deploy_iter_30000.caffemodel
-    // https://drive.google.com/file/d/17w7oZBbTHPI5TMuD9DKQzkPhSVDaTlC9/view?usp=sharing
-    yolov2.load_param("yolov2.param");
-    yolov2.load_model("yolov2.bin");
+#if NCNN_VULKAN
+    yolov2.use_vulkan_compute = true;
+#endif // NCNN_VULKAN
 
-    // https://github.com/eric612/MobileNet-YOLO
-    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy%20.prototxt
-    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy_iter_57000.caffemodel
-//     yolov2.load_param("mobilenet_yolo.param");
-//     yolov2.load_model("mobilenet_yolo.bin");
+    // original pretrained model from https://github.com/eric612/MobileNet-YOLO
+    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy.prototxt
+    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy_iter_80000.caffemodel
+    yolov2.load_param("mobilenet_yolo.param");
+    yolov2.load_model("mobilenet_yolo.bin");
 
     const int target_size = 416;
 
@@ -53,7 +54,7 @@ static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // the Caffe-YOLOv2-Windows style
     // X' = X * scale - mean
-    const float mean_vals[3] = {0.5f, 0.5f, 0.5f};
+    const float mean_vals[3] = {1.0f, 1.0f, 1.0f};
     const float norm_vals[3] = {0.007843f, 0.007843f, 0.007843f};
     in.substract_mean_normalize(0, norm_vals);
     in.substract_mean_normalize(mean_vals, 0);
@@ -121,7 +122,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
         cv::rectangle(image, cv::Rect(cv::Point(x, y),
                                       cv::Size(label_size.width, label_size.height + baseLine)),
-                      cv::Scalar(255, 255, 255), CV_FILLED);
+                      cv::Scalar(255, 255, 255), -1);
 
         cv::putText(image, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
@@ -141,15 +142,23 @@ int main(int argc, char** argv)
 
     const char* imagepath = argv[1];
 
-    cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);
+    cv::Mat m = cv::imread(imagepath, 1);
     if (m.empty())
     {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }
 
+#if NCNN_VULKAN
+    ncnn::create_gpu_instance();
+#endif // NCNN_VULKAN
+
     std::vector<Object> objects;
     detect_yolov2(m, objects);
+
+#if NCNN_VULKAN
+    ncnn::destroy_gpu_instance();
+#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 

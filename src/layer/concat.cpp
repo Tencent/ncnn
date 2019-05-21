@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "concat.h"
+#include <algorithm>
 
 namespace ncnn {
 
