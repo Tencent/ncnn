@@ -664,7 +664,7 @@ int VkCompute::get_query_pool_results(uint32_t first_query, uint32_t query_count
     }
 
     VkResult ret = vkGetQueryPoolResults(vkdev->vkdevice(), query_pool, first_query, query_count,
-                                         query_count * sizeof(uint64_t), results.data() + first_query, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
+                                         query_count * sizeof(uint64_t), results.data() + first_query, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
     if (ret != VK_SUCCESS && ret != VK_NOT_READY)
     {
         fprintf(stderr, "vkGetQueryPoolResults failed %d\n", ret);
