@@ -530,6 +530,8 @@ int create_gpu_instance()
         gpu_info.memory_map_alignment = physicalDeviceProperties.limits.minMemoryMapAlignment;
         gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
 
+        gpu_info.timestamp_period = physicalDeviceProperties.limits.timestampPeriod;
+
 //         fprintf(stderr, "[%u] max_shared_memory_size = %u\n", i, gpu_info.max_shared_memory_size);
 //         fprintf(stderr, "[%u] max_workgroup_count = %u %u %u\n", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
 //         fprintf(stderr, "[%u] max_workgroup_invocations = %u\n", i, gpu_info.max_workgroup_invocations);
@@ -549,6 +551,9 @@ int create_gpu_instance()
 
         gpu_info.compute_queue_count = queueFamilyProperties[gpu_info.compute_queue_family_index].queueCount;
         gpu_info.transfer_queue_count = queueFamilyProperties[gpu_info.transfer_queue_family_index].queueCount;
+
+        // compute queue
+        gpu_info.timestamp_valid_bits = queueFamilyProperties[gpu_info.compute_queue_family_index].timestampValidBits;
 
         // find memory type index
         VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
@@ -683,14 +688,14 @@ int create_gpu_instance()
 
             vkGetPhysicalDeviceFeatures2KHR(physicalDevice, &queryFeatures);
 
-//             if (gpu_info.support_VK_KHR_8bit_storage)
-//             {
-//                 gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess && query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
-//             }
-//             if (gpu_info.support_VK_KHR_16bit_storage)
-//             {
-//                 gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
-//             }
+            if (gpu_info.support_VK_KHR_8bit_storage)
+            {
+                gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess && query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
+            }
+            if (gpu_info.support_VK_KHR_16bit_storage)
+            {
+                gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
+            }
 //             if (gpu_info.support_VK_KHR_shader_float16_int8)
 //             {
 //                 gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
