@@ -30,7 +30,7 @@ class Command
 {
 public:
     Command(const VulkanDevice* vkdev, uint32_t queue_family_index);
-    ~Command();
+    virtual ~Command();
 
 protected:
     int create_command_pool();

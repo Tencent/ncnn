@@ -31,7 +31,7 @@
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
 #else
-#define ENABLE_VALIDATION_LAYER 0
+#define ENABLE_VALIDATION_LAYER 1
 #endif
 
 namespace ncnn {
@@ -551,9 +551,6 @@ int create_gpu_instance()
 
         gpu_info.compute_queue_count = queueFamilyProperties[gpu_info.compute_queue_family_index].queueCount;
         gpu_info.transfer_queue_count = queueFamilyProperties[gpu_info.transfer_queue_family_index].queueCount;
-
-        // compute queue
-        gpu_info.timestamp_valid_bits = queueFamilyProperties[gpu_info.compute_queue_family_index].timestampValidBits;
 
         // find memory type index
         VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
