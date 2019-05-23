@@ -62,6 +62,13 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         pd.set(1, activation_params[1]);// max
         activation->load_param(pd);
     }
+    else if (activation_type == 4)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
 
     if (activation)
     {

@@ -124,6 +124,10 @@ void main()
         const afp const_max = afp(activation_param_1);
         sum = clamp(sum, const_min, const_max);
     }
+    if (activation_type == 4)
+    {
+        sum = afp(1.f) / (afp(1.f) + exp(-sum));
+    }
 
     top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(sum);
 }

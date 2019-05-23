@@ -1057,9 +1057,7 @@ int Net::upload_model()
         }
     }
 
-    cmd.submit();
-
-    cmd.wait();
+    cmd.submit_and_wait();
 
     return 0;
 }
@@ -1449,7 +1447,13 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
             if (opt.lightmode && layer->support_inplace)
             {
                 VkMat& bottom_top_blob = bottom_blob;
+#if NCNN_BENCHMARK
+                cmd.record_write_timestamp(layer_index * 2);
                 int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
+                cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
+#endif // NCNN_BENCHMARK
                 if (ret != 0)
                     return ret;
 
@@ -1459,7 +1463,13 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
             else
             {
                 VkMat top_blob;
+#if NCNN_BENCHMARK
+                cmd.record_write_timestamp(layer_index * 2);
                 int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
+                cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
+#endif // NCNN_BENCHMARK
                 if (ret != 0)
                     return ret;
 
@@ -1540,7 +1550,13 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
             if (opt.lightmode && layer->support_inplace)
             {
                 std::vector<VkMat>& bottom_top_blobs = bottom_blobs;
+#if NCNN_BENCHMARK
+                cmd.record_write_timestamp(layer_index * 2);
                 int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
+                cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
+#endif // NCNN_BENCHMARK
                 if (ret != 0)
                     return ret;
 
@@ -1555,7 +1571,13 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
             else
             {
                 std::vector<VkMat> top_blobs(layer->tops.size());
+#if NCNN_BENCHMARK
+                cmd.record_write_timestamp(layer_index * 2);
                 int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
+                cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
+#endif // NCNN_BENCHMARK
                 if (ret != 0)
                     return ret;
 
@@ -1629,9 +1651,22 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     bottom_blob_unpacked_fp32.prepare_staging_buffer();
                     cmd.record_download(bottom_blob_unpacked_fp32);
 
-                    cmd.submit();
+                    cmd.submit_and_wait();
 
-                    cmd.wait();
+#if NCNN_BENCHMARK
+                    std::vector<uint64_t> results(layer_index * 2);
+                    cmd.get_query_pool_results(0, layer_index * 2, results);
+                    for (int i=0; i<layer_index; i++)
+                    {
+                        uint64_t start = results[i*2];
+                        uint64_t end = results[i*2+1];
+                        if (start == 0 || end == 0)
+                            continue;
+
+                        double duration_us = (end - start) * vkdev->info.timestamp_period / 1000;
+                        fprintf(stderr, "%-24s %-30s %8.2lfus    |\n", layers[i]->type.c_str(), layers[i]->name.c_str(), duration_us);
+                    }
+#endif // NCNN_BENCHMARK
 
                     cmd.reset();
 
@@ -1660,8 +1695,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
             if (opt.lightmode && layer->support_inplace)
             {
                 Mat& bottom_top_blob = bottom_blob;
-
+#if NCNN_BENCHMARK
+                double start = get_current_time();
                 int ret = layer->forward_inplace(bottom_top_blob, opt);
+                double end = get_current_time();
+                benchmark(layer, bottom_top_blob, bottom_top_blob, start, end);
+#else
+                int ret = layer->forward_inplace(bottom_top_blob, opt);
+#endif // NCNN_BENCHMARK
                 if (ret != 0)
                     return ret;
 
@@ -1671,7 +1712,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
             else
             {
                 Mat top_blob;
+#if NCNN_BENCHMARK
+                double start = get_current_time();
                 int ret = layer->forward(bottom_blob, top_blob, opt);
+                double end = get_current_time();
+                benchmark(layer, bottom_blob, top_blob, start, end);
+#else
+                int ret = layer->forward(bottom_blob, top_blob, opt);
+#endif // NCNN_BENCHMARK
                 if (ret != 0)
                     return ret;
 
@@ -1742,9 +1790,22 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
             }
 
             {
-                cmd.submit();
+                cmd.submit_and_wait();
 
-                cmd.wait();
+#if NCNN_BENCHMARK
+                std::vector<uint64_t> results(layer_index * 2);
+                cmd.get_query_pool_results(0, layer_index * 2, results);
+                for (int i=0; i<layer_index; i++)
+                {
+                    uint64_t start = results[i*2];
+                    uint64_t end = results[i*2+1];
+                    if (start == 0 || end == 0)
+                        continue;
+
+                    double duration_us = (end - start) * vkdev->info.timestamp_period / 1000;
+                    fprintf(stderr, "%-24s %-30s %8.2lfus    |\n", layers[i]->type.c_str(), layers[i]->name.c_str(), duration_us);
+                }
+#endif // NCNN_BENCHMARK
 
                 cmd.reset();
             }
@@ -1783,8 +1844,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
             if (opt.lightmode && layer->support_inplace)
             {
                 std::vector<Mat>& bottom_top_blobs = bottom_blobs;
-
+#if NCNN_BENCHMARK
+                double start = get_current_time();
                 int ret = layer->forward_inplace(bottom_top_blobs, opt);
+                double end = get_current_time();
+                benchmark(layer, start, end);
+#else
+                int ret = layer->forward_inplace(bottom_top_blobs, opt);
+#endif // NCNN_BENCHMARK
                 if (ret != 0)
                     return ret;
 
@@ -1799,7 +1866,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
             else
             {
                 std::vector<Mat> top_blobs(layer->tops.size());
+#if NCNN_BENCHMARK
+                double start = get_current_time();
                 int ret = layer->forward(bottom_blobs, top_blobs, opt);
+                double end = get_current_time();
+                benchmark(layer, start, end);
+#else
+                int ret = layer->forward(bottom_blobs, top_blobs, opt);
+#endif // NCNN_BENCHMARK
                 if (ret != 0)
                     return ret;
 
@@ -1935,6 +2009,9 @@ int Extractor::extract(int blob_index, Mat& feat)
         if (opt.vulkan_compute)
         {
             ncnn::VkCompute cmd(net->vkdev);
+#if NCNN_BENCHMARK
+            cmd.create_query_pool(net->layers.size() * 2);
+#endif // NCNN_BENCHMARK
 
             VkMat feat_gpu;
             ret = extract(blob_index, feat_gpu, cmd);
@@ -1960,9 +2037,22 @@ int Extractor::extract(int blob_index, Mat& feat)
                 feat_gpu_unpacked_fp32.prepare_staging_buffer();
                 cmd.record_download(feat_gpu_unpacked_fp32);
 
-                cmd.submit();
+                cmd.submit_and_wait();
 
-                cmd.wait();
+#if NCNN_BENCHMARK
+                std::vector<uint64_t> results(net->layers.size() * 2);
+                cmd.get_query_pool_results(0, net->layers.size() * 2, results);
+                for (int i=0; i<net->layers.size(); i++)
+                {
+                    uint64_t start = results[i*2];
+                    uint64_t end = results[i*2+1];
+                    if (start == 0 || end == 0)
+                        continue;
+
+                    double duration_us = (end - start) * net->vkdev->info.timestamp_period / 1000;
+                    fprintf(stderr, "%-24s %-30s %8.2lfus    |\n", net->layers[i]->type.c_str(), net->layers[i]->name.c_str(), duration_us);
+                }
+#endif // NCNN_BENCHMARK
 
                 Mat& feat_cpu = blob_mats[blob_index];
                 feat_cpu.create_like(feat_gpu_unpacked_fp32, opt.blob_allocator);

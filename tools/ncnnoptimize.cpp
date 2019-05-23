@@ -91,8 +91,10 @@ public:
 
     int eliminate_dropout();
     int eliminate_flatten_after_global_pooling();
+    int eliminate_flatten_after_innerproduct();
 
     int replace_convolution_with_innerproduct_after_global_pooling();
+    int replace_convolution_with_innerproduct_after_innerproduct();
 
 public:
     int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
@@ -662,7 +664,7 @@ int NetOptimize::fuse_convolution_activation()
         int j = i + 1;
         for (; j<layer_count; j++)
         {
-            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -705,6 +707,10 @@ int NetOptimize::fuse_convolution_activation()
             convolution->activation_params[0] = clip->min;
             convolution->activation_params[1] = clip->max;
         }
+        else if (activation->type == "Sigmoid")
+        {
+            convolution->activation_type = 4;
+        }
 
         int top_blob_index_final = activation->tops[0];
         convolution->tops[0] = top_blob_index_final;
@@ -729,7 +735,7 @@ int NetOptimize::fuse_convolutiondepthwise_activation()
         int j = i + 1;
         for (; j<layer_count; j++)
         {
-            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -772,6 +778,10 @@ int NetOptimize::fuse_convolutiondepthwise_activation()
             convolutiondepthwise->activation_params[0] = clip->min;
             convolutiondepthwise->activation_params[1] = clip->max;
         }
+        else if (activation->type == "Sigmoid")
+        {
+            convolutiondepthwise->activation_type = 4;
+        }
 
         int top_blob_index_final = activation->tops[0];
         convolutiondepthwise->tops[0] = top_blob_index_final;
@@ -796,7 +806,7 @@ int NetOptimize::fuse_deconvolution_activation()
         int j = i + 1;
         for (; j<layer_count; j++)
         {
-            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -839,6 +849,10 @@ int NetOptimize::fuse_deconvolution_activation()
             deconvolution->activation_params[0] = clip->min;
             deconvolution->activation_params[1] = clip->max;
         }
+        else if (activation->type == "Sigmoid")
+        {
+            deconvolution->activation_type = 4;
+        }
 
         int top_blob_index_final = activation->tops[0];
         deconvolution->tops[0] = top_blob_index_final;
@@ -863,7 +877,7 @@ int NetOptimize::fuse_deconvolutiondepthwise_activation()
         int j = i + 1;
         for (; j<layer_count; j++)
         {
-            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -906,6 +920,10 @@ int NetOptimize::fuse_deconvolutiondepthwise_activation()
             deconvolutiondepthwise->activation_params[0] = clip->min;
             deconvolutiondepthwise->activation_params[1] = clip->max;
         }
+        else if (activation->type == "Sigmoid")
+        {
+            deconvolutiondepthwise->activation_type = 4;
+        }
 
         int top_blob_index_final = activation->tops[0];
         deconvolutiondepthwise->tops[0] = top_blob_index_final;
@@ -930,7 +948,7 @@ int NetOptimize::fuse_innerproduct_activation()
         int j = i + 1;
         for (; j<layer_count; j++)
         {
-            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -972,6 +990,10 @@ int NetOptimize::fuse_innerproduct_activation()
             innerproduct->activation_params = ncnn::Mat(2);
             innerproduct->activation_params[0] = clip->min;
             innerproduct->activation_params[1] = clip->max;
+        }
+        else if (activation->type == "Sigmoid")
+        {
+            innerproduct->activation_type = 4;
         }
 
         int top_blob_index_final = activation->tops[0];
@@ -1071,6 +1093,47 @@ int NetOptimize::eliminate_flatten_after_global_pooling()
     return 0;
 }
 
+int NetOptimize::eliminate_flatten_after_innerproduct()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "InnerProduct")
+            continue;
+
+        // InnerProduct - Flatten
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "Flatten")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)layers[i];
+        ncnn::Flatten* flatten = (ncnn::Flatten*)layers[j];
+
+        fprintf(stderr, "eliminate_flatten_after_innerproduct %s %s\n", innerproduct->name.c_str(), flatten->name.c_str());
+
+        int top_blob_index_final = flatten->tops[0];
+        innerproduct->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        flatten->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
 int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
 {
     const int layer_count = layers.size();
@@ -1123,8 +1186,80 @@ int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
         innerproduct->weight_data = convolution->weight_data;
         innerproduct->bias_data = convolution->bias_data;
 
+        innerproduct->activation_type = convolution->activation_type;
+        innerproduct->activation_params = convolution->activation_params;
+
         layers[j] = innerproduct;
         delete convolution;
+    }
+
+    return 0;
+}
+
+int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
+{
+    const int layer_count = layers.size();
+    for (;;)
+    {
+    bool replaced = false;
+
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "InnerProduct")
+            continue;
+
+        // InnerProduct - Convolution
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "Convolution")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)layers[i];
+        ncnn::Convolution* convolution = (ncnn::Convolution*)layers[j];
+
+        fprintf(stderr, "replace_convolution_with_innerproduct_after_innerproduct %s %s\n", innerproduct->name.c_str(), convolution->name.c_str());
+
+        ncnn::InnerProduct* innerproduct2 = (ncnn::InnerProduct*)ncnn::create_layer("InnerProduct");
+
+        innerproduct2->type = "InnerProduct";
+        innerproduct2->name = convolution->name;
+        innerproduct2->bottoms = convolution->bottoms;
+        innerproduct2->tops = convolution->tops;
+
+        ncnn::ParamDict pd;
+        innerproduct2->load_param(pd);
+
+        innerproduct2->num_output = convolution->num_output;
+        innerproduct2->bias_term = convolution->bias_term;
+        innerproduct2->weight_data_size = convolution->weight_data_size;
+
+        innerproduct2->weight_data = convolution->weight_data;
+        innerproduct2->bias_data = convolution->bias_data;
+
+        innerproduct2->activation_type = convolution->activation_type;
+        innerproduct2->activation_params = convolution->activation_params;
+
+        layers[j] = innerproduct2;
+        delete convolution;
+
+        replaced = true;
+    }
+
+    if (!replaced)
+        break;
     }
 
     return 0;
@@ -1158,8 +1293,15 @@ int NetOptimize::fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp)
     return 0;
 }
 
+static inline size_t alignSize(size_t sz, int n)
+{
+    return (sz + n-1) & -n;
+}
+
 int NetOptimize::fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp)
 {
+    int p0 = ftell(bp);
+
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
     if (storage_type == 1 && tag == 0)
     {
@@ -1174,13 +1316,29 @@ int NetOptimize::fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp
         fwrite(&tag, sizeof(int), 1, bp);
         fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
     }
+
+    // padding to 32bit align
+    int nwrite = ftell(bp) - p0;
+    int nalign = alignSize(nwrite, 4);
+    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
+    fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
+
     return 0;
 }
 
 int NetOptimize::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
 {
+    int p0 = ftell(bp);
+
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
     fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
+
+    // padding to 32bit align
+    int nwrite = ftell(bp) - p0;
+    int nalign = alignSize(nwrite, 4);
+    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
+    fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
+
     return 0;
 }
 
@@ -1316,7 +1474,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_int_array(10, op->activation_params, pp); }
+            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -1340,7 +1498,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 7=%d", group)
             fprintf_param_value(" 8=%d", int8_scale_term)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_int_array(10, op->activation_params, pp); }
+            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -1374,7 +1532,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_int_array(10, op->activation_params, pp); }
+            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -1397,7 +1555,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_int_array(10, op->activation_params, pp); }
+            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -1430,7 +1588,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Eltwise* op_default = (ncnn::Eltwise*)layer_default;
 
             fprintf_param_value(" 0=%d", op_type)
-            { if (!op->coeffs.empty()) fprintf_param_int_array(1, op->coeffs, pp); }
+            { if (!op->coeffs.empty()) fprintf_param_float_array(1, op->coeffs, pp); }
         }
         else if (layer->type == "ELU")
         {
@@ -1458,7 +1616,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%d", weight_data_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_int_array(10, op->activation_params, pp); }
+            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -1592,9 +1750,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::PriorBox* op = (ncnn::PriorBox*)layer;
             ncnn::PriorBox* op_default = (ncnn::PriorBox*)layer_default;
 
-            { if (!op->min_sizes.empty()) fprintf_param_int_array(0, op->min_sizes, pp); }
-            { if (!op->max_sizes.empty()) fprintf_param_int_array(1, op->max_sizes, pp); }
-            { if (!op->aspect_ratios.empty()) fprintf_param_int_array(2, op->aspect_ratios, pp); }
+            { if (!op->min_sizes.empty()) fprintf_param_float_array(0, op->min_sizes, pp); }
+            { if (!op->max_sizes.empty()) fprintf_param_float_array(1, op->max_sizes, pp); }
+            { if (!op->aspect_ratios.empty()) fprintf_param_float_array(2, op->aspect_ratios, pp); }
             fprintf_param_value(" 3=%f", variances[0])
             fprintf_param_value(" 4=%f", variances[1])
             fprintf_param_value(" 5=%f", variances[2])
@@ -1761,7 +1919,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", num_box)
             fprintf_param_value(" 2=%f", confidence_threshold)
             fprintf_param_value(" 3=%f", nms_threshold)
-            { if (!op->biases.empty()) fprintf_param_int_array(4, op->biases, pp); }
+            { if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp); }
         }
         else if (layer->type == "Yolov3DetectionOutput")
         {
@@ -1772,9 +1930,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", num_box)
             fprintf_param_value(" 2=%f", confidence_threshold)
             fprintf_param_value(" 3=%f", nms_threshold)
-            { if (!op->biases.empty()) fprintf_param_int_array(4, op->biases, pp); }
+            { if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp); }
             { if (!op->mask.empty()) fprintf_param_int_array(5, op->mask, pp); }
-            { if (!op->anchors_scale.empty()) fprintf_param_int_array(6, op->anchors_scale, pp); }
+            { if (!op->anchors_scale.empty()) fprintf_param_float_array(6, op->anchors_scale, pp); }
         }
 
 #undef fprintf_param_value
@@ -1835,6 +1993,9 @@ int main(int argc, char** argv)
     optimizer.eliminate_flatten_after_global_pooling();
 
     optimizer.replace_convolution_with_innerproduct_after_global_pooling();
+    optimizer.replace_convolution_with_innerproduct_after_innerproduct();
+
+    optimizer.eliminate_flatten_after_innerproduct();
 
     optimizer.save(outparam, outbin);
 
