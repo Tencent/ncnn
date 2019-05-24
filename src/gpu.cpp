@@ -31,7 +31,7 @@
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
 #else
-#define ENABLE_VALIDATION_LAYER 1
+#define ENABLE_VALIDATION_LAYER 0
 #endif
 
 namespace ncnn {
