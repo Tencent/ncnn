@@ -111,7 +111,7 @@ void main()
                     afpvec4(weight_data[(w_offset + x) * 4 + 3])
                 );
 #else
-                afpmat4 k = weight_data[w_offset + x];
+                afpmat4 k = afpmat4(weight_data[w_offset + x]);
 #endif
 
                 sum += v * k;

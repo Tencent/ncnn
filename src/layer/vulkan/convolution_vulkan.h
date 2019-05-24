@@ -47,6 +47,14 @@ public:
     Pipeline* pipeline_convolution_pack4;
     Pipeline* pipeline_convolution_pack4_3x3s1d1_lds_8_8_2;
 
+    // pack4 winograd23
+    ncnn::Layer* winograd23_padding;
+    ncnn::Layer* winograd23_crop;
+    VkMat weight_data_gpu_pack4_tm;
+    Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input;
+    Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_gemm;
+    Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output;
+
     // pack1to4
     VkMat weight_data_gpu_pack1to4;
     Pipeline* pipeline_convolution_pack1to4;
