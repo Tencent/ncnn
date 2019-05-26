@@ -55,8 +55,8 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    afpvec4 v1 = afpvec4(bottom_blob1_data[gi]);
-    afpvec4 v2 = afpvec4(bottom_blob2_data[gi]);
+    afpvec4 v1 = sfp2afpvec4(bottom_blob1_data[gi]);
+    afpvec4 v2 = sfp2afpvec4(bottom_blob2_data[gi]);
 
     afpvec4 res;
 
@@ -83,5 +83,5 @@ void main()
             res = max(v1 * afp(p.coeff0), v2 * afp(p.coeff1));
     }
 
-    top_blob_data[gi] = sfpvec4(res);
+    top_blob_data[gi] = afp2sfpvec4(res);
 }

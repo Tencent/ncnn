@@ -102,6 +102,37 @@ void main()
         gi = gz * p.outcstep + gy * p.outw + gx;
     }
 
+#if NCNN_fp16_packed
+    vec4 vr = sfp2afpvec4(bottom_blob_data[v_offset.r]);
+    vec4 vg = sfp2afpvec4(bottom_blob_data[v_offset.g]);
+    vec4 vb = sfp2afpvec4(bottom_blob_data[v_offset.b]);
+    vec4 va = sfp2afpvec4(bottom_blob_data[v_offset.a]);
+
+    vec2 v0;
+    vec2 v1;
+
+    if (lane4.r == 0) v0.x = vr.r;
+    else if (lane4.r == 1) v0.x = vr.g;
+    else if (lane4.r == 2) v0.x = vr.b;
+    else /* if (lane4.r == 3) */ v0.x = vr.a;
+
+    if (lane4.g == 0) v0.y = vg.r;
+    else if (lane4.g == 1) v0.y = vg.g;
+    else if (lane4.g == 2) v0.y = vg.b;
+    else /* if (lane4.g == 3) */ v0.y = vg.a;
+
+    if (lane4.b == 0) v1.x = vb.r;
+    else if (lane4.b == 1) v1.x = vb.g;
+    else if (lane4.b == 2) v1.x = vb.b;
+    else /* if (lane4.b == 3) */ v1.x = vb.a;
+
+    if (lane4.a == 0) v1.y = va.r;
+    else if (lane4.a == 1) v1.y = va.g;
+    else if (lane4.a == 2) v1.y = va.b;
+    else /* if (lane4.a == 3) */ v1.y = va.a;
+
+    top_blob_data[gi] = uvec2(packHalf2x16(v0), packHalf2x16(v1));
+#else
     if (lane4.r == 0) top_blob_data[gi].r = bottom_blob_data[v_offset.r].r;
     else if (lane4.r == 1) top_blob_data[gi].r = bottom_blob_data[v_offset.r].g;
     else if (lane4.r == 2) top_blob_data[gi].r = bottom_blob_data[v_offset.r].b;
@@ -120,5 +151,6 @@ void main()
     if (lane4.a == 0) top_blob_data[gi].a = bottom_blob_data[v_offset.a].r;
     else if (lane4.a == 1) top_blob_data[gi].a = bottom_blob_data[v_offset.a].g;
     else if (lane4.a == 2) top_blob_data[gi].a = bottom_blob_data[v_offset.a].b;
-    else /* if (lane4.a == 3) */ top_blob_data[gi].r = bottom_blob_data[v_offset.a].a;
+    else /* if (lane4.a == 3) */ top_blob_data[gi].a = bottom_blob_data[v_offset.a].a;
+#endif
 }

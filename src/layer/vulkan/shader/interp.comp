@@ -95,15 +95,18 @@ void main()
         int v_offset_0 = gz * p.cstep + sy * p.w + sx;
         int v_offset_1 = gz * p.cstep + (sy + 1) * p.w + sx;
 
-        afp a0 = afp(bottom_blob_data[v_offset_0]);
-        afp a1 = afp(bottom_blob_data[v_offset_0 + 1]);
-        afp b0 = afp(bottom_blob_data[v_offset_1]);
-        afp b1 = afp(bottom_blob_data[v_offset_1 + 1]);
+        afp a0 = sfp2afp(bottom_blob_data[v_offset_0]);
+        afp a1 = sfp2afp(bottom_blob_data[v_offset_0 + 1]);
+        afp b0 = sfp2afp(bottom_blob_data[v_offset_1]);
+        afp b1 = sfp2afp(bottom_blob_data[v_offset_1 + 1]);
 
         afp fx = fxy.r;
         afp fy = fxy.g;
 
         afpvec2 ab = afpvec2(a0, b0) * (afp(1.f) - fx) + afpvec2(a1, b1) * fx;
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(ab.r * (afp(1.f) - fy) + ab.g * fy);
+
+        afp res = ab.r * (afp(1.f) - fy) + ab.g * fy;
+
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfp(res);
     }
 }

@@ -63,26 +63,22 @@ void main()
     afpvec4 sum = afpvec4(0.f);
 
     ivec4 z4 = gz * 4 + ivec4(0, 1, 2, 3);
-
     ivec4 v_offset = z4 * p.cstep + gy * p.w + gx;
 
     for (int z = 0; z < local_size; z++)
     {
-        sum.r += afp(square_workspace_data[v_offset.r]);
-        sum.g += afp(square_workspace_data[v_offset.g]);
-        sum.b += afp(square_workspace_data[v_offset.b]);
-        sum.a += afp(square_workspace_data[v_offset.a]);
+        sum.r += sfp2afp(square_workspace_data[v_offset.r]);
+        sum.g += sfp2afp(square_workspace_data[v_offset.g]);
+        sum.b += sfp2afp(square_workspace_data[v_offset.b]);
+        sum.a += sfp2afp(square_workspace_data[v_offset.a]);
 
         v_offset += p.cstep;
     }
 
     const afp alpha_div_size = afp(alpha / local_size);
-
     afpvec4 scale = pow(afp(bias_constant) + alpha_div_size * sum, afpvec4(-beta));
 
-    afpvec4 v = afpvec4(bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx]);
-
-    v *= scale;
-
-    bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(v);
+    int gi = gz * p.outcstep + gy * p.outw + gx;
+    afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]) * scale;
+    bottom_top_blob_data[gi] = afp2sfpvec4(v);
 }

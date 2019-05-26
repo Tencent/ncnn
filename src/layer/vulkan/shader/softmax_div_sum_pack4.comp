@@ -56,42 +56,48 @@ void main()
 
     if (p.dims == 1) // axis == 0
     {
-        bottom_top_blob_data[gx] = sfpvec4(afpvec4(bottom_top_blob_data[gx]) / afpvec4(sum_workspace_data[0]));
+        afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gx]) / sfp2afpvec4(sum_workspace_data[0]);
+        bottom_top_blob_data[gx] = afp2sfpvec4(v);
         return;
     }
 
     if (p.dims == 2 && axis == 0)
     {
         int gi = gy * p.w + gx;
-        bottom_top_blob_data[gi] = sfpvec4(afpvec4(bottom_top_blob_data[gi]) / afpvec4(sum_workspace_data[gx]));
+        afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]) / sfp2afpvec4(sum_workspace_data[gx]);
+        bottom_top_blob_data[gi] = afp2sfpvec4(v);
         return;
     }
 
     if (p.dims == 2 && axis == 1)
     {
         int gi = gy * p.w + gx;
-        bottom_top_blob_data[gi] = sfpvec4(afpvec4(bottom_top_blob_data[gi]) / afpvec4(sum_workspace_data[gy]));
+        afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]) / sfp2afpvec4(sum_workspace_data[gy]);
+        bottom_top_blob_data[gi] = afp2sfpvec4(v);
         return;
     }
 
     if (p.dims == 3 && axis == 0)
     {
         int gi = gz * p.cstep + gy * p.w + gx;
-        bottom_top_blob_data[gi] = sfpvec4(afpvec4(bottom_top_blob_data[gi]) / afpvec4(sum_workspace_data[gy * p.w + gx]));
+        afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]) / sfp2afpvec4(sum_workspace_data[gy * p.w + gx]);
+        bottom_top_blob_data[gi] = afp2sfpvec4(v);
         return;
     }
 
     if (p.dims == 3 && axis == 1)
     {
         int gi = gz * p.cstep + gy * p.w + gx;
-        bottom_top_blob_data[gi] = sfpvec4(afpvec4(bottom_top_blob_data[gi]) / afpvec4(sum_workspace_data[gz * p.w + gx]));
+        afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]) / sfp2afpvec4(sum_workspace_data[gz * p.w + gx]);
+        bottom_top_blob_data[gi] = afp2sfpvec4(v);
         return;
     }
 
     if (p.dims == 3 && axis == 2)
     {
         int gi = gz * p.cstep + gy * p.w + gx;
-        bottom_top_blob_data[gi] = sfpvec4(afpvec4(bottom_top_blob_data[gi]) / afpvec4(sum_workspace_data[gz * p.h + gy]));
+        afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]) / sfp2afpvec4(sum_workspace_data[gz * p.h + gy]);
+        bottom_top_blob_data[gi] = afp2sfpvec4(v);
         return;
     }
 }

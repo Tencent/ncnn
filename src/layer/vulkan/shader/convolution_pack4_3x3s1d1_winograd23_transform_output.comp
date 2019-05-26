@@ -59,22 +59,22 @@ void main()
     // load 16
     int v_tm_offset = gz * p.cstep + (gy * p.block_x + gx) * 16;
 
-    afpvec4 v00 = afpvec4(top_tm_blob_data[v_tm_offset + 0]);
-    afpvec4 v01 = afpvec4(top_tm_blob_data[v_tm_offset + 1]);
-    afpvec4 v02 = afpvec4(top_tm_blob_data[v_tm_offset + 2]);
-    afpvec4 v03 = afpvec4(top_tm_blob_data[v_tm_offset + 3]);
-    afpvec4 v10 = afpvec4(top_tm_blob_data[v_tm_offset + 4]);
-    afpvec4 v11 = afpvec4(top_tm_blob_data[v_tm_offset + 5]);
-    afpvec4 v12 = afpvec4(top_tm_blob_data[v_tm_offset + 6]);
-    afpvec4 v13 = afpvec4(top_tm_blob_data[v_tm_offset + 7]);
-    afpvec4 v20 = afpvec4(top_tm_blob_data[v_tm_offset + 8]);
-    afpvec4 v21 = afpvec4(top_tm_blob_data[v_tm_offset + 9]);
-    afpvec4 v22 = afpvec4(top_tm_blob_data[v_tm_offset + 10]);
-    afpvec4 v23 = afpvec4(top_tm_blob_data[v_tm_offset + 11]);
-    afpvec4 v30 = afpvec4(top_tm_blob_data[v_tm_offset + 12]);
-    afpvec4 v31 = afpvec4(top_tm_blob_data[v_tm_offset + 13]);
-    afpvec4 v32 = afpvec4(top_tm_blob_data[v_tm_offset + 14]);
-    afpvec4 v33 = afpvec4(top_tm_blob_data[v_tm_offset + 15]);
+    afpvec4 v00 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 0]);
+    afpvec4 v01 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 1]);
+    afpvec4 v02 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 2]);
+    afpvec4 v03 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 3]);
+    afpvec4 v10 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 4]);
+    afpvec4 v11 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 5]);
+    afpvec4 v12 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 6]);
+    afpvec4 v13 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 7]);
+    afpvec4 v20 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 8]);
+    afpvec4 v21 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 9]);
+    afpvec4 v22 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 10]);
+    afpvec4 v23 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 11]);
+    afpvec4 v30 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 12]);
+    afpvec4 v31 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 13]);
+    afpvec4 v32 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 14]);
+    afpvec4 v33 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 15]);
 
     // const float itm[2][4] = {
     //     {1.0f,  1.0f,  1.0f,  0.0f},
@@ -94,7 +94,7 @@ void main()
 
     if (bias_term == 1)
     {
-        const afpvec4 bias_value = afpvec4(bias_data[gz]);
+        const afpvec4 bias_value = sfp2afpvec4(bias_data[gz]);
 
         v00 = bias_value + m00 + m01 + m02;
         v10 = bias_value + m10 + m11 + m12;
@@ -147,8 +147,8 @@ void main()
     int v_offset_0 = gz * p.outcstep + gy * 2 * p.outw + gx * 2;
     int v_offset_1 = v_offset_0 + p.outw;
 
-    top_blob_data[v_offset_0 + 0] = sfpvec4(v00);
-    top_blob_data[v_offset_0 + 1] = sfpvec4(v01);
-    top_blob_data[v_offset_1 + 0] = sfpvec4(v10);
-    top_blob_data[v_offset_1 + 1] = sfpvec4(v11);
+    top_blob_data[v_offset_0 + 0] = afp2sfpvec4(v00);
+    top_blob_data[v_offset_0 + 1] = afp2sfpvec4(v01);
+    top_blob_data[v_offset_1 + 0] = afp2sfpvec4(v10);
+    top_blob_data[v_offset_1 + 1] = afp2sfpvec4(v11);
 }

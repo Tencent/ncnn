@@ -64,25 +64,25 @@ void main()
     int v_offset_2 = gz * p.cstep + (sy + 1) * p.w + sx;
     int v_offset_3 = gz * p.cstep + (sy + 2) * p.w + sx;
 
-    afp a0 = afp(bottom_blob_data[v_offset_0 - 1]);
-    afp a1 = afp(bottom_blob_data[v_offset_0 + 0]);
-    afp a2 = afp(bottom_blob_data[v_offset_0 + 1]);
-    afp a3 = afp(bottom_blob_data[v_offset_0 + 2]);
+    afp a0 = sfp2afp(bottom_blob_data[v_offset_0 - 1]);
+    afp a1 = sfp2afp(bottom_blob_data[v_offset_0 + 0]);
+    afp a2 = sfp2afp(bottom_blob_data[v_offset_0 + 1]);
+    afp a3 = sfp2afp(bottom_blob_data[v_offset_0 + 2]);
 
-    afp b0 = afp(bottom_blob_data[v_offset_1 - 1]);
-    afp b1 = afp(bottom_blob_data[v_offset_1 + 0]);
-    afp b2 = afp(bottom_blob_data[v_offset_1 + 1]);
-    afp b3 = afp(bottom_blob_data[v_offset_1 + 2]);
+    afp b0 = sfp2afp(bottom_blob_data[v_offset_1 - 1]);
+    afp b1 = sfp2afp(bottom_blob_data[v_offset_1 + 0]);
+    afp b2 = sfp2afp(bottom_blob_data[v_offset_1 + 1]);
+    afp b3 = sfp2afp(bottom_blob_data[v_offset_1 + 2]);
 
-    afp c0 = afp(bottom_blob_data[v_offset_2 - 1]);
-    afp c1 = afp(bottom_blob_data[v_offset_2 + 0]);
-    afp c2 = afp(bottom_blob_data[v_offset_2 + 1]);
-    afp c3 = afp(bottom_blob_data[v_offset_2 + 2]);
+    afp c0 = sfp2afp(bottom_blob_data[v_offset_2 - 1]);
+    afp c1 = sfp2afp(bottom_blob_data[v_offset_2 + 0]);
+    afp c2 = sfp2afp(bottom_blob_data[v_offset_2 + 1]);
+    afp c3 = sfp2afp(bottom_blob_data[v_offset_2 + 2]);
 
-    afp d0 = afp(bottom_blob_data[v_offset_3 - 1]);
-    afp d1 = afp(bottom_blob_data[v_offset_3 + 0]);
-    afp d2 = afp(bottom_blob_data[v_offset_3 + 1]);
-    afp d3 = afp(bottom_blob_data[v_offset_3 + 2]);
+    afp d0 = sfp2afp(bottom_blob_data[v_offset_3 - 1]);
+    afp d1 = sfp2afp(bottom_blob_data[v_offset_3 + 0]);
+    afp d2 = sfp2afp(bottom_blob_data[v_offset_3 + 1]);
+    afp d3 = sfp2afp(bottom_blob_data[v_offset_3 + 2]);
 
     afpmat4 abcd0123 = afpmat4(
         a0, a1, a2, a3,
@@ -91,11 +91,13 @@ void main()
         d0, d1, d2, d3
     );
 
-    afpvec4 alpha = afpvec4(alpha_blob_data[gx]);
+    afpvec4 alpha = sfp2afpvec4(alpha_blob_data[gx]);
 
     afpvec4 abcd = alpha * abcd0123;
 
-    afpvec4 beta = afpvec4(beta_blob_data[gy]);
+    afpvec4 beta = sfp2afpvec4(beta_blob_data[gy]);
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(dot(abcd, beta));
+    afp v = dot(abcd, beta);
+
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfp(v);
 }

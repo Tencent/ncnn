@@ -641,6 +641,7 @@ int create_gpu_instance()
         }
 
         // check features
+        gpu_info.support_fp16_packed = false;// TODO
         gpu_info.support_fp16_storage = false;
         gpu_info.support_fp16_arithmetic = false;
         gpu_info.support_int8_storage = false;

@@ -49,8 +49,6 @@ void main()
         return;
 
     const int gi = gz * p.cstep + gy * p.w + gx;
-
-    afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
-
-    bottom_top_blob_data[gi] = sfpvec4(clamp(v, afp(const_min), afp(const_max)));
+    afpvec4 v = clamp(sfp2afpvec4(bottom_top_blob_data[gi]), afp(const_min), afp(const_max));
+    bottom_top_blob_data[gi] = afp2sfpvec4(v);
 }

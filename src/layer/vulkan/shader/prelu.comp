@@ -50,14 +50,12 @@ void main()
 
     if (p.dims == 1)
     {
-        afp v = afp(bottom_top_blob_data[gx]);
-
-        afp slope = num_slope > 1 ? afp(slope_blob_data[gx]) : afp(slope_blob_data[0]);
+        afp v = sfp2afp(bottom_top_blob_data[gx]);
+        afp slope = num_slope > 1 ? sfp2afp(slope_blob_data[gx]) : sfp2afp(slope_blob_data[0]);
 
         v = v < afp(0.f) ? v * slope : v;
 
-        bottom_top_blob_data[gx] = sfp(v);
-
+        bottom_top_blob_data[gx] = afp2sfp(v);
         return;
     }
 
@@ -65,14 +63,12 @@ void main()
     {
         const int gi = gy * p.w + gx;
 
-        afp v = afp(bottom_top_blob_data[gi]);
-
-        afp slope = num_slope > 1 ? afp(slope_blob_data[gy]) : afp(slope_blob_data[0]);
+        afp v = sfp2afp(bottom_top_blob_data[gi]);
+        afp slope = num_slope > 1 ? sfp2afp(slope_blob_data[gy]) : sfp2afp(slope_blob_data[0]);
 
         v = v < afp(0.f) ? v * slope : v;
 
-        bottom_top_blob_data[gi] = sfp(v);
-
+        bottom_top_blob_data[gi] = afp2sfp(v);
         return;
     }
 
@@ -80,14 +76,12 @@ void main()
     {
         const int gi = gz * p.cstep + gy * p.w + gx;
 
-        afp v = afp(bottom_top_blob_data[gi]);
-
-        afp slope = num_slope > 1 ? afp(slope_blob_data[gz]) : afp(slope_blob_data[0]);
+        afp v = sfp2afp(bottom_top_blob_data[gi]);
+        afp slope = num_slope > 1 ? sfp2afp(slope_blob_data[gz]) : sfp2afp(slope_blob_data[0]);
 
         v = v < afp(0.f) ? v * slope : v;
 
-        bottom_top_blob_data[gi] = sfp(v);
-
+        bottom_top_blob_data[gi] = afp2sfp(v);
         return;
     }
 }

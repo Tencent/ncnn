@@ -89,6 +89,10 @@ int Pipeline::create(const char* _name, const std::vector<vk_specialization_type
     {
         name += "_fp16s";
     }
+    else if (vkdev->info.support_fp16_packed)
+    {
+        name += "_fp16p";
+    }
 
     VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
 

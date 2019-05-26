@@ -81,7 +81,7 @@ void main()
                     if (gx * stride_w + x >= p.w)
                         continue;
 
-                    res = max(res, afpvec4(bottom_blob_data[v_offset + x]));
+                    res = max(res, sfp2afpvec4(bottom_blob_data[v_offset + x]));
                 }
 
                 v_offset += p.w;
@@ -104,7 +104,7 @@ void main()
                     if (gx * stride_w + x >= p.w)
                         continue;
 
-                    res += afpvec4(bottom_blob_data[v_offset + x]);
+                    res += sfp2afpvec4(bottom_blob_data[v_offset + x]);
                     area += 1;
                 }
 
@@ -114,7 +114,7 @@ void main()
             res /= afp(area);
         }
 
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(res);
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfpvec4(res);
 
         return;
     }
@@ -129,7 +129,7 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res = max(res, afpvec4(bottom_blob_data[v_offset + x]));
+                res = max(res, sfp2afpvec4(bottom_blob_data[v_offset + x]));
             }
 
             v_offset += p.w;
@@ -145,7 +145,7 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res += afpvec4(bottom_blob_data[v_offset + x]);
+                res += sfp2afpvec4(bottom_blob_data[v_offset + x]);
             }
 
             v_offset += p.w;
@@ -154,5 +154,5 @@ void main()
         res /= afp(kernel_w * kernel_h);
     }
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(res);
+    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfpvec4(res);
 }

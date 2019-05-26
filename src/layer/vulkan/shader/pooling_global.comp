@@ -65,7 +65,7 @@ void main()
 
         for (int i = 0; i < size; i++)
         {
-            res = max(res, afp(bottom_blob_data[v_offset + i]));
+            res = max(res, sfp2afp(bottom_blob_data[v_offset + i]));
         }
     }
     else if (pooling_type == 1)
@@ -74,11 +74,11 @@ void main()
 
         for (int i = 0; i < size; i++)
         {
-            res += afp(bottom_blob_data[v_offset + i]);
+            res += sfp2afp(bottom_blob_data[v_offset + i]);
         }
 
         res /= afp(size);
     }
 
-    top_blob_data[gx] = sfp(res);
+    top_blob_data[gx] = afp2sfp(res);
 }

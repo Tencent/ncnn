@@ -85,6 +85,7 @@ public:
     uint32_t host_visible_memory_index;
 
     // fp16 and int8 feature
+    bool support_fp16_packed;
     bool support_fp16_storage;
     bool support_fp16_arithmetic;
     bool support_int8_storage;
