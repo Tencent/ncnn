@@ -59,11 +59,11 @@ void main()
         afpvec4 sum_value = afpvec4(0.f);
         for (int i = 0; i < p.w; i++)
         {
-            sum_value += afpvec4(bottom_top_blob_data[i]);
+            sum_value += sfp2afpvec4(bottom_top_blob_data[i]);
         }
         afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_workspace_data[0] = sfpvec4(sum2.r + sum2.g);
-
+        sum_value = afpvec4(sum2.r + sum2.g);
+        sum_workspace_data[0] = afp2sfpvec4(sum_value);
         return;
     }
 
@@ -73,11 +73,11 @@ void main()
         for (int i = 0; i < p.h; i++)
         {
             int v_offset = i * p.w + gx;
-            sum_value += afpvec4(bottom_top_blob_data[v_offset]);
+            sum_value += sfp2afpvec4(bottom_top_blob_data[v_offset]);
         }
         afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_workspace_data[gx] = sfpvec4(sum2.r + sum2.g);
-
+        sum_value = afpvec4(sum2.r + sum2.g);
+        sum_workspace_data[gx] = afp2sfpvec4(sum_value);
         return;
     }
 
@@ -87,10 +87,9 @@ void main()
         for (int i = 0; i < p.w; i++)
         {
             int v_offset = gx * p.w + i;
-            sum_value += afpvec4(bottom_top_blob_data[v_offset]);
+            sum_value += sfp2afpvec4(bottom_top_blob_data[v_offset]);
         }
-        sum_workspace_data[gx] = sfpvec4(sum_value);
-
+        sum_workspace_data[gx] = afp2sfpvec4(sum_value);
         return;
     }
 
@@ -100,11 +99,11 @@ void main()
         for (int i = 0; i < p.c; i++)
         {
             int v_offset = i * p.cstep + gy * p.w + gx;
-            sum_value += afpvec4(bottom_top_blob_data[v_offset]);
+            sum_value += sfp2afpvec4(bottom_top_blob_data[v_offset]);
         }
         afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_workspace_data[ gy * p.w + gx ] = sfpvec4(sum2.r + sum2.g);
-
+        sum_value = afpvec4(sum2.r + sum2.g);
+        sum_workspace_data[ gy * p.w + gx ] = afp2sfpvec4(sum_value);
         return;
     }
 
@@ -114,10 +113,9 @@ void main()
         for (int i = 0; i < p.h; i++)
         {
             int v_offset = gy * p.cstep + i * p.w + gx;
-            sum_value += afpvec4(bottom_top_blob_data[v_offset]);
+            sum_value += sfp2afpvec4(bottom_top_blob_data[v_offset]);
         }
-        sum_workspace_data[gy * p.w + gx] = sfpvec4(sum_value);
-
+        sum_workspace_data[gy * p.w + gx] = afp2sfpvec4(sum_value);
         return;
     }
 
@@ -127,10 +125,9 @@ void main()
         for (int i = 0; i < p.w; i++)
         {
             int v_offset = gy * p.cstep + gx * p.w + i;
-            sum_value += afpvec4(bottom_top_blob_data[v_offset]);
+            sum_value += sfp2afpvec4(bottom_top_blob_data[v_offset]);
         }
-        sum_workspace_data[gy * p.h + gx] = sfpvec4(sum_value);
-
+        sum_workspace_data[gy * p.h + gx] = afp2sfpvec4(sum_value);
         return;
     }
 }

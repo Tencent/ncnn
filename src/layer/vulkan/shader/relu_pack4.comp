@@ -49,12 +49,12 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
+    afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]);
 
     if (slope == 0)
         v = max(v, afp(0.f));
     else
         v = mix(v, v * afp(slope), lessThan(v, afpvec4(0.f)));
 
-    bottom_top_blob_data[gi] = sfpvec4(v);
+    bottom_top_blob_data[gi] = afp2sfpvec4(v);
 }

@@ -59,10 +59,9 @@ void main()
         afp sum_value = afp(0.f);
         for (int i = 0; i < p.w; i++)
         {
-            sum_value += afp(bottom_top_blob_data[i]);
+            sum_value += sfp2afp(bottom_top_blob_data[i]);
         }
-        sum_workspace_data[0] = sfp(sum_value);
-
+        sum_workspace_data[0] = afp2sfp(sum_value);
         return;
     }
 
@@ -72,10 +71,9 @@ void main()
         for (int i = 0; i < p.h; i++)
         {
             int v_offset = i * p.w + gx;
-            sum_value += afp(bottom_top_blob_data[v_offset]);
+            sum_value += sfp2afp(bottom_top_blob_data[v_offset]);
         }
-        sum_workspace_data[gx] = sfp(sum_value);
-
+        sum_workspace_data[gx] = afp2sfp(sum_value);
         return;
     }
 
@@ -85,10 +83,9 @@ void main()
         for (int i = 0; i < p.w; i++)
         {
             int v_offset = gx * p.w + i;
-            sum_value += afp(bottom_top_blob_data[v_offset]);
+            sum_value += sfp2afp(bottom_top_blob_data[v_offset]);
         }
-        sum_workspace_data[gx] = sfp(sum_value);
-
+        sum_workspace_data[gx] = afp2sfp(sum_value);
         return;
     }
 
@@ -98,10 +95,9 @@ void main()
         for (int i = 0; i < p.c; i++)
         {
             int v_offset = i * p.cstep + gy * p.w + gx;
-            sum_value += afp(bottom_top_blob_data[v_offset]);
+            sum_value += sfp2afp(bottom_top_blob_data[v_offset]);
         }
-        sum_workspace_data[gy * p.w + gx] = sfp(sum_value);
-
+        sum_workspace_data[gy * p.w + gx] = afp2sfp(sum_value);
         return;
     }
 
@@ -111,10 +107,9 @@ void main()
         for (int i = 0; i < p.h; i++)
         {
             int v_offset = gy * p.cstep + i * p.w + gx;
-            sum_value += afp(bottom_top_blob_data[v_offset]);
+            sum_value += sfp2afp(bottom_top_blob_data[v_offset]);
         }
-        sum_workspace_data[gy * p.w + gx] = sfp(sum_value);
-
+        sum_workspace_data[gy * p.w + gx] = afp2sfp(sum_value);
         return;
     }
 
@@ -124,10 +119,9 @@ void main()
         for (int i = 0; i < p.w; i++)
         {
             int v_offset = gy * p.cstep + gx * p.w + i;
-            sum_value += afp(bottom_top_blob_data[v_offset]);
+            sum_value += sfp2afp(bottom_top_blob_data[v_offset]);
         }
-        sum_workspace_data[gy * p.h + gx] = sfp(sum_value);
-
+        sum_workspace_data[gy * p.h + gx] = afp2sfp(sum_value);
         return;
     }
 }

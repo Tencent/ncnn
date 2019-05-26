@@ -48,10 +48,6 @@ void main()
         return;
 
     const int gi = gz * p.cstep + gy * p.w + gx;
-
-    afp v = afp(bottom_top_blob_data[gi]);
-
-    v *= afp(scale);
-
-    bottom_top_blob_data[gi] = sfp(v);
+    afp v = sfp2afp(bottom_top_blob_data[gi]) * afp(scale);
+    bottom_top_blob_data[gi] = afp2sfp(v);
 }

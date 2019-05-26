@@ -50,14 +50,12 @@ void main()
 
     if (p.dims == 1)
     {
-        afpvec4 v = afpvec4(bottom_top_blob_data[gx]);
-
-        afpvec4 slope = num_slope > 1 ? afpvec4(slope_blob_data[gx]) : afpvec4(slope_blob_data[0]);
+        afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gx]);
+        afpvec4 slope = num_slope > 1 ? sfp2afpvec4(slope_blob_data[gx]) : sfp2afpvec4(slope_blob_data[0]);
 
         v = mix(v, v * slope, lessThan(v, afpvec4(0.f)));
 
-        bottom_top_blob_data[gx] = sfpvec4(v);
-
+        bottom_top_blob_data[gx] = afp2sfpvec4(v);
         return;
     }
 
@@ -65,14 +63,12 @@ void main()
     {
         const int gi = gy * p.w + gx;
 
-        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
-
-        afpvec4 slope = num_slope > 1 ? afpvec4(slope_blob_data[gy]) : afpvec4(slope_blob_data[0]);
+        afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]);
+        afpvec4 slope = num_slope > 1 ? sfp2afpvec4(slope_blob_data[gy]) : sfp2afpvec4(slope_blob_data[0]);
 
         v = mix(v, v * slope, lessThan(v, afpvec4(0.f)));
 
-        bottom_top_blob_data[gi] = sfpvec4(v);
-
+        bottom_top_blob_data[gi] = afp2sfpvec4(v);
         return;
     }
 
@@ -80,14 +76,12 @@ void main()
     {
         const int gi = gz * p.cstep + gy * p.w + gx;
 
-        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
-
-        afpvec4 slope = num_slope > 1 ? afpvec4(slope_blob_data[gz]) : afpvec4(slope_blob_data[0]);
+        afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]);
+        afpvec4 slope = num_slope > 1 ? sfp2afpvec4(slope_blob_data[gz]) : sfp2afpvec4(slope_blob_data[0]);
 
         v = mix(v, v * slope, lessThan(v, afpvec4(0.f)));
 
-        bottom_top_blob_data[gi] = sfpvec4(v);
-
+        bottom_top_blob_data[gi] = afp2sfpvec4(v);
         return;
     }
 }

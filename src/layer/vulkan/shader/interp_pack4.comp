@@ -57,8 +57,6 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-//     afpvec4 res;
-
     if (resize_type == 1) // nearest
     {
         afpvec2 gxy = afpvec2(gx, gy);
@@ -97,10 +95,10 @@ void main()
         int v_offset_0 = gz * p.cstep + sy * p.w + sx;
         int v_offset_1 = gz * p.cstep + (sy + 1) * p.w + sx;
 
-        afpvec4 a0 = afpvec4(bottom_blob_data[v_offset_0]);
-        afpvec4 a1 = afpvec4(bottom_blob_data[v_offset_0 + 1]);
-        afpvec4 b0 = afpvec4(bottom_blob_data[v_offset_1]);
-        afpvec4 b1 = afpvec4(bottom_blob_data[v_offset_1 + 1]);
+        afpvec4 a0 = sfp2afpvec4(bottom_blob_data[v_offset_0]);
+        afpvec4 a1 = sfp2afpvec4(bottom_blob_data[v_offset_0 + 1]);
+        afpvec4 b0 = sfp2afpvec4(bottom_blob_data[v_offset_1]);
+        afpvec4 b1 = sfp2afpvec4(bottom_blob_data[v_offset_1 + 1]);
 
         afp fx = fxy.r;
         afp fy = fxy.g;
@@ -108,6 +106,8 @@ void main()
         afpvec4 a = a0 * (afp(1.f) - fx) + a1 * fx;
         afpvec4 b = b0 * (afp(1.f) - fx) + b1 * fx;
 
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(a * (afp(1.f) - fy) + b * fy);
+        afpvec4 res = a * (afp(1.f) - fy) + b * fy;
+
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfpvec4(res);
     }
 }

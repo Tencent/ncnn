@@ -68,13 +68,12 @@ void main()
 
         for (int z = 0; z < local_size; z++)
         {
-            sum += afp(square_workspace_data[v_offset]);
+            sum += sfp2afp(square_workspace_data[v_offset]);
 
             v_offset += p.cstep;
         }
 
         const afp alpha_div_size = afp(alpha / local_size);
-
         scale = pow(afp(bias_constant) + alpha_div_size * sum, afp(-beta));
     }
     else
@@ -94,13 +93,10 @@ void main()
         }
 
         const afp alpha_div_size = afp(alpha / (local_size * local_size));
-
         scale = pow(afp(bias_constant) + alpha_div_size * sum, afp(-beta));
     }
 
-    afp v = afp(bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx]);
-
-    v *= scale;
-
-    bottom_top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(v);
+    int gi = gz * p.outcstep + gy * p.outw + gx;
+    afp v = sfp2afp(bottom_top_blob_data[gi]) * scale;
+    bottom_top_blob_data[gi] = afp2sfp(v);
 }

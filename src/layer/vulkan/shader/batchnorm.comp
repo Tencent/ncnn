@@ -49,38 +49,24 @@ void main()
 
     if (p.dims == 1)
     {
-        afp v = afp(bottom_top_blob_data[gx]);
-
-        v = afp(b_data[gx]) * v + afp(a_data[gx]);
-
-        bottom_top_blob_data[gx] = sfp(v);
-
+        afp v = sfp2afp(b_data[gx]) * sfp2afp(bottom_top_blob_data[gx]) + sfp2afp(a_data[gx]);
+        bottom_top_blob_data[gx] = afp2sfp(v);
         return;
     }
 
     if (p.dims == 2)
     {
         const int gi = gy * p.w + gx;
-
-        afp v = afp(bottom_top_blob_data[gi]);
-
-        v = afp(b_data[gy]) * v + afp(a_data[gy]);
-
-        bottom_top_blob_data[gi] = sfp(v);
-
+        afp v = sfp2afp(b_data[gy]) * sfp2afp(bottom_top_blob_data[gi]) + sfp2afp(a_data[gy]);
+        bottom_top_blob_data[gi] = afp2sfp(v);
         return;
     }
 
     if (p.dims == 3)
     {
         const int gi = gz * p.cstep + gy * p.w + gx;
-
-        afp v = afp(bottom_top_blob_data[gi]);
-
-        v = afp(b_data[gz]) * v + afp(a_data[gz]);
-
-        bottom_top_blob_data[gi] = sfp(v);
-
+        afp v = sfp2afp(b_data[gz]) * sfp2afp(bottom_top_blob_data[gi]) + sfp2afp(a_data[gz]);
+        bottom_top_blob_data[gi] = afp2sfp(v);
         return;
     }
 }

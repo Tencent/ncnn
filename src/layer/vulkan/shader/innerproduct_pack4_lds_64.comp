@@ -32,7 +32,7 @@ layout (local_size_z_id = 235) in;// must == 1
 
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-#if NCNN_fp16_storage && !NCNN_fp16_arithmetic
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
 // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
 layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
 #else
@@ -72,7 +72,7 @@ void main()
 
     if (bias_term == 1)
     {
-        sum = afpvec4(bias_data[gx]);
+        sum = sfp2afpvec4(bias_data[gx]);
     }
     else
     {
@@ -89,7 +89,7 @@ void main()
         // load v to local cache
         if (lx < 64)
         {
-            lv[lx] = afpvec4(bottom_blob_data[i + lx]);
+            lv[lx] = sfp2afpvec4(bottom_blob_data[i + lx]);
         }
 
         barrier();
@@ -99,13 +99,13 @@ void main()
         {
             afpvec4 v = lv[j];
 
-#if NCNN_fp16_storage && !NCNN_fp16_arithmetic
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
             // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
             afpmat4 k = afpmat4(
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 0]),
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 1]),
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 2]),
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 3])
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 0]),
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 1]),
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 2]),
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 3])
             );
 #else
             afpmat4 k = afpmat4(weight_data[w_offset + i + j]);
@@ -121,7 +121,7 @@ void main()
         // load v to local cache
         if (lx < 16)
         {
-            lv[lx] = afpvec4(bottom_blob_data[i + lx]);
+            lv[lx] = sfp2afpvec4(bottom_blob_data[i + lx]);
         }
 
         barrier();
@@ -131,13 +131,13 @@ void main()
         {
             afpvec4 v = lv[j];
 
-#if NCNN_fp16_storage && !NCNN_fp16_arithmetic
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
             // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
             afpmat4 k = afpmat4(
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 0]),
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 1]),
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 2]),
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 3])
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 0]),
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 1]),
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 2]),
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 3])
             );
 #else
             afpmat4 k = afpmat4(weight_data[w_offset + i + j]);
@@ -153,7 +153,7 @@ void main()
         // load v to local cache
         if (lx < 4)
         {
-            lv[lx] = afpvec4(bottom_blob_data[i + lx]);
+            lv[lx] = sfp2afpvec4(bottom_blob_data[i + lx]);
         }
 
         barrier();
@@ -163,13 +163,13 @@ void main()
         {
             afpvec4 v = lv[j];
 
-#if NCNN_fp16_storage && !NCNN_fp16_arithmetic
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
             // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
             afpmat4 k = afpmat4(
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 0]),
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 1]),
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 2]),
-                afpvec4(weight_data[(w_offset + i + j) * 4 + 3])
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 0]),
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 1]),
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 2]),
+                sfp2afpvec4(weight_data[(w_offset + i + j) * 4 + 3])
             );
 #else
             afpmat4 k = afpmat4(weight_data[w_offset + i + j]);
@@ -185,7 +185,7 @@ void main()
         // load v to local cache
         if (lx == 0)
         {
-            lv[0] = afpvec4(bottom_blob_data[i]);
+            lv[0] = sfp2afpvec4(bottom_blob_data[i]);
         }
 
         barrier();
@@ -193,13 +193,13 @@ void main()
 
         afpvec4 v = lv[0];
 
-#if NCNN_fp16_storage && !NCNN_fp16_arithmetic
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
         // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
         afpmat4 k = afpmat4(
-            afpvec4(weight_data[(w_offset + i) * 4 + 0]),
-            afpvec4(weight_data[(w_offset + i) * 4 + 1]),
-            afpvec4(weight_data[(w_offset + i) * 4 + 2]),
-            afpvec4(weight_data[(w_offset + i) * 4 + 3])
+            sfp2afpvec4(weight_data[(w_offset + i) * 4 + 0]),
+            sfp2afpvec4(weight_data[(w_offset + i) * 4 + 1]),
+            sfp2afpvec4(weight_data[(w_offset + i) * 4 + 2]),
+            sfp2afpvec4(weight_data[(w_offset + i) * 4 + 3])
         );
 #else
         afpmat4 k = afpmat4(weight_data[w_offset + i]);
@@ -231,5 +231,5 @@ void main()
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
-    top_blob_data[gx] = sfpvec4(sum);
+    top_blob_data[gx] = afp2sfpvec4(sum);
 }
