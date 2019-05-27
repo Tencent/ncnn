@@ -991,24 +991,24 @@ inline const Mat Mat::channel(int _c) const
 
 inline float* Mat::row(int y)
 {
-    return (float*)data + w * y;
+    return (float*)((unsigned char*)data + w * y * elemsize);
 }
 
 inline const float* Mat::row(int y) const
 {
-    return (const float*)data + w * y;
+    return (const float*)((unsigned char*)data + w * y * elemsize);
 }
 
 template <typename T>
 inline T* Mat::row(int y)
 {
-    return (T*)data + w * y;
+    return (T*)((unsigned char*)data + w * y * elemsize);
 }
 
 template <typename T>
 inline const T* Mat::row(int y) const
 {
-    return (const T*)data + w * y;
+    return (const T*)((unsigned char*)data + w * y * elemsize);
 }
 
 inline Mat Mat::channel_range(int _c, int channels)
