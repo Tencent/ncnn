@@ -835,7 +835,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             std::vector<VkMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
-            bindings[2] = bias_data_gpu_pack4;
+            bindings[2] = bias_term ? bias_data_gpu_pack4 : bindings[1];
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
