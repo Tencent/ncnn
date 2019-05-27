@@ -24,20 +24,21 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(LRN_arm)
 
-int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
+int LRN_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
+    size_t elemsize = bottom_top_blob.elemsize;
     int size = w * h;
 
     // squared values with local_size padding
     Mat square_blob;
-    square_blob.create(w, h, channels);
+    square_blob.create(w, h, channels, elemsize, opt.workspace_allocator);
     if (square_blob.empty())
         return -100;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         const float* ptr = bottom_top_blob.channel(q);
@@ -73,14 +74,14 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
     if (region_type == NormRegion_ACROSS_CHANNELS)
     {
         Mat square_sum;
-        square_sum.create(w, h, channels);
+        square_sum.create(w, h, channels, elemsize, opt.workspace_allocator);
         if (square_sum.empty())
             return -100;
         square_sum.fill(0.f);
 
         const float alpha_div_size = alpha / local_size;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             // square sum
@@ -130,7 +131,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-            float32x4_t _v1 = vdupq_n_f32(1.f);
+            float32x4_t _bias = vdupq_n_f32(bias);
             float32x4_t _ads = vdupq_n_f32(alpha_div_size);
             float32x4_t _mb = vdupq_n_f32(-beta);
             for (; nn>0; nn--)
@@ -138,7 +139,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
                 float32x4_t _p = vld1q_f32(ptr);
                 float32x4_t _ssp = vld1q_f32(ssptr);
                 _ssp = vmulq_f32(_ssp, _ads);
-                _ssp = vaddq_f32(_ssp, _v1);
+                _ssp = vaddq_f32(_ssp, _bias);
                 _ssp = pow_ps(_ssp, _mb);
                 _p = vmulq_f32(_p, _ssp);
                 vst1q_f32(ptr, _p);
@@ -149,7 +150,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
 #endif // __ARM_NEON
             for (; remain>0; remain--)
             {
-                *ptr = *ptr * pow(1.f + alpha_div_size * *ssptr, -beta);
+                *ptr = *ptr * pow(bias + alpha_div_size * *ssptr, -beta);
 
                 ssptr++;
                 ptr++;
@@ -165,7 +166,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
         int pad = local_size / 2;
         if (pad > 0)
         {
-            copy_make_border(square_blob, square_blob_bordered, pad, local_size - pad - 1, pad, local_size - pad - 1, BORDER_CONSTANT, 0.f);
+            copy_make_border(square_blob, square_blob_bordered, pad, local_size - pad - 1, pad, local_size - pad - 1, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
             if (square_blob_bordered.empty())
                 return -100;
 
@@ -196,7 +197,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
             }
         }
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -216,7 +217,7 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob) const
                         ss += val;
                     }
 
-                    ptr[j] = ptr[j] * pow(1.f + alpha_div_size * ss, -beta);
+                    ptr[j] = ptr[j] * pow(bias + alpha_div_size * ss, -beta);
                 }
 
                 ptr += outw;

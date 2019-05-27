@@ -24,6 +24,9 @@
 
 namespace ncnn {
 
+#if NCNN_VULKAN
+class VkCompute;
+#endif // NCNN_VULKAN
 class Extractor;
 class Net
 {
@@ -48,6 +51,7 @@ public:
     // return 0 if success
     int load_param(FILE* fp);
     int load_param(const char* protopath);
+    int load_param_mem(const char* mem);
 #endif // NCNN_STRING
     // load network structure from binary param file
     // return 0 if success
@@ -78,7 +82,49 @@ public:
     // construct an Extractor from network
     Extractor create_extractor() const;
 
+public:
+    // enable winograd convolution optimization
+    // improve convolution 3x3 stride1 performace, may consume more memory
+    // changes should be applied before loading network structure and weight
+    // enabled by default
+    int use_winograd_convolution;
+
+    // enable sgemm convolution optimization
+    // improve convolution 1x1 stride1 performace, may consume more memory
+    // changes should be applied before loading network structure and weight
+    // enabled by default
+    int use_sgemm_convolution;
+
+    // enable quantized int8 inference
+    // use low-precision int8 path for quantized model
+    // changes should be applied before loading network structure and weight
+    // enabled by default
+    int use_int8_inference;
+
+    // enable vulkan compute
+    int use_vulkan_compute;
+
+#if NCNN_VULKAN
+
+    void set_vulkan_device(const VulkanDevice* vkdev);
+
+#endif // NCNN_VULKAN
+
 protected:
+    // parse the structure of network
+    // fuse int8 op dequantize and quantize by requantize
+    void fuse_network();
+
+#if NCNN_VULKAN
+
+    int upload_model();
+
+    int create_pipeline();
+
+    int destroy_pipeline();
+
+#endif // NCNN_VULKAN
+
     friend class Extractor;
 #if NCNN_STRING
     int find_blob_index_by_name(const char* name) const;
@@ -87,13 +133,30 @@ protected:
     Layer* create_custom_layer(const char* type);
 #endif // NCNN_STRING
     Layer* create_custom_layer(int index);
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, bool lightmode) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt) const;
+
+#if NCNN_VULKAN
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, Option& opt) const;
+#endif // NCNN_VULKAN
 
 protected:
     std::vector<Blob> blobs;
     std::vector<Layer*> layers;
 
     std::vector<layer_registry_entry> custom_layer_registry;
+
+#if NCNN_VULKAN
+    const VulkanDevice* vkdev;
+    const VulkanDevice* vkdev_local;
+
+    VkAllocator* weight_vkallocator;
+    VkAllocator* weight_staging_vkallocator;
+
+    ncnn::Layer* cast_float32_to_float16;
+    ncnn::Layer* cast_float16_to_float32;
+    ncnn::Layer* packing_pack1;
+    ncnn::Layer* packing_pack4;
+#endif // NCNN_VULKAN
 };
 
 class Extractor
@@ -108,6 +171,22 @@ public:
     // this will overwrite the global setting
     // default count is system depended
     void set_num_threads(int num_threads);
+
+    // set blob memory allocator
+    void set_blob_allocator(Allocator* allocator);
+
+    // set workspace memory allocator
+    void set_workspace_allocator(Allocator* allocator);
+
+#if NCNN_VULKAN
+    void set_vulkan_compute(bool enable);
+
+    void set_blob_vkallocator(VkAllocator* allocator);
+
+    void set_workspace_vkallocator(VkAllocator* allocator);
+
+    void set_staging_vkallocator(VkAllocator* allocator);
+#endif // NCNN_VULKAN
 
 #if NCNN_STRING
     // set input by blob name
@@ -127,6 +206,26 @@ public:
     // return 0 if success
     int extract(int blob_index, Mat& feat);
 
+#if NCNN_VULKAN
+#if NCNN_STRING
+    // set input by blob name
+    // return 0 if success
+    int input(const char* blob_name, const VkMat& in);
+
+    // get result by blob name
+    // return 0 if success
+    int extract(const char* blob_name, VkMat& feat, VkCompute& cmd);
+#endif // NCNN_STRING
+
+    // set input by blob index
+    // return 0 if success
+    int input(int blob_index, const VkMat& in);
+
+    // get result by blob index
+    // return 0 if success
+    int extract(int blob_index, VkMat& feat, VkCompute& cmd);
+#endif // NCNN_VULKAN
+
 protected:
     friend Extractor Net::create_extractor() const;
     Extractor(const Net* net, int blob_count);
@@ -134,8 +233,11 @@ protected:
 private:
     const Net* net;
     std::vector<Mat> blob_mats;
-    bool lightmode;
-    int num_threads;
+    Option opt;
+
+#if NCNN_VULKAN
+    std::vector<VkMat> blob_mats_gpu;
+#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

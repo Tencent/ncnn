@@ -12,45 +12,34 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else // _WIN32
+#include <sys/time.h>
+#endif // _WIN32
+
 #include "benchmark.h"
 
 #if NCNN_BENCHMARK
 #include <stdio.h>
 #include "layer/convolution.h"
+#include "layer/convolutiondepthwise.h"
+#include "layer/deconvolution.h"
+#include "layer/deconvolutiondepthwise.h"
 #endif // NCNN_BENCHMARK
-
-#ifdef _WIN32
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <stdint.h> // portable: uint64_t   MSVC: __int64
-#else // _WIN32
-#include <sys/time.h>
-#endif // _WIN32
 
 namespace ncnn {
 
 #ifdef _WIN32
 double get_current_time()
 {
-    // Note: some broken versions only have 8 trailing zero's, the correct epoch has 9 trailing zero's
-    // This magic number is the number of 100 nanosecond intervals since January 1, 1601 (UTC)
-    // until 00:00:00 January 1, 1970
-    static const uint64_t EPOCH = ((uint64_t) 116444736000000000ULL);
+    LARGE_INTEGER freq;
+    LARGE_INTEGER pc;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&pc);
 
-    SYSTEMTIME  system_time;
-    FILETIME    file_time;
-    uint64_t    time;
-
-    GetSystemTime( &system_time );
-    SystemTimeToFileTime( &system_time, &file_time );
-    time =  ((uint64_t)file_time.dwLowDateTime )      ;
-    time += ((uint64_t)file_time.dwHighDateTime) << 32;
-
-    long tv_sec  = (long) ((time - EPOCH) / 10000000L);
-    long tv_usec = (long) (system_time.wMilliseconds * 1000);
-
-    return tv_sec * 1000.0 + tv_usec / 1000.0;
+    return pc.QuadPart * 1000.0 / freq.QuadPart;
 }
 #else // _WIN32
 double get_current_time()
@@ -66,14 +55,14 @@ double get_current_time()
 
 void benchmark(const Layer* layer, double start, double end)
 {
-    fprintf(stderr, "%-24s %-24s %8.2lfms", layer->type.c_str(), layer->name.c_str(), end - start);
+    fprintf(stderr, "%-24s %-30s %8.2lfms", layer->type.c_str(), layer->name.c_str(), end - start);
     fprintf(stderr, "    |");
     fprintf(stderr, "\n");
 }
 
 void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double start, double end)
 {
-    fprintf(stderr, "%-24s %-24s %8.2lfms", layer->type.c_str(), layer->name.c_str(), end - start);
+    fprintf(stderr, "%-24s %-30s %8.2lfms", layer->type.c_str(), layer->name.c_str(), end - start);
     fprintf(stderr, "    |    feature_map: %4d x %-4d    inch: %4d    outch: %4d", bottom_blob.w, bottom_blob.h, bottom_blob.c, top_blob.c);
     if (layer->type == "Convolution")
     {
@@ -82,6 +71,33 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double
                 ((Convolution*)layer)->kernel_h,
                 ((Convolution*)layer)->stride_w,
                 ((Convolution*)layer)->stride_h
+        );
+    }
+    else if (layer->type == "ConvolutionDepthWise")
+    {
+        fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d",
+                ((ConvolutionDepthWise*)layer)->kernel_w,
+                ((ConvolutionDepthWise*)layer)->kernel_h,
+                ((ConvolutionDepthWise*)layer)->stride_w,
+                ((ConvolutionDepthWise*)layer)->stride_h
+        );
+    }
+    else if (layer->type == "Deconvolution")
+    {
+        fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d",
+                ((Deconvolution*)layer)->kernel_w,
+                ((Deconvolution*)layer)->kernel_h,
+                ((Deconvolution*)layer)->stride_w,
+                ((Deconvolution*)layer)->stride_h
+        );
+    }
+    else if (layer->type == "DeconvolutionDepthWise")
+    {
+        fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d",
+                ((DeconvolutionDepthWise*)layer)->kernel_w,
+                ((DeconvolutionDepthWise*)layer)->kernel_h,
+                ((DeconvolutionDepthWise*)layer)->stride_w,
+                ((DeconvolutionDepthWise*)layer)->stride_h
         );
     }
     fprintf(stderr, "\n");

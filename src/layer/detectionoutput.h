@@ -26,7 +26,7 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
     int num_class;
@@ -34,6 +34,7 @@ public:
     int nms_top_k;
     int keep_top_k;
     float confidence_threshold;
+    float variances[4];
 };
 
 } // namespace ncnn

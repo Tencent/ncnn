@@ -28,7 +28,7 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     // param
@@ -44,6 +44,10 @@ public:
     int bias_term;
 
     int weight_data_size;
+
+    // 0=none 1=relu 2=leakyrelu 3=clip 4=sigmoid
+    int activation_type;
+    Mat activation_params;
 
     // model
     Mat weight_data;

@@ -28,7 +28,10 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
+
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     // param
@@ -37,9 +40,23 @@ public:
 
     int weight_data_size;
 
+    int int8_scale_term;
+
+    // 0=none 1=relu 2=leakyrelu 3=clip 4=sigmoid
+    int activation_type;
+    Mat activation_params;
+
     // model
     Mat weight_data;
     Mat bias_data;
+
+    Mat weight_data_int8_scales;
+    float bottom_blob_int8_scale;
+
+    bool use_int8_inference;
+
+    ncnn::Layer* quantize;
+    std::vector<ncnn::Layer*> dequantize_ops;
 };
 
 } // namespace ncnn

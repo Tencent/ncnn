@@ -22,8 +22,12 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(BatchNorm_arm)
 
-int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob) const
+int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+    int dims = bottom_top_blob.dims;
+    if (dims != 3)
+        return BatchNorm::forward_inplace(bottom_top_blob, opt);
+
     // a = bias - slope * mean / sqrt(var)
     // b = slope / sqrt(var)
     // value = b * value + a
@@ -34,7 +38,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob) const
 
     const float* a_data_ptr = a_data;
     const float* b_data_ptr = b_data;
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
@@ -51,16 +55,27 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob) const
 
 #if __ARM_NEON
 #if __aarch64__
-        float32x4_t _a = vdupq_n_f32(a);
-        float32x4_t _b = vdupq_n_f32(b);
-        for (; nn>0; nn--)
+        if (nn > 0)
         {
-            float32x4_t _p = vld1q_f32(ptr);
-            float32x4_t _outp = _a;
-            _outp = vfmaq_f32(_outp, _p, _b);
-            vst1q_f32(ptr, _outp);
-
-            ptr += 4;
+        asm volatile(
+            "dup        v1.4s, %w4             \n"
+            "dup        v2.4s, %w5             \n"
+            "0:                                \n"
+            "prfm       pldl1keep, [%1, #128]  \n"
+            "ld1        {v0.4s}, [%1]          \n"
+            "orr        v3.16b, v1.16b, v1.16b \n"
+            "fmla       v3.4s, v0.4s, v2.4s    \n"
+            "subs       %w0, %w0, #1           \n"
+            "st1        {v3.4s}, [%1], #16     \n"
+            "bne        0b                     \n"
+            : "=r"(nn),     // %0
+              "=r"(ptr)     // %1
+            : "0"(nn),
+              "1"(ptr),
+              "r"(a),       // %4
+              "r"(b)        // %5
+            : "cc", "memory", "v0", "v1", "v2", "v3"
+        );
         }
 #else
         if (nn > 0)

@@ -22,14 +22,21 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(InnerProduct_arm)
 
-int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
+int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    if (use_int8_inference)
+    {
+        // TODO
+        return InnerProduct::forward(bottom_blob, top_blob, opt);
+    }
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
 
-    top_blob.create(num_output);
+    top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -38,7 +45,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     int nn_num_output = num_output >> 2;
     int remain_num_output_start = nn_num_output << 2;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_num_output; pp++)
     {
         int p = pp * 4;
@@ -136,6 +143,35 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
 #endif // __ARM_NEON
 
+        if (activation_type == 1)
+        {
+            sum0 = std::max(sum0, 0.f);
+            sum1 = std::max(sum1, 0.f);
+            sum2 = std::max(sum2, 0.f);
+            sum3 = std::max(sum3, 0.f);
+        }
+        else if (activation_type == 2)
+        {
+            float slope = activation_params[0];
+            sum0 = sum0 > 0.f ? sum0 : sum0 * slope;
+            sum1 = sum1 > 0.f ? sum1 : sum1 * slope;
+            sum2 = sum2 > 0.f ? sum2 : sum2 * slope;
+            sum3 = sum3 > 0.f ? sum3 : sum3 * slope;
+        }
+        else if (activation_type == 3)
+        {
+            float min = activation_params[0];
+            float max = activation_params[1];
+            if (sum0 < min) sum0 = min;
+            if (sum0 > max) sum0 = max;
+            if (sum1 < min) sum1 = min;
+            if (sum1 > max) sum1 = max;
+            if (sum2 < min) sum2 = min;
+            if (sum2 > max) sum2 = max;
+            if (sum3 < min) sum3 = min;
+            if (sum3 > max) sum3 = max;
+        }
+
         top_blob[p] = sum0;
         top_blob[p+1] = sum1;
         top_blob[p+2] = sum2;
@@ -143,7 +179,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
 
     // num_output
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=remain_num_output_start; p<num_output; p++)
     {
         float sum = 0.f;
@@ -172,18 +208,30 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
 
 #if __ARM_NEON
 #if __aarch64__
-            for (; nn>0; nn--)
+            if (nn > 0)
             {
-                float32x4_t _m = vld1q_f32(m);
-                float32x4_t _w = vld1q_f32(w);
-                _sum = vfmaq_f32(_sum, _m, _w);
-
-                _m = vld1q_f32(m + 4);
-                _w = vld1q_f32(w + 4);
-                _sum2 = vfmaq_f32(_sum2, _m, _w);
-
-                m += 8;
-                w += 8;
+            asm volatile(
+                "0:                                   \n"
+                "prfm       pldl1keep, [%1, #256]     \n"
+                "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
+                "prfm       pldl1keep, [%2, #256]     \n"
+                "ld1        {v2.4s, v3.4s}, [%2], #32 \n"
+                "fmla       %3.4s, v0.4s, v2.4s       \n"
+                "subs       %w0, %w0, #1              \n"
+                "fmla       %4.4s, v1.4s, v3.4s       \n"
+                "bne        0b                        \n"
+                : "=r"(nn),     // %0
+                  "=r"(m),      // %1
+                  "=r"(w),      // %2
+                  "=w"(_sum),   // %3
+                  "=w"(_sum2)   // %4
+                : "0"(nn),
+                  "1"(m),
+                  "2"(w),
+                  "3"(_sum),
+                  "4"(_sum2)
+                : "cc", "memory", "v0", "v1", "v2", "v3"
+            );
             }
 #else
             if (nn > 0)
@@ -232,6 +280,29 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob) const
         sum += vget_lane_f32(_sumss, 0);
 #endif // __aarch64__
 #endif // __ARM_NEON
+
+        if (activation_type == 1)
+        {
+            sum = std::max(sum, 0.f);
+        }
+        else if (activation_type == 2)
+        {
+            float slope = activation_params[0];
+            sum = sum > 0.f ? sum : sum * slope;
+        }
+        else if (activation_type == 3)
+        {
+            float min = activation_params[0];
+            float max = activation_params[1];
+            if (sum < min)
+                sum = min;
+            if (sum > max)
+                sum = max;
+        }
+        else if (activation_type == 4)
+        {
+            sum = 1.f / (1.f + exp(-sum));
+        }
 
         top_blob[p] = sum;
     }

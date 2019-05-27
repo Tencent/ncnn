@@ -34,13 +34,13 @@ int UnaryOp::load_param(const ParamDict& pd)
 }
 
 template<typename Op>
-static int unary_op_inplace(Mat& a)
+static int unary_op_inplace(Mat& a, const Option& opt)
 {
     Op op;
 
     int size = a.total();
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i=0; i<size; i++)
     {
         a[i] = op(a[i]);
@@ -129,55 +129,55 @@ struct unary_op_reciprocal : std::unary_function<T,T> {
     T operator() (const T& x) const { return 1.f / x; }
 };
 
-int UnaryOp::forward_inplace(Mat& bottom_top_blob) const
+int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (op_type == Operation_ABS)
-        return unary_op_inplace< unary_op_abs<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_abs<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_NEG)
-        return unary_op_inplace< unary_op_neg<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_neg<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_FLOOR)
-        return unary_op_inplace< unary_op_floor<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_floor<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_CEIL)
-        return unary_op_inplace< unary_op_ceil<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_ceil<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_SQUARE)
-        return unary_op_inplace< unary_op_square<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_square<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_SQRT)
-        return unary_op_inplace< unary_op_sqrt<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_sqrt<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_RSQRT)
-        return unary_op_inplace< unary_op_rsqrt<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_rsqrt<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_EXP)
-        return unary_op_inplace< unary_op_exp<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_exp<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_LOG)
-        return unary_op_inplace< unary_op_log<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_log<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_SIN)
-        return unary_op_inplace< unary_op_sin<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_sin<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_COS)
-        return unary_op_inplace< unary_op_cos<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_cos<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_TAN)
-        return unary_op_inplace< unary_op_tan<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_tan<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_ASIN)
-        return unary_op_inplace< unary_op_asin<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_asin<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_ACOS)
-        return unary_op_inplace< unary_op_acos<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_acos<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_ATAN)
-        return unary_op_inplace< unary_op_atan<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_atan<float> >(bottom_top_blob, opt);
 
     if (op_type == Operation_RECIPROCAL)
-        return unary_op_inplace< unary_op_reciprocal<float> >(bottom_top_blob);
+        return unary_op_inplace< unary_op_reciprocal<float> >(bottom_top_blob, opt);
 
     return 0;
 }

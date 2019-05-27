@@ -24,9 +24,7 @@ class TanH : public Layer
 public:
     TanH();
 
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
-
-public:
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "concat.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -31,7 +32,7 @@ int Concat::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
     size_t elemsize = bottom_blobs[0].elemsize;
@@ -48,7 +49,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(top_w, elemsize);
+        top_blob.create(top_w, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -82,7 +83,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(w, top_h, elemsize);
+        top_blob.create(w, top_h, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -116,11 +117,11 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(top_w, h, elemsize);
+        top_blob.create(top_w, h, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i=0; i<h; i++)
         {
             float* outptr = top_blob.row(i);
@@ -153,7 +154,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(w, h, top_channels, elemsize);
+        top_blob.create(w, h, top_channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -190,11 +191,11 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(w, top_h, channels, elemsize);
+        top_blob.create(w, top_h, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* outptr = top_blob.channel(q);
@@ -207,6 +208,8 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
                 const float* ptr = bottom_blob.channel(q);
                 memcpy(outptr, ptr, size * elemsize);
+
+                outptr += size;
             }
         }
 
@@ -228,11 +231,11 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(top_w, h, channels, elemsize);
+        top_blob.create(top_w, h, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* outptr = top_blob.channel(q);

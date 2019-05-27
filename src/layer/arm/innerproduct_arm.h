@@ -19,10 +19,10 @@
 
 namespace ncnn {
 
-class InnerProduct_arm : public InnerProduct
+class InnerProduct_arm : virtual public InnerProduct
 {
 public:
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

@@ -24,9 +24,7 @@ class Sigmoid : public Layer
 public:
     Sigmoid();
 
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
-
-public:
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

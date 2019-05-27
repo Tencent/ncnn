@@ -15,13 +15,25 @@
 #ifndef NCNN_MAT_H
 #define NCNN_MAT_H
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif
+#include "platform.h"
+#include "allocator.h"
+#include "gpu.h"
+
+#if NCNN_VULKAN
+#include <vulkan/vulkan.h>
+#endif // NCNN_VULKAN
 
 namespace ncnn {
+
+#if NCNN_VULKAN
+class VkMat;
+#endif // NCNN_VULKAN
 
 // the three dimension matrix
 class Mat
@@ -30,40 +42,65 @@ public:
     // empty
     Mat();
     // vec
-    Mat(int w, size_t elemsize = 4);
+    Mat(int w, size_t elemsize = 4u, Allocator* allocator = 0);
     // image
-    Mat(int w, int h, size_t elemsize = 4);
+    Mat(int w, int h, size_t elemsize = 4u, Allocator* allocator = 0);
     // dim
-    Mat(int w, int h, int c, size_t elemsize = 4);
+    Mat(int w, int h, int c, size_t elemsize = 4u, Allocator* allocator = 0);
+    // packed vec
+    Mat(int w, size_t elemsize, int packing, Allocator* allocator = 0);
+    // packed image
+    Mat(int w, int h, size_t elemsize, int packing, Allocator* allocator = 0);
+    // packed dim
+    Mat(int w, int h, int c, size_t elemsize, int packing, Allocator* allocator = 0);
     // copy
     Mat(const Mat& m);
     // external vec
-    Mat(int w, void* data, size_t elemsize = 4);
+    Mat(int w, void* data, size_t elemsize = 4u, Allocator* allocator = 0);
     // external image
-    Mat(int w, int h, void* data, size_t elemsize = 4);
+    Mat(int w, int h, void* data, size_t elemsize = 4u, Allocator* allocator = 0);
     // external dim
-    Mat(int w, int h, int c, void* data, size_t elemsize = 4);
+    Mat(int w, int h, int c, void* data, size_t elemsize = 4u, Allocator* allocator = 0);
+    // external packed vec
+    Mat(int w, void* data, size_t elemsize, int packing, Allocator* allocator = 0);
+    // external packed image
+    Mat(int w, int h, void* data, size_t elemsize, int packing, Allocator* allocator = 0);
+    // external packed dim
+    Mat(int w, int h, int c, void* data, size_t elemsize, int packing, Allocator* allocator = 0);
     // release
     ~Mat();
     // assign
     Mat& operator=(const Mat& m);
     // set all
     void fill(float v);
+    void fill(int v);
     template <typename T> void fill(T v);
     // deep copy
-    Mat clone() const;
+    Mat clone(Allocator* allocator = 0) const;
     // reshape vec
-    Mat reshape(int w) const;
+    Mat reshape(int w, Allocator* allocator = 0) const;
     // reshape image
-    Mat reshape(int w, int h) const;
+    Mat reshape(int w, int h, Allocator* allocator = 0) const;
     // reshape dim
-    Mat reshape(int w, int h, int c) const;
+    Mat reshape(int w, int h, int c, Allocator* allocator = 0) const;
     // allocate vec
-    void create(int w, size_t elemsize = 4);
+    void create(int w, size_t elemsize = 4u, Allocator* allocator = 0);
     // allocate image
-    void create(int w, int h, size_t elemsize = 4);
+    void create(int w, int h, size_t elemsize = 4u, Allocator* allocator = 0);
     // allocate dim
-    void create(int w, int h, int c, size_t elemsize = 4);
+    void create(int w, int h, int c, size_t elemsize = 4u, Allocator* allocator = 0);
+    // allocate packed vec
+    void create(int w, size_t elemsize, int packing, Allocator* allocator = 0);
+    // allocate packed image
+    void create(int w, int h, size_t elemsize, int packing, Allocator* allocator = 0);
+    // allocate packed dim
+    void create(int w, int h, int c, size_t elemsize, int packing, Allocator* allocator = 0);
+    // allocate like
+    void create_like(const Mat& m, Allocator* allocator = 0);
+#if NCNN_VULKAN
+    // allocate like
+    void create_like(const VkMat& m, Allocator* allocator = 0);
+#endif // NCNN_VULKAN
     // refcount++
     void addref();
     // refcount--
@@ -80,6 +117,14 @@ public:
     template<typename T> T* row(int y);
     template<typename T> const T* row(int y) const;
 
+    // range reference
+    Mat channel_range(int c, int channels);
+    const Mat channel_range(int c, int channels) const;
+    Mat row_range(int y, int rows);
+    const Mat row_range(int y, int rows) const;
+    Mat range(int x, int n);
+    const Mat range(int x, int n) const;
+
     // access raw data
     template<typename T> operator T*();
     template<typename T> operator const T*() const;
@@ -88,6 +133,7 @@ public:
     float& operator[](int i);
     const float& operator[](int i) const;
 
+#if NCNN_PIXEL
     enum
     {
         PIXEL_CONVERT_SHIFT = 16,
@@ -113,14 +159,15 @@ public:
         PIXEL_RGBA2GRAY = PIXEL_RGBA | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
     };
     // convenient construct from pixel data
-    static Mat from_pixels(const unsigned char* pixels, int type, int w, int h);
+    static Mat from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator = 0);
     // convenient construct from pixel data and resize to specific size
-    static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height);
+    static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height, Allocator* allocator = 0);
 
     // convenient export to pixel data
-    void to_pixels(unsigned char* pixels, int type);
+    void to_pixels(unsigned char* pixels, int type) const;
     // convenient export to pixel data and resize to specific size
-    void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height);
+    void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height) const;
+#endif // NCNN_PIXEL
 
     // substract channel-wise mean values, then multiply by normalize values, pass 0 to skip
     void substract_mean_normalize(const float* mean_vals, const float* norm_vals);
@@ -142,6 +189,15 @@ public:
     // 0 = empty
     size_t elemsize;
 
+    // packed count inside element
+    // c/1-h-w-1  h/1-w-1  w/1-1  scalar
+    // c/4-h-w-4  h/4-w-4  w/4-4  sse/neon
+    // c/8-h-w-8  h/8-w-8  w/8-8  avx/fp16
+    int packing;
+
+    // the allocator
+    Allocator* allocator;
+
     // the dimensionality
     int dims;
 
@@ -152,11 +208,156 @@ public:
     size_t cstep;
 };
 
+#if NCNN_VULKAN
+
+// the three dimension matrix, vulkan version
+class VkMat
+{
+public:
+    // empty
+    VkMat();
+    // vec
+    VkMat(int w, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // image
+    VkMat(int w, int h, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // dim
+    VkMat(int w, int h, int c, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // packed vec
+    VkMat(int w, size_t elemsize, int packing, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // packed image
+    VkMat(int w, int h, size_t elemsize, int packing, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // packed dim
+    VkMat(int w, int h, int c, size_t elemsize, int packing, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // copy
+    VkMat(const VkMat& m);
+    // external vec
+    VkMat(int w, VkBufferMemory* data, size_t offset, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // external image
+    VkMat(int w, int h, VkBufferMemory* data, size_t offset, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // external dim
+    VkMat(int w, int h, int c, VkBufferMemory* data, size_t offset, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // external packed vec
+    VkMat(int w, VkBufferMemory* data, size_t offset, size_t elemsize, int packing, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // external packed image
+    VkMat(int w, int h, VkBufferMemory* data, size_t offset, size_t elemsize, int packing, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // external packed dim
+    VkMat(int w, int h, int c, VkBufferMemory* data, size_t offset, size_t elemsize, int packing, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // release
+    ~VkMat();
+    // assign
+    VkMat& operator=(const VkMat& m);
+    // allocate vec
+    void create(int w, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate image
+    void create(int w, int h, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate dim
+    void create(int w, int h, int c, size_t elemsize, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate packed vec
+    void create(int w, size_t elemsize, int packing, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate packed image
+    void create(int w, int h, size_t elemsize, int packing, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate packed dim
+    void create(int w, int h, int c, size_t elemsize, int packing, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate like
+    void create_like(const Mat& m, VkAllocator* allocator, VkAllocator* staging_allocator);
+    // allocate like
+    void create_like(const VkMat& m, VkAllocator* allocator, VkAllocator* staging_allocator);
+
+    // staging buffer
+    void prepare_staging_buffer();
+    void discard_staging_buffer();
+
+    // copy
+    void upload(const Mat& m);
+    void download(Mat& m) const;
+
+    // mapped
+    Mat mapped() const;
+    void* mapped_ptr() const;
+
+    // refcount++
+    void addref();
+    // refcount--
+    void release();
+
+    bool empty() const;
+    size_t total() const;
+
+    // data reference
+    VkMat channel(int c);
+    const VkMat channel(int c) const;
+
+    // range reference
+    VkMat channel_range(int c, int channels);
+    const VkMat channel_range(int c, int channels) const;
+    VkMat row_range(int y, int rows);
+    const VkMat row_range(int y, int rows) const;
+    VkMat range(int x, int n);
+    const VkMat range(int x, int n) const;
+
+    // low-level reference
+    VkBuffer buffer() const;
+    size_t buffer_offset() const;
+    VkBuffer staging_buffer() const;
+    size_t staging_buffer_offset() const;
+
+    // device buffer
+    VkBufferMemory* data;
+    // subrange offset
+    size_t offset;
+
+    // staging buffer
+    VkBufferMemory* staging_data;
+
+    // pointer to the reference counter
+    // when points to user-allocated data, the pointer is NULL
+    int* refcount;
+    int* staging_refcount;
+
+    // element size in bytes
+    // 4 = float32/int32
+    // 2 = float16
+    // 1 = int8/uint8
+    // 0 = empty
+    size_t elemsize;
+
+    // packed count inside element
+    // c/1-h-w-1  h/1-w-1  w/1-1  scalar
+    // c/4-h-w-4  h/4-w-4  w/4-4  sse/neon
+    // c/8-h-w-8  h/8-w-8  w/8-8  avx/fp16
+    int packing;
+
+    // the allocator
+    VkAllocator* allocator;
+    VkAllocator* staging_allocator;
+
+    // the dimensionality
+    int dims;
+
+    int w;
+    int h;
+    int c;
+
+    size_t cstep;
+};
+
+// type for vulkan specialization constant and push constant
+union vk_specialization_type { int i; float f; uint32_t u32; };
+union vk_constant_type { int i; float f; };
+#endif // NCNN_VULKAN
+
 // misc function
+#if NCNN_PIXEL
+// convert yuv420sp(nv21) to rgb, the fast approximate version
+void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // image pixel bilinear resize
 void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+// image pixel bilinear resize, convenient wrapper for yuv420sp(nv21)
+void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+#endif // NCNN_PIXEL
 
 // mat process
 enum
@@ -164,138 +365,95 @@ enum
     BORDER_CONSTANT = 0,
     BORDER_REPLICATE = 1,
 };
-void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v);
-void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right);
-void resize_bilinear(const Mat& src, Mat& dst, int w, int h);
-
-// the alignment of all the allocated buffers
-#define MALLOC_ALIGN    16
-
-// Aligns a pointer to the specified number of bytes
-// ptr Aligned pointer
-// n Alignment size that must be a power of two
-template<typename _Tp> static inline _Tp* alignPtr(_Tp* ptr, int n=(int)sizeof(_Tp))
-{
-    return (_Tp*)(((size_t)ptr + n-1) & -n);
-}
-
-// Aligns a buffer size to the specified number of bytes
-// The function returns the minimum number that is greater or equal to sz and is divisible by n
-// sz Buffer size to align
-// n Alignment size that must be a power of two
-static inline size_t alignSize(size_t sz, int n)
-{
-    return (sz + n-1) & -n;
-}
-
-static inline void* fastMalloc(size_t size)
-{
-    unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + MALLOC_ALIGN);
-    if (!udata)
-        return 0;
-    unsigned char** adata = alignPtr((unsigned char**)udata + 1, MALLOC_ALIGN);
-    adata[-1] = udata;
-    return adata;
-}
-
-static inline void fastFree(void* ptr)
-{
-    if (ptr)
-    {
-        unsigned char* udata = ((unsigned char**)ptr)[-1];
-        free(udata);
-    }
-}
-
-// exchange-add operation for atomic operations on reference counters
-#if defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
-// atomic increment on the linux version of the Intel(tm) compiler
-#  define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
-#elif defined __GNUC__
-#  if defined __clang__ && __clang_major__ >= 3 && !defined __ANDROID__ && !defined __EMSCRIPTEN__ && !defined(__CUDACC__)
-#    ifdef __ATOMIC_ACQ_REL
-#      define NCNN_XADD(addr, delta) __c11_atomic_fetch_add((_Atomic(int)*)(addr), delta, __ATOMIC_ACQ_REL)
-#    else
-#      define NCNN_XADD(addr, delta) __atomic_fetch_add((_Atomic(int)*)(addr), delta, 4)
-#    endif
-#  else
-#    if defined __ATOMIC_ACQ_REL && !defined __clang__
-// version for gcc >= 4.7
-#      define NCNN_XADD(addr, delta) (int)__atomic_fetch_add((unsigned*)(addr), (unsigned)(delta), __ATOMIC_ACQ_REL)
-#    else
-#      define NCNN_XADD(addr, delta) (int)__sync_fetch_and_add((unsigned*)(addr), (unsigned)(delta))
-#    endif
-#  endif
-#elif defined _MSC_VER && !defined RC_INVOKED
-#  include <intrin.h>
-#  define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
-#else
-static inline void NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += delta; return tmp; }
-#endif
+void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, Allocator* allocator = 0, int num_threads = 1);
+void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, Allocator* allocator = 0, int num_threads = 1);
+void resize_bilinear(const Mat& src, Mat& dst, int w, int h, Allocator* allocator = 0, int num_threads = 1);
+void resize_bicubic(const Mat& src, Mat& dst, int w, int h, Allocator* allocator = 0, int num_threads = 1);
+void convert_packing(const Mat& src, Mat& dst, int packing, Allocator* allocator = 0, int num_threads = 1);
+void cast_float32_to_float16(const Mat& src, Mat& dst, Allocator* allocator = 0, int num_threads = 1);
+void cast_float16_to_float32(const Mat& src, Mat& dst, Allocator* allocator = 0, int num_threads = 1);
 
 inline Mat::Mat()
-    : data(0), refcount(0), elemsize(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
 }
 
-inline Mat::Mat(int _w, size_t _elemsize)
-    : data(0), refcount(0), dims(0)
+inline Mat::Mat(int _w, size_t _elemsize, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
-    create(_w, _elemsize);
+    create(_w, _elemsize, _allocator);
 }
 
-inline Mat::Mat(int _w, int _h, size_t _elemsize)
-    : data(0), refcount(0), dims(0)
+inline Mat::Mat(int _w, int _h, size_t _elemsize, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
-    create(_w, _h, _elemsize);
+    create(_w, _h, _elemsize, _allocator);
 }
 
-inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize)
-    : data(0), refcount(0), dims(0)
+inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
 {
-    create(_w, _h, _c, _elemsize);
+    create(_w, _h, _c, _elemsize, _allocator);
+}
+
+inline Mat::Mat(int _w, size_t _elemsize, int _packing, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+{
+    create(_w, _elemsize, _packing, _allocator);
+}
+
+inline Mat::Mat(int _w, int _h, size_t _elemsize, int _packing, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+{
+    create(_w, _h, _elemsize, _packing, _allocator);
+}
+
+inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize, int _packing, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+{
+    create(_w, _h, _c, _elemsize, _packing, _allocator);
 }
 
 inline Mat::Mat(const Mat& m)
-    : data(m.data), refcount(m.refcount), elemsize(m.elemsize), dims(m.dims)
+    : data(m.data), refcount(m.refcount), elemsize(m.elemsize), packing(m.packing), allocator(m.allocator), dims(m.dims), w(m.w), h(m.h), c(m.c), cstep(m.cstep)
 {
     if (refcount)
         NCNN_XADD(refcount, 1);
-
-    w = m.w;
-    h = m.h;
-    c = m.c;
-
-    cstep = m.cstep;
 }
 
-inline Mat::Mat(int _w, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(1)
+inline Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), packing(1), allocator(_allocator), dims(1), w(_w), h(1), c(1)
 {
-    w = _w;
-    h = 1;
-    c = 1;
-
     cstep = w;
 }
 
-inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(2)
+inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), packing(1), allocator(_allocator), dims(2), w(_w), h(_h), c(1)
 {
-    w = _w;
-    h = _h;
-    c = 1;
-
     cstep = w * h;
 }
 
-inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize)
-    : data(_data), refcount(0), elemsize(_elemsize), dims(3)
+inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), packing(1), allocator(_allocator), dims(3), w(_w), h(_h), c(_c)
 {
-    w = _w;
-    h = _h;
-    c = _c;
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+}
 
+inline Mat::Mat(int _w, void* _data, size_t _elemsize, int _packing, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), packing(_packing), allocator(_allocator), dims(1), w(_w), h(1), c(1)
+{
+    cstep = w;
+}
+
+inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, int _packing, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), packing(_packing), allocator(_allocator), dims(2), w(_w), h(_h), c(1)
+{
+    cstep = w * h;
+}
+
+inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, int _packing, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), packing(_packing), allocator(_allocator), dims(3), w(_w), h(_h), c(_c)
+{
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 }
 
@@ -317,6 +475,8 @@ inline Mat& Mat::operator=(const Mat& m)
     data = m.data;
     refcount = m.refcount;
     elemsize = m.elemsize;
+    packing = m.packing;
+    allocator = m.allocator;
 
     dims = m.dims;
     w = m.w;
@@ -330,7 +490,7 @@ inline Mat& Mat::operator=(const Mat& m)
 
 inline void Mat::fill(float _v)
 {
-    int size = total();
+    int size = (int)total();
     float* ptr = (float*)data;
 
 #if __ARM_NEON
@@ -343,10 +503,20 @@ inline void Mat::fill(float _v)
 #if __ARM_NEON
     float32x4_t _c = vdupq_n_f32(_v);
 #if __aarch64__
-    for (; nn>0; nn--)
+    if (nn > 0)
     {
-        vst1q_f32(ptr, _c);
-        ptr += 4;
+    asm volatile (
+        "0:                             \n"
+        "subs       %w0, %w0, #1        \n"
+        "st1        {%4.4s}, [%1], #16  \n"
+        "bne        0b                  \n"
+        : "=r"(nn),     // %0
+          "=r"(ptr)     // %1
+        : "0"(nn),
+          "1"(ptr),
+          "w"(_c)       // %4
+        : "cc", "memory"
+    );
     }
 #else
     if (nn > 0)
@@ -355,6 +525,60 @@ inline void Mat::fill(float _v)
         "0:                             \n"
         "subs       %0, #1              \n"
         "vst1.f32   {%e4-%f4}, [%1 :128]!\n"
+        "bne        0b                  \n"
+        : "=r"(nn),     // %0
+          "=r"(ptr)     // %1
+        : "0"(nn),
+          "1"(ptr),
+          "w"(_c)       // %4
+        : "cc", "memory"
+    );
+    }
+#endif // __aarch64__
+#endif // __ARM_NEON
+    for (; remain>0; remain--)
+    {
+        *ptr++ = _v;
+    }
+}
+
+inline void Mat::fill(int _v)
+{
+    int size = (int)total();
+    int* ptr = (int*)data;
+
+#if __ARM_NEON
+    int nn = size >> 2;
+    int remain = size - (nn << 2);
+#else
+    int remain = size;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+    int32x4_t _c = vdupq_n_s32(_v);
+#if __aarch64__
+    if (nn > 0)
+    {
+    asm volatile (
+        "0:                             \n"
+        "subs       %w0, %w0, #1        \n"
+        "st1        {%4.4s}, [%1], #16  \n"
+        "bne        0b                  \n"
+        : "=r"(nn),     // %0
+          "=r"(ptr)     // %1
+        : "0"(nn),
+          "1"(ptr),
+          "w"(_c)       // %4
+        : "cc", "memory"
+    );
+    }
+#else
+    if (nn > 0)
+    {
+    asm volatile(
+        "0:                             \n"
+        "subs       %0, #1              \n"
+        "vst1.s32   {%e4-%f4}, [%1 :128]!\n"
         "bne        0b                  \n"
         : "=r"(nn),     // %0
           "=r"(ptr)     // %1
@@ -383,18 +607,18 @@ inline void Mat::fill(T _v)
     }
 }
 
-inline Mat Mat::clone() const
+inline Mat Mat::clone(Allocator* allocator) const
 {
     if (empty())
         return Mat();
 
     Mat m;
     if (dims == 1)
-        m.create(w, elemsize);
+        m.create(w, elemsize, packing, allocator);
     else if (dims == 2)
-        m.create(w, h, elemsize);
+        m.create(w, h, elemsize, packing, allocator);
     else if (dims == 3)
-        m.create(w, h, c, elemsize);
+        m.create(w, h, c, elemsize, packing, allocator);
 
     if (total() > 0)
     {
@@ -404,7 +628,7 @@ inline Mat Mat::clone() const
     return m;
 }
 
-inline Mat Mat::reshape(int _w) const
+inline Mat Mat::reshape(int _w, Allocator* _allocator) const
 {
     if (w * h * c != _w)
         return Mat();
@@ -412,7 +636,7 @@ inline Mat Mat::reshape(int _w) const
     if (dims == 3 && cstep != (size_t)w * h)
     {
         Mat m;
-        m.create(_w, elemsize);
+        m.create(_w, elemsize, packing, _allocator);
 
         // flatten
         for (int i=0; i<c; i++)
@@ -437,7 +661,7 @@ inline Mat Mat::reshape(int _w) const
     return m;
 }
 
-inline Mat Mat::reshape(int _w, int _h) const
+inline Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
 {
     if (w * h * c != _w * _h)
         return Mat();
@@ -445,7 +669,7 @@ inline Mat Mat::reshape(int _w, int _h) const
     if (dims == 3 && cstep != (size_t)w * h)
     {
         Mat m;
-        m.create(_w, _h, elemsize);
+        m.create(_w, _h, elemsize, packing, _allocator);
 
         // flatten
         for (int i=0; i<c; i++)
@@ -470,7 +694,7 @@ inline Mat Mat::reshape(int _w, int _h) const
     return m;
 }
 
-inline Mat Mat::reshape(int _w, int _h, int _c) const
+inline Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
 {
     if (w * h * c != _w * _h * _c)
         return Mat();
@@ -480,7 +704,7 @@ inline Mat Mat::reshape(int _w, int _h, int _c) const
         if ((size_t)_w * _h != alignSize(_w * _h * elemsize, 16) / elemsize)
         {
             Mat m;
-            m.create(_w, _h, _c, elemsize);
+            m.create(_w, _h, _c, elemsize, packing, _allocator);
 
             // align channel
             for (int i=0; i<_c; i++)
@@ -496,8 +720,8 @@ inline Mat Mat::reshape(int _w, int _h, int _c) const
     else if (c != _c)
     {
         // flatten and then align
-        Mat tmp = reshape(_w * _h * _c);
-        return tmp.reshape(_w, _h, _c);
+        Mat tmp = reshape(_w * _h * _c, _allocator);
+        return tmp.reshape(_w, _h, _c, _allocator);
     }
 
     Mat m = *this;
@@ -512,14 +736,16 @@ inline Mat Mat::reshape(int _w, int _h, int _c) const
     return m;
 }
 
-inline void Mat::create(int _w, size_t _elemsize)
+inline void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
 {
-    if (dims == 1 && w == _w && elemsize == _elemsize)
+    if (dims == 1 && w == _w && elemsize == _elemsize && packing == 1 && allocator == _allocator)
         return;
 
     release();
 
     elemsize = _elemsize;
+    packing = 1;
+    allocator = _allocator;
 
     dims = 1;
     w = _w;
@@ -530,21 +756,26 @@ inline void Mat::create(int _w, size_t _elemsize)
 
     if (total() > 0)
     {
-        size_t totalsize = total() * elemsize;
-        data = fastMalloc(totalsize + (int)sizeof(*refcount));
+        size_t totalsize = alignSize(total() * elemsize, 4);
+        if (allocator)
+            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
+        else
+            data = fastMalloc(totalsize + (int)sizeof(*refcount));
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
 }
 
-inline void Mat::create(int _w, int _h, size_t _elemsize)
+inline void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
 {
-    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize)
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && packing == 1 && allocator == _allocator)
         return;
 
     release();
 
     elemsize = _elemsize;
+    packing = 1;
+    allocator = _allocator;
 
     dims = 2;
     w = _w;
@@ -555,21 +786,26 @@ inline void Mat::create(int _w, int _h, size_t _elemsize)
 
     if (total() > 0)
     {
-        size_t totalsize = total() * elemsize;
-        data = fastMalloc(totalsize + (int)sizeof(*refcount));
+        size_t totalsize = alignSize(total() * elemsize, 4);
+        if (allocator)
+            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
+        else
+            data = fastMalloc(totalsize + (int)sizeof(*refcount));
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
 }
 
-inline void Mat::create(int _w, int _h, int _c, size_t _elemsize)
+inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator)
 {
-    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize)
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && packing == 1 && allocator == _allocator)
         return;
 
     release();
 
     elemsize = _elemsize;
+    packing = 1;
+    allocator = _allocator;
 
     dims = 3;
     w = _w;
@@ -580,12 +816,127 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize)
 
     if (total() > 0)
     {
-        size_t totalsize = total() * elemsize;
-        data = fastMalloc(totalsize + (int)sizeof(*refcount));
+        size_t totalsize = alignSize(total() * elemsize, 4);
+        if (allocator)
+            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
+        else
+            data = fastMalloc(totalsize + (int)sizeof(*refcount));
         refcount = (int*)(((unsigned char*)data) + totalsize);
         *refcount = 1;
     }
 }
+
+inline void Mat::create(int _w, size_t _elemsize, int _packing, Allocator* _allocator)
+{
+    if (dims == 1 && w == _w && elemsize == _elemsize && packing == _packing && allocator == _allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    packing = _packing;
+    allocator = _allocator;
+
+    dims = 1;
+    w = _w;
+    h = 1;
+    c = 1;
+
+    cstep = w;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+        if (allocator)
+            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
+        else
+            data = fastMalloc(totalsize + (int)sizeof(*refcount));
+        refcount = (int*)(((unsigned char*)data) + totalsize);
+        *refcount = 1;
+    }
+}
+
+inline void Mat::create(int _w, int _h, size_t _elemsize, int _packing, Allocator* _allocator)
+{
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && packing == _packing && allocator == _allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    packing = _packing;
+    allocator = _allocator;
+
+    dims = 2;
+    w = _w;
+    h = _h;
+    c = 1;
+
+    cstep = w * h;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+        if (allocator)
+            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
+        else
+            data = fastMalloc(totalsize + (int)sizeof(*refcount));
+        refcount = (int*)(((unsigned char*)data) + totalsize);
+        *refcount = 1;
+    }
+}
+
+inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _packing, Allocator* _allocator)
+{
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && packing == _packing && allocator == _allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    packing = _packing;
+    allocator = _allocator;
+
+    dims = 3;
+    w = _w;
+    h = _h;
+    c = _c;
+
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+        if (allocator)
+            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
+        else
+            data = fastMalloc(totalsize + (int)sizeof(*refcount));
+        refcount = (int*)(((unsigned char*)data) + totalsize);
+        *refcount = 1;
+    }
+}
+
+inline void Mat::create_like(const Mat& m, Allocator* _allocator)
+{
+    if (m.dims == 1)
+        create(m.w, m.elemsize, m.packing, _allocator);
+    else if (m.dims == 2)
+        create(m.w, m.h, m.elemsize, m.packing, _allocator);
+    else if (m.dims == 3)
+        create(m.w, m.h, m.c, m.elemsize, m.packing, _allocator);
+}
+
+#if NCNN_VULKAN
+inline void Mat::create_like(const VkMat& m, Allocator* _allocator)
+{
+    if (m.dims == 1)
+        create(m.w, m.elemsize, m.packing, _allocator);
+    else if (m.dims == 2)
+        create(m.w, m.h, m.elemsize, m.packing, _allocator);
+    else if (m.dims == 3)
+        create(m.w, m.h, m.c, m.elemsize, m.packing, _allocator);
+}
+#endif // NCNN_VULKAN
 
 inline void Mat::addref()
 {
@@ -596,11 +947,17 @@ inline void Mat::addref()
 inline void Mat::release()
 {
     if (refcount && NCNN_XADD(refcount, -1) == 1)
-        fastFree(data);
+    {
+        if (allocator)
+            allocator->fastFree(data);
+        else
+            fastFree(data);
+    }
 
     data = 0;
 
     elemsize = 0;
+    packing = 0;
 
     dims = 0;
     w = 0;
@@ -622,14 +979,14 @@ inline size_t Mat::total() const
     return cstep * c;
 }
 
-inline Mat Mat::channel(int c)
+inline Mat Mat::channel(int _c)
 {
-    return Mat(w, h, (unsigned char*)data + cstep * c * elemsize, elemsize);
+    return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, packing, allocator);
 }
 
-inline const Mat Mat::channel(int c) const
+inline const Mat Mat::channel(int _c) const
 {
-    return Mat(w, h, (unsigned char*)data + cstep * c * elemsize, elemsize);
+    return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, packing, allocator);
 }
 
 inline float* Mat::row(int y)
@@ -654,6 +1011,36 @@ inline const T* Mat::row(int y) const
     return (const T*)data + w * y;
 }
 
+inline Mat Mat::channel_range(int _c, int channels)
+{
+    return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, packing, allocator);
+}
+
+inline const Mat Mat::channel_range(int _c, int channels) const
+{
+    return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, packing, allocator);
+}
+
+inline Mat Mat::row_range(int y, int rows)
+{
+    return Mat(w, rows, (unsigned char*)data + w * y * elemsize, elemsize, packing, allocator);
+}
+
+inline const Mat Mat::row_range(int y, int rows) const
+{
+    return Mat(w, rows, (unsigned char*)data + w * y * elemsize, elemsize, packing, allocator);
+}
+
+inline Mat Mat::range(int x, int n)
+{
+    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, packing, allocator);
+}
+
+inline const Mat Mat::range(int x, int n) const
+{
+    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, packing, allocator);
+}
+
 template <typename T>
 inline Mat::operator T*()
 {
@@ -675,6 +1062,519 @@ inline const float& Mat::operator[](int i) const
 {
     return ((const float*)data)[i];
 }
+
+#if NCNN_VULKAN
+
+inline VkMat::VkMat()
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+{
+}
+
+inline VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+{
+    create(_w, _elemsize, _allocator, _staging_allocator);
+}
+
+inline VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+{
+    create(_w, _h, _elemsize, _allocator, _staging_allocator);
+}
+
+inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+{
+    create(_w, _h, _c, _elemsize, _allocator, _staging_allocator);
+}
+
+inline VkMat::VkMat(int _w, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+{
+    create(_w, _elemsize, _packing, _allocator, _staging_allocator);
+}
+
+inline VkMat::VkMat(int _w, int _h, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+{
+    create(_w, _h, _elemsize, _packing, _allocator, _staging_allocator);
+}
+
+inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(0), offset(0), staging_data(0), refcount(0), staging_refcount(0), elemsize(0), packing(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+{
+    create(_w, _h, _c, _elemsize, _packing, _allocator, _staging_allocator);
+}
+
+inline VkMat::VkMat(const VkMat& m)
+    : data(m.data), offset(m.offset), staging_data(m.staging_data), refcount(m.refcount), staging_refcount(m.staging_refcount), elemsize(m.elemsize), packing(m.packing), allocator(m.allocator), staging_allocator(m.staging_allocator), dims(m.dims), w(m.w), h(m.h), c(m.c)
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+
+    if (staging_refcount)
+        NCNN_XADD(staging_refcount, 1);
+
+    cstep = m.cstep;
+}
+
+inline VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _offset, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(_data), offset(_offset), staging_data(0), refcount(0), staging_refcount(0), elemsize(_elemsize), packing(1), allocator(_allocator), staging_allocator(_staging_allocator), dims(1), w(_w), h(1), c(1)
+{
+    cstep = w;
+}
+
+inline VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _offset, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(_data), offset(_offset), staging_data(0), refcount(0), staging_refcount(0), elemsize(_elemsize), packing(1), allocator(_allocator), staging_allocator(_staging_allocator), dims(2), w(_w), h(_h), c(1)
+{
+    cstep = w * h;
+}
+
+inline VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _offset, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(_data), offset(_offset), staging_data(0), refcount(0), staging_refcount(0), elemsize(_elemsize), packing(1), allocator(_allocator), staging_allocator(_staging_allocator), dims(3), w(_w), h(_h), c(_c)
+{
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+}
+
+inline VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _offset, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(_data), offset(_offset), staging_data(0), refcount(0), staging_refcount(0), elemsize(_elemsize), packing(_packing), allocator(_allocator), staging_allocator(_staging_allocator), dims(1), w(_w), h(1), c(1)
+{
+    cstep = w;
+}
+
+inline VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _offset, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(_data), offset(_offset), staging_data(0), refcount(0), staging_refcount(0), elemsize(_elemsize), packing(_packing), allocator(_allocator), staging_allocator(_staging_allocator), dims(2), w(_w), h(_h), c(1)
+{
+    cstep = w * h;
+}
+
+inline VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _offset, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+    : data(_data), offset(_offset), staging_data(0), refcount(0), staging_refcount(0), elemsize(_elemsize), packing(_packing), allocator(_allocator), staging_allocator(_staging_allocator), dims(3), w(_w), h(_h), c(_c)
+{
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+}
+
+inline VkMat::~VkMat()
+{
+    release();
+}
+
+inline VkMat& VkMat::operator=(const VkMat& m)
+{
+    if (this == &m)
+        return *this;
+
+    if (m.refcount)
+        NCNN_XADD(m.refcount, 1);
+
+    if (m.staging_refcount)
+        NCNN_XADD(m.staging_refcount, 1);
+
+    release();
+
+    data = m.data;
+    offset = m.offset;
+    staging_data = m.staging_data;
+    refcount = m.refcount;
+    staging_refcount = m.staging_refcount;
+    elemsize = m.elemsize;
+    packing = m.packing;
+    allocator = m.allocator;
+    staging_allocator = m.staging_allocator;
+
+    dims = m.dims;
+    w = m.w;
+    h = m.h;
+    c = m.c;
+
+    cstep = m.cstep;
+
+    return *this;
+}
+
+inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+{
+    if (dims == 1 && w == _w && elemsize == _elemsize && packing == 1 && allocator == _allocator && staging_allocator == _staging_allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    packing = 1;
+    allocator = _allocator;
+    staging_allocator = _staging_allocator;
+
+    dims = 1;
+    w = _w;
+    h = 1;
+    c = 1;
+
+    cstep = w;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        data = allocator->fastMalloc(totalsize);
+        offset = 0;
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+{
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && packing == 1 && allocator == _allocator && staging_allocator == _staging_allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    packing = 1;
+    allocator = _allocator;
+    staging_allocator = _staging_allocator;
+
+    dims = 2;
+    w = _w;
+    h = _h;
+    c = 1;
+
+    cstep = w * h;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        data = allocator->fastMalloc(totalsize);
+        offset = 0;
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+{
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && packing == 1 && allocator == _allocator && staging_allocator == _staging_allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    packing = 1;
+    allocator = _allocator;
+    staging_allocator = _staging_allocator;
+
+    dims = 3;
+    w = _w;
+    h = _h;
+    c = _c;
+
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        data = allocator->fastMalloc(totalsize);
+        offset = 0;
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+inline void VkMat::create(int _w, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+{
+    if (dims == 1 && w == _w && elemsize == _elemsize && packing == _packing && allocator == _allocator && staging_allocator == _staging_allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    packing = _packing;
+    allocator = _allocator;
+    staging_allocator = _staging_allocator;
+
+    dims = 1;
+    w = _w;
+    h = 1;
+    c = 1;
+
+    cstep = w;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        data = allocator->fastMalloc(totalsize);
+        offset = 0;
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+inline void VkMat::create(int _w, int _h, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+{
+    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && packing == _packing && allocator == _allocator && staging_allocator == _staging_allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    packing = _packing;
+    allocator = _allocator;
+    staging_allocator = _staging_allocator;
+
+    dims = 2;
+    w = _w;
+    h = _h;
+    c = 1;
+
+    cstep = w * h;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        data = allocator->fastMalloc(totalsize);
+        offset = 0;
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _packing, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+{
+    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && packing == _packing && allocator == _allocator && staging_allocator == _staging_allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    packing = _packing;
+    allocator = _allocator;
+    staging_allocator = _staging_allocator;
+
+    dims = 3;
+    w = _w;
+    h = _h;
+    c = _c;
+
+    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        data = allocator->fastMalloc(totalsize);
+        offset = 0;
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+inline void VkMat::create_like(const Mat& m, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+{
+    if (m.dims == 1)
+        create(m.w, m.elemsize, m.packing, _allocator, _staging_allocator);
+    else if (m.dims == 2)
+        create(m.w, m.h, m.elemsize, m.packing, _allocator, _staging_allocator);
+    else if (m.dims == 3)
+        create(m.w, m.h, m.c, m.elemsize, m.packing, _allocator, _staging_allocator);
+}
+
+inline void VkMat::create_like(const VkMat& m, VkAllocator* _allocator, VkAllocator* _staging_allocator)
+{
+    if (m.dims == 1)
+        create(m.w, m.elemsize, m.packing, _allocator, _staging_allocator);
+    else if (m.dims == 2)
+        create(m.w, m.h, m.elemsize, m.packing, _allocator, _staging_allocator);
+    else if (m.dims == 3)
+        create(m.w, m.h, m.c, m.elemsize, m.packing, _allocator, _staging_allocator);
+}
+
+inline void VkMat::prepare_staging_buffer()
+{
+    if (allocator->mappable)
+        return;
+
+    if (staging_allocator && staging_data)
+        return;
+
+    size_t totalsize = alignSize(total() * elemsize, 4);
+    staging_data = staging_allocator->fastMalloc(totalsize);
+
+    staging_refcount = (int*)((unsigned char*)staging_data + offsetof(VkBufferMemory, refcount));
+    *staging_refcount = 1;
+}
+
+inline void VkMat::discard_staging_buffer()
+{
+    if (allocator->mappable)
+        return;
+
+    if (staging_refcount && NCNN_XADD(staging_refcount, -1) == 1)
+    {
+        if (staging_allocator && staging_data)
+        {
+            staging_allocator->fastFree(staging_data);
+        }
+    }
+
+    staging_data = 0;
+    staging_refcount = 0;
+}
+
+inline void VkMat::upload(const Mat& m)
+{
+    memcpy(mapped_ptr(), m.data, m.total() * m.elemsize);
+}
+
+inline void VkMat::download(Mat& m) const
+{
+    memcpy(m.data, mapped_ptr(), total() * elemsize);
+}
+
+inline Mat VkMat::mapped() const
+{
+    if (dims == 1)
+        return Mat(w, mapped_ptr(), elemsize, packing, 0);
+
+    if (dims == 2)
+        return Mat(w, h, mapped_ptr(), elemsize, packing, 0);
+
+    if (dims == 3)
+        return Mat(w, h, c, mapped_ptr(), elemsize, packing, 0);
+
+    return Mat();
+}
+
+inline void* VkMat::mapped_ptr() const
+{
+    VkBufferMemory* mappable_data = allocator->mappable ? data : staging_data;
+    return (unsigned char*)mappable_data->mapped_ptr + mappable_data->offset + offset;
+}
+
+inline void VkMat::addref()
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+
+    if (staging_refcount)
+        NCNN_XADD(staging_refcount, 1);
+}
+
+inline void VkMat::release()
+{
+    if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
+        if (allocator && data)
+        {
+            allocator->fastFree(data);
+        }
+    }
+
+    if (staging_refcount && NCNN_XADD(staging_refcount, -1) == 1)
+    {
+        if (staging_allocator && staging_data)
+        {
+            staging_allocator->fastFree(staging_data);
+        }
+    }
+
+    data = 0;
+    offset = 0;
+    staging_data = 0;
+
+    elemsize = 0;
+    packing = 0;
+
+    dims = 0;
+    w = 0;
+    h = 0;
+    c = 0;
+
+    cstep = 0;
+
+    refcount = 0;
+    staging_refcount = 0;
+}
+
+inline bool VkMat::empty() const
+{
+    return data == 0 || total() == 0;
+}
+
+inline size_t VkMat::total() const
+{
+    return cstep * c;
+}
+
+inline VkMat VkMat::channel(int _c)
+{
+    return VkMat(w, h, data, cstep * _c * elemsize, elemsize, packing, allocator, staging_allocator);
+}
+
+inline const VkMat VkMat::channel(int _c) const
+{
+    return VkMat(w, h, data, cstep * _c * elemsize, elemsize, packing, allocator, staging_allocator);
+}
+
+inline VkMat VkMat::channel_range(int _c, int channels)
+{
+    return VkMat(w, h, channels, data, cstep * _c * elemsize, elemsize, packing, allocator, staging_allocator);
+}
+
+inline const VkMat VkMat::channel_range(int _c, int channels) const
+{
+    return VkMat(w, h, channels, data, cstep * _c * elemsize, elemsize, packing, allocator, staging_allocator);
+}
+
+inline VkMat VkMat::row_range(int y, int rows)
+{
+    return VkMat(w, rows, data, w * y * elemsize, elemsize, packing, allocator, staging_allocator);
+}
+
+inline const VkMat VkMat::row_range(int y, int rows) const
+{
+    return VkMat(w, rows, data, w * y * elemsize, elemsize, packing, allocator, staging_allocator);
+}
+
+inline VkMat VkMat::range(int x, int n)
+{
+    return VkMat(n, data, x * elemsize, elemsize, packing, allocator, staging_allocator);
+}
+
+inline const VkMat VkMat::range(int x, int n) const
+{
+    return VkMat(n, data, x * elemsize, elemsize, packing, allocator, staging_allocator);
+}
+
+inline VkBuffer VkMat::buffer() const
+{
+    return data->buffer;
+}
+
+inline size_t VkMat::buffer_offset() const
+{
+    return data->offset + offset;
+}
+
+inline VkBuffer VkMat::staging_buffer() const
+{
+    return staging_data->buffer;
+}
+
+inline size_t VkMat::staging_buffer_offset() const
+{
+    return staging_data->offset;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn
 

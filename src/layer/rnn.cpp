@@ -61,10 +61,11 @@ int RNN::load_model(const ModelBin& mb)
     return 0;
 }
 
-int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs) const
+int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     // size x 1 x T
     const Mat& input_blob = bottom_blobs[0];
+    size_t elemsize = input_blob.elemsize;
 
     // T, 0 or 1 each
     const Mat& cont_blob = bottom_blobs[1];
@@ -73,13 +74,13 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
     int size = input_blob.w;
 
     // initial hidden state
-    Mat hidden(num_output);
+    Mat hidden(num_output, 4u, opt.workspace_allocator);
     if (hidden.empty())
         return -100;
     hidden.fill(0.f);
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(num_output, 1, T);
+    top_blob.create(num_output, 1, T, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 

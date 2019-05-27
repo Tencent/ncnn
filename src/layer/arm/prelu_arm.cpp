@@ -22,11 +22,11 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(PReLU_arm)
 
-int PReLU_arm::forward_inplace(Mat& bottom_top_blob) const
+int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
     if (dims != 3)
-        return PReLU::forward_inplace(bottom_top_blob);
+        return PReLU::forward_inplace(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -35,7 +35,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob) const
 
     const float* slope_data_ptr = slope_data;
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);

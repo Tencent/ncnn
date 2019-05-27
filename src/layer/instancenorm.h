@@ -28,7 +28,7 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
-    virtual int forward_inplace(Mat& bottom_top_blob) const;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 public:
     // param

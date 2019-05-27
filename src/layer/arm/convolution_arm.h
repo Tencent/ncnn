@@ -19,18 +19,31 @@
 
 namespace ncnn {
 
-class Convolution_arm : public Convolution
+typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&, const Option&);
+
+class Convolution_arm : virtual public Convolution
 {
 public:
-    virtual int load_param(const ParamDict& pd);
+    Convolution_arm();
 
-    virtual int load_model(const ModelBin& mb);
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    virtual int forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv, const Option& opt) const;
 
 public:
+    Layer* activation;
     bool use_winograd3x3;
+    bool use_sgemm1x1;
     Mat weight_3x3_winograd64_data;
+    Mat weight_1x1_sgemm_data;
+    Mat weight_3x3s2_data;
+    Mat weight_3x3s2_int8_data;
+    Mat weight_1x1s1_sgemm_int8_data;
+    Mat weight_3x3_winograd23_data;
+    Mat weight_sgemm_int8_data;
+    std::vector<Mat> weight_3x3_winograd23_int8_data;
 };
 
 } // namespace ncnn

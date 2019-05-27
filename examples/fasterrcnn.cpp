@@ -4,7 +4,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "platform.h"
 #include "net.h"
+#if NCNN_VULKAN
+#include "gpu.h"
+#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -102,6 +106,10 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net fasterrcnn;
 
+#if NCNN_VULKAN
+    fasterrcnn.use_vulkan_compute = true;
+#endif // NCNN_VULKAN
+
     // original pretrained model from https://github.com/rbgirshick/py-faster-rcnn
     // py-faster-rcnn/models/pascal_voc/ZF/faster_rcnn_alt_opt/faster_rcnn_test.pt
     // https://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0
@@ -148,7 +156,6 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // step1, extract feature and all rois
     ncnn::Extractor ex1 = fasterrcnn.create_extractor();
-    ex1.set_light_mode(true);
 
     ex1.input("data", in);
     ex1.input("im_info", im_info);
@@ -163,7 +170,6 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     for (int i = 0; i < rois.c; i++)
     {
         ncnn::Extractor ex2 = fasterrcnn.create_extractor();
-        ex2.set_light_mode(true);
 
         ncnn::Mat roi = rois.channel(i);// get single roi
         ex2.input("conv5", conv5);
@@ -303,7 +309,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
         cv::rectangle(image, cv::Rect(cv::Point(x, y),
                                       cv::Size(label_size.width, label_size.height + baseLine)),
-                      cv::Scalar(255, 255, 255), CV_FILLED);
+                      cv::Scalar(255, 255, 255), -1);
 
         cv::putText(image, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
@@ -315,17 +321,31 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
 int main(int argc, char** argv)
 {
+    if (argc != 2)
+    {
+        fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
+        return -1;
+    }
+
     const char* imagepath = argv[1];
 
-    cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);
+    cv::Mat m = cv::imread(imagepath, 1);
     if (m.empty())
     {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }
 
+#if NCNN_VULKAN
+    ncnn::create_gpu_instance();
+#endif // NCNN_VULKAN
+
     std::vector<Object> objects;
     detect_fasterrcnn(m, objects);
+
+#if NCNN_VULKAN
+    ncnn::destroy_gpu_instance();
+#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 

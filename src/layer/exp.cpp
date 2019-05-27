@@ -34,7 +34,7 @@ int Exp::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Exp::forward_inplace(Mat& bottom_top_blob) const
+int Exp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -43,7 +43,7 @@ int Exp::forward_inplace(Mat& bottom_top_blob) const
 
     if (base == -1.f)
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -56,7 +56,7 @@ int Exp::forward_inplace(Mat& bottom_top_blob) const
     }
     else
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);

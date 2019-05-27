@@ -25,12 +25,12 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Softmax_arm)
 
-int Softmax_arm::forward_inplace(Mat& bottom_top_blob) const
+int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
 
     if (dims != 3 || axis != 0)
-        return Softmax::forward_inplace(bottom_top_blob);
+        return Softmax::forward_inplace(bottom_top_blob, opt);
 
     // value = exp( value - global max value )
     // sum all value
@@ -39,10 +39,11 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob) const
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
+    size_t elemsize = bottom_top_blob.elemsize;
     int size = w * h;
 
     Mat max;
-    max.create(w, h);
+    max.create(w, h, elemsize, opt.workspace_allocator);
     if (max.empty())
         return -100;
     max.fill(-FLT_MAX);
@@ -57,7 +58,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob) const
         }
     }
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
@@ -95,7 +96,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob) const
     }
 
     Mat sum;
-    sum.create(w, h);
+    sum.create(w, h, elemsize, opt.workspace_allocator);
     if (sum.empty())
         return -100;
     sum.fill(0.f);
@@ -133,7 +134,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob) const
         }
     }
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);

@@ -15,6 +15,7 @@
 #include "pooling.h"
 #include <float.h>
 #include <algorithm>
+#include "layer_type.h"
 
 namespace ncnn {
 
@@ -43,7 +44,7 @@ int Pooling::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // max value in NxN window
     // avg value in NxN window
@@ -51,11 +52,12 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
-//     fprintf(stderr, "Pooling     input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+//     fprintf(stderr, "Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
     if (global_pooling)
     {
-        top_blob.create(channels);
+        top_blob.create(channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -63,7 +65,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
 
         if (pooling_type == PoolMethod_MAX)
         {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -79,7 +81,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         }
         else if (pooling_type == PoolMethod_AVE)
         {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -122,7 +124,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         if (htail != 0)
             htailpad = stride_h - htail;
 
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -131,7 +133,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
     else if (pad_mode == 1) // valid padding
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value);
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -144,7 +146,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
         int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value);
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -156,7 +158,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
     int outw = (w - kernel_w) / stride_w + 1;
     int outh = (h - kernel_h) / stride_h + 1;
 
-    top_blob.create(outw, outh, channels);
+    top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -183,7 +185,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
 
     if (pooling_type == PoolMethod_MAX)
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const Mat m = bottom_blob_bordered.channel(q);
@@ -212,7 +214,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
     else if (pooling_type == PoolMethod_AVE)
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
             const Mat m = bottom_blob_bordered.channel(q);

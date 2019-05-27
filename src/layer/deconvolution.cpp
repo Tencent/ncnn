@@ -13,6 +13,8 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolution.h"
+#include <algorithm>
+#include "layer_type.h"
 
 namespace ncnn {
 
@@ -37,6 +39,8 @@ int Deconvolution::load_param(const ParamDict& pd)
     pad_h = pd.get(14, pad_w);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
+    activation_type = pd.get(9, 0);
+    activation_params = pd.get(10, Mat());
 
     return 0;
 }
@@ -57,7 +61,7 @@ int Deconvolution::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
+int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // backward strided convolv with NxN kernel
     // value = value + bias
@@ -65,6 +69,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
 //     fprintf(stderr, "Deconvolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
@@ -74,10 +79,20 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     int outw = (w - 1) * stride_w + kernel_extent_w;
     int outh = (h - 1) * stride_h + kernel_extent_h;
 
-    Mat top_blob_bordered = top_blob;
-    top_blob_bordered.create(outw, outh, num_output);
-    if (top_blob_bordered.empty())
-        return -100;
+    Mat top_blob_bordered;
+    if (pad_w > 0 || pad_h > 0)
+    {
+        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+        if (top_blob_bordered.empty())
+            return -100;
+    }
 
     const int maxk = kernel_w * kernel_h;
 
@@ -101,7 +116,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
     }
 
     // num_output
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=0; p<num_output; p++)
     {
         Mat out = top_blob_bordered.channel(p);
@@ -134,18 +149,67 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob) const
                 }
             }
         }
-    }
 
-    top_blob = top_blob_bordered;
+        if (activation_type == 1)
+        {
+            float* outptr = out;
+            int size = outw * outh;
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = std::max(outptr[i], 0.f);
+            }
+        }
+        else if (activation_type == 2)
+        {
+            float* outptr = out;
+            int size = outw * outh;
+            float slope = activation_params[0];
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = outptr[i] > 0.f ? outptr[i] : outptr[i] * slope;
+            }
+        }
+        else if (activation_type == 3)
+        {
+            float* outptr = out;
+            int size = outw * outh;
+            float min = activation_params[0];
+            float max = activation_params[1];
+
+            for (int i = 0; i < size; i++)
+            {
+                if (outptr[i] < min)
+                    outptr[i] = min;
+                if (outptr[i] > max)
+                    outptr[i] = max;
+            }
+        }
+        else if (activation_type == 4)
+        {
+            float* outptr = out;
+            int size = outw * outh;
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = 1.f / (1.f + exp(-outptr[i]));
+            }
+        }
+    }
 
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w);
+        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w, opt.blob_allocator, opt.num_threads);
         if (top_blob.empty())
             return -100;
 
         outw = top_blob.w;
         outh = top_blob.h;
+    }
+    else
+    {
+        top_blob = top_blob_bordered;
     }
 
     return 0;

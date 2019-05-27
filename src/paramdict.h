@@ -53,6 +53,7 @@ protected:
 #if NCNN_STDIO
 #if NCNN_STRING
     int load_param(FILE* fp);
+    int load_param_mem(const char*& mem);
 #endif // NCNN_STRING
     int load_param_bin(FILE* fp);
 #endif // NCNN_STDIO
