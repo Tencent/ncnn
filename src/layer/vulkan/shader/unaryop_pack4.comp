@@ -49,7 +49,7 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
+    afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]);
 
     afpvec4 res;
 
@@ -70,5 +70,5 @@ void main()
     if (op_type == 14) res = atan(v);
     if (op_type == 15) res = afp(1.f) / v;
 
-    bottom_top_blob_data[gi] = sfpvec4(res);
+    bottom_top_blob_data[gi] = afp2sfpvec4(res);
 }

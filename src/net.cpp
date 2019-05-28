@@ -1070,7 +1070,7 @@ int Net::create_pipeline()
     opt.use_sgemm_convolution = use_sgemm_convolution;
     opt.use_int8_inference = use_int8_inference;
 
-    if (vkdev->info.support_fp16_storage)
+    if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
     {
         {
         cast_float32_to_float16 = ncnn::create_layer(ncnn::LayerType::Cast);
@@ -1407,7 +1407,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     // cast to fp16
                     VkMat bottom_blob_unpacked_fp16;
-                    if (vkdev->info.support_fp16_storage)
+                    if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
                     {
                         cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
                     }
@@ -1509,7 +1509,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                         // cast to fp16
                         VkMat bottom_blob_unpacked_fp16;
-                        if (vkdev->info.support_fp16_storage)
+                        if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
                         {
                             cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
                         }
@@ -1638,7 +1638,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     // cast to fp32
                     VkMat bottom_blob_unpacked_fp32;
-                    if (vkdev->info.support_fp16_storage)
+                    if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
                     {
                         cast_float16_to_float32->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp32, cmd, opt);
                     }
@@ -1773,7 +1773,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         packing_pack1->forward(bottom_blob, bottom_blob_unpacked, cmd, opt);
 
                         // cast to fp32
-                        if (vkdev->info.support_fp16_storage)
+                        if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
                         {
                             cast_float16_to_float32->forward(bottom_blob_unpacked, bottom_blobs_unpacked_fp32[i], cmd, opt);
                         }
@@ -2024,7 +2024,7 @@ int Extractor::extract(int blob_index, Mat& feat)
 
                 // cast to fp32
                 VkMat feat_gpu_unpacked_fp32;
-                if (net->vkdev->info.support_fp16_storage)
+                if (net->vkdev->info.support_fp16_packed || net->vkdev->info.support_fp16_storage)
                 {
                     net->cast_float16_to_float32->forward(feat_gpu_unpacked, feat_gpu_unpacked_fp32, cmd, opt);
                 }

@@ -21,30 +21,26 @@
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
-layout (constant_id = 0) const int region_type = 0;
-layout (constant_id = 1) const int local_size = 0;
-layout (constant_id = 2) const float alpha = 0;
-layout (constant_id = 3) const float beta = 0;
-layout (constant_id = 4) const float bias_constant = 0;
-
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer square_workspace { sfp square_workspace_data[]; };
-layout (binding = 1) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_tm_blob { sfpvec4 bottom_tm_blob_data[]; };
+layout (binding = 1) writeonly buffer top_tm_blob { sfpvec4 top_tm_blob_data[]; };
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
+// GL_EXT_shader_16bit_storage does not define f16mat4 type :(
+layout (binding = 2) readonly buffer weight_tm_blob { sfpvec4 weight_tm_data[]; };
+#else
+layout (binding = 2) readonly buffer weight_tm_blob { sfpmat4 weight_tm_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
-    int dims;
-    int w;
-    int h;
+    int block;
+
     int c;
     int cstep;
 
-    int outdims;
-    int outw;
-    int outh;
     int outc;
     int outcstep;
 } p;
@@ -55,30 +51,35 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= 16 || gy >= p.block || gz >= p.outc)
         return;
-
-    // support region_type == 0 only
 
     afpvec4 sum = afpvec4(0.f);
 
-    ivec4 z4 = gz * 4 + ivec4(0, 1, 2, 3);
-    ivec4 v_offset = z4 * p.cstep + gy * p.w + gx;
+    int v_offset = gy * 16 + gx;
+    int w_offset = gz * p.c * 16 + gx;
 
-    for (int z = 0; z < local_size; z++)
+    for (int z = 0; z < p.c; z++)
     {
-        sum.r += sfp2afp(square_workspace_data[v_offset.r]);
-        sum.g += sfp2afp(square_workspace_data[v_offset.g]);
-        sum.b += sfp2afp(square_workspace_data[v_offset.b]);
-        sum.a += sfp2afp(square_workspace_data[v_offset.a]);
+        afpvec4 v = sfp2afpvec4(bottom_tm_blob_data[v_offset]);
+
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
+        // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
+        afpmat4 k = afpmat4(
+            sfp2afpvec4(weight_tm_data[w_offset * 4 + 0]),
+            sfp2afpvec4(weight_tm_data[w_offset * 4 + 1]),
+            sfp2afpvec4(weight_tm_data[w_offset * 4 + 2]),
+            sfp2afpvec4(weight_tm_data[w_offset * 4 + 3])
+        );
+#else
+        afpmat4 k = sfpmat4(weight_tm_data[w_offset]);
+#endif
+
+        sum += v * k;
 
         v_offset += p.cstep;
+        w_offset += 16;
     }
 
-    const afp alpha_div_size = afp(alpha / local_size);
-    afpvec4 scale = pow(afp(bias_constant) + alpha_div_size * sum, afpvec4(-beta));
-
-    int gi = gz * p.outcstep + gy * p.outw + gx;
-    afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]) * scale;
-    bottom_top_blob_data[gi] = afp2sfpvec4(v);
+    top_tm_blob_data[gz * p.outcstep + gy * 16 + gx] = afp2sfpvec4(sum);
 }

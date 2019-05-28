@@ -31,7 +31,7 @@
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
 #else
-#define ENABLE_VALIDATION_LAYER 1
+#define ENABLE_VALIDATION_LAYER 0
 #endif
 
 namespace ncnn {
@@ -641,6 +641,7 @@ int create_gpu_instance()
         }
 
         // check features
+        gpu_info.support_fp16_packed = false;// TODO
         gpu_info.support_fp16_storage = false;
         gpu_info.support_fp16_arithmetic = false;
         gpu_info.support_int8_storage = false;
