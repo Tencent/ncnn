@@ -36,11 +36,11 @@ layout (binding = 2) readonly buffer weight_tm_blob { sfpmat4 weight_tm_data[]; 
 
 layout (push_constant) uniform parameter
 {
-    int block;
-
     int c;
     int cstep;
 
+    int outh_4;
+    int outh;
     int outc;
     int outcstep;
 } p;
@@ -51,17 +51,23 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= 16 || gy >= p.block || gz >= p.outc)
+    if (gx >= 16 || gy >= p.outh_4 || gz >= p.outc)
         return;
 
-    afpvec4 sum = afpvec4(0.f);
+    afpvec4 sum0 = afpvec4(0.f);
+    afpvec4 sum1 = afpvec4(0.f);
+    afpvec4 sum2 = afpvec4(0.f);
+    afpvec4 sum3 = afpvec4(0.f);
 
-    int v_offset = gy * 16 + gx;
+    int v_offset = gy * 4 * 16 + gx;
     int w_offset = gz * p.c * 16 + gx;
 
     for (int z = 0; z < p.c; z++)
     {
-        afpvec4 v = sfp2afpvec4(bottom_tm_blob_data[v_offset]);
+        afpvec4 v0 = sfp2afpvec4(bottom_tm_blob_data[v_offset + 0]);
+        afpvec4 v1 = sfp2afpvec4(bottom_tm_blob_data[v_offset + 16]);
+        afpvec4 v2 = sfp2afpvec4(bottom_tm_blob_data[v_offset + 32]);
+        afpvec4 v3 = sfp2afpvec4(bottom_tm_blob_data[v_offset + 48]);
 
 #if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
         // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
@@ -75,11 +81,19 @@ void main()
         afpmat4 k = sfpmat4(weight_tm_data[w_offset]);
 #endif
 
-        sum += v * k;
+        sum0 += v0 * k;
+        sum1 += v1 * k;
+        sum2 += v2 * k;
+        sum3 += v3 * k;
 
         v_offset += p.cstep;
         w_offset += 16;
     }
 
-    top_tm_blob_data[gz * p.outcstep + gy * 16 + gx] = afp2sfpvec4(sum);
+    int gi = gz * p.outcstep + gy * 4 * 16 + gx;
+
+    top_tm_blob_data[gi + 0] = afp2sfpvec4(sum0);
+    if (gy * 4 + 1 < p.outh) top_tm_blob_data[gi + 16] = afp2sfpvec4(sum1);
+    if (gy * 4 + 2 < p.outh) top_tm_blob_data[gi + 32] = afp2sfpvec4(sum2);
+    if (gy * 4 + 3 < p.outh) top_tm_blob_data[gi + 48] = afp2sfpvec4(sum3);
 }
