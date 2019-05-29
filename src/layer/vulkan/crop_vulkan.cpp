@@ -98,6 +98,12 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     int out_packing = _outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
+    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    {
+        if (out_packing == 4) out_elemsize = 4*2u;
+        if (out_packing == 1) out_elemsize = 4u;
+    }
+
     top_blob.create(_outw, _outh, _outc / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
@@ -188,6 +194,12 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     int out_packing = _outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
+
+    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    {
+        if (out_packing == 4) out_elemsize = 4*2u;
+        if (out_packing == 1) out_elemsize = 4u;
+    }
 
     VkMat& top_blob = top_blobs[0];
 

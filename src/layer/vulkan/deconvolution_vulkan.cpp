@@ -158,7 +158,7 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-            weight_data_pack4.create(16*maxk, num_input/4, num_output/4);
+            weight_data_pack4.create(maxk, num_input/4, num_output/4, (size_t)4*16, 16);
 
             for (int q=0; q+3<num_output; q+=4)
             {
@@ -221,7 +221,6 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4 = weight_data_pack4.reshape(16*maxk * (num_input/4) * (num_output/4));
         cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
     }
 
@@ -234,7 +233,7 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-            weight_data_pack1to4.create(4*maxk, num_input, num_output/4);
+            weight_data_pack1to4.create(maxk, num_input, num_output/4, (size_t)4*4, 4);
 
             for (int q=0; q+3<num_output; q+=4)
             {
@@ -267,7 +266,6 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack1to4 = weight_data_pack1to4.reshape(4*maxk * num_input * (num_output/4));
         cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4);
     }
 
@@ -280,7 +278,7 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-            weight_data_pack4to1.create(4*maxk, num_input/4, num_output);
+            weight_data_pack4to1.create(maxk, num_input/4, num_output, (size_t)4*4, 4);
 
             for (int q=0; q<num_output; q++)
             {
@@ -309,7 +307,6 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4to1 = weight_data_pack4to1.reshape(4*maxk * (num_input/4) * num_output);
         cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1);
     }
 

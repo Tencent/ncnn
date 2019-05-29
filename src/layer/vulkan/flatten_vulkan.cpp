@@ -24,6 +24,7 @@ Flatten_vulkan::Flatten_vulkan()
 
     pipeline_flatten = 0;
     pipeline_flatten_pack4 = 0;
+    pipeline_flatten_pack1to4 = 0;
 }
 
 int Flatten_vulkan::create_pipeline(const Option& opt)
@@ -44,6 +45,13 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
         pipeline_flatten_pack4->create("flatten_pack4", specializations, 2, 10);
     }
 
+    // pack1to4
+    {
+        pipeline_flatten_pack1to4 = new Pipeline(vkdev);
+        pipeline_flatten_pack1to4->set_optimal_local_size_xyz();
+        pipeline_flatten_pack1to4->create("flatten_pack1to4", specializations, 2, 10);
+    }
+
     return 0;
 }
 
@@ -54,6 +62,9 @@ int Flatten_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_flatten_pack4;
     pipeline_flatten_pack4 = 0;
+
+    delete pipeline_flatten_pack1to4;
+    pipeline_flatten_pack1to4 = 0;
 
     return 0;
 }
@@ -78,6 +89,12 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     int out_packing = total % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
+
+    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    {
+        if (out_packing == 4) out_elemsize = 4*2u;
+        if (out_packing == 1) out_elemsize = 4u;
+    }
 
     if (dims == 2 && packing == 1)
     {
@@ -106,25 +123,26 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[3].i = bottom_blob.c;
     constants[4].i = bottom_blob.cstep;
     constants[5].i = top_blob.dims;
-    constants[6].i = (packing == 1 && out_packing == 4) ? total : top_blob.w;
+    constants[6].i = top_blob.w;
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_flatten_pack4 : pipeline_flatten;
+    const Pipeline* pipeline = 0;
+    if (packing == 1 && out_packing == 1)
+    {
+        pipeline = pipeline_flatten;
+    }
+    else if (packing == 4 /*&& out_packing == 4*/)
+    {
+        pipeline = pipeline_flatten_pack4;
+    }
+    else if (packing == 1 && out_packing == 4)
+    {
+        pipeline = pipeline_flatten_pack1to4;
+    }
 
-    if (packing == 1 && out_packing == 4)
-    {
-        VkMat dispatcher;
-        dispatcher.w = total;
-        dispatcher.h = 1;
-        dispatcher.c = 1;
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
-    }
-    else
-    {
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-    }
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }

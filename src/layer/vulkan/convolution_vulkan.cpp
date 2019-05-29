@@ -315,7 +315,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
-            weight_data_pack4.create(16*maxk, num_input/4, num_output/4);
+            weight_data_pack4.create(maxk, num_input/4, num_output/4, (size_t)4*16, 16);
 
             for (int q=0; q+3<num_output; q+=4)
             {
@@ -378,7 +378,6 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4 = weight_data_pack4.reshape(16*maxk * (num_input/4) * (num_output/4));
         cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
 
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1 && num_input >= 16 && num_output >= 16)
@@ -434,7 +433,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
             // dst = 4a-4b-16-inch/4a-outch/4b
             Mat weight_data_pack4_tm;
             {
-                weight_data_pack4_tm.create(16*16, num_input/4, num_output/4);
+                weight_data_pack4_tm.create(16, num_input/4, num_output/4, (size_t)4*16, 16);
 
                 for (int q=0; q+3<num_output; q+=4)
                 {
@@ -497,7 +496,6 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
                 }
             }
 
-            weight_data_pack4_tm = weight_data_pack4_tm.reshape(16*16 * (num_input/4) * (num_output/4));
             cmd.record_upload(weight_data_pack4_tm, weight_data_gpu_pack4_tm);
         }
     }
@@ -511,7 +509,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
-            weight_data_pack1to4.create(4*maxk, num_input, num_output/4);
+            weight_data_pack1to4.create(maxk, num_input, num_output/4, (size_t)4*4, 4);
 
             for (int q=0; q+3<num_output; q+=4)
             {
@@ -544,7 +542,6 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack1to4 = weight_data_pack1to4.reshape(4*maxk * num_input * (num_output/4));
         cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4);
     }
 
@@ -557,7 +554,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
-            weight_data_pack4to1.create(4*maxk, num_input/4, num_output);
+            weight_data_pack4to1.create(maxk, num_input/4, num_output, (size_t)4*4, 4);
 
             for (int q=0; q<num_output; q++)
             {
@@ -586,7 +583,6 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4to1 = weight_data_pack4to1.reshape(4*maxk * (num_input/4) * num_output);
         cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1);
     }
 
@@ -738,6 +734,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     int outh = (h - kernel_extent_h) / stride_h + 1;
     int out_packing = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
+
+    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    {
+        if (out_packing == 4) out_elemsize = 4*2u;
+        if (out_packing == 1) out_elemsize = 4u;
+    }
 
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     if (packing == 4 && out_packing == 4 && is_conv3x3s1d1 && channels * packing >= 16 && num_output >= 16)

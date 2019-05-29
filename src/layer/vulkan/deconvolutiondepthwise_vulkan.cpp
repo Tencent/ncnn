@@ -281,7 +281,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2_groups = weight_data_transposed.reshape(maxk, channels_g, num_output_g * group);
 
-            weight_data_pack4_groups.create(16*maxk, channels_g/4, num_output_g/4 * group);
+            weight_data_pack4_groups.create(maxk, channels_g/4, num_output_g/4 * group, (size_t)4*16, 16);
 
             for (int g=0; g<group; g++)
             {
@@ -351,7 +351,6 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4_groups = weight_data_pack4_groups.reshape(16*maxk * (channels_g/4) * (num_output_g/4) * group);
         cmd.record_upload(weight_data_pack4_groups, weight_data_gpu_pack4);
     }
 
@@ -364,7 +363,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2_groups = weight_data_transposed.reshape(maxk, channels_g, num_output_g * group);
 
-            weight_data_pack1to4_groups.create(4*maxk, channels_g, num_output_g/4 * group);
+            weight_data_pack1to4_groups.create(maxk, channels_g, num_output_g/4 * group, (size_t)4*4, 4);
 
             for (int g=0; g<group; g++)
             {
@@ -404,7 +403,6 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack1to4_groups = weight_data_pack1to4_groups.reshape(4*maxk * channels_g * (num_output_g/4) * group);
         cmd.record_upload(weight_data_pack1to4_groups, weight_data_gpu_pack1to4);
     }
 
@@ -417,7 +415,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2_groups = weight_data_transposed.reshape(maxk, channels_g, num_output_g * group);
 
-            weight_data_pack4to1_groups.create(4*maxk, channels_g/4, num_output_g * group);
+            weight_data_pack4to1_groups.create(maxk, channels_g/4, num_output_g * group, (size_t)4*4, 4);
 
             for (int g=0; g<group; g++)
             {
@@ -453,7 +451,6 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4to1_groups = weight_data_pack4to1_groups.reshape(4*maxk * (channels_g/4) * num_output_g * group);
         cmd.record_upload(weight_data_pack4to1_groups, weight_data_gpu_pack4to1);
     }
 

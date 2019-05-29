@@ -72,6 +72,12 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int out_packing = 1;
     size_t out_elemsize = elemsize / packing;
 
+    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    {
+        if (out_packing == 4) out_elemsize = 4*2u;
+        if (out_packing == 1) out_elemsize = 4u;
+    }
+
     if (dims == 2)
     {
         // order_type

@@ -107,6 +107,12 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
 {
     int w = bottom_blobs[0].w;
     int h = bottom_blobs[0].h;
+    size_t elemsize = 4u;
+
+    if (vkdev->info.support_fp16_storage)
+    {
+        elemsize = 2u;
+    }
 
     if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes.empty())
     {
@@ -124,7 +130,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         int num_prior = num_sizes - 1 + num_ratios;
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(4 * w * h * num_prior, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(4 * w * h * num_prior, elemsize, 1, opt.blob_vkallocator, opt.staging_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -172,7 +178,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         num_prior += num_min_size * num_aspect_ratio;
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(4 * w * h * num_prior, 2, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(4 * w * h * num_prior, 2, elemsize, 1, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
