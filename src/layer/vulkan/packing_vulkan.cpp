@@ -96,7 +96,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     if (dims == 1)
     {
-        if (out_packing == 1)
+        if (vkdev->info.support_fp16_storage && out_packing == 1)
         {
             top_blob = bottom_blob;
             top_blob.w = w * packing;
@@ -108,6 +108,11 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         int outw = (w * packing + out_packing - 1) / out_packing;
         size_t out_elemsize = elemsize / packing * out_packing;
+        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        {
+            if (out_packing == 4) out_elemsize = 4*2u;
+            if (out_packing == 1) out_elemsize = 4u;
+        }
 
         top_blob.create(outw, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
         if (top_blob.empty())
@@ -118,6 +123,11 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         int outh = (h * packing + out_packing - 1) / out_packing;
         size_t out_elemsize = elemsize / packing * out_packing;
+        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        {
+            if (out_packing == 4) out_elemsize = 4*2u;
+            if (out_packing == 1) out_elemsize = 4u;
+        }
 
         top_blob.create(w, outh, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
         if (top_blob.empty())
@@ -128,6 +138,11 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         int outc = (channels * packing + out_packing - 1) / out_packing;
         size_t out_elemsize = elemsize / packing * out_packing;
+        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        {
+            if (out_packing == 4) out_elemsize = 4*2u;
+            if (out_packing == 1) out_elemsize = 4u;
+        }
 
         top_blob.create(w, h, outc, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
         if (top_blob.empty())

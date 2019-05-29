@@ -141,7 +141,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-            weight_data_pack4.create(16, num_input/4, num_output/4);
+            weight_data_pack4.create(num_input/4, num_output/4, (size_t)4*16, 16);
 
             for (int q=0; q+3<num_output; q+=4)
             {
@@ -150,7 +150,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
                 const float* k2 = weight_data_r2.row(q+2);
                 const float* k3 = weight_data_r2.row(q+3);
 
-                float* g00 = weight_data_pack4.channel(q/4);
+                float* g00 = weight_data_pack4.row(q/4);
 
                 for (int p=0; p+3<num_input; p+=4)
                 {
@@ -183,7 +183,6 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4 = weight_data_pack4.reshape(16 * (num_input/4) * (num_output/4));
         cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
     }
 
@@ -196,7 +195,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-            weight_data_pack1to4.create(4, num_input, num_output/4);
+            weight_data_pack1to4.create(num_input, num_output/4, (size_t)4*4, 4);
 
             for (int q=0; q+3<num_output; q+=4)
             {
@@ -205,7 +204,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
                 const float* k2 = weight_data_r2.row(q+2);
                 const float* k3 = weight_data_r2.row(q+3);
 
-                float* g00 = weight_data_pack1to4.channel(q/4);
+                float* g00 = weight_data_pack1to4.row(q/4);
 
                 for (int p=0; p<num_input; p++)
                 {
@@ -219,7 +218,6 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack1to4 = weight_data_pack1to4.reshape(4 * num_input * (num_output/4));
         cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4);
     }
 
@@ -232,13 +230,13 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-            weight_data_pack4to1.create(4, num_input/4, num_output);
+            weight_data_pack4to1.create(num_input/4, num_output, (size_t)4*4, 4);
 
             for (int q=0; q<num_output; q++)
             {
                 const float* k0 = weight_data_r2.row(q);
 
-                float* g00 = weight_data_pack4to1.channel(q);
+                float* g00 = weight_data_pack4to1.row(q);
 
                 for (int p=0; p+3<num_input; p+=4)
                 {
@@ -253,7 +251,6 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4to1 = weight_data_pack4to1.reshape(4 * (num_input/4) * num_output);
         cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1);
     }
 
@@ -292,6 +289,12 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
 
     int out_packing = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
+
+    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    {
+        if (out_packing == 4) out_elemsize = 4*2u;
+        if (out_packing == 1) out_elemsize = 4u;
+    }
 
     top_blob.create(num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())

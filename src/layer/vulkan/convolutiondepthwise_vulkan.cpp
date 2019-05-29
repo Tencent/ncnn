@@ -224,7 +224,6 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_pack4, 4);
 
-            weight_data_pack4 = weight_data_pack4.reshape(maxk * (group/4));
             cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
         }
 
@@ -265,7 +264,7 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
 
-            weight_data_pack4_groups.create(16*maxk, channels_g/4, num_output_g/4 * group);
+            weight_data_pack4_groups.create(maxk, channels_g/4, num_output_g/4 * group, (size_t)4*16, 16);
 
             for (int g=0; g<group; g++)
             {
@@ -335,7 +334,6 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4_groups = weight_data_pack4_groups.reshape(16*maxk * (channels_g/4) * (num_output_g/4) * group);
         cmd.record_upload(weight_data_pack4_groups, weight_data_gpu_pack4);
     }
 
@@ -348,7 +346,7 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
 
-            weight_data_pack1to4_groups.create(4*maxk, channels_g, num_output_g/4 * group);
+            weight_data_pack1to4_groups.create(maxk, channels_g, num_output_g/4 * group, (size_t)4*4, 4);
 
             for (int g=0; g<group; g++)
             {
@@ -388,7 +386,6 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack1to4_groups = weight_data_pack1to4_groups.reshape(4*maxk * channels_g * (num_output_g/4) * group);
         cmd.record_upload(weight_data_pack1to4_groups, weight_data_gpu_pack1to4);
     }
 
@@ -401,7 +398,7 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
 
-            weight_data_pack4to1_groups.create(4*maxk, channels_g/4, num_output_g * group);
+            weight_data_pack4to1_groups.create(maxk, channels_g/4, num_output_g * group, (size_t)4*4, 4);
 
             for (int g=0; g<group; g++)
             {
@@ -437,7 +434,6 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4to1_groups = weight_data_pack4to1_groups.reshape(4*maxk * (channels_g/4) * num_output_g * group);
         cmd.record_upload(weight_data_pack4to1_groups, weight_data_gpu_pack4to1);
     }
 
@@ -516,6 +512,12 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     int outh = (h - kernel_extent_h) / stride_h + 1;
     int out_packing = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
+
+    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    {
+        if (out_packing == 4) out_elemsize = 4*2u;
+        if (out_packing == 1) out_elemsize = 4u;
+    }
 
     top_blob.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())

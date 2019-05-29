@@ -1407,7 +1407,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     // cast to fp16
                     VkMat bottom_blob_unpacked_fp16;
-                    if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
+                    if (vkdev->info.support_fp16_storage)
                     {
                         cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
                     }
@@ -1509,7 +1509,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                         // cast to fp16
                         VkMat bottom_blob_unpacked_fp16;
-                        if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
+                        if (vkdev->info.support_fp16_storage)
                         {
                             cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
                         }
@@ -1638,7 +1638,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     // cast to fp32
                     VkMat bottom_blob_unpacked_fp32;
-                    if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
+                    if (vkdev->info.support_fp16_storage)
                     {
                         cast_float16_to_float32->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp32, cmd, opt);
                     }
@@ -1773,7 +1773,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         packing_pack1->forward(bottom_blob, bottom_blob_unpacked, cmd, opt);
 
                         // cast to fp32
-                        if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
+                        if (vkdev->info.support_fp16_storage)
                         {
                             cast_float16_to_float32->forward(bottom_blob_unpacked, bottom_blobs_unpacked_fp32[i], cmd, opt);
                         }
