@@ -176,7 +176,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, 4);
-                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create("convolution_pack4_3x3s1d1_winograd23_gemm", std::vector<vk_specialization_type>(), 3, 5);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create("convolution_pack4_3x3s1d1_winograd23_gemm", std::vector<vk_specialization_type>(), 3, 6);
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
@@ -835,14 +835,20 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             bindings[1] = top_tm_blob;
             bindings[2] = weight_data_gpu_pack4_tm;
 
-            std::vector<vk_constant_type> constants(5);
-            constants[0].i = block_x * block_y;
-            constants[1].i = bottom_tm_blob.c;
-            constants[2].i = bottom_tm_blob.cstep;
-            constants[3].i = top_tm_blob.c;
-            constants[4].i = top_tm_blob.cstep;
+            std::vector<vk_constant_type> constants(6);
+            constants[0].i = bottom_tm_blob.c;
+            constants[1].i = bottom_tm_blob.cstep;
+            constants[2].i = (top_tm_blob.h + 3) / 4;
+            constants[3].i = top_tm_blob.h;
+            constants[4].i = top_tm_blob.c;
+            constants[5].i = top_tm_blob.cstep;
 
-            cmd.record_pipeline(pipeline_convolution_pack4_3x3s1d1_winograd23_gemm, bindings, constants, top_tm_blob);
+            VkMat dispatcher;
+            dispatcher.w = top_tm_blob.w;
+            dispatcher.h = (top_tm_blob.h + 3) / 4;
+            dispatcher.c = top_tm_blob.c;
+
+            cmd.record_pipeline(pipeline_convolution_pack4_3x3s1d1_winograd23_gemm, bindings, constants, dispatcher);
         }
 
         // transform output
