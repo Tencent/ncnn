@@ -1,5 +1,5 @@
 7767517
-119 135
+120 136
 Input                    data                     0 1 data 0=224 1=224 2=3
 Convolution              conv1                    1 1 data conv1_conv1_relu 0=24 1=3 3=2 4=1 5=1 6=648 9=1
 Pooling                  pool1                    1 1 conv1_conv1_relu pool1 1=3 2=2
@@ -119,3 +119,4 @@ Eltwise                  resx16_elewise           2 1 resx15_elewise_resx15_elew
 ReLU                     resx16_elewise_relu      1 1 resx16_elewise resx16_elewise_resx16_elewise_relu
 Pooling                  pool_ave                 1 1 resx16_elewise_resx16_elewise_relu pool_ave 0=1 4=1
 InnerProduct             fc1000                   1 1 pool_ave fc1000 0=1000 1=1 2=960000
+Softmax                  prob                     1 1 fc1000 output

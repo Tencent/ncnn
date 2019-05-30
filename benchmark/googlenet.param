@@ -93,4 +93,4 @@ Convolution              inception_5b/pool_proj   1 1 inception_5b/pool inceptio
 Concat                   inception_5b/output      4 1 inception_5b/1x1_inception_5b/relu_1x1 inception_5b/3x3_inception_5b/relu_3x3 inception_5b/5x5_inception_5b/relu_5x5 inception_5b/pool_proj_inception_5b/relu_pool_proj inception_5b/output
 Pooling                  pool5/7x7_s1             1 1 inception_5b/output pool5/7x7_s1_pool5/drop_7x7_s1 0=1 1=7
 InnerProduct             loss3/classifier         1 1 pool5/7x7_s1_pool5/drop_7x7_s1 loss3/classifier 0=1000 1=1 2=1024000
-Softmax                  prob                     1 1 loss3/classifier prob
+Softmax                  prob                     1 1 loss3/classifier output

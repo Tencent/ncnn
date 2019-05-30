@@ -74,4 +74,4 @@ Dropout          drop9            1 1 fire9/concat fire9/concat_drop9
 Convolution      conv10           1 1 fire9/concat_drop9 conv10 0=1000 1=1 2=1 3=1 4=1 5=1 6=512000 8=2
 ReLU             relu_conv10      1 1 conv10 conv10_relu_conv10
 Pooling          pool10           1 1 conv10_relu_conv10 pool10 0=1 1=0 2=1 3=0 4=1
-Softmax          prob             1 1 pool10 prob 0=0
+Softmax          prob             1 1 pool10 output 0=0
