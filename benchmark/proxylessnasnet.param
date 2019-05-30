@@ -90,4 +90,4 @@ Convolution              G0_linear                1 1 G0_dw_relu G0_linear_bn 0=
 Convolution              last-1x1-conv            1 1 G0_linear_bn last-1x1-conv_relu 0=1280 1=1 5=1 6=409600 9=1
 Pooling                  avgpool                  1 1 last-1x1-conv_relu flatten 0=1 1=7 4=1 5=1
 InnerProduct             fc                       1 1 flatten fc 0=1000 1=1 2=1280000
-Softmax                  prob                     1 1 fc prob
+Softmax                  prob                     1 1 fc output

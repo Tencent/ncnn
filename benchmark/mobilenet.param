@@ -30,4 +30,4 @@ ConvolutionDepthWise     conv6/dw                 1 1 conv5_6/sep_relu5_6/sep co
 Convolution              conv6/sep                1 1 conv6/dw_relu6/dw conv6/sep_relu6/sep 0=1024 1=1 5=1 6=1048576 9=1
 Pooling                  pool6                    1 1 conv6/sep_relu6/sep pool6 0=1 4=1
 InnerProduct             fc7                      1 1 pool6 fc7 0=1000 1=1 2=1024000
-Softmax                  prob                     1 1 fc7 prob
+Softmax                  prob                     1 1 fc7 output
