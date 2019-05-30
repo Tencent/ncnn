@@ -105,6 +105,12 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         out_packing = _w % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / packing * out_packing;
 
+        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        {
+            if (out_packing == 4) out_elemsize = 4*2u;
+            if (out_packing == 1) out_elemsize = 4u;
+        }
+
         if (dims == 1 && bottom_blob.w == _w && packing == out_packing)
         {
             top_blob = bottom_blob;
@@ -130,6 +136,12 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         out_packing = _h % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / packing * out_packing;
+
+        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        {
+            if (out_packing == 4) out_elemsize = 4*2u;
+            if (out_packing == 1) out_elemsize = 4u;
+        }
 
         if (dims == 2 && bottom_blob.h == _h && packing == out_packing)
         {
@@ -161,6 +173,12 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         out_packing = _c % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / packing * out_packing;
+
+        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        {
+            if (out_packing == 4) out_elemsize = 4*2u;
+            if (out_packing == 1) out_elemsize = 4u;
+        }
 
         if (dims == 3 && bottom_blob.c == _c && packing == out_packing)
         {

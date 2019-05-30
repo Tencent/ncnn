@@ -32,6 +32,7 @@ public:
 public:
     Pipeline* pipeline_flatten;
     Pipeline* pipeline_flatten_pack4;
+    Pipeline* pipeline_flatten_pack1to4;
 };
 
 } // namespace ncnn

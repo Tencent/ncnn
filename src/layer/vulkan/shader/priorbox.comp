@@ -37,7 +37,11 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_fp16_packed
+layout (binding = 0) writeonly buffer top_blob { vec4 top_blob_data[]; };
+#else
 layout (binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#endif
 layout (binding = 1) readonly buffer min_sizes { sfp min_sizes_data[]; };
 layout (binding = 2) readonly buffer max_sizes { sfp max_sizes_data[]; };
 layout (binding = 3) readonly buffer aspect_ratios { sfp aspect_ratios_data[]; };
@@ -80,9 +84,7 @@ void main()
     afp min_size = sfp2afp(min_sizes_data[gx]);
 
 #if NCNN_fp16_packed
-    vec2 v0 = vec2(variances_0, variances_1);
-    vec2 v1 = vec2(variances_2, variances_3);
-    uvec2 variances = uvec2(packHalf2x16(v0), packHalf2x16(v1));
+    vec4 variances = vec4(variances_0, variances_1, variances_2, variances_3);
 #elif !NCNN_fp16_storage
     // per component assignment makes qcom-adreno driver unhappy :(
     sfpvec4 variances = sfpvec4(variances_0, variances_1, variances_2, variances_3);
@@ -94,7 +96,11 @@ void main()
     box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
     box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
+#if NCNN_fp16_packed
+    top_blob_data[v_offset] = vec4(box);
+#else
     top_blob_data[v_offset] = afp2sfpvec4(box);
+#endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
     top_blob_data[var_offset] = variances;
 #else
@@ -117,7 +123,11 @@ void main()
         box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
         box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
+#if NCNN_fp16_packed
+        top_blob_data[v_offset] = vec4(box);
+#else
         top_blob_data[v_offset] = afp2sfpvec4(box);
+#endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
         top_blob_data[var_offset] = variances;
 #else
@@ -141,7 +151,11 @@ void main()
         box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
         box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
+#if NCNN_fp16_packed
+        top_blob_data[v_offset] = vec4(box);
+#else
         top_blob_data[v_offset] = afp2sfpvec4(box);
+#endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
         top_blob_data[var_offset] = variances;
 #else
@@ -159,7 +173,11 @@ void main()
             box = (center + afpvec4(-box_h, -box_w, box_h, box_w) * afp(0.5f)) * image_norm;
             box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
+#if NCNN_fp16_packed
+            top_blob_data[v_offset] = vec4(box);
+#else
             top_blob_data[v_offset] = afp2sfpvec4(box);
+#endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
             top_blob_data[var_offset] = variances;
 #else

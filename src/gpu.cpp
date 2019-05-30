@@ -712,8 +712,8 @@ int create_gpu_instance()
                 gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count,
                 gpu_info.unified_memory_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
 
-        fprintf(stderr, "[%u %s]  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d\n", i, physicalDeviceProperties.deviceName,
-                gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
+        fprintf(stderr, "[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d\n", i, physicalDeviceProperties.deviceName,
+                gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
                 gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
 
         gpu_info_index++;
@@ -999,6 +999,15 @@ VkAllocator* VulkanDevice::staging_allocator() const
     return staging_buffer_allocator;
 }
 
+static inline bool string_ends_with_fp16p(const char* name)
+{
+    int len = strlen(name);
+    if (len < 6)
+        return false;
+
+    return memcmp(name + len - 6, "_fp16p", 6) == 0;
+}
+
 static inline bool string_ends_with_fp16s(const char* name)
 {
     int len = strlen(name);
@@ -1025,15 +1034,15 @@ int VulkanDevice::create_shader_module()
     {
         const char* shader_name = layer_shader_registry[i].name;
 
+        if (!info.support_fp16_packed)
+        {
+            if (string_ends_with_fp16p(shader_name))
+                continue;
+        }
+
         if (!info.support_fp16_storage)
         {
             if (string_ends_with_fp16s(shader_name))
-                continue;
-
-            if (strcmp(shader_name, "cast_fp16_to_fp32") == 0 || strcmp(shader_name, "cast_fp16_to_fp32_pack4") == 0)
-                continue;
-
-            if (strcmp(shader_name, "cast_fp32_to_fp16") == 0 || strcmp(shader_name, "cast_fp32_to_fp16_pack4") == 0)
                 continue;
         }
 

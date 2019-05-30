@@ -731,7 +731,7 @@ void VkCompute::dispatch(const uint32_t* group_count_xyz)
 
 void VkCompute::transfer_compute_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
-//     fprintf(stderr, "cmd transfer_compute_barrier %p[+%lu]\n", buffer, offset);
+//     fprintf(stderr, "cmd transfer_compute_barrier %p[+%lu] %lu\n", buffer, offset, size);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -752,7 +752,7 @@ void VkCompute::transfer_compute_barrier(VkBuffer buffer, size_t offset, size_t 
 
 void VkCompute::compute_transfer_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
-//     fprintf(stderr, "cmd compute_transfer_barrier %p[+%lu]\n", buffer, offset);
+//     fprintf(stderr, "cmd compute_transfer_barrier %p[+%lu] %lu\n", buffer, offset, size);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -773,7 +773,7 @@ void VkCompute::compute_transfer_barrier(VkBuffer buffer, size_t offset, size_t 
 
 void VkCompute::compute_compute_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
-//     fprintf(stderr, "cmd compute_compute_barrier %p[+%lu]\n", buffer, offset);
+//     fprintf(stderr, "cmd compute_compute_barrier %p[+%lu] %lu\n", buffer, offset, size);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -794,7 +794,7 @@ void VkCompute::compute_compute_barrier(VkBuffer buffer, size_t offset, size_t s
 
 void VkCompute::transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t size)
 {
-//     fprintf(stderr, "cmd transfer_transfer_barrier %p[+%lu]\n", buffer, offset);
+//     fprintf(stderr, "cmd transfer_transfer_barrier %p[+%lu] %lu\n", buffer, offset, size);
 
     VkBufferMemoryBarrier bufferBarrier;
     bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -843,30 +843,35 @@ VkTransfer::~VkTransfer()
 
 void VkTransfer::record_upload(const Mat& src, VkMat& dst)
 {
-    if ((vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage) && src.elemsize / src.packing == 4)
+    if (src.elemsize / src.packing == 4)
     {
-        Mat src_fp16;
-        cast_float32_to_float16(src, src_fp16);
+        if (vkdev->info.support_fp16_storage || (vkdev->info.support_fp16_packed && src.packing % 4 == 0))
+        {
+            Mat src_fp16;
+            cast_float32_to_float16(src, src_fp16);
 
-        record_upload(src_fp16, dst);
+            record_upload(src_fp16, dst);
 
-        return;
+            return;
+        }
     }
 
-    dst.create_like(src, weight_vkallocator, staging_vkallocator);
+    Mat src_flattened = src.reshape(src.w * src.h * src.c);
+
+    dst.create_like(src_flattened, weight_vkallocator, staging_vkallocator);
 
     // set weight blob as readonly
     dst.data->state = 4;
 
     if (dst.allocator->mappable)
     {
-        dst.upload(src);
+        dst.upload(src_flattened);
         return;
     }
 
     record_type r;
-    r.size = src.total() * src.elemsize;
-    r.mat = src;
+    r.size = src_flattened.total() * src_flattened.elemsize;
+    r.mat = src_flattened;
     r.vkmat = dst;
     delayed_records.push_back(r);
 }

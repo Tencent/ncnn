@@ -100,4 +100,4 @@ Eltwise          res5b            2 1 res5a_res5a_relu_splitncnn_0 res5b_branch2
 ReLU             res5b_relu       1 1 res5b res5b_res5b_relu
 Pooling          pool5            1 1 res5b_res5b_relu pool5 0=1 1=7 2=1 3=0 4=0
 InnerProduct     fc1000           1 1 pool5 fc1000 0=1000 1=1 2=512000
-Softmax          prob             1 1 fc1000 prob 0=0
+Softmax          prob             1 1 fc1000 output 0=0

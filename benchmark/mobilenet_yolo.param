@@ -38,4 +38,4 @@ ConvolutionDepthWise     conv19/dw                1 1 conv_18/sum conv19/dw_conv
 Convolution              conv20                   1 1 conv19/dw_conv19/dw/relu conv20_conv20/relu 0=1024 1=1 5=1 6=524288 9=1
 Convolution              conv22_indoor            1 1 conv17_conv17/relu_splitncnn_0 conv22 0=125 1=1 5=1 6=128000
 Convolution              conv23_indoor            1 1 conv20_conv20/relu conv23 0=125 1=1 5=1 6=128000
-YoloDetectionOutput      detection_out            2 1 conv22 conv23 detection_out 2=0.400000 -23304=10,1066024305,1066947052,1079697736,1082990264,1087645942,1094063227,1092008018,1084458271,1099232707,1093161452
+YoloDetectionOutput      detection_out            2 1 conv22 conv23 output 2=0.400000 -23304=10,1066024305,1066947052,1079697736,1082990264,1087645942,1094063227,1092008018,1084458271,1099232707,1093161452

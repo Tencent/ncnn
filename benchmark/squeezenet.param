@@ -47,4 +47,4 @@ Convolution              fire9/expand3x3          1 1 fire9/squeeze1x1_fire9/rel
 Concat                   fire9/concat             2 1 fire9/expand1x1_fire9/relu_expand1x1 fire9/expand3x3_fire9/relu_expand3x3 fire9/concat_drop9
 Convolution              conv10                   1 1 fire9/concat_drop9 conv10_relu_conv10 0=1000 1=1 4=1 5=1 6=512000 9=1
 Pooling                  pool10                   1 1 conv10_relu_conv10 pool10 0=1 4=1
-Softmax                  prob                     1 1 pool10 prob
+Softmax                  prob                     1 1 pool10 output
