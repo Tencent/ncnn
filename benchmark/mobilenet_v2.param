@@ -75,5 +75,5 @@ ConvolutionDepthWise     conv6_3/dwise            1 1 conv6_3/expand/bn_relu6_3/
 Convolution              conv6_3/linear           1 1 conv6_3/dwise/bn_relu6_3/dwise conv6_3/linear/bn_conv6_3/linear/scale 0=320 1=1 5=1 6=307200
 Convolution              conv6_4                  1 1 conv6_3/linear/bn_conv6_3/linear/scale conv6_4/bn_relu6_4 0=1280 1=1 5=1 6=409600 9=1
 Pooling                  pool6                    1 1 conv6_4/bn_relu6_4 pool6 0=1 4=1
-Convolution              fc7                      1 1 pool6 fc7 0=1000 1=1 5=1 6=1280000
+InnerProduct             fc7                      1 1 pool6 fc7 0=1000 1=1 2=1280000
 Softmax                  prob                     1 1 fc7 prob

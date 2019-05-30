@@ -1,5 +1,5 @@
 7767517
-77 87
+76 86
 Input                    data                     0 1 data
 Convolution              first-3x3-conv           1 1 data first-3x3-conv_relu 0=32 1=3 3=2 4=1 5=1 6=864 9=1
 ConvolutionDepthWise     A0_dw                    1 1 first-3x3-conv_relu A0_dw_relu 0=32 1=3 4=1 5=1 6=288 7=32 9=1
@@ -73,7 +73,6 @@ Convolution              G0_expand                1 1 unknownncnn_9 G0_expand_re
 ConvolutionDepthWise     G0_dw                    1 1 G0_expand_relu G0_dw_relu 0=1152 1=3 4=1 5=1 6=10368 7=1152 9=1
 Convolution              G0_linear                1 1 G0_dw_relu G0_linear_bn 0=320 1=1 5=1 6=368640
 Convolution              last-1x1-conv            1 1 G0_linear_bn last-1x1-conv_relu 0=1280 1=1 5=1 6=409600 9=1
-Pooling                  avgpool                  1 1 last-1x1-conv_relu avgpool 0=1 1=7 4=1 5=1
-Flatten                  flatten                  1 1 avgpool flatten
+Pooling                  avgpool                  1 1 last-1x1-conv_relu flatten 0=1 1=7 4=1 5=1
 InnerProduct             fc                       1 1 flatten fc 0=1000 1=1 2=1280000
 Softmax                  prob                     1 1 fc prob

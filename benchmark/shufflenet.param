@@ -118,4 +118,4 @@ ConvolutionDepthWise     resx16_conv3             1 1 resx16_conv2_resx16_conv2_
 Eltwise                  resx16_elewise           2 1 resx15_elewise_resx15_elewise_relu_splitncnn_0 resx16_conv3_resx16_conv3_scale resx16_elewise 0=1
 ReLU                     resx16_elewise_relu      1 1 resx16_elewise resx16_elewise_resx16_elewise_relu
 Pooling                  pool_ave                 1 1 resx16_elewise_resx16_elewise_relu pool_ave 0=1 4=1
-Convolution              fc1000                   1 1 pool_ave fc1000 0=1000 1=1 5=1 6=960000
+InnerProduct             fc1000                   1 1 pool_ave fc1000 0=1000 1=1 2=960000
