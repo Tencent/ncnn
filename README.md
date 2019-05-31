@@ -100,24 +100,24 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 ---
 ### supported platform matrix
 
-* YY = known work and runs fast with good optimization
-* Y = known work, but speed may not be fast enough
-* ? = shall work, not confirmed
+* ✅ = known work and runs fast with good optimization
+* ✔️ = known work, but speed may not be fast enough
+* ❔ = shall work, not confirmed
 * / = not applied
 
 |    |Windows|Linux|Android|MacOS|iOS|
 |---|---|---|---|---|---|
-|intel-cpu|Y|Y|?|Y|/|
-|intel-gpu|Y|Y|?|?|/|
-|amd-cpu|Y|Y|?|Y|/|
-|amd-gpu|Y|Y|?|?|/|
-|nvidia-gpu|Y|Y|?|?|/|
-|qcom-cpu|?|Y|YY|/|/|
-|qcom-gpu|?|Y|Y|/|/|
-|arm-cpu|?|?|YY|/|/|
-|arm-gpu|?|?|Y|/|/|
-|apple-cpu|/|/|/|/|YY|
-|apple-gpu|/|/|/|/|Y|
+|intel-cpu|✔️|✔️|❔|✔️|/|
+|intel-gpu|✔️|✔️|❔|❔|/|
+|amd-cpu|✔️|✔️|❔|✔️|/|
+|amd-gpu|✔️|✔️|❔|❔|/|
+|nvidia-gpu|✔️|✔️|❔|❔|/|
+|qcom-cpu|❔|✔️|✅|/|/|
+|qcom-gpu|❔|✔️|✔️|/|/|
+|arm-cpu|❔|❔|✅|/|/|
+|arm-gpu|❔|❔|✔️|/|/|
+|apple-cpu|/|/|/|/|✅|
+|apple-gpu|/|/|/|/|✔️|
 
 
 ---
@@ -132,7 +132,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-23.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png)
 
-### 技术交流QQ群：637093648(已满qaq) 853969140  答案：卷卷卷卷卷
+### 技术交流QQ群：637093648(超多大佬) 853969140  答案：卷卷卷卷卷
 
 ---
 
