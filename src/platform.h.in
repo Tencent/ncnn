@@ -23,7 +23,7 @@
 #cmakedefine01 NCNN_PIXEL_ROTATE
 #cmakedefine01 NCNN_VULKAN
 #cmakedefine01 NCNN_REQUANT
-#cmakedefine01 NCNN_IM2COL_SGEMM
+#cmakedefine01 NCNN_AVX2
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN

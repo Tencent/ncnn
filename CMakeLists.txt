@@ -30,7 +30,7 @@ option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" OFF)
 option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
 option(NCNN_VULKAN "vulkan compute support" OFF)
 option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
-option(NCNN_IM2COL_SGEMM "im2col sgemm support" OFF)
+option(NCNN_AVX2 "optimize x86 platform with avx2" OFF)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
@@ -81,6 +81,8 @@ elseif(IOS)
     # disable shared library on xcode ios
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
+elseif(NCNN_AVX2)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfma")
 endif()
 
 ##############################################

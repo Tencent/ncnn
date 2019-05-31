@@ -36,6 +36,7 @@ public:
     Layer* activation;
     bool use_winograd3x3;
     Mat weight_3x3_winograd23_data;
+    Mat weight_sgemm_data;
 };
 
 } // namespace ncnn
