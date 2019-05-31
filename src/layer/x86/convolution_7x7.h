@@ -20,7 +20,7 @@ static void conv7x7s1_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_ker
     int stride_w = 1;
     int stride_h = 1;
 
-    conv_im2col_sgemm_sse(bottom_blob, top_blob, _bias, _kernel, kernel_w, kernel_h, stride_w, stride_h, opt);
+    conv_im2col_sgemm_sse(bottom_blob, top_blob, _kernel, _bias, kernel_w, kernel_h, stride_w, stride_h, opt);
 }
 
 static void conv7x7s2_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat& _bias, const Option& opt)
