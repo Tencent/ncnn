@@ -86,7 +86,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         int num_input = weight_data_size / 9 / num_output;
         // winograd is slow on small channel count
         if(num_input >= 16 && num_output >= 16)
-            use_winograd3x3 = false;
+            use_winograd3x3 = true;
     }           
 
     if (use_winograd3x3)
@@ -98,7 +98,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
             conv3x3s1_winograd43_transform_kernel_int8_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
         else
             // conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
-            conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+            conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd43_data, num_input, num_output);
     }
 
     if (use_int8_inference == false)
@@ -553,10 +553,10 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (top_blob.empty())
         return -100;    
 
-    if (use_winograd3x3)
+    if (use_winograd3x3 && outw >= 8 && outh >=8)
     {
-        //conv3x3s1_winograd23_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
-        conv3x3s1_winograd43_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
+        // conv3x3s1_winograd23_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
+        conv3x3s1_winograd43_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd43_data, bias_data, opt);
     }
     else
         //conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
