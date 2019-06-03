@@ -14,6 +14,11 @@
 
 #include "pooling_arm.h"
 #include <float.h>
+
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif // __ARM_NEON
+
 namespace ncnn {
 
 #include "pooling_2x2.h"

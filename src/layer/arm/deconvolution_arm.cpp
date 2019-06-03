@@ -15,6 +15,10 @@
 #include "deconvolution_arm.h"
 #include "layer_type.h"
 
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif // __ARM_NEON
+
 namespace ncnn {
 
 #include "deconvolution_4x4.h"

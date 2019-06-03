@@ -15,6 +15,10 @@
 #include "deconvolutiondepthwise_arm.h"
 #include "layer_type.h"
 
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif // __ARM_NEON
+
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(DeconvolutionDepthWise_arm)

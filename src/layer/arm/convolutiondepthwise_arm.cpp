@@ -13,11 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "convolutiondepthwise_arm.h"
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 
 #include "layer_type.h"
+
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif // __ARM_NEON
 
 namespace ncnn {
 

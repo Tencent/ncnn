@@ -14,6 +14,11 @@
 
 #include "convolution_x86.h"
 
+#include "platform.h"
+#if NCNN_AVX2
+#include <immintrin.h>
+#endif
+
 #include "layer_type.h"
 #include "benchmark.h"
 
