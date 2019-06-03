@@ -17,6 +17,10 @@
 
 #include "layer_type.h"
 
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif // __ARM_NEON
+
 namespace ncnn {
 
 #include "convolution_1x1.h"
