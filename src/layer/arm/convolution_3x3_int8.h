@@ -13,10 +13,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if __ARM_NEON
-#include <arm_neon.h>
-#endif // __ARM_NEON
-
 static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat> &kernel_tm2, int inch, int outch)
 {
     Mat kernel_tm(4*4, inch, outch, 2ul);  
