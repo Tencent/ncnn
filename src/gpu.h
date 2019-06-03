@@ -164,6 +164,8 @@ private:
     VkAllocator* staging_buffer_allocator;
 };
 
+VulkanDevice* get_default_gpu_device();
+
 } // namespace ncnn
 
 #endif // NCNN_VULKAN

@@ -147,7 +147,6 @@ protected:
 
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
-    const VulkanDevice* vkdev_local;
 
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;

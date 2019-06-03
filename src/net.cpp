@@ -47,7 +47,6 @@ Net::Net()
 
 #if NCNN_VULKAN
     vkdev = 0;
-    vkdev_local = 0;
     weight_vkallocator = 0;
     weight_staging_vkallocator = 0;
 
@@ -63,8 +62,6 @@ Net::~Net()
     clear();
 
 #if NCNN_VULKAN
-    delete vkdev_local;
-
     delete cast_float32_to_float16;
     delete cast_float16_to_float32;
     delete packing_pack1;
@@ -161,9 +158,7 @@ int Net::load_param(FILE* fp)
     if (use_vulkan_compute && !vkdev)
     {
         // use default vulkan device
-        if (!vkdev_local)
-            vkdev_local = new VulkanDevice;
-        vkdev = vkdev_local;
+        vkdev = get_default_gpu_device();
     }
 #endif // NCNN_VULKAN
 
@@ -328,9 +323,7 @@ int Net::load_param_mem(const char* _mem)
     if (use_vulkan_compute && !vkdev)
     {
         // use default vulkan device
-        if (!vkdev_local)
-            vkdev_local = new VulkanDevice;
-        vkdev = vkdev_local;
+        vkdev = get_default_gpu_device();
     }
 #endif // NCNN_VULKAN
 
@@ -499,9 +492,7 @@ int Net::load_param_bin(FILE* fp)
     if (use_vulkan_compute && !vkdev)
     {
         // use default vulkan device
-        if (!vkdev_local)
-            vkdev_local = new VulkanDevice;
-        vkdev = vkdev_local;
+        vkdev = get_default_gpu_device();
     }
 #endif // NCNN_VULKAN
 
@@ -721,9 +712,7 @@ int Net::load_param(const unsigned char* _mem)
     if (use_vulkan_compute && !vkdev)
     {
         // use default vulkan device
-        if (!vkdev_local)
-            vkdev_local = new VulkanDevice;
-        vkdev = vkdev_local;
+        vkdev = get_default_gpu_device();
     }
 #endif // NCNN_VULKAN
 
