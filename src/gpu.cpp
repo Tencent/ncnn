@@ -44,6 +44,10 @@ static int g_default_gpu_index = -1;
 // NOTE 8 is large enough i think ...
 static GpuInfo g_gpu_infos[8];
 
+// default vulkan device
+static Mutex g_default_vkdev_lock;
+static VulkanDevice* g_default_vkdev = 0;
+
 int support_VK_KHR_get_physical_device_properties2 = 0;
 int support_VK_EXT_debug_utils = 0;
 
@@ -729,6 +733,13 @@ int create_gpu_instance()
 
 void destroy_gpu_instance()
 {
+    {
+        MutexLockGuard lock(g_default_vkdev_lock);
+
+        delete g_default_vkdev;
+        g_default_vkdev = 0;
+    }
+
 #if ENABLE_VALIDATION_LAYER
     if (support_VK_EXT_debug_utils)
     {
@@ -1104,6 +1115,16 @@ int VulkanDevice::init_device_extension()
     }
 
     return 0;
+}
+
+VulkanDevice* get_default_gpu_device()
+{
+    MutexLockGuard lock(g_default_vkdev_lock);
+
+    if (!g_default_vkdev)
+        g_default_vkdev = new VulkanDevice;
+
+    return g_default_vkdev;
 }
 
 } // namespace ncnn
