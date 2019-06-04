@@ -65,7 +65,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
     if (activation)
     {
         Option opt_cpu = opt;
-        opt_cpu.vulkan_compute = false;
+        opt_cpu.use_vulkan_compute = false;
         activation->create_pipeline(opt_cpu);
     }
 
@@ -77,7 +77,7 @@ int DeconvolutionDepthWise_arm::destroy_pipeline(const Option& opt)
     if (activation)
     {
         Option opt_cpu = opt;
-        opt_cpu.vulkan_compute = false;
+        opt_cpu.use_vulkan_compute = false;
         activation->destroy_pipeline(opt_cpu);
         delete activation;
         activation = 0;

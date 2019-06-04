@@ -29,6 +29,7 @@ namespace ncnn {
 #include "convolution_4x4.h"
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
+#include "convolution_sgemm.h"
 #include "convolution_sgemm_int8.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
@@ -79,7 +80,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
     if (activation)
     {
         Option opt_cpu = opt;
-        opt_cpu.vulkan_compute = false;
+        opt_cpu.use_vulkan_compute = false;
         activation->create_pipeline(opt_cpu);
     }
 
@@ -155,6 +156,13 @@ int Convolution_arm::create_pipeline(const Option& opt)
         conv3x3s2_transform_kernel_neon(weight_data, weight_3x3s2_data, num_input, num_output);
     }
 
+    {
+        int kernel_size = kernel_w * kernel_h;
+        int num_input = weight_data_size / kernel_size / num_output;
+
+        conv_im2col_sgemm_transform_kernel_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_size);
+    }    
+
     return 0;
 }
 
@@ -163,7 +171,7 @@ int Convolution_arm::destroy_pipeline(const Option& opt)
     if (activation)
     {
         Option opt_cpu = opt;
-        opt_cpu.vulkan_compute = false;
+        opt_cpu.use_vulkan_compute = false;
         activation->destroy_pipeline(opt_cpu);
         delete activation;
         activation = 0;
@@ -581,10 +589,17 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data, opt);
     }
+    else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+    {
+        conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
+    }
     else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
     {
-        conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
-    }
+        if (outw >=8 && outh >=8)
+            conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
+        else
+            conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
+    }     
     else
         conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
