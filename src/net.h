@@ -96,7 +96,7 @@ public:
 protected:
     // parse the structure of network
     // fuse int8 op dequantize and quantize by requantize
-    void fuse_network();
+    int fuse_network();
 
 #if NCNN_VULKAN
 

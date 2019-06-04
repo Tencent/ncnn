@@ -832,18 +832,38 @@ int Net::load_model(const unsigned char* _mem)
     return mem - _mem;
 }
 
-void Net::fuse_network()
+int Net::fuse_network()
 {
     // set the int8 op fusion:requantize
 #if NCNN_STRING && NCNN_REQUANT    
     // fprintf(stderr, "Test op fusion to int8 implement:\n");
+    // parse the network whether is a quantization model
+    bool net_quantized = false;
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        Layer* layer = layers[i];
+        if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise")
+        {
+            if (layer->type == "Convolution" && (((Convolution*)layer)->use_int8_inference == false))
+                continue;
+            if (layer->type == "ConvolutionDepthWise" && (((ConvolutionDepthWise*)layer)->use_int8_inference == false))
+                continue;    
+            net_quantized = true;
+        }
+    }
+
+    if (net_quantized == false)
+        return 0;
+
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
 
         if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise")
         {
-            if (((Convolution*)layer)->use_int8_inference == false)
+            if (layer->type == "Convolution" && (((Convolution*)layer)->use_int8_inference == false))
+                continue;
+            if (layer->type == "ConvolutionDepthWise" && (((ConvolutionDepthWise*)layer)->use_int8_inference == false))
                 continue;
 
             for (size_t n=0; n<blobs[layer->tops[0]].consumers.size(); n++)
@@ -858,6 +878,11 @@ void Net::fuse_network()
 
                     if (layer_next_2->type == "Convolution" || layer_next_2->type == "ConvolutionDepthWise")
                     {
+                        if (layer_next_2->type == "Convolution" && ((Convolution*)layer_next_2)->use_int8_inference == false)
+                            continue;
+                        if (layer_next_2->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next_2)->use_int8_inference == false)
+                            continue;    
+
                         // fprintf(stderr, "%s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
                         if (layer->type == "Convolution" && layer_next_2->type == "Convolution")
                         {
@@ -934,6 +959,7 @@ void Net::fuse_network()
         }
     }
 #endif
+    return 0;
 }
 
 void Net::clear()
