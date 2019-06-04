@@ -36,7 +36,7 @@ ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 {
     Option opt_cpu = opt;
-    opt_cpu.vulkan_compute = false;
+    opt_cpu.use_vulkan_compute = false;
 
     if (activation_type == 1)
     {
@@ -167,7 +167,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 int ConvolutionDepthWise_x86::destroy_pipeline(const Option& opt)
 {
     Option opt_cpu = opt;
-    opt_cpu.vulkan_compute = false;
+    opt_cpu.use_vulkan_compute = false;
 
     if (activation)
     {

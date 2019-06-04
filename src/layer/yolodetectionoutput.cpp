@@ -49,7 +49,7 @@ int YoloDetectionOutput::create_pipeline(const Option& opt)
         softmax->load_param(pd);
 
         Option opt_cpu = opt;
-        opt_cpu.vulkan_compute = false;
+        opt_cpu.use_vulkan_compute = false;
         softmax->create_pipeline(opt_cpu);
     }
 
@@ -61,7 +61,7 @@ int YoloDetectionOutput::destroy_pipeline(const Option& opt)
     if (softmax)
     {
         Option opt_cpu = opt;
-        opt_cpu.vulkan_compute = false;
+        opt_cpu.use_vulkan_compute = false;
         softmax->destroy_pipeline(opt_cpu);
         delete softmax;
         softmax = 0;

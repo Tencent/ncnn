@@ -27,46 +27,6 @@
 
 namespace ncnn {
 
-Option::Option()
-{
-    lightmode = true;
-    num_threads = get_cpu_count();
-    blob_allocator = 0;
-    workspace_allocator = 0;
-
-    vulkan_compute = false;
-
-#if NCNN_VULKAN
-    blob_vkallocator = 0;
-    workspace_vkallocator = 0;
-    staging_vkallocator = 0;
-#endif // NCNN_VULKAN
-
-    use_winograd_convolution = 1;
-    use_sgemm_convolution = 1;
-    use_int8_inference = 1;
-}
-
-static Option g_default_option;
-
-const Option& get_default_option()
-{
-    return g_default_option;
-}
-
-int set_default_option(const Option& opt)
-{
-    if (opt.num_threads <= 0)
-    {
-        fprintf(stderr, "invalid option num_threads %d\n", opt.num_threads);
-        return -1;
-    }
-
-    g_default_option = opt;
-
-    return 0;
-}
-
 Layer::Layer()
 {
     one_blob_only = false;
