@@ -25,6 +25,7 @@ set(ncnn_SRCS
     modelbin.cpp
     net.cpp
     opencv.cpp
+    option.cpp
     paramdict.cpp
     pipeline.cpp
     benchmark.cpp
@@ -87,8 +88,8 @@ macro(ncnn_add_layer class)
     if(WITH_LAYER_${name}_vulkan)
         set(layer_declaration "${layer_declaration}#include \"layer/vulkan/${name}_vulkan.h\"\n")
         set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_vulkan")
-        set(create_pipeline_content "${create_pipeline_content}        if (opt.vulkan_compute) { int ret = ${class}_vulkan::create_pipeline(opt); if (ret) return ret; }\n")
-        set(destroy_pipeline_content "        if (opt.vulkan_compute) { int ret = ${class}_vulkan::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
+        set(create_pipeline_content "${create_pipeline_content}        if (opt.use_vulkan_compute) { int ret = ${class}_vulkan::create_pipeline(opt); if (ret) return ret; }\n")
+        set(destroy_pipeline_content "        if (opt.use_vulkan_compute) { int ret = ${class}_vulkan::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
 
         file(GLOB_RECURSE SHADER_SRCS "layer/vulkan/shader/${name}.comp")
         file(GLOB_RECURSE SHADER_SUBSRCS "layer/vulkan/shader/${name}_*.comp")
@@ -297,6 +298,7 @@ if(NCNN_INSTALL_SDK)
     modelbin.h
     net.h
     opencv.h
+    option.h
     paramdict.h
     pipeline.h
     benchmark.h

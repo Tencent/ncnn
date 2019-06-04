@@ -121,7 +121,7 @@ static int detect_rfcn(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Net rfcn;
 
 #if NCNN_VULKAN
-    rfcn.use_vulkan_compute = true;
+    rfcn.opt.use_vulkan_compute = true;
 #endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/YuwenXiong/py-R-FCN

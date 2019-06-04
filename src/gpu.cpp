@@ -645,7 +645,7 @@ int create_gpu_instance()
         }
 
         // check features
-        gpu_info.support_fp16_packed = false;// TODO
+        gpu_info.support_fp16_packed = true;
         gpu_info.support_fp16_storage = false;
         gpu_info.support_fp16_arithmetic = false;
         gpu_info.support_int8_storage = false;
@@ -698,11 +698,11 @@ int create_gpu_instance()
             {
                 gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
             }
-//             if (gpu_info.support_VK_KHR_shader_float16_int8)
-//             {
-//                 gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
-//                 gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
-//             }
+            if (gpu_info.support_VK_KHR_shader_float16_int8)
+            {
+                gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
+                gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
+            }
         }
         else
         {

@@ -65,7 +65,7 @@ int InnerProduct::load_model(const ModelBin& mb)
 int InnerProduct::create_pipeline(const Option& opt)
 {
     Option opt_cpu = opt;
-    opt_cpu.vulkan_compute = false;
+    opt_cpu.use_vulkan_compute = false;
 
     use_int8_inference = opt.use_int8_inference;
 
@@ -143,7 +143,7 @@ int InnerProduct::create_pipeline(const Option& opt)
 
             op->create_pipeline(opt_cpu);
 
-            ncnn::Option opt = ncnn::get_default_option();
+            ncnn::Option opt;
             opt.blob_allocator = int8_weight_data.allocator;
 
             const Mat weight_data_n = weight_data.range(weight_data_size_output * n, weight_data_size_output);
@@ -162,7 +162,7 @@ int InnerProduct::create_pipeline(const Option& opt)
 int InnerProduct::destroy_pipeline(const Option& opt)
 {
     Option opt_cpu = opt;
-    opt_cpu.vulkan_compute = false;
+    opt_cpu.use_vulkan_compute = false;
 
     if (quantize)
     {

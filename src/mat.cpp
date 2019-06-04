@@ -95,7 +95,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
         return;
     }
 
-    op->forward_inplace(*this, ncnn::get_default_option());
+    op->forward_inplace(*this);
 
     delete op;
 }
@@ -234,7 +234,7 @@ void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, i
 
     padding->load_param(pd);
 
-    ncnn::Option opt = ncnn::get_default_option();
+    ncnn::Option opt;
     opt.num_threads = num_threads;
     opt.blob_allocator = allocator;
 
@@ -257,7 +257,7 @@ void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, in
 
     crop->load_param(pd);
 
-    ncnn::Option opt = ncnn::get_default_option();
+    ncnn::Option opt;
     opt.num_threads = num_threads;
     opt.blob_allocator = allocator;
 
@@ -277,7 +277,7 @@ void resize_bilinear(const Mat& src, Mat& dst, int w, int h, Allocator* allocato
 
     interp->load_param(pd);
 
-    ncnn::Option opt = ncnn::get_default_option();
+    ncnn::Option opt;
     opt.num_threads = num_threads;
     opt.blob_allocator = allocator;
 
@@ -297,7 +297,7 @@ void resize_bicubic(const Mat& src, Mat& dst, int w, int h, Allocator* allocator
 
     interp->load_param(pd);
 
-    ncnn::Option opt = ncnn::get_default_option();
+    ncnn::Option opt;
     opt.num_threads = num_threads;
     opt.blob_allocator = allocator;
 
@@ -315,7 +315,7 @@ void convert_packing(const Mat& src, Mat& dst, int _packing, Allocator* allocato
 
     packing->load_param(pd);
 
-    ncnn::Option opt = ncnn::get_default_option();
+    ncnn::Option opt;
     opt.num_threads = num_threads;
     opt.blob_allocator = allocator;
 
@@ -334,7 +334,7 @@ void cast_float32_to_float16(const Mat& src, Mat& dst, Allocator* allocator, int
 
     cast->load_param(pd);
 
-    ncnn::Option opt = ncnn::get_default_option();
+    ncnn::Option opt;
     opt.num_threads = num_threads;
     opt.blob_allocator = allocator;
 
@@ -353,7 +353,7 @@ void cast_float16_to_float32(const Mat& src, Mat& dst, Allocator* allocator, int
 
     cast->load_param(pd);
 
-    ncnn::Option opt = ncnn::get_default_option();
+    ncnn::Option opt;
     opt.num_threads = num_threads;
     opt.blob_allocator = allocator;
 
