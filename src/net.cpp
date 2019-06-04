@@ -40,11 +40,6 @@ namespace ncnn {
 
 Net::Net()
 {
-    use_winograd_convolution = 1;
-    use_sgemm_convolution = 1;
-    use_int8_inference = 1;
-    use_vulkan_compute = 0;
-
 #if NCNN_VULKAN
     vkdev = 0;
     weight_vkallocator = 0;
@@ -155,11 +150,8 @@ int Net::load_param(FILE* fp)
     blobs.resize((size_t)blob_count);
 
 #if NCNN_VULKAN
-    if (use_vulkan_compute && !vkdev)
-    {
-        // use default vulkan device
+    if (opt.use_vulkan_compute && !vkdev)
         vkdev = get_default_gpu_device();
-    }
 #endif // NCNN_VULKAN
 
     ParamDict pd;
@@ -192,7 +184,7 @@ int Net::load_param(FILE* fp)
         }
 
 #if NCNN_VULKAN
-        if (use_vulkan_compute)
+        if (opt.use_vulkan_compute)
             layer->vkdev = vkdev;
 #endif // NCNN_VULKAN
 
@@ -320,11 +312,8 @@ int Net::load_param_mem(const char* _mem)
     blobs.resize(blob_count);
 
 #if NCNN_VULKAN
-    if (use_vulkan_compute && !vkdev)
-    {
-        // use default vulkan device
+    if (opt.use_vulkan_compute && !vkdev)
         vkdev = get_default_gpu_device();
-    }
 #endif // NCNN_VULKAN
 
     ParamDict pd;
@@ -357,7 +346,7 @@ int Net::load_param_mem(const char* _mem)
         }
 
 #if NCNN_VULKAN
-        if (use_vulkan_compute)
+        if (opt.use_vulkan_compute)
             layer->vkdev = vkdev;
 #endif // NCNN_VULKAN
 
@@ -489,11 +478,8 @@ int Net::load_param_bin(FILE* fp)
     blobs.resize(blob_count);
 
 #if NCNN_VULKAN
-    if (use_vulkan_compute && !vkdev)
-    {
-        // use default vulkan device
+    if (opt.use_vulkan_compute && !vkdev)
         vkdev = get_default_gpu_device();
-    }
 #endif // NCNN_VULKAN
 
     ParamDict pd;
@@ -526,7 +512,7 @@ int Net::load_param_bin(FILE* fp)
         }
 
 #if NCNN_VULKAN
-        if (use_vulkan_compute)
+        if (opt.use_vulkan_compute)
             layer->vkdev = vkdev;
 #endif // NCNN_VULKAN
 
@@ -613,12 +599,6 @@ int Net::load_model(FILE* fp)
     // load file
     int ret = 0;
 
-    Option opt;
-    opt.vulkan_compute = use_vulkan_compute;
-    opt.use_winograd_convolution = use_winograd_convolution;
-    opt.use_sgemm_convolution = use_sgemm_convolution;
-    opt.use_int8_inference = use_int8_inference;
-
     ModelBinFromStdio mb(fp);
     for (size_t i=0; i<layers.size(); i++)
     {
@@ -649,7 +629,7 @@ int Net::load_model(FILE* fp)
     }
 
 #if NCNN_VULKAN
-    if (use_vulkan_compute)
+    if (opt.use_vulkan_compute)
     {
         create_pipeline();
 
@@ -709,11 +689,8 @@ int Net::load_param(const unsigned char* _mem)
     blobs.resize(blob_count);
 
 #if NCNN_VULKAN
-    if (use_vulkan_compute && !vkdev)
-    {
-        // use default vulkan device
+    if (opt.use_vulkan_compute && !vkdev)
         vkdev = get_default_gpu_device();
-    }
 #endif // NCNN_VULKAN
 
     ParamDict pd;
@@ -743,7 +720,7 @@ int Net::load_param(const unsigned char* _mem)
         }
 
 #if NCNN_VULKAN
-        if (use_vulkan_compute)
+        if (opt.use_vulkan_compute)
             layer->vkdev = vkdev;
 #endif // NCNN_VULKAN
 
@@ -816,12 +793,6 @@ int Net::load_model(const unsigned char* _mem)
         return -1;
     }
 
-    Option opt;
-    opt.vulkan_compute = use_vulkan_compute;
-    opt.use_winograd_convolution = use_winograd_convolution;
-    opt.use_sgemm_convolution = use_sgemm_convolution;
-    opt.use_int8_inference = use_int8_inference;
-
     const unsigned char* mem = _mem;
     ModelBinFromMemory mb(mem);
     for (size_t i=0; i<layers.size(); i++)
@@ -850,7 +821,7 @@ int Net::load_model(const unsigned char* _mem)
     }
 
 #if NCNN_VULKAN
-    if (use_vulkan_compute)
+    if (opt.use_vulkan_compute)
     {
         create_pipeline();
 
@@ -971,12 +942,6 @@ void Net::clear()
     destroy_pipeline();
 #endif // NCNN_VULKAN
 
-    Option opt;
-    opt.vulkan_compute = use_vulkan_compute;
-    opt.use_winograd_convolution = use_winograd_convolution;
-    opt.use_sgemm_convolution = use_sgemm_convolution;
-    opt.use_int8_inference = use_int8_inference;
-
     blobs.clear();
     for (size_t i=0; i<layers.size(); i++)
     {
@@ -1053,12 +1018,6 @@ int Net::upload_model()
 
 int Net::create_pipeline()
 {
-    Option opt;
-    opt.vulkan_compute = use_vulkan_compute;
-    opt.use_winograd_convolution = use_winograd_convolution;
-    opt.use_sgemm_convolution = use_sgemm_convolution;
-    opt.use_int8_inference = use_int8_inference;
-
     if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
     {
         {
@@ -1117,12 +1076,6 @@ int Net::create_pipeline()
 
 int Net::destroy_pipeline()
 {
-    Option opt;
-    opt.vulkan_compute = use_vulkan_compute;
-    opt.use_winograd_convolution = use_winograd_convolution;
-    opt.use_sgemm_convolution = use_sgemm_convolution;
-    opt.use_int8_inference = use_int8_inference;
-
     if (cast_float32_to_float16)
         cast_float32_to_float16->destroy_pipeline(opt);
 
@@ -1887,19 +1840,20 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 {
     blob_mats.resize(blob_count);
-    opt = get_default_option();
+    opt = net->opt;
 
 #if NCNN_VULKAN
-    opt.vulkan_compute = net->use_vulkan_compute;
-
-    if (net->use_vulkan_compute)
+    if (net->opt.use_vulkan_compute)
     {
-        blob_mats_gpu.resize(blob_count);
-
         // set default vulkan blob/workspace/staging allocator
-        opt.blob_vkallocator = net->vkdev->allocator();
-        opt.workspace_vkallocator = net->vkdev->allocator();
-        opt.staging_vkallocator = net->vkdev->staging_allocator();
+        if (!opt.blob_vkallocator)
+            opt.blob_vkallocator = net->vkdev->allocator();
+        if (!opt.workspace_vkallocator)
+            opt.workspace_vkallocator = net->vkdev->allocator();
+        if (!opt.staging_vkallocator)
+            opt.staging_vkallocator = net->vkdev->staging_allocator();
+
+        blob_mats_gpu.resize(blob_count);
     }
 #endif // NCNN_VULKAN
 }
@@ -1927,9 +1881,9 @@ void Extractor::set_workspace_allocator(Allocator* allocator)
 #if NCNN_VULKAN
 void Extractor::set_vulkan_compute(bool enable)
 {
-    if (net->use_vulkan_compute)
+    if (net->opt.use_vulkan_compute)
     {
-        opt.vulkan_compute = enable;
+        opt.use_vulkan_compute = enable;
     }
     else
     {
@@ -1995,7 +1949,7 @@ int Extractor::extract(int blob_index, Mat& feat)
         int layer_index = net->blobs[blob_index].producer;
 
 #if NCNN_VULKAN
-        if (opt.vulkan_compute)
+        if (opt.use_vulkan_compute)
         {
             ncnn::VkCompute cmd(net->vkdev);
 #if NCNN_BENCHMARK

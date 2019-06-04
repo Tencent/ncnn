@@ -74,7 +74,7 @@ int Convolution::load_model(const ModelBin& mb)
 int Convolution::create_pipeline(const Option& opt)
 {
     Option opt_cpu = opt;
-    opt_cpu.vulkan_compute = false;
+    opt_cpu.use_vulkan_compute = false;
 
     use_int8_inference = opt.use_int8_inference;
 
@@ -111,7 +111,7 @@ int Convolution::create_pipeline(const Option& opt)
 
             op->create_pipeline(opt_cpu);
 
-            ncnn::Option opt = ncnn::get_default_option();
+            ncnn::Option opt;
             opt.blob_allocator = int8_weight_data.allocator;
 
             const Mat weight_data_n = weight_data.range(weight_data_size_output * n, weight_data_size_output);
@@ -173,7 +173,7 @@ int Convolution::create_pipeline(const Option& opt)
 int Convolution::destroy_pipeline(const Option& opt)
 {
     Option opt_cpu = opt;
-    opt_cpu.vulkan_compute = false;
+    opt_cpu.use_vulkan_compute = false;
 
     if (quantize)
     {
@@ -286,7 +286,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             op->load_model(ModelBinFromMatArray(weights));
 
             Option opt_cpu = opt;
-            opt_cpu.vulkan_compute = false;
+            opt_cpu.use_vulkan_compute = false;
             op->create_pipeline(opt_cpu);
 
             // forward

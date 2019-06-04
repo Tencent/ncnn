@@ -47,18 +47,7 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const char*
 
 //     fprintf(stderr, "local_shader_module %p %s created\n", local_shader_module, entry_name);
 
-    create_descriptorset_layout(binding_count);
-
-    create_pipeline_layout(push_constant_count);
-
-    create_pipeline(local_shader_module, entry_name, specializations);
-
-    if (vkdev->info.support_VK_KHR_descriptor_update_template)
-    {
-        create_descriptor_update_template(binding_count);
-    }
-
-    return 0;
+    return create(local_shader_module, entry_name, specializations, binding_count, push_constant_count);
 }
 
 int Pipeline::create(VkShaderModule shader_module, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
