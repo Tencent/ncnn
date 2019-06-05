@@ -733,12 +733,8 @@ int create_gpu_instance()
 
 void destroy_gpu_instance()
 {
-    {
-        MutexLockGuard lock(g_default_vkdev_lock);
-
-        delete g_default_vkdev;
-        g_default_vkdev = 0;
-    }
+    delete g_default_vkdev;
+    g_default_vkdev = 0;
 
 #if ENABLE_VALIDATION_LAYER
     if (support_VK_EXT_debug_utils)
