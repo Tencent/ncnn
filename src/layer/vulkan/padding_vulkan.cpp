@@ -36,14 +36,14 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_padding = new Pipeline(vkdev);
         pipeline_padding->set_optimal_local_size_xyz();
-        pipeline_padding->create("padding", specializations, 2, 12);
+        pipeline_padding->create("padding", opt, specializations, 2, 12);
     }
 
     // pack4
     {
         pipeline_padding_pack4 = new Pipeline(vkdev);
         pipeline_padding_pack4->set_optimal_local_size_xyz();
-        pipeline_padding_pack4->create("padding_pack4", specializations, 2, 12);
+        pipeline_padding_pack4->create("padding_pack4", opt, specializations, 2, 12);
     }
 
     return 0;

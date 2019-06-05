@@ -35,21 +35,21 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_flatten = new Pipeline(vkdev);
         pipeline_flatten->set_optimal_local_size_xyz();
-        pipeline_flatten->create("flatten", specializations, 2, 10);
+        pipeline_flatten->create("flatten", opt, specializations, 2, 10);
     }
 
     // pack4
     {
         pipeline_flatten_pack4 = new Pipeline(vkdev);
         pipeline_flatten_pack4->set_optimal_local_size_xyz();
-        pipeline_flatten_pack4->create("flatten_pack4", specializations, 2, 10);
+        pipeline_flatten_pack4->create("flatten_pack4", opt, specializations, 2, 10);
     }
 
     // pack1to4
     {
         pipeline_flatten_pack1to4 = new Pipeline(vkdev);
         pipeline_flatten_pack1to4->set_optimal_local_size_xyz();
-        pipeline_flatten_pack1to4->create("flatten_pack1to4", specializations, 2, 10);
+        pipeline_flatten_pack1to4->create("flatten_pack1to4", opt, specializations, 2, 10);
     }
 
     return 0;
@@ -90,7 +90,7 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int out_packing = total % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
-    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_packing == 4) out_elemsize = 4*2u;
         if (out_packing == 1) out_elemsize = 4u;

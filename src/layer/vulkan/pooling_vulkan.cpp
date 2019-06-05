@@ -72,14 +72,14 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_pooling = new Pipeline(vkdev);
         pipeline_pooling->set_optimal_local_size_xyz();
-        pipeline_pooling->create("pooling", specializations, 2, 10);
+        pipeline_pooling->create("pooling", opt, specializations, 2, 10);
     }
 
     // pack4
     {
         pipeline_pooling_pack4 = new Pipeline(vkdev);
         pipeline_pooling_pack4->set_optimal_local_size_xyz();
-        pipeline_pooling_pack4->create("pooling_pack4", specializations, 2, 10);
+        pipeline_pooling_pack4->create("pooling_pack4", opt, specializations, 2, 10);
     }
 
     if (global_pooling)
@@ -91,14 +91,14 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_pooling_global = new Pipeline(vkdev);
             pipeline_pooling_global->set_optimal_local_size_xyz(256, 1, 1);
-            pipeline_pooling_global->create("pooling_global", specializations, 2, 10);
+            pipeline_pooling_global->create("pooling_global", opt, specializations, 2, 10);
         }
 
         // pack4
         {
             pipeline_pooling_global_pack4 = new Pipeline(vkdev);
             pipeline_pooling_global_pack4->set_optimal_local_size_xyz(256, 1, 1);
-            pipeline_pooling_global_pack4->create("pooling_global_pack4", specializations, 2, 10);
+            pipeline_pooling_global_pack4->create("pooling_global_pack4", opt, specializations, 2, 10);
         }
     }
 

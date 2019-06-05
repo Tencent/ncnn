@@ -35,14 +35,14 @@ int ReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_relu = new Pipeline(vkdev);
         pipeline_relu->set_optimal_local_size_xyz();
-        pipeline_relu->create("relu", specializations, 1, 5);
+        pipeline_relu->create("relu", opt, specializations, 1, 5);
     }
 
     // pack4
     {
         pipeline_relu_pack4 = new Pipeline(vkdev);
         pipeline_relu_pack4->set_optimal_local_size_xyz();
-        pipeline_relu_pack4->create("relu_pack4", specializations, 1, 5);
+        pipeline_relu_pack4->create("relu_pack4", opt, specializations, 1, 5);
     }
 
     return 0;

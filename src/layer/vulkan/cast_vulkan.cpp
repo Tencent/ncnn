@@ -38,14 +38,14 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_cast_fp32_to_fp16 = new Pipeline(vkdev);
             pipeline_cast_fp32_to_fp16->set_optimal_local_size_xyz();
-            pipeline_cast_fp32_to_fp16->create("cast_fp32_to_fp16", specializations, 2, 10);
+            pipeline_cast_fp32_to_fp16->create("cast_fp32_to_fp16", opt, specializations, 2, 10);
         }
 
         // pack4
         {
             pipeline_cast_fp32_to_fp16_pack4 = new Pipeline(vkdev);
             pipeline_cast_fp32_to_fp16_pack4->set_optimal_local_size_xyz();
-            pipeline_cast_fp32_to_fp16_pack4->create("cast_fp32_to_fp16_pack4", specializations, 2, 10);
+            pipeline_cast_fp32_to_fp16_pack4->create("cast_fp32_to_fp16_pack4", opt, specializations, 2, 10);
         }
     }
 
@@ -55,14 +55,14 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_cast_fp16_to_fp32 = new Pipeline(vkdev);
             pipeline_cast_fp16_to_fp32->set_optimal_local_size_xyz();
-            pipeline_cast_fp16_to_fp32->create("cast_fp16_to_fp32", specializations, 2, 10);
+            pipeline_cast_fp16_to_fp32->create("cast_fp16_to_fp32", opt, specializations, 2, 10);
         }
 
         // pack4
         {
             pipeline_cast_fp16_to_fp32_pack4 = new Pipeline(vkdev);
             pipeline_cast_fp16_to_fp32_pack4->set_optimal_local_size_xyz();
-            pipeline_cast_fp16_to_fp32_pack4->create("cast_fp16_to_fp32_pack4", specializations, 2, 10);
+            pipeline_cast_fp16_to_fp32_pack4->create("cast_fp16_to_fp32_pack4", opt, specializations, 2, 10);
         }
     }
 

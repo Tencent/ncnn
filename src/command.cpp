@@ -17,6 +17,7 @@
 #if NCNN_VULKAN
 
 #include <stdio.h>
+#include "option.h"
 
 namespace ncnn {
 
@@ -841,16 +842,16 @@ VkTransfer::~VkTransfer()
 {
 }
 
-void VkTransfer::record_upload(const Mat& src, VkMat& dst)
+void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 {
     if (src.elemsize / src.packing == 4)
     {
-        if (vkdev->info.support_fp16_storage || (vkdev->info.support_fp16_packed && src.packing % 4 == 0))
+        if (opt.use_fp16_storage || (opt.use_fp16_packed && src.packing % 4 == 0))
         {
             Mat src_fp16;
             cast_float32_to_float16(src, src_fp16);
 
-            record_upload(src_fp16, dst);
+            record_upload(src_fp16, dst, opt);
 
             return;
         }

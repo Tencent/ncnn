@@ -29,19 +29,21 @@ Dropout_vulkan::Dropout_vulkan()
 
 int Dropout_vulkan::create_pipeline(const Option& opt)
 {
-    pipeline_dropout = new Pipeline(vkdev);
-    pipeline_dropout->set_optimal_local_size_xyz();
-
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].f = scale;
 
-    pipeline_dropout->create("dropout", specializations, 1, 5);
+    // pack1
+    {
+        pipeline_dropout = new Pipeline(vkdev);
+        pipeline_dropout->set_optimal_local_size_xyz();
+        pipeline_dropout->create("dropout", opt, specializations, 1, 5);
+    }
 
     // pack4
     {
         pipeline_dropout_pack4 = new Pipeline(vkdev);
         pipeline_dropout_pack4->set_optimal_local_size_xyz();
-        pipeline_dropout_pack4->create("dropout_pack4", specializations, 1, 5);
+        pipeline_dropout_pack4->create("dropout_pack4", opt, specializations, 1, 5);
     }
 
     return 0;
