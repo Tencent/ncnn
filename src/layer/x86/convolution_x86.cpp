@@ -15,7 +15,12 @@
 #include "convolution_x86.h"
 
 #include "platform.h"
+#if __SSE2__
+#include <emmintrin.h>
+#endif
+#if __AVX__
 #include <immintrin.h>
+#endif
 
 #include "layer_type.h"
 #include "benchmark.h"
