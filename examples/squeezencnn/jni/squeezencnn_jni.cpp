@@ -92,9 +92,17 @@ JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
 // public native boolean Init(byte[] param, byte[] bin, byte[] words);
 JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv* env, jobject thiz, jbyteArray param, jbyteArray bin, jbyteArray words)
 {
+    ncnn::Option opt;
+    opt.lightmode = true;
+    opt.num_threads = 4;
+    opt.blob_allocator = &g_blob_pool_allocator;
+    opt.workspace_allocator = &g_workspace_pool_allocator;
+
     // use vulkan compute
     if (ncnn::get_gpu_count() != 0)
-        squeezenet.use_vulkan_compute = 1;
+        opt.use_vulkan_compute = true;
+
+    squeezenet.opt = opt;
 
     // init param
     {
@@ -122,14 +130,6 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv*
         env->GetByteArrayRegion(words, 0, len, (jbyte*)words_buffer.data());
         squeezenet_words = split_string(words_buffer, "\n");
     }
-
-    ncnn::Option opt;
-    opt.lightmode = true;
-    opt.num_threads = 4;
-    opt.blob_allocator = &g_blob_pool_allocator;
-    opt.workspace_allocator = &g_workspace_pool_allocator;
-
-    ncnn::set_default_option(opt);
 
     return JNI_TRUE;
 }
