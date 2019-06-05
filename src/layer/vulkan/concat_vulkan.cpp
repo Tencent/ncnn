@@ -40,30 +40,30 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_concat[0] = new Pipeline(vkdev);
         pipeline_concat[0]->set_optimal_local_size_xyz();
-        pipeline_concat[0]->create("concat", specializations, 2, 11);
+        pipeline_concat[0]->create("concat", opt, specializations, 2, 11);
         pipeline_concat[1] = new Pipeline(vkdev);
         pipeline_concat[1]->set_optimal_local_size_xyz();
-        pipeline_concat[1]->create("concat", specializations, 2, 11);
+        pipeline_concat[1]->create("concat", opt, specializations, 2, 11);
     }
 
     // pack4
     {
         pipeline_concat_pack4[0] = new Pipeline(vkdev);
         pipeline_concat_pack4[0]->set_optimal_local_size_xyz();
-        pipeline_concat_pack4[0]->create("concat_pack4", specializations, 2, 11);
+        pipeline_concat_pack4[0]->create("concat_pack4", opt, specializations, 2, 11);
         pipeline_concat_pack4[1] = new Pipeline(vkdev);
         pipeline_concat_pack4[1]->set_optimal_local_size_xyz();
-        pipeline_concat_pack4[1]->create("concat_pack4", specializations, 2, 11);
+        pipeline_concat_pack4[1]->create("concat_pack4", opt, specializations, 2, 11);
     }
 
     // pack4to1
     {
         pipeline_concat_pack4to1[0] = new Pipeline(vkdev);
         pipeline_concat_pack4to1[0]->set_optimal_local_size_xyz();
-        pipeline_concat_pack4to1[0]->create("concat_pack4to1", specializations, 2, 11);
+        pipeline_concat_pack4to1[0]->create("concat_pack4to1", opt, specializations, 2, 11);
         pipeline_concat_pack4to1[1] = new Pipeline(vkdev);
         pipeline_concat_pack4to1[1]->set_optimal_local_size_xyz();
-        pipeline_concat_pack4to1[1]->create("concat_pack4to1", specializations, 2, 11);
+        pipeline_concat_pack4to1[1]->create("concat_pack4to1", opt, specializations, 2, 11);
     }
 
     return 0;

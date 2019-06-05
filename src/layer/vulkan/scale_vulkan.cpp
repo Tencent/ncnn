@@ -35,13 +35,13 @@ int Scale_vulkan::create_pipeline(const Option& opt)
 
         pipeline_scale = new Pipeline(vkdev);
         pipeline_scale->set_optimal_local_size_xyz();
-        pipeline_scale->create("scale", specializations, 3, 5);
+        pipeline_scale->create("scale", opt, specializations, 3, 5);
 
         // pack4
         {
             pipeline_scale_pack4 = new Pipeline(vkdev);
             pipeline_scale_pack4->set_optimal_local_size_xyz();
-            pipeline_scale_pack4->create("scale_pack4", specializations, 3, 5);
+            pipeline_scale_pack4->create("scale_pack4", opt, specializations, 3, 5);
         }
 
         return 0;
@@ -55,7 +55,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_scale = new Pipeline(vkdev);
         pipeline_scale->set_optimal_local_size_xyz(8, 8, scale_data_size);
-        pipeline_scale->create("scale", specializations, 3, 5);
+        pipeline_scale->create("scale", opt, specializations, 3, 5);
     }
 
     // pack4
@@ -63,7 +63,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_scale_pack4 = new Pipeline(vkdev);
         pipeline_scale_pack4->set_optimal_local_size_xyz(8, 8, scale_data_size / 4);
-        pipeline_scale_pack4->create("scale_pack4", specializations, 3, 5);
+        pipeline_scale_pack4->create("scale_pack4", opt, specializations, 3, 5);
     }
 
     return 0;
@@ -80,7 +80,7 @@ int Scale_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Scale_vulkan::upload_model(VkTransfer& cmd)
+int Scale_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (scale_data_size == -233)
         return 0;
@@ -88,7 +88,7 @@ int Scale_vulkan::upload_model(VkTransfer& cmd)
     // pack1
     if (scale_data_size % 4 != 0)
     {
-        cmd.record_upload(scale_data, scale_data_gpu);
+        cmd.record_upload(scale_data, scale_data_gpu, opt);
     }
 
     // pack4
@@ -96,7 +96,7 @@ int Scale_vulkan::upload_model(VkTransfer& cmd)
     {
         Mat scale_data_pack4;
         convert_packing(scale_data, scale_data_pack4, 4);
-        cmd.record_upload(scale_data_pack4, scale_data_gpu_pack4);
+        cmd.record_upload(scale_data_pack4, scale_data_gpu_pack4, opt);
     }
 
     if (bias_term)
@@ -104,7 +104,7 @@ int Scale_vulkan::upload_model(VkTransfer& cmd)
         // pack1
         if (scale_data_size % 4 != 0)
         {
-            cmd.record_upload(bias_data, bias_data_gpu);
+            cmd.record_upload(bias_data, bias_data_gpu, opt);
         }
 
         // pack4
@@ -112,7 +112,7 @@ int Scale_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
-            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
+            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4, opt);
         }
     }
 

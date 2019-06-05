@@ -35,14 +35,14 @@ int Permute_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_permute = new Pipeline(vkdev);
         pipeline_permute->set_optimal_local_size_xyz();
-        pipeline_permute->create("permute", specializations, 2, 10);
+        pipeline_permute->create("permute", opt, specializations, 2, 10);
     }
 
     // pack4
     {
         pipeline_permute_pack4to1 = new Pipeline(vkdev);
         pipeline_permute_pack4to1->set_optimal_local_size_xyz();
-        pipeline_permute_pack4to1->create("permute_pack4to1", specializations, 2, 10);
+        pipeline_permute_pack4to1->create("permute_pack4to1", opt, specializations, 2, 10);
     }
 
     return 0;
@@ -72,7 +72,7 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int out_packing = 1;
     size_t out_elemsize = elemsize / packing;
 
-    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_packing == 4) out_elemsize = 4*2u;
         if (out_packing == 1) out_elemsize = 4u;

@@ -35,14 +35,14 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_crop = new Pipeline(vkdev);
         pipeline_crop->set_optimal_local_size_xyz();
-        pipeline_crop->create("crop", specializations, 2, 13);
+        pipeline_crop->create("crop", opt, specializations, 2, 13);
     }
 
     // pack4
     {
         pipeline_crop_pack4 = new Pipeline(vkdev);
         pipeline_crop_pack4->set_optimal_local_size_xyz();
-        pipeline_crop_pack4->create("crop_pack4", specializations, 2, 13);
+        pipeline_crop_pack4->create("crop_pack4", opt, specializations, 2, 13);
     }
 
     return 0;
@@ -98,7 +98,7 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     int out_packing = _outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
-    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_packing == 4) out_elemsize = 4*2u;
         if (out_packing == 1) out_elemsize = 4u;
@@ -195,7 +195,7 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     int out_packing = _outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
-    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_packing == 4) out_elemsize = 4*2u;
         if (out_packing == 1) out_elemsize = 4u;

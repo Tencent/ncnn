@@ -39,20 +39,20 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_eltwise[0] = new Pipeline(vkdev);
         pipeline_eltwise[0]->set_optimal_local_size_xyz();
-        pipeline_eltwise[0]->create("eltwise", specializations, 3, 5+2);
+        pipeline_eltwise[0]->create("eltwise", opt, specializations, 3, 5+2);
         pipeline_eltwise[1] = new Pipeline(vkdev);
         pipeline_eltwise[1]->set_optimal_local_size_xyz();
-        pipeline_eltwise[1]->create("eltwise", specializations, 3, 5+2);
+        pipeline_eltwise[1]->create("eltwise", opt, specializations, 3, 5+2);
     }
 
     // pack4
     {
         pipeline_eltwise_pack4[0] = new Pipeline(vkdev);
         pipeline_eltwise_pack4[0]->set_optimal_local_size_xyz();
-        pipeline_eltwise_pack4[0]->create("eltwise_pack4", specializations, 3, 5+2);
+        pipeline_eltwise_pack4[0]->create("eltwise_pack4", opt, specializations, 3, 5+2);
         pipeline_eltwise_pack4[1] = new Pipeline(vkdev);
         pipeline_eltwise_pack4[1]->set_optimal_local_size_xyz();
-        pipeline_eltwise_pack4[1]->create("eltwise_pack4", specializations, 3, 5+2);
+        pipeline_eltwise_pack4[1]->create("eltwise_pack4", opt, specializations, 3, 5+2);
     }
 
     return 0;
