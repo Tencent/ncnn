@@ -36,14 +36,14 @@ int Clip_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_clip = new Pipeline(vkdev);
         pipeline_clip->set_optimal_local_size_xyz();
-        pipeline_clip->create("clip", specializations, 1, 5);
+        pipeline_clip->create("clip", opt, specializations, 1, 5);
     }
 
     // pack4
     {
         pipeline_clip_pack4 = new Pipeline(vkdev);
         pipeline_clip_pack4->set_optimal_local_size_xyz();
-        pipeline_clip_pack4->create("clip_pack4", specializations, 1, 5);
+        pipeline_clip_pack4->create("clip_pack4", opt, specializations, 1, 5);
     }
 
     return 0;

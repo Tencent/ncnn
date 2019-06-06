@@ -53,10 +53,10 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
         pipeline_softmax_reduce_sum->set_optimal_local_size_xyz();
         pipeline_softmax_div_sum->set_optimal_local_size_xyz();
 
-        pipeline_softmax_reduce_max->create("softmax_reduce_max", specializations, 2, 10);
-        pipeline_softmax_exp_sub_max->create("softmax_exp_sub_max", specializations, 2, 10);
-        pipeline_softmax_reduce_sum->create("softmax_reduce_sum", specializations, 2, 10);
-        pipeline_softmax_div_sum->create("softmax_div_sum", specializations, 2, 10);
+        pipeline_softmax_reduce_max->create("softmax_reduce_max", opt, specializations, 2, 10);
+        pipeline_softmax_exp_sub_max->create("softmax_exp_sub_max", opt, specializations, 2, 10);
+        pipeline_softmax_reduce_sum->create("softmax_reduce_sum", opt, specializations, 2, 10);
+        pipeline_softmax_div_sum->create("softmax_div_sum", opt, specializations, 2, 10);
     }
 
     // pack4
@@ -71,10 +71,10 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
         pipeline_softmax_reduce_sum_pack4->set_optimal_local_size_xyz();
         pipeline_softmax_div_sum_pack4->set_optimal_local_size_xyz();
 
-        pipeline_softmax_reduce_max_pack4->create("softmax_reduce_max_pack4", specializations, 2, 10);
-        pipeline_softmax_exp_sub_max_pack4->create("softmax_exp_sub_max_pack4", specializations, 2, 10);
-        pipeline_softmax_reduce_sum_pack4->create("softmax_reduce_sum_pack4", specializations, 2, 10);
-        pipeline_softmax_div_sum_pack4->create("softmax_div_sum_pack4", specializations, 2, 10);
+        pipeline_softmax_reduce_max_pack4->create("softmax_reduce_max_pack4", opt, specializations, 2, 10);
+        pipeline_softmax_exp_sub_max_pack4->create("softmax_exp_sub_max_pack4", opt, specializations, 2, 10);
+        pipeline_softmax_reduce_sum_pack4->create("softmax_reduce_sum_pack4", opt, specializations, 2, 10);
+        pipeline_softmax_div_sum_pack4->create("softmax_div_sum_pack4", opt, specializations, 2, 10);
     }
 
     return 0;

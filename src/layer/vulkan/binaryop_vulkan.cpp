@@ -40,14 +40,14 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_binaryop = new Pipeline(vkdev);
         pipeline_binaryop->set_optimal_local_size_xyz();
-        pipeline_binaryop->create("binaryop", specializations, 3, 15);
+        pipeline_binaryop->create("binaryop", opt, specializations, 3, 15);
     }
 
     // pack4
     {
         pipeline_binaryop_pack4 = new Pipeline(vkdev);
         pipeline_binaryop_pack4->set_optimal_local_size_xyz();
-        pipeline_binaryop_pack4->create("binaryop_pack4", specializations, 3, 15);
+        pipeline_binaryop_pack4->create("binaryop_pack4", opt, specializations, 3, 15);
     }
 
     return 0;

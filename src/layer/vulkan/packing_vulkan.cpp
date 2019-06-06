@@ -34,14 +34,14 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_packing_1to4 = new Pipeline(vkdev);
         pipeline_packing_1to4->set_optimal_local_size_xyz();
-        pipeline_packing_1to4->create("packing_1to4", specializations, 2, 10);
+        pipeline_packing_1to4->create("packing_1to4", opt, specializations, 2, 10);
     }
 
     if (out_packing == 1)
     {
         pipeline_packing_4to1 = new Pipeline(vkdev);
         pipeline_packing_4to1->set_optimal_local_size_xyz();
-        pipeline_packing_4to1->create("packing_4to1", specializations, 2, 10);
+        pipeline_packing_4to1->create("packing_4to1", opt, specializations, 2, 10);
     }
 
     return 0;
@@ -96,7 +96,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     if (dims == 1)
     {
-        if (vkdev->info.support_fp16_storage && out_packing == 1)
+        if (opt.use_fp16_storage && out_packing == 1)
         {
             top_blob = bottom_blob;
             top_blob.w = w * packing;
@@ -108,7 +108,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         int outw = (w * packing + out_packing - 1) / out_packing;
         size_t out_elemsize = elemsize / packing * out_packing;
-        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
             if (out_packing == 4) out_elemsize = 4*2u;
             if (out_packing == 1) out_elemsize = 4u;
@@ -123,7 +123,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         int outh = (h * packing + out_packing - 1) / out_packing;
         size_t out_elemsize = elemsize / packing * out_packing;
-        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
             if (out_packing == 4) out_elemsize = 4*2u;
             if (out_packing == 1) out_elemsize = 4u;
@@ -138,7 +138,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         int outc = (channels * packing + out_packing - 1) / out_packing;
         size_t out_elemsize = elemsize / packing * out_packing;
-        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
             if (out_packing == 4) out_elemsize = 4*2u;
             if (out_packing == 1) out_elemsize = 4u;

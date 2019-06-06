@@ -16,8 +16,9 @@
 #include <stdio.h>
 #include <math.h>
 #include <algorithm>
-#include "mat.h"
 #include <string>
+#include "mat.h"
+#include "option.h"
 
 namespace ncnn {
 
@@ -66,19 +67,19 @@ int Pipeline::create(VkShaderModule shader_module, const char* entry_name, const
     return 0;
 }
 
-int Pipeline::create(const char* _name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+int Pipeline::create(const char* _name, const Option& opt, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
 {
     std::string name = _name;
 
-    if (vkdev->info.support_fp16_arithmetic)
+    if (opt.use_fp16_arithmetic)
     {
         name += "_fp16a";
     }
-    else if (vkdev->info.support_fp16_storage)
+    else if (opt.use_fp16_storage)
     {
         name += "_fp16s";
     }
-    else if (vkdev->info.support_fp16_packed)
+    else if (opt.use_fp16_packed)
     {
         name += "_fp16p";
     }

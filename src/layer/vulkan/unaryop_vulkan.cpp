@@ -28,19 +28,21 @@ UnaryOp_vulkan::UnaryOp_vulkan()
 
 int UnaryOp_vulkan::create_pipeline(const Option& opt)
 {
-    pipeline_unaryop = new Pipeline(vkdev);
-    pipeline_unaryop->set_optimal_local_size_xyz();
-
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = op_type;
 
-    pipeline_unaryop->create("unaryop", specializations, 1, 5);
+    // pack1
+    {
+        pipeline_unaryop = new Pipeline(vkdev);
+        pipeline_unaryop->set_optimal_local_size_xyz();
+        pipeline_unaryop->create("unaryop", opt, specializations, 1, 5);
+    }
 
     // pack4
     {
         pipeline_unaryop_pack4 = new Pipeline(vkdev);
         pipeline_unaryop_pack4->set_optimal_local_size_xyz();
-        pipeline_unaryop_pack4->create("unaryop_pack4", specializations, 1, 5);
+        pipeline_unaryop_pack4->create("unaryop_pack4", opt, specializations, 1, 5);
     }
 
     return 0;

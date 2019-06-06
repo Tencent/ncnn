@@ -25,6 +25,7 @@
 namespace ncnn {
 
 #if NCNN_VULKAN
+class Option;
 class Pipeline
 {
 public:
@@ -39,7 +40,7 @@ public:
                const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count);
     int create(VkShaderModule shader_module, const char* entry_name,
                const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count);
-    int create(const char* name, const std::vector<vk_specialization_type>& specializations,
+    int create(const char* name, const Option& opt, const std::vector<vk_specialization_type>& specializations,
                int binding_count, int push_constant_count);
     void destroy();
 

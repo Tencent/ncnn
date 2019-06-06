@@ -59,7 +59,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct = new Pipeline(vkdev);
         pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
-        pipeline_innerproduct->create("innerproduct", specializations, 4, 10);
+        pipeline_innerproduct->create("innerproduct", opt, specializations, 4, 10);
     }
 
     // pack4
@@ -67,12 +67,12 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
-        pipeline_innerproduct_pack4->create("innerproduct_pack4", specializations, 4, 10);
+        pipeline_innerproduct_pack4->create("innerproduct_pack4", opt, specializations, 4, 10);
 
         {
             pipeline_innerproduct_pack4_lds_64 = new Pipeline(vkdev);
             pipeline_innerproduct_pack4_lds_64->set_local_size_xyz(64, 1, 1);
-            pipeline_innerproduct_pack4_lds_64->create("innerproduct_pack4_lds_64", specializations, 4, 10);
+            pipeline_innerproduct_pack4_lds_64->create("innerproduct_pack4_lds_64", opt, specializations, 4, 10);
         }
     }
 
@@ -81,7 +81,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack1to4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack1to4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
-        pipeline_innerproduct_pack1to4->create("innerproduct_pack1to4", specializations, 4, 10);
+        pipeline_innerproduct_pack1to4->create("innerproduct_pack1to4", opt, specializations, 4, 10);
     }
 
     // pack4to1
@@ -89,7 +89,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack4to1 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(num_output, 1, 1);
-        pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", specializations, 4, 10);
+        pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", opt, specializations, 4, 10);
     }
 
     return 0;
@@ -122,14 +122,14 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
+int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     int num_input = weight_data_size / num_output;
 
     // pack1
     if (num_input % 4 != 0 && num_output % 4 != 0)
     {
-        cmd.record_upload(weight_data, weight_data_gpu);
+        cmd.record_upload(weight_data, weight_data_gpu, opt);
     }
 
     // pack4
@@ -183,7 +183,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
+        cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4, opt);
     }
 
     // pack1to4
@@ -218,7 +218,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4);
+        cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4, opt);
     }
 
     // pack4to1
@@ -251,21 +251,21 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1);
+        cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1, opt);
     }
 
     if (bias_term)
     {
         if (num_output % 4 != 0)
         {
-            cmd.record_upload(bias_data, bias_data_gpu);
+            cmd.record_upload(bias_data, bias_data_gpu, opt);
         }
 
         if (num_output % 4 == 0)
         {
             Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
-            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
+            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4, opt);
         }
     }
 
@@ -290,7 +290,7 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     int out_packing = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
-    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_packing == 4) out_elemsize = 4*2u;
         if (out_packing == 1) out_elemsize = 4u;

@@ -150,8 +150,17 @@ int Net::load_param(FILE* fp)
     blobs.resize((size_t)blob_count);
 
 #if NCNN_VULKAN
-    if (opt.use_vulkan_compute && !vkdev)
-        vkdev = get_default_gpu_device();
+    if (opt.use_vulkan_compute)
+    {
+        if (!vkdev) vkdev = get_default_gpu_device();
+
+        // sanitize use options
+        if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+        if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+        if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+        if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
+        if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
+    }
 #endif // NCNN_VULKAN
 
     ParamDict pd;
@@ -312,8 +321,17 @@ int Net::load_param_mem(const char* _mem)
     blobs.resize(blob_count);
 
 #if NCNN_VULKAN
-    if (opt.use_vulkan_compute && !vkdev)
-        vkdev = get_default_gpu_device();
+    if (opt.use_vulkan_compute)
+    {
+        if (!vkdev) vkdev = get_default_gpu_device();
+
+        // sanitize use options
+        if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+        if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+        if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+        if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
+        if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
+    }
 #endif // NCNN_VULKAN
 
     ParamDict pd;
@@ -478,8 +496,17 @@ int Net::load_param_bin(FILE* fp)
     blobs.resize(blob_count);
 
 #if NCNN_VULKAN
-    if (opt.use_vulkan_compute && !vkdev)
-        vkdev = get_default_gpu_device();
+    if (opt.use_vulkan_compute)
+    {
+        if (!vkdev) vkdev = get_default_gpu_device();
+
+        // sanitize use options
+        if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+        if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+        if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+        if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
+        if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
+    }
 #endif // NCNN_VULKAN
 
     ParamDict pd;
@@ -689,8 +716,17 @@ int Net::load_param(const unsigned char* _mem)
     blobs.resize(blob_count);
 
 #if NCNN_VULKAN
-    if (opt.use_vulkan_compute && !vkdev)
-        vkdev = get_default_gpu_device();
+    if (opt.use_vulkan_compute)
+    {
+        if (!vkdev) vkdev = get_default_gpu_device();
+
+        // sanitize use options
+        if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+        if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+        if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+        if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
+        if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
+    }
 #endif // NCNN_VULKAN
 
     ParamDict pd;
@@ -1028,7 +1064,7 @@ int Net::upload_model()
     {
         if (layers[i]->support_vulkan)
         {
-            int uret = layers[i]->upload_model(cmd);
+            int uret = layers[i]->upload_model(cmd, opt);
             if (uret != 0)
             {
                 fprintf(stderr, "layer upload_model %d failed\n", (int)i);
@@ -1044,7 +1080,7 @@ int Net::upload_model()
 
 int Net::create_pipeline()
 {
-    if (vkdev->info.support_fp16_packed || vkdev->info.support_fp16_storage)
+    if (opt.use_fp16_storage)
     {
         {
         cast_float32_to_float16 = ncnn::create_layer(ncnn::LayerType::Cast);
@@ -1375,7 +1411,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     // cast to fp16
                     VkMat bottom_blob_unpacked_fp16;
-                    if (vkdev->info.support_fp16_storage)
+                    if (opt.use_fp16_storage)
                     {
                         cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
                     }
@@ -1477,7 +1513,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                         // cast to fp16
                         VkMat bottom_blob_unpacked_fp16;
-                        if (vkdev->info.support_fp16_storage)
+                        if (opt.use_fp16_storage)
                         {
                             cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
                         }
@@ -1606,7 +1642,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     // cast to fp32
                     VkMat bottom_blob_unpacked_fp32;
-                    if (vkdev->info.support_fp16_storage)
+                    if (opt.use_fp16_storage)
                     {
                         cast_float16_to_float32->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp32, cmd, opt);
                     }
@@ -1741,7 +1777,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         packing_pack1->forward(bottom_blob, bottom_blob_unpacked, cmd, opt);
 
                         // cast to fp32
-                        if (vkdev->info.support_fp16_storage)
+                        if (opt.use_fp16_storage)
                         {
                             cast_float16_to_float32->forward(bottom_blob_unpacked, bottom_blobs_unpacked_fp32[i], cmd, opt);
                         }
@@ -1894,16 +1930,6 @@ void Extractor::set_num_threads(int num_threads)
     opt.num_threads = num_threads;
 }
 
-void Extractor::set_blob_allocator(Allocator* allocator)
-{
-    opt.blob_allocator = allocator;
-}
-
-void Extractor::set_workspace_allocator(Allocator* allocator)
-{
-    opt.workspace_allocator = allocator;
-}
-
 #if NCNN_VULKAN
 void Extractor::set_vulkan_compute(bool enable)
 {
@@ -1915,21 +1941,6 @@ void Extractor::set_vulkan_compute(bool enable)
     {
         fprintf(stderr, "set_vulkan_compute failed, network use_vulkan_compute disabled\n");
     }
-}
-
-void Extractor::set_blob_vkallocator(VkAllocator* allocator)
-{
-    opt.blob_vkallocator = allocator;
-}
-
-void Extractor::set_workspace_vkallocator(VkAllocator* allocator)
-{
-    opt.workspace_vkallocator = allocator;
-}
-
-void Extractor::set_staging_vkallocator(VkAllocator* allocator)
-{
-    opt.staging_vkallocator = allocator;
 }
 #endif // NCNN_VULKAN
 
@@ -1993,7 +2004,7 @@ int Extractor::extract(int blob_index, Mat& feat)
 
                 // cast to fp32
                 VkMat feat_gpu_unpacked_fp32;
-                if (net->vkdev->info.support_fp16_packed || net->vkdev->info.support_fp16_storage)
+                if (opt.use_fp16_storage)
                 {
                     net->cast_float16_to_float32->forward(feat_gpu_unpacked, feat_gpu_unpacked_fp32, cmd, opt);
                 }

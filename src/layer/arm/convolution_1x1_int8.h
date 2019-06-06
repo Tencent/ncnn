@@ -1493,7 +1493,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
                 tmpptr += 8;
                 img0 += bottom_blob.cstep;
-#endif // __ARM_NEON__
+#endif // __ARM_NEON
             }
         }
 
@@ -2383,7 +2383,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
                 tmpptr += 8;
                 img0 += bottom_blob.cstep;
-#endif // __ARM_NEON__
+#endif // __ARM_NEON
             }
         }
 
@@ -2460,6 +2460,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
         const float scale_requant_in3  = scales_requant[2*(p+3)];
         const float scale_requant_out3 = scales_requant[2*(p+3)+1];
 
+#if __ARM_NEON
         float32x4_t _bias03, _scale_in03, _scale_out03;
 
         _bias03[0] = bias0;
@@ -2476,6 +2477,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
         _scale_out03[1] = scale_requant_out1;
         _scale_out03[2] = scale_requant_out2;
         _scale_out03[3] = scale_requant_out3;
+#endif // __ARM_NEON
 
         int i = 0;
         for (; i+7<size; i+=8)
@@ -3217,17 +3219,18 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
         const float scale_requant_in = scales_requant[2*p];
         const float scale_requant_out = scales_requant[2*p+1];
 
+#if __ARM_NEON
         float32x4_t _bias0 = vdupq_n_f32(bias0);
         float32x4_t _scale_in = vdupq_n_f32(scale_requant_in);
-        float32x4_t _scale_out = vdupq_n_f32(scale_requant_out);        
+        float32x4_t _scale_out = vdupq_n_f32(scale_requant_out);
+#endif // __ARM_NEON
 
         int i = 0;
         for (; i+7<size; i+=8)
         {
             const signed char* tmpptr = tmp.channel(i/8);
-#if __ARM_NEON
             const signed char* kptr = kernel.channel(p/4 + p%4);
-#endif // __ARM_NEON
+
 #if __ARM_NEON
             asm volatile(
                 // inch loop
@@ -3365,9 +3368,8 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
         for (; i+3<size; i+=4)
         {
             const signed char* tmpptr = tmp.channel(i/8 + (i%8)/4);   
-#if __ARM_NEON
             const signed char* kptr = kernel.channel(p/4 + p%4);
-#endif // __ARM_NEON
+
 #if __ARM_NEON
             asm volatile(
                 // inch loop
@@ -3477,9 +3479,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
         for (; i<size; i++)
         {
             const signed char* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);   
-#if __ARM_NEON
             const signed char* kptr = kernel.channel(p/4 + p%4);
-#endif // __ARM_NEON
 
             int q = 0;            
             int sum0 = 0;

@@ -173,7 +173,7 @@ public:
     VkTransfer(const VulkanDevice* vkdev);
     ~VkTransfer();
 
-    void record_upload(const Mat& src, VkMat& dst);
+    void record_upload(const Mat& src, VkMat& dst, const Option& opt);
 
     int submit_and_wait();
 

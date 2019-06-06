@@ -84,7 +84,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution = new Pipeline(vkdev);
         pipeline_convolution->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
-        pipeline_convolution->create("convolution", specializations, 4, 10);
+        pipeline_convolution->create("convolution", opt, specializations, 4, 10);
 
         if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
@@ -97,7 +97,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
 
-            pipeline_convolution_1x1s1d1->create("convolution_1x1s1d1", specializations, 4, 8);
+            pipeline_convolution_1x1s1d1->create("convolution_1x1s1d1", opt, specializations, 4, 8);
         }
     }
 
@@ -106,7 +106,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack4 = new Pipeline(vkdev);
         pipeline_convolution_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
-        pipeline_convolution_pack4->create("convolution_pack4", specializations, 4, 10);
+        pipeline_convolution_pack4->create("convolution_pack4", opt, specializations, 4, 10);
 
         if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
@@ -119,7 +119,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
 
-            pipeline_convolution_pack4_1x1s1d1->create("convolution_pack4_1x1s1d1", specializations, 4, 8);
+            pipeline_convolution_pack4_1x1s1d1->create("convolution_pack4_1x1s1d1", opt, specializations, 4, 8);
         }
 
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
@@ -132,7 +132,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
             pipeline_convolution_pack4_3x3s1d1_lds_8_8_2 = new Pipeline(vkdev);
             pipeline_convolution_pack4_3x3s1d1_lds_8_8_2->set_local_size_xyz(8, 8, 2);
-            pipeline_convolution_pack4_3x3s1d1_lds_8_8_2->create("convolution_pack4_3x3s1d1_lds_8_8_2", specializations, 4, 10);
+            pipeline_convolution_pack4_3x3s1d1_lds_8_8_2->create("convolution_pack4_3x3s1d1_lds_8_8_2", opt, specializations, 4, 10);
 
             if (num_input >= 16 && num_output >= 16)
             {
@@ -172,15 +172,15 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input->create("convolution_pack4_3x3s1d1_winograd23_transform_input", std::vector<vk_specialization_type>(), 2, 7);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input->create("convolution_pack4_3x3s1d1_winograd23_transform_input", opt, std::vector<vk_specialization_type>(), 2, 7);
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, 4);
-                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create("convolution_pack4_3x3s1d1_winograd23_gemm", std::vector<vk_specialization_type>(), 3, 6);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create("convolution_pack4_3x3s1d1_winograd23_gemm", opt, std::vector<vk_specialization_type>(), 3, 6);
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->create("convolution_pack4_3x3s1d1_winograd23_transform_output", specializations, 3, 7);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->create("convolution_pack4_3x3s1d1_winograd23_transform_output", opt, specializations, 3, 7);
             }
         }
     }
@@ -190,7 +190,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack1to4 = new Pipeline(vkdev);
         pipeline_convolution_pack1to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
-        pipeline_convolution_pack1to4->create("convolution_pack1to4", specializations, 4, 10);
+        pipeline_convolution_pack1to4->create("convolution_pack1to4", opt, specializations, 4, 10);
     }
 
     // pack4to1
@@ -198,7 +198,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack4to1 = new Pipeline(vkdev);
         pipeline_convolution_pack4to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
-        pipeline_convolution_pack4to1->create("convolution_pack4to1", specializations, 4, 10);
+        pipeline_convolution_pack4to1->create("convolution_pack4to1", opt, specializations, 4, 10);
     }
 
     // fc
@@ -215,7 +215,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_innerproduct = new Pipeline(vkdev);
             pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
-            pipeline_innerproduct->create("innerproduct", specializations, 4, 10);
+            pipeline_innerproduct->create("innerproduct", opt, specializations, 4, 10);
         }
 
         // pack4
@@ -223,7 +223,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_innerproduct_pack4 = new Pipeline(vkdev);
             pipeline_innerproduct_pack4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
-            pipeline_innerproduct_pack4->create("innerproduct_pack4", specializations, 4, 10);
+            pipeline_innerproduct_pack4->create("innerproduct_pack4", opt, specializations, 4, 10);
         }
 
         // pack1to4
@@ -231,7 +231,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_innerproduct_pack1to4 = new Pipeline(vkdev);
             pipeline_innerproduct_pack1to4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
-            pipeline_innerproduct_pack1to4->create("innerproduct_pack1to4", specializations, 4, 10);
+            pipeline_innerproduct_pack1to4->create("innerproduct_pack1to4", opt, specializations, 4, 10);
         }
 
         // pack4to1
@@ -239,7 +239,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_innerproduct_pack4to1 = new Pipeline(vkdev);
             pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(num_output, 1, 1);
-            pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", specializations, 4, 10);
+            pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", opt, specializations, 4, 10);
         }
     }
 
@@ -313,7 +313,7 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Convolution_vulkan::upload_model(VkTransfer& cmd)
+int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
@@ -321,7 +321,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
     // pack1
     if (num_input % 4 != 0 && num_output % 4 != 0)
     {
-        cmd.record_upload(weight_data, weight_data_gpu);
+        cmd.record_upload(weight_data, weight_data_gpu, opt);
     }
 
     // pack4
@@ -396,7 +396,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
+        cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4, opt);
 
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1 && num_input >= 16 && num_output >= 16)
         {
@@ -514,7 +514,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
                 }
             }
 
-            cmd.record_upload(weight_data_pack4_tm, weight_data_gpu_pack4_tm);
+            cmd.record_upload(weight_data_pack4_tm, weight_data_gpu_pack4_tm, opt);
         }
     }
 
@@ -560,7 +560,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4);
+        cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4, opt);
     }
 
     // pack4to1
@@ -601,21 +601,21 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1);
+        cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1, opt);
     }
 
     if (bias_term)
     {
         if (num_output % 4 != 0)
         {
-            cmd.record_upload(bias_data, bias_data_gpu);
+            cmd.record_upload(bias_data, bias_data_gpu, opt);
         }
 
         if (num_output % 4 == 0)
         {
             Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
-            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
+            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4, opt);
         }
     }
 
@@ -753,7 +753,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     int out_packing = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
-    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_packing == 4) out_elemsize = 4*2u;
         if (out_packing == 1) out_elemsize = 4u;

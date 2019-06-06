@@ -37,28 +37,28 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_reshape = new Pipeline(vkdev);
         pipeline_reshape->set_optimal_local_size_xyz();
-        pipeline_reshape->create("reshape", specializations, 2, 10);
+        pipeline_reshape->create("reshape", opt, specializations, 2, 10);
     }
 
     // pack4
     {
         pipeline_reshape_pack4 = new Pipeline(vkdev);
         pipeline_reshape_pack4->set_optimal_local_size_xyz();
-        pipeline_reshape_pack4->create("reshape_pack4", specializations, 2, 10);
+        pipeline_reshape_pack4->create("reshape_pack4", opt, specializations, 2, 10);
     }
 
     // pack1to4
     {
         pipeline_reshape_pack1to4 = new Pipeline(vkdev);
         pipeline_reshape_pack1to4->set_optimal_local_size_xyz();
-        pipeline_reshape_pack1to4->create("reshape_pack1to4", specializations, 2, 10);
+        pipeline_reshape_pack1to4->create("reshape_pack1to4", opt, specializations, 2, 10);
     }
 
     // pack4to1
     {
         pipeline_reshape_pack4to1 = new Pipeline(vkdev);
         pipeline_reshape_pack4to1->set_optimal_local_size_xyz();
-        pipeline_reshape_pack4to1->create("reshape_pack4to1", specializations, 2, 10);
+        pipeline_reshape_pack4to1->create("reshape_pack4to1", opt, specializations, 2, 10);
     }
 
     return 0;
@@ -105,7 +105,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         out_packing = _w % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / packing * out_packing;
 
-        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
             if (out_packing == 4) out_elemsize = 4*2u;
             if (out_packing == 1) out_elemsize = 4u;
@@ -137,7 +137,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         out_packing = _h % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / packing * out_packing;
 
-        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
             if (out_packing == 4) out_elemsize = 4*2u;
             if (out_packing == 1) out_elemsize = 4u;
@@ -174,7 +174,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         out_packing = _c % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / packing * out_packing;
 
-        if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
             if (out_packing == 4) out_elemsize = 4*2u;
             if (out_packing == 1) out_elemsize = 4u;
