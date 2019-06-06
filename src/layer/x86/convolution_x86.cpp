@@ -15,7 +15,10 @@
 #include "convolution_x86.h"
 
 #include "platform.h"
-#if NCNN_AVX2
+#if __SSE2__
+#include <emmintrin.h>
+#endif
+#if __AVX__
 #include <immintrin.h>
 #endif
 
