@@ -965,6 +965,10 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "TanH");
             }
         }
+        else if (n.op == "add_n" || n.op == "ElementWiseSum")
+        {
+            fprintf(pp, "%-16s", "Eltwise");
+        }
         else if (n.op == "arccos")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -1474,6 +1478,11 @@ int main(int argc, char** argv)
             {
 //                 fprintf(pp, " 0=%f", 0.f);
             }
+        }
+        else if (n.op == "add_n" || n.op == "ElementWiseSum")
+        {
+            int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "arccos")
         {
