@@ -1377,33 +1377,27 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
 
     if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
     {
-        unsigned char* dst = new unsigned char[target_width * target_height * 3];
+        Mat dst(target_width, target_height, (size_t)3u, 3);
 
         resize_bilinear_c3(pixels, w, h, dst, target_width, target_height);
 
         m = Mat::from_pixels(dst, type, target_width, target_height, allocator);
-
-        delete[] dst;
     }
     else if (type_from == PIXEL_GRAY)
     {
-        unsigned char* dst = new unsigned char[target_width * target_height];
+        Mat dst(target_width, target_height, (size_t)1u, 1);
 
         resize_bilinear_c1(pixels, w, h, dst, target_width, target_height);
 
         m = Mat::from_pixels(dst, type, target_width, target_height, allocator);
-
-        delete[] dst;
     }
     else if (type_from == PIXEL_RGBA)
     {
-        unsigned char* dst = new unsigned char[target_width * target_height * 4];
+        Mat dst(target_width, target_height, (size_t)4u, 4);
 
         resize_bilinear_c4(pixels, w, h, dst, target_width, target_height);
 
         m = Mat::from_pixels(dst, type, target_width, target_height, allocator);
-
-        delete[] dst;
     }
 
     return m;
@@ -1438,33 +1432,27 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
 
     if (type_to == PIXEL_RGB || type_to == PIXEL_BGR)
     {
-        unsigned char* src = new unsigned char[w * h * 3];
+        Mat src(target_width, target_height, (size_t)3u, 3);
 
         to_pixels(src, type);
 
         resize_bilinear_c3(src, w, h, pixels, target_width, target_height);
-
-        delete[] src;
     }
     else if (type_to == PIXEL_GRAY)
     {
-        unsigned char* src = new unsigned char[w * h];
+        Mat src(target_width, target_height, (size_t)1u, 1);
 
         to_pixels(src, type);
 
         resize_bilinear_c1(src, w, h, pixels, target_width, target_height);
-
-        delete[] src;
     }
     else if (type_to == PIXEL_RGBA)
     {
-        unsigned char* src = new unsigned char[w * h * 4];
+        Mat src(target_width, target_height, (size_t)4u, 4);
 
         to_pixels(src, type);
 
         resize_bilinear_c4(src, w, h, pixels, target_width, target_height);
-
-        delete[] src;
     }
 }
 #endif // NCNN_PIXEL
