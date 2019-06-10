@@ -164,7 +164,7 @@ private:
     VkAllocator* staging_buffer_allocator;
 };
 
-VulkanDevice* get_default_gpu_device();
+VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
 
 } // namespace ncnn
 

@@ -43,6 +43,8 @@ public:
 
 #if NCNN_VULKAN
 
+    void set_vulkan_device(int device_index);
+
     void set_vulkan_device(const VulkanDevice* vkdev);
 
 #endif // NCNN_VULKAN
