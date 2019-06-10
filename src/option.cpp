@@ -35,7 +35,7 @@ Option::Option()
     use_int8_inference = true;
     use_vulkan_compute = false;// TODO enable me
 
-    use_fp16_packed = false;// TODO enable me
+    use_fp16_packed = true;
     use_fp16_storage = true;
     use_fp16_arithmetic = false;
     use_int8_storage = true;
