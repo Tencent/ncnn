@@ -42,11 +42,12 @@ static int g_gpu_count = 0;
 static int g_default_gpu_index = -1;
 
 // NOTE 8 is large enough i think ...
-static GpuInfo g_gpu_infos[8];
+#define NCNN_MAX_GPU_COUNT 8
+static GpuInfo g_gpu_infos[NCNN_MAX_GPU_COUNT];
 
 // default vulkan device
 static Mutex g_default_vkdev_lock;
-static VulkanDevice* g_default_vkdev = 0;
+static VulkanDevice* g_default_vkdev[NCNN_MAX_GPU_COUNT] = {0};
 
 int support_VK_KHR_get_physical_device_properties2 = 0;
 int support_VK_EXT_debug_utils = 0;
@@ -450,9 +451,8 @@ int create_gpu_instance()
         return -1;
     }
 
-    // NOTE 8 is large enough i think ...
-    if (physicalDeviceCount > 8)
-        physicalDeviceCount = 8;
+    if (physicalDeviceCount > NCNN_MAX_GPU_COUNT)
+        physicalDeviceCount = NCNN_MAX_GPU_COUNT;
 
     std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
 
@@ -733,8 +733,11 @@ int create_gpu_instance()
 
 void destroy_gpu_instance()
 {
-    delete g_default_vkdev;
-    g_default_vkdev = 0;
+    for (int i=0; i<NCNN_MAX_GPU_COUNT; i++)
+    {
+        delete g_default_vkdev[i];
+        g_default_vkdev[i] = 0;
+    }
 
 #if ENABLE_VALIDATION_LAYER
     if (support_VK_EXT_debug_utils)
@@ -1113,14 +1116,17 @@ int VulkanDevice::init_device_extension()
     return 0;
 }
 
-VulkanDevice* get_default_gpu_device()
+VulkanDevice* get_gpu_device(int device_index)
 {
+    if (device_index < 0 || device_index >= g_gpu_count)
+        return 0;
+
     MutexLockGuard lock(g_default_vkdev_lock);
 
-    if (!g_default_vkdev)
-        g_default_vkdev = new VulkanDevice;
+    if (!g_default_vkdev[device_index])
+        g_default_vkdev[device_index] = new VulkanDevice(device_index);
 
-    return g_default_vkdev;
+    return g_default_vkdev[device_index];
 }
 
 } // namespace ncnn
