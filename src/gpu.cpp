@@ -711,6 +711,12 @@ int create_gpu_instance()
 //             vkGetPhysicalDeviceFeatures(physicalDevice, &features);
         }
 
+        if (physicalDeviceProperties.vendorID == 0x13b5)
+        {
+            // the 16bit_storage implementation of arm mali driver is buggy :[
+            gpu_info.support_fp16_storage = false;
+        }
+
         fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueT=%u[%u]  memU=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_family_index, gpu_info.compute_queue_count,
                 gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count,
