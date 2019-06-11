@@ -194,6 +194,9 @@ VkCompute::~VkCompute()
 #if NCNN_BENCHMARK
     if (query_pool)
     {
+        // all submitted commands that refer to queryPool must have completed execution
+        vkResetCommandBuffer(command_buffer, 0);
+
         vkDestroyQueryPool(vkdev->vkdevice(), query_pool, 0);
     }
 #endif // NCNN_BENCHMARK

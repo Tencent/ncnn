@@ -152,7 +152,7 @@ int Net::load_param(FILE* fp)
 #if NCNN_VULKAN
     if (opt.use_vulkan_compute)
     {
-        if (!vkdev) vkdev = get_default_gpu_device();
+        if (!vkdev) vkdev = get_gpu_device();
 
         // sanitize use options
         if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
@@ -323,7 +323,7 @@ int Net::load_param_mem(const char* _mem)
 #if NCNN_VULKAN
     if (opt.use_vulkan_compute)
     {
-        if (!vkdev) vkdev = get_default_gpu_device();
+        if (!vkdev) vkdev = get_gpu_device();
 
         // sanitize use options
         if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
@@ -498,7 +498,7 @@ int Net::load_param_bin(FILE* fp)
 #if NCNN_VULKAN
     if (opt.use_vulkan_compute)
     {
-        if (!vkdev) vkdev = get_default_gpu_device();
+        if (!vkdev) vkdev = get_gpu_device();
 
         // sanitize use options
         if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
@@ -718,7 +718,7 @@ int Net::load_param(const unsigned char* _mem)
 #if NCNN_VULKAN
     if (opt.use_vulkan_compute)
     {
-        if (!vkdev) vkdev = get_default_gpu_device();
+        if (!vkdev) vkdev = get_gpu_device();
 
         // sanitize use options
         if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
@@ -1038,6 +1038,11 @@ Extractor Net::create_extractor() const
 }
 
 #if NCNN_VULKAN
+void Net::set_vulkan_device(int device_index)
+{
+    vkdev = get_gpu_device(device_index);
+}
+
 void Net::set_vulkan_device(const VulkanDevice* _vkdev)
 {
     vkdev = _vkdev;
