@@ -38,15 +38,15 @@ public:
     ~Net();
 
 public:
-    // option
+    // option can be changed before loading
     Option opt;
 
 #if NCNN_VULKAN
-
+    // set gpu device by index
     void set_vulkan_device(int device_index);
 
+    // set gpu device by device handle, no owner transfer
     void set_vulkan_device(const VulkanDevice* vkdev);
-
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING

@@ -49,10 +49,12 @@ public:
     // return 0 if success
     virtual int load_model(const ModelBin& mb);
 
-    //
+    // layer implementation specific setup
+    // return 0 if success
     virtual int create_pipeline(const Option& opt = Option());
 
-    //
+    // layer implementation specific clean
+    // return 0 if success
     virtual int destroy_pipeline(const Option& opt = Option());
 
 public:
