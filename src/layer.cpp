@@ -20,10 +20,14 @@
 #include <algorithm>
 #include "cpu.h"
 
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Woverloaded-virtual"
+#endif
 #include "layer_declaration.h"
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
 
 namespace ncnn {
 
