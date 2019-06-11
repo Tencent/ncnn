@@ -43,6 +43,8 @@ public:
 
 #if NCNN_VULKAN
 
+    void set_vulkan_device(int device_index);
+
     void set_vulkan_device(const VulkanDevice* vkdev);
 
 #endif // NCNN_VULKAN
@@ -96,7 +98,7 @@ public:
 protected:
     // parse the structure of network
     // fuse int8 op dequantize and quantize by requantize
-    void fuse_network();
+    int fuse_network();
 
 #if NCNN_VULKAN
 
@@ -154,20 +156,8 @@ public:
     // default count is system depended
     void set_num_threads(int num_threads);
 
-    // set blob memory allocator
-    void set_blob_allocator(Allocator* allocator);
-
-    // set workspace memory allocator
-    void set_workspace_allocator(Allocator* allocator);
-
 #if NCNN_VULKAN
     void set_vulkan_compute(bool enable);
-
-    void set_blob_vkallocator(VkAllocator* allocator);
-
-    void set_workspace_vkallocator(VkAllocator* allocator);
-
-    void set_staging_vkallocator(VkAllocator* allocator);
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING

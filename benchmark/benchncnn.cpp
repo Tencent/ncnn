@@ -219,7 +219,7 @@ int main(int argc, char** argv)
     {
         g_warmup_loop_count = 10;
 
-        g_vkdev = new ncnn::VulkanDevice(gpu_device);
+        g_vkdev = ncnn::get_gpu_device(gpu_device);
 
         g_blob_vkallocator = new ncnn::VkUnlockedBlobBufferAllocator(g_vkdev);
         g_staging_vkallocator = new ncnn::VkUnlockedStagingBufferAllocator(g_vkdev);
@@ -335,8 +335,6 @@ int main(int argc, char** argv)
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;
-
-    delete g_vkdev;
 #endif // NCNN_VULKAN
 
     return 0;

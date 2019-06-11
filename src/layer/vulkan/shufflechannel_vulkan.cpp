@@ -35,14 +35,14 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_shufflechannel = new Pipeline(vkdev);
         pipeline_shufflechannel->set_optimal_local_size_xyz();
-        pipeline_shufflechannel->create("shufflechannel", specializations, 2, 10);
+        pipeline_shufflechannel->create("shufflechannel", opt, specializations, 2, 10);
     }
 
     // pack4
     {
         pipeline_shufflechannel_pack4 = new Pipeline(vkdev);
         pipeline_shufflechannel_pack4->set_optimal_local_size_xyz();
-        pipeline_shufflechannel_pack4->create("shufflechannel_pack4", specializations, 2, 10);
+        pipeline_shufflechannel_pack4->create("shufflechannel_pack4", opt, specializations, 2, 10);
     }
 
     return 0;

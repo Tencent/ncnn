@@ -35,14 +35,14 @@ int Sigmoid_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_sigmoid = new Pipeline(vkdev);
         pipeline_sigmoid->set_optimal_local_size_xyz();
-        pipeline_sigmoid->create("sigmoid", specializations, 1, 5);
+        pipeline_sigmoid->create("sigmoid", opt, specializations, 1, 5);
     }
 
     // pack4
     {
         pipeline_sigmoid_pack4 = new Pipeline(vkdev);
         pipeline_sigmoid_pack4->set_optimal_local_size_xyz();
-        pipeline_sigmoid_pack4->create("sigmoid_pack4", specializations, 1, 5);
+        pipeline_sigmoid_pack4->create("sigmoid_pack4", opt, specializations, 1, 5);
     }
 
     return 0;

@@ -79,7 +79,7 @@ public:
 #if NCNN_VULKAN
 public:
     // upload weight blob from host to device
-    virtual int upload_model(VkTransfer& cmd);
+    virtual int upload_model(VkTransfer& cmd, const Option& opt = Option());
 
 public:
     // implement inference

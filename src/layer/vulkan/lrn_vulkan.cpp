@@ -52,20 +52,20 @@ int LRN_vulkan::create_pipeline(const Option& opt)
             specializations[2].i = local_size - pad - 1;
         }
 
-        pipeline_lrn_square_pad->create("lrn_square_pad", specializations, 2, 10);
+        pipeline_lrn_square_pad->create("lrn_square_pad", opt, specializations, 2, 10);
 
         // pack4
         if (region_type == 0)
         {
             pipeline_lrn_square_pad_across_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_square_pad_across_channel_pack4->set_optimal_local_size_xyz();
-            pipeline_lrn_square_pad_across_channel_pack4->create("lrn_square_pad_across_channel_pack4", specializations, 2, 10);
+            pipeline_lrn_square_pad_across_channel_pack4->create("lrn_square_pad_across_channel_pack4", opt, specializations, 2, 10);
         }
         if (region_type == 1)
         {
             pipeline_lrn_square_pad_within_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_square_pad_within_channel_pack4->set_optimal_local_size_xyz();
-            pipeline_lrn_square_pad_within_channel_pack4->create("lrn_square_pad_within_channel_pack4", specializations, 2, 10);
+            pipeline_lrn_square_pad_within_channel_pack4->create("lrn_square_pad_within_channel_pack4", opt, specializations, 2, 10);
         }
     }
 
@@ -80,20 +80,20 @@ int LRN_vulkan::create_pipeline(const Option& opt)
         specializations[3].f = beta;
         specializations[4].f = bias;
 
-        pipeline_lrn_norm->create("lrn_norm", specializations, 2, 10);
+        pipeline_lrn_norm->create("lrn_norm", opt, specializations, 2, 10);
 
         // pack4
         if (region_type == 0)
         {
             pipeline_lrn_norm_across_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_norm_across_channel_pack4->set_optimal_local_size_xyz();
-            pipeline_lrn_norm_across_channel_pack4->create("lrn_norm_across_channel_pack4", specializations, 2, 10);
+            pipeline_lrn_norm_across_channel_pack4->create("lrn_norm_across_channel_pack4", opt, specializations, 2, 10);
         }
         if (region_type == 1)
         {
             pipeline_lrn_norm_within_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_norm_within_channel_pack4->set_optimal_local_size_xyz();
-            pipeline_lrn_norm_within_channel_pack4->create("lrn_norm_within_channel_pack4", specializations, 2, 10);
+            pipeline_lrn_norm_within_channel_pack4->create("lrn_norm_within_channel_pack4", opt, specializations, 2, 10);
         }
     }
 

@@ -37,7 +37,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_batchnorm = new Pipeline(vkdev);
         pipeline_batchnorm->set_optimal_local_size_xyz(32, 32, channels);
-        pipeline_batchnorm->create("batchnorm", specializations, 3, 5);
+        pipeline_batchnorm->create("batchnorm", opt, specializations, 3, 5);
     }
 
     // pack4
@@ -45,7 +45,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_batchnorm_pack4 = new Pipeline(vkdev);
         pipeline_batchnorm_pack4->set_optimal_local_size_xyz(32, 32, channels / 4);
-        pipeline_batchnorm_pack4->create("batchnorm_pack4", specializations, 3, 5);
+        pipeline_batchnorm_pack4->create("batchnorm_pack4", opt, specializations, 3, 5);
     }
 
     return 0;
@@ -62,13 +62,13 @@ int BatchNorm_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int BatchNorm_vulkan::upload_model(VkTransfer& cmd)
+int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     // pack1
     if (channels % 4 != 0)
     {
-        cmd.record_upload(a_data, a_data_gpu);
-        cmd.record_upload(b_data, b_data_gpu);
+        cmd.record_upload(a_data, a_data_gpu, opt);
+        cmd.record_upload(b_data, b_data_gpu, opt);
     }
 
     // pack4
@@ -76,11 +76,11 @@ int BatchNorm_vulkan::upload_model(VkTransfer& cmd)
     {
         Mat a_data_pack4;
         convert_packing(a_data, a_data_pack4, 4);
-        cmd.record_upload(a_data_pack4, a_data_gpu_pack4);
+        cmd.record_upload(a_data_pack4, a_data_gpu_pack4, opt);
 
         Mat b_data_pack4;
         convert_packing(b_data, b_data_pack4, 4);
-        cmd.record_upload(b_data_pack4, b_data_gpu_pack4);
+        cmd.record_upload(b_data_pack4, b_data_gpu_pack4, opt);
     }
 
     return 0;

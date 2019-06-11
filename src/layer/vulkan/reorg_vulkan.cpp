@@ -36,21 +36,21 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_reorg = new Pipeline(vkdev);
         pipeline_reorg->set_optimal_local_size_xyz();
-        pipeline_reorg->create("reorg", specializations, 2, 10);
+        pipeline_reorg->create("reorg", opt, specializations, 2, 10);
     }
 
     // pack4
     {
         pipeline_reorg_pack4 = new Pipeline(vkdev);
         pipeline_reorg_pack4->set_optimal_local_size_xyz();
-        pipeline_reorg_pack4->create("reorg_pack4", specializations, 2, 10);
+        pipeline_reorg_pack4->create("reorg_pack4", opt, specializations, 2, 10);
     }
 
     // pack1to4
     {
         pipeline_reorg_pack1to4 = new Pipeline(vkdev);
         pipeline_reorg_pack1to4->set_optimal_local_size_xyz();
-        pipeline_reorg_pack1to4->create("reorg_pack1to4", specializations, 2, 10);
+        pipeline_reorg_pack1to4->create("reorg_pack1to4", opt, specializations, 2, 10);
     }
 
     return 0;
@@ -85,7 +85,7 @@ int Reorg_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     int out_packing = outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
-    if (vkdev->info.support_fp16_packed && !vkdev->info.support_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_packing == 4) out_elemsize = 4*2u;
         if (out_packing == 1) out_elemsize = 4u;

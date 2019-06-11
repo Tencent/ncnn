@@ -43,14 +43,14 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_interp = new Pipeline(vkdev);
             pipeline_interp->set_optimal_local_size_xyz();
-            pipeline_interp->create("interp", specializations, 2, 12);
+            pipeline_interp->create("interp", opt, specializations, 2, 12);
         }
 
         // pack4
         {
             pipeline_interp_pack4 = new Pipeline(vkdev);
             pipeline_interp_pack4->set_optimal_local_size_xyz();
-            pipeline_interp_pack4->create("interp_pack4", specializations, 2, 12);
+            pipeline_interp_pack4->create("interp_pack4", opt, specializations, 2, 12);
         }
     }
 
@@ -60,24 +60,24 @@ int Interp_vulkan::create_pipeline(const Option& opt)
 
         pipeline_interp_bicubic_coeffs_x = new Pipeline(vkdev);
         pipeline_interp_bicubic_coeffs_x->set_optimal_local_size_xyz(64, 1, 1);
-        pipeline_interp_bicubic_coeffs_x->create("interp_bicubic_coeffs", specializations, 2, 3);
+        pipeline_interp_bicubic_coeffs_x->create("interp_bicubic_coeffs", opt, specializations, 2, 3);
 
         pipeline_interp_bicubic_coeffs_y = new Pipeline(vkdev);
         pipeline_interp_bicubic_coeffs_y->set_optimal_local_size_xyz(64, 1, 1);
-        pipeline_interp_bicubic_coeffs_y->create("interp_bicubic_coeffs", specializations, 2, 3);
+        pipeline_interp_bicubic_coeffs_y->create("interp_bicubic_coeffs", opt, specializations, 2, 3);
 
         // pack1
         {
             pipeline_interp_bicubic = new Pipeline(vkdev);
             pipeline_interp_bicubic->set_optimal_local_size_xyz();
-            pipeline_interp_bicubic->create("interp_bicubic", specializations, 6, 10);
+            pipeline_interp_bicubic->create("interp_bicubic", opt, specializations, 6, 10);
         }
 
         // pack4
         {
             pipeline_interp_bicubic_pack4 = new Pipeline(vkdev);
             pipeline_interp_bicubic_pack4->set_optimal_local_size_xyz();
-            pipeline_interp_bicubic_pack4->create("interp_bicubic_pack4", specializations, 6, 10);
+            pipeline_interp_bicubic_pack4->create("interp_bicubic_pack4", opt, specializations, 6, 10);
         }
     }
 

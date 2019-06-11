@@ -101,7 +101,7 @@ int Layer::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) cons
 }
 
 #if NCNN_VULKAN
-int Layer::upload_model(VkTransfer& /*cmd*/)
+int Layer::upload_model(VkTransfer& /*cmd*/, const Option& /*opt*/)
 {
     return 0;
 }

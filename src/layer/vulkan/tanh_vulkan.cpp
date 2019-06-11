@@ -35,14 +35,14 @@ int TanH_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_tanh = new Pipeline(vkdev);
         pipeline_tanh->set_optimal_local_size_xyz();
-        pipeline_tanh->create("tanh", specializations, 1, 5);
+        pipeline_tanh->create("tanh", opt, specializations, 1, 5);
     }
 
     // pack4
     {
         pipeline_tanh_pack4 = new Pipeline(vkdev);
         pipeline_tanh_pack4->set_optimal_local_size_xyz();
-        pipeline_tanh_pack4->create("tanh_pack4", specializations, 1, 5);
+        pipeline_tanh_pack4->create("tanh_pack4", opt, specializations, 1, 5);
     }
 
     return 0;
