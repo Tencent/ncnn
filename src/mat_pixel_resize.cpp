@@ -690,8 +690,14 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
                 int16x4_t _a0 = vdup_n_s16(a0);
                 int16x4_t _a1 = vdup_n_s16(a1);
                 uint8x8_t _S1 = uint8x8_t();
-                _S1 = vreinterpret_u8_u32(vld1_lane_u32((const unsigned int*)S1p, vreinterpret_u32_u8(_S1), 0));
-                _S1 = vreinterpret_u8_u16(vld1_lane_u16((const unsigned short*)(S1p+4), vreinterpret_u16_u8(_S1), 2));
+
+                _S1 = vld1_lane_u8(S1p, _S1, 0);
+                _S1 = vld1_lane_u8(S1p+1, _S1, 1);
+                _S1 = vld1_lane_u8(S1p+2, _S1, 2);
+                _S1 = vld1_lane_u8(S1p+3, _S1, 3);
+                _S1 = vld1_lane_u8(S1p+4, _S1, 4);
+                _S1 = vld1_lane_u8(S1p+5, _S1, 5);
+
                 int16x8_t _S116 = vreinterpretq_s16_u16(vmovl_u8(_S1));
                 int16x4_t _S1low = vget_low_s16(_S116);
                 int16x4_t _S1high = vext_s16(_S1low, vget_high_s16(_S116), 3);
@@ -731,10 +737,21 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
                 int16x4_t _a1 = vdup_n_s16(a1);
                 uint8x8_t _S0 = uint8x8_t();
                 uint8x8_t _S1 = uint8x8_t();
-                _S0 = vreinterpret_u8_u32(vld1_lane_u32((const unsigned int*)S0p, vreinterpret_u32_u8(_S0), 0));
-                _S1 = vreinterpret_u8_u32(vld1_lane_u32((const unsigned int*)S1p, vreinterpret_u32_u8(_S1), 0));
-                _S0 = vreinterpret_u8_u16(vld1_lane_u16((const unsigned short*)(S0p+4), vreinterpret_u16_u8(_S0), 2));
-                _S1 = vreinterpret_u8_u16(vld1_lane_u16((const unsigned short*)(S1p+4), vreinterpret_u16_u8(_S1), 2));
+
+                _S0 = vld1_lane_u8(S0p, _S0, 0);
+                _S0 = vld1_lane_u8(S0p+1, _S0, 1);
+                _S0 = vld1_lane_u8(S0p+2, _S0, 2);
+                _S0 = vld1_lane_u8(S0p+3, _S0, 3);
+                _S0 = vld1_lane_u8(S0p+4, _S0, 4);
+                _S0 = vld1_lane_u8(S0p+5, _S0, 5);
+
+                _S1 = vld1_lane_u8(S1p, _S1, 0);
+                _S1 = vld1_lane_u8(S1p+1, _S1, 1);
+                _S1 = vld1_lane_u8(S1p+2, _S1, 2);
+                _S1 = vld1_lane_u8(S1p+3, _S1, 3);
+                _S1 = vld1_lane_u8(S1p+4, _S1, 4);
+                _S1 = vld1_lane_u8(S1p+5, _S1, 5);
+
                 int16x8_t _S016 = vreinterpretq_s16_u16(vmovl_u8(_S0));
                 int16x8_t _S116 = vreinterpretq_s16_u16(vmovl_u8(_S1));
                 int16x4_t _S0low = vget_low_s16(_S016);
