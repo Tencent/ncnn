@@ -25,6 +25,16 @@ HardSigmoid::HardSigmoid()
     support_inplace = true;
 }
 
+int HardSigmoid::load_param(const ParamDict& pd)
+{
+    alpha = pd.get(0, 0.2f);
+    beta = pd.get(1, 0.5f);
+    lower = -beta / alpha;
+    upper = (1.f / alpha) + lower;
+
+    return 0;
+}
+
 int HardSigmoid::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
@@ -39,12 +49,12 @@ int HardSigmoid::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int i=0; i<size; i++)
         {
-            if (ptr[i] < -2.5f)
+            if (ptr[i] < lower)
                 ptr[i] = 0.f;
-            else if (ptr[i] > 2.5f)
+            else if (ptr[i] > upper)
                 ptr[i] = 1.f;
             else
-                ptr[i] = ptr[i] * 0.2f + 0.5f;
+                *ptr = *ptr * alpha + beta;
         }
     }
 

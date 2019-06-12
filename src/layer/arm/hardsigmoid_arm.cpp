@@ -47,8 +47,8 @@ int HardSigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         while (nn--)
         {
             float32x4_t _p = vld1q_f32(ptr);
-            float32x4_t _ans = vdupq_n_f32(0.5f);
-            _ans = vmlaq_n_f32(_ans, _p, 0.2f);
+            float32x4_t _ans = vdupq_n_f32(beta);
+            _ans = vmlaq_n_f32(_ans, _p, alpha);
             _ans = vmaxq_f32(_ans, _zero);
             _ans = vminq_f32(_ans, _one);
             vst1q_f32(ptr, _ans);
@@ -56,14 +56,15 @@ int HardSigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (int i=0; i<remain; i++)
+        for (; remain>0; remain--)
         {
-            if (ptr[i] < -2.5f)
-                ptr[i] = 0.f;
-            else if (ptr[i] > 2.5f)
-                ptr[i] = 1.f;
+            if (*ptr < lower)
+                *ptr = 0.f;
+            else if (*ptr > upper)
+                *ptr = 1.f;
             else
-                ptr[i] = ptr[i] * 0.2f + 0.5f;
+                *ptr = *ptr * alpha + beta;
+            ++ptr;
         }
     }
 

@@ -28,7 +28,9 @@ HardSigmoid_vulkan::HardSigmoid_vulkan()
 
 int HardSigmoid_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations;
+    std::vector<vk_specialization_type> specializations(2);
+    specializations[0].f = alpha;
+    specializations[1].f = beta;
 
     // pack1
     {
