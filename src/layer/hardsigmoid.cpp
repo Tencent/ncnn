@@ -54,7 +54,7 @@ int HardSigmoid::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             else if (ptr[i] > upper)
                 ptr[i] = 1.f;
             else
-                *ptr = *ptr * alpha + beta;
+                ptr[i] = ptr[i] * alpha + beta;
         }
     }
 
