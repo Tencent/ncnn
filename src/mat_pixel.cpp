@@ -1136,7 +1136,7 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
     const unsigned char* vuptr = yuv420sp + w * h;
 
 #if __ARM_NEON
-    int8x8_t _v128 = vdup_n_s8(128);
+    uint8x8_t _v128 = vdup_n_u8(128);
     int8x8_t _v90 = vdup_n_s8(90);
     int8x8_t _v46 = vdup_n_s8(46);
     int8x8_t _v22 = vdup_n_s8(22);
@@ -1164,7 +1164,7 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
             int16x8_t _yy0 = vreinterpretq_s16_u16(vshll_n_u8(vld1_u8(yptr0), 6));
             int16x8_t _yy1 = vreinterpretq_s16_u16(vshll_n_u8(vld1_u8(yptr1), 6));
 
-            int8x8_t _vvuu = vsub_s8(vreinterpret_s8_u8(vld1_u8(vuptr)), _v128);
+            int8x8_t _vvuu = vreinterpret_s8_u8(vsub_u8(vld1_u8(vuptr), _v128));
             int8x8x2_t _vvvvuuuu = vtrn_s8(_vvuu, _vvuu);
             int8x8_t _vv = _vvvvuuuu.val[0];
             int8x8_t _uu = _vvvvuuuu.val[1];
