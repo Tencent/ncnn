@@ -22,6 +22,13 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(BatchNorm_arm)
 
+BatchNorm_arm::BatchNorm_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
@@ -37,6 +44,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int size = w * h;
     int packing = bottom_top_blob.packing;
 
+#if __ARM_NEON
     if (packing == 4)
     {
         const float* a_data_ptr = a_data;
@@ -64,6 +72,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
         return 0;
     }
+#endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
