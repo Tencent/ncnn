@@ -36,6 +36,7 @@ Layer::Layer()
     one_blob_only = false;
     support_inplace = false;
     support_vulkan = false;
+    support_packing = false;
 
 #if NCNN_VULKAN
     vkdev = 0;

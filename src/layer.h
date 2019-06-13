@@ -67,6 +67,9 @@ public:
     // support vulkan compute
     bool support_vulkan;
 
+    // accept input blob with packed storage
+    bool support_packing;
+
 public:
     // implement inference
     // return 0 if success
