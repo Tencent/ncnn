@@ -20,10 +20,14 @@
 #include <algorithm>
 #include "cpu.h"
 
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Woverloaded-virtual"
+#endif
 #include "layer_declaration.h"
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
 
 namespace ncnn {
 
@@ -32,6 +36,7 @@ Layer::Layer()
     one_blob_only = false;
     support_inplace = false;
     support_vulkan = false;
+    support_packing = false;
 
 #if NCNN_VULKAN
     vkdev = 0;

@@ -12,22 +12,19 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_RELU_ARM_H
-#define LAYER_RELU_ARM_H
+#ifndef LAYER_HARDSIGMOID_ARM_H
+#define LAYER_HARDSIGMOID_ARM_H
 
-#include "relu.h"
+#include "hardsigmoid.h"
 
 namespace ncnn {
 
-class ReLU_arm : virtual public ReLU
+class HardSigmoid_arm : virtual public HardSigmoid
 {
 public:
-    ReLU_arm();
-
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
-    virtual int forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_RELU_ARM_H
+#endif // LAYER_HARDSIGMOID_ARM_H

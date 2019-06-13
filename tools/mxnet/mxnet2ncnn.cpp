@@ -297,7 +297,12 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
     char line[1024];
 
     //{
-    (void)fgets(line, 1024, fp);
+    char* s = fgets(line, 1024, fp);
+    if (!s)
+    {
+        fprintf(stderr, "fgets %s failed\n", jsonpath);
+        return false;
+    }
 
     MXNetNode n;
 
@@ -522,23 +527,44 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         return false;
     }
 
+    int nread;
     uint64_t header;
     uint64_t reserved;
-    fread(&header, 1, sizeof(uint64_t), fp);
-    fread(&reserved, 1, sizeof(uint64_t), fp);
+    nread = fread(&header, sizeof(uint64_t), 1, fp);
+    if (nread != 1)
+    {
+        fprintf(stderr, "read header failed %d\n", nread);
+        return false;
+    }
+    nread = fread(&reserved, sizeof(uint64_t), 1, fp);
+    if (nread != 1)
+    {
+        fprintf(stderr, "read reserved failed %d\n", nread);
+        return false;
+    }
 
     // NDArray vec
 
     // each data
     uint64_t data_count;
-    fread(&data_count, 1, sizeof(uint64_t), fp);
+    nread = fread(&data_count, sizeof(uint64_t), 1, fp);
+    if (nread != 1)
+    {
+        fprintf(stderr, "read data_count failed %d\n", nread);
+        return false;
+    }
 
 //     fprintf(stderr, "data count = %d\n", (int)data_count);
 
     for (int i = 0; i < (int)data_count; i++)
     {
         uint32_t magic;// 0xF993FAC9
-        fread(&magic, 1, sizeof(uint32_t), fp);
+        nread = fread(&magic, sizeof(uint32_t), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read magic failed %d\n", nread);
+            return false;
+        }
 
         // shape
         uint32_t ndim;
@@ -547,19 +573,44 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         if (magic == 0xF993FAC9)
         {
             int32_t stype;
-            fread(&stype, 1, sizeof(int32_t), fp);
+            nread = fread(&stype, sizeof(int32_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read stype failed %d\n", nread);
+                return false;
+            }
 
-            fread(&ndim, 1, sizeof(uint32_t), fp);
+            nread = fread(&ndim, sizeof(uint32_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read ndim failed %d\n", nread);
+                return false;
+            }
 
             shape.resize(ndim);
-            fread(&shape[0], 1, ndim * sizeof(int64_t), fp);
+            nread = fread(&shape[0], ndim * sizeof(int64_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read shape failed %d\n", nread);
+                return false;
+            }
         }
         else if (magic == 0xF993FAC8)
         {
-            fread(&ndim, 1, sizeof(uint32_t), fp);
+            nread = fread(&ndim, sizeof(uint32_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read ndim failed %d\n", nread);
+                return false;
+            }
 
             shape.resize(ndim);
-            fread(&shape[0], 1, ndim * sizeof(int64_t), fp);
+            nread = fread(&shape[0], ndim * sizeof(int64_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read shape failed %d\n", nread);
+                return false;
+            }
         }
         else
         {
@@ -569,7 +620,12 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
 
             std::vector<uint32_t> shape32;
             shape32.resize(ndim);
-            fread(&shape32[0], 1, ndim * sizeof(uint32_t), fp);
+            nread = fread(&shape32[0], ndim * sizeof(uint32_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read shape failed %d\n", nread);
+                return false;
+            }
 
             for (int j=0; j<(int)ndim; j++)
             {
@@ -580,11 +636,26 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         // context
         int32_t dev_type;
         int32_t dev_id;
-        fread(&dev_type, 1, sizeof(int32_t), fp);
-        fread(&dev_id, 1, sizeof(int32_t), fp);
+        nread = fread(&dev_type, sizeof(int32_t), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read dev_type failed %d\n", nread);
+            return false;
+        }
+        nread = fread(&dev_id, sizeof(int32_t), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read dev_id failed %d\n", nread);
+            return false;
+        }
 
         int32_t type_flag;
-        fread(&type_flag, 1, sizeof(int32_t), fp);
+        nread = fread(&type_flag, sizeof(int32_t), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read type_flag failed %d\n", nread);
+            return false;
+        }
 
         // data
         size_t len = 0;
@@ -596,7 +667,12 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         MXNetParam p;
 
         p.data.resize(len);
-        fread(&p.data[0], 1, len * sizeof(float), fp);
+        nread = fread(&p.data[0], len * sizeof(float), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read MXNetParam data failed %d\n", nread);
+            return false;
+        }
 
         params.push_back(p);
 
@@ -605,19 +681,34 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
 
     // each name
     uint64_t name_count;
-    fread(&name_count, 1, sizeof(uint64_t), fp);
+    nread = fread(&name_count, sizeof(uint64_t), 1, fp);
+    if (nread != 1)
+    {
+        fprintf(stderr, "read name_count failed %d\n", nread);
+        return false;
+    }
 
 //     fprintf(stderr, "name count = %d\n", (int)name_count);
 
     for (int i = 0; i < (int)name_count; i++)
     {
         uint64_t len;
-        fread(&len, 1, sizeof(uint64_t), fp);
+        nread = fread(&len, sizeof(uint64_t), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read name length failed %d\n", nread);
+            return false;
+        }
 
         MXNetParam& p = params[i];
 
         p.name.resize(len);
-        fread((char*)p.name.data(), 1, len, fp);
+        nread = fread((char*)p.name.data(), len, 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read MXNetParam name failed %d\n", nread);
+            return false;
+        }
 
         // cut leading arg:
         if (memcmp(p.name.c_str(), "arg:", 4) == 0)
@@ -2117,6 +2208,10 @@ int main(int argc, char** argv)
         {
             int num_outputs = n.attr("num_outputs");
             int squeeze_axis = n.attr("squeeze_axis");// TODO
+            if (squeeze_axis)
+            {
+                fprintf(stderr, "Unsupported SliceChannel squeeze_axis !\n");
+            }
 
             fprintf(pp, " -23300=%d", num_outputs);
             for (int j=0; j<num_outputs; j++)
