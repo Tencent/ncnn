@@ -1,5 +1,8 @@
 // BUG1989 is pleased to support the open source community by supporting ncnn available.
 //
+// author:BUG1989 (https://github.com/BUG1989/) Long-term support.
+// author:FuGuangping (https://github.com/fu1899) Implemented the first version of INT8 quantization on ARMv7.
+//
 // Copyright (C) 2019 BUG1989. All rights reserved.
 // Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
