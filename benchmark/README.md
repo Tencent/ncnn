@@ -50,6 +50,67 @@ Parameter
 
 Typical output (executed in android adb shell)
 
+Qualcomm MSM6150 Snapdragon 675 (Kyro460 2.0GHz x 2 + Kyro460 1.7GHz x 6 + Adreno 612)
+```
+violet:/data/local/tmp/ncnn $ ./benchncnn 8 2 0
+loop_count = 8
+num_threads = 2
+powersave = 0
+gpu_device = -1
+          squeezenet  min =   23.29  max =   24.65  avg =   23.95
+     squeezenet_int8  min =   23.24  max =   61.55  avg =   31.20
+           mobilenet  min =   31.60  max =   32.10  avg =   31.80
+      mobilenet_int8  min =   30.35  max =   32.03  avg =   30.95
+        mobilenet_v2  min =   25.92  max =   26.45  avg =   26.08
+          shufflenet  min =   11.91  max =   12.11  avg =   12.00
+             mnasnet  min =   21.38  max =   21.71  avg =   21.51
+     proxylessnasnet  min =   25.53  max =   25.78  avg =   25.62
+           googlenet  min =   93.62  max =  100.67  avg =   94.86
+      googlenet_int8  min =   90.74  max =   91.06  avg =   90.87
+            resnet18  min =   85.84  max =   87.37  avg =   86.50
+       resnet18_int8  min =   77.88  max =   78.11  avg =   78.00
+             alexnet  min =  196.33  max =  201.73  avg =  200.19
+               vgg16  min =  560.71  max =  571.75  avg =  564.84
+          vgg16_int8  min =  651.51  max =  652.68  avg =  652.12
+            resnet50  min =  178.25  max =  179.86  avg =  178.77
+       resnet50_int8  min =  181.07  max =  183.26  avg =  181.64
+      squeezenet_ssd  min =   64.86  max =   68.39  avg =   66.05
+ squeezenet_ssd_int8  min =   69.61  max =   70.37  avg =   69.93
+       mobilenet_ssd  min =   65.92  max =   67.03  avg =   66.41
+  mobilenet_ssd_int8  min =   61.54  max =   63.38  avg =   62.27
+      mobilenet_yolo  min =  143.42  max =  146.69  avg =  144.33
+    mobilenet_yolov3  min =  150.45  max =  152.30  avg =  151.36
+
+violet:/data/local/tmp/ncnn $ ./benchncnn 8 1 0
+loop_count = 8
+num_threads = 1
+powersave = 0
+gpu_device = -1
+          squeezenet  min =   36.04  max =   37.25  avg =   36.48
+     squeezenet_int8  min =   37.82  max =   79.20  avg =   43.13
+           mobilenet  min =   54.29  max =   54.73  avg =   54.41
+      mobilenet_int8  min =   58.90  max =   60.11  avg =   59.39
+        mobilenet_v2  min =   38.64  max =   40.22  avg =   38.97
+          shufflenet  min =   18.05  max =   18.39  avg =   18.19
+             mnasnet  min =   34.65  max =   34.98  avg =   34.79
+     proxylessnasnet  min =   42.61  max =   43.12  avg =   42.80
+           googlenet  min =  164.74  max =  165.89  avg =  165.34
+      googlenet_int8  min =  159.93  max =  160.38  avg =  160.12
+            resnet18  min =  135.76  max =  137.93  avg =  136.98
+       resnet18_int8  min =  140.22  max =  144.06  avg =  141.92
+             alexnet  min =  391.01  max =  396.85  avg =  392.74
+               vgg16  min = 1019.35  max = 1022.75  avg = 1021.26
+          vgg16_int8  min = 1122.25  max = 1137.99  avg = 1124.78
+            resnet50  min =  302.16  max =  304.22  avg =  303.05
+       resnet50_int8  min =  318.35  max =  319.50  avg =  318.84
+      squeezenet_ssd  min =   91.26  max =   94.86  avg =   92.39
+ squeezenet_ssd_int8  min =  105.06  max =  106.17  avg =  105.56
+       mobilenet_ssd  min =  105.01  max =  105.95  avg =  105.40
+  mobilenet_ssd_int8  min =  119.93  max =  120.50  avg =  120.19
+      mobilenet_yolo  min =  229.87  max =  230.76  avg =  230.21
+    mobilenet_yolov3  min =  242.10  max =  242.91  avg =  242.47  
+```
+
 Kirin 970 (Cortex-A73 2.4GHz x 4 + Cortex-A53 1.8GHz x 4)
 ```
 HWBKL:/data/local/tmp/ncnn $ ./benchncnn 8 4 2                                 
