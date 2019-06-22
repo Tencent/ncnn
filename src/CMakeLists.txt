@@ -199,7 +199,7 @@ set(__LAYER_TYPE_ENUM_INDEX 0)
 
 # layer implementation
 ncnn_add_layer(AbsVal)
-ncnn_add_layer(ArgMax OFF)
+ncnn_add_layer(ArgMax)
 ncnn_add_layer(BatchNorm)
 ncnn_add_layer(Bias)
 ncnn_add_layer(BNLL)
