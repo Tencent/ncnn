@@ -1974,6 +1974,16 @@ void Extractor::set_num_threads(int num_threads)
     opt.num_threads = num_threads;
 }
 
+void Extractor::set_blob_allocator(Allocator* allocator)
+{
+    opt.blob_allocator = allocator;
+}
+
+void Extractor::set_workspace_allocator(Allocator* allocator)
+{
+    opt.workspace_allocator = allocator;
+}
+
 #if NCNN_VULKAN
 void Extractor::set_vulkan_compute(bool enable)
 {
@@ -1985,6 +1995,21 @@ void Extractor::set_vulkan_compute(bool enable)
     {
         fprintf(stderr, "set_vulkan_compute failed, network use_vulkan_compute disabled\n");
     }
+}
+
+void Extractor::set_blob_vkallocator(VkAllocator* allocator)
+{
+    opt.blob_vkallocator = allocator;
+}
+
+void Extractor::set_workspace_vkallocator(VkAllocator* allocator)
+{
+    opt.workspace_vkallocator = allocator;
+}
+
+void Extractor::set_staging_vkallocator(VkAllocator* allocator)
+{
+    opt.staging_vkallocator = allocator;
 }
 #endif // NCNN_VULKAN
 
