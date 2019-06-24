@@ -1959,14 +1959,6 @@ Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 #if NCNN_VULKAN
     if (net->opt.use_vulkan_compute)
     {
-        // set default vulkan blob/workspace/staging allocator
-        if (!opt.blob_vkallocator)
-            opt.blob_vkallocator = net->vkdev->allocator();
-        if (!opt.workspace_vkallocator)
-            opt.workspace_vkallocator = net->vkdev->allocator();
-        if (!opt.staging_vkallocator)
-            opt.staging_vkallocator = net->vkdev->staging_allocator();
-
         blob_mats_gpu.resize(blob_count);
     }
 #endif // NCNN_VULKAN
@@ -2040,6 +2032,25 @@ int Extractor::extract(int blob_index, Mat& feat)
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
         {
+            VkAllocator* local_blob_allocator = 0;
+            VkAllocator* local_staging_allocator = 0;
+
+            // use local allocator
+            if (!opt.blob_vkallocator)
+            {
+                local_blob_allocator = net->vkdev->acquire_blob_allocator();
+                opt.blob_vkallocator = local_blob_allocator;
+            }
+            if (!opt.workspace_vkallocator)
+            {
+                opt.workspace_vkallocator = opt.blob_vkallocator;
+            }
+            if (!opt.staging_vkallocator)
+            {
+                local_staging_allocator = net->vkdev->acquire_staging_allocator();
+                opt.staging_vkallocator = local_staging_allocator;
+            }
+
             ncnn::VkCompute cmd(net->vkdev);
 #if NCNN_BENCHMARK
             cmd.create_query_pool(net->layers.size() * 2);
@@ -2102,6 +2113,21 @@ int Extractor::extract(int blob_index, Mat& feat)
                 {
                     feat_cpu = feat_cpu_fp16;
                 }
+            }
+
+            if (local_blob_allocator)
+            {
+                net->vkdev->reclaim_blob_allocator(local_blob_allocator);
+                if (opt.workspace_vkallocator == opt.blob_vkallocator)
+                {
+                    opt.workspace_vkallocator = 0;
+                }
+                opt.blob_vkallocator = 0;
+            }
+            if (local_staging_allocator)
+            {
+                net->vkdev->reclaim_staging_allocator(local_staging_allocator);
+                opt.staging_vkallocator = 0;
             }
         }
         else

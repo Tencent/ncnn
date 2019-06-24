@@ -124,9 +124,12 @@ public:
     VkQueue acquire_queue(uint32_t queue_family_index) const;
     void reclaim_queue(uint32_t queue_family_index, VkQueue queue) const;
 
-    // create allocator on this device
-    VkAllocator* allocator() const;
-    VkAllocator* staging_allocator() const;
+    // allocator on this device
+    VkAllocator* acquire_blob_allocator() const;
+    void reclaim_blob_allocator(VkAllocator* allocator) const;
+
+    VkAllocator* acquire_staging_allocator() const;
+    void reclaim_staging_allocator(VkAllocator* allocator) const;
 
     // VK_KHR_descriptor_update_template
     PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;
@@ -159,9 +162,13 @@ private:
     mutable std::vector<VkQueue> transfer_queues;
     mutable Mutex queue_lock;
 
-    // default locked allocator
-    VkAllocator* blob_buffer_allocator;
-    VkAllocator* staging_buffer_allocator;
+    // default blob allocator for each queue
+    mutable std::vector<VkAllocator*> blob_allocators;
+    mutable Mutex blob_allocator_lock;
+
+    // default staging allocator for each queue
+    mutable std::vector<VkAllocator*> staging_allocators;
+    mutable Mutex staging_allocator_lock;
 };
 
 VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
