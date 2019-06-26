@@ -2,6 +2,7 @@
 add_subdirectory(caffe)
 add_subdirectory(mxnet)
 add_subdirectory(onnx)
+# add_subdirectory(quantize)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src)
