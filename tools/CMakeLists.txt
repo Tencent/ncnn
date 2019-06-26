@@ -1,7 +1,7 @@
 
-#add_subdirectory(caffe)
-#add_subdirectory(mxnet)
-#add_subdirectory(onnx)
+add_subdirectory(caffe)
+add_subdirectory(mxnet)
+add_subdirectory(onnx)
 
 find_package(OpenCV QUIET COMPONENTS core highgui imgproc imgcodecs)
 if(NOT OpenCV_FOUND)
