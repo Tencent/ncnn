@@ -504,6 +504,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {              
                 conv1x1s1_sgemm_int8_requant_neon(bottom_blob_bordered, top_blob, weight_1x1s1_sgemm_int8_data, bias_data, requantize_scales, opt);
                 
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }  
+
                 return 0;
             }
             else if (use_winograd3x3)
@@ -548,6 +553,12 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 // conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, opt);
                 // conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, opt);
                 conv3x3s1_winograd43_dequant_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_int8_data, bias_data, dequantize_scales, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }  
+
                 return 0;
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
@@ -570,7 +581,12 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 Mat top_blob_g = top_blob.channel_range(p, 1);
                 dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
             }          
-        } 
+        }
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }           
 
         return 0;
     }

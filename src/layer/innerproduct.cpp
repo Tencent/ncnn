@@ -195,17 +195,23 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
     if (use_int8_inference)
     {
-        Mat bottom_blob_int8;
-        bottom_blob_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
-        if (bottom_blob_int8.empty())
-            return -100;
-
-        // quantize, scale and round to nearest
+        Mat bottom_blob_tm = bottom_blob;
+        if (elemsize != 1)
         {
-            ncnn::Option opt_g = opt;
-            opt_g.blob_allocator = bottom_blob_int8.allocator;
+            Mat bottom_blob_int8;
+            bottom_blob_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
+            if (bottom_blob_int8.empty())
+                return -100;
 
-            quantize->forward(bottom_blob, bottom_blob_int8, opt_g);
+            // quantize, scale and round to nearest
+            {
+                ncnn::Option opt_g = opt;
+                opt_g.blob_allocator = bottom_blob_int8.allocator;
+
+                quantize->forward(bottom_blob, bottom_blob_int8, opt_g);
+            }
+
+            bottom_blob_tm = bottom_blob_int8;
         }
 
         // num_output
@@ -219,7 +225,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             for (int q=0; q<channels; q++)
             {
                 const signed char* w = (const signed char*)weight_data + size * channels * p + size * q;
-                const signed char* m = bottom_blob_int8.channel(q);
+                const signed char* m = bottom_blob_tm.channel(q);
 
                 for (int i = 0; i < size; i++)
                 {
@@ -245,6 +251,11 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 out_f32[p] = out_s32[p] * top_rescale + bias_data[p];
             else
                 out_f32[p] = out_s32[p] * top_rescale;
+
+            if (activation_type == 1)
+            {
+                out_f32[p] = std::max(out_f32[p], 0.f);
+            }                
         }
 
         return 0;
