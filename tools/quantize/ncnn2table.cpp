@@ -690,7 +690,7 @@ void showUsage()
     std::cout << " -n, --norm       value of normalize(scale value,defualt is 1)" << std::endl;
     std::cout << " -s, --size       the size of input image(using the resize the original image,default is w=224,h=224)" << std::endl;
     std::cout << " -t, --thread     number of threads(defalut is 1)" << std::endl;    
-    std::cout << "example: ./ncnn2table --param squeezenet-fp32.param --bin squeezenet-fp32.bin --images images/ --output squeezenet.table --mean 104,117,123 --norm 1,1,1 --size 224,224 --thread 2" << std::endl;
+    std::cout << "example: ./ncnn2table --param squeezenet-fp32.param --bin squeezenet-fp32.bin --images images/ --output squeezenet.table --mean 104,117,123 --norm 1,1,1 --size 227,227 --thread 2" << std::endl;
 }
 
 // string.split('x')
