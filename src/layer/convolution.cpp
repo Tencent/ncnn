@@ -435,7 +435,19 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
                     Mat top_blob_g = top_blob.channel_range(p, 1);
                     requantize_ops[p]->forward(top_blob_tm_g, top_blob_g, opt_g);
-                }                        
+                }       
+
+                // activation relu
+                if (activation_type == 1)
+                {
+                    signed char* outptr_s8 = top_blob.channel(p);
+
+                    for (int i = 0; i < outh*outw; i++)
+                    {
+                        if (outptr_s8[i] < 0)
+                            outptr_s8[i] = 0;
+                    }
+                }                                 
             }
         }
         else
@@ -488,7 +500,18 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                     Mat top_blob_g = top_blob.channel_range(p, 1);
                     dequantize_ops[p]->forward_inplace(top_blob_g, opt_g);
-                }          
+                }
+
+                // activation relu
+                if (activation_type == 1)
+                {
+                    float* outptr_fp32 = top_blob.channel(p);
+
+                    for (int i = 0; i < outh*outw; i++)
+                    {
+                        outptr_fp32[i] = std::max(outptr_fp32[i], 0.f);
+                    }
+                }
             }   
         }        
 
