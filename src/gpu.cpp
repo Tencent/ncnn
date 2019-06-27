@@ -898,9 +898,13 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     create_shader_module();
 
     compute_queues.resize(info.compute_queue_count);
+    blob_allocators.resize(info.compute_queue_count);
+    staging_allocators.resize(info.compute_queue_count);
     for (uint32_t i = 0; i < info.compute_queue_count; i++)
     {
         vkGetDeviceQueue(device, info.compute_queue_family_index, i, &compute_queues[i]);
+        blob_allocators[i] = new VkBlobBufferAllocator(this);
+        staging_allocators[i] = new VkStagingBufferAllocator(this);
     }
     if (info.compute_queue_family_index != info.transfer_queue_family_index)
     {
@@ -910,15 +914,17 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
             vkGetDeviceQueue(device, info.transfer_queue_family_index, i, &transfer_queues[i]);
         }
     }
-
-    blob_buffer_allocator = new VkBlobBufferAllocator(this);
-    staging_buffer_allocator = new VkStagingBufferAllocator(this);
 }
 
 VulkanDevice::~VulkanDevice()
 {
-    delete blob_buffer_allocator;
-    delete staging_buffer_allocator;
+    for (uint32_t i = 0; i < info.compute_queue_count; i++)
+    {
+        delete blob_allocators[i];
+        delete staging_allocators[i];
+    }
+    blob_allocators.clear();
+    staging_allocators.clear();
 
     destroy_shader_module();
 
@@ -1005,14 +1011,72 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
     fprintf(stderr, "FATAL ERROR! reclaim_queue get wild queue %u %p\n", queue_family_index, queue);
 }
 
-VkAllocator* VulkanDevice::allocator() const
+VkAllocator* VulkanDevice::acquire_blob_allocator() const
 {
-    return blob_buffer_allocator;
+    MutexLockGuard lock(blob_allocator_lock);
+
+    for (int i=0; i<(int)blob_allocators.size(); i++)
+    {
+        VkAllocator* allocator = blob_allocators[i];
+        if (allocator)
+        {
+            blob_allocators[i] = 0;
+            return allocator;
+        }
+    }
+
+    // out of blob allocator
+    return 0;
 }
 
-VkAllocator* VulkanDevice::staging_allocator() const
+void VulkanDevice::reclaim_blob_allocator(VkAllocator* allocator) const
 {
-    return staging_buffer_allocator;
+    MutexLockGuard lock(blob_allocator_lock);
+
+    for (int i=0; i<(int)blob_allocators.size(); i++)
+    {
+        if (!blob_allocators[i])
+        {
+            blob_allocators[i] = allocator;
+            return;
+        }
+    }
+
+    fprintf(stderr, "FATAL ERROR! reclaim_blob_allocator get wild allocator %p\n", allocator);
+}
+
+VkAllocator* VulkanDevice::acquire_staging_allocator() const
+{
+    MutexLockGuard lock(staging_allocator_lock);
+
+    for (int i=0; i<(int)staging_allocators.size(); i++)
+    {
+        VkAllocator* allocator = staging_allocators[i];
+        if (allocator)
+        {
+            staging_allocators[i] = 0;
+            return allocator;
+        }
+    }
+
+    // out of staging allocator
+    return 0;
+}
+
+void VulkanDevice::reclaim_staging_allocator(VkAllocator* allocator) const
+{
+    MutexLockGuard lock(staging_allocator_lock);
+
+    for (int i=0; i<(int)staging_allocators.size(); i++)
+    {
+        if (!staging_allocators[i])
+        {
+            staging_allocators[i] = allocator;
+            return;
+        }
+    }
+
+    fprintf(stderr, "FATAL ERROR! reclaim_staging_allocator get wild allocator %p\n", allocator);
 }
 
 static inline bool string_ends_with_fp16p(const char* name)

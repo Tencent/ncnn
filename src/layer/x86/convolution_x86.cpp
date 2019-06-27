@@ -553,6 +553,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 conv_int8_dequant(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);     
         }
 
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }        
+
         return 0;
     }
 

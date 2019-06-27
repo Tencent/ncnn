@@ -907,7 +907,40 @@ int Net::fuse_network()
                 int layer_next_index = blobs[layer->tops[0]].consumers[n];
                 Layer* layer_next = layers[layer_next_index];
 
-                if (layer_next->type == "ReLU")
+                if (layer_next->type == "Convolution" || layer_next->type == "ConvolutionDepthWise")
+                {
+                    if (layer_next->type == "Convolution" && ((Convolution*)layer_next)->use_int8_inference == false)
+                        continue;
+                    if (layer_next->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next)->use_int8_inference == false)
+                        continue;    
+
+                    // fprintf(stderr, "%s, %s\n", layer->name.c_str(), layer_next->name.c_str());
+                    if (layer->type == "Convolution" && layer_next->type == "Convolution")
+                    {
+                        ((Convolution*)layer)->use_int8_requantize = true;
+                        ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next)->bottom_blob_int8_scale;
+                        ((Convolution*)layer)->create_requantize_op();
+                    }
+                    else if (layer->type == "ConvolutionDepthWise" && layer_next->type == "Convolution")
+                    {
+                        ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
+                        ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next)->bottom_blob_int8_scale;
+                        ((ConvolutionDepthWise*)layer)->create_requantize_op();
+                    }
+                    else if (layer->type == "Convolution" && layer_next->type == "ConvolutionDepthWise")
+                    {
+                        ((Convolution*)layer)->use_int8_requantize = true;
+                        ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
+                        ((Convolution*)layer)->create_requantize_op();
+                    }
+                    else
+                    {
+                        ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
+                        ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
+                        ((ConvolutionDepthWise*)layer)->create_requantize_op();
+                    }
+                }                  
+                else if (layer_next->type == "ReLU")
                 {
                     int layer_next_2_index = blobs[layer_next->tops[0]].consumers[0];
                     Layer* layer_next_2 = layers[layer_next_2_index];
@@ -919,7 +952,7 @@ int Net::fuse_network()
                         if (layer_next_2->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next_2)->use_int8_inference == false)
                             continue;    
 
-                        // fprintf(stderr, "%s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
+                        fprintf(stderr, "%s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
                         if (layer->type == "Convolution" && layer_next_2->type == "Convolution")
                         {
                             ((Convolution*)layer)->use_int8_requantize = true;
@@ -1959,14 +1992,6 @@ Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 #if NCNN_VULKAN
     if (net->opt.use_vulkan_compute)
     {
-        // set default vulkan blob/workspace/staging allocator
-        if (!opt.blob_vkallocator)
-            opt.blob_vkallocator = net->vkdev->allocator();
-        if (!opt.workspace_vkallocator)
-            opt.workspace_vkallocator = net->vkdev->allocator();
-        if (!opt.staging_vkallocator)
-            opt.staging_vkallocator = net->vkdev->staging_allocator();
-
         blob_mats_gpu.resize(blob_count);
     }
 #endif // NCNN_VULKAN
@@ -1982,6 +2007,16 @@ void Extractor::set_num_threads(int num_threads)
     opt.num_threads = num_threads;
 }
 
+void Extractor::set_blob_allocator(Allocator* allocator)
+{
+    opt.blob_allocator = allocator;
+}
+
+void Extractor::set_workspace_allocator(Allocator* allocator)
+{
+    opt.workspace_allocator = allocator;
+}
+
 #if NCNN_VULKAN
 void Extractor::set_vulkan_compute(bool enable)
 {
@@ -1993,6 +2028,21 @@ void Extractor::set_vulkan_compute(bool enable)
     {
         fprintf(stderr, "set_vulkan_compute failed, network use_vulkan_compute disabled\n");
     }
+}
+
+void Extractor::set_blob_vkallocator(VkAllocator* allocator)
+{
+    opt.blob_vkallocator = allocator;
+}
+
+void Extractor::set_workspace_vkallocator(VkAllocator* allocator)
+{
+    opt.workspace_vkallocator = allocator;
+}
+
+void Extractor::set_staging_vkallocator(VkAllocator* allocator)
+{
+    opt.staging_vkallocator = allocator;
 }
 #endif // NCNN_VULKAN
 
@@ -2040,6 +2090,25 @@ int Extractor::extract(int blob_index, Mat& feat)
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
         {
+            VkAllocator* local_blob_allocator = 0;
+            VkAllocator* local_staging_allocator = 0;
+
+            // use local allocator
+            if (!opt.blob_vkallocator)
+            {
+                local_blob_allocator = net->vkdev->acquire_blob_allocator();
+                opt.blob_vkallocator = local_blob_allocator;
+            }
+            if (!opt.workspace_vkallocator)
+            {
+                opt.workspace_vkallocator = opt.blob_vkallocator;
+            }
+            if (!opt.staging_vkallocator)
+            {
+                local_staging_allocator = net->vkdev->acquire_staging_allocator();
+                opt.staging_vkallocator = local_staging_allocator;
+            }
+
             ncnn::VkCompute cmd(net->vkdev);
 #if NCNN_BENCHMARK
             cmd.create_query_pool(net->layers.size() * 2);
@@ -2102,6 +2171,21 @@ int Extractor::extract(int blob_index, Mat& feat)
                 {
                     feat_cpu = feat_cpu_fp16;
                 }
+            }
+
+            if (local_blob_allocator)
+            {
+                net->vkdev->reclaim_blob_allocator(local_blob_allocator);
+                if (opt.workspace_vkallocator == opt.blob_vkallocator)
+                {
+                    opt.workspace_vkallocator = 0;
+                }
+                opt.blob_vkallocator = 0;
+            }
+            if (local_staging_allocator)
+            {
+                net->vkdev->reclaim_staging_allocator(local_staging_allocator);
+                opt.staging_vkallocator = 0;
             }
         }
         else

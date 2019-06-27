@@ -289,6 +289,11 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                             convdw3x3s2_int8_requant_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);                           
                         }
 
+                        if (activation)
+                        {
+                            activation->forward_inplace(top_blob, opt);
+                        }
+
                         return 0;
                     }
                 }
@@ -309,6 +314,11 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                     op->forward(bottom_blob_bordered_g, top_blob_tm_g, opt_g);
                 }
 
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }                
+
                 return 0;
             }
 
@@ -328,7 +338,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                 // forward
                 op->forward(bottom_blob_bordered_g, top_blob_tm_g, opt_g);
-            }       
+            }                 
         }
         else
         {
@@ -352,6 +362,11 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                             convdw3x3s2_int8_dequant_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);                          
                         }
 
+                        if (activation)
+                        {
+                            activation->forward_inplace(top_blob, opt);
+                        }                        
+
                         return 0;
                     }
                 }
@@ -371,6 +386,11 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                     // forward
                     op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
                 }
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }                
               
                 return 0;
             }
@@ -391,8 +411,13 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                 // forward
                 op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
-            }                      
+            }                       
         }
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }          
 
         return 0;
     }
