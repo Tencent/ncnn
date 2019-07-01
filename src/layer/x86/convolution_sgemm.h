@@ -1526,14 +1526,14 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                         sum[n] += va[1] * vb[n+4];
                         sum[n] += va[2] * vb[n+8];
                         sum[n] += va[3] * vb[n+12];
-                        sum[n] += va[4] * vb[n+16];
-                        sum[n] += va[5] * vb[n+20];
-                        sum[n] += va[6] * vb[n+24];
-                        sum[n] += va[7] * vb[n+28];
+                        //sum[n] += va[4] * vb[n+16];
+                        //sum[n] += va[5] * vb[n+20];
+                        //sum[n] += va[6] * vb[n+24];
+                        //sum[n] += va[7] * vb[n+28];
                     }
 
-                    va += 8;
-                    vb += 32;
+                    va += 4;
+                    vb += 16;
                 }
 
                 for (; k<L; k++)
