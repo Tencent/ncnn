@@ -43,6 +43,7 @@ public:
     void lock() { AcquireSRWLockExclusive(&srwlock); }
     void unlock() { ReleaseSRWLockExclusive(&srwlock); }
 private:
+    friend class ConditionVariable;
     // NOTE SRWLock is available from windows vista
     SRWLOCK srwlock;
 };
@@ -55,6 +56,7 @@ public:
     void lock() { pthread_mutex_lock(&mutex); }
     void unlock() { pthread_mutex_unlock(&mutex); }
 private:
+    friend class ConditionVariable;
     pthread_mutex_t mutex;
 };
 #endif // _WIN32
@@ -67,6 +69,32 @@ public:
 private:
     Mutex& mutex;
 };
+
+#if _WIN32
+class ConditionVariable
+{
+public:
+    ConditionVariable() { InitializeConditionVariable(&condvar); }
+    ~ConditionVariable() {}
+    void wait(Mutex& mutex) { SleepConditionVariableSRW(&condvar, &mutex.srwlock, INFINITE, 0); }
+    void broadcast() { WakeAllConditionVariable(&condvar); }
+    void signal() { WakeConditionVariable(&condvar); }
+private:
+    CONDITION_VARIABLE condvar;
+};
+#else // _WIN32
+class ConditionVariable
+{
+public:
+    ConditionVariable() { pthread_cond_init(&cond, 0); }
+    ~ConditionVariable() { pthread_cond_destroy(&cond); }
+    void wait(Mutex& mutex) { pthread_cond_wait(&cond, &mutex.mutex); }
+    void broadcast() { pthread_cond_broadcast(&cond); }
+    void signal() { pthread_cond_signal(&cond); }
+private:
+    pthread_cond_t cond;
+};
+#endif // _WIN32
 
 } // namespace ncnn
 
