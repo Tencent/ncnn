@@ -237,10 +237,9 @@ static int get_cpucount()
 #endif
 }
 
-static int g_cpucount = get_cpucount();
-
 int get_cpu_count()
 {
+	static int g_cpucount = get_cpucount();
     return g_cpucount;
 }
 
