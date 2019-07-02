@@ -1066,7 +1066,6 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         _t0.m256_f32[5]=_w5.m256_f32[0]; _t1.m256_f32[5]=_w5.m256_f32[1]; _t2.m256_f32[5]=_w5.m256_f32[2]; _t3.m256_f32[5]=_w5.m256_f32[3]; _t4.m256_f32[5]=_w5.m256_f32[4]; _t5.m256_f32[5]=_w5.m256_f32[5];
                     }
 #else
-
                     {
                         _t0[0]=_w0[0]; _t1[0]=_w0[1]; _t2[0]=_w0[2]; _t3[0]=_w0[3]; _t4[0]=_w0[4]; _t5[0]=_w0[5];
                         _t0[1]=_w1[0]; _t1[1]=_w1[1]; _t2[1]=_w1[2]; _t3[1]=_w1[3]; _t4[1]=_w1[4]; _t5[1]=_w1[5];
@@ -1075,7 +1074,6 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         _t0[4]=_w4[0]; _t1[4]=_w4[1]; _t2[4]=_w4[2]; _t3[4]=_w4[3]; _t4[4]=_w4[4]; _t5[4]=_w4[5];
                         _t0[5]=_w5[0]; _t1[5]=_w5[1]; _t2[5]=_w5[2]; _t3[5]=_w5[3]; _t4[5]=_w5[4]; _t5[5]=_w5[5];
                     } 
-
 #endif
                     // d = B_t * d_t
                     _n0 = _mm256_mul_ps(_t0, _4_p);
@@ -1106,12 +1104,12 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _n5 = _mm256_fmadd_ps(_t3, _5_n, _n5);
                     _n5 = _mm256_add_ps(_n5, _t5);
                     // save to out_tm
-					float output_n0[8] = {0.f};_mm256_storeu_ps(output_n0, _n0); 
-					float output_n1[8] = {0.f};_mm256_storeu_ps(output_n1, _n1); 
-					float output_n2[8] = {0.f};_mm256_storeu_ps(output_n2, _n2); 
-					float output_n3[8] = {0.f};_mm256_storeu_ps(output_n3, _n3); 
-					float output_n4[8] = {0.f};_mm256_storeu_ps(output_n4, _n4); 
-					float output_n5[8] = {0.f};_mm256_storeu_ps(output_n5, _n5); 
+                    float output_n0[8] = {0.f};_mm256_storeu_ps(output_n0, _n0); 
+                    float output_n1[8] = {0.f};_mm256_storeu_ps(output_n1, _n1); 
+                    float output_n2[8] = {0.f};_mm256_storeu_ps(output_n2, _n2); 
+                    float output_n3[8] = {0.f};_mm256_storeu_ps(output_n3, _n3); 
+                    float output_n4[8] = {0.f};_mm256_storeu_ps(output_n4, _n4); 
+                    float output_n5[8] = {0.f};_mm256_storeu_ps(output_n5, _n5); 
 					
                     out_tm0[0]=output_n0[0];out_tm0[1]=output_n0[1];out_tm0[2]=output_n0[2];out_tm0[3]=output_n0[3];
                     out_tm1[0]=output_n0[4];out_tm1[1]=output_n0[5];out_tm1[2]=output_n1[0];out_tm1[3]=output_n1[1];
