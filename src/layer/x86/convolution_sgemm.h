@@ -563,12 +563,11 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
 
                     va += 8;
                     vb += 1;
-                }         
-				////////////////////////////////
-				float output_sum0_7[8] = {0.f};
-				_mm256_storeu_ps(output_sum0_7, _sum0_7); 
+                }
 
-				//////////////////////////////////////
+                float output_sum0_7[8] = {0.f};
+                _mm256_storeu_ps(output_sum0_7, _sum0_7); 
+
                 output0[0] = output_sum0_7[0];
                 output1[0] = output_sum0_7[1];
                 output2[0] = output_sum0_7[2];
@@ -866,8 +865,8 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     vb += 1;
                 }         
 
-				float output_sum0_3[4] = {0.f};
-				_mm_storeu_ps(output_sum0_3, _sum0_3); 
+                float output_sum0_3[4] = {0.f};
+                _mm_storeu_ps(output_sum0_3, _sum0_3); 
                 output0[0] = output_sum0_3[0];
                 output1[0] = output_sum0_3[1];
                 output2[0] = output_sum0_3[2];
@@ -1013,8 +1012,10 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
 
                     _sum0 = _mm_fmadd_ps(_p0, _k0, _sum0);
                 }
-				float output_sum0[4] = {0.f};
-				_mm_storeu_ps(output_sum0, _sum0); 
+
+                float output_sum0[4] = {0.f};
+                _mm_storeu_ps(output_sum0, _sum0); 
+
                 float sum0 = bias0 + output_sum0[0] + output_sum0[1] + output_sum0[2] + output_sum0[3];
 				
 #else
