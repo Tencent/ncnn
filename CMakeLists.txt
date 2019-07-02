@@ -82,7 +82,15 @@ elseif(IOS)
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 elseif(NCNN_AVX2)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfma")
+    #set up according to your own system environment
+    #Windows
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2 /DAVX2")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /arch:AVX2 /DAVX2")
+    #Linux
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfma")
+    endif()
 endif()
 
 ##############################################
