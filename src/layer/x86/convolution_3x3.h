@@ -1056,6 +1056,16 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _w5 = _mm256_fmadd_ps(_d3, _5_n, _w5);
                     _w5 = _mm256_add_ps(_w5, _d5);
                     // transpose d to d_t
+#ifdef _WIN32
+                    {
+                        _t0.m256_f32[0]=_w0.m256_f32[0]; _t1.m256_f32[0]=_w0.m256_f32[1]; _t2.m256_f32[0]=_w0.m256_f32[2]; _t3.m256_f32[0]=_w0.m256_f32[3]; _t4.m256_f32[0]=_w0.m256_f32[4]; _t5.m256_f32[0]=_w0.m256_f32[5];
+                        _t0.m256_f32[1]=_w1.m256_f32[0]; _t1.m256_f32[1]=_w1.m256_f32[1]; _t2.m256_f32[1]=_w1.m256_f32[2]; _t3.m256_f32[1]=_w1.m256_f32[3]; _t4.m256_f32[1]=_w1.m256_f32[4]; _t5.m256_f32[1]=_w1.m256_f32[5];
+                        _t0.m256_f32[2]=_w2.m256_f32[0]; _t1.m256_f32[2]=_w2.m256_f32[1]; _t2.m256_f32[2]=_w2.m256_f32[2]; _t3.m256_f32[2]=_w2.m256_f32[3]; _t4.m256_f32[2]=_w2.m256_f32[4]; _t5.m256_f32[2]=_w2.m256_f32[5];
+                        _t0.m256_f32[3]=_w3.m256_f32[0]; _t1.m256_f32[3]=_w3.m256_f32[1]; _t2.m256_f32[3]=_w3.m256_f32[2]; _t3.m256_f32[3]=_w3.m256_f32[3]; _t4.m256_f32[3]=_w3.m256_f32[4]; _t5.m256_f32[3]=_w3.m256_f32[5];
+                        _t0.m256_f32[4]=_w4.m256_f32[0]; _t1.m256_f32[4]=_w4.m256_f32[1]; _t2.m256_f32[4]=_w4.m256_f32[2]; _t3.m256_f32[4]=_w4.m256_f32[3]; _t4.m256_f32[4]=_w4.m256_f32[4]; _t5.m256_f32[4]=_w4.m256_f32[5];
+                        _t0.m256_f32[5]=_w5.m256_f32[0]; _t1.m256_f32[5]=_w5.m256_f32[1]; _t2.m256_f32[5]=_w5.m256_f32[2]; _t3.m256_f32[5]=_w5.m256_f32[3]; _t4.m256_f32[5]=_w5.m256_f32[4]; _t5.m256_f32[5]=_w5.m256_f32[5];
+                    }
+#else
                     {
                         _t0[0]=_w0[0]; _t1[0]=_w0[1]; _t2[0]=_w0[2]; _t3[0]=_w0[3]; _t4[0]=_w0[4]; _t5[0]=_w0[5];
                         _t0[1]=_w1[0]; _t1[1]=_w1[1]; _t2[1]=_w1[2]; _t3[1]=_w1[3]; _t4[1]=_w1[4]; _t5[1]=_w1[5];
@@ -1064,7 +1074,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         _t0[4]=_w4[0]; _t1[4]=_w4[1]; _t2[4]=_w4[2]; _t3[4]=_w4[3]; _t4[4]=_w4[4]; _t5[4]=_w4[5];
                         _t0[5]=_w5[0]; _t1[5]=_w5[1]; _t2[5]=_w5[2]; _t3[5]=_w5[3]; _t4[5]=_w5[4]; _t5[5]=_w5[5];
                     } 
-
+#endif
                     // d = B_t * d_t
                     _n0 = _mm256_mul_ps(_t0, _4_p);
                     _n0 = _mm256_fmadd_ps(_t2, _5_n, _n0);
@@ -1094,17 +1104,24 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _n5 = _mm256_fmadd_ps(_t3, _5_n, _n5);
                     _n5 = _mm256_add_ps(_n5, _t5);
                     // save to out_tm
-                    out_tm0[0]=_n0[0];out_tm0[1]=_n0[1];out_tm0[2]=_n0[2];out_tm0[3]=_n0[3];
-                    out_tm1[0]=_n0[4];out_tm1[1]=_n0[5];out_tm1[2]=_n1[0];out_tm1[3]=_n1[1];
-                    out_tm2[0]=_n1[2];out_tm2[1]=_n1[3];out_tm2[2]=_n1[4];out_tm2[3]=_n1[5];
+                    float output_n0[8] = {0.f};_mm256_storeu_ps(output_n0, _n0); 
+                    float output_n1[8] = {0.f};_mm256_storeu_ps(output_n1, _n1); 
+                    float output_n2[8] = {0.f};_mm256_storeu_ps(output_n2, _n2); 
+                    float output_n3[8] = {0.f};_mm256_storeu_ps(output_n3, _n3); 
+                    float output_n4[8] = {0.f};_mm256_storeu_ps(output_n4, _n4); 
+                    float output_n5[8] = {0.f};_mm256_storeu_ps(output_n5, _n5); 
+					
+                    out_tm0[0]=output_n0[0];out_tm0[1]=output_n0[1];out_tm0[2]=output_n0[2];out_tm0[3]=output_n0[3];
+                    out_tm1[0]=output_n0[4];out_tm1[1]=output_n0[5];out_tm1[2]=output_n1[0];out_tm1[3]=output_n1[1];
+                    out_tm2[0]=output_n1[2];out_tm2[1]=output_n1[3];out_tm2[2]=output_n1[4];out_tm2[3]=output_n1[5];
 
-                    out_tm3[0]=_n2[0];out_tm3[1]=_n2[1];out_tm3[2]=_n2[2];out_tm3[3]=_n2[3];
-                    out_tm4[0]=_n2[4];out_tm4[1]=_n2[5];out_tm4[2]=_n3[0];out_tm4[3]=_n3[1];
-                    out_tm5[0]=_n3[2];out_tm5[1]=_n3[3];out_tm5[2]=_n3[4];out_tm5[3]=_n3[5];
+                    out_tm3[0]=output_n2[0];out_tm3[1]=output_n2[1];out_tm3[2]=output_n2[2];out_tm3[3]=output_n2[3];
+                    out_tm4[0]=output_n2[4];out_tm4[1]=output_n2[5];out_tm4[2]=output_n3[0];out_tm4[3]=output_n3[1];
+                    out_tm5[0]=output_n3[2];out_tm5[1]=output_n3[3];out_tm5[2]=output_n3[4];out_tm5[3]=output_n3[5];
 
-                    out_tm6[0]=_n4[0];out_tm6[1]=_n4[1];out_tm6[2]=_n4[2];out_tm6[3]=_n4[3];
-                    out_tm7[0]=_n4[4];out_tm7[1]=_n4[5];out_tm7[2]=_n5[0];out_tm7[3]=_n5[1];
-                    out_tm8[0]=_n5[2];out_tm8[1]=_n5[3];out_tm8[2]=_n5[4];out_tm8[3]=_n5[5];
+                    out_tm6[0]=output_n4[0];out_tm6[1]=output_n4[1];out_tm6[2]=output_n4[2];out_tm6[3]=output_n4[3];
+                    out_tm7[0]=output_n4[4];out_tm7[1]=output_n4[5];out_tm7[2]=output_n5[0];out_tm7[3]=output_n5[1];
+                    out_tm8[0]=output_n5[2];out_tm8[1]=output_n5[3];out_tm8[2]=output_n5[4];out_tm8[3]=output_n5[5];
 #else
                     float d0[6],d1[6],d2[6],d3[6],d4[6],d5[6];
                     float w0[6],w1[6],w2[6],w3[6],w4[6],w5[6];
