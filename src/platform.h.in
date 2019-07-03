@@ -96,6 +96,28 @@ private:
 };
 #endif // _WIN32
 
+#if _WIN32
+class Thread
+{
+public:
+    Thread(void (*start)()) { handle = (HANDLE)_beginthreadex(0, 0, start, 0, 0, 0); }
+    ~Thread() { }
+    void join() { WaitForSingleObject(handle, INFINITE); CloseHandle(handle); }
+private:
+    HANDLE handle;
+};
+#else // _WIN32
+class Thread
+{
+public:
+    Thread(void (*start)()) { pthread_create(&t, 0, (void* (*)(void*))start, 0); }
+    ~Thread() {  }
+    void join() { pthread_join(t, 0); }
+private:
+    pthread_t t;
+};
+#endif // _WIN32
+
 } // namespace ncnn
 
 #endif // NCNN_PLATFORM_H
