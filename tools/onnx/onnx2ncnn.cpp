@@ -810,7 +810,7 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Permute");
         }
-        else if (op == "Upsample")
+        else if (op == "Upsample" || op == "Resize")
         {
             fprintf(pp, "%-16s", "Interp");
         }
@@ -1569,7 +1569,7 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported transpose type !\n");
             }
         }
-        else if (op == "Upsample")
+        else if (op == "Upsample" || op == "Resize")
         {
             std::string mode = get_node_attr_s(node, "mode");
 
@@ -1607,7 +1607,7 @@ int main(int argc, char** argv)
             }
             else if (mode == "trilinear")
             {
-                fprintf(stderr, "Unsupported Upsample mode !\n");
+                fprintf(stderr, "Unsupported Upsample/Resize mode !\n");
             }
 
             float h_scale = 1.f;
@@ -1627,11 +1627,11 @@ int main(int argc, char** argv)
                 w_scale = scales[3];
 
                 if (scales[1] != 1.f)
-                    fprintf(stderr, "Unsupported Upsample scales !\n");
+                    fprintf(stderr, "Unsupported Upsample/Resize scales !\n");
             }
             else
             {
-                fprintf(stderr, "Unsupported Upsample scales !\n");
+                fprintf(stderr, "Unsupported Upsample/Resize scales !\n");
             }
 
             fprintf(pp, " 0=%d", resize_type);
