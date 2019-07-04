@@ -344,6 +344,12 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     int out_packing = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / packing * out_packing;
 
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
+        if (out_packing == 4) out_elemsize = 4*2u;
+        if (out_packing == 1) out_elemsize = 4u;
+    }
+
     VkMat top_blob_bordered;
     if (pad_w > 0 || pad_h > 0)
     {
