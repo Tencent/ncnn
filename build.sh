@@ -56,6 +56,14 @@ make
 make install
 popd
 
+##### linux of hisiv600 (Hi3559V100) toolchain with neon and no openmp (due to only one cpu, close openmp)
+mkdir -p build-hisiv600-linux
+pushd build-hisiv600-linux
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/hisiv600.toolchain.cmake ..
+make
+make install
+popd
+
 ##### linux of himix100 (Hi3559a) toolchain with neon and openmp
 mkdir -p build-himix100-linux
 pushd build-himix100-linux
