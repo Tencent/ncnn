@@ -47,6 +47,8 @@ public:
 
     // set gpu device by device handle, no owner transfer
     void set_vulkan_device(const VulkanDevice* vkdev);
+
+    const VulkanDevice* vulkan_device() const;
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING

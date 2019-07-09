@@ -1081,6 +1081,11 @@ void Net::set_vulkan_device(const VulkanDevice* _vkdev)
     vkdev = _vkdev;
 }
 
+const VulkanDevice* Net::vulkan_device() const
+{
+    return vkdev;
+}
+
 int Net::upload_model()
 {
     ncnn::VkTransfer cmd(vkdev);
