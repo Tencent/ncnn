@@ -1386,7 +1386,7 @@ int main(int argc, char** argv)
             }
             else if (mode == "reflect")
             {
-                // FIXME
+                type = 2;
             }
 
             int pad_size = pads.size();
