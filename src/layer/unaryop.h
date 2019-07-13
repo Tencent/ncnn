@@ -44,7 +44,8 @@ public:
         Operation_ASIN  = 12,
         Operation_ACOS  = 13,
         Operation_ATAN  = 14,
-        Operation_RECIPROCAL = 15
+        Operation_RECIPROCAL = 15,
+        Operation_TANH = 16
     };
 
 public:
