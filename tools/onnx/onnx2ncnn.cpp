@@ -1391,10 +1391,32 @@ int main(int argc, char** argv)
                 // FIXME
             }
 
-            int top = pads[0];
-            int bottom = pads[2];
-            int left = pads[1];
-            int right = pads[3];
+            int pad_size = pads.size();
+            int top, bottom, left, right;
+            if (pad_size == 8)
+            {
+                //NCHW
+                top = pads[2];
+                bottom = pads[6];
+                left = pads[3];
+                right = pads[7];
+            }
+            else if (pad_size == 6)
+            {
+                //CHW
+                top = pads[1];
+                bottom = pads[4];
+                left = pads[2];
+                right = pads[5];
+            }
+            else
+            {
+                //HW
+                top = pads[0];
+                bottom = pads[2];
+                left = pads[1];
+                right = pads[3];
+            }
 
             fprintf(pp, " 0=%d", top);
             fprintf(pp, " 1=%d", bottom);
