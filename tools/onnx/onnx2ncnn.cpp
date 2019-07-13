@@ -808,6 +808,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Tanh")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (op == "Transpose")
         {
             fprintf(pp, "%-16s", "Permute");
@@ -1535,6 +1539,11 @@ int main(int argc, char** argv)
         else if (op == "Tan")
         {
             int op_type = 11;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Tanh")
+        {
+            int op_type = 16;
             fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "Transpose")
