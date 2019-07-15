@@ -517,7 +517,9 @@ int main(int argc, char** argv)
 
         const onnx::TensorProto& M = binaryop_weights[input_name];
 
-        if (M.dims_size() == 1) {
+        if (M.dims_size() == 0) {
+            fprintf(pp, " 0=%d", get_tensor_proto_data_size(M));
+        } if (M.dims_size() == 1) {
             fprintf(pp, " 0=%d", (int)M.dims(0));
         } else if (M.dims_size() == 2) {
             fprintf(pp, " 0=%d", (int)M.dims(1));
@@ -803,6 +805,10 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", "Eltwise");
         }
         else if (op == "Tan")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "Tanh")
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
@@ -1382,13 +1388,35 @@ int main(int argc, char** argv)
             }
             else if (mode == "reflect")
             {
-                // FIXME
+                type = 2;
             }
 
-            int top = pads[0];
-            int bottom = pads[2];
-            int left = pads[1];
-            int right = pads[3];
+            int pad_size = pads.size();
+            int top, bottom, left, right;
+            if (pad_size == 8)
+            {
+                //NCHW
+                top = pads[2];
+                bottom = pads[6];
+                left = pads[3];
+                right = pads[7];
+            }
+            else if (pad_size == 6)
+            {
+                //CHW
+                top = pads[1];
+                bottom = pads[4];
+                left = pads[2];
+                right = pads[5];
+            }
+            else
+            {
+                //HW
+                top = pads[0];
+                bottom = pads[2];
+                left = pads[1];
+                right = pads[3];
+            }
 
             fprintf(pp, " 0=%d", top);
             fprintf(pp, " 1=%d", bottom);
@@ -1533,6 +1561,11 @@ int main(int argc, char** argv)
         else if (op == "Tan")
         {
             int op_type = 11;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Tanh")
+        {
+            int op_type = 16;
             fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "Transpose")
