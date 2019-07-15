@@ -162,7 +162,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff, co
             {
                 for (int j=0; j<w; j++)
                 {
-                    mins_ptr[j] = op(mins_ptr[j], ptr[i]);
+                    mins_ptr[j] = op(mins_ptr[j], ptr[j]);
                 }
 
                 ptr += w;
