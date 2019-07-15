@@ -133,10 +133,17 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
 
     while (!feof(fp))
     {
+        char key[256];
+        int nscan = fscanf(fp, "%255s", key);
+        if (nscan != 1)
+        {
+            break;
+        }
+
         if (in_scale_vector)
         {
             float scale = 1.f;
-            int nscan = fscanf(fp, "%f", &scale);
+            int nscan = sscanf(key, "%f", &scale);
             if (nscan == 1)
             {
                 scales.push_back(scale);
@@ -163,18 +170,22 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
 
         if (!in_scale_vector)
         {
-            char key[256];
-            int nscan = fscanf(fp, "%255s", key);
-            if (nscan == 1)
-            {
-                keystr = key;
+            keystr = key;
 
-                in_scale_vector = true;
-            }
-            else
-            {
-                break;
-            }
+            in_scale_vector = true;
+        }
+    }
+
+    if (in_scale_vector)
+    {
+        // XYZ_param_N pattern
+        if (strstr(keystr.c_str(), "_param_"))
+        {
+            weight_int8scale_table[ keystr ] = scales;
+        }
+        else
+        {
+            blob_int8scale_table[ keystr ] = scales;
         }
     }
 
@@ -674,7 +685,7 @@ int main(int argc, char** argv)
 
                 if (int8_scale_term)
                 {
-                    if ((int)weight_int8scale.size() == num_group && (int)blob_int8scale.size() == num_group)
+                    if ((int)weight_int8scale.size() == num_group)
                     {
                         fprintf(pp, " 8=1");
                     }
@@ -778,7 +789,27 @@ int main(int argc, char** argv)
         {
             const caffe::CropParameter& crop_param = layer.crop_param();
             int num_offset = crop_param.offset_size();
-            if (num_offset == 2)
+            if (num_offset == 1)
+            {
+                int offset = crop_param.offset(0);
+                int axis = crop_param.axis();
+                if (axis == 1)
+                {
+                    fprintf(pp, " 0=%d", offset);
+                    fprintf(pp, " 1=%d", offset);
+                    fprintf(pp, " 2=%d", offset);
+                }
+                else if (axis == 2)
+                {
+                    fprintf(pp, " 0=%d", offset);
+                    fprintf(pp, " 1=%d", offset);
+                }
+                else if (axis == 3)
+                {
+                    fprintf(pp, " 0=%d", offset);
+                }
+            }
+            else if (num_offset == 2)
             {
                 int woffset = crop_param.offset(1);
                 int hoffset = crop_param.offset(0);
@@ -1419,6 +1450,14 @@ int main(int argc, char** argv)
             fprintf(pp, " 12=%f", step_height);
             fprintf(pp, " 13=%f", prior_box_param.offset());
         }
+        else if (layer.type() == "PSROIPooling")
+        {
+            const caffe::PSROIPoolingParameter& psroi_pooling_param = layer.psroi_pooling_param();
+            fprintf(pp, " 0=%d", psroi_pooling_param.group_size());
+            fprintf(pp, " 1=%d", psroi_pooling_param.group_size());
+            fprintf(pp, " 2=%f", psroi_pooling_param.spatial_scale());
+            fprintf(pp, " 3=%d", psroi_pooling_param.output_dim());
+        }
         else if (layer.type() == "Python")
         {
             const caffe::PythonParameter& python_param = layer.python_param();
@@ -1463,7 +1502,7 @@ int main(int argc, char** argv)
             const caffe::ReorgParameter& reorg_param = layer.reorg_param();
             fprintf(pp, " 0=%d", reorg_param.stride());
         }
-        else if (layer.type() == "Reshape")// -1 1 512
+        else if (layer.type() == "Reshape")
         {
             const caffe::ReshapeParameter& reshape_param = layer.reshape_param();
             const caffe::BlobShape& bs = reshape_param.shape();
@@ -1473,17 +1512,24 @@ int main(int argc, char** argv)
             }
             else if (bs.dim_size() == 2)
             {
-                fprintf(pp, " 0=%ld 1=%ld 2=-233", bs.dim(1), bs.dim(0));
+                fprintf(pp, " 0=%ld 1=-233 2=-233", bs.dim(1));
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(2), bs.dim(1), bs.dim(0));
+                fprintf(pp, " 0=%ld 1=%ld 2=-233", bs.dim(2), bs.dim(1));
             }
             else // bs.dim_size() == 4
             {
                 fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(3), bs.dim(2), bs.dim(1));
             }
             fprintf(pp, " 3=0");// permute
+        }
+        else if (layer.type() == "ROIAlign")
+        {
+            const caffe::ROIAlignParameter& roi_align_param = layer.roi_align_param();
+            fprintf(pp, " 0=%d", roi_align_param.pooled_w());
+            fprintf(pp, " 1=%d", roi_align_param.pooled_h());
+            fprintf(pp, " 2=%f", roi_align_param.spatial_scale());
         }
         else if (layer.type() == "ROIPooling")
         {
@@ -1554,6 +1600,7 @@ int main(int argc, char** argv)
             const caffe::SoftmaxParameter& softmax_param = layer.softmax_param();
             int dim = softmax_param.axis() - 1;
             fprintf(pp, " 0=%d", dim);
+            fprintf(pp, " 1=1");
         }
         else if (layer.type() == "Threshold")
         {
@@ -1576,7 +1623,35 @@ int main(int argc, char** argv)
                 fprintf(pp, ",%f", yolo_detection_output_param.biases(j));
             }
         }
+		else if (layer.type() == "Yolov3DetectionOutput")
+		{
+			const caffe::Yolov3DetectionOutputParameter& yolov3_detection_output_param = layer.yolov3_detection_output_param();
 
+			fprintf(pp, " 0=%d", yolov3_detection_output_param.num_classes());
+			fprintf(pp, " 1=%d", yolov3_detection_output_param.num_box());
+			fprintf(pp, " 2=%f", yolov3_detection_output_param.confidence_threshold());
+			fprintf(pp, " 3=%f", yolov3_detection_output_param.nms_threshold());
+
+			int num_bias = yolov3_detection_output_param.biases_size();
+			fprintf(pp, " -23304=%d", num_bias);
+			for (int j = 0; j<num_bias; j++)
+			{
+				fprintf(pp, ",%f", yolov3_detection_output_param.biases(j));
+			}
+			int num_mask = yolov3_detection_output_param.mask_size();
+			fprintf(pp, " -23305=%d", num_mask);
+			for (int j = 0; j<num_mask; j++)
+			{
+				fprintf(pp, ",%f", (float)yolov3_detection_output_param.mask(j));
+			}
+			int num_anchors = yolov3_detection_output_param.anchors_scale_size();
+			fprintf(pp, " -23306=%d", num_anchors);
+			for (int j = 0; j<num_anchors; j++)
+			{
+				fprintf(pp, ",%f", (float)yolov3_detection_output_param.anchors_scale(j));
+			}
+			fprintf(pp, " 7=%d", yolov3_detection_output_param.mask_group_num());
+		}
         fprintf(pp, "\n");
 
         // add split layer if top reference larger than one

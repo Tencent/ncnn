@@ -31,9 +31,13 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
+    // -233 = dynamic offset from reference blob
     int woffset;
     int hoffset;
     int coffset;
+
+    // -233 = remaining
+    // -234 = remaining - 1
     int outw;
     int outh;
     int outc;

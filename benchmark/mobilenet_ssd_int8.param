@@ -1,0 +1,129 @@
+7767517
+127 150
+Input            data             0 1 data 0=300 1=300 2=3
+Split            splitncnn_0      1 7 data data_splitncnn_0 data_splitncnn_1 data_splitncnn_2 data_splitncnn_3 data_splitncnn_4 data_splitncnn_5 data_splitncnn_6
+Convolution      conv0            1 1 data_splitncnn_6 conv0 0=32 1=3 2=1 3=2 4=1 5=1 6=864 8=2
+ReLU             conv0/relu       1 1 conv0 conv0_conv0/relu
+ConvolutionDepthWise conv1/dw         1 1 conv0_conv0/relu conv1/dw 0=32 1=3 2=1 3=1 4=1 5=1 6=288 7=32 8=1
+ReLU             conv1/dw/relu    1 1 conv1/dw conv1/dw_conv1/dw/relu
+Convolution      conv1            1 1 conv1/dw_conv1/dw/relu conv1 0=64 1=1 2=1 3=1 4=0 5=1 6=2048 8=2
+ReLU             conv1/relu       1 1 conv1 conv1_conv1/relu
+ConvolutionDepthWise conv2/dw         1 1 conv1_conv1/relu conv2/dw 0=64 1=3 2=1 3=2 4=1 5=1 6=576 7=64 8=1
+ReLU             conv2/dw/relu    1 1 conv2/dw conv2/dw_conv2/dw/relu
+Convolution      conv2            1 1 conv2/dw_conv2/dw/relu conv2 0=128 1=1 2=1 3=1 4=0 5=1 6=8192 8=2
+ReLU             conv2/relu       1 1 conv2 conv2_conv2/relu
+ConvolutionDepthWise conv3/dw         1 1 conv2_conv2/relu conv3/dw 0=128 1=3 2=1 3=1 4=1 5=1 6=1152 7=128 8=1
+ReLU             conv3/dw/relu    1 1 conv3/dw conv3/dw_conv3/dw/relu
+Convolution      conv3            1 1 conv3/dw_conv3/dw/relu conv3 0=128 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+ReLU             conv3/relu       1 1 conv3 conv3_conv3/relu
+ConvolutionDepthWise conv4/dw         1 1 conv3_conv3/relu conv4/dw 0=128 1=3 2=1 3=2 4=1 5=1 6=1152 7=128 8=1
+ReLU             conv4/dw/relu    1 1 conv4/dw conv4/dw_conv4/dw/relu
+Convolution      conv4            1 1 conv4/dw_conv4/dw/relu conv4 0=256 1=1 2=1 3=1 4=0 5=1 6=32768 8=2
+ReLU             conv4/relu       1 1 conv4 conv4_conv4/relu
+ConvolutionDepthWise conv5/dw         1 1 conv4_conv4/relu conv5/dw 0=256 1=3 2=1 3=1 4=1 5=1 6=2304 7=256 8=1
+ReLU             conv5/dw/relu    1 1 conv5/dw conv5/dw_conv5/dw/relu
+Convolution      conv5            1 1 conv5/dw_conv5/dw/relu conv5 0=256 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+ReLU             conv5/relu       1 1 conv5 conv5_conv5/relu
+ConvolutionDepthWise conv6/dw         1 1 conv5_conv5/relu conv6/dw 0=256 1=3 2=1 3=2 4=1 5=1 6=2304 7=256 8=1
+ReLU             conv6/dw/relu    1 1 conv6/dw conv6/dw_conv6/dw/relu
+Convolution      conv6            1 1 conv6/dw_conv6/dw/relu conv6 0=512 1=1 2=1 3=1 4=0 5=1 6=131072 8=2
+ReLU             conv6/relu       1 1 conv6 conv6_conv6/relu
+ConvolutionDepthWise conv7/dw         1 1 conv6_conv6/relu conv7/dw 0=512 1=3 2=1 3=1 4=1 5=1 6=4608 7=512 8=1
+ReLU             conv7/dw/relu    1 1 conv7/dw conv7/dw_conv7/dw/relu
+Convolution      conv7            1 1 conv7/dw_conv7/dw/relu conv7 0=512 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             conv7/relu       1 1 conv7 conv7_conv7/relu
+ConvolutionDepthWise conv8/dw         1 1 conv7_conv7/relu conv8/dw 0=512 1=3 2=1 3=1 4=1 5=1 6=4608 7=512 8=1
+ReLU             conv8/dw/relu    1 1 conv8/dw conv8/dw_conv8/dw/relu
+Convolution      conv8            1 1 conv8/dw_conv8/dw/relu conv8 0=512 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             conv8/relu       1 1 conv8 conv8_conv8/relu
+ConvolutionDepthWise conv9/dw         1 1 conv8_conv8/relu conv9/dw 0=512 1=3 2=1 3=1 4=1 5=1 6=4608 7=512 8=1
+ReLU             conv9/dw/relu    1 1 conv9/dw conv9/dw_conv9/dw/relu
+Convolution      conv9            1 1 conv9/dw_conv9/dw/relu conv9 0=512 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             conv9/relu       1 1 conv9 conv9_conv9/relu
+ConvolutionDepthWise conv10/dw        1 1 conv9_conv9/relu conv10/dw 0=512 1=3 2=1 3=1 4=1 5=1 6=4608 7=512 8=1
+ReLU             conv10/dw/relu   1 1 conv10/dw conv10/dw_conv10/dw/relu
+Convolution      conv10           1 1 conv10/dw_conv10/dw/relu conv10 0=512 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             conv10/relu      1 1 conv10 conv10_conv10/relu
+ConvolutionDepthWise conv11/dw        1 1 conv10_conv10/relu conv11/dw 0=512 1=3 2=1 3=1 4=1 5=1 6=4608 7=512 8=1
+ReLU             conv11/dw/relu   1 1 conv11/dw conv11/dw_conv11/dw/relu
+Convolution      conv11           1 1 conv11/dw_conv11/dw/relu conv11 0=512 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             conv11/relu      1 1 conv11 conv11_conv11/relu
+Split            splitncnn_1      1 4 conv11_conv11/relu conv11_conv11/relu_splitncnn_0 conv11_conv11/relu_splitncnn_1 conv11_conv11/relu_splitncnn_2 conv11_conv11/relu_splitncnn_3
+ConvolutionDepthWise conv12/dw        1 1 conv11_conv11/relu_splitncnn_3 conv12/dw 0=512 1=3 2=1 3=2 4=1 5=1 6=4608 7=512 8=1
+ReLU             conv12/dw/relu   1 1 conv12/dw conv12/dw_conv12/dw/relu
+Convolution      conv12           1 1 conv12/dw_conv12/dw/relu conv12 0=1024 1=1 2=1 3=1 4=0 5=1 6=524288 8=2
+ReLU             conv12/relu      1 1 conv12 conv12_conv12/relu
+ConvolutionDepthWise conv13/dw        1 1 conv12_conv12/relu conv13/dw 0=1024 1=3 2=1 3=1 4=1 5=1 6=9216 7=1024 8=1
+ReLU             conv13/dw/relu   1 1 conv13/dw conv13/dw_conv13/dw/relu
+Convolution      conv13           1 1 conv13/dw_conv13/dw/relu conv13 0=1024 1=1 2=1 3=1 4=0 5=1 6=1048576 8=2
+ReLU             conv13/relu      1 1 conv13 conv13_conv13/relu
+Split            splitncnn_2      1 4 conv13_conv13/relu conv13_conv13/relu_splitncnn_0 conv13_conv13/relu_splitncnn_1 conv13_conv13/relu_splitncnn_2 conv13_conv13/relu_splitncnn_3
+Convolution      conv14_1         1 1 conv13_conv13/relu_splitncnn_3 conv14_1 0=256 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             conv14_1/relu    1 1 conv14_1 conv14_1_conv14_1/relu
+Convolution      conv14_2         1 1 conv14_1_conv14_1/relu conv14_2 0=512 1=3 2=1 3=2 4=1 5=1 6=1179648 8=2
+ReLU             conv14_2/relu    1 1 conv14_2 conv14_2_conv14_2/relu
+Split            splitncnn_3      1 4 conv14_2_conv14_2/relu conv14_2_conv14_2/relu_splitncnn_0 conv14_2_conv14_2/relu_splitncnn_1 conv14_2_conv14_2/relu_splitncnn_2 conv14_2_conv14_2/relu_splitncnn_3
+Convolution      conv15_1         1 1 conv14_2_conv14_2/relu_splitncnn_3 conv15_1 0=128 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+ReLU             conv15_1/relu    1 1 conv15_1 conv15_1_conv15_1/relu
+Convolution      conv15_2         1 1 conv15_1_conv15_1/relu conv15_2 0=256 1=3 2=1 3=2 4=1 5=1 6=294912 8=2
+ReLU             conv15_2/relu    1 1 conv15_2 conv15_2_conv15_2/relu
+Split            splitncnn_4      1 4 conv15_2_conv15_2/relu conv15_2_conv15_2/relu_splitncnn_0 conv15_2_conv15_2/relu_splitncnn_1 conv15_2_conv15_2/relu_splitncnn_2 conv15_2_conv15_2/relu_splitncnn_3
+Convolution      conv16_1         1 1 conv15_2_conv15_2/relu_splitncnn_3 conv16_1 0=128 1=1 2=1 3=1 4=0 5=1 6=32768 8=2
+ReLU             conv16_1/relu    1 1 conv16_1 conv16_1_conv16_1/relu
+Convolution      conv16_2         1 1 conv16_1_conv16_1/relu conv16_2 0=256 1=3 2=1 3=2 4=1 5=1 6=294912 8=2
+ReLU             conv16_2/relu    1 1 conv16_2 conv16_2_conv16_2/relu
+Split            splitncnn_5      1 4 conv16_2_conv16_2/relu conv16_2_conv16_2/relu_splitncnn_0 conv16_2_conv16_2/relu_splitncnn_1 conv16_2_conv16_2/relu_splitncnn_2 conv16_2_conv16_2/relu_splitncnn_3
+Convolution      conv17_1         1 1 conv16_2_conv16_2/relu_splitncnn_3 conv17_1 0=64 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+ReLU             conv17_1/relu    1 1 conv17_1 conv17_1_conv17_1/relu
+Convolution      conv17_2         1 1 conv17_1_conv17_1/relu conv17_2 0=128 1=3 2=1 3=2 4=1 5=1 6=73728 8=2
+ReLU             conv17_2/relu    1 1 conv17_2 conv17_2_conv17_2/relu
+Split            splitncnn_6      1 3 conv17_2_conv17_2/relu conv17_2_conv17_2/relu_splitncnn_0 conv17_2_conv17_2/relu_splitncnn_1 conv17_2_conv17_2/relu_splitncnn_2
+Convolution      conv11_mbox_loc  1 1 conv11_conv11/relu_splitncnn_2 conv11_mbox_loc 0=12 1=1 2=1 3=1 4=0 5=1 6=6144 8=2
+Permute          conv11_mbox_loc_perm 1 1 conv11_mbox_loc conv11_mbox_loc_perm 0=3
+Flatten          conv11_mbox_loc_flat 1 1 conv11_mbox_loc_perm conv11_mbox_loc_flat
+Convolution      conv11_mbox_conf 1 1 conv11_conv11/relu_splitncnn_1 conv11_mbox_conf 0=63 1=1 2=1 3=1 4=0 5=1 6=32256 8=2
+Permute          conv11_mbox_conf_perm 1 1 conv11_mbox_conf conv11_mbox_conf_perm 0=3
+Flatten          conv11_mbox_conf_flat 1 1 conv11_mbox_conf_perm conv11_mbox_conf_flat
+PriorBox         conv11_mbox_priorbox 2 1 conv11_conv11/relu_splitncnn_0 data_splitncnn_5 conv11_mbox_priorbox -23300=1,60.000000 -23301=0 -23302=1,2.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=-233.000000 12=-233.000000 13=0.500000
+Convolution      conv13_mbox_loc  1 1 conv13_conv13/relu_splitncnn_2 conv13_mbox_loc 0=24 1=1 2=1 3=1 4=0 5=1 6=24576 8=2
+Permute          conv13_mbox_loc_perm 1 1 conv13_mbox_loc conv13_mbox_loc_perm 0=3
+Flatten          conv13_mbox_loc_flat 1 1 conv13_mbox_loc_perm conv13_mbox_loc_flat
+Convolution      conv13_mbox_conf 1 1 conv13_conv13/relu_splitncnn_1 conv13_mbox_conf 0=126 1=1 2=1 3=1 4=0 5=1 6=129024 8=2
+Permute          conv13_mbox_conf_perm 1 1 conv13_mbox_conf conv13_mbox_conf_perm 0=3
+Flatten          conv13_mbox_conf_flat 1 1 conv13_mbox_conf_perm conv13_mbox_conf_flat
+PriorBox         conv13_mbox_priorbox 2 1 conv13_conv13/relu_splitncnn_0 data_splitncnn_4 conv13_mbox_priorbox -23300=1,105.000000 -23301=1,150.000000 -23302=2,2.000000,3.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=-233.000000 12=-233.000000 13=0.500000
+Convolution      conv14_2_mbox_loc 1 1 conv14_2_conv14_2/relu_splitncnn_2 conv14_2_mbox_loc 0=24 1=1 2=1 3=1 4=0 5=1 6=12288 8=2
+Permute          conv14_2_mbox_loc_perm 1 1 conv14_2_mbox_loc conv14_2_mbox_loc_perm 0=3
+Flatten          conv14_2_mbox_loc_flat 1 1 conv14_2_mbox_loc_perm conv14_2_mbox_loc_flat
+Convolution      conv14_2_mbox_conf 1 1 conv14_2_conv14_2/relu_splitncnn_1 conv14_2_mbox_conf 0=126 1=1 2=1 3=1 4=0 5=1 6=64512 8=2
+Permute          conv14_2_mbox_conf_perm 1 1 conv14_2_mbox_conf conv14_2_mbox_conf_perm 0=3
+Flatten          conv14_2_mbox_conf_flat 1 1 conv14_2_mbox_conf_perm conv14_2_mbox_conf_flat
+PriorBox         conv14_2_mbox_priorbox 2 1 conv14_2_conv14_2/relu_splitncnn_0 data_splitncnn_3 conv14_2_mbox_priorbox -23300=1,150.000000 -23301=1,195.000000 -23302=2,2.000000,3.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=-233.000000 12=-233.000000 13=0.500000
+Convolution      conv15_2_mbox_loc 1 1 conv15_2_conv15_2/relu_splitncnn_2 conv15_2_mbox_loc 0=24 1=1 2=1 3=1 4=0 5=1 6=6144 8=2
+Permute          conv15_2_mbox_loc_perm 1 1 conv15_2_mbox_loc conv15_2_mbox_loc_perm 0=3
+Flatten          conv15_2_mbox_loc_flat 1 1 conv15_2_mbox_loc_perm conv15_2_mbox_loc_flat
+Convolution      conv15_2_mbox_conf 1 1 conv15_2_conv15_2/relu_splitncnn_1 conv15_2_mbox_conf 0=126 1=1 2=1 3=1 4=0 5=1 6=32256 8=2
+Permute          conv15_2_mbox_conf_perm 1 1 conv15_2_mbox_conf conv15_2_mbox_conf_perm 0=3
+Flatten          conv15_2_mbox_conf_flat 1 1 conv15_2_mbox_conf_perm conv15_2_mbox_conf_flat
+PriorBox         conv15_2_mbox_priorbox 2 1 conv15_2_conv15_2/relu_splitncnn_0 data_splitncnn_2 conv15_2_mbox_priorbox -23300=1,195.000000 -23301=1,240.000000 -23302=2,2.000000,3.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=-233.000000 12=-233.000000 13=0.500000
+Convolution      conv16_2_mbox_loc 1 1 conv16_2_conv16_2/relu_splitncnn_2 conv16_2_mbox_loc 0=24 1=1 2=1 3=1 4=0 5=1 6=6144 8=2
+Permute          conv16_2_mbox_loc_perm 1 1 conv16_2_mbox_loc conv16_2_mbox_loc_perm 0=3
+Flatten          conv16_2_mbox_loc_flat 1 1 conv16_2_mbox_loc_perm conv16_2_mbox_loc_flat
+Convolution      conv16_2_mbox_conf 1 1 conv16_2_conv16_2/relu_splitncnn_1 conv16_2_mbox_conf 0=126 1=1 2=1 3=1 4=0 5=1 6=32256 8=2
+Permute          conv16_2_mbox_conf_perm 1 1 conv16_2_mbox_conf conv16_2_mbox_conf_perm 0=3
+Flatten          conv16_2_mbox_conf_flat 1 1 conv16_2_mbox_conf_perm conv16_2_mbox_conf_flat
+PriorBox         conv16_2_mbox_priorbox 2 1 conv16_2_conv16_2/relu_splitncnn_0 data_splitncnn_1 conv16_2_mbox_priorbox -23300=1,240.000000 -23301=1,285.000000 -23302=2,2.000000,3.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=-233.000000 12=-233.000000 13=0.500000
+Convolution      conv17_2_mbox_loc 1 1 conv17_2_conv17_2/relu_splitncnn_2 conv17_2_mbox_loc 0=24 1=1 2=1 3=1 4=0 5=1 6=3072 8=2
+Permute          conv17_2_mbox_loc_perm 1 1 conv17_2_mbox_loc conv17_2_mbox_loc_perm 0=3
+Flatten          conv17_2_mbox_loc_flat 1 1 conv17_2_mbox_loc_perm conv17_2_mbox_loc_flat
+Convolution      conv17_2_mbox_conf 1 1 conv17_2_conv17_2/relu_splitncnn_1 conv17_2_mbox_conf 0=126 1=1 2=1 3=1 4=0 5=1 6=16128 8=2
+Permute          conv17_2_mbox_conf_perm 1 1 conv17_2_mbox_conf conv17_2_mbox_conf_perm 0=3
+Flatten          conv17_2_mbox_conf_flat 1 1 conv17_2_mbox_conf_perm conv17_2_mbox_conf_flat
+PriorBox         conv17_2_mbox_priorbox 2 1 conv17_2_conv17_2/relu_splitncnn_0 data_splitncnn_0 conv17_2_mbox_priorbox -23300=1,285.000000 -23301=1,300.000000 -23302=2,2.000000,3.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=-233.000000 12=-233.000000 13=0.500000
+Concat           mbox_loc         6 1 conv11_mbox_loc_flat conv13_mbox_loc_flat conv14_2_mbox_loc_flat conv15_2_mbox_loc_flat conv16_2_mbox_loc_flat conv17_2_mbox_loc_flat mbox_loc 0=0
+Concat           mbox_conf        6 1 conv11_mbox_conf_flat conv13_mbox_conf_flat conv14_2_mbox_conf_flat conv15_2_mbox_conf_flat conv16_2_mbox_conf_flat conv17_2_mbox_conf_flat mbox_conf 0=0
+Concat           mbox_priorbox    6 1 conv11_mbox_priorbox conv13_mbox_priorbox conv14_2_mbox_priorbox conv15_2_mbox_priorbox conv16_2_mbox_priorbox conv17_2_mbox_priorbox mbox_priorbox 0=1
+Reshape          mbox_conf_reshape 1 1 mbox_conf mbox_conf_reshape 0=21 1=-1 2=-233 3=0
+Softmax          mbox_conf_softmax 1 1 mbox_conf_reshape mbox_conf_softmax 0=1 1=1
+Flatten          mbox_conf_flatten 1 1 mbox_conf_softmax mbox_conf_flatten
+DetectionOutput  detection_out    3 1 mbox_loc mbox_conf_flatten mbox_priorbox output 0=21 1=0.450000 2=100 3=100 4=0.250000

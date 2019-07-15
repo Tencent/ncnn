@@ -1,0 +1,194 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (constant_id = 0) const int flip = 0;
+layout (constant_id = 1) const int clip = 0;
+layout (constant_id = 2) const float offset = 0;
+layout (constant_id = 3) const float variances_0 = 0;
+layout (constant_id = 4) const float variances_1 = 0;
+layout (constant_id = 5) const float variances_2 = 0;
+layout (constant_id = 6) const float variances_3 = 0;
+layout (constant_id = 7) const int num_min_size = 0;
+layout (constant_id = 8) const int num_max_size = 0;
+layout (constant_id = 9) const int num_aspect_ratio = 0;
+layout (constant_id = 10) const int num_prior = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+#if NCNN_fp16_packed
+layout (binding = 0) writeonly buffer top_blob { vec4 top_blob_data[]; };
+#else
+layout (binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#endif
+layout (binding = 1) readonly buffer min_sizes { sfp min_sizes_data[]; };
+layout (binding = 2) readonly buffer max_sizes { sfp max_sizes_data[]; };
+layout (binding = 3) readonly buffer aspect_ratios { sfp aspect_ratios_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+
+    float image_w;
+    float image_h;
+    float step_w;
+    float step_h;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= num_min_size || gy >= p.w || gz >= p.h)
+        return;
+
+    // anchor and variance
+    int v_offset = (gz * p.w + gy) * num_prior + gx;
+    int var_offset = p.w * p.h * num_prior + v_offset;
+
+    afp center_x = (afp(gy) + afp(offset)) * afp(p.step_w);
+    afp center_y = (afp(gz) + afp(offset)) * afp(p.step_h);
+    afpvec4 center = afpvec4(center_x, center_y, center_x, center_y);
+
+    afpvec4 image_norm = afp(1.f) / afpvec4(p.image_w, p.image_h, p.image_w, p.image_h);
+
+    afpvec4 box;
+
+    afp box_w;
+    afp box_h;
+
+    afp min_size = sfp2afp(min_sizes_data[gx]);
+
+#if NCNN_fp16_packed
+    vec4 variances = vec4(variances_0, variances_1, variances_2, variances_3);
+#elif !NCNN_fp16_storage
+    // per component assignment makes qcom-adreno driver unhappy :(
+    sfpvec4 variances = sfpvec4(variances_0, variances_1, variances_2, variances_3);
+#endif
+
+    // min size box
+    box_w = box_h = min_size;
+
+    box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
+    box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
+
+#if NCNN_fp16_packed
+    top_blob_data[v_offset] = vec4(box);
+#else
+    top_blob_data[v_offset] = afp2sfpvec4(box);
+#endif
+#if NCNN_fp16_packed || !NCNN_fp16_storage
+    top_blob_data[var_offset] = variances;
+#else
+    top_blob_data[var_offset].r = sfp(variances_0);
+    top_blob_data[var_offset].g = sfp(variances_1);
+    top_blob_data[var_offset].b = sfp(variances_2);
+    top_blob_data[var_offset].a = sfp(variances_3);
+#endif
+
+    v_offset += 1;
+    var_offset += 1;
+
+    if (num_max_size > 0)
+    {
+        afp max_size = sfp2afp(max_sizes_data[gx]);
+
+        // max size box
+        box_w = box_h = sqrt(min_size * max_size);
+
+        box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
+        box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
+
+#if NCNN_fp16_packed
+        top_blob_data[v_offset] = vec4(box);
+#else
+        top_blob_data[v_offset] = afp2sfpvec4(box);
+#endif
+#if NCNN_fp16_packed || !NCNN_fp16_storage
+        top_blob_data[var_offset] = variances;
+#else
+        top_blob_data[var_offset].r = sfp(variances_0);
+        top_blob_data[var_offset].g = sfp(variances_1);
+        top_blob_data[var_offset].b = sfp(variances_2);
+        top_blob_data[var_offset].a = sfp(variances_3);
+#endif
+        v_offset += 1;
+        var_offset += 1;
+    }
+
+    // all aspect_ratios
+    for (int pi = 0; pi < num_aspect_ratio; pi++)
+    {
+        afp ar = sfp2afp(aspect_ratios_data[pi]);
+
+        box_w = min_size * sqrt(ar);
+        box_h = min_size / sqrt(ar);
+
+        box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
+        box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
+
+#if NCNN_fp16_packed
+        top_blob_data[v_offset] = vec4(box);
+#else
+        top_blob_data[v_offset] = afp2sfpvec4(box);
+#endif
+#if NCNN_fp16_packed || !NCNN_fp16_storage
+        top_blob_data[var_offset] = variances;
+#else
+        top_blob_data[var_offset].r = sfp(variances_0);
+        top_blob_data[var_offset].g = sfp(variances_1);
+        top_blob_data[var_offset].b = sfp(variances_2);
+        top_blob_data[var_offset].a = sfp(variances_3);
+#endif
+
+        v_offset += 1;
+        var_offset += 1;
+
+        if (flip == 1)
+        {
+            box = (center + afpvec4(-box_h, -box_w, box_h, box_w) * afp(0.5f)) * image_norm;
+            box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
+
+#if NCNN_fp16_packed
+            top_blob_data[v_offset] = vec4(box);
+#else
+            top_blob_data[v_offset] = afp2sfpvec4(box);
+#endif
+#if NCNN_fp16_packed || !NCNN_fp16_storage
+            top_blob_data[var_offset] = variances;
+#else
+            top_blob_data[var_offset].r = sfp(variances_0);
+            top_blob_data[var_offset].g = sfp(variances_1);
+            top_blob_data[var_offset].b = sfp(variances_2);
+            top_blob_data[var_offset].a = sfp(variances_3);
+#endif
+
+            v_offset += 1;
+            var_offset += 1;
+        }
+    }
+}

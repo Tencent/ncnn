@@ -1,0 +1,60 @@
+7767517
+58 58
+Input            data             0 1 data 0=224 1=224 2=3
+Convolution      conv1            1 1 data conv1 0=32 1=3 2=1 3=2 4=1 5=1 6=864 8=2
+ReLU             relu1            1 1 conv1 conv1_relu1
+ConvolutionDepthWise conv2_1/dw       1 1 conv1_relu1 conv2_1/dw 0=32 1=3 2=1 3=1 4=1 5=1 6=288 7=32 8=1
+ReLU             relu2_1/dw       1 1 conv2_1/dw conv2_1/dw_relu2_1/dw
+Convolution      conv2_1/sep      1 1 conv2_1/dw_relu2_1/dw conv2_1/sep 0=64 1=1 2=1 3=1 4=0 5=1 6=2048 8=2
+ReLU             relu2_1/sep      1 1 conv2_1/sep conv2_1/sep_relu2_1/sep
+ConvolutionDepthWise conv2_2/dw       1 1 conv2_1/sep_relu2_1/sep conv2_2/dw 0=64 1=3 2=1 3=2 4=1 5=1 6=576 7=64 8=1
+ReLU             relu2_2/dw       1 1 conv2_2/dw conv2_2/dw_relu2_2/dw
+Convolution      conv2_2/sep      1 1 conv2_2/dw_relu2_2/dw conv2_2/sep 0=128 1=1 2=1 3=1 4=0 5=1 6=8192 8=2
+ReLU             relu2_2/sep      1 1 conv2_2/sep conv2_2/sep_relu2_2/sep
+ConvolutionDepthWise conv3_1/dw       1 1 conv2_2/sep_relu2_2/sep conv3_1/dw 0=128 1=3 2=1 3=1 4=1 5=1 6=1152 7=128 8=1
+ReLU             relu3_1/dw       1 1 conv3_1/dw conv3_1/dw_relu3_1/dw
+Convolution      conv3_1/sep      1 1 conv3_1/dw_relu3_1/dw conv3_1/sep 0=128 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+ReLU             relu3_1/sep      1 1 conv3_1/sep conv3_1/sep_relu3_1/sep
+ConvolutionDepthWise conv3_2/dw       1 1 conv3_1/sep_relu3_1/sep conv3_2/dw 0=128 1=3 2=1 3=2 4=1 5=1 6=1152 7=128 8=1
+ReLU             relu3_2/dw       1 1 conv3_2/dw conv3_2/dw_relu3_2/dw
+Convolution      conv3_2/sep      1 1 conv3_2/dw_relu3_2/dw conv3_2/sep 0=256 1=1 2=1 3=1 4=0 5=1 6=32768 8=2
+ReLU             relu3_2/sep      1 1 conv3_2/sep conv3_2/sep_relu3_2/sep
+ConvolutionDepthWise conv4_1/dw       1 1 conv3_2/sep_relu3_2/sep conv4_1/dw 0=256 1=3 2=1 3=1 4=1 5=1 6=2304 7=256 8=1
+ReLU             relu4_1/dw       1 1 conv4_1/dw conv4_1/dw_relu4_1/dw
+Convolution      conv4_1/sep      1 1 conv4_1/dw_relu4_1/dw conv4_1/sep 0=256 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+ReLU             relu4_1/sep      1 1 conv4_1/sep conv4_1/sep_relu4_1/sep
+ConvolutionDepthWise conv4_2/dw       1 1 conv4_1/sep_relu4_1/sep conv4_2/dw 0=256 1=3 2=1 3=2 4=1 5=1 6=2304 7=256 8=1
+ReLU             relu4_2/dw       1 1 conv4_2/dw conv4_2/dw_relu4_2/dw
+Convolution      conv4_2/sep      1 1 conv4_2/dw_relu4_2/dw conv4_2/sep 0=512 1=1 2=1 3=1 4=0 5=1 6=131072 8=2
+ReLU             relu4_2/sep      1 1 conv4_2/sep conv4_2/sep_relu4_2/sep
+ConvolutionDepthWise conv5_1/dw       1 1 conv4_2/sep_relu4_2/sep conv5_1/dw 0=512 1=3 2=1 3=1 4=1 5=1 6=4608 7=512 8=1
+ReLU             relu5_1/dw       1 1 conv5_1/dw conv5_1/dw_relu5_1/dw
+Convolution      conv5_1/sep      1 1 conv5_1/dw_relu5_1/dw conv5_1/sep 0=512 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             relu5_1/sep      1 1 conv5_1/sep conv5_1/sep_relu5_1/sep
+ConvolutionDepthWise conv5_2/dw       1 1 conv5_1/sep_relu5_1/sep conv5_2/dw 0=512 1=3 2=1 3=1 4=1 5=1 6=4608 7=512 8=1
+ReLU             relu5_2/dw       1 1 conv5_2/dw conv5_2/dw_relu5_2/dw
+Convolution      conv5_2/sep      1 1 conv5_2/dw_relu5_2/dw conv5_2/sep 0=512 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             relu5_2/sep      1 1 conv5_2/sep conv5_2/sep_relu5_2/sep
+ConvolutionDepthWise conv5_3/dw       1 1 conv5_2/sep_relu5_2/sep conv5_3/dw 0=512 1=3 2=1 3=1 4=1 5=1 6=4608 7=512 8=1
+ReLU             relu5_3/dw       1 1 conv5_3/dw conv5_3/dw_relu5_3/dw
+Convolution      conv5_3/sep      1 1 conv5_3/dw_relu5_3/dw conv5_3/sep 0=512 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             relu5_3/sep      1 1 conv5_3/sep conv5_3/sep_relu5_3/sep
+ConvolutionDepthWise conv5_4/dw       1 1 conv5_3/sep_relu5_3/sep conv5_4/dw 0=512 1=3 2=1 3=1 4=1 5=1 6=4608 7=512 8=1
+ReLU             relu5_4/dw       1 1 conv5_4/dw conv5_4/dw_relu5_4/dw
+Convolution      conv5_4/sep      1 1 conv5_4/dw_relu5_4/dw conv5_4/sep 0=512 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             relu5_4/sep      1 1 conv5_4/sep conv5_4/sep_relu5_4/sep
+ConvolutionDepthWise conv5_5/dw       1 1 conv5_4/sep_relu5_4/sep conv5_5/dw 0=512 1=3 2=1 3=1 4=1 5=1 6=4608 7=512 8=1
+ReLU             relu5_5/dw       1 1 conv5_5/dw conv5_5/dw_relu5_5/dw
+Convolution      conv5_5/sep      1 1 conv5_5/dw_relu5_5/dw conv5_5/sep 0=512 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             relu5_5/sep      1 1 conv5_5/sep conv5_5/sep_relu5_5/sep
+ConvolutionDepthWise conv5_6/dw       1 1 conv5_5/sep_relu5_5/sep conv5_6/dw 0=512 1=3 2=1 3=2 4=1 5=1 6=4608 7=512 8=1
+ReLU             relu5_6/dw       1 1 conv5_6/dw conv5_6/dw_relu5_6/dw
+Convolution      conv5_6/sep      1 1 conv5_6/dw_relu5_6/dw conv5_6/sep 0=1024 1=1 2=1 3=1 4=0 5=1 6=524288 8=2
+ReLU             relu5_6/sep      1 1 conv5_6/sep conv5_6/sep_relu5_6/sep
+ConvolutionDepthWise conv6/dw         1 1 conv5_6/sep_relu5_6/sep conv6/dw 0=1024 1=3 2=1 3=1 4=1 5=1 6=9216 7=1024 8=1
+ReLU             relu6/dw         1 1 conv6/dw conv6/dw_relu6/dw
+Convolution      conv6/sep        1 1 conv6/dw_relu6/dw conv6/sep 0=1024 1=1 2=1 3=1 4=0 5=1 6=1048576 8=2
+ReLU             relu6/sep        1 1 conv6/sep conv6/sep_relu6/sep
+Pooling          pool6            1 1 conv6/sep_relu6/sep pool6 0=1 1=0 2=1 3=0 4=1
+Convolution      fc7              1 1 pool6 fc7 0=1000 1=1 2=1 3=1 4=0 5=1 6=1024000 8=2
+Softmax          prob             1 1 fc7 output 0=0 1=1

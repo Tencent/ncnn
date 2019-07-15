@@ -13,6 +13,11 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolution_arm.h"
+#include "layer_type.h"
+
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif // __ARM_NEON
 
 namespace ncnn {
 
@@ -20,6 +25,69 @@ namespace ncnn {
 #include "deconvolution_3x3.h"
 
 DEFINE_LAYER_CREATOR(Deconvolution_arm)
+
+Deconvolution_arm::Deconvolution_arm()
+{
+    activation = 0;
+}
+
+int Deconvolution_arm::create_pipeline(const Option& opt)
+{
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// min
+        pd.set(1, activation_params[1]);// max
+        activation->load_param(pd);
+    }
+    else if (activation_type == 4)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        Option opt_cpu = opt;
+        opt_cpu.use_vulkan_compute = false;
+        activation->create_pipeline(opt_cpu);
+    }
+
+    return 0;
+}
+
+int Deconvolution_arm::destroy_pipeline(const Option& opt)
+{
+    if (activation)
+    {
+        Option opt_cpu = opt;
+        opt_cpu.use_vulkan_compute = false;
+        activation->destroy_pipeline(opt_cpu);
+        delete activation;
+        activation = 0;
+    }
+
+    return 0;
+}
 
 int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -96,6 +164,11 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     else
     {
         top_blob = top_blob_bordered;
+    }
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
     }
 
     return 0;

@@ -1,0 +1,154 @@
+7767517
+152 179
+Input            data             0 1 data 0=224 1=224 2=3
+Convolution      conv1/7x7_s2     1 1 data conv1/7x7_s2 0=64 1=7 2=1 3=2 4=3 5=1 6=9408 8=2
+ReLU             conv1/relu_7x7   1 1 conv1/7x7_s2 conv1/7x7_s2_conv1/relu_7x7
+Pooling          pool1/3x3_s2     1 1 conv1/7x7_s2_conv1/relu_7x7 pool1/3x3_s2 0=0 1=3 2=2 3=0 4=0
+LRN              pool1/norm1      1 1 pool1/3x3_s2 pool1/norm1 0=0 1=5 2=0.000100 3=0.750000
+Convolution      conv2/3x3_reduce 1 1 pool1/norm1 conv2/3x3_reduce 0=64 1=1 2=1 3=1 4=0 5=1 6=4096 8=2
+ReLU             conv2/relu_3x3_reduce 1 1 conv2/3x3_reduce conv2/3x3_reduce_conv2/relu_3x3_reduce
+Convolution      conv2/3x3        1 1 conv2/3x3_reduce_conv2/relu_3x3_reduce conv2/3x3 0=192 1=3 2=1 3=1 4=1 5=1 6=110592 8=2
+ReLU             conv2/relu_3x3   1 1 conv2/3x3 conv2/3x3_conv2/relu_3x3
+LRN              conv2/norm2      1 1 conv2/3x3_conv2/relu_3x3 conv2/norm2 0=0 1=5 2=0.000100 3=0.750000
+Pooling          pool2/3x3_s2     1 1 conv2/norm2 pool2/3x3_s2 0=0 1=3 2=2 3=0 4=0
+Split            splitncnn_0      1 4 pool2/3x3_s2 pool2/3x3_s2_splitncnn_0 pool2/3x3_s2_splitncnn_1 pool2/3x3_s2_splitncnn_2 pool2/3x3_s2_splitncnn_3
+Convolution      inception_3a/1x1 1 1 pool2/3x3_s2_splitncnn_3 inception_3a/1x1 0=64 1=1 2=1 3=1 4=0 5=1 6=12288 8=2
+ReLU             inception_3a/relu_1x1 1 1 inception_3a/1x1 inception_3a/1x1_inception_3a/relu_1x1
+Convolution      inception_3a/3x3_reduce 1 1 pool2/3x3_s2_splitncnn_2 inception_3a/3x3_reduce 0=96 1=1 2=1 3=1 4=0 5=1 6=18432 8=2
+ReLU             inception_3a/relu_3x3_reduce 1 1 inception_3a/3x3_reduce inception_3a/3x3_reduce_inception_3a/relu_3x3_reduce
+Convolution      inception_3a/3x3 1 1 inception_3a/3x3_reduce_inception_3a/relu_3x3_reduce inception_3a/3x3 0=128 1=3 2=1 3=1 4=1 5=1 6=110592 8=2
+ReLU             inception_3a/relu_3x3 1 1 inception_3a/3x3 inception_3a/3x3_inception_3a/relu_3x3
+Convolution      inception_3a/5x5_reduce 1 1 pool2/3x3_s2_splitncnn_1 inception_3a/5x5_reduce 0=16 1=1 2=1 3=1 4=0 5=1 6=3072 8=2
+ReLU             inception_3a/relu_5x5_reduce 1 1 inception_3a/5x5_reduce inception_3a/5x5_reduce_inception_3a/relu_5x5_reduce
+Convolution      inception_3a/5x5 1 1 inception_3a/5x5_reduce_inception_3a/relu_5x5_reduce inception_3a/5x5 0=32 1=5 2=1 3=1 4=2 5=1 6=12800 8=2
+ReLU             inception_3a/relu_5x5 1 1 inception_3a/5x5 inception_3a/5x5_inception_3a/relu_5x5
+Pooling          inception_3a/pool 1 1 pool2/3x3_s2_splitncnn_0 inception_3a/pool 0=0 1=3 2=1 3=1 4=0
+Convolution      inception_3a/pool_proj 1 1 inception_3a/pool inception_3a/pool_proj 0=32 1=1 2=1 3=1 4=0 5=1 6=6144 8=2
+ReLU             inception_3a/relu_pool_proj 1 1 inception_3a/pool_proj inception_3a/pool_proj_inception_3a/relu_pool_proj
+Concat           inception_3a/output 4 1 inception_3a/1x1_inception_3a/relu_1x1 inception_3a/3x3_inception_3a/relu_3x3 inception_3a/5x5_inception_3a/relu_5x5 inception_3a/pool_proj_inception_3a/relu_pool_proj inception_3a/output 0=0
+Split            splitncnn_1      1 4 inception_3a/output inception_3a/output_splitncnn_0 inception_3a/output_splitncnn_1 inception_3a/output_splitncnn_2 inception_3a/output_splitncnn_3
+Convolution      inception_3b/1x1 1 1 inception_3a/output_splitncnn_3 inception_3b/1x1 0=128 1=1 2=1 3=1 4=0 5=1 6=32768 8=2
+ReLU             inception_3b/relu_1x1 1 1 inception_3b/1x1 inception_3b/1x1_inception_3b/relu_1x1
+Convolution      inception_3b/3x3_reduce 1 1 inception_3a/output_splitncnn_2 inception_3b/3x3_reduce 0=128 1=1 2=1 3=1 4=0 5=1 6=32768 8=2
+ReLU             inception_3b/relu_3x3_reduce 1 1 inception_3b/3x3_reduce inception_3b/3x3_reduce_inception_3b/relu_3x3_reduce
+Convolution      inception_3b/3x3 1 1 inception_3b/3x3_reduce_inception_3b/relu_3x3_reduce inception_3b/3x3 0=192 1=3 2=1 3=1 4=1 5=1 6=221184 8=2
+ReLU             inception_3b/relu_3x3 1 1 inception_3b/3x3 inception_3b/3x3_inception_3b/relu_3x3
+Convolution      inception_3b/5x5_reduce 1 1 inception_3a/output_splitncnn_1 inception_3b/5x5_reduce 0=32 1=1 2=1 3=1 4=0 5=1 6=8192 8=2
+ReLU             inception_3b/relu_5x5_reduce 1 1 inception_3b/5x5_reduce inception_3b/5x5_reduce_inception_3b/relu_5x5_reduce
+Convolution      inception_3b/5x5 1 1 inception_3b/5x5_reduce_inception_3b/relu_5x5_reduce inception_3b/5x5 0=96 1=5 2=1 3=1 4=2 5=1 6=76800 8=2
+ReLU             inception_3b/relu_5x5 1 1 inception_3b/5x5 inception_3b/5x5_inception_3b/relu_5x5
+Pooling          inception_3b/pool 1 1 inception_3a/output_splitncnn_0 inception_3b/pool 0=0 1=3 2=1 3=1 4=0
+Convolution      inception_3b/pool_proj 1 1 inception_3b/pool inception_3b/pool_proj 0=64 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+ReLU             inception_3b/relu_pool_proj 1 1 inception_3b/pool_proj inception_3b/pool_proj_inception_3b/relu_pool_proj
+Concat           inception_3b/output 4 1 inception_3b/1x1_inception_3b/relu_1x1 inception_3b/3x3_inception_3b/relu_3x3 inception_3b/5x5_inception_3b/relu_5x5 inception_3b/pool_proj_inception_3b/relu_pool_proj inception_3b/output 0=0
+Pooling          pool3/3x3_s2     1 1 inception_3b/output pool3/3x3_s2 0=0 1=3 2=2 3=0 4=0
+Split            splitncnn_2      1 4 pool3/3x3_s2 pool3/3x3_s2_splitncnn_0 pool3/3x3_s2_splitncnn_1 pool3/3x3_s2_splitncnn_2 pool3/3x3_s2_splitncnn_3
+Convolution      inception_4a/1x1 1 1 pool3/3x3_s2_splitncnn_3 inception_4a/1x1 0=192 1=1 2=1 3=1 4=0 5=1 6=92160 8=2
+ReLU             inception_4a/relu_1x1 1 1 inception_4a/1x1 inception_4a/1x1_inception_4a/relu_1x1
+Convolution      inception_4a/3x3_reduce 1 1 pool3/3x3_s2_splitncnn_2 inception_4a/3x3_reduce 0=96 1=1 2=1 3=1 4=0 5=1 6=46080 8=2
+ReLU             inception_4a/relu_3x3_reduce 1 1 inception_4a/3x3_reduce inception_4a/3x3_reduce_inception_4a/relu_3x3_reduce
+Convolution      inception_4a/3x3 1 1 inception_4a/3x3_reduce_inception_4a/relu_3x3_reduce inception_4a/3x3 0=208 1=3 2=1 3=1 4=1 5=1 6=179712 8=2
+ReLU             inception_4a/relu_3x3 1 1 inception_4a/3x3 inception_4a/3x3_inception_4a/relu_3x3
+Convolution      inception_4a/5x5_reduce 1 1 pool3/3x3_s2_splitncnn_1 inception_4a/5x5_reduce 0=16 1=1 2=1 3=1 4=0 5=1 6=7680 8=2
+ReLU             inception_4a/relu_5x5_reduce 1 1 inception_4a/5x5_reduce inception_4a/5x5_reduce_inception_4a/relu_5x5_reduce
+Convolution      inception_4a/5x5 1 1 inception_4a/5x5_reduce_inception_4a/relu_5x5_reduce inception_4a/5x5 0=48 1=5 2=1 3=1 4=2 5=1 6=19200 8=2
+ReLU             inception_4a/relu_5x5 1 1 inception_4a/5x5 inception_4a/5x5_inception_4a/relu_5x5
+Pooling          inception_4a/pool 1 1 pool3/3x3_s2_splitncnn_0 inception_4a/pool 0=0 1=3 2=1 3=1 4=0
+Convolution      inception_4a/pool_proj 1 1 inception_4a/pool inception_4a/pool_proj 0=64 1=1 2=1 3=1 4=0 5=1 6=30720 8=2
+ReLU             inception_4a/relu_pool_proj 1 1 inception_4a/pool_proj inception_4a/pool_proj_inception_4a/relu_pool_proj
+Concat           inception_4a/output 4 1 inception_4a/1x1_inception_4a/relu_1x1 inception_4a/3x3_inception_4a/relu_3x3 inception_4a/5x5_inception_4a/relu_5x5 inception_4a/pool_proj_inception_4a/relu_pool_proj inception_4a/output 0=0
+Split            splitncnn_3      1 4 inception_4a/output inception_4a/output_splitncnn_0 inception_4a/output_splitncnn_1 inception_4a/output_splitncnn_2 inception_4a/output_splitncnn_3
+Convolution      inception_4b/1x1 1 1 inception_4a/output_splitncnn_3 inception_4b/1x1 0=160 1=1 2=1 3=1 4=0 5=1 6=81920 8=2
+ReLU             inception_4b/relu_1x1 1 1 inception_4b/1x1 inception_4b/1x1_inception_4b/relu_1x1
+Convolution      inception_4b/3x3_reduce 1 1 inception_4a/output_splitncnn_2 inception_4b/3x3_reduce 0=112 1=1 2=1 3=1 4=0 5=1 6=57344 8=2
+ReLU             inception_4b/relu_3x3_reduce 1 1 inception_4b/3x3_reduce inception_4b/3x3_reduce_inception_4b/relu_3x3_reduce
+Convolution      inception_4b/3x3 1 1 inception_4b/3x3_reduce_inception_4b/relu_3x3_reduce inception_4b/3x3 0=224 1=3 2=1 3=1 4=1 5=1 6=225792 8=2
+ReLU             inception_4b/relu_3x3 1 1 inception_4b/3x3 inception_4b/3x3_inception_4b/relu_3x3
+Convolution      inception_4b/5x5_reduce 1 1 inception_4a/output_splitncnn_1 inception_4b/5x5_reduce 0=24 1=1 2=1 3=1 4=0 5=1 6=12288 8=2
+ReLU             inception_4b/relu_5x5_reduce 1 1 inception_4b/5x5_reduce inception_4b/5x5_reduce_inception_4b/relu_5x5_reduce
+Convolution      inception_4b/5x5 1 1 inception_4b/5x5_reduce_inception_4b/relu_5x5_reduce inception_4b/5x5 0=64 1=5 2=1 3=1 4=2 5=1 6=38400 8=2
+ReLU             inception_4b/relu_5x5 1 1 inception_4b/5x5 inception_4b/5x5_inception_4b/relu_5x5
+Pooling          inception_4b/pool 1 1 inception_4a/output_splitncnn_0 inception_4b/pool 0=0 1=3 2=1 3=1 4=0
+Convolution      inception_4b/pool_proj 1 1 inception_4b/pool inception_4b/pool_proj 0=64 1=1 2=1 3=1 4=0 5=1 6=32768 8=2
+ReLU             inception_4b/relu_pool_proj 1 1 inception_4b/pool_proj inception_4b/pool_proj_inception_4b/relu_pool_proj
+Concat           inception_4b/output 4 1 inception_4b/1x1_inception_4b/relu_1x1 inception_4b/3x3_inception_4b/relu_3x3 inception_4b/5x5_inception_4b/relu_5x5 inception_4b/pool_proj_inception_4b/relu_pool_proj inception_4b/output 0=0
+Split            splitncnn_4      1 4 inception_4b/output inception_4b/output_splitncnn_0 inception_4b/output_splitncnn_1 inception_4b/output_splitncnn_2 inception_4b/output_splitncnn_3
+Convolution      inception_4c/1x1 1 1 inception_4b/output_splitncnn_3 inception_4c/1x1 0=128 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+ReLU             inception_4c/relu_1x1 1 1 inception_4c/1x1 inception_4c/1x1_inception_4c/relu_1x1
+Convolution      inception_4c/3x3_reduce 1 1 inception_4b/output_splitncnn_2 inception_4c/3x3_reduce 0=128 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+ReLU             inception_4c/relu_3x3_reduce 1 1 inception_4c/3x3_reduce inception_4c/3x3_reduce_inception_4c/relu_3x3_reduce
+Convolution      inception_4c/3x3 1 1 inception_4c/3x3_reduce_inception_4c/relu_3x3_reduce inception_4c/3x3 0=256 1=3 2=1 3=1 4=1 5=1 6=294912 8=2
+ReLU             inception_4c/relu_3x3 1 1 inception_4c/3x3 inception_4c/3x3_inception_4c/relu_3x3
+Convolution      inception_4c/5x5_reduce 1 1 inception_4b/output_splitncnn_1 inception_4c/5x5_reduce 0=24 1=1 2=1 3=1 4=0 5=1 6=12288 8=2
+ReLU             inception_4c/relu_5x5_reduce 1 1 inception_4c/5x5_reduce inception_4c/5x5_reduce_inception_4c/relu_5x5_reduce
+Convolution      inception_4c/5x5 1 1 inception_4c/5x5_reduce_inception_4c/relu_5x5_reduce inception_4c/5x5 0=64 1=5 2=1 3=1 4=2 5=1 6=38400 8=2
+ReLU             inception_4c/relu_5x5 1 1 inception_4c/5x5 inception_4c/5x5_inception_4c/relu_5x5
+Pooling          inception_4c/pool 1 1 inception_4b/output_splitncnn_0 inception_4c/pool 0=0 1=3 2=1 3=1 4=0
+Convolution      inception_4c/pool_proj 1 1 inception_4c/pool inception_4c/pool_proj 0=64 1=1 2=1 3=1 4=0 5=1 6=32768 8=2
+ReLU             inception_4c/relu_pool_proj 1 1 inception_4c/pool_proj inception_4c/pool_proj_inception_4c/relu_pool_proj
+Concat           inception_4c/output 4 1 inception_4c/1x1_inception_4c/relu_1x1 inception_4c/3x3_inception_4c/relu_3x3 inception_4c/5x5_inception_4c/relu_5x5 inception_4c/pool_proj_inception_4c/relu_pool_proj inception_4c/output 0=0
+Split            splitncnn_5      1 4 inception_4c/output inception_4c/output_splitncnn_0 inception_4c/output_splitncnn_1 inception_4c/output_splitncnn_2 inception_4c/output_splitncnn_3
+Convolution      inception_4d/1x1 1 1 inception_4c/output_splitncnn_3 inception_4d/1x1 0=112 1=1 2=1 3=1 4=0 5=1 6=57344 8=2
+ReLU             inception_4d/relu_1x1 1 1 inception_4d/1x1 inception_4d/1x1_inception_4d/relu_1x1
+Convolution      inception_4d/3x3_reduce 1 1 inception_4c/output_splitncnn_2 inception_4d/3x3_reduce 0=144 1=1 2=1 3=1 4=0 5=1 6=73728 8=2
+ReLU             inception_4d/relu_3x3_reduce 1 1 inception_4d/3x3_reduce inception_4d/3x3_reduce_inception_4d/relu_3x3_reduce
+Convolution      inception_4d/3x3 1 1 inception_4d/3x3_reduce_inception_4d/relu_3x3_reduce inception_4d/3x3 0=288 1=3 2=1 3=1 4=1 5=1 6=373248 8=2
+ReLU             inception_4d/relu_3x3 1 1 inception_4d/3x3 inception_4d/3x3_inception_4d/relu_3x3
+Convolution      inception_4d/5x5_reduce 1 1 inception_4c/output_splitncnn_1 inception_4d/5x5_reduce 0=32 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+ReLU             inception_4d/relu_5x5_reduce 1 1 inception_4d/5x5_reduce inception_4d/5x5_reduce_inception_4d/relu_5x5_reduce
+Convolution      inception_4d/5x5 1 1 inception_4d/5x5_reduce_inception_4d/relu_5x5_reduce inception_4d/5x5 0=64 1=5 2=1 3=1 4=2 5=1 6=51200 8=2
+ReLU             inception_4d/relu_5x5 1 1 inception_4d/5x5 inception_4d/5x5_inception_4d/relu_5x5
+Pooling          inception_4d/pool 1 1 inception_4c/output_splitncnn_0 inception_4d/pool 0=0 1=3 2=1 3=1 4=0
+Convolution      inception_4d/pool_proj 1 1 inception_4d/pool inception_4d/pool_proj 0=64 1=1 2=1 3=1 4=0 5=1 6=32768 8=2
+ReLU             inception_4d/relu_pool_proj 1 1 inception_4d/pool_proj inception_4d/pool_proj_inception_4d/relu_pool_proj
+Concat           inception_4d/output 4 1 inception_4d/1x1_inception_4d/relu_1x1 inception_4d/3x3_inception_4d/relu_3x3 inception_4d/5x5_inception_4d/relu_5x5 inception_4d/pool_proj_inception_4d/relu_pool_proj inception_4d/output 0=0
+Split            splitncnn_6      1 4 inception_4d/output inception_4d/output_splitncnn_0 inception_4d/output_splitncnn_1 inception_4d/output_splitncnn_2 inception_4d/output_splitncnn_3
+Convolution      inception_4e/1x1 1 1 inception_4d/output_splitncnn_3 inception_4e/1x1 0=256 1=1 2=1 3=1 4=0 5=1 6=135168 8=2
+ReLU             inception_4e/relu_1x1 1 1 inception_4e/1x1 inception_4e/1x1_inception_4e/relu_1x1
+Convolution      inception_4e/3x3_reduce 1 1 inception_4d/output_splitncnn_2 inception_4e/3x3_reduce 0=160 1=1 2=1 3=1 4=0 5=1 6=84480 8=2
+ReLU             inception_4e/relu_3x3_reduce 1 1 inception_4e/3x3_reduce inception_4e/3x3_reduce_inception_4e/relu_3x3_reduce
+Convolution      inception_4e/3x3 1 1 inception_4e/3x3_reduce_inception_4e/relu_3x3_reduce inception_4e/3x3 0=320 1=3 2=1 3=1 4=1 5=1 6=460800 8=2
+ReLU             inception_4e/relu_3x3 1 1 inception_4e/3x3 inception_4e/3x3_inception_4e/relu_3x3
+Convolution      inception_4e/5x5_reduce 1 1 inception_4d/output_splitncnn_1 inception_4e/5x5_reduce 0=32 1=1 2=1 3=1 4=0 5=1 6=16896 8=2
+ReLU             inception_4e/relu_5x5_reduce 1 1 inception_4e/5x5_reduce inception_4e/5x5_reduce_inception_4e/relu_5x5_reduce
+Convolution      inception_4e/5x5 1 1 inception_4e/5x5_reduce_inception_4e/relu_5x5_reduce inception_4e/5x5 0=128 1=5 2=1 3=1 4=2 5=1 6=102400 8=2
+ReLU             inception_4e/relu_5x5 1 1 inception_4e/5x5 inception_4e/5x5_inception_4e/relu_5x5
+Pooling          inception_4e/pool 1 1 inception_4d/output_splitncnn_0 inception_4e/pool 0=0 1=3 2=1 3=1 4=0
+Convolution      inception_4e/pool_proj 1 1 inception_4e/pool inception_4e/pool_proj 0=128 1=1 2=1 3=1 4=0 5=1 6=67584 8=2
+ReLU             inception_4e/relu_pool_proj 1 1 inception_4e/pool_proj inception_4e/pool_proj_inception_4e/relu_pool_proj
+Concat           inception_4e/output 4 1 inception_4e/1x1_inception_4e/relu_1x1 inception_4e/3x3_inception_4e/relu_3x3 inception_4e/5x5_inception_4e/relu_5x5 inception_4e/pool_proj_inception_4e/relu_pool_proj inception_4e/output 0=0
+Pooling          pool4/3x3_s2     1 1 inception_4e/output pool4/3x3_s2 0=0 1=3 2=2 3=0 4=0
+Split            splitncnn_7      1 4 pool4/3x3_s2 pool4/3x3_s2_splitncnn_0 pool4/3x3_s2_splitncnn_1 pool4/3x3_s2_splitncnn_2 pool4/3x3_s2_splitncnn_3
+Convolution      inception_5a/1x1 1 1 pool4/3x3_s2_splitncnn_3 inception_5a/1x1 0=256 1=1 2=1 3=1 4=0 5=1 6=212992 8=2
+ReLU             inception_5a/relu_1x1 1 1 inception_5a/1x1 inception_5a/1x1_inception_5a/relu_1x1
+Convolution      inception_5a/3x3_reduce 1 1 pool4/3x3_s2_splitncnn_2 inception_5a/3x3_reduce 0=160 1=1 2=1 3=1 4=0 5=1 6=133120 8=2
+ReLU             inception_5a/relu_3x3_reduce 1 1 inception_5a/3x3_reduce inception_5a/3x3_reduce_inception_5a/relu_3x3_reduce
+Convolution      inception_5a/3x3 1 1 inception_5a/3x3_reduce_inception_5a/relu_3x3_reduce inception_5a/3x3 0=320 1=3 2=1 3=1 4=1 5=1 6=460800 8=2
+ReLU             inception_5a/relu_3x3 1 1 inception_5a/3x3 inception_5a/3x3_inception_5a/relu_3x3
+Convolution      inception_5a/5x5_reduce 1 1 pool4/3x3_s2_splitncnn_1 inception_5a/5x5_reduce 0=32 1=1 2=1 3=1 4=0 5=1 6=26624 8=2
+ReLU             inception_5a/relu_5x5_reduce 1 1 inception_5a/5x5_reduce inception_5a/5x5_reduce_inception_5a/relu_5x5_reduce
+Convolution      inception_5a/5x5 1 1 inception_5a/5x5_reduce_inception_5a/relu_5x5_reduce inception_5a/5x5 0=128 1=5 2=1 3=1 4=2 5=1 6=102400 8=2
+ReLU             inception_5a/relu_5x5 1 1 inception_5a/5x5 inception_5a/5x5_inception_5a/relu_5x5
+Pooling          inception_5a/pool 1 1 pool4/3x3_s2_splitncnn_0 inception_5a/pool 0=0 1=3 2=1 3=1 4=0
+Convolution      inception_5a/pool_proj 1 1 inception_5a/pool inception_5a/pool_proj 0=128 1=1 2=1 3=1 4=0 5=1 6=106496 8=2
+ReLU             inception_5a/relu_pool_proj 1 1 inception_5a/pool_proj inception_5a/pool_proj_inception_5a/relu_pool_proj
+Concat           inception_5a/output 4 1 inception_5a/1x1_inception_5a/relu_1x1 inception_5a/3x3_inception_5a/relu_3x3 inception_5a/5x5_inception_5a/relu_5x5 inception_5a/pool_proj_inception_5a/relu_pool_proj inception_5a/output 0=0
+Split            splitncnn_8      1 4 inception_5a/output inception_5a/output_splitncnn_0 inception_5a/output_splitncnn_1 inception_5a/output_splitncnn_2 inception_5a/output_splitncnn_3
+Convolution      inception_5b/1x1 1 1 inception_5a/output_splitncnn_3 inception_5b/1x1 0=384 1=1 2=1 3=1 4=0 5=1 6=319488 8=2
+ReLU             inception_5b/relu_1x1 1 1 inception_5b/1x1 inception_5b/1x1_inception_5b/relu_1x1
+Convolution      inception_5b/3x3_reduce 1 1 inception_5a/output_splitncnn_2 inception_5b/3x3_reduce 0=192 1=1 2=1 3=1 4=0 5=1 6=159744 8=2
+ReLU             inception_5b/relu_3x3_reduce 1 1 inception_5b/3x3_reduce inception_5b/3x3_reduce_inception_5b/relu_3x3_reduce
+Convolution      inception_5b/3x3 1 1 inception_5b/3x3_reduce_inception_5b/relu_3x3_reduce inception_5b/3x3 0=384 1=3 2=1 3=1 4=1 5=1 6=663552 8=2
+ReLU             inception_5b/relu_3x3 1 1 inception_5b/3x3 inception_5b/3x3_inception_5b/relu_3x3
+Convolution      inception_5b/5x5_reduce 1 1 inception_5a/output_splitncnn_1 inception_5b/5x5_reduce 0=48 1=1 2=1 3=1 4=0 5=1 6=39936 8=2
+ReLU             inception_5b/relu_5x5_reduce 1 1 inception_5b/5x5_reduce inception_5b/5x5_reduce_inception_5b/relu_5x5_reduce
+Convolution      inception_5b/5x5 1 1 inception_5b/5x5_reduce_inception_5b/relu_5x5_reduce inception_5b/5x5 0=128 1=5 2=1 3=1 4=2 5=1 6=153600 8=2
+ReLU             inception_5b/relu_5x5 1 1 inception_5b/5x5 inception_5b/5x5_inception_5b/relu_5x5
+Pooling          inception_5b/pool 1 1 inception_5a/output_splitncnn_0 inception_5b/pool 0=0 1=3 2=1 3=1 4=0
+Convolution      inception_5b/pool_proj 1 1 inception_5b/pool inception_5b/pool_proj 0=128 1=1 2=1 3=1 4=0 5=1 6=106496 8=2
+ReLU             inception_5b/relu_pool_proj 1 1 inception_5b/pool_proj inception_5b/pool_proj_inception_5b/relu_pool_proj
+Concat           inception_5b/output 4 1 inception_5b/1x1_inception_5b/relu_1x1 inception_5b/3x3_inception_5b/relu_3x3 inception_5b/5x5_inception_5b/relu_5x5 inception_5b/pool_proj_inception_5b/relu_pool_proj inception_5b/output 0=0
+Pooling          pool5/7x7_s1     1 1 inception_5b/output pool5/7x7_s1 0=1 1=7 2=1 3=0 4=0
+Dropout          pool5/drop_7x7_s1 1 1 pool5/7x7_s1 pool5/7x7_s1_pool5/drop_7x7_s1
+InnerProduct     loss3/classifier 1 1 pool5/7x7_s1_pool5/drop_7x7_s1 loss3/classifier 0=1000 1=1 2=1024000
+Softmax          prob             1 1 loss3/classifier output 0=0

@@ -73,9 +73,37 @@ static std::vector<std::string> split_string(const std::string& str, const std::
 
 extern "C" {
 
+JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
+{
+    __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "JNI_OnLoad");
+
+    ncnn::create_gpu_instance();
+
+    return JNI_VERSION_1_4;
+}
+
+JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
+{
+    __android_log_print(ANDROID_LOG_DEBUG, "SqueezeNcnn", "JNI_OnUnload");
+
+    ncnn::destroy_gpu_instance();
+}
+
 // public native boolean Init(byte[] param, byte[] bin, byte[] words);
 JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv* env, jobject thiz, jbyteArray param, jbyteArray bin, jbyteArray words)
 {
+    ncnn::Option opt;
+    opt.lightmode = true;
+    opt.num_threads = 4;
+    opt.blob_allocator = &g_blob_pool_allocator;
+    opt.workspace_allocator = &g_workspace_pool_allocator;
+
+    // use vulkan compute
+    if (ncnn::get_gpu_count() != 0)
+        opt.use_vulkan_compute = true;
+
+    squeezenet.opt = opt;
+
     // init param
     {
         int len = env->GetArrayLength(param);
@@ -103,20 +131,17 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Init(JNIEnv*
         squeezenet_words = split_string(words_buffer, "\n");
     }
 
-    ncnn::Option opt;
-    opt.lightmode = true;
-    opt.num_threads = 4;
-    opt.blob_allocator = &g_blob_pool_allocator;
-    opt.workspace_allocator = &g_workspace_pool_allocator;
-
-    ncnn::set_default_option(opt);
-
     return JNI_TRUE;
 }
 
-// public native String Detect(Bitmap bitmap);
-JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv* env, jobject thiz, jobject bitmap)
+// public native String Detect(Bitmap bitmap, boolean use_gpu);
+JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv* env, jobject thiz, jobject bitmap, jboolean use_gpu)
 {
+    if (use_gpu == JNI_TRUE && ncnn::get_gpu_count() == 0)
+    {
+        return env->NewStringUTF("no vulkan capable gpu");
+    }
+
     bench_start();
 
     // ncnn from bitmap
@@ -146,6 +171,8 @@ JNIEXPORT jstring JNICALL Java_com_tencent_squeezencnn_SqueezeNcnn_Detect(JNIEnv
         in.substract_mean_normalize(mean_vals, 0);
 
         ncnn::Extractor ex = squeezenet.create_extractor();
+
+        ex.set_vulkan_compute(use_gpu);
 
         ex.input(squeezenet_v1_1_param_id::BLOB_data, in);
 

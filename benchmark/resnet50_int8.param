@@ -1,0 +1,141 @@
+7767517
+139 155
+Input            data             0 1 data 0=224 1=224 2=3
+Convolution      conv1            1 1 data conv1 0=64 1=7 2=1 3=2 4=3 5=1 6=9408 8=2
+ReLU             conv1_relu       1 1 conv1 conv1_conv1_relu
+Pooling          pool1            1 1 conv1_conv1_relu pool1 0=0 1=3 2=2 3=0 4=0
+Split            splitncnn_0      1 2 pool1 pool1_splitncnn_0 pool1_splitncnn_1
+Convolution      res2a_branch1    1 1 pool1_splitncnn_1 res2a_branch1 0=256 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+Convolution      res2a_branch2a   1 1 pool1_splitncnn_0 res2a_branch2a 0=64 1=1 2=1 3=1 4=0 5=1 6=4096 8=2
+ReLU             res2a_branch2a_relu 1 1 res2a_branch2a res2a_branch2a_res2a_branch2a_relu
+Convolution      res2a_branch2b   1 1 res2a_branch2a_res2a_branch2a_relu res2a_branch2b 0=64 1=3 2=1 3=1 4=1 5=1 6=36864 8=2
+ReLU             res2a_branch2b_relu 1 1 res2a_branch2b res2a_branch2b_res2a_branch2b_relu
+Convolution      res2a_branch2c   1 1 res2a_branch2b_res2a_branch2b_relu res2a_branch2c 0=256 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+Eltwise          res2a            2 1 res2a_branch1 res2a_branch2c res2a 0=1 -23301=0
+ReLU             res2a_relu       1 1 res2a res2a_res2a_relu
+Split            splitncnn_1      1 2 res2a_res2a_relu res2a_res2a_relu_splitncnn_0 res2a_res2a_relu_splitncnn_1
+Convolution      res2b_branch2a   1 1 res2a_res2a_relu_splitncnn_1 res2b_branch2a 0=64 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+ReLU             res2b_branch2a_relu 1 1 res2b_branch2a res2b_branch2a_res2b_branch2a_relu
+Convolution      res2b_branch2b   1 1 res2b_branch2a_res2b_branch2a_relu res2b_branch2b 0=64 1=3 2=1 3=1 4=1 5=1 6=36864 8=2
+ReLU             res2b_branch2b_relu 1 1 res2b_branch2b res2b_branch2b_res2b_branch2b_relu
+Convolution      res2b_branch2c   1 1 res2b_branch2b_res2b_branch2b_relu res2b_branch2c 0=256 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+Eltwise          res2b            2 1 res2a_res2a_relu_splitncnn_0 res2b_branch2c res2b 0=1 -23301=0
+ReLU             res2b_relu       1 1 res2b res2b_res2b_relu
+Split            splitncnn_2      1 2 res2b_res2b_relu res2b_res2b_relu_splitncnn_0 res2b_res2b_relu_splitncnn_1
+Convolution      res2c_branch2a   1 1 res2b_res2b_relu_splitncnn_1 res2c_branch2a 0=64 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+ReLU             res2c_branch2a_relu 1 1 res2c_branch2a res2c_branch2a_res2c_branch2a_relu
+Convolution      res2c_branch2b   1 1 res2c_branch2a_res2c_branch2a_relu res2c_branch2b 0=64 1=3 2=1 3=1 4=1 5=1 6=36864 8=2
+ReLU             res2c_branch2b_relu 1 1 res2c_branch2b res2c_branch2b_res2c_branch2b_relu
+Convolution      res2c_branch2c   1 1 res2c_branch2b_res2c_branch2b_relu res2c_branch2c 0=256 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+Eltwise          res2c            2 1 res2b_res2b_relu_splitncnn_0 res2c_branch2c res2c 0=1 -23301=0
+ReLU             res2c_relu       1 1 res2c res2c_res2c_relu
+Split            splitncnn_3      1 2 res2c_res2c_relu res2c_res2c_relu_splitncnn_0 res2c_res2c_relu_splitncnn_1
+Convolution      res3a_branch1    1 1 res2c_res2c_relu_splitncnn_1 res3a_branch1 0=512 1=1 2=1 3=2 4=0 5=1 6=131072 8=2
+Convolution      res3a_branch2a   1 1 res2c_res2c_relu_splitncnn_0 res3a_branch2a 0=128 1=1 2=1 3=2 4=0 5=1 6=32768 8=2
+ReLU             res3a_branch2a_relu 1 1 res3a_branch2a res3a_branch2a_res3a_branch2a_relu
+Convolution      res3a_branch2b   1 1 res3a_branch2a_res3a_branch2a_relu res3a_branch2b 0=128 1=3 2=1 3=1 4=1 5=1 6=147456 8=2
+ReLU             res3a_branch2b_relu 1 1 res3a_branch2b res3a_branch2b_res3a_branch2b_relu
+Convolution      res3a_branch2c   1 1 res3a_branch2b_res3a_branch2b_relu res3a_branch2c 0=512 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+Eltwise          res3a            2 1 res3a_branch1 res3a_branch2c res3a 0=1 -23301=0
+ReLU             res3a_relu       1 1 res3a res3a_res3a_relu
+Split            splitncnn_4      1 2 res3a_res3a_relu res3a_res3a_relu_splitncnn_0 res3a_res3a_relu_splitncnn_1
+Convolution      res3b_branch2a   1 1 res3a_res3a_relu_splitncnn_1 res3b_branch2a 0=128 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+ReLU             res3b_branch2a_relu 1 1 res3b_branch2a res3b_branch2a_res3b_branch2a_relu
+Convolution      res3b_branch2b   1 1 res3b_branch2a_res3b_branch2a_relu res3b_branch2b 0=128 1=3 2=1 3=1 4=1 5=1 6=147456 8=2
+ReLU             res3b_branch2b_relu 1 1 res3b_branch2b res3b_branch2b_res3b_branch2b_relu
+Convolution      res3b_branch2c   1 1 res3b_branch2b_res3b_branch2b_relu res3b_branch2c 0=512 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+Eltwise          res3b            2 1 res3a_res3a_relu_splitncnn_0 res3b_branch2c res3b 0=1 -23301=0
+ReLU             res3b_relu       1 1 res3b res3b_res3b_relu
+Split            splitncnn_5      1 2 res3b_res3b_relu res3b_res3b_relu_splitncnn_0 res3b_res3b_relu_splitncnn_1
+Convolution      res3c_branch2a   1 1 res3b_res3b_relu_splitncnn_1 res3c_branch2a 0=128 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+ReLU             res3c_branch2a_relu 1 1 res3c_branch2a res3c_branch2a_res3c_branch2a_relu
+Convolution      res3c_branch2b   1 1 res3c_branch2a_res3c_branch2a_relu res3c_branch2b 0=128 1=3 2=1 3=1 4=1 5=1 6=147456 8=2
+ReLU             res3c_branch2b_relu 1 1 res3c_branch2b res3c_branch2b_res3c_branch2b_relu
+Convolution      res3c_branch2c   1 1 res3c_branch2b_res3c_branch2b_relu res3c_branch2c 0=512 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+Eltwise          res3c            2 1 res3b_res3b_relu_splitncnn_0 res3c_branch2c res3c 0=1 -23301=0
+ReLU             res3c_relu       1 1 res3c res3c_res3c_relu
+Split            splitncnn_6      1 2 res3c_res3c_relu res3c_res3c_relu_splitncnn_0 res3c_res3c_relu_splitncnn_1
+Convolution      res3d_branch2a   1 1 res3c_res3c_relu_splitncnn_1 res3d_branch2a 0=128 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+ReLU             res3d_branch2a_relu 1 1 res3d_branch2a res3d_branch2a_res3d_branch2a_relu
+Convolution      res3d_branch2b   1 1 res3d_branch2a_res3d_branch2a_relu res3d_branch2b 0=128 1=3 2=1 3=1 4=1 5=1 6=147456 8=2
+ReLU             res3d_branch2b_relu 1 1 res3d_branch2b res3d_branch2b_res3d_branch2b_relu
+Convolution      res3d_branch2c   1 1 res3d_branch2b_res3d_branch2b_relu res3d_branch2c 0=512 1=1 2=1 3=1 4=0 5=1 6=65536 8=2
+Eltwise          res3d            2 1 res3c_res3c_relu_splitncnn_0 res3d_branch2c res3d 0=1 -23301=0
+ReLU             res3d_relu       1 1 res3d res3d_res3d_relu
+Split            splitncnn_7      1 2 res3d_res3d_relu res3d_res3d_relu_splitncnn_0 res3d_res3d_relu_splitncnn_1
+Convolution      res4a_branch1    1 1 res3d_res3d_relu_splitncnn_1 res4a_branch1 0=1024 1=1 2=1 3=2 4=0 5=1 6=524288 8=2
+Convolution      res4a_branch2a   1 1 res3d_res3d_relu_splitncnn_0 res4a_branch2a 0=256 1=1 2=1 3=2 4=0 5=1 6=131072 8=2
+ReLU             res4a_branch2a_relu 1 1 res4a_branch2a res4a_branch2a_res4a_branch2a_relu
+Convolution      res4a_branch2b   1 1 res4a_branch2a_res4a_branch2a_relu res4a_branch2b 0=256 1=3 2=1 3=1 4=1 5=1 6=589824 8=2
+ReLU             res4a_branch2b_relu 1 1 res4a_branch2b res4a_branch2b_res4a_branch2b_relu
+Convolution      res4a_branch2c   1 1 res4a_branch2b_res4a_branch2b_relu res4a_branch2c 0=1024 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+Eltwise          res4a            2 1 res4a_branch1 res4a_branch2c res4a 0=1 -23301=0
+ReLU             res4a_relu       1 1 res4a res4a_res4a_relu
+Split            splitncnn_8      1 2 res4a_res4a_relu res4a_res4a_relu_splitncnn_0 res4a_res4a_relu_splitncnn_1
+Convolution      res4b_branch2a   1 1 res4a_res4a_relu_splitncnn_1 res4b_branch2a 0=256 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             res4b_branch2a_relu 1 1 res4b_branch2a res4b_branch2a_res4b_branch2a_relu
+Convolution      res4b_branch2b   1 1 res4b_branch2a_res4b_branch2a_relu res4b_branch2b 0=256 1=3 2=1 3=1 4=1 5=1 6=589824 8=2
+ReLU             res4b_branch2b_relu 1 1 res4b_branch2b res4b_branch2b_res4b_branch2b_relu
+Convolution      res4b_branch2c   1 1 res4b_branch2b_res4b_branch2b_relu res4b_branch2c 0=1024 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+Eltwise          res4b            2 1 res4a_res4a_relu_splitncnn_0 res4b_branch2c res4b 0=1 -23301=0
+ReLU             res4b_relu       1 1 res4b res4b_res4b_relu
+Split            splitncnn_9      1 2 res4b_res4b_relu res4b_res4b_relu_splitncnn_0 res4b_res4b_relu_splitncnn_1
+Convolution      res4c_branch2a   1 1 res4b_res4b_relu_splitncnn_1 res4c_branch2a 0=256 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             res4c_branch2a_relu 1 1 res4c_branch2a res4c_branch2a_res4c_branch2a_relu
+Convolution      res4c_branch2b   1 1 res4c_branch2a_res4c_branch2a_relu res4c_branch2b 0=256 1=3 2=1 3=1 4=1 5=1 6=589824 8=2
+ReLU             res4c_branch2b_relu 1 1 res4c_branch2b res4c_branch2b_res4c_branch2b_relu
+Convolution      res4c_branch2c   1 1 res4c_branch2b_res4c_branch2b_relu res4c_branch2c 0=1024 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+Eltwise          res4c            2 1 res4b_res4b_relu_splitncnn_0 res4c_branch2c res4c 0=1 -23301=0
+ReLU             res4c_relu       1 1 res4c res4c_res4c_relu
+Split            splitncnn_10     1 2 res4c_res4c_relu res4c_res4c_relu_splitncnn_0 res4c_res4c_relu_splitncnn_1
+Convolution      res4d_branch2a   1 1 res4c_res4c_relu_splitncnn_1 res4d_branch2a 0=256 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             res4d_branch2a_relu 1 1 res4d_branch2a res4d_branch2a_res4d_branch2a_relu
+Convolution      res4d_branch2b   1 1 res4d_branch2a_res4d_branch2a_relu res4d_branch2b 0=256 1=3 2=1 3=1 4=1 5=1 6=589824 8=2
+ReLU             res4d_branch2b_relu 1 1 res4d_branch2b res4d_branch2b_res4d_branch2b_relu
+Convolution      res4d_branch2c   1 1 res4d_branch2b_res4d_branch2b_relu res4d_branch2c 0=1024 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+Eltwise          res4d            2 1 res4c_res4c_relu_splitncnn_0 res4d_branch2c res4d 0=1 -23301=0
+ReLU             res4d_relu       1 1 res4d res4d_res4d_relu
+Split            splitncnn_11     1 2 res4d_res4d_relu res4d_res4d_relu_splitncnn_0 res4d_res4d_relu_splitncnn_1
+Convolution      res4e_branch2a   1 1 res4d_res4d_relu_splitncnn_1 res4e_branch2a 0=256 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             res4e_branch2a_relu 1 1 res4e_branch2a res4e_branch2a_res4e_branch2a_relu
+Convolution      res4e_branch2b   1 1 res4e_branch2a_res4e_branch2a_relu res4e_branch2b 0=256 1=3 2=1 3=1 4=1 5=1 6=589824 8=2
+ReLU             res4e_branch2b_relu 1 1 res4e_branch2b res4e_branch2b_res4e_branch2b_relu
+Convolution      res4e_branch2c   1 1 res4e_branch2b_res4e_branch2b_relu res4e_branch2c 0=1024 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+Eltwise          res4e            2 1 res4d_res4d_relu_splitncnn_0 res4e_branch2c res4e 0=1 -23301=0
+ReLU             res4e_relu       1 1 res4e res4e_res4e_relu
+Split            splitncnn_12     1 2 res4e_res4e_relu res4e_res4e_relu_splitncnn_0 res4e_res4e_relu_splitncnn_1
+Convolution      res4f_branch2a   1 1 res4e_res4e_relu_splitncnn_1 res4f_branch2a 0=256 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+ReLU             res4f_branch2a_relu 1 1 res4f_branch2a res4f_branch2a_res4f_branch2a_relu
+Convolution      res4f_branch2b   1 1 res4f_branch2a_res4f_branch2a_relu res4f_branch2b 0=256 1=3 2=1 3=1 4=1 5=1 6=589824 8=2
+ReLU             res4f_branch2b_relu 1 1 res4f_branch2b res4f_branch2b_res4f_branch2b_relu
+Convolution      res4f_branch2c   1 1 res4f_branch2b_res4f_branch2b_relu res4f_branch2c 0=1024 1=1 2=1 3=1 4=0 5=1 6=262144 8=2
+Eltwise          res4f            2 1 res4e_res4e_relu_splitncnn_0 res4f_branch2c res4f 0=1 -23301=0
+ReLU             res4f_relu       1 1 res4f res4f_res4f_relu
+Split            splitncnn_13     1 2 res4f_res4f_relu res4f_res4f_relu_splitncnn_0 res4f_res4f_relu_splitncnn_1
+Convolution      res5a_branch1    1 1 res4f_res4f_relu_splitncnn_1 res5a_branch1 0=2048 1=1 2=1 3=2 4=0 5=1 6=2097152 8=2
+Convolution      res5a_branch2a   1 1 res4f_res4f_relu_splitncnn_0 res5a_branch2a 0=512 1=1 2=1 3=2 4=0 5=1 6=524288 8=2
+ReLU             res5a_branch2a_relu 1 1 res5a_branch2a res5a_branch2a_res5a_branch2a_relu
+Convolution      res5a_branch2b   1 1 res5a_branch2a_res5a_branch2a_relu res5a_branch2b 0=512 1=3 2=1 3=1 4=1 5=1 6=2359296 8=2
+ReLU             res5a_branch2b_relu 1 1 res5a_branch2b res5a_branch2b_res5a_branch2b_relu
+Convolution      res5a_branch2c   1 1 res5a_branch2b_res5a_branch2b_relu res5a_branch2c 0=2048 1=1 2=1 3=1 4=0 5=1 6=1048576 8=2
+Eltwise          res5a            2 1 res5a_branch1 res5a_branch2c res5a 0=1 -23301=0
+ReLU             res5a_relu       1 1 res5a res5a_res5a_relu
+Split            splitncnn_14     1 2 res5a_res5a_relu res5a_res5a_relu_splitncnn_0 res5a_res5a_relu_splitncnn_1
+Convolution      res5b_branch2a   1 1 res5a_res5a_relu_splitncnn_1 res5b_branch2a 0=512 1=1 2=1 3=1 4=0 5=1 6=1048576 8=2
+ReLU             res5b_branch2a_relu 1 1 res5b_branch2a res5b_branch2a_res5b_branch2a_relu
+Convolution      res5b_branch2b   1 1 res5b_branch2a_res5b_branch2a_relu res5b_branch2b 0=512 1=3 2=1 3=1 4=1 5=1 6=2359296 8=2
+ReLU             res5b_branch2b_relu 1 1 res5b_branch2b res5b_branch2b_res5b_branch2b_relu
+Convolution      res5b_branch2c   1 1 res5b_branch2b_res5b_branch2b_relu res5b_branch2c 0=2048 1=1 2=1 3=1 4=0 5=1 6=1048576 8=2
+Eltwise          res5b            2 1 res5a_res5a_relu_splitncnn_0 res5b_branch2c res5b 0=1 -23301=0
+ReLU             res5b_relu       1 1 res5b res5b_res5b_relu
+Split            splitncnn_15     1 2 res5b_res5b_relu res5b_res5b_relu_splitncnn_0 res5b_res5b_relu_splitncnn_1
+Convolution      res5c_branch2a   1 1 res5b_res5b_relu_splitncnn_1 res5c_branch2a 0=512 1=1 2=1 3=1 4=0 5=1 6=1048576 8=2
+ReLU             res5c_branch2a_relu 1 1 res5c_branch2a res5c_branch2a_res5c_branch2a_relu
+Convolution      res5c_branch2b   1 1 res5c_branch2a_res5c_branch2a_relu res5c_branch2b 0=512 1=3 2=1 3=1 4=1 5=1 6=2359296 8=2
+ReLU             res5c_branch2b_relu 1 1 res5c_branch2b res5c_branch2b_res5c_branch2b_relu
+Convolution      res5c_branch2c   1 1 res5c_branch2b_res5c_branch2b_relu res5c_branch2c 0=2048 1=1 2=1 3=1 4=0 5=1 6=1048576 8=2
+Eltwise          res5c            2 1 res5b_res5b_relu_splitncnn_0 res5c_branch2c res5c 0=1 -23301=0
+ReLU             res5c_relu       1 1 res5c res5c_res5c_relu
+Pooling          pool5            1 1 res5c_res5c_relu pool5 0=1 1=7 2=1 3=0 4=0
+InnerProduct     fc1000           1 1 pool5 fc1000 0=1000 1=1 2=2048000
+Softmax          prob             1 1 fc1000 output 0=0 1=1

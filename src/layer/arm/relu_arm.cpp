@@ -22,12 +22,151 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(ReLU_arm)
 
-int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+ReLU_arm::ReLU_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
+int ReLU_arm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
+
+    if (slope == 0.f)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            signed char* ptr = bottom_top_blob.channel(q);
+
+#if __ARM_NEON
+            int nn = size >> 4;
+            int remain = size - (nn << 4);
+#else
+            int remain = size;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+#if __aarch64__
+            int8x16_t _zero = vdupq_n_s8(0);
+            for (; nn>0; nn--)
+            {
+                int8x16_t _p = vld1q_s8(ptr);
+                _p = vmaxq_s8(_p, _zero);
+                vst1q_s8(ptr, _p);
+
+                ptr += 16;
+            }
+#else
+            if (nn > 0)
+            {
+            asm volatile(
+                "veor       q1, q0, q0          \n"
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld1.s8    {d0-d1}, [%1 :128]  \n"
+                "vmax.s8    q0, q0, q1          \n"
+                "subs       %0, #1              \n"
+                "vst1.s8    {d0-d1}, [%1 :128]! \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                  "=r"(ptr)     // %1
+                : "0"(nn),
+                  "1"(ptr)
+                : "cc", "memory", "q0", "q1"
+            );
+            }
+#endif // __aarch64__
+#endif // __ARM_NEON
+            for (; remain>0; remain--)
+            {
+                if (*ptr < 0)
+                    *ptr = 0;
+
+                ptr++;
+            }
+        }
+    }
+    else
+    {
+        // TODO
+        // #pragma omp parallel for num_threads(opt.num_threads)
+        // for (int q=0; q<channels; q++)
+        // {
+        //     float* ptr = bottom_top_blob.channel(q);
+
+        //     for (int i=0; i<size; i++)
+        //     {
+        //         if (ptr[i] < 0)
+        //             ptr[i] *= slope;
+        //     }
+        // }
+    }
+
+    return 0;
+}
+
+int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+{
+    if (bottom_top_blob.elemsize == 1u)
+        return ReLU_arm::forward_inplace_int8(bottom_top_blob, opt);
+
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int packing = bottom_top_blob.packing;
+
+#if __ARM_NEON
+    if (packing == 4)
+    {
+        if (slope == 0.f)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+
+                float32x4_t _zero = vdupq_n_f32(0.f);
+                for (int i=0; i<size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    _p = vmaxq_f32(_p, _zero);
+                    vst1q_f32(ptr, _p);
+
+                    ptr += 4;
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+
+                float32x4_t _zero = vdupq_n_f32(0.f);
+                float32x4_t _slope = vdupq_n_f32(slope);
+                for (int i=0; i<size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    uint32x4_t _lemask = vcleq_f32(_p, _zero);
+                    float32x4_t _ps = vmulq_f32(_p, _slope);
+                    _p = vbslq_f32(_lemask, _ps, _p);
+                    vst1q_f32(ptr, _p);
+
+                    ptr += 4;
+                }
+            }
+        }
+
+        return 0;
+    }
+#endif // __ARM_NEON
 
     if (slope == 0.f)
     {

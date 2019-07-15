@@ -1,0 +1,181 @@
+7767517
+179 212
+Input            data             0 1 data 0=300 1=300 2=3
+Split            splitncnn_0      1 7 data data_splitncnn_0 data_splitncnn_1 data_splitncnn_2 data_splitncnn_3 data_splitncnn_4 data_splitncnn_5 data_splitncnn_6
+Convolution      conv1            1 1 data_splitncnn_6 conv1 0=64 1=3 2=1 3=2 4=0 5=1 6=1728 8=2
+ReLU             relu_conv1       1 1 conv1 conv1_relu_conv1
+Pooling          pool1            1 1 conv1_relu_conv1 pool1 0=0 1=3 2=2 3=0 4=0
+Convolution      fire2/squeeze1x1 1 1 pool1 fire2/squeeze1x1 0=16 1=1 2=1 3=1 4=0 5=1 6=1024 8=2
+ReLU             fire2/relu_squeeze1x1 1 1 fire2/squeeze1x1 fire2/squeeze1x1_fire2/relu_squeeze1x1
+Split            splitncnn_1      1 2 fire2/squeeze1x1_fire2/relu_squeeze1x1 fire2/squeeze1x1_fire2/relu_squeeze1x1_splitncnn_0 fire2/squeeze1x1_fire2/relu_squeeze1x1_splitncnn_1
+Convolution      fire2/expand1x1  1 1 fire2/squeeze1x1_fire2/relu_squeeze1x1_splitncnn_1 fire2/expand1x1 0=64 1=1 2=1 3=1 4=0 5=1 6=1024 8=2
+ReLU             fire2/relu_expand1x1 1 1 fire2/expand1x1 fire2/expand1x1_fire2/relu_expand1x1
+Convolution      fire2/expand3x3  1 1 fire2/squeeze1x1_fire2/relu_squeeze1x1_splitncnn_0 fire2/expand3x3 0=64 1=3 2=1 3=1 4=1 5=1 6=9216 8=2
+ReLU             fire2/relu_expand3x3 1 1 fire2/expand3x3 fire2/expand3x3_fire2/relu_expand3x3
+Concat           fire2/concat     2 1 fire2/expand1x1_fire2/relu_expand1x1 fire2/expand3x3_fire2/relu_expand3x3 fire2/concat 0=0
+Convolution      fire3/squeeze1x1 1 1 fire2/concat fire3/squeeze1x1 0=16 1=1 2=1 3=1 4=0 5=1 6=2048 8=2
+ReLU             fire3/relu_squeeze1x1 1 1 fire3/squeeze1x1 fire3/squeeze1x1_fire3/relu_squeeze1x1
+Split            splitncnn_2      1 2 fire3/squeeze1x1_fire3/relu_squeeze1x1 fire3/squeeze1x1_fire3/relu_squeeze1x1_splitncnn_0 fire3/squeeze1x1_fire3/relu_squeeze1x1_splitncnn_1
+Convolution      fire3/expand1x1  1 1 fire3/squeeze1x1_fire3/relu_squeeze1x1_splitncnn_1 fire3/expand1x1 0=64 1=1 2=1 3=1 4=0 5=1 6=1024 8=2
+ReLU             fire3/relu_expand1x1 1 1 fire3/expand1x1 fire3/expand1x1_fire3/relu_expand1x1
+Convolution      fire3/expand3x3  1 1 fire3/squeeze1x1_fire3/relu_squeeze1x1_splitncnn_0 fire3/expand3x3 0=64 1=3 2=1 3=1 4=1 5=1 6=9216 8=2
+ReLU             fire3/relu_expand3x3 1 1 fire3/expand3x3 fire3/expand3x3_fire3/relu_expand3x3
+Concat           fire3/concat     2 1 fire3/expand1x1_fire3/relu_expand1x1 fire3/expand3x3_fire3/relu_expand3x3 fire3/concat 0=0
+Pooling          pool3            1 1 fire3/concat pool3 0=0 1=3 2=2 3=0 4=0
+Convolution      fire4/squeeze1x1 1 1 pool3 fire4/squeeze1x1 0=32 1=1 2=1 3=1 4=0 5=1 6=4096 8=2
+ReLU             fire4/relu_squeeze1x1 1 1 fire4/squeeze1x1 fire4/squeeze1x1_fire4/relu_squeeze1x1
+Split            splitncnn_3      1 2 fire4/squeeze1x1_fire4/relu_squeeze1x1 fire4/squeeze1x1_fire4/relu_squeeze1x1_splitncnn_0 fire4/squeeze1x1_fire4/relu_squeeze1x1_splitncnn_1
+Convolution      fire4/expand1x1  1 1 fire4/squeeze1x1_fire4/relu_squeeze1x1_splitncnn_1 fire4/expand1x1 0=128 1=1 2=1 3=1 4=0 5=1 6=4096 8=2
+ReLU             fire4/relu_expand1x1 1 1 fire4/expand1x1 fire4/expand1x1_fire4/relu_expand1x1
+Convolution      fire4/expand3x3  1 1 fire4/squeeze1x1_fire4/relu_squeeze1x1_splitncnn_0 fire4/expand3x3 0=128 1=3 2=1 3=1 4=1 5=1 6=36864 8=2
+ReLU             fire4/relu_expand3x3 1 1 fire4/expand3x3 fire4/expand3x3_fire4/relu_expand3x3
+Concat           fire4/concat     2 1 fire4/expand1x1_fire4/relu_expand1x1 fire4/expand3x3_fire4/relu_expand3x3 fire4/concat 0=0
+Convolution      fire5/squeeze1x1 1 1 fire4/concat fire5/squeeze1x1 0=32 1=1 2=1 3=1 4=0 5=1 6=8192 8=2
+ReLU             fire5/relu_squeeze1x1 1 1 fire5/squeeze1x1 fire5/squeeze1x1_fire5/relu_squeeze1x1
+Split            splitncnn_4      1 2 fire5/squeeze1x1_fire5/relu_squeeze1x1 fire5/squeeze1x1_fire5/relu_squeeze1x1_splitncnn_0 fire5/squeeze1x1_fire5/relu_squeeze1x1_splitncnn_1
+Convolution      fire5/expand1x1  1 1 fire5/squeeze1x1_fire5/relu_squeeze1x1_splitncnn_1 fire5/expand1x1 0=128 1=1 2=1 3=1 4=0 5=1 6=4096 8=2
+ReLU             fire5/relu_expand1x1 1 1 fire5/expand1x1 fire5/expand1x1_fire5/relu_expand1x1
+Convolution      fire5/expand3x3  1 1 fire5/squeeze1x1_fire5/relu_squeeze1x1_splitncnn_0 fire5/expand3x3 0=128 1=3 2=1 3=1 4=1 5=1 6=36864 8=2
+ReLU             fire5/relu_expand3x3 1 1 fire5/expand3x3 fire5/expand3x3_fire5/relu_expand3x3
+Concat           fire5/concat     2 1 fire5/expand1x1_fire5/relu_expand1x1 fire5/expand3x3_fire5/relu_expand3x3 fire5/concat 0=0
+Split            splitncnn_5      1 2 fire5/concat fire5/concat_splitncnn_0 fire5/concat_splitncnn_1
+Pooling          pool5            1 1 fire5/concat_splitncnn_1 pool5 0=0 1=3 2=2 3=0 4=0
+Convolution      fire6/squeeze1x1 1 1 pool5 fire6/squeeze1x1 0=48 1=1 2=1 3=1 4=0 5=1 6=12288 8=2
+ReLU             fire6/relu_squeeze1x1 1 1 fire6/squeeze1x1 fire6/squeeze1x1_fire6/relu_squeeze1x1
+Split            splitncnn_6      1 2 fire6/squeeze1x1_fire6/relu_squeeze1x1 fire6/squeeze1x1_fire6/relu_squeeze1x1_splitncnn_0 fire6/squeeze1x1_fire6/relu_squeeze1x1_splitncnn_1
+Convolution      fire6/expand1x1  1 1 fire6/squeeze1x1_fire6/relu_squeeze1x1_splitncnn_1 fire6/expand1x1 0=192 1=1 2=1 3=1 4=0 5=1 6=9216 8=2
+ReLU             fire6/relu_expand1x1 1 1 fire6/expand1x1 fire6/expand1x1_fire6/relu_expand1x1
+Convolution      fire6/expand3x3  1 1 fire6/squeeze1x1_fire6/relu_squeeze1x1_splitncnn_0 fire6/expand3x3 0=192 1=3 2=1 3=1 4=1 5=1 6=82944 8=2
+ReLU             fire6/relu_expand3x3 1 1 fire6/expand3x3 fire6/expand3x3_fire6/relu_expand3x3
+Concat           fire6/concat     2 1 fire6/expand1x1_fire6/relu_expand1x1 fire6/expand3x3_fire6/relu_expand3x3 fire6/concat 0=0
+Convolution      fire7/squeeze1x1 1 1 fire6/concat fire7/squeeze1x1 0=48 1=1 2=1 3=1 4=0 5=1 6=18432 8=2
+ReLU             fire7/relu_squeeze1x1 1 1 fire7/squeeze1x1 fire7/squeeze1x1_fire7/relu_squeeze1x1
+Split            splitncnn_7      1 2 fire7/squeeze1x1_fire7/relu_squeeze1x1 fire7/squeeze1x1_fire7/relu_squeeze1x1_splitncnn_0 fire7/squeeze1x1_fire7/relu_squeeze1x1_splitncnn_1
+Convolution      fire7/expand1x1  1 1 fire7/squeeze1x1_fire7/relu_squeeze1x1_splitncnn_1 fire7/expand1x1 0=192 1=1 2=1 3=1 4=0 5=1 6=9216 8=2
+ReLU             fire7/relu_expand1x1 1 1 fire7/expand1x1 fire7/expand1x1_fire7/relu_expand1x1
+Convolution      fire7/expand3x3  1 1 fire7/squeeze1x1_fire7/relu_squeeze1x1_splitncnn_0 fire7/expand3x3 0=192 1=3 2=1 3=1 4=1 5=1 6=82944 8=2
+ReLU             fire7/relu_expand3x3 1 1 fire7/expand3x3 fire7/expand3x3_fire7/relu_expand3x3
+Concat           fire7/concat     2 1 fire7/expand1x1_fire7/relu_expand1x1 fire7/expand3x3_fire7/relu_expand3x3 fire7/concat 0=0
+Convolution      fire8/squeeze1x1 1 1 fire7/concat fire8/squeeze1x1 0=64 1=1 2=1 3=1 4=0 5=1 6=24576 8=2
+ReLU             fire8/relu_squeeze1x1 1 1 fire8/squeeze1x1 fire8/squeeze1x1_fire8/relu_squeeze1x1
+Split            splitncnn_8      1 2 fire8/squeeze1x1_fire8/relu_squeeze1x1 fire8/squeeze1x1_fire8/relu_squeeze1x1_splitncnn_0 fire8/squeeze1x1_fire8/relu_squeeze1x1_splitncnn_1
+Convolution      fire8/expand1x1  1 1 fire8/squeeze1x1_fire8/relu_squeeze1x1_splitncnn_1 fire8/expand1x1 0=256 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+ReLU             fire8/relu_expand1x1 1 1 fire8/expand1x1 fire8/expand1x1_fire8/relu_expand1x1
+Convolution      fire8/expand3x3  1 1 fire8/squeeze1x1_fire8/relu_squeeze1x1_splitncnn_0 fire8/expand3x3 0=256 1=3 2=1 3=1 4=1 5=1 6=147456 8=2
+ReLU             fire8/relu_expand3x3 1 1 fire8/expand3x3 fire8/expand3x3_fire8/relu_expand3x3
+Concat           fire8/concat     2 1 fire8/expand1x1_fire8/relu_expand1x1 fire8/expand3x3_fire8/relu_expand3x3 fire8/concat 0=0
+Convolution      fire9/squeeze1x1 1 1 fire8/concat fire9/squeeze1x1 0=64 1=1 2=1 3=1 4=0 5=1 6=32768 8=2
+ReLU             fire9/relu_squeeze1x1 1 1 fire9/squeeze1x1 fire9/squeeze1x1_fire9/relu_squeeze1x1
+Split            splitncnn_9      1 2 fire9/squeeze1x1_fire9/relu_squeeze1x1 fire9/squeeze1x1_fire9/relu_squeeze1x1_splitncnn_0 fire9/squeeze1x1_fire9/relu_squeeze1x1_splitncnn_1
+Convolution      fire9/expand1x1  1 1 fire9/squeeze1x1_fire9/relu_squeeze1x1_splitncnn_1 fire9/expand1x1 0=256 1=1 2=1 3=1 4=0 5=1 6=16384 8=2
+BatchNorm        fire9/expand1x1/bn 1 1 fire9/expand1x1 fire9/expand1x1_fire9/expand1x1/bn 0=256
+Scale            fire9/expand1x1/scale 1 1 fire9/expand1x1_fire9/expand1x1/bn fire9/expand1x1_fire9/expand1x1/scale 0=256 1=1
+ReLU             fire9/relu_expand1x1 1 1 fire9/expand1x1_fire9/expand1x1/scale fire9/expand1x1_fire9/relu_expand1x1
+Convolution      fire9/expand3x3  1 1 fire9/squeeze1x1_fire9/relu_squeeze1x1_splitncnn_0 fire9/expand3x3 0=256 1=3 2=1 3=1 4=1 5=1 6=147456 8=2
+BatchNorm        fire9/expand3x3/bn 1 1 fire9/expand3x3 fire9/expand3x3_fire9/expand3x3/bn 0=256
+Scale            fire9/expand3x3/scale 1 1 fire9/expand3x3_fire9/expand3x3/bn fire9/expand3x3_fire9/expand3x3/scale 0=256 1=1
+ReLU             fire9/relu_expand3x3 1 1 fire9/expand3x3_fire9/expand3x3/scale fire9/expand3x3_fire9/relu_expand3x3
+Concat           fire9/concat     2 1 fire9/expand1x1_fire9/relu_expand1x1 fire9/expand3x3_fire9/relu_expand3x3 fire9/concat 0=0
+Split            splitncnn_10     1 4 fire9/concat fire9/concat_splitncnn_0 fire9/concat_splitncnn_1 fire9/concat_splitncnn_2 fire9/concat_splitncnn_3
+Pooling          pool9            1 1 fire9/concat_splitncnn_3 pool9 0=0 1=3 2=2 3=0 4=0
+Convolution      fire10/squeeze1x1 1 1 pool9 fire10/squeeze1x1 0=96 1=1 2=1 3=1 4=0 5=1 6=49152 8=2
+BatchNorm        fire10/squeeze1x1/bn 1 1 fire10/squeeze1x1 fire10/squeeze1x1_fire10/squeeze1x1/bn 0=96
+Scale            fire10/squeeze1x1/scale 1 1 fire10/squeeze1x1_fire10/squeeze1x1/bn fire10/squeeze1x1_fire10/squeeze1x1/scale 0=96 1=1
+ReLU             fire10/relu_squeeze1x1 1 1 fire10/squeeze1x1_fire10/squeeze1x1/scale fire10/squeeze1x1_fire10/relu_squeeze1x1
+Split            splitncnn_11     1 2 fire10/squeeze1x1_fire10/relu_squeeze1x1 fire10/squeeze1x1_fire10/relu_squeeze1x1_splitncnn_0 fire10/squeeze1x1_fire10/relu_squeeze1x1_splitncnn_1
+Convolution      fire10/expand1x1 1 1 fire10/squeeze1x1_fire10/relu_squeeze1x1_splitncnn_1 fire10/expand1x1 0=384 1=1 2=1 3=1 4=0 5=1 6=36864 8=2
+BatchNorm        fire10/expand1x1/bn 1 1 fire10/expand1x1 fire10/expand1x1_fire10/expand1x1/bn 0=384
+Scale            fire10/expand1x1/scale 1 1 fire10/expand1x1_fire10/expand1x1/bn fire10/expand1x1_fire10/expand1x1/scale 0=384 1=1
+ReLU             fire10/relu_expand1x1 1 1 fire10/expand1x1_fire10/expand1x1/scale fire10/expand1x1_fire10/relu_expand1x1
+Convolution      fire10/expand3x3 1 1 fire10/squeeze1x1_fire10/relu_squeeze1x1_splitncnn_0 fire10/expand3x3 0=384 1=3 2=1 3=1 4=1 5=1 6=331776 8=2
+BatchNorm        fire10/expand3x3/bn 1 1 fire10/expand3x3 fire10/expand3x3_fire10/expand3x3/bn 0=384
+Scale            fire10/expand3x3/scale 1 1 fire10/expand3x3_fire10/expand3x3/bn fire10/expand3x3_fire10/expand3x3/scale 0=384 1=1
+ReLU             fire10/relu_expand3x3 1 1 fire10/expand3x3_fire10/expand3x3/scale fire10/expand3x3_fire10/relu_expand3x3
+Concat           fire10/concat    2 1 fire10/expand1x1_fire10/relu_expand1x1 fire10/expand3x3_fire10/relu_expand3x3 fire10/concat 0=0
+Split            splitncnn_12     1 4 fire10/concat fire10/concat_splitncnn_0 fire10/concat_splitncnn_1 fire10/concat_splitncnn_2 fire10/concat_splitncnn_3
+Pooling          pool10           1 1 fire10/concat_splitncnn_3 pool10 0=0 1=3 2=2 3=0 4=0
+Convolution      fire11/squeeze1x1 1 1 pool10 fire11/squeeze1x1 0=96 1=1 2=1 3=1 4=0 5=1 6=73728 8=2
+BatchNorm        fire11/squeeze1x1/bn 1 1 fire11/squeeze1x1 fire11/squeeze1x1_fire11/squeeze1x1/bn 0=96
+Scale            fire11/squeeze1x1/scale 1 1 fire11/squeeze1x1_fire11/squeeze1x1/bn fire11/squeeze1x1_fire11/squeeze1x1/scale 0=96 1=1
+ReLU             fire11/relu_squeeze1x1 1 1 fire11/squeeze1x1_fire11/squeeze1x1/scale fire11/squeeze1x1_fire11/relu_squeeze1x1
+Split            splitncnn_13     1 2 fire11/squeeze1x1_fire11/relu_squeeze1x1 fire11/squeeze1x1_fire11/relu_squeeze1x1_splitncnn_0 fire11/squeeze1x1_fire11/relu_squeeze1x1_splitncnn_1
+Convolution      fire11/expand1x1 1 1 fire11/squeeze1x1_fire11/relu_squeeze1x1_splitncnn_1 fire11/expand1x1 0=384 1=1 2=1 3=1 4=0 5=1 6=36864 8=2
+BatchNorm        fire11/expand1x1/bn 1 1 fire11/expand1x1 fire11/expand1x1_fire11/expand1x1/bn 0=384
+Scale            fire11/expand1x1/scale 1 1 fire11/expand1x1_fire11/expand1x1/bn fire11/expand1x1_fire11/expand1x1/scale 0=384 1=1
+ReLU             fire11/relu_expand1x1 1 1 fire11/expand1x1_fire11/expand1x1/scale fire11/expand1x1_fire11/relu_expand1x1
+Convolution      fire11/expand3x3 1 1 fire11/squeeze1x1_fire11/relu_squeeze1x1_splitncnn_0 fire11/expand3x3 0=384 1=3 2=1 3=1 4=1 5=1 6=331776 8=2
+BatchNorm        fire11/expand3x3/bn 1 1 fire11/expand3x3 fire11/expand3x3_fire11/expand3x3/bn 0=384
+Scale            fire11/expand3x3/scale 1 1 fire11/expand3x3_fire11/expand3x3/bn fire11/expand3x3_fire11/expand3x3/scale 0=384 1=1
+ReLU             fire11/relu_expand3x3 1 1 fire11/expand3x3_fire11/expand3x3/scale fire11/expand3x3_fire11/relu_expand3x3
+Concat           fire11/concat    2 1 fire11/expand1x1_fire11/relu_expand1x1 fire11/expand3x3_fire11/relu_expand3x3 fire11/concat 0=0
+Split            splitncnn_14     1 4 fire11/concat fire11/concat_splitncnn_0 fire11/concat_splitncnn_1 fire11/concat_splitncnn_2 fire11/concat_splitncnn_3
+Convolution      conv12_1         1 1 fire11/concat_splitncnn_3 conv12_1 0=128 1=1 2=1 3=1 4=0 5=0 6=98304 8=2
+BatchNorm        conv12_1/bn      1 1 conv12_1 conv12_1_conv12_1/bn 0=128
+Scale            conv12_1/scale   1 1 conv12_1_conv12_1/bn conv12_1_conv12_1/scale 0=128 1=1
+ReLU             conv12_1/relu    1 1 conv12_1_conv12_1/scale conv12_1_conv12_1/relu
+Convolution      conv12_2         1 1 conv12_1_conv12_1/relu conv12_2 0=256 1=3 2=1 3=2 4=1 5=0 6=294912 8=2
+BatchNorm        conv12_2/bn      1 1 conv12_2 conv12_2_conv12_2/bn 0=256
+Scale            conv12_2/scale   1 1 conv12_2_conv12_2/bn conv12_2_conv12_2/scale 0=256 1=1
+ReLU             conv12_2/relu    1 1 conv12_2_conv12_2/scale conv12_2_conv12_2/relu
+Split            splitncnn_15     1 4 conv12_2_conv12_2/relu conv12_2_conv12_2/relu_splitncnn_0 conv12_2_conv12_2/relu_splitncnn_1 conv12_2_conv12_2/relu_splitncnn_2 conv12_2_conv12_2/relu_splitncnn_3
+Convolution      conv13_1         1 1 conv12_2_conv12_2/relu_splitncnn_3 conv13_1 0=64 1=1 2=1 3=1 4=0 5=0 6=16384 8=2
+BatchNorm        conv13_1/bn      1 1 conv13_1 conv13_1_conv13_1/bn 0=64
+Scale            conv13_1/scale   1 1 conv13_1_conv13_1/bn conv13_1_conv13_1/scale 0=64 1=1
+ReLU             conv13_1/relu    1 1 conv13_1_conv13_1/scale conv13_1_conv13_1/relu
+Convolution      conv13_2         1 1 conv13_1_conv13_1/relu conv13_2 0=128 1=3 2=1 3=2 4=1 5=0 6=73728 8=2
+BatchNorm        conv13_2/bn      1 1 conv13_2 conv13_2_conv13_2/bn 0=128
+Scale            conv13_2/scale   1 1 conv13_2_conv13_2/bn conv13_2_conv13_2/scale 0=128 1=1
+ReLU             conv13_2/relu    1 1 conv13_2_conv13_2/scale conv13_2_conv13_2/relu
+Split            splitncnn_16     1 3 conv13_2_conv13_2/relu conv13_2_conv13_2/relu_splitncnn_0 conv13_2_conv13_2/relu_splitncnn_1 conv13_2_conv13_2/relu_splitncnn_2
+BatchNorm        fire5/bn         1 1 fire5/concat_splitncnn_0 fire5/normal 0=256
+Scale            fire5/scale      1 1 fire5/normal fire5/normal_fire5/scale 0=256 1=1
+Split            splitncnn_17     1 3 fire5/normal_fire5/scale fire5/normal_fire5/scale_splitncnn_0 fire5/normal_fire5/scale_splitncnn_1 fire5/normal_fire5/scale_splitncnn_2
+Convolution      fire5_mbox_loc   1 1 fire5/normal_fire5/scale_splitncnn_2 fire5_mbox_loc 0=16 1=3 2=1 3=1 4=1 5=1 6=36864 8=2
+Permute          fire5_mbox_loc_perm 1 1 fire5_mbox_loc fire5_mbox_loc_perm 0=3
+Flatten          fire5_mbox_loc_flat 1 1 fire5_mbox_loc_perm fire5_mbox_loc_flat
+Convolution      fire5_mbox_conf  1 1 fire5/normal_fire5/scale_splitncnn_1 fire5_mbox_conf 0=84 1=3 2=1 3=1 4=1 5=1 6=193536 8=2
+Permute          fire5_mbox_conf_perm 1 1 fire5_mbox_conf fire5_mbox_conf_perm 0=3
+Flatten          fire5_mbox_conf_flat 1 1 fire5_mbox_conf_perm fire5_mbox_conf_flat
+PriorBox         fire5_mbox_priorbox 2 1 fire5/normal_fire5/scale_splitncnn_0 data_splitncnn_5 fire5_mbox_priorbox -23300=1,21.000000 -23301=1,45.000000 -23302=1,2.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=8.000000 12=8.000000 13=0.500000
+Convolution      fire9_mbox_loc   1 1 fire9/concat_splitncnn_2 fire9_mbox_loc 0=24 1=3 2=1 3=1 4=1 5=1 6=110592 8=2
+Permute          fire9_mbox_loc_perm 1 1 fire9_mbox_loc fire9_mbox_loc_perm 0=3
+Flatten          fire9_mbox_loc_flat 1 1 fire9_mbox_loc_perm fire9_mbox_loc_flat
+Convolution      fire9_mbox_conf  1 1 fire9/concat_splitncnn_1 fire9_mbox_conf 0=126 1=3 2=1 3=1 4=1 5=1 6=580608 8=2
+Permute          fire9_mbox_conf_perm 1 1 fire9_mbox_conf fire9_mbox_conf_perm 0=3
+Flatten          fire9_mbox_conf_flat 1 1 fire9_mbox_conf_perm fire9_mbox_conf_flat
+PriorBox         fire9_mbox_priorbox 2 1 fire9/concat_splitncnn_0 data_splitncnn_4 fire9_mbox_priorbox -23300=1,45.000000 -23301=1,99.000000 -23302=2,2.000000,3.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=16.000000 12=16.000000 13=0.500000
+Convolution      fire10_mbox_loc  1 1 fire10/concat_splitncnn_2 fire10_mbox_loc 0=24 1=3 2=1 3=1 4=1 5=1 6=165888 8=2
+Permute          fire10_mbox_loc_perm 1 1 fire10_mbox_loc fire10_mbox_loc_perm 0=3
+Flatten          fire10_mbox_loc_flat 1 1 fire10_mbox_loc_perm fire10_mbox_loc_flat
+Convolution      fire10_mbox_conf 1 1 fire10/concat_splitncnn_1 fire10_mbox_conf 0=126 1=3 2=1 3=1 4=1 5=1 6=870912 8=2
+Permute          fire10_mbox_conf_perm 1 1 fire10_mbox_conf fire10_mbox_conf_perm 0=3
+Flatten          fire10_mbox_conf_flat 1 1 fire10_mbox_conf_perm fire10_mbox_conf_flat
+PriorBox         fire10_mbox_priorbox 2 1 fire10/concat_splitncnn_0 data_splitncnn_3 fire10_mbox_priorbox -23300=1,99.000000 -23301=1,153.000000 -23302=2,2.000000,3.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=32.000000 12=32.000000 13=0.500000
+Convolution      fire11_mbox_loc  1 1 fire11/concat_splitncnn_2 fire11_mbox_loc 0=24 1=3 2=1 3=1 4=1 5=1 6=165888 8=2
+Permute          fire11_mbox_loc_perm 1 1 fire11_mbox_loc fire11_mbox_loc_perm 0=3
+Flatten          fire11_mbox_loc_flat 1 1 fire11_mbox_loc_perm fire11_mbox_loc_flat
+Convolution      fire11_mbox_conf 1 1 fire11/concat_splitncnn_1 fire11_mbox_conf 0=126 1=3 2=1 3=1 4=1 5=1 6=870912 8=2
+Permute          fire11_mbox_conf_perm 1 1 fire11_mbox_conf fire11_mbox_conf_perm 0=3
+Flatten          fire11_mbox_conf_flat 1 1 fire11_mbox_conf_perm fire11_mbox_conf_flat
+PriorBox         fire11_mbox_priorbox 2 1 fire11/concat_splitncnn_0 data_splitncnn_2 fire11_mbox_priorbox -23300=1,153.000000 -23301=1,207.000000 -23302=2,2.000000,3.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=64.000000 12=64.000000 13=0.500000
+Convolution      conv12_2_mbox_loc 1 1 conv12_2_conv12_2/relu_splitncnn_2 conv12_2_mbox_loc 0=24 1=3 2=1 3=1 4=1 5=1 6=55296 8=2
+Permute          conv12_2_mbox_loc_perm 1 1 conv12_2_mbox_loc conv12_2_mbox_loc_perm 0=3
+Flatten          conv12_2_mbox_loc_flat 1 1 conv12_2_mbox_loc_perm conv12_2_mbox_loc_flat
+Convolution      conv12_2_mbox_conf 1 1 conv12_2_conv12_2/relu_splitncnn_1 conv12_2_mbox_conf 0=126 1=3 2=1 3=1 4=1 5=1 6=290304 8=2
+Permute          conv12_2_mbox_conf_perm 1 1 conv12_2_mbox_conf conv12_2_mbox_conf_perm 0=3
+Flatten          conv12_2_mbox_conf_flat 1 1 conv12_2_mbox_conf_perm conv12_2_mbox_conf_flat
+PriorBox         conv12_2_mbox_priorbox 2 1 conv12_2_conv12_2/relu_splitncnn_0 data_splitncnn_1 conv12_2_mbox_priorbox -23300=1,207.000000 -23301=1,261.000000 -23302=2,2.000000,3.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=100.000000 12=100.000000 13=0.500000
+Convolution      conv13_2_mbox_loc 1 1 conv13_2_conv13_2/relu_splitncnn_2 conv13_2_mbox_loc 0=16 1=3 2=1 3=1 4=1 5=1 6=18432 8=2
+Permute          conv13_2_mbox_loc_perm 1 1 conv13_2_mbox_loc conv13_2_mbox_loc_perm 0=3
+Flatten          conv13_2_mbox_loc_flat 1 1 conv13_2_mbox_loc_perm conv13_2_mbox_loc_flat
+Convolution      conv13_2_mbox_conf 1 1 conv13_2_conv13_2/relu_splitncnn_1 conv13_2_mbox_conf 0=84 1=3 2=1 3=1 4=1 5=1 6=96768 8=2
+Permute          conv13_2_mbox_conf_perm 1 1 conv13_2_mbox_conf conv13_2_mbox_conf_perm 0=3
+Flatten          conv13_2_mbox_conf_flat 1 1 conv13_2_mbox_conf_perm conv13_2_mbox_conf_flat
+PriorBox         conv13_2_mbox_priorbox 2 1 conv13_2_conv13_2/relu_splitncnn_0 data_splitncnn_0 conv13_2_mbox_priorbox -23300=1,261.000000 -23301=1,315.000000 -23302=1,2.000000 3=0.100000 4=0.100000 5=0.200000 6=0.200000 7=1 8=0 9=-233 10=-233 11=300.000000 12=300.000000 13=0.500000
+Concat           mbox_loc         6 1 fire5_mbox_loc_flat fire9_mbox_loc_flat fire10_mbox_loc_flat fire11_mbox_loc_flat conv12_2_mbox_loc_flat conv13_2_mbox_loc_flat mbox_loc 0=0
+Concat           mbox_conf        6 1 fire5_mbox_conf_flat fire9_mbox_conf_flat fire10_mbox_conf_flat fire11_mbox_conf_flat conv12_2_mbox_conf_flat conv13_2_mbox_conf_flat mbox_conf 0=0
+Concat           mbox_priorbox    6 1 fire5_mbox_priorbox fire9_mbox_priorbox fire10_mbox_priorbox fire11_mbox_priorbox conv12_2_mbox_priorbox conv13_2_mbox_priorbox mbox_priorbox 0=1
+Reshape          mbox_conf_reshape 1 1 mbox_conf mbox_conf_reshape 0=21 1=-1 2=-233 3=0
+Softmax          mbox_conf_softmax 1 1 mbox_conf_reshape mbox_conf_softmax 0=1 1=1
+Flatten          mbox_conf_flatten 1 1 mbox_conf_softmax mbox_conf_flatten
+DetectionOutput  detection_out    3 1 mbox_loc mbox_conf_flatten mbox_priorbox output 0=21 1=0.450000 2=100 3=100 4=0.050000

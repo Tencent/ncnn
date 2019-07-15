@@ -370,6 +370,7 @@ message LayerParameter {
   optional DataParameter data_param = 107;
   optional DetectionOutputParameter detection_output_param = 204;
   optional YoloDetectionOutputParameter yolo_detection_output_param = 601;
+  optional Yolov3DetectionOutputParameter yolov3_detection_output_param = 603;
   optional DropoutParameter dropout_param = 108;
   optional DummyDataParameter dummy_data_param = 109;
   optional EltwiseParameter eltwise_param = 110;
@@ -395,12 +396,14 @@ message LayerParameter {
   optional PowerParameter power_param = 122;
   optional PReLUParameter prelu_param = 131;
   optional PriorBoxParameter prior_box_param = 203;
+  optional PSROIPoolingParameter psroi_pooling_param = 149;
   optional PythonParameter python_param = 130;
   optional RecurrentParameter recurrent_param = 146;
   optional ReductionParameter reduction_param = 136;
   optional ReLUParameter relu_param = 123;
   optional ReorgParameter reorg_param = 147;
   optional ReshapeParameter reshape_param = 133;
+  optional ROIAlignParameter roi_align_param = 148;
   optional ROIPoolingParameter roi_pooling_param = 8266711;
   optional ScaleParameter scale_param = 142;
   optional ShuffleChannelParameter shuffle_channel_param = 145;
@@ -797,7 +800,18 @@ message YoloDetectionOutputParameter {
   repeated float biases = 7;
   optional string label_map_file = 8;
 }
-
+message Yolov3DetectionOutputParameter {
+  // Yolov3 detection output layer
+  // Yolo detection output layer
+  optional uint32 num_classes = 1 [default = 20];
+  optional uint32 num_box = 2 [default = 3];
+  optional float confidence_threshold = 3 [default = 0.01];
+  optional float nms_threshold = 4 [default = 0.45];
+  repeated float biases = 5;
+  repeated uint32 anchors_scale = 6 ;
+  optional uint32 mask_group_num = 7 [default = 2];
+  repeated uint32 mask = 8;
+}
 message DropoutParameter {
   optional float dropout_ratio = 1 [default = 0.5]; // dropout ratio
   optional bool scale_train = 2 [default = true];  // scale train or test phase
@@ -1119,6 +1133,12 @@ message PriorBoxParameter {
   optional float offset = 13 [default = 0.5];
 }
 
+message PSROIPoolingParameter {
+  required float spatial_scale = 1;
+  required int32 output_dim = 2; // output channel number
+  required int32 group_size = 3; // number of groups to encode position-sensitive score maps
+}
+
 message PythonParameter {
   optional string module = 1;
   optional string layer = 2;
@@ -1264,6 +1284,16 @@ message ReshapeParameter {
   //
   optional int32 axis = 2 [default = 0];
   optional int32 num_axes = 3 [default = -1];
+}
+
+message ROIAlignParameter {
+  // Pad, kernel size, and stride are all given as a single value for equal
+  // dimensions in height and width or as Y, X pairs.
+  optional uint32 pooled_h = 1 [default = 0]; // The pooled output height
+  optional uint32 pooled_w = 2 [default = 0]; // The pooled output width
+  // Multiplicative spatial scale factor to translate ROI coords from their
+  // input scale to the scale used when pooling
+  optional float spatial_scale = 3 [default = 1];
 }
 
 // Message that stores parameters used by ROIPoolingLayer

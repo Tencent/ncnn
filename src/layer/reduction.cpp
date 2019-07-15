@@ -128,14 +128,14 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff, co
         for (int q=0; q<channels; q++)
         {
             const float* ptr = a.channel(q);
-            float* outptr = b.channel(q);
+            float* outptr = b.row(q);
 
             for (int i=0; i<h; i++)
             {
                 float sum = v0;
                 for (int j=0; j<w; j++)
                 {
-                    sum = op(sum, ptr[i]);
+                    sum = op(sum, ptr[j]);
                 }
 
                 outptr[i] = sum * coeff;
@@ -162,7 +162,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, int dim, float coeff, co
             {
                 for (int j=0; j<w; j++)
                 {
-                    mins_ptr[j] = op(mins_ptr[j], ptr[i]);
+                    mins_ptr[j] = op(mins_ptr[j], ptr[j]);
                 }
 
                 ptr += w;

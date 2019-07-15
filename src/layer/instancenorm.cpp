@@ -65,15 +65,23 @@ int InstanceNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int i=0; i<size; i++)
         {
             sum += ptr[i];
-            sqsum += ptr[i] * ptr[i];
+            //sqsum += ptr[i] * ptr[i];
         }
         float mean = sum / size;
-        float var = sqsum / size - mean * mean;
+        float tmp = 0.f;
+        for (int i=0; i<size; i++)
+        {
+            tmp = ptr[i] - mean;
+            sqsum += tmp * tmp;
+        }
+        float var = sqsum / size;
+        // the var maybe minus due to accuracy
+        //float var = sqsum / size - mean * mean;
 
         float gamma = gamma_data[q];
         float beta = beta_data[q];
 
-        float a = gamma / (sqrt(var) + eps);
+        float a = gamma / (sqrt(var + eps));
         float b = - mean * a + beta;
 
         for (int i=0; i<size; i++)

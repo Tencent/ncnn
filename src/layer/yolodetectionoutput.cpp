@@ -23,21 +23,8 @@ DEFINE_LAYER_CREATOR(YoloDetectionOutput)
 
 YoloDetectionOutput::YoloDetectionOutput()
 {
-    one_blob_only = true;
+    one_blob_only = false;
     support_inplace = true;
-
-    softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
-
-    // set param
-    ncnn::ParamDict pd;
-    pd.set(0, 0);// axis
-
-    softmax->load_param(pd);
-}
-
-YoloDetectionOutput::~YoloDetectionOutput()
-{
-    delete softmax;
 }
 
 int YoloDetectionOutput::load_param(const ParamDict& pd)
@@ -47,6 +34,38 @@ int YoloDetectionOutput::load_param(const ParamDict& pd)
     confidence_threshold = pd.get(2, 0.01f);
     nms_threshold = pd.get(3, 0.45f);
     biases = pd.get(4, Mat());
+
+    return 0;
+}
+
+int YoloDetectionOutput::create_pipeline(const Option& opt)
+{
+    {
+        softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+
+        ncnn::ParamDict pd;
+        pd.set(0, 0);// axis
+
+        softmax->load_param(pd);
+
+        Option opt_cpu = opt;
+        opt_cpu.use_vulkan_compute = false;
+        softmax->create_pipeline(opt_cpu);
+    }
+
+    return 0;
+}
+
+int YoloDetectionOutput::destroy_pipeline(const Option& opt)
+{
+    if (softmax)
+    {
+        Option opt_cpu = opt;
+        opt_cpu.use_vulkan_compute = false;
+        softmax->destroy_pipeline(opt_cpu);
+        delete softmax;
+        softmax = 0;
+    }
 
     return 0;
 }
@@ -160,104 +179,109 @@ static inline float sigmoid(float x)
     return 1.f / (1.f + exp(-x));
 }
 
-int YoloDetectionOutput::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-
-    const int channels_per_box = channels / num_box;
-
-    // anchor coord + box score + num_class
-    if (channels_per_box != 4 + 1 + num_class)
-        return -1;
-
-    std::vector< std::vector<BBoxRect> > all_box_bbox_rects;
-    std::vector< std::vector<float> > all_box_bbox_scores;
-    all_box_bbox_rects.resize(num_box);
-    all_box_bbox_scores.resize(num_box);
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < num_box; pp++)
-    {
-        int p = pp * channels_per_box;
-
-        const float bias_w = biases[pp*2];
-        const float bias_h = biases[pp*2+1];
-
-        const float* xptr = bottom_top_blob.channel(p);
-        const float* yptr = bottom_top_blob.channel(p+1);
-        const float* wptr = bottom_top_blob.channel(p+2);
-        const float* hptr = bottom_top_blob.channel(p+3);
-
-        const float* box_score_ptr = bottom_top_blob.channel(p+4);
-
-        // softmax class scores
-        Mat scores = bottom_top_blob.channel_range(p+5, num_class);
-        softmax->forward_inplace(scores, opt);
-
-        for (int i = 0; i < h; i++)
-        {
-            for (int j = 0; j < w; j++)
-            {
-                // region box
-                float bbox_cx = (j + sigmoid(xptr[0])) / w;
-                float bbox_cy = (i + sigmoid(yptr[0])) / h;
-                float bbox_w = exp(wptr[0]) * bias_w / w;
-                float bbox_h = exp(hptr[0]) * bias_h / h;
-
-                float bbox_xmin = bbox_cx - bbox_w * 0.5f;
-                float bbox_ymin = bbox_cy - bbox_h * 0.5f;
-                float bbox_xmax = bbox_cx + bbox_w * 0.5f;
-                float bbox_ymax = bbox_cy + bbox_h * 0.5f;
-
-                // box score
-                float box_score = sigmoid(box_score_ptr[0]);
-
-                // find class index with max class score
-                int class_index = 0;
-                float class_score = 0.f;
-                for (int q = 0; q < num_class; q++)
-                {
-                    float score = scores.channel(q).row(i)[j];
-                    if (score > class_score)
-                    {
-                        class_index = q;
-                        class_score = score;
-                    }
-                }
-
-//                 fprintf(stderr, "%d %f %f\n", class_index, box_score, class_score);
-
-                float confidence = box_score * class_score;
-                if (confidence >= confidence_threshold)
-                {
-                    BBoxRect c = { bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, class_index };
-                    all_box_bbox_rects[pp].push_back(c);
-                    all_box_bbox_scores[pp].push_back(confidence);
-                }
-
-                xptr++;
-                yptr++;
-                wptr++;
-                hptr++;
-
-                box_score_ptr++;
-            }
-        }
-    }
-
     // gather all box
     std::vector<BBoxRect> all_bbox_rects;
     std::vector<float> all_bbox_scores;
 
-    for (int i = 0; i < num_box; i++)
+    for (size_t b=0; b<bottom_top_blobs.size(); b++)
     {
-        const std::vector<BBoxRect>& box_bbox_rects = all_box_bbox_rects[i];
-        const std::vector<float>& box_bbox_scores = all_box_bbox_scores[i];
+        Mat& bottom_top_blob = bottom_top_blobs[b];
 
-        all_bbox_rects.insert(all_bbox_rects.end(), box_bbox_rects.begin(), box_bbox_rects.end());
-        all_bbox_scores.insert(all_bbox_scores.end(), box_bbox_scores.begin(), box_bbox_scores.end());
+        int w = bottom_top_blob.w;
+        int h = bottom_top_blob.h;
+        int channels = bottom_top_blob.c;
+
+        const int channels_per_box = channels / num_box;
+
+        // anchor coord + box score + num_class
+        if (channels_per_box != 4 + 1 + num_class)
+            return -1;
+
+        std::vector< std::vector<BBoxRect> > all_box_bbox_rects;
+        std::vector< std::vector<float> > all_box_bbox_scores;
+        all_box_bbox_rects.resize(num_box);
+        all_box_bbox_scores.resize(num_box);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp = 0; pp < num_box; pp++)
+        {
+            int p = pp * channels_per_box;
+
+            const float bias_w = biases[pp*2];
+            const float bias_h = biases[pp*2+1];
+
+            const float* xptr = bottom_top_blob.channel(p);
+            const float* yptr = bottom_top_blob.channel(p+1);
+            const float* wptr = bottom_top_blob.channel(p+2);
+            const float* hptr = bottom_top_blob.channel(p+3);
+
+            const float* box_score_ptr = bottom_top_blob.channel(p+4);
+
+            // softmax class scores
+            Mat scores = bottom_top_blob.channel_range(p+5, num_class);
+            softmax->forward_inplace(scores, opt);
+
+            for (int i = 0; i < h; i++)
+            {
+                for (int j = 0; j < w; j++)
+                {
+                    // region box
+                    float bbox_cx = (j + sigmoid(xptr[0])) / w;
+                    float bbox_cy = (i + sigmoid(yptr[0])) / h;
+                    float bbox_w = exp(wptr[0]) * bias_w / w;
+                    float bbox_h = exp(hptr[0]) * bias_h / h;
+
+                    float bbox_xmin = bbox_cx - bbox_w * 0.5f;
+                    float bbox_ymin = bbox_cy - bbox_h * 0.5f;
+                    float bbox_xmax = bbox_cx + bbox_w * 0.5f;
+                    float bbox_ymax = bbox_cy + bbox_h * 0.5f;
+
+                    // box score
+                    float box_score = sigmoid(box_score_ptr[0]);
+
+                    // find class index with max class score
+                    int class_index = 0;
+                    float class_score = 0.f;
+                    for (int q = 0; q < num_class; q++)
+                    {
+                        float score = scores.channel(q).row(i)[j];
+                        if (score > class_score)
+                        {
+                            class_index = q;
+                            class_score = score;
+                        }
+                    }
+
+    //                 fprintf(stderr, "%d %f %f\n", class_index, box_score, class_score);
+
+                    float confidence = box_score * class_score;
+                    if (confidence >= confidence_threshold)
+                    {
+                        BBoxRect c = { bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, class_index };
+                        all_box_bbox_rects[pp].push_back(c);
+                        all_box_bbox_scores[pp].push_back(confidence);
+                    }
+
+                    xptr++;
+                    yptr++;
+                    wptr++;
+                    hptr++;
+
+                    box_score_ptr++;
+                }
+            }
+        }
+
+        for (int i = 0; i < num_box; i++)
+        {
+            const std::vector<BBoxRect>& box_bbox_rects = all_box_bbox_rects[i];
+            const std::vector<float>& box_bbox_scores = all_box_bbox_scores[i];
+
+            all_bbox_rects.insert(all_bbox_rects.end(), box_bbox_rects.begin(), box_bbox_rects.end());
+            all_bbox_scores.insert(all_bbox_scores.end(), box_bbox_scores.begin(), box_bbox_scores.end());
+        }
     }
 
     // global sort inplace
@@ -280,16 +304,19 @@ int YoloDetectionOutput::forward_inplace(Mat& bottom_top_blob, const Option& opt
 
     // fill result
     int num_detected = bbox_rects.size();
+    if (num_detected == 0)
+        return 0;
 
-    bottom_top_blob.create(6, num_detected, 4u, opt.blob_allocator);
-    if (bottom_top_blob.empty())
+    Mat& top_blob = bottom_top_blobs[0];
+    top_blob.create(6, num_detected, 4u, opt.blob_allocator);
+    if (top_blob.empty())
         return -100;
 
     for (int i = 0; i < num_detected; i++)
     {
         const BBoxRect& r = bbox_rects[i];
         float score = bbox_scores[i];
-        float* outptr = bottom_top_blob.row(i);
+        float* outptr = top_blob.row(i);
 
         outptr[0] = r.label + 1;// +1 for prepend background class
         outptr[1] = score;

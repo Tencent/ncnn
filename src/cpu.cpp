@@ -315,7 +315,11 @@ typedef struct
 #ifdef __GLIBC__
     pid_t pid = syscall(SYS_gettid);
 #else
+#ifdef PI3
+    pid_t pid = getpid();
+#else
     pid_t pid = gettid();
+#endif
 #endif
     cpu_set_t mask;
     CPU_ZERO(&mask);
