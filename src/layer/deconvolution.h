@@ -41,6 +41,8 @@ public:
     int stride_h;
     int pad_w;
     int pad_h;
+    int output_pad_w;
+    int output_pad_h;
     int bias_term;
 
     int weight_data_size;

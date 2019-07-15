@@ -132,11 +132,11 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     int h = bottom_blob.h;
     size_t elemsize = bottom_blob.elemsize;
 
-    int outw = (w - 1) * stride + kernel_size;
-    int outh = (h - 1) * stride + kernel_size;
+    int outw = (w - 1) * stride + kernel_size + output_pad_w;
+    int outh = (h - 1) * stride + kernel_size + output_pad_h;
 
     Mat top_blob_bordered;
-    if (pad_w > 0 || pad_h > 0)
+    if (pad_w > 0 || pad_h > 0 || output_pad_w > 0 || output_pad_h > 0)
     {
         top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
         if (top_blob_bordered.empty())
@@ -152,7 +152,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     deconv(bottom_blob, top_blob_bordered, weight_data, bias_data, opt);
 
-    if (pad_w > 0 || pad_h > 0)
+    if (pad_w > 0 || pad_h > 0 || output_pad_w > 0 || output_pad_h > 0)
     {
         copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w, opt.blob_allocator, opt.num_threads);
         if (top_blob.empty())
