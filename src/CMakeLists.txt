@@ -326,11 +326,11 @@ endif()
 if(ANDROID)
     # disable shared library on android
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
-    target_compile_options(ncnn PRIVATE -fno-rtti -fno-exceptions)
+    target_compile_options(ncnn PUBLIC -fno-rtti -fno-exceptions)
 elseif(IOS)
     # disable shared library on xcode ios
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
-    target_compile_options(ncnn PRIVATE -fno-rtti -fno-exceptions)
+    target_compile_options(ncnn PUBLIC -fno-rtti -fno-exceptions)
 elseif(NCNN_AVX2)
     #set up according to your own system environment
     #Windows
