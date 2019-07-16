@@ -16,7 +16,6 @@
 #include <stdio.h>
 
 #ifdef _WIN32
-#define NOMINMAX
 #include <algorithm>
 #include <windows.h> // Sleep()
 #else
