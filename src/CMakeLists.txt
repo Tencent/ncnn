@@ -290,7 +290,10 @@ endif()
 
 if(NCNN_VULKAN)
     find_package(Vulkan REQUIRED)
-    target_include_directories(ncnn PUBLIC ${Vulkan_INCLUDE_DIR})
+    add_library(Vulkan STATIC IMPORTED)
+    set_target_properties(Vulkan PROPERTIES IMPORTED_LOCATION ${Vulkan_LIBRARY})
+    set_target_properties(Vulkan PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${Vulkan_INCLUDE_DIR})
+    target_link_libraries(ncnn PUBLIC Vulkan)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
