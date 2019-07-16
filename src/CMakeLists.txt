@@ -306,7 +306,7 @@ else()
 
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
         if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-            target_compile_options(ncnn PRIVATE -Ofase)
+            target_compile_options(ncnn PRIVATE -Ofast)
         endif()
 
         target_compile_options(ncnn PRIVATE -ffast-math)
