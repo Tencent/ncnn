@@ -353,7 +353,7 @@ if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
 endif()
 
 if(NCNN_INSTALL_SDK)
-    install(TARGETS ncnn EXPORT ncnn)
+    install(TARGETS ncnn EXPORT ncnn ARCHIVE DESTINATION lib)
     install(FILES
         allocator.h
         blob.h
@@ -372,7 +372,7 @@ if(NCNN_INSTALL_SDK)
         benchmark.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h
-        TYPE INCLUDE
+        DESTINATION include
     )
     install(EXPORT ncnn
         DESTINATION cmake)
