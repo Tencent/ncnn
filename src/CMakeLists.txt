@@ -290,7 +290,7 @@ endif()
 
 if(NCNN_VULKAN)
     find_package(Vulkan REQUIRED)
-    target_include_directories(ncnn PRIVATE ${Vulkan_INCLUDE_DIR})
+    target_include_directories(ncnn PUBLIC ${Vulkan_INCLUDE_DIR})
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
