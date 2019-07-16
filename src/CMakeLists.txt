@@ -282,17 +282,14 @@ target_include_directories(ncnn
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
 
 if(NCNN_OPENMP)
-    find_package(OpenMP)
+    include(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnn-FindOpenMP.cmake)
     if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
         target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
     endif()
 endif()
 
 if(NCNN_VULKAN)
-    find_package(Vulkan REQUIRED)
-    add_library(Vulkan STATIC IMPORTED)
-    set_target_properties(Vulkan PROPERTIES IMPORTED_LOCATION ${Vulkan_LIBRARY})
-    set_target_properties(Vulkan PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${Vulkan_INCLUDE_DIR})
+    include(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnn-FindVulkan.cmake)
     target_link_libraries(ncnn PUBLIC Vulkan)
 endif()
 
@@ -379,4 +376,14 @@ if(NCNN_INSTALL_SDK)
     )
     install(EXPORT ncnn
         DESTINATION cmake)
+    if(NCNN_OPENMP)
+        install(FILES
+            ${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnn-FindOpenMP.cmake
+            DESTINATION cmake)
+    endif()
+    if(NCNN_VULKAN)
+        install(FILES
+            ${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnn-FindVulkan.cmake
+            DESTINATION cmake)
+    endif()
 endif()
