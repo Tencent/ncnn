@@ -323,12 +323,8 @@ else()
     target_compile_options(ncnn PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
 endif()
 
-if(ANDROID)
-    # disable shared library on android
-    set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
-    target_compile_options(ncnn PUBLIC -fno-rtti -fno-exceptions)
-elseif(IOS)
-    # disable shared library on xcode ios
+if((ANDROID OR IOS) AND NCNN_DISABLE_RTTI_EXCEPTION)
+    # disable shared library on android and xcode ios
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
     target_compile_options(ncnn PUBLIC -fno-rtti -fno-exceptions)
 elseif(NCNN_AVX2)
