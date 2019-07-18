@@ -44,8 +44,6 @@ else()
     option(NCNN_DISABLE_EXCEPTION "disable exception" OFF)
 endif()
 
-option(NCNN_DISABLE_EXCEPTION "disable exception" _NCNN_DISABLE_EXCEPTION_DEFAULT_VALUE)
-
 ##############################################
 
 # add_subdirectory(examples)
