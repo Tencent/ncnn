@@ -39,6 +39,8 @@ int Deconvolution::load_param(const ParamDict& pd)
     pad_h = pd.get(14, pad_w);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
+    output_pad_w = pd.get(8, 0);
+    output_pad_h = pd.get(18, output_pad_w);
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
 
@@ -76,11 +78,11 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_w;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_h;
 
     Mat top_blob_bordered;
-    if (pad_w > 0 || pad_h > 0)
+    if (pad_w > 0 || pad_h > 0 || output_pad_w > 0 || output_pad_h > 0)
     {
         top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
         if (top_blob_bordered.empty())
@@ -198,7 +200,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
     }
 
-    if (pad_w > 0 || pad_h > 0)
+    if (pad_w > 0 || pad_h > 0 || output_pad_w > 0 || output_pad_h > 0)
     {
         copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w, opt.blob_allocator, opt.num_threads);
         if (top_blob.empty())

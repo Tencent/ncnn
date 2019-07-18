@@ -1084,7 +1084,7 @@ int main(int argc, char** argv)
             std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
             std::vector<int> dilations = get_node_attr_ai(node, "dilations");
             std::vector<int> strides = get_node_attr_ai(node, "strides");
-            std::vector<int> output_padding = get_node_attr_ai(node, "output_padding");//TODO implement adj
+            std::vector<int> output_padding = get_node_attr_ai(node, "output_padding");
             std::vector<int> output_shape = get_node_attr_ai(node, "output_shape");//TODO
             std::vector<int> pads = get_node_attr_ai(node, "pads");
             int group = get_node_attr_i(node, "group", 1);
@@ -1140,6 +1140,13 @@ int main(int argc, char** argv)
 
             if (group > 1) {
                 fprintf(pp, " 7=%d", group);
+            }
+
+            if (output_padding.size() == 1) {
+                fprintf(pp, " 8=%d", output_padding[0]);
+            } else if (output_padding.size() == 2) {
+                fprintf(pp, " 8=%d", output_padding[1]);
+                fprintf(pp, " 18=%d", output_padding[0]);
             }
 
             int quantize_tag = 0;
