@@ -1531,6 +1531,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (op->pad_h != op->pad_w) fprintf(pp, " 14=%d", op->pad_h); }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
+            fprintf_param_value(" 8=%d", output_pad_w)
+            { if (op->output_pad_h != op->output_pad_w) fprintf(pp, " 18=%d", op->output_pad_h); }
             fprintf_param_value(" 9=%d", activation_type)
             { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
 
@@ -1637,6 +1639,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", channels)
             fprintf_param_value(" 1=%f", eps)
+
+            fwrite_weight_data(op->gamma_data, bp);
+            fwrite_weight_data(op->beta_data, bp);
         }
         else if (layer->type == "Interp")
         {
