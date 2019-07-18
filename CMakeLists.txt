@@ -91,6 +91,8 @@ elseif(NCNN_AVX2)
     else()
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfma")
     endif()
+elseif(LINUX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-exceptions")
 endif()
 
 ##############################################

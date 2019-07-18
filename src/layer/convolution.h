@@ -74,6 +74,9 @@ public:
     // merge de/requantize op into convolution op
     std::vector<float> dequantize_scales;
     std::vector<float> requantize_scales;    
+
+    // implementation type, 0 means do not use auto pack model 
+    int impl_type;
 };
 
 } // namespace ncnn
