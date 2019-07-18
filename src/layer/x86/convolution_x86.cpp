@@ -217,7 +217,15 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
 
             ncnn::Option opt_g = opt;
             opt_g.blob_allocator = inner_top_blob.allocator;
+            if (kernel_size == 7)
+            {
+            // FIXME conv7x7s1_sse use sgemm
+            conv(inner_bottom_blob, inner_top_blob, weight_sgemm_data, bias_data, opt_g);
+            }
+            else
+            {
             conv(inner_bottom_blob, inner_top_blob, weight_data, bias_data, opt_g);
+            }
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < num_output; c ++)
