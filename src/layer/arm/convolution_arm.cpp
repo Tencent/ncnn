@@ -137,6 +137,41 @@ int Convolution_arm::create_pipeline(const Option& opt)
         return 0;
     }
 
+    if (impl_type > 0)
+    {
+        int num_input = 0;
+        int kernel_size = 0;
+        switch(impl_type)
+        {
+            case 1:
+                // winograd
+                num_input = weight_data_size / 9 / num_output;
+                conv3x3s1_winograd64_transform_kernel_neon5(weight_data, weight_3x3_winograd64_data, num_input, num_output);
+                break;
+            case 2:
+                // pointwise
+                num_input = weight_data_size / num_output;
+                conv1x1s1_sgemm_transform_kernel_neon(weight_data, weight_1x1_sgemm_data, num_input, num_output);
+                break;
+            case 3:
+                // im2col
+                kernel_size = kernel_w * kernel_h;
+                num_input = weight_data_size / kernel_size / num_output;
+                conv_im2col_sgemm_transform_kernel_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_size);
+                break;
+            case 4:
+                // direct
+                break;
+            case 5:
+                // conv3x3s2
+                num_input = weight_data_size / 9 / num_output;
+                conv3x3s2_transform_kernel_neon(weight_data, weight_3x3s2_data, num_input, num_output);
+            default:
+                return -1;
+        }
+        return 0;
+    }
+
     if (use_winograd3x3)
     {
         int num_input = weight_data_size / 9 / num_output;
@@ -596,28 +631,56 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (top_blob.empty())
         return -100;
 
-    if (use_winograd3x3 && w <= 120 && h <= 120)
+    if (impl_type > 0)
     {
-//         conv3x3s1_winograd64_neon4(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
-        conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
-    }
-    else if (use_sgemm1x1)
+        // engineering is magic.
+        switch(impl_type)
+        {
+            case 1:
+                conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+                break;
+            case 2:
+                conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data, opt);
+                break;
+            case 3:
+                conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
+                break;
+            case 4:
+                conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+                break;
+            case 5:
+                conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
+                break;
+            default:
+                return -1;
+        }
+
+    } else 
     {
-        conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data, opt);
-    }
-    else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-    {
-        conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
-    }
-    else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-    {
-        if (outw >=8 && outh >=8)
-            conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
-        else
+        if (use_winograd3x3 && w <= 120 && h <= 120)
+        {
+//             conv3x3s1_winograd64_neon4(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+            conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+        }
+        else if (use_sgemm1x1)
+        {
+            conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data, opt);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
-    }     
-    else
-        conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            if (outw >=8 && outh >=8)
+                conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
+            else
+                conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
+        }     
+        else
+            conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+    }
+
 
     if (activation)
     {
