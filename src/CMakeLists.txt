@@ -306,7 +306,9 @@ else()
     target_compile_options(ncnn
         PRIVATE -Wall -Wextra -Wno-unused-function)
     set_target_properties(ncnn
-        PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        PROPERTIES
+            POSITION_INDEPENDENT_CODE ON
+            INTERFACE_POSITION_INDEPENDENT_CODE ON)
 
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
         if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
@@ -382,11 +384,11 @@ if(NCNN_INSTALL_SDK)
         DESTINATION include
     )
     install(EXPORT ncnn
-        DESTINATION cmake)
+        DESTINATION share/ncnn)
     configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in
         ncnnConfig.cmake
         @ONLY)
     install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake
-        DESTINATION cmake)
+        DESTINATION share/ncnn)
 endif()

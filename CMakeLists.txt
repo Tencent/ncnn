@@ -33,17 +33,15 @@ option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
 option(NCNN_AVX2 "optimize x86 platform with avx2" OFF)
 
 if(ANDROID OR IOS)
-    set(_NCNN_DISABLE_RTTI_DEFAULT_VALUE ON)
+    option(NCNN_DISABLE_RTTI "disable rtti" ON)
 else()
-    set(_NCNN_DISABLE_RTTI_DEFAULT_VALUE OFF)
+    option(NCNN_DISABLE_RTTI "disable rtti" OFF)
 endif()
 
-option(NCNN_DISABLE_RTTI "disable rtti" _NCNN_DISABLE_RTTI_DEFAULT_VALUE)
-
 if(ANDROID OR IOS OR LINUX)
-    set(_NCNN_DISABLE_EXCEPTION_DEFAULT_VALUE ON)
+    option(NCNN_DISABLE_EXCEPTION "disable exception" ON)
 else()
-    set(_NCNN_DISABLE_EXCEPTION_DEFAULT_VALUE OFF)
+    option(NCNN_DISABLE_EXCEPTION "disable exception" OFF)
 endif()
 
 option(NCNN_DISABLE_EXCEPTION "disable exception" _NCNN_DISABLE_EXCEPTION_DEFAULT_VALUE)
