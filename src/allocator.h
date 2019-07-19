@@ -122,7 +122,7 @@ static inline int NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += de
 class Allocator
 {
 public:
-    virtual ~Allocator() = 0;
+    virtual ~Allocator();
     virtual void* fastMalloc(size_t size) = 0;
     virtual void fastFree(void* ptr) = 0;
 };
