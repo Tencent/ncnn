@@ -3,10 +3,6 @@
 
 configure_file(platform.h.in ${CMAKE_CURRENT_BINARY_DIR}/platform.h)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/layer)
-
 if(NCNN_VULKAN)
     find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin NO_CMAKE_FIND_ROOT_PATH)
     message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
@@ -277,6 +273,85 @@ configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shad
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
+target_include_directories(ncnn
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
+
+if(NCNN_OPENMP)
+    find_package(OpenMP)
+    if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
+        target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
+    endif()
+endif()
+
+if(NCNN_VULKAN)
+    find_package(Vulkan REQUIRED)
+
+    add_library(Vulkan UNKNOWN IMPORTED)
+    set_target_properties(Vulkan PROPERTIES IMPORTED_LOCATION ${Vulkan_LIBRARY})
+    set_target_properties(Vulkan PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${Vulkan_INCLUDE_DIR})
+    target_link_libraries(ncnn PUBLIC Vulkan)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
+    OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
+    target_compile_definitions(ncnn
+        PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_DEPRECATE
+        PUBLIC NOMINMAX)
+else()
+    target_compile_options(ncnn
+        PRIVATE -Wall -Wextra -Wno-unused-function)
+    set_target_properties(ncnn
+        PROPERTIES
+            POSITION_INDEPENDENT_CODE ON
+            INTERFACE_POSITION_INDEPENDENT_CODE ON)
+
+    if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
+        if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+            target_compile_options(ncnn PRIVATE -Ofast)
+        endif()
+
+        target_compile_options(ncnn PRIVATE -ffast-math)
+    endif()
+
+    if(PI3)
+        target_compile_options(ncnn
+            PRIVATE -march=native -mfpu=neon -mfloat-abi=hard)
+        target_compile_definitions(ncnn
+            PRIVATE __ARM_NEON __ANDROID__)
+    endif()
+    # target_compile_options(ncnn PRIVATE -march=native)
+    # set_target_properties(ncnn PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
+    target_compile_options(ncnn PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
+endif()
+
+if(NCNN_DISABLE_RTTI)
+    target_compile_options(ncnn PUBLIC -fno-rtti)
+endif()
+
+if(NCNN_DISABLE_EXCEPTION)
+    target_compile_options(ncnn PUBLIC -fno-exceptions)
+endif()
+
+if(ANDROID OR IOS)
+    # disable shared library on android and xcode ios
+    set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
+elseif(NCNN_AVX2)
+    #set up according to your own system environment
+    #Windows
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
+        OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
+        target_compile_options(ncnn PRIVATE /arch:AVX2 /DAVX2)
+    #Linux
+    else()
+        target_compile_options(ncnn PRIVATE -mfma)
+    endif()
+endif()
+
 add_dependencies(ncnn generate-spirv)
 
 if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
@@ -287,25 +362,33 @@ if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
 endif()
 
 if(NCNN_INSTALL_SDK)
-  install(TARGETS ncnn ARCHIVE DESTINATION lib)
-  install(FILES
-    allocator.h
-    blob.h
-    command.h
-    cpu.h
-    gpu.h
-    layer.h
-    layer_type.h
-    mat.h
-    modelbin.h
-    net.h
-    opencv.h
-    option.h
-    paramdict.h
-    pipeline.h
-    benchmark.h
-    ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
-    ${CMAKE_CURRENT_BINARY_DIR}/platform.h
-    DESTINATION include
-  )
+    install(TARGETS ncnn EXPORT ncnn ARCHIVE DESTINATION lib)
+    install(FILES
+        allocator.h
+        blob.h
+        command.h
+        cpu.h
+        gpu.h
+        layer.h
+        layer_type.h
+        mat.h
+        modelbin.h
+        net.h
+        opencv.h
+        option.h
+        paramdict.h
+        pipeline.h
+        benchmark.h
+        ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
+        ${CMAKE_CURRENT_BINARY_DIR}/platform.h
+        DESTINATION include
+    )
+    install(EXPORT ncnn
+        DESTINATION share/ncnn)
+    configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in
+        ncnnConfig.cmake
+        @ONLY)
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake
+        DESTINATION share/ncnn)
 endif()

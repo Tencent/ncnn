@@ -21,6 +21,10 @@
 
 namespace ncnn {
 
+ModelBin::~ModelBin()
+{
+}
+
 Mat ModelBin::load(int w, int h, int type) const
 {
     Mat m = load(w * h, type);
