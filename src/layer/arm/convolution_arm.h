@@ -45,6 +45,11 @@ public:
     Mat weight_sgemm_int8_data;
     Mat weight_sgemm_data;
     std::vector<Mat> weight_3x3_winograd23_int8_data;
+
+    // pack4
+    Mat weight_data_pack4;
+    Mat weight_data_pack1to4;
+    Mat weight_data_pack4to1;
 };
 
 } // namespace ncnn
