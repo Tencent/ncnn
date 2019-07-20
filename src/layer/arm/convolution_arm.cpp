@@ -731,7 +731,14 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                         {
                             float32x4_t _val = vld1q_f32( sptr + space_ofs[k] * 4 );
                             float32x4_t _w = vld1q_f32( kptr );
-                            sum += vaddvq_f32(vmulq_f32(_val, _w)); // dot
+                            float32x4_t _s4 = vmulq_f32(_val, _w);
+#if __aarch64__
+                            sum += vaddvq_f32(_s4); // dot
+#else
+                            float32x2_t _ss = vadd_f32(vget_low_f32(_s4), vget_high_f32(_s4));
+                            _ss = vpadd_f32(_ss, _ss);
+                            sum += vget_lane_f32(_ss, 0);
+#endif
 
                             kptr += 4;
                         }
