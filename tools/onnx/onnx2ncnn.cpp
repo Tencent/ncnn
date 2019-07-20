@@ -1508,7 +1508,12 @@ int main(int argc, char** argv)
             int outh = -233;
             int outc = -233;
 
-            if (starts.size() == 2)
+            if (starts.size() == 1) 
+            {
+                woffset = starts[0];
+                outw = ends[0] == -1 ? -233: ends[0] - starts[0]; // for onnx from pytorch, -233 works
+            } 
+            else if (starts.size() == 2)
             {
                 woffset = starts[1];
                 outw = ends[1] == -1 ? -234 : ends[1] - starts[1];
