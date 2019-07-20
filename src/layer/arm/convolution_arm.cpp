@@ -570,10 +570,17 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             float32x4_t _w2 = vld1q_f32( kptr + 8 );
                             float32x4_t _w3 = vld1q_f32( kptr + 12 );
 
+#if __aarch64__
                             _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
                             _sum = vmlaq_laneq_f32(_sum, _w1, _val, 1);
                             _sum = vmlaq_laneq_f32(_sum, _w2, _val, 2);
                             _sum = vmlaq_laneq_f32(_sum, _w3, _val, 3);
+#else
+                            _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
+                            _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
+                            _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
+                            _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
+#endif
 
                             kptr += 16;
                         }
