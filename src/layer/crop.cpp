@@ -122,7 +122,7 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
     if (dims == 2)
     {
-        top_blob.create(_outh, _outh, elemsize, opt.blob_allocator);
+        top_blob.create(_outw, _outh, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -213,7 +213,7 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     if (dims == 2)
     {
-        top_blob.create(_outh, _outh, elemsize, opt.blob_allocator);
+        top_blob.create(_outw, _outh, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
