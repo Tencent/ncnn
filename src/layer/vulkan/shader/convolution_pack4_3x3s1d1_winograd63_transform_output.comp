@@ -1,0 +1,583 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (constant_id = 0) const int bias_term = 0;
+layout (constant_id = 1) const int activation_type = 0;
+layout (constant_id = 2) const float activation_param_0 = 0;
+layout (constant_id = 3) const float activation_param_1 = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) readonly buffer top_tm_blob { sfpvec4 top_tm_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout (binding = 2) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int c;
+    int cstep;
+
+    int block_x;
+    int block_y;
+
+    int outw;
+    int outh;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.block_x || gy >= p.block_y || gz >= p.c)
+        return;
+
+    // load 64
+    int v_tm_offset = gz * p.cstep + (gy * p.block_x + gx) * 64;
+
+    afpvec4 v00 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 0]);
+    afpvec4 v01 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 1]);
+    afpvec4 v02 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 2]);
+    afpvec4 v03 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 3]);
+    afpvec4 v04 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 4]);
+    afpvec4 v05 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 5]);
+    afpvec4 v06 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 6]);
+    afpvec4 v07 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 7]);
+    afpvec4 v10 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 8]);
+    afpvec4 v11 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 9]);
+    afpvec4 v12 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 10]);
+    afpvec4 v13 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 11]);
+    afpvec4 v14 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 12]);
+    afpvec4 v15 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 13]);
+    afpvec4 v16 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 14]);
+    afpvec4 v17 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 15]);
+    afpvec4 v20 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 16]);
+    afpvec4 v21 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 17]);
+    afpvec4 v22 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 18]);
+    afpvec4 v23 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 19]);
+    afpvec4 v24 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 20]);
+    afpvec4 v25 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 21]);
+    afpvec4 v26 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 22]);
+    afpvec4 v27 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 23]);
+    afpvec4 v30 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 24]);
+    afpvec4 v31 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 25]);
+    afpvec4 v32 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 26]);
+    afpvec4 v33 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 27]);
+    afpvec4 v34 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 28]);
+    afpvec4 v35 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 29]);
+    afpvec4 v36 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 30]);
+    afpvec4 v37 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 31]);
+    afpvec4 v40 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 32]);
+    afpvec4 v41 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 33]);
+    afpvec4 v42 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 34]);
+    afpvec4 v43 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 35]);
+    afpvec4 v44 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 36]);
+    afpvec4 v45 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 37]);
+    afpvec4 v46 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 38]);
+    afpvec4 v47 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 39]);
+    afpvec4 v50 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 40]);
+    afpvec4 v51 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 41]);
+    afpvec4 v52 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 42]);
+    afpvec4 v53 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 43]);
+    afpvec4 v54 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 44]);
+    afpvec4 v55 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 45]);
+    afpvec4 v56 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 46]);
+    afpvec4 v57 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 47]);
+    afpvec4 v60 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 48]);
+    afpvec4 v61 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 49]);
+    afpvec4 v62 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 50]);
+    afpvec4 v63 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 51]);
+    afpvec4 v64 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 52]);
+    afpvec4 v65 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 53]);
+    afpvec4 v66 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 54]);
+    afpvec4 v67 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 55]);
+    afpvec4 v70 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 56]);
+    afpvec4 v71 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 57]);
+    afpvec4 v72 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 58]);
+    afpvec4 v73 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 59]);
+    afpvec4 v74 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 60]);
+    afpvec4 v75 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 61]);
+    afpvec4 v76 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 62]);
+    afpvec4 v77 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 63]);
+
+    // const float otm[6][8] = {
+    //     {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
+    //     {0.0f,  1.0f,  -1.0f,   2.0f,  -2.0f,  16.0f,-16.0f, 0.0f},
+    //     {0.0f,  1.0f,   1.0f,   4.0f,   4.0f,   8.0f,  8.0f, 0.0f},
+    //     {0.0f,  1.0f,  -1.0f,   8.0f,  -8.0f,   4.0f, -4.0f, 0.0f},
+    //     {0.0f,  1.0f,   1.0f,  16.0f,  16.0f,   2.0f,  2.0f, 0.0f},
+    //     {0.0f,  1.0f,  -1.0f,  32.0f, -32.0f,   1.0f, -1.0f, 1.0f}
+    // };
+
+    // 0 = r0 + (r1 + r2) + (r3 + r4)     + (r5 + r6) * 32
+    // 1 =      (r1 - r2) + (r3 - r4) * 2 + (r5 - r6) * 16
+    // 2 =      (r1 + r2) + (r3 + r4) * 4 + (r5 + r6) * 8
+    // 3 =      (r1 - r2) + (r3 - r4) * 8 + (r5 - r6) * 4
+    // 4 =      (r1 + r2) + (r3 + r4) * 16+ (r5 + r6) * 2
+    // 5 = r7 + (r1 - r2) + (r3 - r4) * 32+ (r5 - r6)
+
+    afpvec4 v01_a_v02 = v01 + v02;
+    afpvec4 v11_a_v12 = v11 + v12;
+    afpvec4 v21_a_v22 = v21 + v22;
+    afpvec4 v31_a_v32 = v31 + v32;
+    afpvec4 v41_a_v42 = v41 + v42;
+    afpvec4 v51_a_v52 = v51 + v52;
+    afpvec4 v61_a_v62 = v61 + v62;
+    afpvec4 v71_a_v72 = v71 + v72;
+    afpvec4 v01_m_v02 = v01 - v02;
+    afpvec4 v11_m_v12 = v11 - v12;
+    afpvec4 v21_m_v22 = v21 - v22;
+    afpvec4 v31_m_v32 = v31 - v32;
+    afpvec4 v41_m_v42 = v41 - v42;
+    afpvec4 v51_m_v52 = v51 - v52;
+    afpvec4 v61_m_v62 = v61 - v62;
+    afpvec4 v71_m_v72 = v71 - v72;
+
+    afpvec4 v03_a_v04 = v03 + v04;
+    afpvec4 v13_a_v14 = v13 + v14;
+    afpvec4 v23_a_v24 = v23 + v24;
+    afpvec4 v33_a_v34 = v33 + v34;
+    afpvec4 v43_a_v44 = v43 + v44;
+    afpvec4 v53_a_v54 = v53 + v54;
+    afpvec4 v63_a_v64 = v63 + v64;
+    afpvec4 v73_a_v74 = v73 + v74;
+    afpvec4 v03_m_v04 = v03 - v04;
+    afpvec4 v13_m_v14 = v13 - v14;
+    afpvec4 v23_m_v24 = v23 - v24;
+    afpvec4 v33_m_v34 = v33 - v34;
+    afpvec4 v43_m_v44 = v43 - v44;
+    afpvec4 v53_m_v54 = v53 - v54;
+    afpvec4 v63_m_v64 = v63 - v64;
+    afpvec4 v73_m_v74 = v73 - v74;
+
+    afpvec4 v05_a_v06 = v05 + v06;
+    afpvec4 v15_a_v16 = v15 + v16;
+    afpvec4 v25_a_v26 = v25 + v26;
+    afpvec4 v35_a_v36 = v35 + v36;
+    afpvec4 v45_a_v46 = v45 + v46;
+    afpvec4 v55_a_v56 = v55 + v56;
+    afpvec4 v65_a_v66 = v65 + v66;
+    afpvec4 v75_a_v76 = v75 + v76;
+    afpvec4 v05_m_v06 = v05 - v06;
+    afpvec4 v15_m_v16 = v15 - v16;
+    afpvec4 v25_m_v26 = v25 - v26;
+    afpvec4 v35_m_v36 = v35 - v36;
+    afpvec4 v45_m_v46 = v45 - v46;
+    afpvec4 v55_m_v56 = v55 - v56;
+    afpvec4 v65_m_v66 = v65 - v66;
+    afpvec4 v75_m_v76 = v75 - v76;
+
+    // implicit transpose
+    afpvec4 m00 = v00 + v01_a_v02 + v03_a_v04 + v05_a_v06 * afp(32.f);
+    afpvec4 m01 = v10 + v11_a_v12 + v13_a_v14 + v15_a_v16 * afp(32.f);
+    afpvec4 m02 = v20 + v21_a_v22 + v23_a_v24 + v25_a_v26 * afp(32.f);
+    afpvec4 m03 = v30 + v31_a_v32 + v33_a_v34 + v35_a_v36 * afp(32.f);
+    afpvec4 m04 = v40 + v41_a_v42 + v43_a_v44 + v45_a_v46 * afp(32.f);
+    afpvec4 m05 = v50 + v51_a_v52 + v53_a_v54 + v55_a_v56 * afp(32.f);
+    afpvec4 m06 = v60 + v61_a_v62 + v63_a_v64 + v65_a_v66 * afp(32.f);
+    afpvec4 m07 = v70 + v71_a_v72 + v73_a_v74 + v75_a_v76 * afp(32.f);
+
+    afpvec4 m10 = v01_m_v02 + v03_m_v04 * afp(2.f) + v05_m_v06 * afp(16.f);
+    afpvec4 m11 = v11_m_v12 + v13_m_v14 * afp(2.f) + v15_m_v16 * afp(16.f);
+    afpvec4 m12 = v21_m_v22 + v23_m_v24 * afp(2.f) + v25_m_v26 * afp(16.f);
+    afpvec4 m13 = v31_m_v32 + v33_m_v34 * afp(2.f) + v35_m_v36 * afp(16.f);
+    afpvec4 m14 = v41_m_v42 + v43_m_v44 * afp(2.f) + v45_m_v46 * afp(16.f);
+    afpvec4 m15 = v51_m_v52 + v53_m_v54 * afp(2.f) + v55_m_v56 * afp(16.f);
+    afpvec4 m16 = v61_m_v62 + v63_m_v64 * afp(2.f) + v65_m_v66 * afp(16.f);
+    afpvec4 m17 = v71_m_v72 + v73_m_v74 * afp(2.f) + v75_m_v76 * afp(16.f);
+
+    afpvec4 m20 = v01_a_v02 + v03_a_v04 * afp(4.f) + v05_a_v06 * afp(8.f);
+    afpvec4 m21 = v11_a_v12 + v13_a_v14 * afp(4.f) + v15_a_v16 * afp(8.f);
+    afpvec4 m22 = v21_a_v22 + v23_a_v24 * afp(4.f) + v25_a_v26 * afp(8.f);
+    afpvec4 m23 = v31_a_v32 + v33_a_v34 * afp(4.f) + v35_a_v36 * afp(8.f);
+    afpvec4 m24 = v41_a_v42 + v43_a_v44 * afp(4.f) + v45_a_v46 * afp(8.f);
+    afpvec4 m25 = v51_a_v52 + v53_a_v54 * afp(4.f) + v55_a_v56 * afp(8.f);
+    afpvec4 m26 = v61_a_v62 + v63_a_v64 * afp(4.f) + v65_a_v66 * afp(8.f);
+    afpvec4 m27 = v71_a_v72 + v73_a_v74 * afp(4.f) + v75_a_v76 * afp(8.f);
+
+    afpvec4 m30 = v01_m_v02 + v03_m_v04 * afp(8.f) + v05_m_v06 * afp(4.f);
+    afpvec4 m31 = v11_m_v12 + v13_m_v14 * afp(8.f) + v15_m_v16 * afp(4.f);
+    afpvec4 m32 = v21_m_v22 + v23_m_v24 * afp(8.f) + v25_m_v26 * afp(4.f);
+    afpvec4 m33 = v31_m_v32 + v33_m_v34 * afp(8.f) + v35_m_v36 * afp(4.f);
+    afpvec4 m34 = v41_m_v42 + v43_m_v44 * afp(8.f) + v45_m_v46 * afp(4.f);
+    afpvec4 m35 = v51_m_v52 + v53_m_v54 * afp(8.f) + v55_m_v56 * afp(4.f);
+    afpvec4 m36 = v61_m_v62 + v63_m_v64 * afp(8.f) + v65_m_v66 * afp(4.f);
+    afpvec4 m37 = v71_m_v72 + v73_m_v74 * afp(8.f) + v75_m_v76 * afp(4.f);
+
+    afpvec4 m40 = v01_a_v02 + v03_a_v04 * afp(16.f) + v05_a_v06 * afp(2.f);
+    afpvec4 m41 = v11_a_v12 + v13_a_v14 * afp(16.f) + v15_a_v16 * afp(2.f);
+    afpvec4 m42 = v21_a_v22 + v23_a_v24 * afp(16.f) + v25_a_v26 * afp(2.f);
+    afpvec4 m43 = v31_a_v32 + v33_a_v34 * afp(16.f) + v35_a_v36 * afp(2.f);
+    afpvec4 m44 = v41_a_v42 + v43_a_v44 * afp(16.f) + v45_a_v46 * afp(2.f);
+    afpvec4 m45 = v51_a_v52 + v53_a_v54 * afp(16.f) + v55_a_v56 * afp(2.f);
+    afpvec4 m46 = v61_a_v62 + v63_a_v64 * afp(16.f) + v65_a_v66 * afp(2.f);
+    afpvec4 m47 = v71_a_v72 + v73_a_v74 * afp(16.f) + v75_a_v76 * afp(2.f);
+
+    afpvec4 m50 = v07 + v01_m_v02 + v03_m_v04 * afp(32.f) + v05_m_v06;
+    afpvec4 m51 = v17 + v11_m_v12 + v13_m_v14 * afp(32.f) + v15_m_v16;
+    afpvec4 m52 = v27 + v21_m_v22 + v23_m_v24 * afp(32.f) + v25_m_v26;
+    afpvec4 m53 = v37 + v31_m_v32 + v33_m_v34 * afp(32.f) + v35_m_v36;
+    afpvec4 m54 = v47 + v41_m_v42 + v43_m_v44 * afp(32.f) + v45_m_v46;
+    afpvec4 m55 = v57 + v51_m_v52 + v53_m_v54 * afp(32.f) + v55_m_v56;
+    afpvec4 m56 = v67 + v61_m_v62 + v63_m_v64 * afp(32.f) + v65_m_v66;
+    afpvec4 m57 = v77 + v71_m_v72 + v73_m_v74 * afp(32.f) + v75_m_v76;
+
+    afpvec4 m01_a_m02 = m01 + m02;
+    afpvec4 m11_a_m12 = m11 + m12;
+    afpvec4 m21_a_m22 = m21 + m22;
+    afpvec4 m31_a_m32 = m31 + m32;
+    afpvec4 m41_a_m42 = m41 + m42;
+    afpvec4 m51_a_m52 = m51 + m52;
+    afpvec4 m01_m_m02 = m01 - m02;
+    afpvec4 m11_m_m12 = m11 - m12;
+    afpvec4 m21_m_m22 = m21 - m22;
+    afpvec4 m31_m_m32 = m31 - m32;
+    afpvec4 m41_m_m42 = m41 - m42;
+    afpvec4 m51_m_m52 = m51 - m52;
+
+    afpvec4 m03_a_m04 = m03 + m04;
+    afpvec4 m13_a_m14 = m13 + m14;
+    afpvec4 m23_a_m24 = m23 + m24;
+    afpvec4 m33_a_m34 = m33 + m34;
+    afpvec4 m43_a_m44 = m43 + m44;
+    afpvec4 m53_a_m54 = m53 + m54;
+    afpvec4 m03_m_m04 = m03 - m04;
+    afpvec4 m13_m_m14 = m13 - m14;
+    afpvec4 m23_m_m24 = m23 - m24;
+    afpvec4 m33_m_m34 = m33 - m34;
+    afpvec4 m43_m_m44 = m43 - m44;
+    afpvec4 m53_m_m54 = m53 - m54;
+
+    afpvec4 m05_a_m06 = m05 + m06;
+    afpvec4 m15_a_m16 = m15 + m16;
+    afpvec4 m25_a_m26 = m25 + m26;
+    afpvec4 m35_a_m36 = m35 + m36;
+    afpvec4 m45_a_m46 = m45 + m46;
+    afpvec4 m55_a_m56 = m55 + m56;
+    afpvec4 m05_m_m06 = m05 - m06;
+    afpvec4 m15_m_m16 = m15 - m16;
+    afpvec4 m25_m_m26 = m25 - m26;
+    afpvec4 m35_m_m36 = m35 - m36;
+    afpvec4 m45_m_m46 = m45 - m46;
+    afpvec4 m55_m_m56 = m55 - m56;
+
+    if (bias_term == 1)
+    {
+        const afpvec4 bias_value = sfp2afpvec4(bias_data[gz]);
+
+        v00 = bias_value + m00 + m01_a_m02 + m03_a_m04 + m05_a_m06 * afp(32.f);
+        v10 = bias_value + m10 + m11_a_m12 + m13_a_m14 + m15_a_m16 * afp(32.f);
+        v20 = bias_value + m20 + m21_a_m22 + m23_a_m24 + m25_a_m26 * afp(32.f);
+        v30 = bias_value + m30 + m31_a_m32 + m33_a_m34 + m35_a_m36 * afp(32.f);
+        v40 = bias_value + m40 + m41_a_m42 + m43_a_m44 + m45_a_m46 * afp(32.f);
+        v50 = bias_value + m50 + m51_a_m52 + m53_a_m54 + m55_a_m56 * afp(32.f);
+
+        v01 = bias_value + m01_m_m02 + m03_m_m04 * afp(2.f) + m05_m_m06 * afp(16.f);
+        v11 = bias_value + m11_m_m12 + m13_m_m14 * afp(2.f) + m15_m_m16 * afp(16.f);
+        v21 = bias_value + m21_m_m22 + m23_m_m24 * afp(2.f) + m25_m_m26 * afp(16.f);
+        v31 = bias_value + m31_m_m32 + m33_m_m34 * afp(2.f) + m35_m_m36 * afp(16.f);
+        v41 = bias_value + m41_m_m42 + m43_m_m44 * afp(2.f) + m45_m_m46 * afp(16.f);
+        v51 = bias_value + m51_m_m52 + m53_m_m54 * afp(2.f) + m55_m_m56 * afp(16.f);
+
+        v02 = bias_value + m01_a_m02 + m03_a_m04 * afp(4.f) + m05_a_m06 * afp(8.f);
+        v12 = bias_value + m11_a_m12 + m13_a_m14 * afp(4.f) + m15_a_m16 * afp(8.f);
+        v22 = bias_value + m21_a_m22 + m23_a_m24 * afp(4.f) + m25_a_m26 * afp(8.f);
+        v32 = bias_value + m31_a_m32 + m33_a_m34 * afp(4.f) + m35_a_m36 * afp(8.f);
+        v42 = bias_value + m41_a_m42 + m43_a_m44 * afp(4.f) + m45_a_m46 * afp(8.f);
+        v52 = bias_value + m51_a_m52 + m53_a_m54 * afp(4.f) + m55_a_m56 * afp(8.f);
+
+        v03 = bias_value + m01_m_m02 + m03_m_m04 * afp(8.f) + m05_m_m06 * afp(4.f);
+        v13 = bias_value + m11_m_m12 + m13_m_m14 * afp(8.f) + m15_m_m16 * afp(4.f);
+        v23 = bias_value + m21_m_m22 + m23_m_m24 * afp(8.f) + m25_m_m26 * afp(4.f);
+        v33 = bias_value + m31_m_m32 + m33_m_m34 * afp(8.f) + m35_m_m36 * afp(4.f);
+        v43 = bias_value + m41_m_m42 + m43_m_m44 * afp(8.f) + m45_m_m46 * afp(4.f);
+        v53 = bias_value + m51_m_m52 + m53_m_m54 * afp(8.f) + m55_m_m56 * afp(4.f);
+
+        v04 = bias_value + m01_a_m02 + m03_a_m04 * afp(16.f) + m05_a_m06 * afp(2.f);
+        v14 = bias_value + m11_a_m12 + m13_a_m14 * afp(16.f) + m15_a_m16 * afp(2.f);
+        v24 = bias_value + m21_a_m22 + m23_a_m24 * afp(16.f) + m25_a_m26 * afp(2.f);
+        v34 = bias_value + m31_a_m32 + m33_a_m34 * afp(16.f) + m35_a_m36 * afp(2.f);
+        v44 = bias_value + m41_a_m42 + m43_a_m44 * afp(16.f) + m45_a_m46 * afp(2.f);
+        v54 = bias_value + m51_a_m52 + m53_a_m54 * afp(16.f) + m55_a_m56 * afp(2.f);
+
+        v05 = bias_value + m07 + m01_m_m02 + m03_m_m04 * afp(32.f) + m05_m_m06;
+        v15 = bias_value + m17 + m11_m_m12 + m13_m_m14 * afp(32.f) + m15_m_m16;
+        v25 = bias_value + m27 + m21_m_m22 + m23_m_m24 * afp(32.f) + m25_m_m26;
+        v35 = bias_value + m37 + m31_m_m32 + m33_m_m34 * afp(32.f) + m35_m_m36;
+        v45 = bias_value + m47 + m41_m_m42 + m43_m_m44 * afp(32.f) + m45_m_m46;
+        v55 = bias_value + m57 + m51_m_m52 + m53_m_m54 * afp(32.f) + m55_m_m56;
+    }
+    else
+    {
+        v00 = m00 + m01_a_m02 + m03_a_m04 + m05_a_m06 * afp(32.f);
+        v10 = m10 + m11_a_m12 + m13_a_m14 + m15_a_m16 * afp(32.f);
+        v20 = m20 + m21_a_m22 + m23_a_m24 + m25_a_m26 * afp(32.f);
+        v30 = m30 + m31_a_m32 + m33_a_m34 + m35_a_m36 * afp(32.f);
+        v40 = m40 + m41_a_m42 + m43_a_m44 + m45_a_m46 * afp(32.f);
+        v50 = m50 + m51_a_m52 + m53_a_m54 + m55_a_m56 * afp(32.f);
+
+        v01 = m01_m_m02 + m03_m_m04 * afp(2.f) + m05_m_m06 * afp(16.f);
+        v11 = m11_m_m12 + m13_m_m14 * afp(2.f) + m15_m_m16 * afp(16.f);
+        v21 = m21_m_m22 + m23_m_m24 * afp(2.f) + m25_m_m26 * afp(16.f);
+        v31 = m31_m_m32 + m33_m_m34 * afp(2.f) + m35_m_m36 * afp(16.f);
+        v41 = m41_m_m42 + m43_m_m44 * afp(2.f) + m45_m_m46 * afp(16.f);
+        v51 = m51_m_m52 + m53_m_m54 * afp(2.f) + m55_m_m56 * afp(16.f);
+
+        v02 = m01_a_m02 + m03_a_m04 * afp(4.f) + m05_a_m06 * afp(8.f);
+        v12 = m11_a_m12 + m13_a_m14 * afp(4.f) + m15_a_m16 * afp(8.f);
+        v22 = m21_a_m22 + m23_a_m24 * afp(4.f) + m25_a_m26 * afp(8.f);
+        v32 = m31_a_m32 + m33_a_m34 * afp(4.f) + m35_a_m36 * afp(8.f);
+        v42 = m41_a_m42 + m43_a_m44 * afp(4.f) + m45_a_m46 * afp(8.f);
+        v52 = m51_a_m52 + m53_a_m54 * afp(4.f) + m55_a_m56 * afp(8.f);
+
+        v03 = m01_m_m02 + m03_m_m04 * afp(8.f) + m05_m_m06 * afp(4.f);
+        v13 = m11_m_m12 + m13_m_m14 * afp(8.f) + m15_m_m16 * afp(4.f);
+        v23 = m21_m_m22 + m23_m_m24 * afp(8.f) + m25_m_m26 * afp(4.f);
+        v33 = m31_m_m32 + m33_m_m34 * afp(8.f) + m35_m_m36 * afp(4.f);
+        v43 = m41_m_m42 + m43_m_m44 * afp(8.f) + m45_m_m46 * afp(4.f);
+        v53 = m51_m_m52 + m53_m_m54 * afp(8.f) + m55_m_m56 * afp(4.f);
+
+        v04 = m01_a_m02 + m03_a_m04 * afp(16.f) + m05_a_m06 * afp(2.f);
+        v14 = m11_a_m12 + m13_a_m14 * afp(16.f) + m15_a_m16 * afp(2.f);
+        v24 = m21_a_m22 + m23_a_m24 * afp(16.f) + m25_a_m26 * afp(2.f);
+        v34 = m31_a_m32 + m33_a_m34 * afp(16.f) + m35_a_m36 * afp(2.f);
+        v44 = m41_a_m42 + m43_a_m44 * afp(16.f) + m45_a_m46 * afp(2.f);
+        v54 = m51_a_m52 + m53_a_m54 * afp(16.f) + m55_a_m56 * afp(2.f);
+
+        v05 = m07 + m01_m_m02 + m03_m_m04 * afp(32.f) + m05_m_m06;
+        v15 = m17 + m11_m_m12 + m13_m_m14 * afp(32.f) + m15_m_m16;
+        v25 = m27 + m21_m_m22 + m23_m_m24 * afp(32.f) + m25_m_m26;
+        v35 = m37 + m31_m_m32 + m33_m_m34 * afp(32.f) + m35_m_m36;
+        v45 = m47 + m41_m_m42 + m43_m_m44 * afp(32.f) + m45_m_m46;
+        v55 = m57 + m51_m_m52 + m53_m_m54 * afp(32.f) + m55_m_m56;
+    }
+
+    if (activation_type == 1)
+    {
+        v00 = max(v00, afp(0.f));
+        v10 = max(v10, afp(0.f));
+        v20 = max(v20, afp(0.f));
+        v30 = max(v30, afp(0.f));
+        v40 = max(v40, afp(0.f));
+        v50 = max(v50, afp(0.f));
+        v01 = max(v01, afp(0.f));
+        v11 = max(v11, afp(0.f));
+        v21 = max(v21, afp(0.f));
+        v31 = max(v31, afp(0.f));
+        v41 = max(v41, afp(0.f));
+        v51 = max(v51, afp(0.f));
+        v02 = max(v02, afp(0.f));
+        v12 = max(v12, afp(0.f));
+        v22 = max(v22, afp(0.f));
+        v32 = max(v32, afp(0.f));
+        v42 = max(v42, afp(0.f));
+        v52 = max(v52, afp(0.f));
+        v03 = max(v03, afp(0.f));
+        v13 = max(v13, afp(0.f));
+        v23 = max(v23, afp(0.f));
+        v33 = max(v33, afp(0.f));
+        v43 = max(v43, afp(0.f));
+        v53 = max(v53, afp(0.f));
+        v04 = max(v04, afp(0.f));
+        v14 = max(v14, afp(0.f));
+        v24 = max(v24, afp(0.f));
+        v34 = max(v34, afp(0.f));
+        v44 = max(v44, afp(0.f));
+        v54 = max(v54, afp(0.f));
+        v05 = max(v05, afp(0.f));
+        v15 = max(v15, afp(0.f));
+        v25 = max(v25, afp(0.f));
+        v35 = max(v35, afp(0.f));
+        v45 = max(v45, afp(0.f));
+        v55 = max(v55, afp(0.f));
+    }
+    if (activation_type == 2)
+    {
+        const afp slope = afp(activation_param_0);
+        v00 = mix(v00, v00 * afp(slope), lessThan(v00, afpvec4(0.f)));
+        v10 = mix(v10, v10 * afp(slope), lessThan(v10, afpvec4(0.f)));
+        v20 = mix(v20, v20 * afp(slope), lessThan(v20, afpvec4(0.f)));
+        v30 = mix(v30, v30 * afp(slope), lessThan(v30, afpvec4(0.f)));
+        v40 = mix(v40, v40 * afp(slope), lessThan(v40, afpvec4(0.f)));
+        v50 = mix(v50, v50 * afp(slope), lessThan(v50, afpvec4(0.f)));
+        v01 = mix(v01, v01 * afp(slope), lessThan(v01, afpvec4(0.f)));
+        v11 = mix(v11, v11 * afp(slope), lessThan(v11, afpvec4(0.f)));
+        v21 = mix(v21, v21 * afp(slope), lessThan(v21, afpvec4(0.f)));
+        v31 = mix(v31, v31 * afp(slope), lessThan(v31, afpvec4(0.f)));
+        v41 = mix(v41, v41 * afp(slope), lessThan(v41, afpvec4(0.f)));
+        v51 = mix(v51, v51 * afp(slope), lessThan(v51, afpvec4(0.f)));
+        v02 = mix(v02, v02 * afp(slope), lessThan(v02, afpvec4(0.f)));
+        v12 = mix(v12, v12 * afp(slope), lessThan(v12, afpvec4(0.f)));
+        v22 = mix(v22, v22 * afp(slope), lessThan(v22, afpvec4(0.f)));
+        v32 = mix(v32, v32 * afp(slope), lessThan(v32, afpvec4(0.f)));
+        v42 = mix(v42, v42 * afp(slope), lessThan(v42, afpvec4(0.f)));
+        v52 = mix(v52, v52 * afp(slope), lessThan(v52, afpvec4(0.f)));
+        v03 = mix(v03, v03 * afp(slope), lessThan(v03, afpvec4(0.f)));
+        v13 = mix(v13, v13 * afp(slope), lessThan(v13, afpvec4(0.f)));
+        v23 = mix(v23, v23 * afp(slope), lessThan(v23, afpvec4(0.f)));
+        v33 = mix(v33, v33 * afp(slope), lessThan(v33, afpvec4(0.f)));
+        v43 = mix(v43, v43 * afp(slope), lessThan(v43, afpvec4(0.f)));
+        v53 = mix(v53, v53 * afp(slope), lessThan(v53, afpvec4(0.f)));
+        v04 = mix(v04, v04 * afp(slope), lessThan(v04, afpvec4(0.f)));
+        v14 = mix(v14, v14 * afp(slope), lessThan(v14, afpvec4(0.f)));
+        v24 = mix(v24, v24 * afp(slope), lessThan(v24, afpvec4(0.f)));
+        v34 = mix(v34, v34 * afp(slope), lessThan(v34, afpvec4(0.f)));
+        v44 = mix(v44, v44 * afp(slope), lessThan(v44, afpvec4(0.f)));
+        v54 = mix(v54, v54 * afp(slope), lessThan(v54, afpvec4(0.f)));
+        v05 = mix(v05, v05 * afp(slope), lessThan(v05, afpvec4(0.f)));
+        v15 = mix(v15, v15 * afp(slope), lessThan(v15, afpvec4(0.f)));
+        v25 = mix(v25, v25 * afp(slope), lessThan(v25, afpvec4(0.f)));
+        v35 = mix(v35, v35 * afp(slope), lessThan(v35, afpvec4(0.f)));
+        v45 = mix(v45, v45 * afp(slope), lessThan(v45, afpvec4(0.f)));
+        v55 = mix(v55, v55 * afp(slope), lessThan(v55, afpvec4(0.f)));
+    }
+    if (activation_type == 3)
+    {
+        const afp const_min = afp(activation_param_0);
+        const afp const_max = afp(activation_param_1);
+        v00 = clamp(v00, const_min, const_max);
+        v10 = clamp(v10, const_min, const_max);
+        v20 = clamp(v20, const_min, const_max);
+        v30 = clamp(v30, const_min, const_max);
+        v40 = clamp(v40, const_min, const_max);
+        v50 = clamp(v50, const_min, const_max);
+        v01 = clamp(v01, const_min, const_max);
+        v11 = clamp(v11, const_min, const_max);
+        v21 = clamp(v21, const_min, const_max);
+        v31 = clamp(v31, const_min, const_max);
+        v41 = clamp(v41, const_min, const_max);
+        v51 = clamp(v51, const_min, const_max);
+        v02 = clamp(v02, const_min, const_max);
+        v12 = clamp(v12, const_min, const_max);
+        v22 = clamp(v22, const_min, const_max);
+        v32 = clamp(v32, const_min, const_max);
+        v42 = clamp(v42, const_min, const_max);
+        v52 = clamp(v52, const_min, const_max);
+        v03 = clamp(v03, const_min, const_max);
+        v13 = clamp(v13, const_min, const_max);
+        v23 = clamp(v23, const_min, const_max);
+        v33 = clamp(v33, const_min, const_max);
+        v43 = clamp(v43, const_min, const_max);
+        v53 = clamp(v53, const_min, const_max);
+        v04 = clamp(v04, const_min, const_max);
+        v14 = clamp(v14, const_min, const_max);
+        v24 = clamp(v24, const_min, const_max);
+        v34 = clamp(v34, const_min, const_max);
+        v44 = clamp(v44, const_min, const_max);
+        v54 = clamp(v54, const_min, const_max);
+        v05 = clamp(v05, const_min, const_max);
+        v15 = clamp(v15, const_min, const_max);
+        v25 = clamp(v25, const_min, const_max);
+        v35 = clamp(v35, const_min, const_max);
+        v45 = clamp(v45, const_min, const_max);
+        v55 = clamp(v55, const_min, const_max);
+    }
+    if (activation_type == 4)
+    {
+        v00 = afp(1.f) / (afp(1.f) + exp(-v00));
+        v10 = afp(1.f) / (afp(1.f) + exp(-v10));
+        v20 = afp(1.f) / (afp(1.f) + exp(-v20));
+        v30 = afp(1.f) / (afp(1.f) + exp(-v30));
+        v40 = afp(1.f) / (afp(1.f) + exp(-v40));
+        v50 = afp(1.f) / (afp(1.f) + exp(-v50));
+        v01 = afp(1.f) / (afp(1.f) + exp(-v01));
+        v11 = afp(1.f) / (afp(1.f) + exp(-v11));
+        v21 = afp(1.f) / (afp(1.f) + exp(-v21));
+        v31 = afp(1.f) / (afp(1.f) + exp(-v31));
+        v41 = afp(1.f) / (afp(1.f) + exp(-v41));
+        v51 = afp(1.f) / (afp(1.f) + exp(-v51));
+        v02 = afp(1.f) / (afp(1.f) + exp(-v02));
+        v12 = afp(1.f) / (afp(1.f) + exp(-v12));
+        v22 = afp(1.f) / (afp(1.f) + exp(-v22));
+        v32 = afp(1.f) / (afp(1.f) + exp(-v32));
+        v42 = afp(1.f) / (afp(1.f) + exp(-v42));
+        v52 = afp(1.f) / (afp(1.f) + exp(-v52));
+        v03 = afp(1.f) / (afp(1.f) + exp(-v03));
+        v13 = afp(1.f) / (afp(1.f) + exp(-v13));
+        v23 = afp(1.f) / (afp(1.f) + exp(-v23));
+        v33 = afp(1.f) / (afp(1.f) + exp(-v33));
+        v43 = afp(1.f) / (afp(1.f) + exp(-v43));
+        v53 = afp(1.f) / (afp(1.f) + exp(-v53));
+        v04 = afp(1.f) / (afp(1.f) + exp(-v04));
+        v14 = afp(1.f) / (afp(1.f) + exp(-v14));
+        v24 = afp(1.f) / (afp(1.f) + exp(-v24));
+        v34 = afp(1.f) / (afp(1.f) + exp(-v34));
+        v44 = afp(1.f) / (afp(1.f) + exp(-v44));
+        v54 = afp(1.f) / (afp(1.f) + exp(-v54));
+        v05 = afp(1.f) / (afp(1.f) + exp(-v05));
+        v15 = afp(1.f) / (afp(1.f) + exp(-v15));
+        v25 = afp(1.f) / (afp(1.f) + exp(-v25));
+        v35 = afp(1.f) / (afp(1.f) + exp(-v35));
+        v45 = afp(1.f) / (afp(1.f) + exp(-v45));
+        v55 = afp(1.f) / (afp(1.f) + exp(-v55));
+    }
+
+    // store 6x6
+    int v_offset_0 = gz * p.outcstep + gy * 6 * p.outw + gx * 6;
+    int v_offset_1 = v_offset_0 + p.outw;
+    int v_offset_2 = v_offset_0 + p.outw * 2;
+    int v_offset_3 = v_offset_0 + p.outw * 3;
+    int v_offset_4 = v_offset_0 + p.outw * 4;
+    int v_offset_5 = v_offset_0 + p.outw * 5;
+
+    top_blob_data[v_offset_0 + 0] = afp2sfpvec4(v00);
+    top_blob_data[v_offset_0 + 1] = afp2sfpvec4(v01);
+    top_blob_data[v_offset_0 + 2] = afp2sfpvec4(v02);
+    top_blob_data[v_offset_0 + 3] = afp2sfpvec4(v03);
+    top_blob_data[v_offset_0 + 4] = afp2sfpvec4(v04);
+    top_blob_data[v_offset_0 + 5] = afp2sfpvec4(v05);
+    top_blob_data[v_offset_1 + 0] = afp2sfpvec4(v10);
+    top_blob_data[v_offset_1 + 1] = afp2sfpvec4(v11);
+    top_blob_data[v_offset_1 + 2] = afp2sfpvec4(v12);
+    top_blob_data[v_offset_1 + 3] = afp2sfpvec4(v13);
+    top_blob_data[v_offset_1 + 4] = afp2sfpvec4(v14);
+    top_blob_data[v_offset_1 + 5] = afp2sfpvec4(v15);
+    top_blob_data[v_offset_2 + 0] = afp2sfpvec4(v20);
+    top_blob_data[v_offset_2 + 1] = afp2sfpvec4(v21);
+    top_blob_data[v_offset_2 + 2] = afp2sfpvec4(v22);
+    top_blob_data[v_offset_2 + 3] = afp2sfpvec4(v23);
+    top_blob_data[v_offset_2 + 4] = afp2sfpvec4(v24);
+    top_blob_data[v_offset_2 + 5] = afp2sfpvec4(v25);
+    top_blob_data[v_offset_3 + 0] = afp2sfpvec4(v30);
+    top_blob_data[v_offset_3 + 1] = afp2sfpvec4(v31);
+    top_blob_data[v_offset_3 + 2] = afp2sfpvec4(v32);
+    top_blob_data[v_offset_3 + 3] = afp2sfpvec4(v33);
+    top_blob_data[v_offset_3 + 4] = afp2sfpvec4(v34);
+    top_blob_data[v_offset_3 + 5] = afp2sfpvec4(v35);
+    top_blob_data[v_offset_4 + 0] = afp2sfpvec4(v40);
+    top_blob_data[v_offset_4 + 1] = afp2sfpvec4(v41);
+    top_blob_data[v_offset_4 + 2] = afp2sfpvec4(v42);
+    top_blob_data[v_offset_4 + 3] = afp2sfpvec4(v43);
+    top_blob_data[v_offset_4 + 4] = afp2sfpvec4(v44);
+    top_blob_data[v_offset_4 + 5] = afp2sfpvec4(v45);
+    top_blob_data[v_offset_5 + 0] = afp2sfpvec4(v50);
+    top_blob_data[v_offset_5 + 1] = afp2sfpvec4(v51);
+    top_blob_data[v_offset_5 + 2] = afp2sfpvec4(v52);
+    top_blob_data[v_offset_5 + 3] = afp2sfpvec4(v53);
+    top_blob_data[v_offset_5 + 4] = afp2sfpvec4(v54);
+    top_blob_data[v_offset_5 + 5] = afp2sfpvec4(v55);
+}

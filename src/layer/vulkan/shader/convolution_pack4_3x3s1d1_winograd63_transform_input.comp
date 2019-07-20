@@ -1,0 +1,368 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer bottom_tm_blob { sfpvec4 bottom_tm_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outcstep;
+
+    int block_x;
+    int block_y;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.block_x || gy >= p.block_y || gz >= p.c)
+        return;
+
+    // load 8x8
+    int v_offset_0 = gz * p.cstep + gy * 6 * p.w + gx * 6;
+    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * p.w;
+    ivec4 n_offset = v_offset_0 + ivec4(4, 5, 6, 7) * p.w;
+
+    afpvec4 v00 = sfp2afpvec4(bottom_blob_data[v_offset.r + 0]);
+    afpvec4 v01 = sfp2afpvec4(bottom_blob_data[v_offset.r + 1]);
+    afpvec4 v02 = sfp2afpvec4(bottom_blob_data[v_offset.r + 2]);
+    afpvec4 v03 = sfp2afpvec4(bottom_blob_data[v_offset.r + 3]);
+    afpvec4 v04 = sfp2afpvec4(bottom_blob_data[v_offset.r + 4]);
+    afpvec4 v05 = sfp2afpvec4(bottom_blob_data[v_offset.r + 5]);
+    afpvec4 v06 = sfp2afpvec4(bottom_blob_data[v_offset.r + 6]);
+    afpvec4 v07 = sfp2afpvec4(bottom_blob_data[v_offset.r + 7]);
+
+    afpvec4 v10 = sfp2afpvec4(bottom_blob_data[v_offset.g + 0]);
+    afpvec4 v11 = sfp2afpvec4(bottom_blob_data[v_offset.g + 1]);
+    afpvec4 v12 = sfp2afpvec4(bottom_blob_data[v_offset.g + 2]);
+    afpvec4 v13 = sfp2afpvec4(bottom_blob_data[v_offset.g + 3]);
+    afpvec4 v14 = sfp2afpvec4(bottom_blob_data[v_offset.g + 4]);
+    afpvec4 v15 = sfp2afpvec4(bottom_blob_data[v_offset.g + 5]);
+    afpvec4 v16 = sfp2afpvec4(bottom_blob_data[v_offset.g + 6]);
+    afpvec4 v17 = sfp2afpvec4(bottom_blob_data[v_offset.g + 7]);
+
+    afpvec4 v20 = sfp2afpvec4(bottom_blob_data[v_offset.b + 0]);
+    afpvec4 v21 = sfp2afpvec4(bottom_blob_data[v_offset.b + 1]);
+    afpvec4 v22 = sfp2afpvec4(bottom_blob_data[v_offset.b + 2]);
+    afpvec4 v23 = sfp2afpvec4(bottom_blob_data[v_offset.b + 3]);
+    afpvec4 v24 = sfp2afpvec4(bottom_blob_data[v_offset.b + 4]);
+    afpvec4 v25 = sfp2afpvec4(bottom_blob_data[v_offset.b + 5]);
+    afpvec4 v26 = sfp2afpvec4(bottom_blob_data[v_offset.b + 6]);
+    afpvec4 v27 = sfp2afpvec4(bottom_blob_data[v_offset.b + 7]);
+
+    afpvec4 v30 = sfp2afpvec4(bottom_blob_data[v_offset.a + 0]);
+    afpvec4 v31 = sfp2afpvec4(bottom_blob_data[v_offset.a + 1]);
+    afpvec4 v32 = sfp2afpvec4(bottom_blob_data[v_offset.a + 2]);
+    afpvec4 v33 = sfp2afpvec4(bottom_blob_data[v_offset.a + 3]);
+    afpvec4 v34 = sfp2afpvec4(bottom_blob_data[v_offset.a + 4]);
+    afpvec4 v35 = sfp2afpvec4(bottom_blob_data[v_offset.a + 5]);
+    afpvec4 v36 = sfp2afpvec4(bottom_blob_data[v_offset.a + 6]);
+    afpvec4 v37 = sfp2afpvec4(bottom_blob_data[v_offset.a + 7]);
+
+    afpvec4 v40 = sfp2afpvec4(bottom_blob_data[n_offset.r + 0]);
+    afpvec4 v41 = sfp2afpvec4(bottom_blob_data[n_offset.r + 1]);
+    afpvec4 v42 = sfp2afpvec4(bottom_blob_data[n_offset.r + 2]);
+    afpvec4 v43 = sfp2afpvec4(bottom_blob_data[n_offset.r + 3]);
+    afpvec4 v44 = sfp2afpvec4(bottom_blob_data[n_offset.r + 4]);
+    afpvec4 v45 = sfp2afpvec4(bottom_blob_data[n_offset.r + 5]);
+    afpvec4 v46 = sfp2afpvec4(bottom_blob_data[n_offset.r + 6]);
+    afpvec4 v47 = sfp2afpvec4(bottom_blob_data[n_offset.r + 7]);
+
+    afpvec4 v50 = sfp2afpvec4(bottom_blob_data[n_offset.g + 0]);
+    afpvec4 v51 = sfp2afpvec4(bottom_blob_data[n_offset.g + 1]);
+    afpvec4 v52 = sfp2afpvec4(bottom_blob_data[n_offset.g + 2]);
+    afpvec4 v53 = sfp2afpvec4(bottom_blob_data[n_offset.g + 3]);
+    afpvec4 v54 = sfp2afpvec4(bottom_blob_data[n_offset.g + 4]);
+    afpvec4 v55 = sfp2afpvec4(bottom_blob_data[n_offset.g + 5]);
+    afpvec4 v56 = sfp2afpvec4(bottom_blob_data[n_offset.g + 6]);
+    afpvec4 v57 = sfp2afpvec4(bottom_blob_data[n_offset.g + 7]);
+
+    afpvec4 v60 = sfp2afpvec4(bottom_blob_data[n_offset.b + 0]);
+    afpvec4 v61 = sfp2afpvec4(bottom_blob_data[n_offset.b + 1]);
+    afpvec4 v62 = sfp2afpvec4(bottom_blob_data[n_offset.b + 2]);
+    afpvec4 v63 = sfp2afpvec4(bottom_blob_data[n_offset.b + 3]);
+    afpvec4 v64 = sfp2afpvec4(bottom_blob_data[n_offset.b + 4]);
+    afpvec4 v65 = sfp2afpvec4(bottom_blob_data[n_offset.b + 5]);
+    afpvec4 v66 = sfp2afpvec4(bottom_blob_data[n_offset.b + 6]);
+    afpvec4 v67 = sfp2afpvec4(bottom_blob_data[n_offset.b + 7]);
+
+    afpvec4 v70 = sfp2afpvec4(bottom_blob_data[n_offset.a + 0]);
+    afpvec4 v71 = sfp2afpvec4(bottom_blob_data[n_offset.a + 1]);
+    afpvec4 v72 = sfp2afpvec4(bottom_blob_data[n_offset.a + 2]);
+    afpvec4 v73 = sfp2afpvec4(bottom_blob_data[n_offset.a + 3]);
+    afpvec4 v74 = sfp2afpvec4(bottom_blob_data[n_offset.a + 4]);
+    afpvec4 v75 = sfp2afpvec4(bottom_blob_data[n_offset.a + 5]);
+    afpvec4 v76 = sfp2afpvec4(bottom_blob_data[n_offset.a + 6]);
+    afpvec4 v77 = sfp2afpvec4(bottom_blob_data[n_offset.a + 7]);
+
+    // const float itm[8][8] = {
+    //     {1.0f,  0.0f, -5.25f,  0.00f,  5.25f,  0.00f, -1.0f, 0.0f},
+    //
+    //     {0.0f,  1.0f,  1.00f, -4.25f, -4.25f,  1.00f,  1.0f, 0.0f},
+    //     {0.0f, -1.0f,  1.00f,  4.25f, -4.25f, -1.00f,  1.0f, 0.0f},
+    //
+    //     {0.0f,  0.5f,  0.25f, -2.50f, -1.25f,  2.00f,  1.0f, 0.0f},
+    //     {0.0f, -0.5f,  0.25f,  2.50f, -1.25f, -2.00f,  1.0f, 0.0f},
+    //
+    //     {0.0f,  2.0f,  4.00f, -2.50f, -5.00f,  0.50f,  1.0f, 0.0f},
+    //     {0.0f, -2.0f,  4.00f,  2.50f, -5.00f, -0.50f,  1.0f, 0.0f},
+    //
+    //     {0.0f, -1.0f,  0.00f,  5.25f,  0.00f, -5.25f,  0.0f, 1.0f}
+    // };
+
+    // 0 = r00 - r06 + (r04 - r02) * 5.25
+    // 7 = r07 - r01 + (r03 - r05) * 5.25
+
+    // 1 = (r02 + r06 - r04 * 4.25) + (r01 - r03 * 4.25 + r05)
+    // 2 = (r02 + r06 - r04 * 4.25) - (r01 - r03 * 4.25 + r05)
+
+    // 3 = (r06 + r02 * 0.25 - r04 * 1.25) + (r01 * 0.5 - r03 * 2.5 + r05 * 2)
+    // 4 = (r06 + r02 * 0.25 - r04 * 1.25) - (r01 * 0.5 - r03 * 2.5 + r05 * 2)
+
+    // 5 = (r06 + (r02 - r04 * 1.25) * 4) + (r01 * 2 - r03 * 2.5 + r05 * 0.5)
+    // 6 = (r06 + (r02 - r04 * 1.25) * 4) - (r01 * 2 - r03 * 2.5 + r05 * 0.5)
+
+    // implicit transpose
+    afpvec4 m00 = v00 - v06 + (v04 - v02) * afp(5.25f);
+    afpvec4 m01 = v10 - v16 + (v14 - v12) * afp(5.25f);
+    afpvec4 m02 = v20 - v26 + (v24 - v22) * afp(5.25f);
+    afpvec4 m03 = v30 - v36 + (v34 - v32) * afp(5.25f);
+    afpvec4 m04 = v40 - v46 + (v44 - v42) * afp(5.25f);
+    afpvec4 m05 = v50 - v56 + (v54 - v52) * afp(5.25f);
+    afpvec4 m06 = v60 - v66 + (v64 - v62) * afp(5.25f);
+    afpvec4 m07 = v70 - v76 + (v74 - v72) * afp(5.25f);
+    afpvec4 m70 = v07 - v01 + (v03 - v05) * afp(5.25f);
+    afpvec4 m71 = v17 - v11 + (v13 - v15) * afp(5.25f);
+    afpvec4 m72 = v27 - v21 + (v23 - v25) * afp(5.25f);
+    afpvec4 m73 = v37 - v31 + (v33 - v35) * afp(5.25f);
+    afpvec4 m74 = v47 - v41 + (v43 - v45) * afp(5.25f);
+    afpvec4 m75 = v57 - v51 + (v53 - v55) * afp(5.25f);
+    afpvec4 m76 = v67 - v61 + (v63 - v65) * afp(5.25f);
+    afpvec4 m77 = v77 - v71 + (v73 - v75) * afp(5.25f);
+
+    afpvec4 m10 = (v02 + v06 - v04 * afp(4.25f)) + (v01 - v03 * afp(4.25f) + v05);
+    afpvec4 m11 = (v12 + v16 - v14 * afp(4.25f)) + (v11 - v13 * afp(4.25f) + v15);
+    afpvec4 m12 = (v22 + v26 - v24 * afp(4.25f)) + (v21 - v23 * afp(4.25f) + v25);
+    afpvec4 m13 = (v32 + v36 - v34 * afp(4.25f)) + (v31 - v33 * afp(4.25f) + v35);
+    afpvec4 m14 = (v42 + v46 - v44 * afp(4.25f)) + (v41 - v43 * afp(4.25f) + v45);
+    afpvec4 m15 = (v52 + v56 - v54 * afp(4.25f)) + (v51 - v53 * afp(4.25f) + v55);
+    afpvec4 m16 = (v62 + v66 - v64 * afp(4.25f)) + (v61 - v63 * afp(4.25f) + v65);
+    afpvec4 m17 = (v72 + v76 - v74 * afp(4.25f)) + (v71 - v73 * afp(4.25f) + v75);
+    afpvec4 m20 = (v02 + v06 - v04 * afp(4.25f)) - (v01 - v03 * afp(4.25f) + v05);
+    afpvec4 m21 = (v12 + v16 - v14 * afp(4.25f)) - (v11 - v13 * afp(4.25f) + v15);
+    afpvec4 m22 = (v22 + v26 - v24 * afp(4.25f)) - (v21 - v23 * afp(4.25f) + v25);
+    afpvec4 m23 = (v32 + v36 - v34 * afp(4.25f)) - (v31 - v33 * afp(4.25f) + v35);
+    afpvec4 m24 = (v42 + v46 - v44 * afp(4.25f)) - (v41 - v43 * afp(4.25f) + v45);
+    afpvec4 m25 = (v52 + v56 - v54 * afp(4.25f)) - (v51 - v53 * afp(4.25f) + v55);
+    afpvec4 m26 = (v62 + v66 - v64 * afp(4.25f)) - (v61 - v63 * afp(4.25f) + v65);
+    afpvec4 m27 = (v72 + v76 - v74 * afp(4.25f)) - (v71 - v73 * afp(4.25f) + v75);
+
+    afpvec4 m30 = (v06 + v02 * afp(0.25f) - v04 * afp(1.25f)) + (v01 * afp(0.5f) - v03 * afp(2.5f) + v05 * afp(2.f));
+    afpvec4 m31 = (v16 + v12 * afp(0.25f) - v14 * afp(1.25f)) + (v11 * afp(0.5f) - v13 * afp(2.5f) + v15 * afp(2.f));
+    afpvec4 m32 = (v26 + v22 * afp(0.25f) - v24 * afp(1.25f)) + (v21 * afp(0.5f) - v23 * afp(2.5f) + v25 * afp(2.f));
+    afpvec4 m33 = (v36 + v32 * afp(0.25f) - v34 * afp(1.25f)) + (v31 * afp(0.5f) - v33 * afp(2.5f) + v35 * afp(2.f));
+    afpvec4 m34 = (v46 + v42 * afp(0.25f) - v44 * afp(1.25f)) + (v41 * afp(0.5f) - v43 * afp(2.5f) + v45 * afp(2.f));
+    afpvec4 m35 = (v56 + v52 * afp(0.25f) - v54 * afp(1.25f)) + (v51 * afp(0.5f) - v53 * afp(2.5f) + v55 * afp(2.f));
+    afpvec4 m36 = (v66 + v62 * afp(0.25f) - v64 * afp(1.25f)) + (v61 * afp(0.5f) - v63 * afp(2.5f) + v65 * afp(2.f));
+    afpvec4 m37 = (v76 + v72 * afp(0.25f) - v74 * afp(1.25f)) + (v71 * afp(0.5f) - v73 * afp(2.5f) + v75 * afp(2.f));
+    afpvec4 m40 = (v06 + v02 * afp(0.25f) - v04 * afp(1.25f)) - (v01 * afp(0.5f) - v03 * afp(2.5f) + v05 * afp(2.f));
+    afpvec4 m41 = (v16 + v12 * afp(0.25f) - v14 * afp(1.25f)) - (v11 * afp(0.5f) - v13 * afp(2.5f) + v15 * afp(2.f));
+    afpvec4 m42 = (v26 + v22 * afp(0.25f) - v24 * afp(1.25f)) - (v21 * afp(0.5f) - v23 * afp(2.5f) + v25 * afp(2.f));
+    afpvec4 m43 = (v36 + v32 * afp(0.25f) - v34 * afp(1.25f)) - (v31 * afp(0.5f) - v33 * afp(2.5f) + v35 * afp(2.f));
+    afpvec4 m44 = (v46 + v42 * afp(0.25f) - v44 * afp(1.25f)) - (v41 * afp(0.5f) - v43 * afp(2.5f) + v45 * afp(2.f));
+    afpvec4 m45 = (v56 + v52 * afp(0.25f) - v54 * afp(1.25f)) - (v51 * afp(0.5f) - v53 * afp(2.5f) + v55 * afp(2.f));
+    afpvec4 m46 = (v66 + v62 * afp(0.25f) - v64 * afp(1.25f)) - (v61 * afp(0.5f) - v63 * afp(2.5f) + v65 * afp(2.f));
+    afpvec4 m47 = (v76 + v72 * afp(0.25f) - v74 * afp(1.25f)) - (v71 * afp(0.5f) - v73 * afp(2.5f) + v75 * afp(2.f));
+
+    afpvec4 m50 = (v06 + (v02 - v04 * afp(1.25f)) * afp(4.f)) + (v01 * afp(2.f) - v03 * afp(2.5f) + v05 * afp(0.5f));
+    afpvec4 m51 = (v16 + (v12 - v14 * afp(1.25f)) * afp(4.f)) + (v11 * afp(2.f) - v13 * afp(2.5f) + v15 * afp(0.5f));
+    afpvec4 m52 = (v26 + (v22 - v24 * afp(1.25f)) * afp(4.f)) + (v21 * afp(2.f) - v23 * afp(2.5f) + v25 * afp(0.5f));
+    afpvec4 m53 = (v36 + (v32 - v34 * afp(1.25f)) * afp(4.f)) + (v31 * afp(2.f) - v33 * afp(2.5f) + v35 * afp(0.5f));
+    afpvec4 m54 = (v46 + (v42 - v44 * afp(1.25f)) * afp(4.f)) + (v41 * afp(2.f) - v43 * afp(2.5f) + v45 * afp(0.5f));
+    afpvec4 m55 = (v56 + (v52 - v54 * afp(1.25f)) * afp(4.f)) + (v51 * afp(2.f) - v53 * afp(2.5f) + v55 * afp(0.5f));
+    afpvec4 m56 = (v66 + (v62 - v64 * afp(1.25f)) * afp(4.f)) + (v61 * afp(2.f) - v63 * afp(2.5f) + v65 * afp(0.5f));
+    afpvec4 m57 = (v76 + (v72 - v74 * afp(1.25f)) * afp(4.f)) + (v71 * afp(2.f) - v73 * afp(2.5f) + v75 * afp(0.5f));
+    afpvec4 m60 = (v06 + (v02 - v04 * afp(1.25f)) * afp(4.f)) - (v01 * afp(2.f) - v03 * afp(2.5f) + v05 * afp(0.5f));
+    afpvec4 m61 = (v16 + (v12 - v14 * afp(1.25f)) * afp(4.f)) - (v11 * afp(2.f) - v13 * afp(2.5f) + v15 * afp(0.5f));
+    afpvec4 m62 = (v26 + (v22 - v24 * afp(1.25f)) * afp(4.f)) - (v21 * afp(2.f) - v23 * afp(2.5f) + v25 * afp(0.5f));
+    afpvec4 m63 = (v36 + (v32 - v34 * afp(1.25f)) * afp(4.f)) - (v31 * afp(2.f) - v33 * afp(2.5f) + v35 * afp(0.5f));
+    afpvec4 m64 = (v46 + (v42 - v44 * afp(1.25f)) * afp(4.f)) - (v41 * afp(2.f) - v43 * afp(2.5f) + v45 * afp(0.5f));
+    afpvec4 m65 = (v56 + (v52 - v54 * afp(1.25f)) * afp(4.f)) - (v51 * afp(2.f) - v53 * afp(2.5f) + v55 * afp(0.5f));
+    afpvec4 m66 = (v66 + (v62 - v64 * afp(1.25f)) * afp(4.f)) - (v61 * afp(2.f) - v63 * afp(2.5f) + v65 * afp(0.5f));
+    afpvec4 m67 = (v76 + (v72 - v74 * afp(1.25f)) * afp(4.f)) - (v71 * afp(2.f) - v73 * afp(2.5f) + v75 * afp(0.5f));
+
+    v00 = m00 - m06 + (m04 - m02) * afp(5.25f);
+    v10 = m10 - m16 + (m14 - m12) * afp(5.25f);
+    v20 = m20 - m26 + (m24 - m22) * afp(5.25f);
+    v30 = m30 - m36 + (m34 - m32) * afp(5.25f);
+    v40 = m40 - m46 + (m44 - m42) * afp(5.25f);
+    v50 = m50 - m56 + (m54 - m52) * afp(5.25f);
+    v60 = m60 - m66 + (m64 - m62) * afp(5.25f);
+    v70 = m70 - m76 + (m74 - m72) * afp(5.25f);
+    v07 = m07 - m01 + (m03 - m05) * afp(5.25f);
+    v17 = m17 - m11 + (m13 - m15) * afp(5.25f);
+    v27 = m27 - m21 + (m23 - m25) * afp(5.25f);
+    v37 = m37 - m31 + (m33 - m35) * afp(5.25f);
+    v47 = m47 - m41 + (m43 - m45) * afp(5.25f);
+    v57 = m57 - m51 + (m53 - m55) * afp(5.25f);
+    v67 = m67 - m61 + (m63 - m65) * afp(5.25f);
+    v77 = m77 - m71 + (m73 - m75) * afp(5.25f);
+
+    v01 = (m02 + m06 - m04 * afp(4.25f)) + (m01 - m03 * afp(4.25f) + m05);
+    v11 = (m12 + m16 - m14 * afp(4.25f)) + (m11 - m13 * afp(4.25f) + m15);
+    v21 = (m22 + m26 - m24 * afp(4.25f)) + (m21 - m23 * afp(4.25f) + m25);
+    v31 = (m32 + m36 - m34 * afp(4.25f)) + (m31 - m33 * afp(4.25f) + m35);
+    v41 = (m42 + m46 - m44 * afp(4.25f)) + (m41 - m43 * afp(4.25f) + m45);
+    v51 = (m52 + m56 - m54 * afp(4.25f)) + (m51 - m53 * afp(4.25f) + m55);
+    v61 = (m62 + m66 - m64 * afp(4.25f)) + (m61 - m63 * afp(4.25f) + m65);
+    v71 = (m72 + m76 - m74 * afp(4.25f)) + (m71 - m73 * afp(4.25f) + m75);
+    v02 = (m02 + m06 - m04 * afp(4.25f)) - (m01 - m03 * afp(4.25f) + m05);
+    v12 = (m12 + m16 - m14 * afp(4.25f)) - (m11 - m13 * afp(4.25f) + m15);
+    v22 = (m22 + m26 - m24 * afp(4.25f)) - (m21 - m23 * afp(4.25f) + m25);
+    v32 = (m32 + m36 - m34 * afp(4.25f)) - (m31 - m33 * afp(4.25f) + m35);
+    v42 = (m42 + m46 - m44 * afp(4.25f)) - (m41 - m43 * afp(4.25f) + m45);
+    v52 = (m52 + m56 - m54 * afp(4.25f)) - (m51 - m53 * afp(4.25f) + m55);
+    v62 = (m62 + m66 - m64 * afp(4.25f)) - (m61 - m63 * afp(4.25f) + m65);
+    v72 = (m72 + m76 - m74 * afp(4.25f)) - (m71 - m73 * afp(4.25f) + m75);
+
+    v03 = (m06 + m02 * afp(0.25f) - m04 * afp(1.25f)) + (m01 * afp(0.5f) - m03 * afp(2.5f) + m05 * afp(2.f));
+    v13 = (m16 + m12 * afp(0.25f) - m14 * afp(1.25f)) + (m11 * afp(0.5f) - m13 * afp(2.5f) + m15 * afp(2.f));
+    v23 = (m26 + m22 * afp(0.25f) - m24 * afp(1.25f)) + (m21 * afp(0.5f) - m23 * afp(2.5f) + m25 * afp(2.f));
+    v33 = (m36 + m32 * afp(0.25f) - m34 * afp(1.25f)) + (m31 * afp(0.5f) - m33 * afp(2.5f) + m35 * afp(2.f));
+    v43 = (m46 + m42 * afp(0.25f) - m44 * afp(1.25f)) + (m41 * afp(0.5f) - m43 * afp(2.5f) + m45 * afp(2.f));
+    v53 = (m56 + m52 * afp(0.25f) - m54 * afp(1.25f)) + (m51 * afp(0.5f) - m53 * afp(2.5f) + m55 * afp(2.f));
+    v63 = (m66 + m62 * afp(0.25f) - m64 * afp(1.25f)) + (m61 * afp(0.5f) - m63 * afp(2.5f) + m65 * afp(2.f));
+    v73 = (m76 + m72 * afp(0.25f) - m74 * afp(1.25f)) + (m71 * afp(0.5f) - m73 * afp(2.5f) + m75 * afp(2.f));
+    v04 = (m06 + m02 * afp(0.25f) - m04 * afp(1.25f)) - (m01 * afp(0.5f) - m03 * afp(2.5f) + m05 * afp(2.f));
+    v14 = (m16 + m12 * afp(0.25f) - m14 * afp(1.25f)) - (m11 * afp(0.5f) - m13 * afp(2.5f) + m15 * afp(2.f));
+    v24 = (m26 + m22 * afp(0.25f) - m24 * afp(1.25f)) - (m21 * afp(0.5f) - m23 * afp(2.5f) + m25 * afp(2.f));
+    v34 = (m36 + m32 * afp(0.25f) - m34 * afp(1.25f)) - (m31 * afp(0.5f) - m33 * afp(2.5f) + m35 * afp(2.f));
+    v44 = (m46 + m42 * afp(0.25f) - m44 * afp(1.25f)) - (m41 * afp(0.5f) - m43 * afp(2.5f) + m45 * afp(2.f));
+    v54 = (m56 + m52 * afp(0.25f) - m54 * afp(1.25f)) - (m51 * afp(0.5f) - m53 * afp(2.5f) + m55 * afp(2.f));
+    v64 = (m66 + m62 * afp(0.25f) - m64 * afp(1.25f)) - (m61 * afp(0.5f) - m63 * afp(2.5f) + m65 * afp(2.f));
+    v74 = (m76 + m72 * afp(0.25f) - m74 * afp(1.25f)) - (m71 * afp(0.5f) - m73 * afp(2.5f) + m75 * afp(2.f));
+
+    v05 = (m06 + (m02 - m04 * afp(1.25f)) * afp(4.f)) + (m01 * afp(2.f) - m03 * afp(2.5f) + m05 * afp(0.5f));
+    v15 = (m16 + (m12 - m14 * afp(1.25f)) * afp(4.f)) + (m11 * afp(2.f) - m13 * afp(2.5f) + m15 * afp(0.5f));
+    v25 = (m26 + (m22 - m24 * afp(1.25f)) * afp(4.f)) + (m21 * afp(2.f) - m23 * afp(2.5f) + m25 * afp(0.5f));
+    v35 = (m36 + (m32 - m34 * afp(1.25f)) * afp(4.f)) + (m31 * afp(2.f) - m33 * afp(2.5f) + m35 * afp(0.5f));
+    v45 = (m46 + (m42 - m44 * afp(1.25f)) * afp(4.f)) + (m41 * afp(2.f) - m43 * afp(2.5f) + m45 * afp(0.5f));
+    v55 = (m56 + (m52 - m54 * afp(1.25f)) * afp(4.f)) + (m51 * afp(2.f) - m53 * afp(2.5f) + m55 * afp(0.5f));
+    v65 = (m66 + (m62 - m64 * afp(1.25f)) * afp(4.f)) + (m61 * afp(2.f) - m63 * afp(2.5f) + m65 * afp(0.5f));
+    v75 = (m76 + (m72 - m74 * afp(1.25f)) * afp(4.f)) + (m71 * afp(2.f) - m73 * afp(2.5f) + m75 * afp(0.5f));
+    v06 = (m06 + (m02 - m04 * afp(1.25f)) * afp(4.f)) - (m01 * afp(2.f) - m03 * afp(2.5f) + m05 * afp(0.5f));
+    v16 = (m16 + (m12 - m14 * afp(1.25f)) * afp(4.f)) - (m11 * afp(2.f) - m13 * afp(2.5f) + m15 * afp(0.5f));
+    v26 = (m26 + (m22 - m24 * afp(1.25f)) * afp(4.f)) - (m21 * afp(2.f) - m23 * afp(2.5f) + m25 * afp(0.5f));
+    v36 = (m36 + (m32 - m34 * afp(1.25f)) * afp(4.f)) - (m31 * afp(2.f) - m33 * afp(2.5f) + m35 * afp(0.5f));
+    v46 = (m46 + (m42 - m44 * afp(1.25f)) * afp(4.f)) - (m41 * afp(2.f) - m43 * afp(2.5f) + m45 * afp(0.5f));
+    v56 = (m56 + (m52 - m54 * afp(1.25f)) * afp(4.f)) - (m51 * afp(2.f) - m53 * afp(2.5f) + m55 * afp(0.5f));
+    v66 = (m66 + (m62 - m64 * afp(1.25f)) * afp(4.f)) - (m61 * afp(2.f) - m63 * afp(2.5f) + m65 * afp(0.5f));
+    v76 = (m76 + (m72 - m74 * afp(1.25f)) * afp(4.f)) - (m71 * afp(2.f) - m73 * afp(2.5f) + m75 * afp(0.5f));
+
+    // store 64
+    int v_tm_offset = gz * p.outcstep + (gy * p.block_x + gx) * 64;
+
+    bottom_tm_blob_data[v_tm_offset + 0] = afp2sfpvec4(v00);
+    bottom_tm_blob_data[v_tm_offset + 1] = afp2sfpvec4(v01);
+    bottom_tm_blob_data[v_tm_offset + 2] = afp2sfpvec4(v02);
+    bottom_tm_blob_data[v_tm_offset + 3] = afp2sfpvec4(v03);
+    bottom_tm_blob_data[v_tm_offset + 4] = afp2sfpvec4(v04);
+    bottom_tm_blob_data[v_tm_offset + 5] = afp2sfpvec4(v05);
+    bottom_tm_blob_data[v_tm_offset + 6] = afp2sfpvec4(v06);
+    bottom_tm_blob_data[v_tm_offset + 7] = afp2sfpvec4(v07);
+
+    bottom_tm_blob_data[v_tm_offset + 8] = afp2sfpvec4(v10);
+    bottom_tm_blob_data[v_tm_offset + 9] = afp2sfpvec4(v11);
+    bottom_tm_blob_data[v_tm_offset + 10] = afp2sfpvec4(v12);
+    bottom_tm_blob_data[v_tm_offset + 11] = afp2sfpvec4(v13);
+    bottom_tm_blob_data[v_tm_offset + 12] = afp2sfpvec4(v14);
+    bottom_tm_blob_data[v_tm_offset + 13] = afp2sfpvec4(v15);
+    bottom_tm_blob_data[v_tm_offset + 14] = afp2sfpvec4(v16);
+    bottom_tm_blob_data[v_tm_offset + 15] = afp2sfpvec4(v17);
+
+    bottom_tm_blob_data[v_tm_offset + 16] = afp2sfpvec4(v20);
+    bottom_tm_blob_data[v_tm_offset + 17] = afp2sfpvec4(v21);
+    bottom_tm_blob_data[v_tm_offset + 18] = afp2sfpvec4(v22);
+    bottom_tm_blob_data[v_tm_offset + 19] = afp2sfpvec4(v23);
+    bottom_tm_blob_data[v_tm_offset + 20] = afp2sfpvec4(v24);
+    bottom_tm_blob_data[v_tm_offset + 21] = afp2sfpvec4(v25);
+    bottom_tm_blob_data[v_tm_offset + 22] = afp2sfpvec4(v26);
+    bottom_tm_blob_data[v_tm_offset + 23] = afp2sfpvec4(v27);
+
+    bottom_tm_blob_data[v_tm_offset + 24] = afp2sfpvec4(v30);
+    bottom_tm_blob_data[v_tm_offset + 25] = afp2sfpvec4(v31);
+    bottom_tm_blob_data[v_tm_offset + 26] = afp2sfpvec4(v32);
+    bottom_tm_blob_data[v_tm_offset + 27] = afp2sfpvec4(v33);
+    bottom_tm_blob_data[v_tm_offset + 28] = afp2sfpvec4(v34);
+    bottom_tm_blob_data[v_tm_offset + 29] = afp2sfpvec4(v35);
+    bottom_tm_blob_data[v_tm_offset + 30] = afp2sfpvec4(v36);
+    bottom_tm_blob_data[v_tm_offset + 31] = afp2sfpvec4(v37);
+
+    bottom_tm_blob_data[v_tm_offset + 32] = afp2sfpvec4(v40);
+    bottom_tm_blob_data[v_tm_offset + 33] = afp2sfpvec4(v41);
+    bottom_tm_blob_data[v_tm_offset + 34] = afp2sfpvec4(v42);
+    bottom_tm_blob_data[v_tm_offset + 35] = afp2sfpvec4(v43);
+    bottom_tm_blob_data[v_tm_offset + 36] = afp2sfpvec4(v44);
+    bottom_tm_blob_data[v_tm_offset + 37] = afp2sfpvec4(v45);
+    bottom_tm_blob_data[v_tm_offset + 38] = afp2sfpvec4(v46);
+    bottom_tm_blob_data[v_tm_offset + 39] = afp2sfpvec4(v47);
+
+    bottom_tm_blob_data[v_tm_offset + 40] = afp2sfpvec4(v50);
+    bottom_tm_blob_data[v_tm_offset + 41] = afp2sfpvec4(v51);
+    bottom_tm_blob_data[v_tm_offset + 42] = afp2sfpvec4(v52);
+    bottom_tm_blob_data[v_tm_offset + 43] = afp2sfpvec4(v53);
+    bottom_tm_blob_data[v_tm_offset + 44] = afp2sfpvec4(v54);
+    bottom_tm_blob_data[v_tm_offset + 45] = afp2sfpvec4(v55);
+    bottom_tm_blob_data[v_tm_offset + 46] = afp2sfpvec4(v56);
+    bottom_tm_blob_data[v_tm_offset + 47] = afp2sfpvec4(v57);
+
+    bottom_tm_blob_data[v_tm_offset + 48] = afp2sfpvec4(v60);
+    bottom_tm_blob_data[v_tm_offset + 49] = afp2sfpvec4(v61);
+    bottom_tm_blob_data[v_tm_offset + 50] = afp2sfpvec4(v62);
+    bottom_tm_blob_data[v_tm_offset + 51] = afp2sfpvec4(v63);
+    bottom_tm_blob_data[v_tm_offset + 52] = afp2sfpvec4(v64);
+    bottom_tm_blob_data[v_tm_offset + 53] = afp2sfpvec4(v65);
+    bottom_tm_blob_data[v_tm_offset + 54] = afp2sfpvec4(v66);
+    bottom_tm_blob_data[v_tm_offset + 55] = afp2sfpvec4(v67);
+
+    bottom_tm_blob_data[v_tm_offset + 56] = afp2sfpvec4(v70);
+    bottom_tm_blob_data[v_tm_offset + 57] = afp2sfpvec4(v71);
+    bottom_tm_blob_data[v_tm_offset + 58] = afp2sfpvec4(v72);
+    bottom_tm_blob_data[v_tm_offset + 59] = afp2sfpvec4(v73);
+    bottom_tm_blob_data[v_tm_offset + 60] = afp2sfpvec4(v74);
+    bottom_tm_blob_data[v_tm_offset + 61] = afp2sfpvec4(v75);
+    bottom_tm_blob_data[v_tm_offset + 62] = afp2sfpvec4(v76);
+    bottom_tm_blob_data[v_tm_offset + 63] = afp2sfpvec4(v77);
+}
