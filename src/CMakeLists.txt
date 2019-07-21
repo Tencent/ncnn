@@ -276,7 +276,7 @@ add_library(ncnn STATIC ${ncnn_SRCS})
 target_include_directories(ncnn
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        $<INSTALL_INTERFACE:include>
+        $<INSTALL_INTERFACE:include/ncnn>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
@@ -381,14 +381,14 @@ if(NCNN_INSTALL_SDK)
         benchmark.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h
-        DESTINATION include
+        DESTINATION include/ncnn
     )
     install(EXPORT ncnn
-        DESTINATION share/ncnn)
+        DESTINATION lib/cmake/ncnn)
     configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in
         ncnnConfig.cmake
         @ONLY)
     install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake
-        DESTINATION share/ncnn)
+        DESTINATION lib/cmake/ncnn)
 endif()
