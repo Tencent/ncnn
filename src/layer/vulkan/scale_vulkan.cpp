@@ -124,12 +124,12 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
     VkMat& bottom_top_blob = bottom_top_blobs[0];
     const VkMat& scale_blob = bottom_top_blobs[1];
 
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_top_blob;
     bindings[1] = scale_blob;
-    bindings[2] = bias_term ? (packing == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : scale_blob;// TODO use dummy buffer
+    bindings[2] = bias_term ? (elempack == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : scale_blob;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
@@ -138,7 +138,7 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_scale_pack4 : pipeline_scale;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_scale_pack4 : pipeline_scale;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
@@ -147,11 +147,11 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
 
 int Scale_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bottom_top_blobs(2);
     bottom_top_blobs[0] = bottom_top_blob;
-    bottom_top_blobs[1] = packing == 4 ? scale_data_gpu_pack4 : scale_data_gpu;
+    bottom_top_blobs[1] = elempack == 4 ? scale_data_gpu_pack4 : scale_data_gpu;
 
     return forward_inplace(bottom_top_blobs, cmd, opt);
 }

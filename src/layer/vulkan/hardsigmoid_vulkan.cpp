@@ -62,7 +62,7 @@ int HardSigmoid_vulkan::destroy_pipeline(const Option& opt)
 
 int HardSigmoid_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
@@ -74,7 +74,7 @@ int HardSigmoid_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, 
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_hardsigmoid_pack4 : pipeline_hardsigmoid;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_hardsigmoid_pack4 : pipeline_hardsigmoid;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

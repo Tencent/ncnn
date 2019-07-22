@@ -176,41 +176,41 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     size_t out_elemsize = elemsize;
     if (type_to == 1)
     {
         // float32
-        out_elemsize = 4 * packing;
+        out_elemsize = 4 * elempack;
     }
     else if (type_to == 2)
     {
         // float16
-        out_elemsize = 2 * packing;
+        out_elemsize = 2 * elempack;
     }
     else if (type_to == 3)
     {
         // int8
-        out_elemsize = packing;
+        out_elemsize = elempack;
     }
 
     if (dims == 1)
     {
-        top_blob.create(w, out_elemsize, packing, opt.blob_allocator);
+        top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
     }
     else if (dims == 2)
     {
-        top_blob.create(w, h, out_elemsize, packing, opt.blob_allocator);
+        top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
     }
     else if (dims == 3)
     {
-        top_blob.create(w, h, channels, out_elemsize, packing, opt.blob_allocator);
+        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
     }
     if (top_blob.empty())
         return -100;
 
-    int size = w * h * packing;
+    int size = w * h * elempack;
 
     if (type_from == 1 && type_to == 2)
     {

@@ -397,7 +397,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -455,8 +455,8 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_packing = num_output % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / packing * out_packing;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_packing_layout)
     {
@@ -482,17 +482,17 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         }
     }
 
-    top_blob.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.blob_allocator);
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     // depth-wise
-    if (channels == group / packing && group / packing == num_output / packing)
+    if (channels == group / elempack && group / elempack == num_output / elempack)
     {
-    if (packing == 4)
+    if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g=0; g<group / packing; g++)
+        for (int g=0; g<group / elempack; g++)
         {
             float* outptr = top_blob.channel(g);
             const float* kptr = (const float*)weight_data_pack4 + maxk * g * 4;
@@ -561,20 +561,20 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     }
     }
 
-    const int channels_g = channels * packing / group;
+    const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
-    if (packing == 4 && channels_g % 4 != 0)
+    if (elempack == 4 && channels_g % 4 != 0)
     {
         convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt.workspace_allocator, opt.num_threads);
     }
 
     Mat top_blob_unpacked = top_blob;
-    if (num_output_g % 4 != 0 && out_packing == 4)
+    if (num_output_g % 4 != 0 && out_elempack == 4)
     {
-        top_blob_unpacked.create(outw, outh, num_output, elemsize / packing, 1, opt.workspace_allocator);
+        top_blob_unpacked.create(outw, outh, num_output, elemsize / elempack, 1, opt.workspace_allocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
@@ -843,7 +843,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     }
 
     // packing
-    if (num_output_g % 4 != 0 && out_packing == 4)
+    if (num_output_g % 4 != 0 && out_elempack == 4)
     {
         convert_packing(top_blob_unpacked, top_blob, 4, opt.blob_allocator, opt.num_threads);
     }
