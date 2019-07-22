@@ -22,7 +22,15 @@ namespace ncnn {
 class InnerProduct_arm : virtual public InnerProduct
 {
 public:
+    virtual int create_pipeline(const Option& opt);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+public:
+    // pack4
+    Mat weight_data_pack4;
+    Mat weight_data_pack1to4;
+    Mat weight_data_pack4to1;
 };
 
 } // namespace ncnn
