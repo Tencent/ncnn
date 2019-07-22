@@ -160,7 +160,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
     int size = w * h;
 
     if (opt.use_packing_layout)
@@ -168,18 +168,18 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     int num_input = bottom_blob.w;
 
-    int out_packing = num_output % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / packing * out_packing;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    top_blob.create(num_output / out_packing, out_elemsize, out_packing, opt.blob_allocator);
+    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    if (packing == 4 && out_packing == 4)
+    if (elempack == 4 && out_elempack == 4)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output / out_packing; p++)
+        for (int p=0; p<num_output / out_elempack; p++)
         {
             const float* w = (const float*)weight_data_pack4 + num_input * p * 16;
             const float* m = bottom_blob;
@@ -256,11 +256,11 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return 0;
     }
 
-    if (packing == 1 && out_packing == 4)
+    if (elempack == 1 && out_elempack == 4)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output / out_packing; p++)
+        for (int p=0; p<num_output / out_elempack; p++)
         {
             const float* w = (const float*)weight_data_pack1to4 + num_input * p * 4;
             const float* m = bottom_blob;
@@ -321,7 +321,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return 0;
     }
 
-    if (packing == 4 && out_packing == 1)
+    if (elempack == 4 && out_elempack == 1)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)

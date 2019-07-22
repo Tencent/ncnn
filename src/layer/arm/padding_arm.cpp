@@ -162,10 +162,10 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
-    if (packing == 4)
+    if (elempack == 4)
     {
         int outw = w + left + right;
 

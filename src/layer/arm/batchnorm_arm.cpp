@@ -42,10 +42,10 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int size = w * h;
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (packing == 4)
+    if (elempack == 4)
     {
         const float* a_data_ptr = a_data;
         const float* b_data_ptr = b_data;

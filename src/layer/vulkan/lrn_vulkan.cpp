@@ -129,23 +129,23 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     size_t elemsize = bottom_top_blob.elemsize;
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     VkMat square_workspace;
 
     int pad = local_size / 2;
     if (pad == 0)
     {
-        square_workspace.create(w, h, channels, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        square_workspace.create(w, h, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else if (region_type == NormRegion_ACROSS_CHANNELS)
     {
         // always create scalar square workspace blob for norm across channel
-        square_workspace.create(w, h, channels * packing + local_size - 1, 4u, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
+        square_workspace.create(w, h, channels * elempack + local_size - 1, 4u, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else if (region_type == NormRegion_WITHIN_CHANNEL)
     {
-        square_workspace.create(w + local_size - 1, h + local_size - 1, channels, elemsize, packing, opt.workspace_vkallocator, opt.staging_vkallocator);
+        square_workspace.create(w + local_size - 1, h + local_size - 1, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
 
     // square pad
@@ -167,7 +167,7 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
     constants[9].i = square_workspace.cstep;
 
     const Pipeline* pipeline = 0;
-    if (packing == 4)
+    if (elempack == 4)
     {
         if (region_type == 0) pipeline = pipeline_lrn_square_pad_across_channel_pack4;
         if (region_type == 1) pipeline = pipeline_lrn_square_pad_within_channel_pack4;
@@ -199,7 +199,7 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
     constants[9].i = bottom_top_blob.cstep;
 
     const Pipeline* pipeline = 0;
-    if (packing == 4)
+    if (elempack == 4)
     {
         if (region_type == 0) pipeline = pipeline_lrn_norm_across_channel_pack4;
         if (region_type == 1) pipeline = pipeline_lrn_norm_within_channel_pack4;

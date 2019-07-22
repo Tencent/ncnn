@@ -72,7 +72,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     // TODO vec and image padding
     int dims = bottom_blob.dims;
@@ -80,7 +80,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int outw = w + left + right;
     int outh = h + top + bottom;
 
-    top_blob.create(outw, outh, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -102,7 +102,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[10].i = left;
     constants[11].i = top;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_padding_pack4 : pipeline_padding;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_padding_pack4 : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -139,7 +139,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     // TODO vec and image padding
     int dims = bottom_blob.dims;
@@ -147,7 +147,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int outw = w + _left + _right;
     int outh = h + _top + _bottom;
 
-    top_blob.create(outw, outh, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -169,7 +169,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     constants[10].i = _left;
     constants[11].i = _top;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_padding_pack4 : pipeline_padding;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_padding_pack4 : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

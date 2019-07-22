@@ -82,10 +82,10 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(w, h, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -103,7 +103,7 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4[1] : pipeline_eltwise[1];
+    const Pipeline* pipeline = elempack == 4 ? pipeline_eltwise_pack4[1] : pipeline_eltwise[1];
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -123,7 +123,7 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         constants[5].f = 1.f;
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
 
-        const Pipeline* pipeline = packing == 4 ? pipeline_eltwise_pack4[b%2] : pipeline_eltwise[b%2];
+        const Pipeline* pipeline = elempack == 4 ? pipeline_eltwise_pack4[b%2] : pipeline_eltwise[b%2];
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }

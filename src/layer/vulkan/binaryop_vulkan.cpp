@@ -71,7 +71,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
 
     VkMat& top_blob = top_blobs[0];
 
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     // TODO broadcast
     top_blob.create_like(bottom_blob, opt.blob_vkallocator, opt.staging_vkallocator);
@@ -100,7 +100,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     constants[13].i = top_blob.c;
     constants[14].i = top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -109,7 +109,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
 
 int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_top_blob;
@@ -123,7 +123,7 @@ int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, con
     constants[13].i = bottom_top_blob.c;
     constants[14].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
