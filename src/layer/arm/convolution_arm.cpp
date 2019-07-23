@@ -312,6 +312,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
             case 5:
                 // conv3x3s2
                 conv3x3s2_transform_kernel_neon(weight_data, weight_3x3s2_data, num_input, num_output);
+                break;
             default:
                 return -1;
         }
