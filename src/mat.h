@@ -74,6 +74,9 @@ public:
     // set all
     void fill(float v);
     void fill(int v);
+#if __ARM_NEON
+    void fill(float32x4_t _v);
+#endif // __ARM_NEON
     template <typename T> void fill(T v);
     // deep copy
     Mat clone(Allocator* allocator = 0) const;
@@ -595,6 +598,19 @@ inline void Mat::fill(int _v)
         *ptr++ = _v;
     }
 }
+
+#if __ARM_NEON
+inline void Mat::fill(float32x4_t _v)
+{
+    int size = total();
+    float* ptr = (float*)data;
+    for (int i=0; i<size; i++)
+    {
+        vst1q_f32(ptr, _v);
+        ptr += 4;
+    }
+}
+#endif // __ARM_NEON
 
 template <typename T>
 inline void Mat::fill(T _v)
