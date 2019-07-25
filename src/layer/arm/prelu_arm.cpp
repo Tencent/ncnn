@@ -38,8 +38,6 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             int w = bottom_top_blob.w;
 
-            float* ptr = bottom_top_blob;
-
             if (num_slope > 1)
             {
                 const float* slope = slope_data;
@@ -47,15 +45,14 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i=0; i<w; i++)
                 {
+                    float* ptr = (float*)bottom_top_blob + i * 4;
+
                     float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _slope = vld1q_f32(slope);
+                    float32x4_t _slope = vld1q_f32(slope + i * 4);
                     uint32x4_t _lemask = vcleq_f32(_p, _zero);
                     float32x4_t _ps = vmulq_f32(_p, _slope);
                     _p = vbslq_f32(_lemask, _ps, _p);
                     vst1q_f32(ptr, _p);
-
-                    ptr += 4;
-                    slope += 4;
                 }
             }
             else
@@ -65,13 +62,13 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i=0; i<w; i++)
                 {
+                    float* ptr = (float*)bottom_top_blob + i * 4;
+
                     float32x4_t _p = vld1q_f32(ptr);
                     uint32x4_t _lemask = vcleq_f32(_p, _zero);
                     float32x4_t _ps = vmulq_f32(_p, _slope);
                     _p = vbslq_f32(_lemask, _ps, _p);
                     vst1q_f32(ptr, _p);
-
-                    ptr += 4;
                 }
             }
         }
