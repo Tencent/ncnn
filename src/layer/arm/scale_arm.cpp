@@ -39,8 +39,6 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
         {
             int w = bottom_top_blob.w;
 
-            float* ptr = bottom_top_blob;
-
             const float* scale = scale_blob;
             if (bias_term)
             {
@@ -48,15 +46,13 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i=0; i<w; i++)
                 {
+                    float* ptr = (float*)bottom_top_blob + i * 4;
+
                     float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _s = vld1q_f32(scale);
-                    float32x4_t _bias = vld1q_f32(bias);
+                    float32x4_t _s = vld1q_f32(scale + i * 4);
+                    float32x4_t _bias = vld1q_f32(bias + i * 4);
                     _p = vmlaq_f32(_bias, _p, _s);
                     vst1q_f32(ptr, _p);
-
-                    ptr += 4;
-                    scale += 4;
-                    bias += 4;
                 }
             }
             else
@@ -64,13 +60,12 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i=0; i<w; i++)
                 {
+                    float* ptr = (float*)bottom_top_blob + i * 4;
+
                     float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _s = vld1q_f32(scale);
+                    float32x4_t _s = vld1q_f32(scale + i * 4);
                     _p = vmulq_f32(_p, _s);
                     vst1q_f32(ptr, _p);
-
-                    ptr += 4;
-                    scale += 4;
                 }
             }
         }
