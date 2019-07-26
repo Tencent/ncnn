@@ -85,39 +85,39 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 {
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
-    int out_packing;
+    int elempack = bottom_blob.elempack;
+    int out_elempack;
 
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * packing;
+    int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * elempack;
 
     if (ndim == 1)
     {
         int _w = w;
 
         if (_w == 0)
-            _w = dims == 1 ? bottom_blob.w * packing : bottom_blob.w;
+            _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
 
         if (_w == -1)
             _w = total;
 
         // TODO permute support
 
-        out_packing = _w % 4 == 0 ? 4 : 1;
-        size_t out_elemsize = elemsize / packing * out_packing;
+        out_elempack = _w % 4 == 0 ? 4 : 1;
+        size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
-            if (out_packing == 4) out_elemsize = 4*2u;
-            if (out_packing == 1) out_elemsize = 4u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
         }
 
-        if (dims == 1 && bottom_blob.w == _w && packing == out_packing)
+        if (dims == 1 && bottom_blob.w == _w && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
         }
 
-        top_blob.create(_w / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(_w / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     }
     else if (ndim == 2)
     {
@@ -125,31 +125,31 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         int _h = h;
 
         if (_w == 0)
-            _w = dims == 1 ? bottom_blob.w * packing : bottom_blob.w;
+            _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
         if (_h == 0)
-            _h = dims == 2 ? bottom_blob.h * packing : bottom_blob.h;
+            _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
 
         if (_w == -1)
             _w = total / _h;
         if (_h == -1)
             _h = total / _w;
 
-        out_packing = _h % 4 == 0 ? 4 : 1;
-        size_t out_elemsize = elemsize / packing * out_packing;
+        out_elempack = _h % 4 == 0 ? 4 : 1;
+        size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
-            if (out_packing == 4) out_elemsize = 4*2u;
-            if (out_packing == 1) out_elemsize = 4u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
         }
 
-        if (dims == 2 && bottom_blob.h == _h && packing == out_packing)
+        if (dims == 2 && bottom_blob.h == _h && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
         }
 
-        top_blob.create(_w, _h / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(_w, _h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     }
     else // if (ndim == 3)
     {
@@ -158,11 +158,11 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         int _c = c;
 
         if (_w == 0)
-            _w = dims == 1 ? bottom_blob.w * packing : bottom_blob.w;
+            _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
         if (_h == 0)
-            _h = dims == 2 ? bottom_blob.h * packing : bottom_blob.h;
+            _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
         if (_c == 0)
-            _c = dims == 3 ? bottom_blob.c * packing : bottom_blob.c;
+            _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
 
         if (_w == -1)
             _w = total / _c / _h;
@@ -171,16 +171,16 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         if (_c == -1)
             _c = total / _h / _w;
 
-        out_packing = _c % 4 == 0 ? 4 : 1;
-        size_t out_elemsize = elemsize / packing * out_packing;
+        out_elempack = _c % 4 == 0 ? 4 : 1;
+        size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
-            if (out_packing == 4) out_elemsize = 4*2u;
-            if (out_packing == 1) out_elemsize = 4u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
         }
 
-        if (dims == 3 && bottom_blob.c == _c && packing == out_packing)
+        if (dims == 3 && bottom_blob.c == _c && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.w = _w;
@@ -188,7 +188,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             return 0;
         }
 
-        top_blob.create(_w, _h, _c / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     }
 
     if (top_blob.empty())
@@ -211,24 +211,24 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[9].i = top_blob.cstep;
 
     const Pipeline* pipeline = 0;
-    if (packing == 1 && out_packing == 1)
+    if (elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_reshape;
     }
-    else if (packing == 4 && out_packing == 4)
+    else if (elempack == 4 && out_elempack == 4)
     {
         pipeline = pipeline_reshape_pack4;
     }
-    else if (packing == 1 && out_packing == 4)
+    else if (elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_reshape_pack1to4;
     }
-    else if (packing == 4 && out_packing == 1)
+    else if (elempack == 4 && out_elempack == 1)
     {
         pipeline = pipeline_reshape_pack4to1;
     }
 
-    if (packing == 4 && out_packing == 1)
+    if (elempack == 4 && out_elempack == 1)
     {
         cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
     }

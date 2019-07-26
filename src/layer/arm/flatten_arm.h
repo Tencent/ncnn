@@ -12,27 +12,20 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_PACKING_H
-#define LAYER_PACKING_H
+#ifndef LAYER_FLATTEN_ARM_H
+#define LAYER_FLATTEN_ARM_H
 
-#include "layer.h"
+#include "flatten.h"
 
 namespace ncnn {
 
-class Packing : public Layer
+class Flatten_arm : virtual public Flatten
 {
 public:
-    Packing();
-
-    virtual int load_param(const ParamDict& pd);
-
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-public:
-    int out_elempack;
-    int use_padding;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_PACKING_H
+#endif // LAYER_FLATTEN_ARM_H
+

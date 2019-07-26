@@ -83,32 +83,32 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
-    int total = w * h * channels * packing;
+    int total = w * h * channels * elempack;
 
-    int out_packing = total % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / packing * out_packing;
+    int out_elempack = total % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_packing == 4) out_elemsize = 4*2u;
-        if (out_packing == 1) out_elemsize = 4u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
     }
 
-    if (dims == 2 && packing == 1)
+    if (dims == 2 && elempack == 1)
     {
         top_blob = bottom_blob;
         top_blob.dims = 1;
-        top_blob.w = total / out_packing;
+        top_blob.w = total / out_elempack;
         top_blob.h = 1;
         top_blob.cstep = top_blob.w;
         top_blob.elemsize = out_elemsize;
-        top_blob.packing = out_packing;
+        top_blob.elempack = out_elempack;
         return 0;
     }
 
-    top_blob.create(total / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(total / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -129,15 +129,15 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[9].i = top_blob.cstep;
 
     const Pipeline* pipeline = 0;
-    if (packing == 1 && out_packing == 1)
+    if (elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_flatten;
     }
-    else if (packing == 4 /*&& out_packing == 4*/)
+    else if (elempack == 4 /*&& out_elempack == 4*/)
     {
         pipeline = pipeline_flatten_pack4;
     }
-    else if (packing == 1 && out_packing == 4)
+    else if (elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_flatten_pack1to4;
     }

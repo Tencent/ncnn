@@ -306,12 +306,12 @@ void resize_bicubic(const Mat& src, Mat& dst, int w, int h, Allocator* allocator
     delete interp;
 }
 
-void convert_packing(const Mat& src, Mat& dst, int _packing, Allocator* allocator, int num_threads)
+void convert_packing(const Mat& src, Mat& dst, int _elempack, Allocator* allocator, int num_threads)
 {
     ncnn::Layer* packing = ncnn::create_layer(ncnn::LayerType::Packing);
 
     ncnn::ParamDict pd;
-    pd.set(0, _packing);
+    pd.set(0, _elempack);
 
     packing->load_param(pd);
 

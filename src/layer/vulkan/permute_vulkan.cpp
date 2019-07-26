@@ -65,17 +65,17 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     int dims = bottom_blob.dims;
 
-    int out_packing = 1;
-    size_t out_elemsize = elemsize / packing;
+    int out_elempack = 1;
+    size_t out_elemsize = elemsize / elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_packing == 4) out_elemsize = 4*2u;
-        if (out_packing == 1) out_elemsize = 4u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
     }
 
     if (dims == 2)
@@ -84,17 +84,17 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         // 0 = w h
         // 1 = h w
 
-        h = h * packing;
+        h = h * elempack;
 
         if (order_type == 0)
         {
-            top_blob.create(w, h, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(w, h, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
             if (top_blob.empty())
                 return -100;
         }
         else if (order_type == 1)
         {
-            top_blob.create(h, w, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(h, w, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
             if (top_blob.empty())
                 return -100;
         }
@@ -109,41 +109,41 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         // 4 = h c w
         // 5 = c h w
 
-        channels = channels * packing;
+        channels = channels * elempack;
 
         if (order_type == 0)
         {
-            top_blob.create(w, h, channels, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(w, h, channels, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
             if (top_blob.empty())
                 return -100;
         }
         else if (order_type == 1)
         {
-            top_blob.create(h, w, channels, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(h, w, channels, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
             if (top_blob.empty())
                 return -100;
         }
         else if (order_type == 2)
         {
-            top_blob.create(w, channels, h, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(w, channels, h, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
             if (top_blob.empty())
                 return -100;
         }
         else if (order_type == 3)
         {
-            top_blob.create(channels, w, h, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(channels, w, h, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
             if (top_blob.empty())
                 return -100;
         }
         else if (order_type == 4)
         {
-            top_blob.create(h, channels, w, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(h, channels, w, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
             if (top_blob.empty())
                 return -100;
         }
         else if (order_type == 5)
         {
-            top_blob.create(channels, h, w, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(channels, h, w, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
             if (top_blob.empty())
                 return -100;
         }
@@ -165,12 +165,12 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    if (packing == 1)
+    if (elempack == 1)
     {
         cmd.record_pipeline(pipeline_permute, bindings, constants, top_blob);
     }
 
-    if (packing == 4)
+    if (elempack == 4)
     {
         cmd.record_pipeline(pipeline_permute_pack4to1, bindings, constants, bottom_blob);
     }

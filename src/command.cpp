@@ -847,9 +847,9 @@ VkTransfer::~VkTransfer()
 
 void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 {
-    if (src.elemsize / src.packing == 4)
+    if (src.elemsize / src.elempack == 4)
     {
-        if (opt.use_fp16_storage || (opt.use_fp16_packed && src.packing % 4 == 0))
+        if (opt.use_fp16_storage || (opt.use_fp16_packed && src.elempack % 4 == 0))
         {
             Mat src_fp16;
             cast_float32_to_float16(src, src_fp16);

@@ -65,7 +65,7 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     // TODO vec and image crop
     int dims = bottom_blob.dims;
@@ -89,22 +89,22 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
         _outh = std::min(outh, h - hoffset);
 
     if (outc == -233)
-        _outc = channels * packing - coffset;
+        _outc = channels * elempack - coffset;
     else if (outc == -234)
-        _outc = channels * packing - 1 - coffset;
+        _outc = channels * elempack - 1 - coffset;
     else
-        _outc = std::min(outc, channels * packing - coffset);
+        _outc = std::min(outc, channels * elempack - coffset);
 
-    int out_packing = _outc % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / packing * out_packing;
+    int out_elempack = _outc % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_packing == 4) out_elemsize = 4*2u;
-        if (out_packing == 1) out_elemsize = 4u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
     }
 
-    top_blob.create(_outw, _outh, _outc / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -128,22 +128,22 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     constants[12].i = coffset;
 
     const Pipeline* pipeline = 0;
-    if (packing == 1 && out_packing == 1)
+    if (elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_crop;
     }
-    else if (packing == 4 && out_packing == 4)
+    else if (elempack == 4 && out_elempack == 4)
     {
         constants[12].i = coffset / 4;
 
         pipeline = pipeline_crop_pack4;
     }
-    else if (packing == 1 && out_packing == 4)
+    else if (elempack == 1 && out_elempack == 4)
     {
         // TODO
         return -1;
     }
-    else if (packing == 4 && out_packing == 1)
+    else if (elempack == 4 && out_elempack == 1)
     {
         // TODO
         return -1;
@@ -163,7 +163,7 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     // TODO vec and image crop
     int dims = bottom_blob.dims;
@@ -189,21 +189,21 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     {
         _outw = reference_blob.w;
         _outh = reference_blob.h;
-        _outc = reference_blob.dims == 3 ? reference_blob.c * reference_blob.packing : channels * packing;
+        _outc = reference_blob.dims == 3 ? reference_blob.c * reference_blob.elempack : channels * elempack;
     }
 
-    int out_packing = _outc % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / packing * out_packing;
+    int out_elempack = _outc % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_packing == 4) out_elemsize = 4*2u;
-        if (out_packing == 1) out_elemsize = 4u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
     }
 
     VkMat& top_blob = top_blobs[0];
 
-    top_blob.create(_outw, _outh, _outc / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -227,22 +227,22 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     constants[12].i = _coffset;
 
     const Pipeline* pipeline = 0;
-    if (packing == 1 && out_packing == 1)
+    if (elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_crop;
     }
-    else if (packing == 4 && out_packing == 4)
+    else if (elempack == 4 && out_elempack == 4)
     {
         constants[12].i = _coffset / 4;
 
         pipeline = pipeline_crop_pack4;
     }
-    else if (packing == 1 && out_packing == 4)
+    else if (elempack == 1 && out_elempack == 4)
     {
         // TODO
         return -1;
     }
-    else if (packing == 4 && out_packing == 1)
+    else if (elempack == 4 && out_elempack == 1)
     {
         // TODO
         return -1;

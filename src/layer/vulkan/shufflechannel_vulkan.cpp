@@ -65,9 +65,9 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
-    top_blob.create(w, h, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -87,7 +87,7 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_shufflechannel_pack4 : pipeline_shufflechannel;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_shufflechannel_pack4 : pipeline_shufflechannel;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

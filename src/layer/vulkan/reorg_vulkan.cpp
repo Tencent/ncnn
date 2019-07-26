@@ -76,22 +76,22 @@ int Reorg_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     int outw = w / stride;
     int outh = h / stride;
-    int outc = channels * packing * stride * stride;
+    int outc = channels * elempack * stride * stride;
 
-    int out_packing = outc % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / packing * out_packing;
+    int out_elempack = outc % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_packing == 4) out_elemsize = 4*2u;
-        if (out_packing == 1) out_elemsize = 4u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
     }
 
-    top_blob.create(outw, outh, outc / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -112,15 +112,15 @@ int Reorg_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     constants[9].i = top_blob.cstep;
 
     const Pipeline* pipeline = 0;
-    if (packing == 1 && out_packing == 1)
+    if (elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_reorg;
     }
-    else if (packing == 4) // assert out_packing == 4
+    else if (elempack == 4) // assert out_elempack == 4
     {
         pipeline = pipeline_reorg_pack4;
     }
-    else if (packing == 1 && out_packing == 4)
+    else if (elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_reorg_pack1to4;
     }

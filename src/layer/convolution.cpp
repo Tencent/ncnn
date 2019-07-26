@@ -45,6 +45,7 @@ int Convolution::load_param(const ParamDict& pd)
     int8_scale_term = pd.get(8, 0);
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
+    impl_type = pd.get(15, 0);
 
     return 0;
 }

@@ -61,7 +61,7 @@ int ReLU_vulkan::destroy_pipeline(const Option& opt)
 
 int ReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
@@ -73,7 +73,7 @@ int ReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_relu_pack4 : pipeline_relu;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_relu_pack4 : pipeline_relu;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

@@ -461,7 +461,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -510,27 +510,27 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_packing = num_output % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / packing * out_packing;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_packing == 4) out_elemsize = 4*2u;
-        if (out_packing == 1) out_elemsize = 4u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
     }
 
-    top_blob.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
     // depth-wise
-    if (channels == group / packing && group / packing == num_output / packing)
+    if (channels == group / elempack && group / elempack == num_output / elempack)
     {
         std::vector<VkMat> bindings(4);
         bindings[0] = bottom_blob_bordered;
         bindings[1] = top_blob;
-        bindings[2] = packing == 4 ? weight_data_gpu_pack4 : weight_data_gpu;
-        bindings[3] = bias_term ? (packing == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : bindings[2];// TODO use dummy buffer
+        bindings[2] = elempack == 4 ? weight_data_gpu_pack4 : weight_data_gpu;
+        bindings[3] = bias_term ? (elempack == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : bindings[2];// TODO use dummy buffer
 
         std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob_bordered.dims;
@@ -544,19 +544,19 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = packing == 4 ? pipeline_convolutiondepthwise_pack4 : pipeline_convolutiondepthwise;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_convolutiondepthwise_pack4 : pipeline_convolutiondepthwise;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
         return 0;
     }
 
-    const int channels_g = channels * packing / group;
+    const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
     // unpacking
     VkMat bottom_blob_bordered_unpacked = bottom_blob_bordered;
-    if (packing == 4 && channels_g % 4 != 0)
+    if (elempack == 4 && channels_g % 4 != 0)
     {
         ncnn::Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
@@ -565,9 +565,9 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     }
 
     VkMat top_blob_unpacked = top_blob;
-    if (num_output_g % 4 != 0 && out_packing == 4)
+    if (num_output_g % 4 != 0 && out_elempack == 4)
     {
-        top_blob_unpacked.create(outw, outh, num_output, elemsize / packing, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
+        top_blob_unpacked.create(outw, outh, num_output, elemsize / elempack, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
@@ -629,7 +629,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked);
 
     // packing
-    if (num_output_g % 4 != 0 && out_packing == 4)
+    if (num_output_g % 4 != 0 && out_elempack == 4)
     {
         packing_pack4->forward(top_blob_unpacked, top_blob, cmd, opt);
     }

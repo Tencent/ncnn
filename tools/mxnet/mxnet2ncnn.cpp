@@ -992,6 +992,10 @@ int main(int argc, char** argv)
 
             fprintf(pp, "%-16s", "Input");
         }
+        else if (n.op == "_contrib_BilinearResize2D")
+        {
+            fprintf(pp, "%-16s", "Interp");
+        }
         else if (n.op == "_contrib_MultiBoxDetection")
         {
             fprintf(pp, "%-16s", "DetectionOutput");
@@ -1395,6 +1399,19 @@ int main(int argc, char** argv)
         {
             // dummy input shape
 //             fprintf(pp, " 0 0 0");
+        }
+        else if (n.op == "_contrib_BilinearResize2D")
+        {
+            float scale_height = n.has_attr("scale_height") ? n.attr("scale_height") : 1.f;
+            float scale_width = n.has_attr("scale_width") ? n.attr("scale_width") : 1.f;
+            int height = n.has_attr("scale_height") ? 0 : n.attr("height");
+            int width = n.has_attr("scale_width") ? 0 : n.attr("width");
+
+            fprintf(pp, " 0=2");
+            fprintf(pp, " 1=%f", scale_height);
+            fprintf(pp, " 2=%f", scale_width);
+            fprintf(pp, " 3=%d", height);
+            fprintf(pp, " 4=%d", width);
         }
         else if (n.op == "_contrib_MultiBoxDetection")
         {

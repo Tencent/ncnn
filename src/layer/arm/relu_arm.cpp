@@ -119,10 +119,10 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (packing == 4)
+    if (elempack == 4)
     {
         if (slope == 0.f)
         {
