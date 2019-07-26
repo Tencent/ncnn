@@ -42,6 +42,9 @@ int BinaryOp::load_param(const ParamDict& pd)
     return 0;
 }
 
+// broadcasting rule
+// https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting
+
 template<typename Op>
 static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 {
@@ -66,8 +69,9 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 3)
         {
-            if (b.w == 1&&b.h==1)
+            if (b.w == 1 && b.h == 1)
             {
+                // special type 1
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -81,8 +85,9 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 }
 
                 return 0;
-             }
+            }
 
+            // type 19
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
@@ -101,6 +106,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 2)
         {
+            // type 18
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
@@ -128,6 +134,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
         {
             if (b.w == 1)
             {
+                // type 16
                 const float b0 = b[0];
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q=0; q<channels; q++)
@@ -144,6 +151,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 return 0;
             }
 
+            // type 17
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
@@ -164,6 +172,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
     {
         if (b.dims == 3)
         {
+            // type 14
             c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
             if (c.empty())
                 return -100;
@@ -197,6 +206,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 2)
         {
+            // type 13
             for (int i=0; i<size; i++)
             {
                 c[i] = op(a[i], b[i]);
@@ -213,6 +223,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
             if (b.w == 1)
             {
+                // type 11
                 const float b0 = b[0];
                 for (int i=0; i<size; i++)
                 {
@@ -222,6 +233,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 return 0;
             }
 
+            // type 12
             const float* ptr = a;
             float* outptr = c;
 
@@ -246,6 +258,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
         {
             if (b.dims == 3)
             {
+                // type 4
                 c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
                 if (c.empty())
                     return -100;
@@ -268,6 +281,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
             if (b.dims == 2)
             {
+                // type 3
                 c.create(w1, h1, elemsize, opt.blob_allocator);
                 if (c.empty())
                     return -100;
@@ -283,6 +297,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
             if (b.dims == 1)
             {
+                // type 2
                 c.create(w1, elemsize, opt.blob_allocator);
                 if (c.empty())
                     return -100;
@@ -299,6 +314,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 3)
         {
+            // type 9
             c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
             if (c.empty())
                 return -100;
@@ -321,6 +337,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 2)
         {
+            // type 8
             c.create(w1, h1, elemsize, opt.blob_allocator);
             if (c.empty())
                 return -100;
@@ -351,6 +368,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
             if (b.w == 1)
             {
+                // type 6
                 const float b0 = b[0];
                 for (int i=0; i<size; i++)
                 {
@@ -360,6 +378,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 return 0;
             }
 
+            // type 7
             for (int i=0; i<size; i++)
             {
                 c[i] = op(a[i], b[i]);
