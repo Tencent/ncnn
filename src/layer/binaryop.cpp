@@ -111,7 +111,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             for (int q=0; q<channels; q++)
             {
                 const float* ptr = a.channel(q);
-                const float* ptr1 = (const float*)b + h * q;
+                const float* ptr1 = b.row(q);
                 float* outptr = c.channel(q);
 
                 for (int y=0; y<h; y++)
@@ -180,7 +180,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels1; q++)
             {
-                const float* ptr = (const float*)a + h1 * q;
+                const float* ptr = a.row(q);
                 const float* ptr1 = b.channel(q);
                 float* outptr = c.channel(q);
 
@@ -303,7 +303,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     return -100;
 
                 const float a0 = a[0];
-                for (int i=0; i<size1; i++)
+                for (int i=0; i<w1; i++)
                 {
                     c[i] = op(a0, b[i]);
                 }
@@ -370,7 +370,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             {
                 // type 6
                 const float b0 = b[0];
-                for (int i=0; i<size; i++)
+                for (int i=0; i<w; i++)
                 {
                     c[i] = op(a[i], b0);
                 }
@@ -379,7 +379,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             }
 
             // type 7
-            for (int i=0; i<size; i++)
+            for (int i=0; i<w; i++)
             {
                 c[i] = op(a[i], b[i]);
             }
