@@ -164,10 +164,10 @@ struct unary_op_reciprocal : std::unary_function<T,T> {
     }
 };
 
-// template<typename T>
-// struct unary_op_tanh : std::unary_function<T,T> {
-//     T operator() (const T& x) const { return tanh(x); }
-// };
+template<typename T>
+struct unary_op_tanh : std::unary_function<T,T> {
+    T operator() (const T& x) const { return tanh_ps(x); }
+};
 
 int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
@@ -227,9 +227,8 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (op_type == Operation_RECIPROCAL)
             return unary_op_inplace< unary_op_reciprocal<float32x4_t> >(bottom_top_blob, opt);
 
-        // TODO
-//         if (op_type == Operation_TANH)
-//             return unary_op_inplace< unary_op_tanh<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_TANH)
+            return unary_op_inplace< unary_op_tanh<float32x4_t> >(bottom_top_blob, opt);
 
     }
 
