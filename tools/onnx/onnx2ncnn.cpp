@@ -151,6 +151,32 @@ static onnx::TensorProto get_node_attr_tensor(const onnx::NodeProto& node, const
     return onnx::TensorProto();
 }
 
+static std::vector<int> get_tensor_proto_reshape_shape(const onnx::TensorProto& tp)
+{
+    const int64_t* shape_data = 0;
+    int size = 0;
+
+    // int64
+    if (tp.has_raw_data())
+    {
+        shape_data = (const int64_t*)tp.raw_data().data();
+        size = tp.raw_data().size() / 8;
+    }
+    else if (tp.data_type() == 7)
+    {
+        shape_data = tp.int64_data().data();
+        size = tp.int64_data_size();
+    }
+
+    std::vector<int> shape;
+    for (int j=0; j<size; j++)
+    {
+        shape.push_back(shape_data[j]);
+    }
+
+    return shape;
+}
+
 static int get_tensor_proto_data_size(const onnx::TensorProto& tp)
 {
     if (tp.has_raw_data())
@@ -444,6 +470,86 @@ int main(int argc, char** argv)
 
             reduced_node_count += 1;
             i += 1;
+        }
+
+        // ShuffleChannel <= Reshape - Transpose - Reshape
+        if (node->op_type() == "Reshape")
+        {
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            std::vector<int> shape;
+            if (node->input_size() == 1)
+            {
+                shape = get_node_attr_ai(*node, "shape");
+            }
+            else
+            {
+                shape = get_tensor_proto_reshape_shape(weights[node->input(1)]);
+            }
+
+            // 1 groups channels_per_group, height, width
+            if (shape.size() != 5)
+                continue;
+
+            if (shape[0] != 1)
+                continue;
+
+            if (i+2 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
+
+            if (node2->op_type() != "Transpose" || node3->op_type() != "Reshape")
+                continue;
+
+            if (node_reference[node2->output(0)] != 1)
+                continue;
+
+            // 0 2 1 3 4
+            std::vector<int> perm = get_node_attr_ai(*node2, "perm");
+            if (perm.size() != 5)
+                continue;
+
+            if (perm[0] != 0 || perm[1] != 2 || perm[2] != 1 || perm[3] != 3 || perm[4] != 4)
+                continue;
+
+            std::vector<int> shape3;
+            if (node3->input_size() == 1)
+            {
+                shape3 = get_node_attr_ai(*node3, "shape");
+            }
+            else
+            {
+                shape3 = get_tensor_proto_reshape_shape(weights[node3->input(1)]);
+            }
+
+            // 1, -1, height, width
+            if (shape3.size() != 4)
+                continue;
+
+            if (shape3[0] != 1 || shape3[1] != -1)
+                continue;
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node2->set_op_type("noop_reducedncnn");
+
+            node_reference.erase(node_reference.find(node->output(0)));
+            node_reference.erase(node_reference.find(node2->output(0)));
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+
+            node3->set_op_type("ShuffleChannel");
+            node3->set_input(0, node->input(0));
+
+            onnx::AttributeProto* attr_group = node3->add_attribute();
+            attr_group->set_name("group");
+            attr_group->set_i(shape[1]);
+
+            reduced_node_count += 2;
+            i += 2;
         }
     }
 
@@ -775,6 +881,10 @@ int main(int argc, char** argv)
                 }
             }
             fprintf(pp, "%-16s", "Reshape");
+        }
+        else if (op == "ShuffleChannel")
+        {
+            fprintf(pp, "%-16s", "ShuffleChannel");
         }
         else if (op == "Sigmoid")
         {
@@ -1455,12 +1565,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                const onnx::TensorProto& shape_tp = weights[node.input(1)];
-                const int64_t* shape_data = shape_tp.int64_data().data();
-                for (int j=0; j<shape_tp.int64_data_size(); j++)
-                {
-                    shape.push_back(shape_data[j]);
-                }
+                shape = get_tensor_proto_reshape_shape(weights[node.input(1)]);
             }
 
             if (shape.size() == 1) {
@@ -1479,6 +1584,11 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", shape[2]);
                 fprintf(pp, " 2=%d", shape[1]);
             }
+        }
+        else if (op == "ShuffleChannel")
+        {
+            int group = get_node_attr_i(node, "group", 1);
+            fprintf(pp, " 0=%d", group);
         }
         else if (op == "Sigmoid")
         {
