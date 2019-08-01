@@ -220,7 +220,7 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     return m;
 }
 
-void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, Allocator* allocator, int num_threads)
+void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt)
 {
     ncnn::Layer* padding = ncnn::create_layer(ncnn::LayerType::Padding);
 
@@ -234,16 +234,12 @@ void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, i
 
     padding->load_param(pd);
 
-    ncnn::Option opt;
-    opt.num_threads = num_threads;
-    opt.blob_allocator = allocator;
-
     padding->forward(src, dst, opt);
 
     delete padding;
 }
 
-void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, Allocator* allocator, int num_threads)
+void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const Option& opt)
 {
     ncnn::Layer* crop = ncnn::create_layer(ncnn::LayerType::Crop);
 
@@ -253,20 +249,16 @@ void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, in
     pd.set(2, 0);
     pd.set(3, src.w - left - right);
     pd.set(4, src.h - top - bottom);
-    pd.set(5, src.c);
+    pd.set(5, -233);
 
     crop->load_param(pd);
-
-    ncnn::Option opt;
-    opt.num_threads = num_threads;
-    opt.blob_allocator = allocator;
 
     crop->forward(src, dst, opt);
 
     delete crop;
 }
 
-void resize_bilinear(const Mat& src, Mat& dst, int w, int h, Allocator* allocator, int num_threads)
+void resize_bilinear(const Mat& src, Mat& dst, int w, int h, const Option& opt)
 {
     ncnn::Layer* interp = ncnn::create_layer(ncnn::LayerType::Interp);
 
@@ -277,16 +269,12 @@ void resize_bilinear(const Mat& src, Mat& dst, int w, int h, Allocator* allocato
 
     interp->load_param(pd);
 
-    ncnn::Option opt;
-    opt.num_threads = num_threads;
-    opt.blob_allocator = allocator;
-
     interp->forward(src, dst, opt);
 
     delete interp;
 }
 
-void resize_bicubic(const Mat& src, Mat& dst, int w, int h, Allocator* allocator, int num_threads)
+void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt)
 {
     ncnn::Layer* interp = ncnn::create_layer(ncnn::LayerType::Interp);
 
@@ -297,16 +285,12 @@ void resize_bicubic(const Mat& src, Mat& dst, int w, int h, Allocator* allocator
 
     interp->load_param(pd);
 
-    ncnn::Option opt;
-    opt.num_threads = num_threads;
-    opt.blob_allocator = allocator;
-
     interp->forward(src, dst, opt);
 
     delete interp;
 }
 
-void convert_packing(const Mat& src, Mat& dst, int _elempack, Allocator* allocator, int num_threads)
+void convert_packing(const Mat& src, Mat& dst, int _elempack, const Option& opt)
 {
     ncnn::Layer* packing = ncnn::create_layer(ncnn::LayerType::Packing);
 
@@ -315,16 +299,12 @@ void convert_packing(const Mat& src, Mat& dst, int _elempack, Allocator* allocat
 
     packing->load_param(pd);
 
-    ncnn::Option opt;
-    opt.num_threads = num_threads;
-    opt.blob_allocator = allocator;
-
     packing->forward(src, dst, opt);
 
     delete packing;
 }
 
-void cast_float32_to_float16(const Mat& src, Mat& dst, Allocator* allocator, int num_threads)
+void cast_float32_to_float16(const Mat& src, Mat& dst, const Option& opt)
 {
     ncnn::Layer* cast = ncnn::create_layer(ncnn::LayerType::Cast);
 
@@ -334,16 +314,12 @@ void cast_float32_to_float16(const Mat& src, Mat& dst, Allocator* allocator, int
 
     cast->load_param(pd);
 
-    ncnn::Option opt;
-    opt.num_threads = num_threads;
-    opt.blob_allocator = allocator;
-
     cast->forward(src, dst, opt);
 
     delete cast;
 }
 
-void cast_float16_to_float32(const Mat& src, Mat& dst, Allocator* allocator, int num_threads)
+void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt)
 {
     ncnn::Layer* cast = ncnn::create_layer(ncnn::LayerType::Cast);
 
@@ -352,10 +328,6 @@ void cast_float16_to_float32(const Mat& src, Mat& dst, Allocator* allocator, int
     pd.set(1, 1);
 
     cast->load_param(pd);
-
-    ncnn::Option opt;
-    opt.num_threads = num_threads;
-    opt.blob_allocator = allocator;
 
     cast->forward(src, dst, opt);
 

@@ -122,7 +122,9 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (htail != 0)
                 htailpad = stride_h - htail;
 
-            copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt_b);
             if (bottom_blob_bordered.empty())
                 return -100;
 
@@ -131,7 +133,9 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         else if (pad_mode == 1) // valid padding
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
             if (bottom_blob_bordered.empty())
                 return -100;
 
@@ -144,7 +148,9 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
             if (wpad > 0 || hpad > 0)
             {
-                copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
+                Option opt_b = opt;
+                opt_b.blob_allocator = opt.workspace_allocator;
+                copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
                 if (bottom_blob_bordered.empty())
                     return -100;
             }
@@ -350,7 +356,9 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (htail != 0)
             htailpad = stride_h - htail;
 
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt_b);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -359,7 +367,9 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     }
     else if (pad_mode == 1) // valid padding
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -372,7 +382,9 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt.workspace_allocator, opt.num_threads);
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
             if (bottom_blob_bordered.empty())
                 return -100;
         }

@@ -213,7 +213,9 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
     w = outw + 2;
     h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);  
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
 
     // BEGIN transform input
     Mat bottom_blob_tm;
@@ -1048,7 +1050,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
     // END transform output 
     
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);  
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
 static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat> &kernel_tm2, int inch, int outch)
@@ -1259,7 +1261,9 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
     w = outw + 2;
     h = outh + 2;
 
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
 
     // BEGIN transform input
     Mat bottom_blob_tm;
@@ -2198,7 +2202,7 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
     // END transform output
 
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
 static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
@@ -2221,7 +2225,9 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
 
     w = outw + 2;
     h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
 
     // BEGIN transform input
     Mat bottom_blob_tm;
@@ -3178,7 +3184,7 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
     // END transform output
 
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
 static void conv3x3s2_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
