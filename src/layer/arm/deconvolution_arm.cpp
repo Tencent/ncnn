@@ -308,25 +308,6 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     const int maxk = kernel_w * kernel_h;
 
-    // kernel offsets
-    std::vector<int> _space_ofs(maxk);
-    int* space_ofs = &_space_ofs[0];
-    {
-        int p1 = 0;
-        int p2 = 0;
-        int gap = outw * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++)
-        {
-            for (int j = 0; j < kernel_w; j++)
-            {
-                space_ofs[p1] = p2;
-                p1++;
-                p2 += dilation_w;
-            }
-            p2 += gap;
-        }
-    }
-
     if (elempack == 4 && out_elempack == 4)
     {
         // num_output

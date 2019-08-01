@@ -31,6 +31,14 @@ public:
 
 public:
     Layer* activation;
+    std::vector<ncnn::Layer*> group_ops;
+
+    // packing
+    Mat weight_data_pack4;
+
+    Mat weight_data_pack4_groups;
+    Mat weight_data_pack1to4_groups;
+    Mat weight_data_pack4to1_groups;
 };
 
 } // namespace ncnn
