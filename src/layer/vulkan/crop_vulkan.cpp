@@ -76,22 +76,16 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     if (outw == -233)
         _outw = w - woffset;
-    else if (outw == -234)
-        _outw = w - 1 - woffset;
     else
         _outw = std::min(outw, w - woffset);
 
     if (outh == -233)
         _outh = h - hoffset;
-    else if (outh == -234)
-        _outh = h - 1 - hoffset;
     else
         _outh = std::min(outh, h - hoffset);
 
     if (outc == -233)
         _outc = channels * elempack - coffset;
-    else if (outc == -234)
-        _outc = channels * elempack - 1 - coffset;
     else
         _outc = std::min(outc, channels * elempack - coffset);
 
