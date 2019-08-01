@@ -431,7 +431,9 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt_b);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -444,7 +446,9 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt_b);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -568,7 +572,9 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
     if (elempack == 4 && channels_g % 4 != 0)
     {
-        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt.workspace_allocator, opt.num_threads);
+        Option opt_p = opt;
+        opt_p.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt_p);
     }
 
     Mat top_blob_unpacked = top_blob;
@@ -845,7 +851,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     // packing
     if (num_output_g % 4 != 0 && out_elempack == 4)
     {
-        convert_packing(top_blob_unpacked, top_blob, 4, opt.blob_allocator, opt.num_threads);
+        convert_packing(top_blob_unpacked, top_blob, 4, opt);
     }
     else
     {
