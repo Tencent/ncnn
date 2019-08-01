@@ -567,7 +567,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     VkMat top_blob_unpacked = top_blob;
     if (num_output_g % 4 != 0 && out_elempack == 4)
     {
-        top_blob_unpacked.create(outw, outh, num_output, elemsize / elempack, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
+        top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
