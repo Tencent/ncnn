@@ -329,9 +329,7 @@ int main(int argc, char** argv)
 #endif // NCNN_VULKAN
     benchmark("mobilenet_ssd_int8", ncnn::Mat(300, 300, 3));
 
-    benchmark("mobilenet_yolo", ncnn::Mat(416, 416, 3));
-
-    benchmark("mobilenet_yolov3", ncnn::Mat(416, 416, 3));
+    benchmark("mobilenetv2_yolov3", ncnn::Mat(352, 352, 3));
 
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
