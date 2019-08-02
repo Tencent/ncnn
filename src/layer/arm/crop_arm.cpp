@@ -58,6 +58,9 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     if (opt.use_packing_layout)
     {
 
+    int _woffset = woffset;
+    int _hoffset = hoffset;
+    int _coffset = coffset;
     int _outw;
     int _outh;
     int _outc;
@@ -67,9 +70,9 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (dims == 1)
         {
             if (outw == -233)
-                _outw = w * elempack - woffset;
+                _outw = w * elempack - _woffset;
             else
-                _outw = std::min(outw, w * elempack - woffset);
+                _outw = std::min(outw, w * elempack - _woffset);
 
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -84,9 +87,9 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             if (top_blob.empty())
                 return -100;
 
-            if (woffset % 4 == 0 && out_elempack == 4)
+            if (_woffset % 4 == 0 && out_elempack == 4)
             {
-                crop_pack4_neon(bottom_blob, top_blob, 0, woffset / elempack);
+                crop_pack4_neon(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -94,15 +97,30 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 2)
         {
-            if (outw == -233)
-                _outw = w - woffset;
-            else
-                _outw = std::min(outw, w - woffset);
+            if (_hoffset == -233)
+            {
+                _woffset = 0;
+                _outw = w;
 
-            if (outh == -233)
-                _outh = h * elempack - hoffset;
+                _hoffset = woffset;
+
+                if (outw == -233)
+                    _outh = h * elempack - _hoffset;
+                else
+                    _outh = std::min(outw, h * elempack - _hoffset);
+            }
             else
-                _outh = std::min(outh, h * elempack - hoffset);
+            {
+                if (outw == -233)
+                    _outw = w - _woffset;
+                else
+                    _outw = std::min(outw, w - _woffset);
+
+                if (outh == -233)
+                    _outh = h * elempack - _hoffset;
+                else
+                    _outh = std::min(outh, h * elempack - _hoffset);
+            }
 
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -117,9 +135,9 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             if (top_blob.empty())
                 return -100;
 
-            if (hoffset % 4 == 0 && out_elempack == 4)
+            if (_hoffset % 4 == 0 && out_elempack == 4)
             {
-                crop_pack4_neon(bottom_blob, top_blob, hoffset / elempack, woffset);
+                crop_pack4_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -127,27 +145,63 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 3)
         {
-            if (outw == -233)
-                _outw = w - woffset;
-            else
-                _outw = std::min(outw, w - woffset);
+            if (_hoffset == -233 && _coffset == -233)
+            {
+                _woffset = 0;
+                _outw = w;
+                _hoffset = 0;
+                _outh = h;
 
-            if (outh == -233)
-                _outh = h - hoffset;
-            else
-                _outh = std::min(outh, h - hoffset);
+                _coffset = woffset;
 
-            if (outc == -233)
-                _outc = channels * elempack - coffset;
+                if (outw == -233)
+                    _outc = channels * elempack - _coffset;
+                else
+                    _outc = std::min(outw, channels * elempack - _coffset);
+            }
+            else if (_hoffset == -233)
+            {
+                _woffset = 0;
+                _outw = w;
+
+                _hoffset = woffset;
+
+                if (outw == -233)
+                    _outh = h - _hoffset;
+                else
+                    _outh = std::min(outw, h - _hoffset);
+
+                _coffset = hoffset;
+
+                if (outh == -233)
+                    _outc = channels * elempack - _coffset;
+                else
+                    _outc = std::min(outh, channels * elempack - _coffset);
+            }
             else
-                _outc = std::min(outc, channels * elempack - coffset);
+            {
+                if (outw == -233)
+                    _outw = w - _woffset;
+                else
+                    _outw = std::min(outw, w - _woffset);
+
+                if (outh == -233)
+                    _outh = h - _hoffset;
+                else
+                    _outh = std::min(outh, h - _hoffset);
+
+                if (outc == -233)
+                    _outc = channels * elempack - _coffset;
+                else
+                    _outc = std::min(outc, channels * elempack - _coffset);
+            }
 
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (coffset % 4 == 0 && out_elempack == 4)
+            if (_coffset % 4 == 0 && out_elempack == 4)
             {
-                const Mat bottom_blob_sliced = bottom_blob.channel_range(coffset / out_elempack, _outc / out_elempack);
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
 
                 if (_outw == w && _outh == h)
                 {
@@ -172,7 +226,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
 
-                    crop_pack4_neon(m, borderm, hoffset, woffset);
+                    crop_pack4_neon(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;

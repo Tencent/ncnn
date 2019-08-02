@@ -70,24 +70,63 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     // TODO vec and image crop
     int dims = bottom_blob.dims;
 
+    int _woffset = woffset;
+    int _hoffset = hoffset;
+    int _coffset = coffset;
     int _outw;
     int _outh;
     int _outc;
 
-    if (outw == -233)
-        _outw = w - woffset;
-    else
-        _outw = std::min(outw, w - woffset);
+    if (_hoffset == -233 && _coffset == -233)
+    {
+        _woffset = 0;
+        _outw = w;
+        _hoffset = 0;
+        _outh = h;
 
-    if (outh == -233)
-        _outh = h - hoffset;
-    else
-        _outh = std::min(outh, h - hoffset);
+        _coffset = woffset;
 
-    if (outc == -233)
-        _outc = channels * elempack - coffset;
+        if (outw == -233)
+            _outc = channels * elempack - _coffset;
+        else
+            _outc = std::min(outw, channels * elempack - _coffset);
+    }
+    else if (_hoffset == -233)
+    {
+        _woffset = 0;
+        _outw = w;
+
+        _hoffset = woffset;
+
+        if (outw == -233)
+            _outh = h - _hoffset;
+        else
+            _outh = std::min(outw, h - _hoffset);
+
+        _coffset = hoffset;
+
+        if (outh == -233)
+            _outc = channels * elempack - _coffset;
+        else
+            _outc = std::min(outh, channels * elempack - _coffset);
+    }
     else
-        _outc = std::min(outc, channels * elempack - coffset);
+    {
+        if (outw == -233)
+            _outw = w - woffset;
+        else
+            _outw = std::min(outw, w - woffset);
+
+        if (outh == -233)
+            _outh = h - hoffset;
+        else
+            _outh = std::min(outh, h - hoffset);
+
+        if (outc == -233)
+            _outc = channels * elempack - coffset;
+        else
+            _outc = std::min(outc, channels * elempack - coffset);
+    }
 
     int out_elempack = _outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;

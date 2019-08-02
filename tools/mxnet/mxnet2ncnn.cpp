@@ -136,6 +136,16 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
     int c = 0;
     int nconsumed = 0;
     int nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+    if (nscan != 1)
+    {
+        // (None
+        if (strncmp(it->second.c_str() + c, "(None", 5) == 0)
+        {
+            i = -233;
+            nconsumed = 5;
+            nscan = 1;
+        }
+    }
     while (nscan == 1)
     {
         list.push_back(i);
@@ -144,6 +154,16 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
         i = 0;
         c += nconsumed;
         nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+        if (nscan != 1)
+        {
+            // , None
+            if (strncmp(it->second.c_str() + c, ", None", 6) == 0)
+            {
+                i = -233;
+                nconsumed = 6;
+                nscan = 1;
+            }
+        }
     }
 
     return list;
@@ -2192,26 +2212,36 @@ int main(int argc, char** argv)
             int outh = -233;
             int outc = -233;
 
-            if (begin.size() == 2)
+            if (begin.size() == 1)
             {
-                woffset = begin[1];
-                outw = end[1] == -1 ? -234 : end[1] - begin[1];
+                woffset = begin[0] == -233 ? 0 : begin[0];
+                hoffset = -233;
+                coffset = -233;
+                outw = end[0] == -233 ? -233 : end[0] - begin[0];
+            }
+            else if (begin.size() == 2)
+            {
+                woffset = begin[1] == -233 ? 0 : begin[1];
+                hoffset = -233;
+                coffset = -233;
+                outw = end[1] == -233 ? -233 : end[1] - begin[1];
             }
             else if (begin.size() == 3)
             {
-                woffset = begin[2];
-                hoffset = begin[1];
-                outw = end[2] == -1 ? -234 : end[2] - begin[2];
-                outh = end[1] == -1 ? -234 : end[1] - begin[1];
+                woffset = begin[2] == -233 ? 0 : begin[2];
+                hoffset = begin[1] == -233 ? 0 : begin[1];
+                coffset = -233;
+                outw = end[2] == -233 ? -233 : end[2] - begin[2];
+                outh = end[1] == -233 ? -233 : end[1] - begin[1];
             }
             else if (begin.size() == 4)
             {
-                woffset = begin[3];
-                hoffset = begin[2];
-                coffset = begin[1];
-                outw = end[3] == -1 ? -234 : end[3] - begin[3];
-                outh = end[2] == -1 ? -234 : end[2] - begin[2];
-                outc = end[1] == -1 ? -234 : end[1] - begin[1];
+                woffset = begin[3] == -233 ? 0 : begin[3];
+                hoffset = begin[2] == -233 ? 0 : begin[2];
+                coffset = begin[1] == -233 ? 0 : begin[1];
+                outw = end[3] == -233 ? -233 : end[3] - begin[3];
+                outh = end[2] == -233 ? -233 : end[2] - begin[2];
+                outc = end[1] == -233 ? -233 : end[1] - begin[1];
             }
 
             fprintf(pp, " 0=%d", woffset);
