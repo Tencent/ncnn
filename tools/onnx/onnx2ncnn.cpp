@@ -1621,28 +1621,33 @@ int main(int argc, char** argv)
             if (starts.size() == 1) 
             {
                 woffset = starts[0];
+                hoffset = -233;
+                coffset = -233;
                 outw = ends[0] == -1 ? -233: ends[0] - starts[0]; // for onnx from pytorch, -233 works
             } 
             else if (starts.size() == 2)
             {
                 woffset = starts[1];
-                outw = ends[1] == -1 ? -234 : ends[1] - starts[1];
+                hoffset = -233;
+                coffset = -233;
+                outw = ends[1] == -1 ? -233 : ends[1] - starts[1];
             }
             else if (starts.size() == 3)
             {
                 woffset = starts[2];
                 hoffset = starts[1];
-                outw = ends[2] == -1 ? -234 : ends[2] - starts[2];
-                outh = ends[1] == -1 ? -234 : ends[1] - starts[1];
+                coffset = -233;
+                outw = ends[2] == -1 ? -233 : ends[2] - starts[2];
+                outh = ends[1] == -1 ? -233 : ends[1] - starts[1];
             }
             else if (starts.size() == 4)
             {
                 woffset = starts[3];
                 hoffset = starts[2];
                 coffset = starts[1];
-                outw = ends[3] == -1 ? -234 : ends[3] - starts[3];
-                outh = ends[2] == -1 ? -234 : ends[2] - starts[2];
-                outc = ends[1] == -1 ? -234 : ends[1] - starts[1];
+                outw = ends[3] == -1 ? -233 : ends[3] - starts[3];
+                outh = ends[2] == -1 ? -233 : ends[2] - starts[2];
+                outc = ends[1] == -1 ? -233 : ends[1] - starts[1];
             }
 
             fprintf(pp, " 0=%d", woffset);
