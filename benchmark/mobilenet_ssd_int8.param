@@ -126,4 +126,4 @@ Concat           mbox_priorbox    6 1 conv11_mbox_priorbox conv13_mbox_priorbox 
 Reshape          mbox_conf_reshape 1 1 mbox_conf mbox_conf_reshape 0=21 1=-1 2=-233 3=0
 Softmax          mbox_conf_softmax 1 1 mbox_conf_reshape mbox_conf_softmax 0=1 1=1
 Flatten          mbox_conf_flatten 1 1 mbox_conf_softmax mbox_conf_flatten
-DetectionOutput  detection_out    3 1 mbox_loc mbox_conf_flatten mbox_priorbox detection_out 0=21 1=0.450000 2=100 3=100 4=0.250000
+DetectionOutput  detection_out    3 1 mbox_loc mbox_conf_flatten mbox_priorbox output 0=21 1=0.450000 2=100 3=100 4=0.250000

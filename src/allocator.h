@@ -119,44 +119,10 @@ static inline void fastFree(void* ptr)
 static inline int NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += delta; return tmp; }
 #endif
 
-#ifdef _WIN32
-class Mutex
-{
-public:
-    Mutex() { InitializeSRWLock(&srwlock); }
-    ~Mutex() {}
-    void lock() { AcquireSRWLockExclusive(&srwlock); }
-    void unlock() { ReleaseSRWLockExclusive(&srwlock); }
-private:
-    // NOTE SRWLock is available from windows vista
-    SRWLOCK srwlock;
-};
-#else // _WIN32
-class Mutex
-{
-public:
-    Mutex() { pthread_mutex_init(&mutex, 0); }
-    ~Mutex() { pthread_mutex_destroy(&mutex); }
-    void lock() { pthread_mutex_lock(&mutex); }
-    void unlock() { pthread_mutex_unlock(&mutex); }
-private:
-    pthread_mutex_t mutex;
-};
-#endif // _WIN32
-
-class MutexLockGuard
-{
-public:
-    MutexLockGuard(Mutex& _mutex) : mutex(_mutex) { mutex.lock(); }
-    ~MutexLockGuard() { mutex.unlock(); }
-private:
-    Mutex& mutex;
-};
-
 class Allocator
 {
 public:
-    virtual ~Allocator() = 0;
+    virtual ~Allocator();
     virtual void* fastMalloc(size_t size) = 0;
     virtual void fastFree(void* ptr) = 0;
 };
@@ -252,11 +218,11 @@ protected:
     VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkBuffer buffer);
 };
 
-class VkUnlockedBlobBufferAllocator : public VkAllocator
+class VkBlobBufferAllocator : public VkAllocator
 {
 public:
-    VkUnlockedBlobBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkUnlockedBlobBufferAllocator();
+    VkBlobBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkBlobBufferAllocator();
 
 public:
     // buffer block size, default=16M
@@ -273,21 +239,6 @@ private:
     size_t buffer_offset_alignment;
     std::vector< std::list< std::pair<size_t, size_t> > > budgets;
     std::vector<VkBufferMemory*> buffer_blocks;
-};
-
-class VkBlobBufferAllocator : public VkUnlockedBlobBufferAllocator
-{
-public:
-    VkBlobBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkBlobBufferAllocator();
-
-public:
-    virtual void clear();
-    virtual VkBufferMemory* fastMalloc(size_t size);
-    virtual void fastFree(VkBufferMemory* ptr);
-
-private:
-    Mutex budgets_lock;
 };
 
 class VkWeightBufferAllocator : public VkAllocator
@@ -315,11 +266,11 @@ private:
     std::vector<VkBufferMemory*> dedicated_buffer_blocks;
 };
 
-class VkUnlockedStagingBufferAllocator : public VkAllocator
+class VkStagingBufferAllocator : public VkAllocator
 {
 public:
-    VkUnlockedStagingBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkUnlockedStagingBufferAllocator();
+    VkStagingBufferAllocator(const VulkanDevice* vkdev);
+    virtual ~VkStagingBufferAllocator();
 
 public:
     // ratio range 0 ~ 1
@@ -336,21 +287,6 @@ private:
     uint32_t memory_type_index;
     unsigned int size_compare_ratio;// 0~256
     std::list<VkBufferMemory*> budgets;
-};
-
-class VkStagingBufferAllocator : public VkUnlockedStagingBufferAllocator
-{
-public:
-    VkStagingBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkStagingBufferAllocator();
-
-public:
-    virtual void clear();
-    virtual VkBufferMemory* fastMalloc(size_t size);
-    virtual void fastFree(VkBufferMemory* ptr);
-
-private:
-    Mutex budgets_lock;
 };
 
 class VkWeightStagingBufferAllocator : public VkAllocator

@@ -30,15 +30,6 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
-#if NCNN_VULKAN
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-
-    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
-
 public:
     // -233 = dynamic offset from reference blob
     int woffset;
@@ -46,15 +37,9 @@ public:
     int coffset;
 
     // -233 = remaining
-    // -234 = remaining - 1
     int outw;
     int outh;
     int outc;
-
-#if NCNN_VULKAN
-    Pipeline* pipeline_crop;
-    Pipeline* pipeline_crop_pack4;
-#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

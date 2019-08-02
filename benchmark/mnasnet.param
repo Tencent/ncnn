@@ -1,166 +1,78 @@
 7767517
-164 174
-Input            data                             0 1 data
-Convolution      first-3x3-conv                   1 1 data first-3x3-conv 0=32 1=3 11=3 2=1 12=1 3=2 13=2 4=1 14=1 5=0 6=864
-BatchNorm        first-3x3-conv_bn                1 1 first-3x3-conv first-3x3-conv_bn 0=32
-ReLU             first-3x3-conv_relu              1 1 first-3x3-conv_bn first-3x3-conv_relu
-ConvolutionDepthWise A0_dw                            1 1 first-3x3-conv_relu A0_dw 0=32 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=288 7=32
-BatchNorm        A0_dw_bn                         1 1 A0_dw A0_dw_bn 0=32
-ReLU             A0_dw_relu                       1 1 A0_dw_bn A0_dw_relu
-Convolution      A0_linear                        1 1 A0_dw_relu A0_linear 0=16 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=512
-BatchNorm        A0_linear_bn                     1 1 A0_linear A0_linear_bn 0=16
-Convolution      B0_expand                        1 1 A0_linear_bn B0_expand 0=48 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=768
-BatchNorm        B0_expand_bn                     1 1 B0_expand B0_expand_bn 0=48
-ReLU             B0_expand_relu                   1 1 B0_expand_bn B0_expand_relu
-ConvolutionDepthWise B0_dw                            1 1 B0_expand_relu B0_dw 0=48 1=3 11=3 2=1 12=1 3=2 13=2 4=1 14=1 5=0 6=432 7=48
-BatchNorm        B0_dw_bn                         1 1 B0_dw B0_dw_bn 0=48
-ReLU             B0_dw_relu                       1 1 B0_dw_bn B0_dw_relu
-Convolution      B0_linear                        1 1 B0_dw_relu B0_linear 0=24 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1152
-BatchNorm        B0_linear_bn                     1 1 B0_linear B0_linear_bn 0=24
-Split            splitncnn_0                      1 2 B0_linear_bn B0_linear_bn_splitncnn_0 B0_linear_bn_splitncnn_1
-Convolution      B1_expand                        1 1 B0_linear_bn_splitncnn_1 B1_expand 0=72 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1728
-BatchNorm        B1_expand_bn                     1 1 B1_expand B1_expand_bn 0=72
-ReLU             B1_expand_relu                   1 1 B1_expand_bn B1_expand_relu
-ConvolutionDepthWise B1_dw                            1 1 B1_expand_relu B1_dw 0=72 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=648 7=72
-BatchNorm        B1_dw_bn                         1 1 B1_dw B1_dw_bn 0=72
-ReLU             B1_dw_relu                       1 1 B1_dw_bn B1_dw_relu
-Convolution      B1_linear                        1 1 B1_dw_relu B1_linear 0=24 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1728
-BatchNorm        B1_linear_bn                     1 1 B1_linear B1_linear_bn 0=24
-BinaryOp         unknownncnn_0                    2 1 B0_linear_bn_splitncnn_0 B1_linear_bn unknownncnn_0 0=0
-Split            splitncnn_1                      1 2 unknownncnn_0 unknownncnn_0_splitncnn_0 unknownncnn_0_splitncnn_1
-Convolution      B2_expand                        1 1 unknownncnn_0_splitncnn_1 B2_expand 0=72 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1728
-BatchNorm        B2_expand_bn                     1 1 B2_expand B2_expand_bn 0=72
-ReLU             B2_expand_relu                   1 1 B2_expand_bn B2_expand_relu
-ConvolutionDepthWise B2_dw                            1 1 B2_expand_relu B2_dw 0=72 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=648 7=72
-BatchNorm        B2_dw_bn                         1 1 B2_dw B2_dw_bn 0=72
-ReLU             B2_dw_relu                       1 1 B2_dw_bn B2_dw_relu
-Convolution      B2_linear                        1 1 B2_dw_relu B2_linear 0=24 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1728
-BatchNorm        B2_linear_bn                     1 1 B2_linear B2_linear_bn 0=24
-BinaryOp         unknownncnn_1                    2 1 unknownncnn_0_splitncnn_0 B2_linear_bn unknownncnn_1 0=0
-Convolution      C0_expand                        1 1 unknownncnn_1 C0_expand 0=72 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=1728
-BatchNorm        C0_expand_bn                     1 1 C0_expand C0_expand_bn 0=72
-ReLU             C0_expand_relu                   1 1 C0_expand_bn C0_expand_relu
-ConvolutionDepthWise C0_dw                            1 1 C0_expand_relu C0_dw 0=72 1=5 11=5 2=1 12=1 3=2 13=2 4=2 14=2 5=0 6=1800 7=72
-BatchNorm        C0_dw_bn                         1 1 C0_dw C0_dw_bn 0=72
-ReLU             C0_dw_relu                       1 1 C0_dw_bn C0_dw_relu
-Convolution      C0_linear                        1 1 C0_dw_relu C0_linear 0=40 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=2880
-BatchNorm        C0_linear_bn                     1 1 C0_linear C0_linear_bn 0=40
-Split            splitncnn_2                      1 2 C0_linear_bn C0_linear_bn_splitncnn_0 C0_linear_bn_splitncnn_1
-Convolution      C1_expand                        1 1 C0_linear_bn_splitncnn_1 C1_expand 0=120 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=4800
-BatchNorm        C1_expand_bn                     1 1 C1_expand C1_expand_bn 0=120
-ReLU             C1_expand_relu                   1 1 C1_expand_bn C1_expand_relu
-ConvolutionDepthWise C1_dw                            1 1 C1_expand_relu C1_dw 0=120 1=5 11=5 2=1 12=1 3=1 13=1 4=2 14=2 5=0 6=3000 7=120
-BatchNorm        C1_dw_bn                         1 1 C1_dw C1_dw_bn 0=120
-ReLU             C1_dw_relu                       1 1 C1_dw_bn C1_dw_relu
-Convolution      C1_linear                        1 1 C1_dw_relu C1_linear 0=40 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=4800
-BatchNorm        C1_linear_bn                     1 1 C1_linear C1_linear_bn 0=40
-BinaryOp         unknownncnn_2                    2 1 C0_linear_bn_splitncnn_0 C1_linear_bn unknownncnn_2 0=0
-Split            splitncnn_3                      1 2 unknownncnn_2 unknownncnn_2_splitncnn_0 unknownncnn_2_splitncnn_1
-Convolution      C2_expand                        1 1 unknownncnn_2_splitncnn_1 C2_expand 0=120 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=4800
-BatchNorm        C2_expand_bn                     1 1 C2_expand C2_expand_bn 0=120
-ReLU             C2_expand_relu                   1 1 C2_expand_bn C2_expand_relu
-ConvolutionDepthWise C2_dw                            1 1 C2_expand_relu C2_dw 0=120 1=5 11=5 2=1 12=1 3=1 13=1 4=2 14=2 5=0 6=3000 7=120
-BatchNorm        C2_dw_bn                         1 1 C2_dw C2_dw_bn 0=120
-ReLU             C2_dw_relu                       1 1 C2_dw_bn C2_dw_relu
-Convolution      C2_linear                        1 1 C2_dw_relu C2_linear 0=40 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=4800
-BatchNorm        C2_linear_bn                     1 1 C2_linear C2_linear_bn 0=40
-BinaryOp         unknownncnn_3                    2 1 unknownncnn_2_splitncnn_0 C2_linear_bn unknownncnn_3 0=0
-Convolution      D0_expand                        1 1 unknownncnn_3 D0_expand 0=240 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=9600
-BatchNorm        D0_expand_bn                     1 1 D0_expand D0_expand_bn 0=240
-ReLU             D0_expand_relu                   1 1 D0_expand_bn D0_expand_relu
-ConvolutionDepthWise D0_dw                            1 1 D0_expand_relu D0_dw 0=240 1=5 11=5 2=1 12=1 3=2 13=2 4=2 14=2 5=0 6=6000 7=240
-BatchNorm        D0_dw_bn                         1 1 D0_dw D0_dw_bn 0=240
-ReLU             D0_dw_relu                       1 1 D0_dw_bn D0_dw_relu
-Convolution      D0_linear                        1 1 D0_dw_relu D0_linear 0=80 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=19200
-BatchNorm        D0_linear_bn                     1 1 D0_linear D0_linear_bn 0=80
-Split            splitncnn_4                      1 2 D0_linear_bn D0_linear_bn_splitncnn_0 D0_linear_bn_splitncnn_1
-Convolution      D1_expand                        1 1 D0_linear_bn_splitncnn_1 D1_expand 0=480 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=38400
-BatchNorm        D1_expand_bn                     1 1 D1_expand D1_expand_bn 0=480
-ReLU             D1_expand_relu                   1 1 D1_expand_bn D1_expand_relu
-ConvolutionDepthWise D1_dw                            1 1 D1_expand_relu D1_dw 0=480 1=5 11=5 2=1 12=1 3=1 13=1 4=2 14=2 5=0 6=12000 7=480
-BatchNorm        D1_dw_bn                         1 1 D1_dw D1_dw_bn 0=480
-ReLU             D1_dw_relu                       1 1 D1_dw_bn D1_dw_relu
-Convolution      D1_linear                        1 1 D1_dw_relu D1_linear 0=80 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=38400
-BatchNorm        D1_linear_bn                     1 1 D1_linear D1_linear_bn 0=80
-BinaryOp         unknownncnn_4                    2 1 D0_linear_bn_splitncnn_0 D1_linear_bn unknownncnn_4 0=0
-Split            splitncnn_5                      1 2 unknownncnn_4 unknownncnn_4_splitncnn_0 unknownncnn_4_splitncnn_1
-Convolution      D2_expand                        1 1 unknownncnn_4_splitncnn_1 D2_expand 0=480 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=38400
-BatchNorm        D2_expand_bn                     1 1 D2_expand D2_expand_bn 0=480
-ReLU             D2_expand_relu                   1 1 D2_expand_bn D2_expand_relu
-ConvolutionDepthWise D2_dw                            1 1 D2_expand_relu D2_dw 0=480 1=5 11=5 2=1 12=1 3=1 13=1 4=2 14=2 5=0 6=12000 7=480
-BatchNorm        D2_dw_bn                         1 1 D2_dw D2_dw_bn 0=480
-ReLU             D2_dw_relu                       1 1 D2_dw_bn D2_dw_relu
-Convolution      D2_linear                        1 1 D2_dw_relu D2_linear 0=80 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=38400
-BatchNorm        D2_linear_bn                     1 1 D2_linear D2_linear_bn 0=80
-BinaryOp         unknownncnn_5                    2 1 unknownncnn_4_splitncnn_0 D2_linear_bn unknownncnn_5 0=0
-Convolution      E0_expand                        1 1 unknownncnn_5 E0_expand 0=480 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=38400
-BatchNorm        E0_expand_bn                     1 1 E0_expand E0_expand_bn 0=480
-ReLU             E0_expand_relu                   1 1 E0_expand_bn E0_expand_relu
-ConvolutionDepthWise E0_dw                            1 1 E0_expand_relu E0_dw 0=480 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=4320 7=480
-BatchNorm        E0_dw_bn                         1 1 E0_dw E0_dw_bn 0=480
-ReLU             E0_dw_relu                       1 1 E0_dw_bn E0_dw_relu
-Convolution      E0_linear                        1 1 E0_dw_relu E0_linear 0=96 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=46080
-BatchNorm        E0_linear_bn                     1 1 E0_linear E0_linear_bn 0=96
-Split            splitncnn_6                      1 2 E0_linear_bn E0_linear_bn_splitncnn_0 E0_linear_bn_splitncnn_1
-Convolution      E1_expand                        1 1 E0_linear_bn_splitncnn_1 E1_expand 0=576 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=55296
-BatchNorm        E1_expand_bn                     1 1 E1_expand E1_expand_bn 0=576
-ReLU             E1_expand_relu                   1 1 E1_expand_bn E1_expand_relu
-ConvolutionDepthWise E1_dw                            1 1 E1_expand_relu E1_dw 0=576 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=5184 7=576
-BatchNorm        E1_dw_bn                         1 1 E1_dw E1_dw_bn 0=576
-ReLU             E1_dw_relu                       1 1 E1_dw_bn E1_dw_relu
-Convolution      E1_linear                        1 1 E1_dw_relu E1_linear 0=96 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=55296
-BatchNorm        E1_linear_bn                     1 1 E1_linear E1_linear_bn 0=96
-BinaryOp         unknownncnn_6                    2 1 E0_linear_bn_splitncnn_0 E1_linear_bn unknownncnn_6 0=0
-Convolution      F0_expand                        1 1 unknownncnn_6 F0_expand 0=576 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=55296
-BatchNorm        F0_expand_bn                     1 1 F0_expand F0_expand_bn 0=576
-ReLU             F0_expand_relu                   1 1 F0_expand_bn F0_expand_relu
-ConvolutionDepthWise F0_dw                            1 1 F0_expand_relu F0_dw 0=576 1=5 11=5 2=1 12=1 3=2 13=2 4=2 14=2 5=0 6=14400 7=576
-BatchNorm        F0_dw_bn                         1 1 F0_dw F0_dw_bn 0=576
-ReLU             F0_dw_relu                       1 1 F0_dw_bn F0_dw_relu
-Convolution      F0_linear                        1 1 F0_dw_relu F0_linear 0=192 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=110592
-BatchNorm        F0_linear_bn                     1 1 F0_linear F0_linear_bn 0=192
-Split            splitncnn_7                      1 2 F0_linear_bn F0_linear_bn_splitncnn_0 F0_linear_bn_splitncnn_1
-Convolution      F1_expand                        1 1 F0_linear_bn_splitncnn_1 F1_expand 0=1152 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
-BatchNorm        F1_expand_bn                     1 1 F1_expand F1_expand_bn 0=1152
-ReLU             F1_expand_relu                   1 1 F1_expand_bn F1_expand_relu
-ConvolutionDepthWise F1_dw                            1 1 F1_expand_relu F1_dw 0=1152 1=5 11=5 2=1 12=1 3=1 13=1 4=2 14=2 5=0 6=28800 7=1152
-BatchNorm        F1_dw_bn                         1 1 F1_dw F1_dw_bn 0=1152
-ReLU             F1_dw_relu                       1 1 F1_dw_bn F1_dw_relu
-Convolution      F1_linear                        1 1 F1_dw_relu F1_linear 0=192 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
-BatchNorm        F1_linear_bn                     1 1 F1_linear F1_linear_bn 0=192
-BinaryOp         unknownncnn_7                    2 1 F0_linear_bn_splitncnn_0 F1_linear_bn unknownncnn_7 0=0
-Split            splitncnn_8                      1 2 unknownncnn_7 unknownncnn_7_splitncnn_0 unknownncnn_7_splitncnn_1
-Convolution      F2_expand                        1 1 unknownncnn_7_splitncnn_1 F2_expand 0=1152 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
-BatchNorm        F2_expand_bn                     1 1 F2_expand F2_expand_bn 0=1152
-ReLU             F2_expand_relu                   1 1 F2_expand_bn F2_expand_relu
-ConvolutionDepthWise F2_dw                            1 1 F2_expand_relu F2_dw 0=1152 1=5 11=5 2=1 12=1 3=1 13=1 4=2 14=2 5=0 6=28800 7=1152
-BatchNorm        F2_dw_bn                         1 1 F2_dw F2_dw_bn 0=1152
-ReLU             F2_dw_relu                       1 1 F2_dw_bn F2_dw_relu
-Convolution      F2_linear                        1 1 F2_dw_relu F2_linear 0=192 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
-BatchNorm        F2_linear_bn                     1 1 F2_linear F2_linear_bn 0=192
-BinaryOp         unknownncnn_8                    2 1 unknownncnn_7_splitncnn_0 F2_linear_bn unknownncnn_8 0=0
-Split            splitncnn_9                      1 2 unknownncnn_8 unknownncnn_8_splitncnn_0 unknownncnn_8_splitncnn_1
-Convolution      F3_expand                        1 1 unknownncnn_8_splitncnn_1 F3_expand 0=1152 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
-BatchNorm        F3_expand_bn                     1 1 F3_expand F3_expand_bn 0=1152
-ReLU             F3_expand_relu                   1 1 F3_expand_bn F3_expand_relu
-ConvolutionDepthWise F3_dw                            1 1 F3_expand_relu F3_dw 0=1152 1=5 11=5 2=1 12=1 3=1 13=1 4=2 14=2 5=0 6=28800 7=1152
-BatchNorm        F3_dw_bn                         1 1 F3_dw F3_dw_bn 0=1152
-ReLU             F3_dw_relu                       1 1 F3_dw_bn F3_dw_relu
-Convolution      F3_linear                        1 1 F3_dw_relu F3_linear 0=192 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
-BatchNorm        F3_linear_bn                     1 1 F3_linear F3_linear_bn 0=192
-BinaryOp         unknownncnn_9                    2 1 unknownncnn_8_splitncnn_0 F3_linear_bn unknownncnn_9 0=0
-Convolution      G0_expand                        1 1 unknownncnn_9 G0_expand 0=1152 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=221184
-BatchNorm        G0_expand_bn                     1 1 G0_expand G0_expand_bn 0=1152
-ReLU             G0_expand_relu                   1 1 G0_expand_bn G0_expand_relu
-ConvolutionDepthWise G0_dw                            1 1 G0_expand_relu G0_dw 0=1152 1=3 11=3 2=1 12=1 3=1 13=1 4=1 14=1 5=0 6=10368 7=1152
-BatchNorm        G0_dw_bn                         1 1 G0_dw G0_dw_bn 0=1152
-ReLU             G0_dw_relu                       1 1 G0_dw_bn G0_dw_relu
-Convolution      G0_linear                        1 1 G0_dw_relu G0_linear 0=320 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=368640
-BatchNorm        G0_linear_bn                     1 1 G0_linear G0_linear_bn 0=320
-Convolution      last-1x1-conv                    1 1 G0_linear_bn last-1x1-conv 0=1280 1=1 11=1 2=1 12=1 3=1 13=1 4=0 14=0 5=0 6=409600
-BatchNorm        last-1x1-conv_bn                 1 1 last-1x1-conv last-1x1-conv_bn 0=1280
-ReLU             last-1x1-conv_relu               1 1 last-1x1-conv_bn last-1x1-conv_relu
-Pooling          avgpool                          1 1 last-1x1-conv_relu avgpool 0=1 1=7 4=1 5=1
-Flatten          flatten                          1 1 avgpool flatten
-InnerProduct     fc                               1 1 flatten fc 0=1000 1=1 2=1280000
-Softmax          prob                             1 1 fc prob 0=0
+76 86
+Input                    data                     0 1 data
+Convolution              first-3x3-conv           1 1 data first-3x3-conv_relu 0=32 1=3 3=2 4=1 5=1 6=864 9=1
+ConvolutionDepthWise     A0_dw                    1 1 first-3x3-conv_relu A0_dw_relu 0=32 1=3 4=1 5=1 6=288 7=32 9=1
+Convolution              A0_linear                1 1 A0_dw_relu A0_linear_bn 0=16 1=1 5=1 6=512
+Convolution              B0_expand                1 1 A0_linear_bn B0_expand_relu 0=48 1=1 5=1 6=768 9=1
+ConvolutionDepthWise     B0_dw                    1 1 B0_expand_relu B0_dw_relu 0=48 1=3 3=2 4=1 5=1 6=432 7=48 9=1
+Convolution              B0_linear                1 1 B0_dw_relu B0_linear_bn 0=24 1=1 5=1 6=1152
+Split                    splitncnn_0              1 2 B0_linear_bn B0_linear_bn_splitncnn_0 B0_linear_bn_splitncnn_1
+Convolution              B1_expand                1 1 B0_linear_bn_splitncnn_1 B1_expand_relu 0=72 1=1 5=1 6=1728 9=1
+ConvolutionDepthWise     B1_dw                    1 1 B1_expand_relu B1_dw_relu 0=72 1=3 4=1 5=1 6=648 7=72 9=1
+Convolution              B1_linear                1 1 B1_dw_relu B1_linear_bn 0=24 1=1 5=1 6=1728
+BinaryOp                 unknownncnn_0            2 1 B0_linear_bn_splitncnn_0 B1_linear_bn unknownncnn_0
+Split                    splitncnn_1              1 2 unknownncnn_0 unknownncnn_0_splitncnn_0 unknownncnn_0_splitncnn_1
+Convolution              B2_expand                1 1 unknownncnn_0_splitncnn_1 B2_expand_relu 0=72 1=1 5=1 6=1728 9=1
+ConvolutionDepthWise     B2_dw                    1 1 B2_expand_relu B2_dw_relu 0=72 1=3 4=1 5=1 6=648 7=72 9=1
+Convolution              B2_linear                1 1 B2_dw_relu B2_linear_bn 0=24 1=1 5=1 6=1728
+BinaryOp                 unknownncnn_1            2 1 unknownncnn_0_splitncnn_0 B2_linear_bn unknownncnn_1
+Convolution              C0_expand                1 1 unknownncnn_1 C0_expand_relu 0=72 1=1 5=1 6=1728 9=1
+ConvolutionDepthWise     C0_dw                    1 1 C0_expand_relu C0_dw_relu 0=72 1=5 3=2 4=2 5=1 6=1800 7=72 9=1
+Convolution              C0_linear                1 1 C0_dw_relu C0_linear_bn 0=40 1=1 5=1 6=2880
+Split                    splitncnn_2              1 2 C0_linear_bn C0_linear_bn_splitncnn_0 C0_linear_bn_splitncnn_1
+Convolution              C1_expand                1 1 C0_linear_bn_splitncnn_1 C1_expand_relu 0=120 1=1 5=1 6=4800 9=1
+ConvolutionDepthWise     C1_dw                    1 1 C1_expand_relu C1_dw_relu 0=120 1=5 4=2 5=1 6=3000 7=120 9=1
+Convolution              C1_linear                1 1 C1_dw_relu C1_linear_bn 0=40 1=1 5=1 6=4800
+BinaryOp                 unknownncnn_2            2 1 C0_linear_bn_splitncnn_0 C1_linear_bn unknownncnn_2
+Split                    splitncnn_3              1 2 unknownncnn_2 unknownncnn_2_splitncnn_0 unknownncnn_2_splitncnn_1
+Convolution              C2_expand                1 1 unknownncnn_2_splitncnn_1 C2_expand_relu 0=120 1=1 5=1 6=4800 9=1
+ConvolutionDepthWise     C2_dw                    1 1 C2_expand_relu C2_dw_relu 0=120 1=5 4=2 5=1 6=3000 7=120 9=1
+Convolution              C2_linear                1 1 C2_dw_relu C2_linear_bn 0=40 1=1 5=1 6=4800
+BinaryOp                 unknownncnn_3            2 1 unknownncnn_2_splitncnn_0 C2_linear_bn unknownncnn_3
+Convolution              D0_expand                1 1 unknownncnn_3 D0_expand_relu 0=240 1=1 5=1 6=9600 9=1
+ConvolutionDepthWise     D0_dw                    1 1 D0_expand_relu D0_dw_relu 0=240 1=5 3=2 4=2 5=1 6=6000 7=240 9=1
+Convolution              D0_linear                1 1 D0_dw_relu D0_linear_bn 0=80 1=1 5=1 6=19200
+Split                    splitncnn_4              1 2 D0_linear_bn D0_linear_bn_splitncnn_0 D0_linear_bn_splitncnn_1
+Convolution              D1_expand                1 1 D0_linear_bn_splitncnn_1 D1_expand_relu 0=480 1=1 5=1 6=38400 9=1
+ConvolutionDepthWise     D1_dw                    1 1 D1_expand_relu D1_dw_relu 0=480 1=5 4=2 5=1 6=12000 7=480 9=1
+Convolution              D1_linear                1 1 D1_dw_relu D1_linear_bn 0=80 1=1 5=1 6=38400
+BinaryOp                 unknownncnn_4            2 1 D0_linear_bn_splitncnn_0 D1_linear_bn unknownncnn_4
+Split                    splitncnn_5              1 2 unknownncnn_4 unknownncnn_4_splitncnn_0 unknownncnn_4_splitncnn_1
+Convolution              D2_expand                1 1 unknownncnn_4_splitncnn_1 D2_expand_relu 0=480 1=1 5=1 6=38400 9=1
+ConvolutionDepthWise     D2_dw                    1 1 D2_expand_relu D2_dw_relu 0=480 1=5 4=2 5=1 6=12000 7=480 9=1
+Convolution              D2_linear                1 1 D2_dw_relu D2_linear_bn 0=80 1=1 5=1 6=38400
+BinaryOp                 unknownncnn_5            2 1 unknownncnn_4_splitncnn_0 D2_linear_bn unknownncnn_5
+Convolution              E0_expand                1 1 unknownncnn_5 E0_expand_relu 0=480 1=1 5=1 6=38400 9=1
+ConvolutionDepthWise     E0_dw                    1 1 E0_expand_relu E0_dw_relu 0=480 1=3 4=1 5=1 6=4320 7=480 9=1
+Convolution              E0_linear                1 1 E0_dw_relu E0_linear_bn 0=96 1=1 5=1 6=46080
+Split                    splitncnn_6              1 2 E0_linear_bn E0_linear_bn_splitncnn_0 E0_linear_bn_splitncnn_1
+Convolution              E1_expand                1 1 E0_linear_bn_splitncnn_1 E1_expand_relu 0=576 1=1 5=1 6=55296 9=1
+ConvolutionDepthWise     E1_dw                    1 1 E1_expand_relu E1_dw_relu 0=576 1=3 4=1 5=1 6=5184 7=576 9=1
+Convolution              E1_linear                1 1 E1_dw_relu E1_linear_bn 0=96 1=1 5=1 6=55296
+BinaryOp                 unknownncnn_6            2 1 E0_linear_bn_splitncnn_0 E1_linear_bn unknownncnn_6
+Convolution              F0_expand                1 1 unknownncnn_6 F0_expand_relu 0=576 1=1 5=1 6=55296 9=1
+ConvolutionDepthWise     F0_dw                    1 1 F0_expand_relu F0_dw_relu 0=576 1=5 3=2 4=2 5=1 6=14400 7=576 9=1
+Convolution              F0_linear                1 1 F0_dw_relu F0_linear_bn 0=192 1=1 5=1 6=110592
+Split                    splitncnn_7              1 2 F0_linear_bn F0_linear_bn_splitncnn_0 F0_linear_bn_splitncnn_1
+Convolution              F1_expand                1 1 F0_linear_bn_splitncnn_1 F1_expand_relu 0=1152 1=1 5=1 6=221184 9=1
+ConvolutionDepthWise     F1_dw                    1 1 F1_expand_relu F1_dw_relu 0=1152 1=5 4=2 5=1 6=28800 7=1152 9=1
+Convolution              F1_linear                1 1 F1_dw_relu F1_linear_bn 0=192 1=1 5=1 6=221184
+BinaryOp                 unknownncnn_7            2 1 F0_linear_bn_splitncnn_0 F1_linear_bn unknownncnn_7
+Split                    splitncnn_8              1 2 unknownncnn_7 unknownncnn_7_splitncnn_0 unknownncnn_7_splitncnn_1
+Convolution              F2_expand                1 1 unknownncnn_7_splitncnn_1 F2_expand_relu 0=1152 1=1 5=1 6=221184 9=1
+ConvolutionDepthWise     F2_dw                    1 1 F2_expand_relu F2_dw_relu 0=1152 1=5 4=2 5=1 6=28800 7=1152 9=1
+Convolution              F2_linear                1 1 F2_dw_relu F2_linear_bn 0=192 1=1 5=1 6=221184
+BinaryOp                 unknownncnn_8            2 1 unknownncnn_7_splitncnn_0 F2_linear_bn unknownncnn_8
+Split                    splitncnn_9              1 2 unknownncnn_8 unknownncnn_8_splitncnn_0 unknownncnn_8_splitncnn_1
+Convolution              F3_expand                1 1 unknownncnn_8_splitncnn_1 F3_expand_relu 0=1152 1=1 5=1 6=221184 9=1
+ConvolutionDepthWise     F3_dw                    1 1 F3_expand_relu F3_dw_relu 0=1152 1=5 4=2 5=1 6=28800 7=1152 9=1
+Convolution              F3_linear                1 1 F3_dw_relu F3_linear_bn 0=192 1=1 5=1 6=221184
+BinaryOp                 unknownncnn_9            2 1 unknownncnn_8_splitncnn_0 F3_linear_bn unknownncnn_9
+Convolution              G0_expand                1 1 unknownncnn_9 G0_expand_relu 0=1152 1=1 5=1 6=221184 9=1
+ConvolutionDepthWise     G0_dw                    1 1 G0_expand_relu G0_dw_relu 0=1152 1=3 4=1 5=1 6=10368 7=1152 9=1
+Convolution              G0_linear                1 1 G0_dw_relu G0_linear_bn 0=320 1=1 5=1 6=368640
+Convolution              last-1x1-conv            1 1 G0_linear_bn last-1x1-conv_relu 0=1280 1=1 5=1 6=409600 9=1
+Pooling                  avgpool                  1 1 last-1x1-conv_relu flatten 0=1 1=7 4=1 5=1
+InnerProduct             fc                       1 1 flatten fc 0=1000 1=1 2=1280000
+Softmax                  prob                     1 1 fc output

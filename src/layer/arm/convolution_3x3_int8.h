@@ -1,5 +1,8 @@
 // BUG1989 is pleased to support the open source community by supporting ncnn available.
 //
+// author:BUG1989 (https://github.com/BUG1989/) Long-term support.
+// author:FuGuangping (https://github.com/fu1899) Implemented the first version of INT8 quantization on ARMv7.
+//
 // Copyright (C) 2019 BUG1989. All rights reserved.
 // Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -12,10 +15,6 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-
-#if __ARM_NEON
-#include <arm_neon.h>
-#endif // __ARM_NEON
 
 static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat> &kernel_tm2, int inch, int outch)
 {
@@ -214,7 +213,9 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
     w = outw + 2;
     h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);  
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
 
     // BEGIN transform input
     Mat bottom_blob_tm;
@@ -1049,7 +1050,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
     // END transform output 
     
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);  
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
 static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat> &kernel_tm2, int inch, int outch)
@@ -1116,14 +1117,14 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
         int p = 0;
         for (; p+7<outch; p+=8)
         {
-            const short* kernel0 = (const short*)kernel_tm + (p+0)*inch*36;
-            const short* kernel1 = (const short*)kernel_tm + (p+1)*inch*36;
-            const short* kernel2 = (const short*)kernel_tm + (p+2)*inch*36;
-            const short* kernel3 = (const short*)kernel_tm + (p+3)*inch*36;
-            const short* kernel4 = (const short*)kernel_tm + (p+4)*inch*36;
-            const short* kernel5 = (const short*)kernel_tm + (p+5)*inch*36;
-            const short* kernel6 = (const short*)kernel_tm + (p+6)*inch*36;
-            const short* kernel7 = (const short*)kernel_tm + (p+7)*inch*36;
+            const short* kernel0 = (const short*)kernel_tm.channel(p);
+            const short* kernel1 = (const short*)kernel_tm.channel(p+1);
+            const short* kernel2 = (const short*)kernel_tm.channel(p+2);
+            const short* kernel3 = (const short*)kernel_tm.channel(p+3);
+            const short* kernel4 = (const short*)kernel_tm.channel(p+4);
+            const short* kernel5 = (const short*)kernel_tm.channel(p+5);
+            const short* kernel6 = (const short*)kernel_tm.channel(p+6);
+            const short* kernel7 = (const short*)kernel_tm.channel(p+7);
 
             short* ktmp = kernel_tm_test.channel(p/8);
 
@@ -1183,10 +1184,10 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
 
         for (; p+3<outch; p+=4)
         {
-            const short* kernel0 = (const short*)kernel_tm + (p+0)*inch*36;
-            const short* kernel1 = (const short*)kernel_tm + (p+1)*inch*36;
-            const short* kernel2 = (const short*)kernel_tm + (p+2)*inch*36;
-            const short* kernel3 = (const short*)kernel_tm + (p+3)*inch*36;
+            const short* kernel0 = (const short*)kernel_tm.channel(p);
+            const short* kernel1 = (const short*)kernel_tm.channel(p+1);
+            const short* kernel2 = (const short*)kernel_tm.channel(p+2);
+            const short* kernel3 = (const short*)kernel_tm.channel(p+3);
 
             short* ktmp = kernel_tm_test.channel(p/8 + (p%8)/4);
 
@@ -1222,7 +1223,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
 
         for (; p<outch; p++)
         {
-            const short* kernel0 = (const short*)kernel_tm + p*inch*36;
+            const short* kernel0 = (const short*)kernel_tm.channel(p);
 
             short* ktmp = kernel_tm_test.channel(p/8 + (p%8)/4 + p%4);
 
@@ -1260,7 +1261,9 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
     w = outw + 2;
     h = outh + 2;
 
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
 
     // BEGIN transform input
     Mat bottom_blob_tm;
@@ -2199,7 +2202,7 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
     // END transform output
 
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
 static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
@@ -2222,7 +2225,9 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
 
     w = outw + 2;
     h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
 
     // BEGIN transform input
     Mat bottom_blob_tm;
@@ -3179,7 +3184,7 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
     // END transform output
 
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
 static void conv3x3s2_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)

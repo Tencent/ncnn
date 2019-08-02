@@ -1,0 +1,103 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) writeonly buffer alpha_blob { sfpvec4 alpha_blob_data[]; };
+layout (binding = 1) writeonly buffer xofs_blob { int xofs_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int outw;
+    float scale;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.outw || gy >= 1 || gz >= 1)
+        return;
+
+    afp fx = (afp(gx) + afp(0.5f)) * afp(p.scale) - afp(0.5f);
+    int sx = int(floor(fx));
+    fx -= afp(sx);
+
+    // interpolate_cubic(fx, coeffs);
+    afpvec4 coeffs;
+    {
+        const afp A = afp(-0.75f);
+
+        afp fx0 = fx + afp(1.f);
+        afp fx1 = fx;
+        afp fx2 = afp(1.f) - fx;
+        // afp fx3 = afp(2.f) - fx;
+
+        coeffs.r = A * fx0*fx0*fx0 - afp(5.f)*A * fx0*fx0 + afp(8.f)*A * fx0 - afp(4.f)*A;
+        coeffs.g = (A+afp(2.f)) * fx1*fx1*fx1 - (A+afp(3.f)) * fx1*fx1 + afp(1.f);
+        coeffs.b = (A+afp(2.f)) * fx2*fx2*fx2 - (A+afp(3.f)) * fx2*fx2 + afp(1.f);
+        coeffs.a = afp(1.f) - coeffs.r - coeffs.g - coeffs.b;
+    }
+
+    if (sx <= -1)
+    {
+        sx = 1;
+        coeffs.r = afp(1.f) - coeffs.a;
+        coeffs.g = coeffs.a;
+        coeffs.b = afp(0.f);
+        coeffs.a = afp(0.f);
+    }
+    if (sx == 0)
+    {
+        sx = 1;
+        coeffs.r = coeffs.r + coeffs.g;
+        coeffs.g = coeffs.b;
+        coeffs.b = coeffs.a;
+        coeffs.a = afp(0.f);
+    }
+    if (sx == p.w - 2)
+    {
+        sx = p.w - 3;
+        coeffs.a = coeffs.b + coeffs.a;
+        coeffs.b = coeffs.g;
+        coeffs.g = coeffs.r;
+        coeffs.r = afp(0.f);
+    }
+    if (sx >= p.w - 1)
+    {
+        sx = p.w - 3;
+        coeffs.a = afp(1.f) - coeffs.r;
+        coeffs.b = coeffs.r;
+        coeffs.g = afp(0.f);
+        coeffs.r = afp(0.f);
+    }
+
+    alpha_blob_data[gx] = afp2sfpvec4(coeffs);
+
+    xofs_blob_data[gx] = sx;
+}

@@ -28,13 +28,6 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-#if NCNN_VULKAN
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
-
     enum { NormRegion_ACROSS_CHANNELS = 0, NormRegion_WITHIN_CHANNEL = 1 };
 
 public:
@@ -44,15 +37,6 @@ public:
     float alpha;
     float beta;
     float bias;
-
-#if NCNN_VULKAN
-    Pipeline* pipeline_lrn_square_pad;
-    Pipeline* pipeline_lrn_norm;
-    Pipeline* pipeline_lrn_square_pad_across_channel_pack4;
-    Pipeline* pipeline_lrn_norm_across_channel_pack4;
-    Pipeline* pipeline_lrn_square_pad_within_channel_pack4;
-    Pipeline* pipeline_lrn_norm_within_channel_pack4;
-#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

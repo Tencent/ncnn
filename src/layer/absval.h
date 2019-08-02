@@ -25,20 +25,6 @@ public:
     AbsVal();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
-
-#if NCNN_VULKAN
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
-
-public:
-
-#if NCNN_VULKAN
-    Pipeline* pipeline_absval;
-    Pipeline* pipeline_absval_pack4;
-#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

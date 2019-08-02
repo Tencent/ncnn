@@ -16,8 +16,9 @@
 #include <stdio.h>
 #include <math.h>
 #include <algorithm>
-#include "mat.h"
 #include <string>
+#include "mat.h"
+#include "option.h"
 
 namespace ncnn {
 
@@ -45,20 +46,9 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const char*
 {
     local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
 
-    fprintf(stderr, "local_shader_module %p %s created\n", local_shader_module, entry_name);
+//     fprintf(stderr, "local_shader_module %p %s created\n", local_shader_module, entry_name);
 
-    create_descriptorset_layout(binding_count);
-
-    create_pipeline_layout(push_constant_count);
-
-    create_pipeline(local_shader_module, entry_name, specializations);
-
-    if (vkdev->info.support_VK_KHR_descriptor_update_template)
-    {
-        create_descriptor_update_template(binding_count);
-    }
-
-    return 0;
+    return create(local_shader_module, entry_name, specializations, binding_count, push_constant_count);
 }
 
 int Pipeline::create(VkShaderModule shader_module, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
@@ -77,17 +67,21 @@ int Pipeline::create(VkShaderModule shader_module, const char* entry_name, const
     return 0;
 }
 
-int Pipeline::create(const char* _name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+int Pipeline::create(const char* _name, const Option& opt, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
 {
     std::string name = _name;
 
-    if (vkdev->info.support_fp16_arithmetic)
+    if (opt.use_fp16_arithmetic)
     {
         name += "_fp16a";
     }
-    else if (vkdev->info.support_fp16_storage)
+    else if (opt.use_fp16_storage)
     {
         name += "_fp16s";
+    }
+    else if (opt.use_fp16_packed)
+    {
+        name += "_fp16p";
     }
 
     VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
@@ -215,6 +209,13 @@ void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
     }
 
 //     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+}
+
+void Pipeline::set_local_size_xyz(int w, int h, int c)
+{
+    local_size_x = w;
+    local_size_y = h;
+    local_size_z = c;
 }
 
 int Pipeline::create_descriptorset_layout(int binding_count)

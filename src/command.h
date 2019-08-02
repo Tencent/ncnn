@@ -29,8 +29,8 @@ namespace ncnn {
 class Command
 {
 public:
-    Command(const VulkanDevice* vkdev, uint32_t queue_index);
-    ~Command();
+    Command(const VulkanDevice* vkdev, uint32_t queue_family_index);
+    virtual ~Command();
 
 protected:
     int create_command_pool();
@@ -39,14 +39,11 @@ protected:
     // record issue
     int begin_command_buffer();
     int end_command_buffer();
-    int queue_submit();
-    int wait_fence();
+    int queue_submit_and_wait_fence();
 
 protected:
     const VulkanDevice* vkdev;
-    uint32_t queue_index;
-
-    VkQueue queue;
+    uint32_t queue_family_index;
 
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
@@ -72,11 +69,17 @@ public:
 
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& m);
 
-    int submit();
+    void record_write_timestamp(uint32_t query);
 
-    int wait();
+    int submit_and_wait();
 
     int reset();
+
+#if NCNN_BENCHMARK
+    int create_query_pool(uint32_t query_count);
+
+    int get_query_pool_results(uint32_t first_query, uint32_t query_count, std::vector<uint64_t>& results);
+#endif // NCNN_BENCHMARK
 
 protected:
     // record pipeline things
@@ -95,6 +98,10 @@ protected:
     void record_prepare_transfer_barrier(const VkMat& m);
     void record_prepare_compute_barrier(const VkMat& m);
 
+#if NCNN_BENCHMARK
+    void reset_query_pool();
+#endif // NCNN_BENCHMARK
+
 protected:
     // recording issue
     void copy_buffer(VkBuffer src, size_t src_offset, VkBuffer dst, size_t dst_offset, size_t size);
@@ -108,6 +115,9 @@ protected:
     void compute_transfer_barrier(VkBuffer buffer, size_t offset, size_t size);
     void compute_compute_barrier(VkBuffer buffer, size_t offset, size_t size);
     void transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t size);
+#if NCNN_BENCHMARK
+    void write_timestamp(uint32_t query);
+#endif // NCNN_BENCHMARK
 
 protected:
     // delayed record
@@ -126,6 +136,7 @@ protected:
         // 7=compute-transfer barrier
         // 8=compute-compute barrier
         // 9=transfer-transfer barrier
+        // 10=write timestamp
         int type;
 
         union
@@ -140,12 +151,20 @@ protected:
         struct { VkBuffer buffer; size_t offset; size_t size; } compute_transfer_barrier;
         struct { VkBuffer buffer; size_t offset; size_t size; } compute_compute_barrier;
         struct { VkBuffer buffer; size_t offset; size_t size; } transfer_transfer_barrier;
+#if NCNN_BENCHMARK
+        struct { uint32_t query; } write_timestamp;
+#endif // NCNN_BENCHMARK
         };
 
         std::vector<VkBufferCopy> regions;
         std::vector<vk_constant_type> constants;
     };
     std::vector<record_type> delayed_records;
+
+#if NCNN_BENCHMARK
+    uint32_t query_count;
+    VkQueryPool query_pool;
+#endif // NCNN_BENCHMARK
 };
 
 class VkTransfer : public Command
@@ -154,11 +173,9 @@ public:
     VkTransfer(const VulkanDevice* vkdev);
     ~VkTransfer();
 
-    void record_upload(const Mat& src, VkMat& dst);
+    void record_upload(const Mat& src, VkMat& dst, const Option& opt);
 
-    int submit();
-
-    int wait();
+    int submit_and_wait();
 
 public:
     VkAllocator* weight_vkallocator;

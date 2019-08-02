@@ -1,0 +1,154 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (constant_id = 0) const int bias_term = 0;
+layout (constant_id = 1) const int activation_type = 0;
+layout (constant_id = 2) const float activation_param_0 = 0;
+layout (constant_id = 3) const float activation_param_1 = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) readonly buffer top_tm_blob { sfpvec4 top_tm_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout (binding = 2) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int c;
+    int cstep;
+
+    int block_x;
+    int block_y;
+
+    int outw;
+    int outh;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.block_x || gy >= p.block_y || gz >= p.c)
+        return;
+
+    // load 16
+    int v_tm_offset = gz * p.cstep + (gy * p.block_x + gx) * 16;
+
+    afpvec4 v00 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 0]);
+    afpvec4 v01 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 1]);
+    afpvec4 v02 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 2]);
+    afpvec4 v03 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 3]);
+    afpvec4 v10 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 4]);
+    afpvec4 v11 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 5]);
+    afpvec4 v12 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 6]);
+    afpvec4 v13 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 7]);
+    afpvec4 v20 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 8]);
+    afpvec4 v21 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 9]);
+    afpvec4 v22 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 10]);
+    afpvec4 v23 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 11]);
+    afpvec4 v30 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 12]);
+    afpvec4 v31 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 13]);
+    afpvec4 v32 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 14]);
+    afpvec4 v33 = sfp2afpvec4(top_tm_blob_data[v_tm_offset + 15]);
+
+    // const float itm[2][4] = {
+    //     {1.0f,  1.0f,  1.0f,  0.0f},
+    //     {0.0f,  1.0f, -1.0f,  1.0f}
+    // };
+
+    // implicit transpose
+    afpvec4 m00 = v00 + v01 + v02;
+    afpvec4 m01 = v10 + v11 + v12;
+    afpvec4 m02 = v20 + v21 + v22;
+    afpvec4 m03 = v30 + v31 + v32;
+
+    afpvec4 m10 = v01 - v02 + v03;
+    afpvec4 m11 = v11 - v12 + v13;
+    afpvec4 m12 = v21 - v22 + v23;
+    afpvec4 m13 = v31 - v32 + v33;
+
+    if (bias_term == 1)
+    {
+        const afpvec4 bias_value = sfp2afpvec4(bias_data[gz]);
+
+        v00 = bias_value + m00 + m01 + m02;
+        v10 = bias_value + m10 + m11 + m12;
+
+        v01 = bias_value + m01 - m02 + m03;
+        v11 = bias_value + m11 - m12 + m13;
+    }
+    else
+    {
+        v00 = m00 + m01 + m02;
+        v10 = m10 + m11 + m12;
+
+        v01 = m01 - m02 + m03;
+        v11 = m11 - m12 + m13;
+    }
+
+    if (activation_type == 1)
+    {
+        v00 = max(v00, afp(0.f));
+        v10 = max(v10, afp(0.f));
+        v01 = max(v01, afp(0.f));
+        v11 = max(v11, afp(0.f));
+    }
+    if (activation_type == 2)
+    {
+        const afp slope = afp(activation_param_0);
+        v00 = mix(v00, v00 * afp(slope), lessThan(v00, afpvec4(0.f)));
+        v10 = mix(v10, v10 * afp(slope), lessThan(v10, afpvec4(0.f)));
+        v01 = mix(v01, v01 * afp(slope), lessThan(v01, afpvec4(0.f)));
+        v11 = mix(v11, v11 * afp(slope), lessThan(v11, afpvec4(0.f)));
+    }
+    if (activation_type == 3)
+    {
+        const afp const_min = afp(activation_param_0);
+        const afp const_max = afp(activation_param_1);
+        v00 = clamp(v00, const_min, const_max);
+        v10 = clamp(v10, const_min, const_max);
+        v01 = clamp(v01, const_min, const_max);
+        v11 = clamp(v11, const_min, const_max);
+    }
+    if (activation_type == 4)
+    {
+        v00 = afp(1.f) / (afp(1.f) + exp(-v00));
+        v10 = afp(1.f) / (afp(1.f) + exp(-v10));
+        v01 = afp(1.f) / (afp(1.f) + exp(-v01));
+        v11 = afp(1.f) / (afp(1.f) + exp(-v11));
+    }
+
+    // store 2x2
+    int v_offset_0 = gz * p.outcstep + gy * 2 * p.outw + gx * 2;
+    int v_offset_1 = v_offset_0 + p.outw;
+
+    top_blob_data[v_offset_0 + 0] = afp2sfpvec4(v00);
+    top_blob_data[v_offset_0 + 1] = afp2sfpvec4(v01);
+    top_blob_data[v_offset_1 + 0] = afp2sfpvec4(v10);
+    top_blob_data[v_offset_1 + 1] = afp2sfpvec4(v11);
+}

@@ -25,6 +25,7 @@
 namespace ncnn {
 
 #if NCNN_VULKAN
+class Option;
 class Pipeline
 {
 public:
@@ -33,12 +34,13 @@ public:
 
 public:
     void set_optimal_local_size_xyz(int w = 32, int h = 32, int c = 32);
+    void set_local_size_xyz(int w, int h, int c);
 
     int create(const uint32_t* spv_data, size_t spv_data_size, const char* entry_name,
                const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count);
     int create(VkShaderModule shader_module, const char* entry_name,
                const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count);
-    int create(const char* name, const std::vector<vk_specialization_type>& specializations,
+    int create(const char* name, const Option& opt, const std::vector<vk_specialization_type>& specializations,
                int binding_count, int push_constant_count);
     void destroy();
 

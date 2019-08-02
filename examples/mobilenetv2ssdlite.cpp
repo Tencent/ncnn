@@ -39,7 +39,7 @@ static int detect_mobilenetv2(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Net mobilenetv2;
 
 #if NCNN_VULKAN
-    mobilenetv2.use_vulkan_compute = true;
+    mobilenetv2.opt.use_vulkan_compute = true;
 #endif // NCNN_VULKAN
 
     mobilenetv2.register_custom_layer("Silence", Noop_layer_creator);

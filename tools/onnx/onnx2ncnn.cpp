@@ -151,6 +151,32 @@ static onnx::TensorProto get_node_attr_tensor(const onnx::NodeProto& node, const
     return onnx::TensorProto();
 }
 
+static std::vector<int> get_tensor_proto_reshape_shape(const onnx::TensorProto& tp)
+{
+    const int64_t* shape_data = 0;
+    int size = 0;
+
+    // int64
+    if (tp.has_raw_data())
+    {
+        shape_data = (const int64_t*)tp.raw_data().data();
+        size = tp.raw_data().size() / 8;
+    }
+    else if (tp.data_type() == 7)
+    {
+        shape_data = tp.int64_data().data();
+        size = tp.int64_data_size();
+    }
+
+    std::vector<int> shape;
+    for (int j=0; j<size; j++)
+    {
+        shape.push_back(shape_data[j]);
+    }
+
+    return shape;
+}
+
 static int get_tensor_proto_data_size(const onnx::TensorProto& tp)
 {
     if (tp.has_raw_data())
@@ -445,6 +471,86 @@ int main(int argc, char** argv)
             reduced_node_count += 1;
             i += 1;
         }
+
+        // ShuffleChannel <= Reshape - Transpose - Reshape
+        if (node->op_type() == "Reshape")
+        {
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            std::vector<int> shape;
+            if (node->input_size() == 1)
+            {
+                shape = get_node_attr_ai(*node, "shape");
+            }
+            else
+            {
+                shape = get_tensor_proto_reshape_shape(weights[node->input(1)]);
+            }
+
+            // 1 groups channels_per_group, height, width
+            if (shape.size() != 5)
+                continue;
+
+            if (shape[0] != 1)
+                continue;
+
+            if (i+2 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
+
+            if (node2->op_type() != "Transpose" || node3->op_type() != "Reshape")
+                continue;
+
+            if (node_reference[node2->output(0)] != 1)
+                continue;
+
+            // 0 2 1 3 4
+            std::vector<int> perm = get_node_attr_ai(*node2, "perm");
+            if (perm.size() != 5)
+                continue;
+
+            if (perm[0] != 0 || perm[1] != 2 || perm[2] != 1 || perm[3] != 3 || perm[4] != 4)
+                continue;
+
+            std::vector<int> shape3;
+            if (node3->input_size() == 1)
+            {
+                shape3 = get_node_attr_ai(*node3, "shape");
+            }
+            else
+            {
+                shape3 = get_tensor_proto_reshape_shape(weights[node3->input(1)]);
+            }
+
+            // 1, -1, height, width
+            if (shape3.size() != 4)
+                continue;
+
+            if (shape3[0] != 1 || shape3[1] != -1)
+                continue;
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node2->set_op_type("noop_reducedncnn");
+
+            node_reference.erase(node_reference.find(node->output(0)));
+            node_reference.erase(node_reference.find(node2->output(0)));
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+
+            node3->set_op_type("ShuffleChannel");
+            node3->set_input(0, node->input(0));
+
+            onnx::AttributeProto* attr_group = node3->add_attribute();
+            attr_group->set_name("group");
+            attr_group->set_i(shape[1]);
+
+            reduced_node_count += 2;
+            i += 2;
+        }
     }
 
     // remove node_reference entry with reference equals to one
@@ -517,7 +623,9 @@ int main(int argc, char** argv)
 
         const onnx::TensorProto& M = binaryop_weights[input_name];
 
-        if (M.dims_size() == 1) {
+        if (M.dims_size() == 0) {
+            fprintf(pp, " 0=%d", get_tensor_proto_data_size(M));
+        } if (M.dims_size() == 1) {
             fprintf(pp, " 0=%d", (int)M.dims(0));
         } else if (M.dims_size() == 2) {
             fprintf(pp, " 0=%d", (int)M.dims(1));
@@ -774,6 +882,10 @@ int main(int argc, char** argv)
             }
             fprintf(pp, "%-16s", "Reshape");
         }
+        else if (op == "ShuffleChannel")
+        {
+            fprintf(pp, "%-16s", "ShuffleChannel");
+        }
         else if (op == "Sigmoid")
         {
             fprintf(pp, "%-16s", "Sigmoid");
@@ -806,11 +918,15 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Tanh")
+        {
+            fprintf(pp, "%-16s", "UnaryOp");
+        }
         else if (op == "Transpose")
         {
             fprintf(pp, "%-16s", "Permute");
         }
-        else if (op == "Upsample")
+        else if (op == "Upsample" || op == "Resize")
         {
             fprintf(pp, "%-16s", "Interp");
         }
@@ -1072,7 +1188,6 @@ int main(int argc, char** argv)
         {
             const onnx::TensorProto& W = weights[node.input(1)];
 
-            int num_filter = W.dims(1);
             int has_bias = node.input_size() == 3 ? 1 : 0;
 
             std::string auto_pad = get_node_attr_s(node, "auto_pad");//TODO
@@ -1083,6 +1198,7 @@ int main(int argc, char** argv)
             std::vector<int> output_shape = get_node_attr_ai(node, "output_shape");//TODO
             std::vector<int> pads = get_node_attr_ai(node, "pads");
             int group = get_node_attr_i(node, "group", 1);
+            int num_filter = W.dims(1) * group;
 
             fprintf(pp, " 0=%d", num_filter);
 
@@ -1382,13 +1498,35 @@ int main(int argc, char** argv)
             }
             else if (mode == "reflect")
             {
-                // FIXME
+                type = 2;
             }
 
-            int top = pads[0];
-            int bottom = pads[2];
-            int left = pads[1];
-            int right = pads[3];
+            int pad_size = pads.size();
+            int top, bottom, left, right;
+            if (pad_size == 8)
+            {
+                //NCHW
+                top = pads[2];
+                bottom = pads[6];
+                left = pads[3];
+                right = pads[7];
+            }
+            else if (pad_size == 6)
+            {
+                //CHW
+                top = pads[1];
+                bottom = pads[4];
+                left = pads[2];
+                right = pads[5];
+            }
+            else
+            {
+                //HW
+                top = pads[0];
+                bottom = pads[2];
+                left = pads[1];
+                right = pads[3];
+            }
 
             fprintf(pp, " 0=%d", top);
             fprintf(pp, " 1=%d", bottom);
@@ -1427,12 +1565,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                const onnx::TensorProto& shape_tp = weights[node.input(1)];
-                const int64_t* shape_data = shape_tp.int64_data().data();
-                for (int j=0; j<shape_tp.int64_data_size(); j++)
-                {
-                    shape.push_back(shape_data[j]);
-                }
+                shape = get_tensor_proto_reshape_shape(weights[node.input(1)]);
             }
 
             if (shape.size() == 1) {
@@ -1451,6 +1584,11 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", shape[2]);
                 fprintf(pp, " 2=%d", shape[1]);
             }
+        }
+        else if (op == "ShuffleChannel")
+        {
+            int group = get_node_attr_i(node, "group", 1);
+            fprintf(pp, " 0=%d", group);
         }
         else if (op == "Sigmoid")
         {
@@ -1480,7 +1618,12 @@ int main(int argc, char** argv)
             int outh = -233;
             int outc = -233;
 
-            if (starts.size() == 2)
+            if (starts.size() == 1) 
+            {
+                woffset = starts[0];
+                outw = ends[0] == -1 ? -233: ends[0] - starts[0]; // for onnx from pytorch, -233 works
+            } 
+            else if (starts.size() == 2)
             {
                 woffset = starts[1];
                 outw = ends[1] == -1 ? -234 : ends[1] - starts[1];
@@ -1535,6 +1678,11 @@ int main(int argc, char** argv)
             int op_type = 11;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (op == "Tanh")
+        {
+            int op_type = 16;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "Transpose")
         {
             std::vector<int> perm = get_node_attr_ai(node, "perm");
@@ -1569,7 +1717,7 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported transpose type !\n");
             }
         }
-        else if (op == "Upsample")
+        else if (op == "Upsample" || op == "Resize")
         {
             std::string mode = get_node_attr_s(node, "mode");
 
@@ -1607,7 +1755,7 @@ int main(int argc, char** argv)
             }
             else if (mode == "trilinear")
             {
-                fprintf(stderr, "Unsupported Upsample mode !\n");
+                fprintf(stderr, "Unsupported Upsample/Resize mode !\n");
             }
 
             float h_scale = 1.f;
@@ -1627,11 +1775,11 @@ int main(int argc, char** argv)
                 w_scale = scales[3];
 
                 if (scales[1] != 1.f)
-                    fprintf(stderr, "Unsupported Upsample scales !\n");
+                    fprintf(stderr, "Unsupported Upsample/Resize scales !\n");
             }
             else
             {
-                fprintf(stderr, "Unsupported Upsample scales !\n");
+                fprintf(stderr, "Unsupported Upsample/Resize scales !\n");
             }
 
             fprintf(pp, " 0=%d", resize_type);

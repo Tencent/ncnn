@@ -36,7 +36,7 @@ static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Net yolov2;
 
 #if NCNN_VULKAN
-    yolov2.use_vulkan_compute = true;
+    yolov2.opt.use_vulkan_compute = true;
 #endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/eric612/MobileNet-YOLO

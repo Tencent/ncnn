@@ -25,6 +25,7 @@ class Net;
 class ModelBin
 {
 public:
+    virtual ~ModelBin();
     // element type
     // 0 = auto
     // 1 = float32

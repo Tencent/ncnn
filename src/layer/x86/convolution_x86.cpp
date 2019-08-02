@@ -14,15 +14,24 @@
 
 #include "convolution_x86.h"
 
+#include "platform.h"
+#if __SSE2__
+#include <emmintrin.h>
+#endif
+#if __AVX__
+#include <immintrin.h>
+#endif
+
 #include "layer_type.h"
 #include "benchmark.h"
 
 namespace ncnn {
 
+#include "convolution_sgemm.h"
 #include "convolution_1x1.h"
 #include "convolution_3x3.h"
 #include "convolution_5x5.h"
-
+#include "convolution_7x7.h"
 #include "convolution_sgemm_int8.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
@@ -31,30 +40,62 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
 
-int Convolution_x86::load_param(const ParamDict& pd)
+Convolution_x86::Convolution_x86()
 {
-    int ret = Convolution::load_param(pd);
-    if (ret != 0)
-        return ret;
+    activation = 0;
+}
+
+int Convolution_x86::create_pipeline(const Option& opt)
+{
+    Option opt_cpu = opt;
+    opt_cpu.use_vulkan_compute = false;
+
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]);// min
+        pd.set(1, activation_params[1]);// max
+        activation->load_param(pd);
+    }
+    else if (activation_type == 4)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        activation->create_pipeline(opt_cpu);
+    }
 
     use_winograd3x3 = false;
 
-    if (pd.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         int num_input = weight_data_size / 9 / num_output;
         // winograd is slow on small channel count
         if(num_input >= 16 && num_output >= 16)
             use_winograd3x3 = true;
     }           
-
-    return 0;
-}
-
-int Convolution_x86::load_model(const ModelBin& mb)
-{
-    int ret = Convolution::load_model(mb);
-    if (ret != 0)
-        return ret;
 
     if (use_winograd3x3)
     {
@@ -65,7 +106,30 @@ int Convolution_x86::load_model(const ModelBin& mb)
             conv3x3s1_winograd43_transform_kernel_int8_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
         else
             // conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
-            conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+            conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd43_data, num_input, num_output);
+    }
+
+    if (use_int8_inference == false)
+    {
+        int kernel_size = kernel_w * kernel_h;
+        int num_input = weight_data_size / kernel_size / num_output;
+
+        conv_im2col_sgemm_transform_kernel_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_size);
+    }       
+
+    return 0;
+}
+
+int Convolution_x86::destroy_pipeline(const Option& opt)
+{
+    Option opt_cpu = opt;
+    opt_cpu.use_vulkan_compute = false;
+
+    if (activation)
+    {
+        activation->destroy_pipeline(opt_cpu);
+        delete activation;
+        activation = 0;
     }
 
     return 0;
@@ -85,7 +149,9 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
     Mat bottom_blob_bordered = bottom_blob;
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt_b);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -98,7 +164,9 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
         int hpad = kernel_extent + (h - 1) / stride * stride - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt_b);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -153,7 +221,15 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
 
             ncnn::Option opt_g = opt;
             opt_g.blob_allocator = inner_top_blob.allocator;
+            if (kernel_size == 7)
+            {
+            // FIXME conv7x7s1_sse use sgemm
+            conv(inner_bottom_blob, inner_top_blob, weight_sgemm_data, bias_data, opt_g);
+            }
+            else
+            {
             conv(inner_bottom_blob, inner_top_blob, weight_data, bias_data, opt_g);
+            }
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < num_output; c ++)
@@ -191,7 +267,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
 
     const int kernel_size = kernel_w;
-    const int stride = stride_w;
+    const int stride = stride_w;  
 
     if (kernel_size > 7 || stride > 7 || dilation_w != dilation_h)
     {
@@ -229,7 +305,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }, // kernel_size = 4
         {
             conv5x5s1_sse,
-            0,
+            conv5x5s2_sse,
             0,
             0
         }, // kernel_size = 5
@@ -240,8 +316,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             0
         }, // kernel_size = 6
         {
-            0,          
-            0,          
+            conv7x7s1_sse,          
+            conv7x7s2_sse,          
             0,
             0
         }  // kernel_size = 7        
@@ -341,7 +417,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             0,
             0
         }  // kernel_size = 7
-    };    
+    };
 
     conv_func conv = 0;
     conv_int8_dequant_func conv_int8_dequant = 0;
@@ -402,7 +478,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     Mat bottom_blob_bordered = bottom_blob_unbordered;
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt_b);
         if (bottom_blob_bordered.empty())
             return -100;
 
@@ -415,7 +493,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         int hpad = kernel_size + (h - 1) / stride * stride - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt_b);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -429,7 +509,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     // int8
     if (use_int8_inference)
-    {
+    {         
         if (use_int8_requantize == true)
         {
             Mat top_blob_tm;
@@ -460,7 +540,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
             }
             else
-                conv_int8_requant(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);                                                    
+                conv_int8_requant(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
         }
         else
         {
@@ -488,7 +568,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             else
                 conv_int8_dequant(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);     
         }
-    
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }        
+
         return 0;
     }
 
@@ -497,14 +582,20 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (top_blob.empty())
         return -100;    
 
-    if (use_winograd3x3)
+    if (use_winograd3x3 && outw >= 8 && outh >=8)
     {
-        //conv3x3s1_winograd23_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
-        conv3x3s1_winograd43_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
-    }    
+        // conv3x3s1_winograd23_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
+        conv3x3s1_winograd43_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd43_data, bias_data, opt);
+    }
     else
-        conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-       
+        //conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+        conv_im2col_sgemm_sse(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
+    }
+
     return 0;
 }
 
