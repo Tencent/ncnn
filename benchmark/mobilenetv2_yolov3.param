@@ -127,4 +127,4 @@ Convolution      yolo/conv3       1 1 yolo/conv3/dw_yolo/conv3/dw/relu yolo/conv
 ReLU             yolo/conv3/relu  1 1 yolo/conv3 yolo/conv3_yolo/conv3/relu
 Convolution      yolo/conv4       1 1 yolo/conv1_yolo/conv1/relu_splitncnn_0 yolo/conv4 0=75 1=1 2=1 3=1 4=0 5=1 6=43200
 Convolution      yolo/conv5       1 1 yolo/conv3_yolo/conv3/relu yolo/conv5 0=75 1=1 2=1 3=1 4=0 5=1 6=43200
-Yolov3DetectionOutput detection_out    2 1 yolo/conv4 yolo/conv5 output 0=20 1=3 2=0.010000 3=0.450000 -23304=12,20.000000,37.000000,49.000000,94.000000,73.000000,201.000000,143.000000,265.000000,153.000000,121.000000,280.000000,279.000000 -23305=6,3.000000,4.000000,5.000000,0.000000,1.000000,2.000000 -23306=2,32.000000,16.000000 7=2
+Yolov3DetectionOutput detection_out    2 1 yolo/conv4 yolo/conv5 output 0=20 1=3 2=0.30000 3=0.450000 -23304=12,20.000000,37.000000,49.000000,94.000000,73.000000,201.000000,143.000000,265.000000,153.000000,121.000000,280.000000,279.000000 -23305=6,3.000000,4.000000,5.000000,0.000000,1.000000,2.000000 -23306=2,32.000000,16.000000 7=2
