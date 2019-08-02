@@ -1,0 +1,130 @@
+7767517
+128 140
+Input            data             0 1 data 0=352 1=352 2=3
+Convolution      conv1            1 1 data conv1 0=32 1=3 2=1 3=2 4=1 5=1 6=864
+ReLU             relu1            1 1 conv1 conv1_relu1
+ConvolutionDepthWise conv2            1 1 conv1_relu1 conv2 0=32 1=3 2=1 3=1 4=1 5=1 6=288 7=32
+ReLU             relu2            1 1 conv2 conv2_relu2
+Convolution      conv3            1 1 conv2_relu2 conv3 0=16 1=1 2=1 3=1 4=0 5=1 6=512
+Convolution      conv4            1 1 conv3 conv4 0=96 1=1 2=1 3=1 4=0 5=1 6=1536
+ReLU             relu3            1 1 conv4 conv4_relu3
+ConvolutionDepthWise conv5            1 1 conv4_relu3 conv5 0=96 1=3 2=1 3=2 4=1 5=1 6=864 7=96
+ReLU             relu4            1 1 conv5 conv5_relu4
+Convolution      conv6            1 1 conv5_relu4 conv6 0=24 1=1 2=1 3=1 4=0 5=1 6=2304
+Split            splitncnn_0      1 2 conv6 conv6_splitncnn_0 conv6_splitncnn_1
+Convolution      conv7            1 1 conv6_splitncnn_1 conv7 0=144 1=1 2=1 3=1 4=0 5=1 6=3456
+ReLU             relu5            1 1 conv7 conv7_relu5
+ConvolutionDepthWise conv8            1 1 conv7_relu5 conv8 0=144 1=3 2=1 3=1 4=1 5=1 6=1296 7=144
+ReLU             relu6            1 1 conv8 conv8_relu6
+Convolution      conv9            1 1 conv8_relu6 conv9 0=24 1=1 2=1 3=1 4=0 5=1 6=3456
+Eltwise          add1             2 1 conv6_splitncnn_0 conv9 add1 0=1 -23301=0
+Convolution      conv10           1 1 add1 conv10 0=144 1=1 2=1 3=1 4=0 5=1 6=3456
+ReLU             relu7            1 1 conv10 conv10_relu7
+ConvolutionDepthWise conv11           1 1 conv10_relu7 conv11 0=144 1=3 2=1 3=2 4=1 5=1 6=1296 7=144
+ReLU             relu8            1 1 conv11 conv11_relu8
+Convolution      conv12           1 1 conv11_relu8 conv12 0=32 1=1 2=1 3=1 4=0 5=1 6=4608
+Split            splitncnn_1      1 2 conv12 conv12_splitncnn_0 conv12_splitncnn_1
+Convolution      conv13           1 1 conv12_splitncnn_1 conv13 0=192 1=1 2=1 3=1 4=0 5=1 6=6144
+ReLU             relu9            1 1 conv13 conv13_relu9
+ConvolutionDepthWise conv14           1 1 conv13_relu9 conv14 0=192 1=3 2=1 3=1 4=1 5=1 6=1728 7=192
+ReLU             relu10           1 1 conv14 conv14_relu10
+Convolution      conv15           1 1 conv14_relu10 conv15 0=32 1=1 2=1 3=1 4=0 5=1 6=6144
+Eltwise          add2             2 1 conv12_splitncnn_0 conv15 add2 0=1 -23301=0
+Split            splitncnn_2      1 2 add2 add2_splitncnn_0 add2_splitncnn_1
+Convolution      conv16           1 1 add2_splitncnn_1 conv16 0=192 1=1 2=1 3=1 4=0 5=1 6=6144
+ReLU             relu11           1 1 conv16 conv16_relu11
+ConvolutionDepthWise conv17           1 1 conv16_relu11 conv17 0=192 1=3 2=1 3=1 4=1 5=1 6=1728 7=192
+ReLU             relu12           1 1 conv17 conv17_relu12
+Convolution      conv18           1 1 conv17_relu12 conv18 0=32 1=1 2=1 3=1 4=0 5=1 6=6144
+Eltwise          add3             2 1 add2_splitncnn_0 conv18 add3 0=1 -23301=0
+Convolution      conv19           1 1 add3 conv19 0=192 1=1 2=1 3=1 4=0 5=1 6=6144
+ReLU             relu13           1 1 conv19 conv19_relu13
+ConvolutionDepthWise conv20           1 1 conv19_relu13 conv20 0=192 1=3 2=1 3=2 4=1 5=1 6=1728 7=192
+ReLU             relu14           1 1 conv20 conv20_relu14
+Convolution      conv21           1 1 conv20_relu14 conv21 0=64 1=1 2=1 3=1 4=0 5=1 6=12288
+Split            splitncnn_3      1 2 conv21 conv21_splitncnn_0 conv21_splitncnn_1
+Convolution      conv22           1 1 conv21_splitncnn_1 conv22 0=384 1=1 2=1 3=1 4=0 5=1 6=24576
+ReLU             relu15           1 1 conv22 conv22_relu15
+ConvolutionDepthWise conv23           1 1 conv22_relu15 conv23 0=384 1=3 2=1 3=1 4=1 5=1 6=3456 7=384
+ReLU             relu16           1 1 conv23 conv23_relu16
+Convolution      conv24           1 1 conv23_relu16 conv24 0=64 1=1 2=1 3=1 4=0 5=1 6=24576
+Eltwise          add4             2 1 conv21_splitncnn_0 conv24 add4 0=1 -23301=0
+Split            splitncnn_4      1 2 add4 add4_splitncnn_0 add4_splitncnn_1
+Convolution      conv25           1 1 add4_splitncnn_1 conv25 0=384 1=1 2=1 3=1 4=0 5=1 6=24576
+ReLU             relu17           1 1 conv25 conv25_relu17
+ConvolutionDepthWise conv26           1 1 conv25_relu17 conv26 0=384 1=3 2=1 3=1 4=1 5=1 6=3456 7=384
+ReLU             relu18           1 1 conv26 conv26_relu18
+Convolution      conv27           1 1 conv26_relu18 conv27 0=64 1=1 2=1 3=1 4=0 5=1 6=24576
+Eltwise          add5             2 1 add4_splitncnn_0 conv27 add5 0=1 -23301=0
+Split            splitncnn_5      1 2 add5 add5_splitncnn_0 add5_splitncnn_1
+Convolution      conv28           1 1 add5_splitncnn_1 conv28 0=384 1=1 2=1 3=1 4=0 5=1 6=24576
+ReLU             relu19           1 1 conv28 conv28_relu19
+ConvolutionDepthWise conv29           1 1 conv28_relu19 conv29 0=384 1=3 2=1 3=1 4=1 5=1 6=3456 7=384
+ReLU             relu20           1 1 conv29 conv29_relu20
+Convolution      conv30           1 1 conv29_relu20 conv30 0=64 1=1 2=1 3=1 4=0 5=1 6=24576
+Eltwise          add6             2 1 add5_splitncnn_0 conv30 add6 0=1 -23301=0
+Convolution      conv31           1 1 add6 conv31 0=384 1=1 2=1 3=1 4=0 5=1 6=24576
+ReLU             relu21           1 1 conv31 conv31_relu21
+ConvolutionDepthWise conv32           1 1 conv31_relu21 conv32 0=384 1=3 2=1 3=1 4=1 5=1 6=3456 7=384
+ReLU             relu22           1 1 conv32 conv32_relu22
+Convolution      conv33           1 1 conv32_relu22 conv33 0=96 1=1 2=1 3=1 4=0 5=1 6=36864
+Split            splitncnn_6      1 2 conv33 conv33_splitncnn_0 conv33_splitncnn_1
+Convolution      conv34           1 1 conv33_splitncnn_1 conv34 0=576 1=1 2=1 3=1 4=0 5=1 6=55296
+ReLU             relu23           1 1 conv34 conv34_relu23
+ConvolutionDepthWise conv35           1 1 conv34_relu23 conv35 0=576 1=3 2=1 3=1 4=1 5=1 6=5184 7=576
+ReLU             relu24           1 1 conv35 conv35_relu24
+Convolution      conv36           1 1 conv35_relu24 conv36 0=96 1=1 2=1 3=1 4=0 5=1 6=55296
+Eltwise          add7             2 1 conv33_splitncnn_0 conv36 add7 0=1 -23301=0
+Split            splitncnn_7      1 2 add7 add7_splitncnn_0 add7_splitncnn_1
+Convolution      conv37           1 1 add7_splitncnn_1 conv37 0=576 1=1 2=1 3=1 4=0 5=1 6=55296
+ReLU             relu25           1 1 conv37 conv37_relu25
+ConvolutionDepthWise conv38           1 1 conv37_relu25 conv38 0=576 1=3 2=1 3=1 4=1 5=1 6=5184 7=576
+ReLU             relu26           1 1 conv38 conv38_relu26
+Convolution      conv39           1 1 conv38_relu26 conv39 0=96 1=1 2=1 3=1 4=0 5=1 6=55296
+Eltwise          add8             2 1 add7_splitncnn_0 conv39 add8 0=1 -23301=0
+Convolution      conv40           1 1 add8 conv40 0=576 1=1 2=1 3=1 4=0 5=1 6=55296
+ReLU             relu27           1 1 conv40 conv40_relu27
+Split            splitncnn_8      1 2 conv40_relu27 conv40_relu27_splitncnn_0 conv40_relu27_splitncnn_1
+ConvolutionDepthWise conv41           1 1 conv40_relu27_splitncnn_1 conv41 0=576 1=3 2=1 3=2 4=1 5=1 6=5184 7=576
+ReLU             relu28           1 1 conv41 conv41_relu28
+Convolution      conv42           1 1 conv41_relu28 conv42 0=160 1=1 2=1 3=1 4=0 5=1 6=92160
+Split            splitncnn_9      1 2 conv42 conv42_splitncnn_0 conv42_splitncnn_1
+Convolution      conv43           1 1 conv42_splitncnn_1 conv43 0=960 1=1 2=1 3=1 4=0 5=1 6=153600
+ReLU             relu29           1 1 conv43 conv43_relu29
+ConvolutionDepthWise conv44           1 1 conv43_relu29 conv44 0=960 1=3 2=1 3=1 4=1 5=1 6=8640 7=960
+ReLU             relu30           1 1 conv44 conv44_relu30
+Convolution      conv45           1 1 conv44_relu30 conv45 0=160 1=1 2=1 3=1 4=0 5=1 6=153600
+Eltwise          add9             2 1 conv42_splitncnn_0 conv45 add9 0=1 -23301=0
+Split            splitncnn_10     1 2 add9 add9_splitncnn_0 add9_splitncnn_1
+Convolution      conv46           1 1 add9_splitncnn_1 conv46 0=960 1=1 2=1 3=1 4=0 5=1 6=153600
+ReLU             relu31           1 1 conv46 conv46_relu31
+ConvolutionDepthWise conv47           1 1 conv46_relu31 conv47 0=960 1=3 2=1 3=1 4=1 5=1 6=8640 7=960
+ReLU             relu32           1 1 conv47 conv47_relu32
+Convolution      conv48           1 1 conv47_relu32 conv48 0=160 1=1 2=1 3=1 4=0 5=1 6=153600
+Eltwise          add10            2 1 add9_splitncnn_0 conv48 add10 0=1 -23301=0
+Convolution      conv49           1 1 add10 conv49 0=960 1=1 2=1 3=1 4=0 5=1 6=153600
+ReLU             relu33           1 1 conv49 conv49_relu33
+ConvolutionDepthWise conv50           1 1 conv49_relu33 conv50 0=960 1=3 2=1 3=1 4=1 5=1 6=8640 7=960
+ReLU             relu34           1 1 conv50 conv50_relu34
+Convolution      conv51           1 1 conv50_relu34 conv51 0=320 1=1 2=1 3=1 4=0 5=1 6=307200
+Convolution      conv52           1 1 conv51 conv52 0=1280 1=1 2=1 3=1 4=0 5=1 6=409600
+ReLU             relu35           1 1 conv52 conv52_relu35
+ConvolutionDepthWise yolo/conv1/dw    1 1 conv52_relu35 yolo/conv1/dw 0=1280 1=3 2=1 3=1 4=1 5=1 6=11520 7=1280
+ReLU             yolo/conv1/dw/relu 1 1 yolo/conv1/dw yolo/conv1/dw_yolo/conv1/dw/relu
+Convolution      yolo/conv1       1 1 yolo/conv1/dw_yolo/conv1/dw/relu yolo/conv1 0=576 1=1 2=1 3=1 4=0 5=1 6=737280
+ReLU             yolo/conv1/relu  1 1 yolo/conv1 yolo/conv1_yolo/conv1/relu
+Split            splitncnn_11     1 2 yolo/conv1_yolo/conv1/relu yolo/conv1_yolo/conv1/relu_splitncnn_0 yolo/conv1_yolo/conv1/relu_splitncnn_1
+DeconvolutionDepthWise upsample         1 1 yolo/conv1_yolo/conv1/relu_splitncnn_1 upsample 0=576 1=1 2=1 3=2 4=0 5=0 6=576 7=576
+Pooling          maxpool          1 1 upsample maxpool 0=0 1=2 2=1 3=1 4=0
+ConvolutionDepthWise yolo/conv2/dw    1 1 conv40_relu27_splitncnn_0 yolo/conv2/dw 0=576 1=3 2=1 3=1 4=1 5=1 6=5184 7=576
+ReLU             yolo/conv2/dw/relu 1 1 yolo/conv2/dw yolo/conv2/dw_yolo/conv2/dw/relu
+Convolution      yolo/conv2       1 1 yolo/conv2/dw_yolo/conv2/dw/relu yolo/conv2 0=576 1=1 2=1 3=1 4=0 5=1 6=331776
+ReLU             yolo/conv2/relu  1 1 yolo/conv2 yolo/conv2_yolo/conv2/relu
+Eltwise          yolo/conv2/sum   2 1 maxpool yolo/conv2_yolo/conv2/relu yolo/conv2/sum 0=1 -23301=0
+ConvolutionDepthWise yolo/conv3/dw    1 1 yolo/conv2/sum yolo/conv3/dw 0=576 1=3 2=1 3=1 4=1 5=1 6=5184 7=576
+ReLU             yolo/conv3/dw/relu 1 1 yolo/conv3/dw yolo/conv3/dw_yolo/conv3/dw/relu
+Convolution      yolo/conv3       1 1 yolo/conv3/dw_yolo/conv3/dw/relu yolo/conv3 0=576 1=1 2=1 3=1 4=0 5=1 6=331776
+ReLU             yolo/conv3/relu  1 1 yolo/conv3 yolo/conv3_yolo/conv3/relu
+Convolution      yolo/conv4       1 1 yolo/conv1_yolo/conv1/relu_splitncnn_0 yolo/conv4 0=75 1=1 2=1 3=1 4=0 5=1 6=43200
+Convolution      yolo/conv5       1 1 yolo/conv3_yolo/conv3/relu yolo/conv5 0=75 1=1 2=1 3=1 4=0 5=1 6=43200
+Yolov3DetectionOutput detection_out    2 1 yolo/conv4 yolo/conv5 output 0=20 1=3 2=0.30000 3=0.450000 -23304=12,20.000000,37.000000,49.000000,94.000000,73.000000,201.000000,143.000000,265.000000,153.000000,121.000000,280.000000,279.000000 -23305=6,3.000000,4.000000,5.000000,0.000000,1.000000,2.000000 -23306=2,32.000000,16.000000 7=2
