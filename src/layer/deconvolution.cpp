@@ -200,7 +200,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
     if (pad_w > 0 || pad_h > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w, opt.blob_allocator, opt.num_threads);
+        copy_cut_border(top_blob_bordered, top_blob, pad_h, pad_h, pad_w, pad_w, opt);
         if (top_blob.empty())
             return -100;
 

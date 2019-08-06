@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,35 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_DECONVOLUTIONDEPTHWISE_ARM_H
-#define LAYER_DECONVOLUTIONDEPTHWISE_ARM_H
+#ifndef LAYER_CROP_ARM_H
+#define LAYER_CROP_ARM_H
 
-#include "deconvolutiondepthwise.h"
+#include "crop.h"
 
 namespace ncnn {
 
-class DeconvolutionDepthWise_arm : virtual public DeconvolutionDepthWise
+class Crop_arm : virtual public Crop
 {
 public:
-    DeconvolutionDepthWise_arm();
-
-    virtual int create_pipeline(const Option& opt);
-    virtual int destroy_pipeline(const Option& opt);
-
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-public:
-    Layer* activation;
-    std::vector<ncnn::Layer*> group_ops;
-
-    // packing
-    Mat weight_data_pack4;
-
-    Mat weight_data_pack4_groups;
-    Mat weight_data_pack1to4_groups;
-    Mat weight_data_pack4to1_groups;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_DECONVOLUTIONDEPTHWISE_ARM_H
+#endif // LAYER_CROP_ARM_H
