@@ -106,18 +106,17 @@ public:
     ~Thread() {}
     void join() { WaitForSingleObject(handle, INFINITE); CloseHandle(handle); }
 private:
-    friend static unsigned __stdcall start_wrapper(void* arg);
+    friend unsigned __stdcall start_wrapper(void* args)
+    {
+        Thread* t = (Thread*)args;
+        t->_start(t->_args);
+        return 0;
+    }
     HANDLE handle;
     void* (*_start)(void*);
     void* _args;
 };
 
-static unsigned __stdcall start_wrapper(void* args)
-{
-    Thread* t = (Thread*)args;
-    t->_start(t->_args);
-    return 0;
-}
 #else // _WIN32
 class Thread
 {
