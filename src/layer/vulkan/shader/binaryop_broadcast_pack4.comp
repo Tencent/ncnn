@@ -22,14 +22,12 @@
 #endif
 
 layout (constant_id = 0) const int op_type = 0;
-layout (constant_id = 1) const int with_scalar = 0;
-layout (constant_id = 2) const float const_b = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) buffer a_blob { sfpvec4 a_blob_data[]; };
+layout (binding = 0) readonly buffer a_blob { sfpvec4 a_blob_data[]; };
 layout (binding = 1) readonly buffer b_blob { sfpvec4 b_blob_data[]; };
 layout (binding = 2) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
@@ -65,42 +63,82 @@ void main()
 
     const int gi = gz * p.outcstep + gy * p.outw + gx;
 
-    afpvec4 v1 = sfp2afpvec4(a_blob_data[gi]);
+    int ai;
+    int bi;
+
+    if (p.adims == 3)
+    {
+        if (p.bdims == 3)
+        {
+            if (p.bw == 1 && p.bh == 1)
+            {
+                // special type 1
+                ai = gi;
+                bi = gz;
+            }
+        }
+
+        if (p.bdims == 2)
+        {
+            // type 18
+            ai = gi;
+            bi = gz * p.bw + gy;
+        }
+
+        if (p.bdims == 1)
+        {
+            // type 17
+            ai = gi;
+            bi = gz;
+        }
+    }
+    else if (p.adims == 2)
+    {
+        if (p.bdims == 3)
+        {
+            // type 14
+            ai = gz * p.aw + gy;
+            bi = gi;
+        }
+
+        if (p.bdims == 1)
+        {
+            // type 12
+            ai = gi;
+            bi = gy;
+        }
+    }
+    else if (p.adims == 1)
+    {
+        if (p.bdims == 3)
+        {
+            // type 9
+            ai = gz;
+            bi = gi;
+        }
+
+        if (p.bdims == 2)
+        {
+            // type 8
+            ai = gy;
+            bi = gi;
+        }
+    }
+
+    afpvec4 v1 = sfp2afpvec4(a_blob_data[ai]);
+    afpvec4 v2 = sfp2afpvec4(b_blob_data[bi]);
 
     afpvec4 res;
 
-    if (with_scalar == 1)
-    {
-        // type 5 10 15
-        afp b = afp(const_b);
+    if (op_type == 0) res = v1 + v2;
+    if (op_type == 1) res = v1 - v2;
+    if (op_type == 2) res = v1 * v2;
+    if (op_type == 3) res = v1 / v2;
+    if (op_type == 4) res = max(v1, v2);
+    if (op_type == 5) res = min(v1, v2);
+    if (op_type == 6) res = pow(v1, v2);
+    if (op_type == 7) res = v2 - v1;
+    if (op_type == 8) res = v2 / v1;
 
-        if (op_type == 0) res = v1 + b;
-        if (op_type == 1) res = v1 - b;
-        if (op_type == 2) res = v1 * b;
-        if (op_type == 3) res = v1 / b;
-        if (op_type == 4) res = max(v1, b);
-        if (op_type == 5) res = min(v1, b);
-        if (op_type == 6) res = pow(v1, afpvec4(b));
-        if (op_type == 7) res = b - v1;
-        if (op_type == 8) res = b / v1;
-
-        a_blob_data[gi] = afp2sfpvec4(res);
-    }
-    else
-    {
-        // type 7 13 19
-        afpvec4 v2 = sfp2afpvec4(b_blob_data[gi]);
-
-        if (op_type == 0) res = v1 + v2;
-        if (op_type == 1) res = v1 - v2;
-        if (op_type == 2) res = v1 * v2;
-        if (op_type == 3) res = v1 / v2;
-        if (op_type == 4) res = max(v1, v2);
-        if (op_type == 5) res = min(v1, v2);
-        if (op_type == 6) res = pow(v1, v2);
-        if (op_type == 7) res = v2 - v1;
-        if (op_type == 8) res = v2 / v1;
-
-        top_blob_data[gi] = afp2sfpvec4(res);
-    }
+    top_blob_data[gi] = afp2sfpvec4(res);
 }
