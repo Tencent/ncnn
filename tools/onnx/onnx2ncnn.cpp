@@ -314,7 +314,7 @@ int main(int argc, char** argv)
         else
         {
             bool isBinaryOp = false;
-            if (op == "Add" || op == "Mul")
+            if (op == "Add" || op == "Mul" || op == "Div")
             {
                 isBinaryOp = true;
             }
@@ -625,7 +625,7 @@ int main(int argc, char** argv)
 
         if (M.dims_size() == 0) {
             fprintf(pp, " 0=%d", get_tensor_proto_data_size(M));
-        } if (M.dims_size() == 1) {
+        } else if (M.dims_size() == 1) {
             fprintf(pp, " 0=%d", (int)M.dims(0));
         } else if (M.dims_size() == 2) {
             fprintf(pp, " 0=%d", (int)M.dims(1));
@@ -1091,7 +1091,9 @@ int main(int argc, char** argv)
             {
                 const onnx::TensorProto& M = binaryop_weights[name];
 
-                if (M.dims_size() == 1) {
+                if (M.dims_size() == 0) {
+                    fprintf(pp, " 0=%d", get_tensor_proto_data_size(M));
+                } else if (M.dims_size() == 1) {
                     fprintf(pp, " 0=%d", (int)M.dims(0));
                 } else if (M.dims_size() == 2) {
                     fprintf(pp, " 0=%d", (int)M.dims(1));
