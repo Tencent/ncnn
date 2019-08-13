@@ -42,6 +42,7 @@
 #include "layer/interp.h"
 #include "layer/log.h"
 #include "layer/lrn.h"
+#include "layer/memorydata.h"
 #include "layer/mvn.h"
 #include "layer/normalize.h"
 #include "layer/padding.h"
@@ -1860,6 +1861,15 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%f", alpha)
             fprintf_param_value(" 3=%f", beta)
             fprintf_param_value(" 4=%f", bias)
+        }
+        else if (layer->type == "MemoryData")
+        {
+            ncnn::MemoryData* op = (ncnn::MemoryData*)layer;
+            ncnn::MemoryData* op_default = (ncnn::MemoryData*)layer_default;
+
+            fprintf_param_value(" 0=%d", w)
+            fprintf_param_value(" 1=%d", h)
+            fprintf_param_value(" 2=%d", c)
         }
         else if (layer->type == "MVN")
         {
