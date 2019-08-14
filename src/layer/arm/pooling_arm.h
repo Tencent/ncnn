@@ -22,6 +22,8 @@ namespace ncnn {
 class Pooling_arm : virtual public Pooling
 {
 public:
+    Pooling_arm();
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 

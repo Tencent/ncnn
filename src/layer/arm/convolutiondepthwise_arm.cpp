@@ -32,6 +32,10 @@ DEFINE_LAYER_CREATOR(ConvolutionDepthWise_arm)
 
 ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
 {
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+
     activation = 0;
 }
 
@@ -81,6 +85,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -273,6 +278,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     for (int i=0; i<(int)group_ops.size(); i++)
         delete group_ops[i];
@@ -462,6 +468,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     int out_elempack = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -861,6 +868,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     return 0;
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     // int8 
     if (use_int8_inference)

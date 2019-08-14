@@ -22,11 +22,16 @@ DEFINE_LAYER_CREATOR(Concat_arm)
 
 Concat_arm::Concat_arm()
 {
+#if __ARM_NEON
+    support_packing = true;
+
     packing_pack4 = 0;
+#endif // __ARM_NEON
 }
 
 int Concat_arm::create_pipeline(const Option& opt)
 {
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -45,12 +50,14 @@ int Concat_arm::create_pipeline(const Option& opt)
     }
 
     }
+#endif // __ARM_NEON
 
     return 0;
 }
 
 int Concat_arm::destroy_pipeline(const Option& opt)
 {
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -60,11 +67,13 @@ int Concat_arm::destroy_pipeline(const Option& opt)
     if (packing_pack4)
     {
         packing_pack4->destroy_pipeline(opt_cpu);
+
         delete packing_pack4;
         packing_pack4 = 0;
     }
 
     }
+#endif // __ARM_NEON
 
     return 0;
 }
@@ -73,6 +82,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 {
     int dims = bottom_blobs[0].dims;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -403,6 +413,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     return Concat::forward(bottom_blobs, top_blobs, opt);
 }

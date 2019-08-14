@@ -22,11 +22,19 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(PReLU_arm)
 
+PReLU_arm::PReLU_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -127,6 +135,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     if (dims != 3)
         return PReLU::forward_inplace(bottom_top_blob, opt);

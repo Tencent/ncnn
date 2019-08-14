@@ -23,6 +23,14 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Crop_arm)
 
+Crop_arm::Crop_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
+#if __ARM_NEON
 static void crop_pack4_neon(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
@@ -45,6 +53,7 @@ static void crop_pack4_neon(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 4;
     }
 }
+#endif // __ARM_NEON
 
 int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -55,6 +64,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -235,6 +245,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     return Crop::forward(bottom_blob, top_blob, opt);
 }
@@ -253,6 +264,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     Mat& top_blob = top_blobs[0];
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -473,6 +485,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     return Crop::forward(bottom_blobs, top_blobs, opt);
 }

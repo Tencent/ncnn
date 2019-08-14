@@ -26,6 +26,10 @@ DEFINE_LAYER_CREATOR(DeconvolutionDepthWise_arm)
 
 DeconvolutionDepthWise_arm::DeconvolutionDepthWise_arm()
 {
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+
     activation = 0;
 }
 
@@ -75,6 +79,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -284,6 +289,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     for (int i=0; i<(int)group_ops.size(); i++)
         delete group_ops[i];
@@ -386,6 +392,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
     int out_elempack = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -898,6 +905,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
     return 0;
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     Mat top_blob_bordered;
     if (pad_w > 0 || pad_h > 0)

@@ -25,6 +25,14 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(UnaryOp_arm)
 
+UnaryOp_arm::UnaryOp_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
+#if __ARM_NEON
 template<typename Op>
 static int unary_op_inplace(Mat& a, const Option& opt)
 {
@@ -168,11 +176,13 @@ template<typename T>
 struct unary_op_tanh : std::unary_function<T,T> {
     T operator() (const T& x) const { return tanh_ps(x); }
 };
+#endif // __ARM_NEON
 
 int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elempack = bottom_top_blob.elempack;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -233,6 +243,7 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     return 0;
 }

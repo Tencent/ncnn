@@ -29,6 +29,10 @@ DEFINE_LAYER_CREATOR(Deconvolution_arm)
 
 Deconvolution_arm::Deconvolution_arm()
 {
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+
     activation = 0;
 }
 
@@ -76,6 +80,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -249,6 +254,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     return 0;
 }
@@ -272,6 +278,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     // deconvolv with NxN kernel
     // value = value + bias
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -639,6 +646,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     return 0;
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     if (kernel_w != kernel_h || stride_w != stride_h)
     {

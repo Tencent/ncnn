@@ -22,6 +22,13 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Eltwise_arm)
 
+Eltwise_arm::Eltwise_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
@@ -37,6 +44,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     if (top_blob.empty())
         return -100;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -238,6 +246,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     if (op_type == Operation_PROD)
     {

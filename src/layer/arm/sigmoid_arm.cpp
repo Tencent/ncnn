@@ -41,6 +41,9 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -66,6 +69,8 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         return 0;
     }
+
+    } // opt.use_packing_layout
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
