@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <cstdint>
 
 #ifdef _OPENMP
 #include <omp.h>
