@@ -22,6 +22,8 @@ namespace ncnn {
 class TanH_arm : virtual public TanH
 {
 public:
+    TanH_arm();
+
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 

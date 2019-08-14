@@ -41,6 +41,10 @@ DEFINE_LAYER_CREATOR(Convolution_arm)
 
 Convolution_arm::Convolution_arm()
 {
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+
     activation = 0;
 }
 
@@ -88,6 +92,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -244,6 +249,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     use_winograd3x3 = false;
     use_sgemm1x1 = false;
@@ -469,6 +475,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     // convolv with NxN kernel
     // value = value + bias
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -794,6 +801,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
 
     } // opt.use_packed_layout
+#endif // __ARM_NEON
 
     if (bottom_blob.dims != 3)
     {

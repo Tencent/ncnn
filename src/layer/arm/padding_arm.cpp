@@ -165,6 +165,9 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+
     if (elempack == 4)
     {
         int outw = w + left + right;
@@ -222,6 +225,8 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         return 0;
     }
+
+    } // opt.use_packing_layout
 #endif // __ARM_NEON
 
     return Padding::forward(bottom_blob, top_blob, opt);

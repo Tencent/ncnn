@@ -23,10 +23,18 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(InnerProduct_arm)
 
+InnerProduct_arm::InnerProduct_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
     int num_input = weight_data_size / num_output;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -144,6 +152,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     return 0;
 }
@@ -163,6 +172,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int elempack = bottom_blob.elempack;
     int size = w * h;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -383,6 +393,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())

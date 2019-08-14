@@ -22,6 +22,8 @@ namespace ncnn {
 class BinaryOp_arm : virtual public BinaryOp
 {
 public:
+    BinaryOp_arm();
+
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;

@@ -22,6 +22,13 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Flatten_arm)
 
+Flatten_arm::Flatten_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int dims = bottom_blob.dims;
@@ -32,6 +39,7 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return 0;
     }
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -169,6 +177,7 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     return Flatten::forward(bottom_blob, top_blob, opt);
 }

@@ -26,6 +26,13 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Pooling_arm)
 
+Pooling_arm::Pooling_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // max value in NxN window
@@ -37,6 +44,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -312,6 +320,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
