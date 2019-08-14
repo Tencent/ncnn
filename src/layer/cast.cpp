@@ -22,6 +22,7 @@ Cast::Cast()
 {
     one_blob_only = true;
     support_inplace = false;
+    support_packing = true;
 }
 
 int Cast::load_param(const ParamDict& pd)
