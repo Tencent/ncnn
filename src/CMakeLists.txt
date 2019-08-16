@@ -273,8 +273,6 @@ configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shad
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
-target_compile_features(ncnn PUBLIC cxx_std_11)
-
 target_include_directories(ncnn
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
