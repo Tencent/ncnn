@@ -1870,6 +1870,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", w)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 2=%d", c)
+            fwrite_weight_data(op->data, bp);
         }
         else if (layer->type == "MVN")
         {
