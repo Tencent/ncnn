@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -688,7 +689,7 @@ int Net::load_model(const char* modelpath)
 
 int Net::load_param(const unsigned char* _mem)
 {
-    if ((unsigned long)_mem & 0x3)
+    if ((uintptr_t)_mem & 0x3)
     {
         // reject unaligned memory
         fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
@@ -822,7 +823,7 @@ int Net::load_model(const unsigned char* _mem)
         return -1;
     }
 
-    if ((unsigned long)_mem & 0x3)
+    if ((uintptr_t)_mem & 0x3)
     {
         // reject unaligned memory
         fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
