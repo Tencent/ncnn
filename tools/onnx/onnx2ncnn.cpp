@@ -472,6 +472,59 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
             i += 3;
         }
     }
+
+    for (int i=0; i<node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // HardSwish <= HardSigmoid - Mul
+        //     out = x * hsigmoid(x)
+        if (node->op_type() == "HardSigmoid")
+        {
+            if (node_reference.find(node->output(0)) == node_reference.end() || node_reference[node->output(0)] != 1)
+                continue;
+
+            float alpha = get_node_attr_f(*node, "alpha", 0.2f);
+            float beta = get_node_attr_f(*node, "beta", 0.5f);
+
+            if (i+1 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
+
+            if (node2->op_type() != "Mul")
+                continue;
+
+            if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->input(0) || node2->input(1) != node->output(0))
+                continue;
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+
+            node_reference[node->input(0)] -= 1;
+
+            node_reference.erase(node_reference.find(node->output(0)));
+            blob_names.erase(node->output(0));
+
+            node2->set_op_type("HardSwish");
+            node2->clear_input();
+            node2->add_input(node->input(0));
+
+            onnx::AttributeProto* attr_alpha = node2->add_attribute();
+            attr_alpha->set_name("alpha");
+            attr_alpha->set_f(alpha);
+
+            onnx::AttributeProto* attr_beta = node2->add_attribute();
+            attr_beta->set_name("beta");
+            attr_beta->set_f(beta);
+
+            reduced_node_count += 1;
+            i += 1;
+        }
+    }
 }
 
 static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, onnx::TensorProto>& binaryop_weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count, std::vector<std::string>& reduced_binaryop_weights)
@@ -747,8 +800,8 @@ int main(int argc, char** argv)
     std::vector<std::string> reduced_binaryop_weights;
     fuse_matmul         (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
     fuse_shufflechannel (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
-    fuse_hardswish      (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
     fuse_hardsigmoid    (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
+    fuse_hardswish      (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
 
     // remove node_reference entry with reference equals to one
     int splitncnn_blob_count = 0;
