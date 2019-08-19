@@ -255,62 +255,65 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     outptr += outw * 4;
                 }
 
-                // fix pad
-                if (pad_top != 0)
+                if (avgpool_count_include_pad == 0)
                 {
-                    const float scale = (float)kernel_h / (kernel_h - pad_top);
-                    float32x4_t _scale = vdupq_n_f32(scale);
-
-                    outptr = top_blob.channel(q).row(0);
-                    for (int i = 0; i < outw; i++)
+                    // fix pad
+                    if (pad_top != 0)
                     {
-                        float32x4_t _v = vld1q_f32(outptr);
-                        _v = vmulq_f32(_v, _scale);
-                        vst1q_f32(outptr, _v);
-                        outptr += 4;
+                        const float scale = (float)kernel_h / (kernel_h - pad_top);
+                        float32x4_t _scale = vdupq_n_f32(scale);
+
+                        outptr = top_blob.channel(q).row(0);
+                        for (int i = 0; i < outw; i++)
+                        {
+                            float32x4_t _v = vld1q_f32(outptr);
+                            _v = vmulq_f32(_v, _scale);
+                            vst1q_f32(outptr, _v);
+                            outptr += 4;
+                        }
                     }
-                }
-                if (pad_bottom + htailpad != 0)
-                {
-                    const float scale = (float)kernel_h / (kernel_h - pad_bottom - htailpad);
-                    float32x4_t _scale = vdupq_n_f32(scale);
-
-                    outptr = top_blob.channel(q).row(outh - 1);
-                    for (int i = 0; i < outw; i++)
+                    if (pad_bottom + htailpad != 0)
                     {
-                        float32x4_t _v = vld1q_f32(outptr);
-                        _v = vmulq_f32(_v, _scale);
-                        vst1q_f32(outptr, _v);
-                        outptr += 4;
+                        const float scale = (float)kernel_h / (kernel_h - pad_bottom - htailpad);
+                        float32x4_t _scale = vdupq_n_f32(scale);
+
+                        outptr = top_blob.channel(q).row(outh - 1);
+                        for (int i = 0; i < outw; i++)
+                        {
+                            float32x4_t _v = vld1q_f32(outptr);
+                            _v = vmulq_f32(_v, _scale);
+                            vst1q_f32(outptr, _v);
+                            outptr += 4;
+                        }
                     }
-                }
-                if (pad_left != 0)
-                {
-                    const float scale = (float)kernel_w / (kernel_w - pad_left);
-                    float32x4_t _scale = vdupq_n_f32(scale);
-
-                    outptr = top_blob.channel(q);
-                    for (int i = 0; i < outh; i++)
+                    if (pad_left != 0)
                     {
-                        float32x4_t _v = vld1q_f32(outptr);
-                        _v = vmulq_f32(_v, _scale);
-                        vst1q_f32(outptr, _v);
-                        outptr += outw * 4;
+                        const float scale = (float)kernel_w / (kernel_w - pad_left);
+                        float32x4_t _scale = vdupq_n_f32(scale);
+
+                        outptr = top_blob.channel(q);
+                        for (int i = 0; i < outh; i++)
+                        {
+                            float32x4_t _v = vld1q_f32(outptr);
+                            _v = vmulq_f32(_v, _scale);
+                            vst1q_f32(outptr, _v);
+                            outptr += outw * 4;
+                        }
                     }
-                }
-                if (pad_right + wtailpad != 0)
-                {
-                    const float scale = (float)kernel_w / (kernel_w - pad_right - wtailpad);
-                    float32x4_t _scale = vdupq_n_f32(scale);
-
-                    outptr = top_blob.channel(q);
-                    outptr += (outw - 1) * 4;
-                    for (int i = 0; i < outh; i++)
+                    if (pad_right + wtailpad != 0)
                     {
-                        float32x4_t _v = vld1q_f32(outptr);
-                        _v = vmulq_f32(_v, _scale);
-                        vst1q_f32(outptr, _v);
-                        outptr += outw * 4;
+                        const float scale = (float)kernel_w / (kernel_w - pad_right - wtailpad);
+                        float32x4_t _scale = vdupq_n_f32(scale);
+
+                        outptr = top_blob.channel(q);
+                        outptr += (outw - 1) * 4;
+                        for (int i = 0; i < outh; i++)
+                        {
+                            float32x4_t _v = vld1q_f32(outptr);
+                            _v = vmulq_f32(_v, _scale);
+                            vst1q_f32(outptr, _v);
+                            outptr += outw * 4;
+                        }
                     }
                 }
             }
