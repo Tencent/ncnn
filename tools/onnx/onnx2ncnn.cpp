@@ -460,6 +460,14 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
             node4->clear_input();
             node4->add_input(node->input(0));
 
+            onnx::AttributeProto* attr_alpha = node4->add_attribute();
+            attr_alpha->set_name("alpha");
+            attr_alpha->set_f(1.f/6.f);
+
+            onnx::AttributeProto* attr_beta = node4->add_attribute();
+            attr_beta->set_name("beta");
+            attr_beta->set_f(3.f/6.f);
+
             reduced_node_count += 3;
             i += 3;
         }
@@ -1593,6 +1601,11 @@ int main(int argc, char** argv)
         }
         else if (op == "HardSwish")
         {
+            float alpha = get_node_attr_f(node, "alpha", 0.2f);
+            float beta = get_node_attr_f(node, "beta", 0.5f);
+
+            fprintf(pp, " 0=%f", alpha);
+            fprintf(pp, " 1=%f", beta);
         }
         else if (op == "ImageScaler")
         {
