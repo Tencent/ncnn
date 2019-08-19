@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include <algorithm>
 #include <set>
 #include <vector>
 
@@ -36,6 +37,8 @@
 #include "layer/elu.h"
 #include "layer/exp.h"
 #include "layer/flatten.h"
+#include "layer/hardsigmoid.h"
+#include "layer/hardswish.h"
 #include "layer/innerproduct.h"
 #include "layer/input.h"
 #include "layer/instancenorm.h"
@@ -84,8 +87,57 @@
 
 #endif // defined(__aarch64__) && defined(LINUX)
 
+// always return empty weights
+class ModelBinFromEmpty : public ncnn::ModelBin
+{
+public:
+    virtual ncnn::Mat load(int w, int /*type*/) const { return ncnn::Mat(w); }
+};
+
 class NetOptimize : public ncnn::Net
 {
+public:
+    int load_model()
+    {
+        // load file
+        int ret = 0;
+
+        ModelBinFromEmpty mb;
+        for (size_t i=0; i<layers.size(); i++)
+        {
+            ncnn::Layer* layer = layers[i];
+
+            int lret = layer->load_model(mb);
+            if (lret != 0)
+            {
+                fprintf(stderr, "layer load_model %d failed\n", (int)i);
+                ret = -1;
+                break;
+            }
+
+            int cret = layer->create_pipeline(opt);
+            if (cret != 0)
+            {
+                fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
+                ret = -1;
+                break;
+            }
+        }
+
+#if NCNN_VULKAN
+        if (opt.use_vulkan_compute)
+        {
+            upload_model();
+
+            create_pipeline();
+        }
+#endif // NCNN_VULKAN
+
+        fuse_network();
+
+        return ret;
+    }
+
 public:
     // 0=fp32 1=fp16
     int storage_type;
@@ -106,7 +158,9 @@ public:
 
     int eliminate_dropout();
     int eliminate_flatten_after_global_pooling();
+    int eliminate_reshape_after_global_pooling();
     int eliminate_flatten_after_innerproduct();
+    int eliminate_reshape_before_binaryop();
 
     int replace_convolution_with_innerproduct_after_global_pooling();
     int replace_convolution_with_innerproduct_after_innerproduct();
@@ -1241,6 +1295,52 @@ int NetOptimize::eliminate_dropout()
     return 0;
 }
 
+int NetOptimize::eliminate_reshape_after_global_pooling()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "Pooling")
+            continue;
+
+        ncnn::Pooling* pooling = (ncnn::Pooling*)layers[i];
+        if (pooling->global_pooling == 0)
+            continue;
+
+        // Pooling - Reshape
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "Reshape")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        ncnn::Reshape* reshape = (ncnn::Reshape*)layers[j];
+        if (reshape->h != -233 || reshape->c != -233 || reshape->permute != 0)
+            continue;
+
+        fprintf(stderr, "eliminate_reshape_after_global_pooling %s %s\n", pooling->name.c_str(), reshape->name.c_str());
+
+        int top_blob_index_final = reshape->tops[0];
+        pooling->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        reshape->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
 int NetOptimize::eliminate_flatten_after_global_pooling()
 {
     const int layer_count = layers.size();
@@ -1321,6 +1421,54 @@ int NetOptimize::eliminate_flatten_after_innerproduct()
         innerproduct->tops[0] = top_blob_index_final;
         blobs[top_blob_index_final].producer = i;
         flatten->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::eliminate_reshape_before_binaryop()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "Reshape")
+            continue;
+
+        ncnn::Reshape* reshape = (ncnn::Reshape*)layers[i];
+        if (reshape->w != 1 || reshape->h != 1 || reshape->permute != 0)
+            continue;
+
+        // Reshape - BinaryOp
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "BinaryOp")
+                continue;
+
+            if (layers[j]->bottoms.size() != 2)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index || layers[j]->bottoms[1] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j];
+
+        fprintf(stderr, "eliminate_reshape_before_binaryop %s %s\n", reshape->name.c_str(), binaryop->name.c_str());
+
+        int bottom_blob_index_final = reshape->bottoms[0];
+        if (layers[j]->bottoms[0] == top_blob_index)
+            binaryop->bottoms[0] = bottom_blob_index_final;
+        if (layers[j]->bottoms[1] == top_blob_index)
+            binaryop->bottoms[1] = bottom_blob_index_final;
+        blobs[bottom_blob_index_final].consumers.erase(std::find(blobs[bottom_blob_index_final].consumers.begin(), blobs[bottom_blob_index_final].consumers.end(), i));
+        blobs[bottom_blob_index_final].consumers.push_back(j);
+        reshape->type = "ncnnfused";
     }
 
     return 0;
@@ -1799,6 +1947,22 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%f", scale)
             fprintf_param_value(" 2=%f", shift)
         }
+        else if (layer->type == "HardSigmoid")
+        {
+            ncnn::HardSigmoid* op = (ncnn::HardSigmoid*)layer;
+            ncnn::HardSigmoid* op_default = (ncnn::HardSigmoid*)layer_default;
+
+            fprintf_param_value(" 0=%f", alpha)
+            fprintf_param_value(" 1=%f", beta)
+        }
+        else if (layer->type == "HardSwish")
+        {
+            ncnn::HardSwish* op = (ncnn::HardSwish*)layer;
+            ncnn::HardSwish* op_default = (ncnn::HardSwish*)layer_default;
+
+            fprintf_param_value(" 0=%f", alpha)
+            fprintf_param_value(" 1=%f", beta)
+        }
         else if (layer->type == "InnerProduct")
         {
             ncnn::InnerProduct* op = (ncnn::InnerProduct*)layer;
@@ -2189,7 +2353,10 @@ int main(int argc, char** argv)
     }
 
     optimizer.load_param(inparam);
-    optimizer.load_model(inbin);
+    if (strcmp(inbin, "null") == 0)
+        optimizer.load_model();
+    else
+        optimizer.ncnn::Net::load_model(inbin);
 
 #if defined(__aarch64__) && defined(LINUX)
     optimizer.find_fastest_fp32_conv(dataname, inw, inh, inc);
@@ -2209,6 +2376,8 @@ int main(int argc, char** argv)
 
     optimizer.eliminate_dropout();
     optimizer.eliminate_flatten_after_global_pooling();
+    optimizer.eliminate_reshape_after_global_pooling();
+    optimizer.eliminate_reshape_before_binaryop();
 
     optimizer.replace_convolution_with_innerproduct_after_global_pooling();
     optimizer.replace_convolution_with_innerproduct_after_innerproduct();
