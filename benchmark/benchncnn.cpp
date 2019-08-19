@@ -279,6 +279,8 @@ int main(int argc, char** argv)
 // #endif // NCNN_VULKAN
 //     benchmark("mobilenet_v2_int8", ncnn::Mat(224, 224, 3));
 
+    benchmark("mobilenet_v3", ncnn::Mat(224, 224, 3));
+
     benchmark("shufflenet", ncnn::Mat(224, 224, 3));
 
     benchmark("mnasnet", ncnn::Mat(224, 224, 3));
