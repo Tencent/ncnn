@@ -2144,6 +2144,12 @@ int main(int argc, char** argv)
                 fprintf(pp, " 3=%d", pad[0]);
             fprintf(pp, " 4=%d", global_pool);
             fprintf(pp, " 5=%d", pad_mode);
+
+            if (pool_type == "avg")
+            {
+                int avgpool_count_include_pad = n.has_attr("count_include_pad") ? n.attr("count_include_pad") : 0;
+                fprintf(pp, " 6=%d", avgpool_count_include_pad);
+            }
         }
         else if (n.op == "prod")
         {

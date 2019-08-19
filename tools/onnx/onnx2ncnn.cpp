@@ -1039,6 +1039,12 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, " 5=%d", pad_mode);
+
+            if (op == "AveragePool")
+            {
+                int avgpool_count_include_pad = get_node_attr_i(node, "count_include_pad", 0);
+                fprintf(pp, " 6=%d", avgpool_count_include_pad);
+            }
         }
         else if (op == "BatchNormalization")
         {
