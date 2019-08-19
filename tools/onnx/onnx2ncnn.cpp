@@ -403,7 +403,7 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
             if (add_three.dims_size() != 0 || get_tensor_proto_data_size(add_three) != 1)
                 continue;
 
-            float constant_add_three = add_three.has_raw_data() ? ((const float*)add_three.raw_data().data())[0] : add_three.float_data()[0];
+            float constant_add_three = add_three.has_raw_data() ? ((const float*)add_three.raw_data().data())[0] : add_three.float_data().data()[0];
             if (constant_add_three != 3.f)
                 continue;
 
@@ -435,7 +435,7 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
             if (div_six.dims_size() != 0 || get_tensor_proto_data_size(div_six) != 1)
                 continue;
 
-            float constant_div_six = div_six.has_raw_data() ? ((const float*)div_six.raw_data().data())[0] : div_six.float_data()[0];
+            float constant_div_six = div_six.has_raw_data() ? ((const float*)div_six.raw_data().data())[0] : div_six.float_data().data()[0];
             if (constant_div_six != 6.f)
                 continue;
 
@@ -490,7 +490,7 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
             if (add_three.dims_size() != 0 || get_tensor_proto_data_size(add_three) != 1)
                 continue;
 
-            float constant_add_three = add_three.has_raw_data() ? ((const float*)add_three.raw_data().data())[0] : add_three.float_data()[0];
+            float constant_add_three = add_three.has_raw_data() ? ((const float*)add_three.raw_data().data())[0] : add_three.float_data().data()[0];
             if (constant_add_three != 3.f)
                 continue;
 
@@ -515,7 +515,7 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
             if (div_six.dims_size() != 0 || get_tensor_proto_data_size(div_six) != 1)
                 continue;
 
-            float constant_div_six = div_six.has_raw_data() ? ((const float*)div_six.raw_data().data())[0] : div_six.float_data()[0];
+            float constant_div_six = div_six.has_raw_data() ? ((const float*)div_six.raw_data().data())[0] : div_six.float_data().data()[0];
             if (constant_div_six != 6.f)
                 continue;
 
