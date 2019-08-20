@@ -1265,10 +1265,13 @@ int main(int argc, char** argv)
             int pool = op == "AveragePool" ? 1 : 0;
             int pad_mode = 1;
 
-            if (auto_pad == "SAME_LOWER" || auto_pad == "SAME_UPPER")
+            if (auto_pad == "SAME_UPPER")
             {
-                // TODO
                 pad_mode = 2;
+            }
+            else if (auto_pad == "SAME_LOWER")
+            {
+                pad_mode = 3;
             }
 
             fprintf(pp, " 0=%d", pool);
@@ -1413,10 +1416,13 @@ int main(int argc, char** argv)
                 fprintf(pp, " 13=%d", strides[0]);
             }
 
-            if (auto_pad == "SAME_LOWER" || auto_pad == "SAME_UPPER")
+            if (auto_pad == "SAME_UPPER")
             {
-                // TODO
                 fprintf(pp, " 4=-233");
+            }
+            else if (auto_pad == "SAME_LOWER")
+            {
+                fprintf(pp, " 4=-234");
             }
             else
             {
@@ -1493,10 +1499,13 @@ int main(int argc, char** argv)
                 fprintf(pp, " 13=%d", strides[0]);
             }
 
-            if (auto_pad == "SAME_LOWER" || auto_pad == "SAME_UPPER")
+            if (auto_pad == "SAME_UPPER")
             {
-                // TODO
                 fprintf(pp, " 4=-233");
+            }
+            else if (auto_pad == "SAME_LOWER")
+            {
+                fprintf(pp, " 4=-234");
             }
             else
             {
