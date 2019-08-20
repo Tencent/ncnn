@@ -174,6 +174,22 @@ int Convolution_x86::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
+    else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
+    {
+        int wpad = kernel_extent + (w - 1) / stride * stride - w;
+        int hpad = kernel_extent + (h - 1) / stride * stride - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, 0.f, opt_b);
+            if (bottom_blob_bordered.empty())
+                return -100;
+        }
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
 
     int outw = (w - kernel_extent) / stride + 1;
     int outh = (h - kernel_extent) / stride + 1;
@@ -496,6 +512,22 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt_b);
+            if (bottom_blob_bordered.empty())
+                return -100;
+        }
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+    else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
+    {
+        int wpad = kernel_size + (w - 1) / stride * stride - w;
+        int hpad = kernel_size + (h - 1) / stride * stride - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, 0.f, opt_b);
             if (bottom_blob_bordered.empty())
                 return -100;
         }

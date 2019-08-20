@@ -902,6 +902,36 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
+    else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
+    {
+        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            ncnn::Option opt_pad = opt;
+            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+
+            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
+            padding_param_blob.prepare_staging_buffer();
+            int* padding_params = padding_param_blob.mapped();
+
+            padding_params[0] = hpad - hpad / 2;
+            padding_params[1] = hpad / 2;
+            padding_params[2] = wpad - wpad / 2;
+            padding_params[3] = wpad / 2;
+
+            std::vector<VkMat> padding_inputs(2);
+            padding_inputs[0] = bottom_blob;
+            padding_inputs[1] = padding_param_blob;
+
+            std::vector<VkMat> padding_outputs(1);
+            padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
+            bottom_blob_bordered = padding_outputs[0];
+        }
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
