@@ -44,8 +44,8 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         crop->vkdev = vkdev;
 
         ncnn::ParamDict pd;
-        pd.set(0, pad_w);
-        pd.set(1, pad_h);
+        pd.set(0, pad_left);
+        pd.set(1, pad_top);
         pd.set(2, 0);
 
         crop->load_param(pd);
@@ -495,7 +495,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     }
 
     VkMat top_blob_bordered;
-    if (pad_w > 0 || pad_h > 0)
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
         if (top_blob_bordered.empty())
@@ -534,12 +534,12 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         // record
         cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
 
-        if (pad_w > 0 || pad_h > 0)
+        if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
         {
             VkMat reference_blob;
             reference_blob.dims = 2;
-            reference_blob.w = top_blob_bordered.w - pad_w - pad_w;
-            reference_blob.h = top_blob_bordered.h - pad_h - pad_h;
+            reference_blob.w = top_blob_bordered.w - pad_left - pad_right;
+            reference_blob.h = top_blob_bordered.h - pad_top - pad_bottom;
 
             std::vector<VkMat> crop_bottom_blobs(2);
             crop_bottom_blobs[0] = top_blob_bordered;
@@ -646,12 +646,12 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         top_blob_bordered = top_blob_unpacked;
     }
 
-    if (pad_w > 0 || pad_h > 0)
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
         VkMat reference_blob;
         reference_blob.dims = 2;
-        reference_blob.w = top_blob_bordered.w - pad_w - pad_w;
-        reference_blob.h = top_blob_bordered.h - pad_h - pad_h;
+        reference_blob.w = top_blob_bordered.w - pad_left - pad_right;
+        reference_blob.h = top_blob_bordered.h - pad_top - pad_bottom;
 
         std::vector<VkMat> crop_bottom_blobs(2);
         crop_bottom_blobs[0] = top_blob_bordered;

@@ -1808,14 +1808,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
             fprintf_param_value(" 3=%d", stride_w)
             { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
-            fprintf_param_value(" 4=%d", pad_w)
-            { if (op->pad_h != op->pad_w) fprintf(pp, " 14=%d", op->pad_h); }
+            fprintf_param_value(" 4=%d", pad_left)
+            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
+            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
+            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
             fprintf_param_value(" 9=%d", activation_type)
             { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
-            fprintf_param_value(" 15=%d", impl_type)
+            fprintf_param_value(" 17=%d", impl_type)
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -1832,8 +1834,10 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
             fprintf_param_value(" 3=%d", stride_w)
             { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
-            fprintf_param_value(" 4=%d", pad_w)
-            { if (op->pad_h != op->pad_w) fprintf(pp, " 14=%d", op->pad_h); }
+            fprintf_param_value(" 4=%d", pad_left)
+            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
+            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
+            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
@@ -1868,8 +1872,10 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
             fprintf_param_value(" 3=%d", stride_w)
             { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
-            fprintf_param_value(" 4=%d", pad_w)
-            { if (op->pad_h != op->pad_w) fprintf(pp, " 14=%d", op->pad_h); }
+            fprintf_param_value(" 4=%d", pad_left)
+            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
+            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
+            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 9=%d", activation_type)
@@ -1890,8 +1896,10 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
             fprintf_param_value(" 3=%d", stride_w)
             { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
-            fprintf_param_value(" 4=%d", pad_w)
-            { if (op->pad_h != op->pad_w) fprintf(pp, " 14=%d", op->pad_h); }
+            fprintf_param_value(" 4=%d", pad_left)
+            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
+            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
+            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
