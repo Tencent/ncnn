@@ -1429,7 +1429,8 @@ int main(int argc, char** argv)
             } else if (pads.size() == 4) {
                 fprintf(pp, " 4=%d", pads[1]);
                 fprintf(pp, " 14=%d", pads[0]);
-                // TODO hpad2=pads[2]   wpad2=pads[3]
+                fprintf(pp, " 15=%d", pads[3]);
+                fprintf(pp, " 16=%d", pads[2]);
             }
 
             }
@@ -1508,7 +1509,8 @@ int main(int argc, char** argv)
             } else if (pads.size() == 4) {
                 fprintf(pp, " 4=%d", pads[1]);
                 fprintf(pp, " 14=%d", pads[0]);
-                // TODO hpad2=pads[2]   wpad2=pads[3]
+                fprintf(pp, " 15=%d", pads[3]);
+                fprintf(pp, " 16=%d", pads[2]);
             }
 
             }
