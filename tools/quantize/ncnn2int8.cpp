@@ -195,7 +195,7 @@ int NetQuantize::quantize_convolution()
 
         // find convolution layer
         std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
-        if (iter_data == weight_int8scale_table.end())
+        if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
@@ -261,7 +261,7 @@ int NetQuantize::quantize_convolutiondepthwise()
 
         // find convolutiondepthwise layer
         std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
-        if (iter_data == weight_int8scale_table.end())
+        if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
@@ -327,7 +327,7 @@ int NetQuantize::quantize_innerproduct()
 
         // find InnerProduct layer
         std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
-        if (iter_data == weight_int8scale_table.end())
+        if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
