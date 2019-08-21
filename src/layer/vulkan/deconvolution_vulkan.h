@@ -36,6 +36,8 @@ public:
     VkMat bias_data_gpu;
 
     ncnn::Layer* crop;
+    ncnn::Layer* output_pad;
+    ncnn::Layer* output_crop;
 
     Pipeline* pipeline_deconvolution;
 
