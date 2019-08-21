@@ -22,6 +22,8 @@ namespace ncnn {
 class Dropout_arm : virtual public Dropout
 {
 public:
+    Dropout_arm();
+
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 

@@ -12,21 +12,26 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_SOFTMAX_ARM_H
-#define LAYER_SOFTMAX_ARM_H
+#ifndef LAYER_HARDSWISH_H
+#define LAYER_HARDSWISH_H
 
-#include "softmax.h"
+#include "layer.h"
 
 namespace ncnn {
 
-class Softmax_arm : virtual public Softmax
+class HardSwish : public Layer
 {
 public:
-    Softmax_arm();
+    HardSwish();
+
+    virtual int load_param(const ParamDict& pd);
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+
+public:
+    float alpha, beta, lower, upper;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_SOFTMAX_ARM_H
+#endif // LAYER_HARDSWISH_H

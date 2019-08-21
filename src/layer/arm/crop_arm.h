@@ -22,6 +22,8 @@ namespace ncnn {
 class Crop_arm : virtual public Crop
 {
 public:
+    Crop_arm();
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;

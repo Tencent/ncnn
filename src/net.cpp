@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -688,7 +689,7 @@ int Net::load_model(const char* modelpath)
 
 int Net::load_param(const unsigned char* _mem)
 {
-    if ((unsigned long)_mem & 0x3)
+    if ((uintptr_t)_mem & 0x3)
     {
         // reject unaligned memory
         fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
@@ -822,7 +823,7 @@ int Net::load_model(const unsigned char* _mem)
         return -1;
     }
 
-    if ((unsigned long)_mem & 0x3)
+    if ((uintptr_t)_mem & 0x3)
     {
         // reject unaligned memory
         fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
@@ -1295,6 +1296,15 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
             }
         }
 
+        if (opt.use_packing_layout)
+        {
+            int elempack = layer->support_packing ? 4 : 1;
+
+            Mat bottom_blob_packed;
+            convert_packing(bottom_blob, bottom_blob_packed, elempack, opt);
+            bottom_blob = bottom_blob_packed;
+        }
+
         // forward
         if (opt.lightmode && layer->support_inplace)
         {
@@ -1358,6 +1368,15 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
                 {
                     bottom_blobs[i] = bottom_blobs[i].clone();
                 }
+            }
+
+            if (opt.use_packing_layout)
+            {
+                int elempack = layer->support_packing ? 4 : 1;
+
+                Mat bottom_blob_packed;
+                convert_packing(bottom_blobs[i], bottom_blob_packed, elempack, opt);
+                bottom_blobs[i] = bottom_blob_packed;
             }
         }
 
@@ -1701,9 +1720,16 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         }
                     }
 
-                    // unpacking
                     VkMat bottom_blob_unpacked_fp16;
-                    packing_pack1->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
+                    if (opt.use_packing_layout)
+                    {
+                        bottom_blob_unpacked_fp16 = bottom_blob;
+                    }
+                    else
+                    {
+                        // unpacking
+                        packing_pack1->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
+                    }
 
                     // cast to fp32 (integrated gpu)
                     VkMat bottom_blob_unpacked;
@@ -1769,6 +1795,15 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                 {
                     bottom_blob = bottom_blob.clone();
                 }
+            }
+
+            if (opt.use_packing_layout)
+            {
+                int elempack = layer->support_packing ? 4 : 1;
+
+                Mat bottom_blob_packed;
+                convert_packing(bottom_blob, bottom_blob_packed, elempack, opt);
+                bottom_blob = bottom_blob_packed;
             }
 
             // forward
@@ -1848,9 +1883,16 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                             }
                         }
 
-                        // unpacking
                         VkMat bottom_blob_unpacked_fp16;
-                        packing_pack1->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
+                        if (opt.use_packing_layout)
+                        {
+                            bottom_blob_unpacked_fp16 = bottom_blob;
+                        }
+                        else
+                        {
+                            // unpacking
+                            packing_pack1->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
+                        }
 
                         // cast to fp32 (integrated gpu)
                         VkMat& bottom_blob_unpacked = bottom_blobs_unpacked[i];
@@ -1929,6 +1971,15 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     {
                         bottom_blobs[i] = bottom_blobs[i].clone();
                     }
+                }
+
+                if (opt.use_packing_layout)
+                {
+                    int elempack = layer->support_packing ? 4 : 1;
+
+                    Mat bottom_blob_packed;
+                    convert_packing(bottom_blobs[i], bottom_blob_packed, elempack, opt);
+                    bottom_blobs[i] = bottom_blob_packed;
                 }
             }
 
@@ -2204,6 +2255,13 @@ int Extractor::extract(int blob_index, Mat& feat)
     }
 
     feat = blob_mats[blob_index];
+
+    if (opt.use_packing_layout)
+    {
+        Mat bottom_blob_unpacked;
+        convert_packing(feat, bottom_blob_unpacked, 1, opt);
+        feat = bottom_blob_unpacked;
+    }
 
     return ret;
 }

@@ -22,6 +22,8 @@ namespace ncnn {
 class Flatten_arm : virtual public Flatten
 {
 public:
+    Flatten_arm();
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 

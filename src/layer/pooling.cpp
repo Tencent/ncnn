@@ -40,6 +40,7 @@ int Pooling::load_param(const ParamDict& pd)
     pad_bottom = pd.get(15, pad_top);
     global_pooling = pd.get(4, 0);
     pad_mode = pd.get(5, 0);
+    avgpool_count_include_pad = pd.get(6, 0);
 
     return 0;
 }
@@ -144,7 +145,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         w = bottom_blob_bordered.w;
         h = bottom_blob_bordered.h;
     }
-    else if (pad_mode == 2) // tensorflow padding=SAME
+    else if (pad_mode == 2) // tensorflow padding=SAME or onnx padding=SAME_UPPER
     {
         int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
         int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
@@ -153,6 +154,22 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+            if (bottom_blob_bordered.empty())
+                return -100;
+        }
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+    else if (pad_mode == 3) // onnx padding=SAME_LOWER
+    {
+        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
             if (bottom_blob_bordered.empty())
                 return -100;
         }
@@ -246,48 +263,51 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 outptr += outw;
             }
 
-            // fix pad
-            if (pad_top != 0)
+            if (avgpool_count_include_pad == 0)
             {
-                const float scale = (float)kernel_h / (kernel_h - pad_top);
-
-                outptr = top_blob.channel(q).row(0);
-                for (int i = 0; i < outw; i++)
+                // fix pad
+                if (pad_top != 0)
                 {
-                    outptr[i] *= scale;
+                    const float scale = (float)kernel_h / (kernel_h - pad_top);
+
+                    outptr = top_blob.channel(q).row(0);
+                    for (int i = 0; i < outw; i++)
+                    {
+                        outptr[i] *= scale;
+                    }
                 }
-            }
-            if (pad_bottom + htailpad != 0)
-            {
-                const float scale = (float)kernel_h / (kernel_h - pad_bottom - htailpad);
-
-                outptr = top_blob.channel(q).row(outh - 1);
-                for (int i = 0; i < outw; i++)
+                if (pad_bottom + htailpad != 0)
                 {
-                    outptr[i] *= scale;
+                    const float scale = (float)kernel_h / (kernel_h - pad_bottom - htailpad);
+
+                    outptr = top_blob.channel(q).row(outh - 1);
+                    for (int i = 0; i < outw; i++)
+                    {
+                        outptr[i] *= scale;
+                    }
                 }
-            }
-            if (pad_left != 0)
-            {
-                const float scale = (float)kernel_w / (kernel_w - pad_left);
-
-                outptr = top_blob.channel(q);
-                for (int i = 0; i < outh; i++)
+                if (pad_left != 0)
                 {
-                    *outptr *= scale;
-                    outptr += outw;
+                    const float scale = (float)kernel_w / (kernel_w - pad_left);
+
+                    outptr = top_blob.channel(q);
+                    for (int i = 0; i < outh; i++)
+                    {
+                        *outptr *= scale;
+                        outptr += outw;
+                    }
                 }
-            }
-            if (pad_right + wtailpad != 0)
-            {
-                const float scale = (float)kernel_w / (kernel_w - pad_right - wtailpad);
-
-                outptr = top_blob.channel(q);
-                outptr += outw - 1;
-                for (int i = 0; i < outh; i++)
+                if (pad_right + wtailpad != 0)
                 {
-                    *outptr *= scale;
-                    outptr += outw;
+                    const float scale = (float)kernel_w / (kernel_w - pad_right - wtailpad);
+
+                    outptr = top_blob.channel(q);
+                    outptr += outw - 1;
+                    for (int i = 0; i < outh; i++)
+                    {
+                        *outptr *= scale;
+                        outptr += outw;
+                    }
                 }
             }
         }

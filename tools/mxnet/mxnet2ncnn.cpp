@@ -2136,14 +2136,36 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, " 0=%d", pool);
-            if (!kernel.empty())
+
+            if (kernel.size() == 1) {
                 fprintf(pp, " 1=%d", kernel[0]);
-            if (!stride.empty())
+            } else if (kernel.size() == 2) {
+                fprintf(pp, " 1=%d", kernel[1]);
+                fprintf(pp, " 11=%d", kernel[0]);
+            }
+
+            if (stride.size() == 1) {
                 fprintf(pp, " 2=%d", stride[0]);
-            if (!pad.empty())
+            } else if (stride.size() == 2) {
+                fprintf(pp, " 2=%d", stride[1]);
+                fprintf(pp, " 12=%d", stride[0]);
+            }
+
+            if (pad.size() == 1) {
                 fprintf(pp, " 3=%d", pad[0]);
+            } else if (pad.size() == 2) {
+                fprintf(pp, " 3=%d", pad[1]);
+                fprintf(pp, " 13=%d", pad[0]);
+            }
+
             fprintf(pp, " 4=%d", global_pool);
             fprintf(pp, " 5=%d", pad_mode);
+
+            if (pool_type == "avg")
+            {
+                int avgpool_count_include_pad = n.has_attr("count_include_pad") ? n.attr("count_include_pad") : 0;
+                fprintf(pp, " 6=%d", avgpool_count_include_pad);
+            }
         }
         else if (n.op == "prod")
         {

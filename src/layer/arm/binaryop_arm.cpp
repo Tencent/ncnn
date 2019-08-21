@@ -26,6 +26,14 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(BinaryOp_arm)
 
+BinaryOp_arm::BinaryOp_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
+#if __ARM_NEON
 // broadcasting rule
 // https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting
 
@@ -540,6 +548,7 @@ struct binary_op_rdiv : std::binary_function<T,T,T> {
     { return div_ps(y, x); }
 #endif
 };
+#endif // __ARM_NEON
 
 int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
@@ -548,11 +557,12 @@ int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     Mat& top_blob = top_blobs[0];
 
-    int elempack = bottom_blob.elempack;
-    int elempack1 = bottom_blob1.elempack;
-
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
+
+    int elempack = bottom_blob.elempack;
+    int elempack1 = bottom_blob1.elempack;
 
     if (elempack == 4 || elempack1 == 4)
     {
@@ -587,16 +597,18 @@ int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     return BinaryOp::forward(bottom_blobs, top_blobs, opt);
 }
 
 int BinaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    int elempack = bottom_top_blob.elempack;
-
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
+
+    int elempack = bottom_top_blob.elempack;
 
     if (elempack == 4)
     {
@@ -630,6 +642,7 @@ int BinaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     return BinaryOp::forward_inplace(bottom_top_blob, opt);
 }

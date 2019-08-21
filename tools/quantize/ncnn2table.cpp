@@ -685,6 +685,7 @@ void showUsage()
     std::cout << " -h, --help       show this help message and exit" << std::endl;
     std::cout << " -p, --param      path to ncnn.param file" << std::endl;
     std::cout << " -b, --bin        path to ncnn.bin file" << std::endl;
+    std::cout << " -i, --images     path to calibration images" << std::endl;
     std::cout << " -o, --output     path to output calibration tbale file" << std::endl;
     std::cout << " -m, --mean       value of mean" << std::endl;
     std::cout << " -n, --norm       value of normalize(scale value,defualt is 1)" << std::endl;

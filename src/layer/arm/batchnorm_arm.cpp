@@ -45,6 +45,9 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+
     if (elempack == 4)
     {
         const float* a_data_ptr = a_data;
@@ -72,6 +75,8 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
         return 0;
     }
+
+    } // opt.use_packing_layout
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)

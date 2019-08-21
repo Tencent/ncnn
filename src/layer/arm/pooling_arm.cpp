@@ -26,6 +26,13 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Pooling_arm)
 
+Pooling_arm::Pooling_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // max value in NxN window
@@ -37,6 +44,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -142,7 +150,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             w = bottom_blob_bordered.w;
             h = bottom_blob_bordered.h;
         }
-        else if (pad_mode == 2) // tensorflow padding=SAME
+        else if (pad_mode == 2) // tensorflow padding=SAME or onnx padding=SAME_UPPER
         {
             int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
             int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
@@ -151,6 +159,22 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 Option opt_b = opt;
                 opt_b.blob_allocator = opt.workspace_allocator;
                 copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+                if (bottom_blob_bordered.empty())
+                    return -100;
+            }
+
+            w = bottom_blob_bordered.w;
+            h = bottom_blob_bordered.h;
+        }
+        else if (pad_mode == 3) // onnx padding=SAME_LOWER
+        {
+            int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
+            int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
+            if (wpad > 0 || hpad > 0)
+            {
+                Option opt_b = opt;
+                opt_b.blob_allocator = opt.workspace_allocator;
+                copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
                 if (bottom_blob_bordered.empty())
                     return -100;
             }
@@ -247,62 +271,65 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     outptr += outw * 4;
                 }
 
-                // fix pad
-                if (pad_top != 0)
+                if (avgpool_count_include_pad == 0)
                 {
-                    const float scale = (float)kernel_h / (kernel_h - pad_top);
-                    float32x4_t _scale = vdupq_n_f32(scale);
-
-                    outptr = top_blob.channel(q).row(0);
-                    for (int i = 0; i < outw; i++)
+                    // fix pad
+                    if (pad_top != 0)
                     {
-                        float32x4_t _v = vld1q_f32(outptr);
-                        _v = vmulq_f32(_v, _scale);
-                        vst1q_f32(outptr, _v);
-                        outptr += 4;
+                        const float scale = (float)kernel_h / (kernel_h - pad_top);
+                        float32x4_t _scale = vdupq_n_f32(scale);
+
+                        outptr = top_blob.channel(q).row(0);
+                        for (int i = 0; i < outw; i++)
+                        {
+                            float32x4_t _v = vld1q_f32(outptr);
+                            _v = vmulq_f32(_v, _scale);
+                            vst1q_f32(outptr, _v);
+                            outptr += 4;
+                        }
                     }
-                }
-                if (pad_bottom + htailpad != 0)
-                {
-                    const float scale = (float)kernel_h / (kernel_h - pad_bottom - htailpad);
-                    float32x4_t _scale = vdupq_n_f32(scale);
-
-                    outptr = top_blob.channel(q).row(outh - 1);
-                    for (int i = 0; i < outw; i++)
+                    if (pad_bottom + htailpad != 0)
                     {
-                        float32x4_t _v = vld1q_f32(outptr);
-                        _v = vmulq_f32(_v, _scale);
-                        vst1q_f32(outptr, _v);
-                        outptr += 4;
+                        const float scale = (float)kernel_h / (kernel_h - pad_bottom - htailpad);
+                        float32x4_t _scale = vdupq_n_f32(scale);
+
+                        outptr = top_blob.channel(q).row(outh - 1);
+                        for (int i = 0; i < outw; i++)
+                        {
+                            float32x4_t _v = vld1q_f32(outptr);
+                            _v = vmulq_f32(_v, _scale);
+                            vst1q_f32(outptr, _v);
+                            outptr += 4;
+                        }
                     }
-                }
-                if (pad_left != 0)
-                {
-                    const float scale = (float)kernel_w / (kernel_w - pad_left);
-                    float32x4_t _scale = vdupq_n_f32(scale);
-
-                    outptr = top_blob.channel(q);
-                    for (int i = 0; i < outh; i++)
+                    if (pad_left != 0)
                     {
-                        float32x4_t _v = vld1q_f32(outptr);
-                        _v = vmulq_f32(_v, _scale);
-                        vst1q_f32(outptr, _v);
-                        outptr += outw * 4;
+                        const float scale = (float)kernel_w / (kernel_w - pad_left);
+                        float32x4_t _scale = vdupq_n_f32(scale);
+
+                        outptr = top_blob.channel(q);
+                        for (int i = 0; i < outh; i++)
+                        {
+                            float32x4_t _v = vld1q_f32(outptr);
+                            _v = vmulq_f32(_v, _scale);
+                            vst1q_f32(outptr, _v);
+                            outptr += outw * 4;
+                        }
                     }
-                }
-                if (pad_right + wtailpad != 0)
-                {
-                    const float scale = (float)kernel_w / (kernel_w - pad_right - wtailpad);
-                    float32x4_t _scale = vdupq_n_f32(scale);
-
-                    outptr = top_blob.channel(q);
-                    outptr += (outw - 1) * 4;
-                    for (int i = 0; i < outh; i++)
+                    if (pad_right + wtailpad != 0)
                     {
-                        float32x4_t _v = vld1q_f32(outptr);
-                        _v = vmulq_f32(_v, _scale);
-                        vst1q_f32(outptr, _v);
-                        outptr += outw * 4;
+                        const float scale = (float)kernel_w / (kernel_w - pad_right - wtailpad);
+                        float32x4_t _scale = vdupq_n_f32(scale);
+
+                        outptr = top_blob.channel(q);
+                        outptr += (outw - 1) * 4;
+                        for (int i = 0; i < outh; i++)
+                        {
+                            float32x4_t _v = vld1q_f32(outptr);
+                            _v = vmulq_f32(_v, _scale);
+                            vst1q_f32(outptr, _v);
+                            outptr += outw * 4;
+                        }
                     }
                 }
             }
@@ -312,6 +339,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
@@ -385,6 +413,22 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+            if (bottom_blob_bordered.empty())
+                return -100;
+        }
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+    }
+    else if (pad_mode == 3) // onnx padding=SAME_LOWER
+    {
+        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
             if (bottom_blob_bordered.empty())
                 return -100;
         }

@@ -22,6 +22,13 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Scale_arm)
 
+Scale_arm::Scale_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
 {
     Mat& bottom_top_blob = bottom_top_blobs[0];
@@ -30,6 +37,7 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
 
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
@@ -164,6 +172,7 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     }
 
     } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     if (dims != 3)
         return Scale::forward_inplace(bottom_top_blobs, opt);
