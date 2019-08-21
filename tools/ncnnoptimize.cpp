@@ -1876,6 +1876,10 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
             { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
             { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            fprintf_param_value(" 18=%d", output_pad_right)
+            { if (op->output_pad_bottom != op->output_pad_right) fprintf(pp, " 19=%d", op->output_pad_bottom); }
+            fprintf_param_value(" 20=%d", output_w)
+            { if (op->output_h != op->output_w) fprintf(pp, " 21=%d", op->output_h); }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 9=%d", activation_type)
@@ -1900,6 +1904,10 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
             { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
             { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            fprintf_param_value(" 18=%d", output_pad_right)
+            { if (op->output_pad_bottom != op->output_pad_right) fprintf(pp, " 19=%d", op->output_pad_bottom); }
+            fprintf_param_value(" 20=%d", output_w)
+            { if (op->output_h != op->output_w) fprintf(pp, " 21=%d", op->output_h); }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
@@ -2002,6 +2010,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", channels)
             fprintf_param_value(" 1=%f", eps)
+
+            fwrite_weight_data(op->gamma_data, bp);
+            fwrite_weight_data(op->beta_data, bp);
         }
         else if (layer->type == "Interp")
         {
