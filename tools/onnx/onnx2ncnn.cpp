@@ -1257,7 +1257,7 @@ int main(int argc, char** argv)
         }
         else if (op == "AveragePool" || op == "MaxPool")
         {
-            std::string auto_pad = get_node_attr_s(node, "auto_pad");//TODO
+            std::string auto_pad = get_node_attr_s(node, "auto_pad");
             std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
             std::vector<int> strides = get_node_attr_ai(node, "strides");
             std::vector<int> pads = get_node_attr_ai(node, "pads");
@@ -1386,7 +1386,7 @@ int main(int argc, char** argv)
             int num_filter = W.dims(0);
             int has_bias = node.input_size() == 3 ? 1 : 0;
 
-            std::string auto_pad = get_node_attr_s(node, "auto_pad");//TODO
+            std::string auto_pad = get_node_attr_s(node, "auto_pad");
             std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
             std::vector<int> dilations = get_node_attr_ai(node, "dilations");
             std::vector<int> strides = get_node_attr_ai(node, "strides");
@@ -1466,12 +1466,12 @@ int main(int argc, char** argv)
 
             int has_bias = node.input_size() == 3 ? 1 : 0;
 
-            std::string auto_pad = get_node_attr_s(node, "auto_pad");//TODO
+            std::string auto_pad = get_node_attr_s(node, "auto_pad");
             std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
             std::vector<int> dilations = get_node_attr_ai(node, "dilations");
             std::vector<int> strides = get_node_attr_ai(node, "strides");
-            std::vector<int> output_padding = get_node_attr_ai(node, "output_padding");//TODO implement adj
-            std::vector<int> output_shape = get_node_attr_ai(node, "output_shape");//TODO
+            std::vector<int> output_padding = get_node_attr_ai(node, "output_padding");
+            std::vector<int> output_shape = get_node_attr_ai(node, "output_shape");
             std::vector<int> pads = get_node_attr_ai(node, "pads");
             int group = get_node_attr_i(node, "group", 1);
             int num_filter = W.dims(1) * group;
@@ -1522,6 +1522,20 @@ int main(int argc, char** argv)
                 fprintf(pp, " 16=%d", pads[2]);
             }
 
+            }
+
+            if (output_padding.size() == 1) {
+                fprintf(pp, " 18=%d", output_padding[0]);
+            } else if (output_padding.size() == 2) {
+                fprintf(pp, " 18=%d", output_padding[1]);
+                fprintf(pp, " 19=%d", output_padding[0]);
+            }
+
+            if (output_shape.size() == 1) {
+                fprintf(pp, " 20=%d", output_shape[0]);
+            } else if (output_shape.size() == 2) {
+                fprintf(pp, " 20=%d", output_shape[1]);
+                fprintf(pp, " 21=%d", output_shape[0]);
             }
 
             fprintf(pp, " 5=%d", has_bias);

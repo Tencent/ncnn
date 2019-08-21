@@ -25,6 +25,9 @@ Deconvolution_vulkan::Deconvolution_vulkan()
     support_vulkan = true;
 
     crop = 0;
+    output_pad = 0;
+    output_crop = 0;
+
     pipeline_deconvolution = 0;
     pipeline_deconvolution_pack4 = 0;
     pipeline_deconvolution_pack1to4 = 0;
@@ -45,6 +48,37 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
         crop->load_param(pd);
 
         crop->create_pipeline(opt);
+    }
+
+    {
+        output_pad = ncnn::create_layer(ncnn::LayerType::Padding);
+        output_pad->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 0);
+        pd.set(1, output_pad_bottom);
+        pd.set(2, 0);
+        pd.set(3, output_pad_right);
+        pd.set(4, 0);
+        pd.set(5, 0.f);
+
+        output_pad->load_param(pd);
+
+        output_pad->create_pipeline(opt);
+    }
+
+    {
+        output_crop = ncnn::create_layer(ncnn::LayerType::Crop);
+        output_crop->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, -233);
+        pd.set(1, -233);
+        pd.set(2, -233);
+
+        output_crop->load_param(pd);
+
+        output_crop->create_pipeline(opt);
     }
 
     const int maxk = kernel_w * kernel_h;
@@ -104,6 +138,20 @@ int Deconvolution_vulkan::destroy_pipeline(const Option& opt)
         crop->destroy_pipeline(opt);
         delete crop;
         crop = 0;
+    }
+
+    if (output_pad)
+    {
+        output_pad->destroy_pipeline(opt);
+        delete output_pad;
+        output_pad = 0;
+    }
+
+    if (output_crop)
+    {
+        output_crop->destroy_pipeline(opt);
+        delete output_crop;
+        output_crop = 0;
     }
 
     delete pipeline_deconvolution;
@@ -351,18 +399,20 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     }
 
     VkMat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
+    if (output_w == outw && output_h == outh && output_pad_right == 0 && output_pad_bottom == 0)
+    {
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+    }
+    else if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
-        if (top_blob_bordered.empty())
-            return -100;
     }
     else
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
-        if (top_blob_bordered.empty())
-            return -100;
     }
+    if (top_blob_bordered.empty())
+        return -100;
 
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob;
@@ -420,19 +470,103 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
 
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
+    if (output_w == outw && output_h == outh && output_pad_right == 0 && output_pad_bottom == 0)
     {
-        VkMat reference_blob;
-        reference_blob.dims = 2;
-        reference_blob.w = top_blob_bordered.w - pad_left - pad_right;
-        reference_blob.h = top_blob_bordered.h - pad_top - pad_bottom;
+        top_blob = top_blob_bordered;
+    }
+    else if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
+    {
+        if (output_pad_right > 0 || output_pad_bottom > 0)
+        {
+            VkMat top_blob_unbordered;
+            {
+                ncnn::Option opt_ub = opt;
+                opt_ub.blob_vkallocator = opt.workspace_vkallocator;
 
-        std::vector<VkMat> crop_bottom_blobs(2);
-        crop_bottom_blobs[0] = top_blob_bordered;
-        crop_bottom_blobs[1] = reference_blob;
-        std::vector<VkMat> crop_top_blobs(1);
-        crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
-        top_blob = crop_top_blobs[0];
+                VkMat reference_blob;
+                reference_blob.dims = 2;
+                reference_blob.w = top_blob_bordered.w - pad_left - pad_right;
+                reference_blob.h = top_blob_bordered.h - pad_top - pad_bottom;
+
+                std::vector<VkMat> crop_bottom_blobs(2);
+                crop_bottom_blobs[0] = top_blob_bordered;
+                crop_bottom_blobs[1] = reference_blob;
+                std::vector<VkMat> crop_top_blobs(1);
+                crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt_ub);
+                top_blob_unbordered = crop_top_blobs[0];
+            }
+
+            output_pad->forward(top_blob_unbordered, top_blob, cmd, opt);
+        }
+        else
+        {
+            VkMat reference_blob;
+            reference_blob.dims = 2;
+            reference_blob.w = top_blob_bordered.w - pad_left - pad_right;
+            reference_blob.h = top_blob_bordered.h - pad_top - pad_bottom;
+
+            std::vector<VkMat> crop_bottom_blobs(2);
+            crop_bottom_blobs[0] = top_blob_bordered;
+            crop_bottom_blobs[1] = reference_blob;
+            std::vector<VkMat> crop_top_blobs(1);
+            crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
+            top_blob = crop_top_blobs[0];
+        }
+        if (top_blob.empty())
+            return -100;
+
+        outw = top_blob.w;
+        outh = top_blob.h;
+    }
+    else if (output_w > 0 && output_h > 0)
+    {
+        VkMat top_blob_bordered_adj = top_blob_bordered;
+        if (output_pad_right > 0 || output_pad_bottom > 0)
+        {
+            ncnn::Option opt_pad = opt;
+            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+            output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
+            if (top_blob_bordered_adj.empty())
+                return -100;
+        }
+
+        int wcut = top_blob_bordered_adj.w - output_w;
+        int hcut = top_blob_bordered_adj.h - output_h;
+
+        VkMat crop_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
+        crop_param_blob.prepare_staging_buffer();
+        int* crop_params = crop_param_blob.mapped();
+
+        if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233)
+        {
+            // onnx padding=SAME_UPPER
+            crop_params[0] = wcut / 2;
+            crop_params[1] = hcut / 2;
+            crop_params[2] = 0;
+            crop_params[3] = top_blob_bordered_adj.w - wcut;
+            crop_params[4] = top_blob_bordered_adj.h - hcut;
+            crop_params[5] = top_blob_bordered_adj.c;
+        }
+        else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
+        {
+            // onnx padding=SAME_LOWER
+            crop_params[0] = wcut - wcut / 2;
+            crop_params[1] = hcut - hcut / 2;
+            crop_params[2] = 0;
+            crop_params[3] = top_blob_bordered_adj.w - wcut;
+            crop_params[4] = top_blob_bordered_adj.h - hcut;
+            crop_params[5] = top_blob_bordered_adj.c;
+        }
+
+        std::vector<VkMat> crop_inputs(2);
+        crop_inputs[0] = top_blob_bordered_adj;
+        crop_inputs[1] = crop_param_blob;
+
+        std::vector<VkMat> crop_outputs(1);
+        output_crop->forward(crop_inputs, crop_outputs, cmd, opt);
+        top_blob = crop_outputs[0];
+        if (top_blob.empty())
+            return -100;
 
         outw = top_blob.w;
         outh = top_blob.h;

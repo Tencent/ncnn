@@ -43,6 +43,10 @@ public:
     int pad_right;
     int pad_top;
     int pad_bottom;
+    int output_pad_right;
+    int output_pad_bottom;
+    int output_w;
+    int output_h;
     int bias_term;
 
     int weight_data_size;
