@@ -33,9 +33,6 @@ Convolution_vulkan::Convolution_vulkan()
     pipeline_convolution_pack4_3x3s1d1_lds_8_8_2 = 0;
     winograd_padding = 0;
     winograd_crop = 0;
-    pipeline_convolution_pack4_3x3s1d1_winograd63_transform_input = 0;
-    pipeline_convolution_pack4_3x3s1d1_winograd63_gemm = 0;
-    pipeline_convolution_pack4_3x3s1d1_winograd63_transform_output = 0;
     pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input = 0;
     pipeline_convolution_pack4_3x3s1d1_winograd23_gemm = 0;
     pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output = 0;
@@ -174,21 +171,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 }
             }
 
-            if (num_input >= 64 && num_output >= 64)
-            {
-                pipeline_convolution_pack4_3x3s1d1_winograd63_transform_input = new Pipeline(vkdev);
-                pipeline_convolution_pack4_3x3s1d1_winograd63_transform_input->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack4_3x3s1d1_winograd63_transform_input->create("convolution_pack4_3x3s1d1_winograd63_transform_input", opt, std::vector<vk_specialization_type>(), 2, 7);
-
-                pipeline_convolution_pack4_3x3s1d1_winograd63_gemm = new Pipeline(vkdev);
-                pipeline_convolution_pack4_3x3s1d1_winograd63_gemm->set_local_size_xyz(4, 4, 4);
-                pipeline_convolution_pack4_3x3s1d1_winograd63_gemm->create("convolution_pack4_3x3s1d1_winograd63_gemm", opt, std::vector<vk_specialization_type>(), 3, 6);
-
-                pipeline_convolution_pack4_3x3s1d1_winograd63_transform_output = new Pipeline(vkdev);
-                pipeline_convolution_pack4_3x3s1d1_winograd63_transform_output->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack4_3x3s1d1_winograd63_transform_output->create("convolution_pack4_3x3s1d1_winograd63_transform_output", opt, specializations, 3, 7);
-            }
-            else if (num_input >= 16 && num_output >= 16)
+            if (num_input >= 16 && num_output >= 16)
             {
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
@@ -303,13 +286,6 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
         delete winograd_crop;
         winograd_crop = 0;
     }
-
-    delete pipeline_convolution_pack4_3x3s1d1_winograd63_transform_input;
-    delete pipeline_convolution_pack4_3x3s1d1_winograd63_gemm;
-    delete pipeline_convolution_pack4_3x3s1d1_winograd63_transform_output;
-    pipeline_convolution_pack4_3x3s1d1_winograd63_transform_input = 0;
-    pipeline_convolution_pack4_3x3s1d1_winograd63_gemm = 0;
-    pipeline_convolution_pack4_3x3s1d1_winograd63_transform_output = 0;
 
     delete pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input;
     delete pipeline_convolution_pack4_3x3s1d1_winograd23_gemm;
@@ -426,128 +402,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4, opt);
 
         bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
-        if (is_conv3x3s1d1 && num_input >= 64 && num_output >= 64)
-        {
-            // winograd63 transform kernel
-            Mat weight_data_tm;
-            weight_data_tm.create(8*8, num_input, num_output);
-
-            const float ktm[8][3] = {
-                {   1.0f,     0.0f,     0.0f},
-                {-2.0f/9,  -2.0f/9,  -2.0f/9},
-                {-2.0f/9,   2.0f/9,  -2.0f/9},
-                {1.0f/90,  1.0f/45,  2.0f/45},
-                {1.0f/90, -1.0f/45,  2.0f/45},
-                {1.0f/45,  1.0f/90, 1.0f/180},
-                {1.0f/45, -1.0f/90, 1.0f/180},
-                {   0.0f,     0.0f,     1.0f}
-            };
-
-            #pragma omp parallel for
-            for (int p = 0; p<num_output; p++)
-            {
-                for (int q = 0; q<num_input; q++)
-                {
-                    const float* kernel0 = (const float*)weight_data + p*num_input * 9 + q * 9;
-                    float* kernel_tm0 = weight_data_tm.channel(p).row(q);
-
-                    // transform kernel, transposed
-                    const float* k0 = kernel0;
-                    const float* k1 = kernel0 + 3;
-                    const float* k2 = kernel0 + 6;
-
-                    // h
-                    float tmp[8][3];
-                    for (int i=0; i<8; i++)
-                    {
-                        tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
-                        tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
-                        tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
-                    }
-
-                    // v
-                    for (int j=0; j<8; j++)
-                    {
-                        float* tmpp = &tmp[j][0];
-
-                        for (int i=0; i<8; i++)
-                        {
-                            kernel_tm0[j*8 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
-                        }
-                    }
-                }
-            }
-
-            // src = 64-inch-outch
-            // dst = 4a-4b-64-inch/4a-outch/4b
-            Mat weight_data_pack4_tm;
-            {
-                weight_data_pack4_tm.create(64, num_input/4, num_output/4, (size_t)4*16, 16);
-
-                for (int q=0; q+3<num_output; q+=4)
-                {
-                    const Mat k0 = weight_data_tm.channel(q);
-                    const Mat k1 = weight_data_tm.channel(q+1);
-                    const Mat k2 = weight_data_tm.channel(q+2);
-                    const Mat k3 = weight_data_tm.channel(q+3);
-
-                    Mat g0 = weight_data_pack4_tm.channel(q/4);
-
-                    for (int p=0; p+3<num_input; p+=4)
-                    {
-                        const float* k00 = k0.row(p);
-                        const float* k01 = k0.row(p+1);
-                        const float* k02 = k0.row(p+2);
-                        const float* k03 = k0.row(p+3);
-
-                        const float* k10 = k1.row(p);
-                        const float* k11 = k1.row(p+1);
-                        const float* k12 = k1.row(p+2);
-                        const float* k13 = k1.row(p+3);
-
-                        const float* k20 = k2.row(p);
-                        const float* k21 = k2.row(p+1);
-                        const float* k22 = k2.row(p+2);
-                        const float* k23 = k2.row(p+3);
-
-                        const float* k30 = k3.row(p);
-                        const float* k31 = k3.row(p+1);
-                        const float* k32 = k3.row(p+2);
-                        const float* k33 = k3.row(p+3);
-
-                        float* g00 = g0.row(p/4);
-
-                        for (int k=0; k<64; k++)
-                        {
-                            g00[0] = k00[k];
-                            g00[1] = k01[k];
-                            g00[2] = k02[k];
-                            g00[3] = k03[k];
-
-                            g00[4] = k10[k];
-                            g00[5] = k11[k];
-                            g00[6] = k12[k];
-                            g00[7] = k13[k];
-
-                            g00[8] = k20[k];
-                            g00[9] = k21[k];
-                            g00[10] = k22[k];
-                            g00[11] = k23[k];
-
-                            g00[12] = k30[k];
-                            g00[13] = k31[k];
-                            g00[14] = k32[k];
-                            g00[15] = k33[k];
-
-                            g00 += 16;
-                        }
-                    }
-                }
-            }
-
-            cmd.record_upload(weight_data_pack4_tm, weight_data_gpu_pack4_tm, opt);
-        }
-        else if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
+        if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
         {
             // winograd23 transform kernel
             Mat weight_data_tm;
@@ -939,151 +794,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     }
 
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
-    if (elempack == 4 && out_elempack == 4 && is_conv3x3s1d1 && channels * elempack >= 64 && num_output >= 64)
-    {
-        // winograd63
-        int outw_bordered = (outw + 5) / 6 * 6;
-        int outh_bordered = (outh + 5) / 6 * 6;
-
-        int w_bordered = outw_bordered + 2;
-        int h_bordered = outh_bordered + 2;
-
-        int block_x = outw_bordered / 6;
-        int block_y = outh_bordered / 6;
-
-        // pad to 6n+2
-        {
-            ncnn::Option opt_pad = opt;
-            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            padding_param_blob.prepare_staging_buffer();
-            int* padding_params = padding_param_blob.mapped();
-
-            padding_params[0] = 0;
-            padding_params[1] = h_bordered - bottom_blob_bordered.h;
-            padding_params[2] = 0;
-            padding_params[3] = w_bordered - bottom_blob_bordered.w;
-
-            std::vector<VkMat> padding_inputs(2);
-            padding_inputs[0] = bottom_blob_bordered;
-            padding_inputs[1] = padding_param_blob;
-
-            std::vector<VkMat> padding_outputs(1);
-            winograd_padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
-            bottom_blob_bordered = padding_outputs[0];
-        }
-
-        // transform input
-        VkMat bottom_tm_blob;
-        {
-            bottom_tm_blob.create(64, block_x * block_y, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
-            if (bottom_tm_blob.empty())
-                return -100;
-
-            std::vector<VkMat> bindings(2);
-            bindings[0] = bottom_blob_bordered;
-            bindings[1] = bottom_tm_blob;
-
-            std::vector<vk_constant_type> constants(7);
-            constants[0].i = bottom_blob_bordered.w;
-            constants[1].i = bottom_blob_bordered.h;
-            constants[2].i = bottom_blob_bordered.c;
-            constants[3].i = bottom_blob_bordered.cstep;
-            constants[4].i = bottom_tm_blob.cstep;
-            constants[5].i = block_x;
-            constants[6].i = block_y;
-
-            VkMat dispatcher;
-            dispatcher.w = block_x;
-            dispatcher.h = block_y;
-            dispatcher.c = bottom_tm_blob.c;
-
-            cmd.record_pipeline(pipeline_convolution_pack4_3x3s1d1_winograd63_transform_input, bindings, constants, dispatcher);
-        }
-
-        // gemm
-        VkMat top_tm_blob;
-        {
-            top_tm_blob.create(64, block_x * block_y, num_output / out_elempack, elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
-            if (top_tm_blob.empty())
-                return -100;
-
-            std::vector<VkMat> bindings(3);
-            bindings[0] = bottom_tm_blob;
-            bindings[1] = top_tm_blob;
-            bindings[2] = weight_data_gpu_pack4_tm;
-
-            std::vector<vk_constant_type> constants(6);
-            constants[0].i = bottom_tm_blob.c;
-            constants[1].i = bottom_tm_blob.cstep;
-            constants[2].i = (top_tm_blob.h + 3) / 4;
-            constants[3].i = top_tm_blob.h;
-            constants[4].i = top_tm_blob.c;
-            constants[5].i = top_tm_blob.cstep;
-
-            VkMat dispatcher;
-            dispatcher.w = top_tm_blob.w;
-            dispatcher.h = (top_tm_blob.h + 3) / 4;
-            dispatcher.c = top_tm_blob.c;
-
-            cmd.record_pipeline(pipeline_convolution_pack4_3x3s1d1_winograd63_gemm, bindings, constants, dispatcher);
-        }
-
-        // transform output
-        VkMat top_blob_bordered;
-        {
-            top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
-            if (top_blob_bordered.empty())
-                return -100;
-
-            std::vector<VkMat> bindings(3);
-            bindings[0] = top_tm_blob;
-            bindings[1] = top_blob_bordered;
-            bindings[2] = bias_term ? bias_data_gpu_pack4 : bindings[1];
-
-            std::vector<vk_constant_type> constants(7);
-            constants[0].i = top_tm_blob.c;
-            constants[1].i = top_tm_blob.cstep;
-            constants[2].i = block_x;
-            constants[3].i = block_y;
-            constants[4].i = top_blob_bordered.w;
-            constants[5].i = top_blob_bordered.h;
-            constants[6].i = top_blob_bordered.cstep;
-
-            VkMat dispatcher;
-            dispatcher.w = block_x;
-            dispatcher.h = block_y;
-            dispatcher.c = top_blob_bordered.c;
-
-            cmd.record_pipeline(pipeline_convolution_pack4_3x3s1d1_winograd63_transform_output, bindings, constants, dispatcher);
-        }
-
-        // crop top_blob
-        {
-            VkMat crop_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            crop_param_blob.prepare_staging_buffer();
-            int* crop_params = crop_param_blob.mapped();
-
-            crop_params[0] = 0;
-            crop_params[1] = 0;
-            crop_params[2] = 0;
-            crop_params[3] = outw;
-            crop_params[4] = outh;
-            crop_params[5] = num_output;
-
-            std::vector<VkMat> crop_inputs(2);
-            crop_inputs[0] = top_blob_bordered;
-            crop_inputs[1] = crop_param_blob;
-
-            std::vector<VkMat> crop_outputs(1);
-            winograd_crop->forward(crop_inputs, crop_outputs, cmd, opt);
-            top_blob = crop_outputs[0];
-        }
-
-        return 0;
-    }
-    else if (elempack == 4 && out_elempack == 4 && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
+    if (elempack == 4 && out_elempack == 4 && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
     {
         // winograd23
         int outw_bordered = (outw + 1) / 2 * 2;
