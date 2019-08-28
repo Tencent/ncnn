@@ -23,14 +23,16 @@ InstanceNorm_vulkan::InstanceNorm_vulkan()
     support_vulkan = true;
 
     pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = 0;
-    pipeline_instancenorm_reduce_sum4_fp32 = 0;
+    pipeline_instancenorm_reduce_sum4_fp32[0] = 0;
+    pipeline_instancenorm_reduce_sum4_fp32[1] = 0;
     pipeline_instancenorm_reduce_mean = 0;
     pipeline_instancenorm_sub_mean_square = 0;
     pipeline_instancenorm_coeffs = 0;
     pipeline_instancenorm_norm = 0;
 
     pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = 0;
-    pipeline_instancenorm_reduce_sum4_fp32_pack4 = 0;
+    pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = 0;
+    pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = 0;
     pipeline_instancenorm_reduce_mean_pack4 = 0;
     pipeline_instancenorm_sub_mean_square_pack4 = 0;
     pipeline_instancenorm_coeffs_pack4 = 0;
@@ -49,9 +51,12 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(64, 1, channels);
         pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create("instancenorm_reduce_sum4_fp16_to_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
 
-        pipeline_instancenorm_reduce_sum4_fp32 = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp32->set_optimal_local_size_xyz(64, 1, channels);
-        pipeline_instancenorm_reduce_sum4_fp32->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
+        pipeline_instancenorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
+        pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(64, 1, channels);
+        pipeline_instancenorm_reduce_sum4_fp32[0]->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
+        pipeline_instancenorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
+        pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(64, 1, channels);
+        pipeline_instancenorm_reduce_sum4_fp32[1]->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
 
         pipeline_instancenorm_reduce_mean = new Pipeline(vkdev);
         pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(channels, 1, 1);
@@ -77,9 +82,12 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(64, 1, std::max(1, channels / 4));
         pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create("instancenorm_reduce_sum4_fp16_to_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
 
-        pipeline_instancenorm_reduce_sum4_fp32_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp32_pack4->set_optimal_local_size_xyz(64, 1, std::max(1, channels / 4));
-        pipeline_instancenorm_reduce_sum4_fp32_pack4->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
+        pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
+        pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(64, 1, std::max(1, channels / 4));
+        pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
+        pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
+        pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(64, 1, std::max(1, channels / 4));
+        pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
 
         pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
         pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(std::max(1, channels / 4), 1, 1);
@@ -106,8 +114,10 @@ int InstanceNorm_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_instancenorm_reduce_sum4_fp16_to_fp32;
     pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = 0;
 
-    delete pipeline_instancenorm_reduce_sum4_fp32;
-    pipeline_instancenorm_reduce_sum4_fp32 = 0;
+    delete pipeline_instancenorm_reduce_sum4_fp32[0];
+    delete pipeline_instancenorm_reduce_sum4_fp32[1];
+    pipeline_instancenorm_reduce_sum4_fp32[0] = 0;
+    pipeline_instancenorm_reduce_sum4_fp32[1] = 0;
 
     delete pipeline_instancenorm_reduce_mean;
     pipeline_instancenorm_reduce_mean = 0;
@@ -124,8 +134,10 @@ int InstanceNorm_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4;
     pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = 0;
 
-    delete pipeline_instancenorm_reduce_sum4_fp32_pack4;
-    pipeline_instancenorm_reduce_sum4_fp32_pack4 = 0;
+    delete pipeline_instancenorm_reduce_sum4_fp32_pack4[0];
+    delete pipeline_instancenorm_reduce_sum4_fp32_pack4[1];
+    pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = 0;
+    pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = 0;
 
     delete pipeline_instancenorm_reduce_mean_pack4;
     pipeline_instancenorm_reduce_mean_pack4 = 0;
@@ -205,6 +217,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         }
         }
 
+        int pb = 0;
         while (sum_workspace.w > 4)
         {
         int reduced_w = (sum_workspace.w + 3) / 4;
@@ -227,9 +240,11 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         constants[4].i = sum_workspace_reduced.c;
         constants[5].i = sum_workspace_reduced.cstep;
 
-        const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4 : pipeline_instancenorm_reduce_sum4_fp32;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[pb%2] : pipeline_instancenorm_reduce_sum4_fp32[pb%2];
 
         cmd.record_pipeline(pipeline, bindings, constants, sum_workspace_reduced);
+
+        pb++;
         }
 
         sum_workspace = sum_workspace_reduced;
@@ -281,6 +296,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         sqsum_workspace.w = sqsum_workspace.w * sqsum_workspace.h;
         sqsum_workspace.h = 1;
 
+        int pb = 0;
         while (sqsum_workspace.w > 4)
         {
         int reduced_w = (sqsum_workspace.w + 3) / 4;
@@ -303,9 +319,11 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         constants[4].i = sqsum_workspace_reduced.c;
         constants[5].i = sqsum_workspace_reduced.cstep;
 
-        const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4 : pipeline_instancenorm_reduce_sum4_fp32;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_instancenorm_reduce_sum4_fp32_pack4[pb%2] : pipeline_instancenorm_reduce_sum4_fp32[pb%2];
 
         cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
+
+        pb++;
         }
 
         sqsum_workspace = sqsum_workspace_reduced;

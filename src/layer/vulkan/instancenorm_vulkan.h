@@ -35,7 +35,7 @@ public:
     VkMat gamma_data_gpu;
     VkMat beta_data_gpu;
     Pipeline* pipeline_instancenorm_reduce_sum4_fp16_to_fp32;
-    Pipeline* pipeline_instancenorm_reduce_sum4_fp32;
+    Pipeline* pipeline_instancenorm_reduce_sum4_fp32[2];
     Pipeline* pipeline_instancenorm_reduce_mean;
     Pipeline* pipeline_instancenorm_sub_mean_square;
     Pipeline* pipeline_instancenorm_coeffs;
@@ -44,7 +44,7 @@ public:
     VkMat gamma_data_gpu_pack4;
     VkMat beta_data_gpu_pack4;
     Pipeline* pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4;
-    Pipeline* pipeline_instancenorm_reduce_sum4_fp32_pack4;
+    Pipeline* pipeline_instancenorm_reduce_sum4_fp32_pack4[2];
     Pipeline* pipeline_instancenorm_reduce_mean_pack4;
     Pipeline* pipeline_instancenorm_sub_mean_square_pack4;
     Pipeline* pipeline_instancenorm_coeffs_pack4;
