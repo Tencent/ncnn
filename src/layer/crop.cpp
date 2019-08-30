@@ -33,6 +33,9 @@ int Crop::load_param(const ParamDict& pd)
     outw = pd.get(3, 0);
     outh = pd.get(4, 0);
     outc = pd.get(5, 0);
+    woffset2 = pd.get(6, 0);
+    hoffset2 = pd.get(7, 0);
+    coffset2 = pd.get(8, 0);
 
     if (outw != 0 || outh != 0 || outc != 0)
     {
@@ -80,6 +83,9 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     int _woffset = woffset;
     int _hoffset = hoffset;
     int _coffset = coffset;
+    int _woffset2 = woffset2;
+    int _hoffset2 = hoffset2;
+    int _coffset2 = coffset2;
     int _outw;
     int _outh;
     int _outc;
@@ -87,9 +93,9 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (dims == 1)
     {
         if (outw == -233)
-            _outw = w - _woffset;
+            _outw = w - _woffset - _woffset2;
         else
-            _outw = std::min(outw, w - _woffset);
+            _outw = std::min(outw, w - _woffset - _woffset2);
 
         if (_outw == w)
         {
@@ -114,26 +120,28 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         if (_hoffset == -233)
         {
             _woffset = 0;
+            _woffset2 = 0;
             _outw = w;
 
             _hoffset = woffset;
+            _hoffset2 = woffset2;
 
             if (outw == -233)
-                _outh = h - _hoffset;
+                _outh = h - _hoffset - _hoffset2;
             else
-                _outh = std::min(outw, h - _hoffset);
+                _outh = std::min(outw, h - _hoffset - _hoffset2);
         }
         else
         {
             if (outw == -233)
-                _outw = w - _woffset;
+                _outw = w - _woffset - _woffset2;
             else
-                _outw = std::min(outw, w - _woffset);
+                _outw = std::min(outw, w - _woffset - _woffset2);
 
             if (outh == -233)
-                _outh = h - _hoffset;
+                _outh = h - _hoffset - _hoffset2;
             else
-                _outh = std::min(outh, h - _hoffset);
+                _outh = std::min(outh, h - _hoffset - _hoffset2);
         }
 
         if (_outw == w && _outh == h)
@@ -159,52 +167,58 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         if (_hoffset == -233 && _coffset == -233)
         {
             _woffset = 0;
+            _woffset2 = 0;
             _outw = w;
             _hoffset = 0;
+            _hoffset2 = 0;
             _outh = h;
 
             _coffset = woffset;
+            _coffset2 = woffset2;
 
             if (outw == -233)
-                _outc = channels - _coffset;
+                _outc = channels - _coffset - _coffset2;
             else
-                _outc = std::min(outw, channels - _coffset);
+                _outc = std::min(outw, channels - _coffset - _coffset2);
         }
         else if (_hoffset == -233)
         {
             _woffset = 0;
+            _woffset2 = 0;
             _outw = w;
 
             _hoffset = woffset;
+            _hoffset2 = woffset2;
 
             if (outw == -233)
-                _outh = h - _hoffset;
+                _outh = h - _hoffset - _hoffset2;
             else
-                _outh = std::min(outw, h - _hoffset);
+                _outh = std::min(outw, h - _hoffset - _hoffset2);
 
             _coffset = hoffset;
+            _coffset2 = hoffset2;
 
             if (outh == -233)
-                _outc = channels - _coffset;
+                _outc = channels - _coffset - _coffset2;
             else
-                _outc = std::min(outh, channels - _coffset);
+                _outc = std::min(outh, channels - _coffset - _coffset2);
         }
         else
         {
             if (outw == -233)
-                _outw = w - _woffset;
+                _outw = w - _woffset - _woffset2;
             else
-                _outw = std::min(outw, w - _woffset);
+                _outw = std::min(outw, w - _woffset - _woffset2);
 
             if (outh == -233)
-                _outh = h - _hoffset;
+                _outh = h - _hoffset - _hoffset2;
             else
-                _outh = std::min(outh, h - _hoffset);
+                _outh = std::min(outh, h - _hoffset - _hoffset2);
 
             if (outc == -233)
-                _outc = channels - _coffset;
+                _outc = channels - _coffset - _coffset2;
             else
-                _outc = std::min(outc, channels - _coffset);
+                _outc = std::min(outc, channels - _coffset - _coffset2);
         }
 
         if (_outw == w && _outh == h && _outc == channels)

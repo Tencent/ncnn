@@ -40,6 +40,12 @@ public:
     int outw;
     int outh;
     int outc;
+
+    // tail offset for cropping, ignored if reference blob is provided
+    // woffset is aka left, and woffset2 is aka right
+    int woffset2;
+    int hoffset2;
+    int coffset2;
 };
 
 } // namespace ncnn
