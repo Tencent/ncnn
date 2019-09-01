@@ -174,7 +174,7 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (dims == 1)
         {
-            top_blob.create(outw, elemsize, opt.blob_allocator);
+            top_blob.create(outw, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -190,7 +190,7 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (dims == 2)
         {
-            top_blob.create(outw, outh, elemsize, opt.blob_allocator);
+            top_blob.create(outw, outh, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -204,7 +204,7 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (dims == 3)
         {
-            top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
+            top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
