@@ -64,9 +64,10 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, 
         }
     }
 
+    // interleave
     // src = 64-inch-outch
-    // dst = 4b-4a-64-inch/4a-outch/4b
-    kernel_tm_pack4.create(64, inch/4, outch/4, (size_t)4u*16, 16);
+    // dst = 4b-4a-inch/4a-64-outch/4b;
+    kernel_tm_pack4.create(inch/4, 64, outch/4, (size_t)4u*16, 16);
 
     for (int q=0; q+3<outch; q+=4)
     {
@@ -77,32 +78,32 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, 
 
         Mat g0 = kernel_tm_pack4.channel(q/4);
 
-        for (int p=0; p+3<inch; p+=4)
+        for (int k=0; k<64; k++)
         {
-            const float* k00 = k0.row(p);
-            const float* k01 = k0.row(p+1);
-            const float* k02 = k0.row(p+2);
-            const float* k03 = k0.row(p+3);
+            float* g00 = g0.row(k);
 
-            const float* k10 = k1.row(p);
-            const float* k11 = k1.row(p+1);
-            const float* k12 = k1.row(p+2);
-            const float* k13 = k1.row(p+3);
-
-            const float* k20 = k2.row(p);
-            const float* k21 = k2.row(p+1);
-            const float* k22 = k2.row(p+2);
-            const float* k23 = k2.row(p+3);
-
-            const float* k30 = k3.row(p);
-            const float* k31 = k3.row(p+1);
-            const float* k32 = k3.row(p+2);
-            const float* k33 = k3.row(p+3);
-
-            float* g00 = g0.row(p/4);
-
-            for (int k=0; k<64; k++)
+            for (int p=0; p+3<inch; p+=4)
             {
+                const float* k00 = k0.row(p);
+                const float* k01 = k0.row(p+1);
+                const float* k02 = k0.row(p+2);
+                const float* k03 = k0.row(p+3);
+
+                const float* k10 = k1.row(p);
+                const float* k11 = k1.row(p+1);
+                const float* k12 = k1.row(p+2);
+                const float* k13 = k1.row(p+3);
+
+                const float* k20 = k2.row(p);
+                const float* k21 = k2.row(p+1);
+                const float* k22 = k2.row(p+2);
+                const float* k23 = k2.row(p+3);
+
+                const float* k30 = k3.row(p);
+                const float* k31 = k3.row(p+1);
+                const float* k32 = k3.row(p+2);
+                const float* k33 = k3.row(p+3);
+
                 g00[0] = k00[k];
                 g00[1] = k10[k];
                 g00[2] = k20[k];
@@ -127,7 +128,6 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, 
             }
         }
     }
-
 }
 
 static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
@@ -159,8 +159,10 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
     {
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
-        bottom_blob_tm.create(8*8, w_tm/8 * h_tm/8, inch, elemsize, elempack);
+
         const int tiles = w_tm/8 * h_tm/8;
+
+        bottom_blob_tm.create(8*8, tiles, inch, elemsize, elempack);
 
 //         const float itm[8][8] = {
 //             {1.0f,  0.0f, -5.25f,  0.00f,  5.25f,  0.00f, -1.0f, 0.0f},
@@ -347,67 +349,834 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
     {
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
-        top_blob_tm.create(8*8, w_tm/8 * h_tm/8, outch, elemsize, elempack);
 
         const int tiles = h_tm/8 * w_tm/8;
 
+        // permute
+//         bottom_blob_tm.create(8*8, tiles, inch, elemsize, elempack);
+        Mat bottom_blob_tm2(8 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<outch; p++)
+        for (int r=0; r<64; r++)
+        {
+            Mat tm2 = bottom_blob_tm2.channel(r);
+
+            // tile
+            int i=0;
+            for (; i+7<tiles; i+=8)
+            {
+                float* tm2p = tm2.row(i/8);
+
+                const float* r0 = bottom_blob_tm.channel(0).row(i) + r * 4;
+                const float* r1 = bottom_blob_tm.channel(0).row(i+1) + r * 4;
+                const float* r2 = bottom_blob_tm.channel(0).row(i+2) + r * 4;
+                const float* r3 = bottom_blob_tm.channel(0).row(i+3) + r * 4;
+                const float* r4 = bottom_blob_tm.channel(0).row(i+4) + r * 4;
+                const float* r5 = bottom_blob_tm.channel(0).row(i+5) + r * 4;
+                const float* r6 = bottom_blob_tm.channel(0).row(i+6) + r * 4;
+                const float* r7 = bottom_blob_tm.channel(0).row(i+7) + r * 4;
+
+                for (int q=0; q<inch; q++)
+                {
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    float32x4_t _r1 = vld1q_f32(r1);
+                    float32x4_t _r2 = vld1q_f32(r2);
+                    float32x4_t _r3 = vld1q_f32(r3);
+                    float32x4_t _r4 = vld1q_f32(r4);
+                    float32x4_t _r5 = vld1q_f32(r5);
+                    float32x4_t _r6 = vld1q_f32(r6);
+                    float32x4_t _r7 = vld1q_f32(r7);
+                    vst1q_f32(tm2p, _r0);
+                    vst1q_f32(tm2p + 4, _r1);
+                    vst1q_f32(tm2p + 8, _r2);
+                    vst1q_f32(tm2p + 12, _r3);
+                    vst1q_f32(tm2p + 16, _r4);
+                    vst1q_f32(tm2p + 20, _r5);
+                    vst1q_f32(tm2p + 24, _r6);
+                    vst1q_f32(tm2p + 28, _r7);
+//                     tm2p[0] = r0[0];
+
+                    r0 += bottom_blob_tm.cstep * 4;
+                    r1 += bottom_blob_tm.cstep * 4;
+                    r2 += bottom_blob_tm.cstep * 4;
+                    r3 += bottom_blob_tm.cstep * 4;
+                    r4 += bottom_blob_tm.cstep * 4;
+                    r5 += bottom_blob_tm.cstep * 4;
+                    r6 += bottom_blob_tm.cstep * 4;
+                    r7 += bottom_blob_tm.cstep * 4;
+                    tm2p += 32;
+                }
+            }
+            for (; i+3<tiles; i+=4)
+            {
+                float* tm2p = tm2.row(i/8 + (i%8)/4);
+
+                const float* r0 = bottom_blob_tm.channel(0).row(i) + r * 4;
+                const float* r1 = bottom_blob_tm.channel(0).row(i+1) + r * 4;
+                const float* r2 = bottom_blob_tm.channel(0).row(i+2) + r * 4;
+                const float* r3 = bottom_blob_tm.channel(0).row(i+3) + r * 4;
+
+                for (int q=0; q<inch; q++)
+                {
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    float32x4_t _r1 = vld1q_f32(r1);
+                    float32x4_t _r2 = vld1q_f32(r2);
+                    float32x4_t _r3 = vld1q_f32(r3);
+                    vst1q_f32(tm2p, _r0);
+                    vst1q_f32(tm2p + 4, _r1);
+                    vst1q_f32(tm2p + 8, _r2);
+                    vst1q_f32(tm2p + 12, _r3);
+//                     tm2p[0] = r0[0];
+
+                    r0 += bottom_blob_tm.cstep * 4;
+                    r1 += bottom_blob_tm.cstep * 4;
+                    r2 += bottom_blob_tm.cstep * 4;
+                    r3 += bottom_blob_tm.cstep * 4;
+                    tm2p += 16;
+                }
+            }
+            for (; i+1<tiles; i+=2)
+            {
+                float* tm2p = tm2.row(i/8 + (i%8)/4 + (i%4)/2);
+
+                const float* r0 = bottom_blob_tm.channel(0).row(i) + r * 4;
+                const float* r1 = bottom_blob_tm.channel(0).row(i+1) + r * 4;
+
+                for (int q=0; q<inch; q++)
+                {
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    float32x4_t _r1 = vld1q_f32(r1);
+                    vst1q_f32(tm2p, _r0);
+                    vst1q_f32(tm2p + 4, _r1);
+//                     tm2p[0] = r0[0];
+
+                    r0 += bottom_blob_tm.cstep * 4;
+                    r1 += bottom_blob_tm.cstep * 4;
+                    tm2p += 8;
+                }
+            }
+            for (; i<tiles; i++)
+            {
+                float* tm2p = tm2.row(i/8 + (i%8)/4 + (i%4)/2 + i%2);
+
+                const float* r0 = bottom_blob_tm.channel(0).row(i) + r * 4;
+
+                for (int q=0; q<inch; q++)
+                {
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    vst1q_f32(tm2p, _r0);
+//                     tm2p[0] = r0[0];
+
+                    r0 += bottom_blob_tm.cstep * 4;
+                    tm2p += 4;
+                }
+            }
+        }
+
+        bottom_blob_tm = Mat();
+        // permute end
+
+        top_blob_tm.create(8*8, tiles, outch, elemsize, elempack);
+
+        int nn_outch = 0;
+        int remain_outch_start = 0;
+
+#if __ARM_NEON && __aarch64__
+        nn_outch = outch >> 1;
+        remain_outch_start = nn_outch << 1;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp=0; pp<nn_outch; pp++)
+        {
+            int p = pp * 2;
+
+            Mat out0_tm = top_blob_tm.channel(p);
+            Mat out1_tm = top_blob_tm.channel(p+1);
+            const Mat kernel0_tm = kernel_tm.channel(p);
+            const Mat kernel1_tm = kernel_tm.channel(p+1);
+
+            for (int r=0; r<64; r++)
+            {
+                const Mat bb2 = bottom_blob_tm2.channel(r);
+
+                int i=0;
+                for (; i+7<tiles; i+=8)
+                {
+                    float* output0_tm0 = out0_tm.row(i);
+                    float* output0_tm1 = out0_tm.row(i+1);
+                    float* output0_tm2 = out0_tm.row(i+2);
+                    float* output0_tm3 = out0_tm.row(i+3);
+                    float* output0_tm4 = out0_tm.row(i+4);
+                    float* output0_tm5 = out0_tm.row(i+5);
+                    float* output0_tm6 = out0_tm.row(i+6);
+                    float* output0_tm7 = out0_tm.row(i+7);
+
+                    float* output1_tm0 = out1_tm.row(i);
+                    float* output1_tm1 = out1_tm.row(i+1);
+                    float* output1_tm2 = out1_tm.row(i+2);
+                    float* output1_tm3 = out1_tm.row(i+3);
+                    float* output1_tm4 = out1_tm.row(i+4);
+                    float* output1_tm5 = out1_tm.row(i+5);
+                    float* output1_tm6 = out1_tm.row(i+6);
+                    float* output1_tm7 = out1_tm.row(i+7);
+
+                    const float* r0 = bb2.row(i/8);
+
+                    const float* k0 = kernel0_tm.row(r);
+                    const float* k1 = kernel1_tm.row(r);
+
+                    float32x4_t _sum0_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum4_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum5_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum6_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum7_0 = vdupq_n_f32(0.f);
+
+                    float32x4_t _sum0_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum4_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum5_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum6_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum7_1 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q<inch; q++)
+                    {
+                        float32x4_t _r0 = vld1q_f32( r0 );
+                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
+                        float32x4_t _r2 = vld1q_f32( r0 + 8 );
+                        float32x4_t _r3 = vld1q_f32( r0 + 12 );
+                        float32x4_t _r4 = vld1q_f32( r0 + 16 );
+                        float32x4_t _r5 = vld1q_f32( r0 + 20 );
+                        float32x4_t _r6 = vld1q_f32( r0 + 24 );
+                        float32x4_t _r7 = vld1q_f32( r0 + 28 );
+
+                        float32x4_t _w0_0 = vld1q_f32( k0 );
+                        float32x4_t _w1_0 = vld1q_f32( k0 + 4 );
+                        float32x4_t _w2_0 = vld1q_f32( k0 + 8 );
+                        float32x4_t _w3_0 = vld1q_f32( k0 + 12 );
+
+                        float32x4_t _w0_1 = vld1q_f32( k1 );
+                        float32x4_t _w1_1 = vld1q_f32( k1 + 4 );
+                        float32x4_t _w2_1 = vld1q_f32( k1 + 8 );
+                        float32x4_t _w3_1 = vld1q_f32( k1 + 12 );
+
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w0_0, _r0, 0);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w1_0, _r0, 1);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w2_0, _r0, 2);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w3_0, _r0, 3);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w0_0, _r1, 0);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w1_0, _r1, 1);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w2_0, _r1, 2);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w3_0, _r1, 3);
+                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w0_0, _r2, 0);
+                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w1_0, _r2, 1);
+                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w2_0, _r2, 2);
+                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w3_0, _r2, 3);
+                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w0_0, _r3, 0);
+                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w1_0, _r3, 1);
+                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w2_0, _r3, 2);
+                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w3_0, _r3, 3);
+                        _sum4_0 = vmlaq_laneq_f32(_sum4_0, _w0_0, _r4, 0);
+                        _sum4_0 = vmlaq_laneq_f32(_sum4_0, _w1_0, _r4, 1);
+                        _sum4_0 = vmlaq_laneq_f32(_sum4_0, _w2_0, _r4, 2);
+                        _sum4_0 = vmlaq_laneq_f32(_sum4_0, _w3_0, _r4, 3);
+                        _sum5_0 = vmlaq_laneq_f32(_sum5_0, _w0_0, _r5, 0);
+                        _sum5_0 = vmlaq_laneq_f32(_sum5_0, _w1_0, _r5, 1);
+                        _sum5_0 = vmlaq_laneq_f32(_sum5_0, _w2_0, _r5, 2);
+                        _sum5_0 = vmlaq_laneq_f32(_sum5_0, _w3_0, _r5, 3);
+                        _sum6_0 = vmlaq_laneq_f32(_sum6_0, _w0_0, _r6, 0);
+                        _sum6_0 = vmlaq_laneq_f32(_sum6_0, _w1_0, _r6, 1);
+                        _sum6_0 = vmlaq_laneq_f32(_sum6_0, _w2_0, _r6, 2);
+                        _sum6_0 = vmlaq_laneq_f32(_sum6_0, _w3_0, _r6, 3);
+                        _sum7_0 = vmlaq_laneq_f32(_sum7_0, _w0_0, _r7, 0);
+                        _sum7_0 = vmlaq_laneq_f32(_sum7_0, _w1_0, _r7, 1);
+                        _sum7_0 = vmlaq_laneq_f32(_sum7_0, _w2_0, _r7, 2);
+                        _sum7_0 = vmlaq_laneq_f32(_sum7_0, _w3_0, _r7, 3);
+
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w0_1, _r0, 0);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w1_1, _r0, 1);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w2_1, _r0, 2);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w3_1, _r0, 3);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w0_1, _r1, 0);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w1_1, _r1, 1);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w2_1, _r1, 2);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w3_1, _r1, 3);
+                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w0_1, _r2, 0);
+                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w1_1, _r2, 1);
+                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w2_1, _r2, 2);
+                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w3_1, _r2, 3);
+                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w0_1, _r3, 0);
+                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w1_1, _r3, 1);
+                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w2_1, _r3, 2);
+                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w3_1, _r3, 3);
+                        _sum4_1 = vmlaq_laneq_f32(_sum4_1, _w0_1, _r4, 0);
+                        _sum4_1 = vmlaq_laneq_f32(_sum4_1, _w1_1, _r4, 1);
+                        _sum4_1 = vmlaq_laneq_f32(_sum4_1, _w2_1, _r4, 2);
+                        _sum4_1 = vmlaq_laneq_f32(_sum4_1, _w3_1, _r4, 3);
+                        _sum5_1 = vmlaq_laneq_f32(_sum5_1, _w0_1, _r5, 0);
+                        _sum5_1 = vmlaq_laneq_f32(_sum5_1, _w1_1, _r5, 1);
+                        _sum5_1 = vmlaq_laneq_f32(_sum5_1, _w2_1, _r5, 2);
+                        _sum5_1 = vmlaq_laneq_f32(_sum5_1, _w3_1, _r5, 3);
+                        _sum6_1 = vmlaq_laneq_f32(_sum6_1, _w0_1, _r6, 0);
+                        _sum6_1 = vmlaq_laneq_f32(_sum6_1, _w1_1, _r6, 1);
+                        _sum6_1 = vmlaq_laneq_f32(_sum6_1, _w2_1, _r6, 2);
+                        _sum6_1 = vmlaq_laneq_f32(_sum6_1, _w3_1, _r6, 3);
+                        _sum7_1 = vmlaq_laneq_f32(_sum7_1, _w0_1, _r7, 0);
+                        _sum7_1 = vmlaq_laneq_f32(_sum7_1, _w1_1, _r7, 1);
+                        _sum7_1 = vmlaq_laneq_f32(_sum7_1, _w2_1, _r7, 2);
+                        _sum7_1 = vmlaq_laneq_f32(_sum7_1, _w3_1, _r7, 3);
+
+//                         sum0 += r0[0] * k0[0];
+
+                        r0 += 32;
+                        k0 += 16;
+                        k1 += 16;
+                    }
+
+                    vst1q_f32(output0_tm0 + r * 4, _sum0_0);
+                    vst1q_f32(output0_tm1 + r * 4, _sum1_0);
+                    vst1q_f32(output0_tm2 + r * 4, _sum2_0);
+                    vst1q_f32(output0_tm3 + r * 4, _sum3_0);
+                    vst1q_f32(output0_tm4 + r * 4, _sum4_0);
+                    vst1q_f32(output0_tm5 + r * 4, _sum5_0);
+                    vst1q_f32(output0_tm6 + r * 4, _sum6_0);
+                    vst1q_f32(output0_tm7 + r * 4, _sum7_0);
+
+                    vst1q_f32(output1_tm0 + r * 4, _sum0_1);
+                    vst1q_f32(output1_tm1 + r * 4, _sum1_1);
+                    vst1q_f32(output1_tm2 + r * 4, _sum2_1);
+                    vst1q_f32(output1_tm3 + r * 4, _sum3_1);
+                    vst1q_f32(output1_tm4 + r * 4, _sum4_1);
+                    vst1q_f32(output1_tm5 + r * 4, _sum5_1);
+                    vst1q_f32(output1_tm6 + r * 4, _sum6_1);
+                    vst1q_f32(output1_tm7 + r * 4, _sum7_1);
+                }
+                for (; i+3<tiles; i+=4)
+                {
+                    float* output0_tm0 = out0_tm.row(i);
+                    float* output0_tm1 = out0_tm.row(i+1);
+                    float* output0_tm2 = out0_tm.row(i+2);
+                    float* output0_tm3 = out0_tm.row(i+3);
+
+                    float* output1_tm0 = out1_tm.row(i);
+                    float* output1_tm1 = out1_tm.row(i+1);
+                    float* output1_tm2 = out1_tm.row(i+2);
+                    float* output1_tm3 = out1_tm.row(i+3);
+
+                    const float* r0 = bb2.row(i/8 + (i%8)/4);
+
+                    const float* k0 = kernel0_tm.row(r);
+                    const float* k1 = kernel1_tm.row(r);
+
+                    float32x4_t _sum0_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3_0 = vdupq_n_f32(0.f);
+
+                    float32x4_t _sum0_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3_1 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q<inch; q++)
+                    {
+                        float32x4_t _r0 = vld1q_f32( r0 );
+                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
+                        float32x4_t _r2 = vld1q_f32( r0 + 8 );
+                        float32x4_t _r3 = vld1q_f32( r0 + 12 );
+
+                        float32x4_t _w0_0 = vld1q_f32( k0 );
+                        float32x4_t _w1_0 = vld1q_f32( k0 + 4 );
+                        float32x4_t _w2_0 = vld1q_f32( k0 + 8 );
+                        float32x4_t _w3_0 = vld1q_f32( k0 + 12 );
+
+                        float32x4_t _w0_1 = vld1q_f32( k1 );
+                        float32x4_t _w1_1 = vld1q_f32( k1 + 4 );
+                        float32x4_t _w2_1 = vld1q_f32( k1 + 8 );
+                        float32x4_t _w3_1 = vld1q_f32( k1 + 12 );
+
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w0_0, _r0, 0);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w1_0, _r0, 1);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w2_0, _r0, 2);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w3_0, _r0, 3);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w0_0, _r1, 0);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w1_0, _r1, 1);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w2_0, _r1, 2);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w3_0, _r1, 3);
+                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w0_0, _r2, 0);
+                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w1_0, _r2, 1);
+                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w2_0, _r2, 2);
+                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w3_0, _r2, 3);
+                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w0_0, _r3, 0);
+                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w1_0, _r3, 1);
+                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w2_0, _r3, 2);
+                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w3_0, _r3, 3);
+
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w0_1, _r0, 0);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w1_1, _r0, 1);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w2_1, _r0, 2);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w3_1, _r0, 3);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w0_1, _r1, 0);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w1_1, _r1, 1);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w2_1, _r1, 2);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w3_1, _r1, 3);
+                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w0_1, _r2, 0);
+                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w1_1, _r2, 1);
+                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w2_1, _r2, 2);
+                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w3_1, _r2, 3);
+                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w0_1, _r3, 0);
+                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w1_1, _r3, 1);
+                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w2_1, _r3, 2);
+                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w3_1, _r3, 3);
+
+//                         sum0 += r0[0] * k0[0];
+
+                        r0 += 16;
+                        k0 += 16;
+                        k1 += 16;
+                    }
+
+                    vst1q_f32(output0_tm0 + r * 4, _sum0_0);
+                    vst1q_f32(output0_tm1 + r * 4, _sum1_0);
+                    vst1q_f32(output0_tm2 + r * 4, _sum2_0);
+                    vst1q_f32(output0_tm3 + r * 4, _sum3_0);
+
+                    vst1q_f32(output1_tm0 + r * 4, _sum0_1);
+                    vst1q_f32(output1_tm1 + r * 4, _sum1_1);
+                    vst1q_f32(output1_tm2 + r * 4, _sum2_1);
+                    vst1q_f32(output1_tm3 + r * 4, _sum3_1);
+                }
+                for (; i+1<tiles; i+=2)
+                {
+                    float* output0_tm0 = out0_tm.row(i);
+                    float* output0_tm1 = out0_tm.row(i+1);
+
+                    float* output1_tm0 = out1_tm.row(i);
+                    float* output1_tm1 = out1_tm.row(i+1);
+
+                    const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2);
+
+                    const float* k0 = kernel0_tm.row(r);
+                    const float* k1 = kernel1_tm.row(r);
+
+                    float32x4_t _sum0_0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1_0 = vdupq_n_f32(0.f);
+
+                    float32x4_t _sum0_1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1_1 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q<inch; q++)
+                    {
+                        float32x4_t _r0 = vld1q_f32( r0 );
+                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
+
+                        float32x4_t _w0_0 = vld1q_f32( k0 );
+                        float32x4_t _w1_0 = vld1q_f32( k0 + 4 );
+                        float32x4_t _w2_0 = vld1q_f32( k0 + 8 );
+                        float32x4_t _w3_0 = vld1q_f32( k0 + 12 );
+
+                        float32x4_t _w0_1 = vld1q_f32( k1 );
+                        float32x4_t _w1_1 = vld1q_f32( k1 + 4 );
+                        float32x4_t _w2_1 = vld1q_f32( k1 + 8 );
+                        float32x4_t _w3_1 = vld1q_f32( k1 + 12 );
+
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w0_0, _r0, 0);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w1_0, _r0, 1);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w2_0, _r0, 2);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w3_0, _r0, 3);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w0_0, _r1, 0);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w1_0, _r1, 1);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w2_0, _r1, 2);
+                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w3_0, _r1, 3);
+
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w0_1, _r0, 0);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w1_1, _r0, 1);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w2_1, _r0, 2);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w3_1, _r0, 3);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w0_1, _r1, 0);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w1_1, _r1, 1);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w2_1, _r1, 2);
+                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w3_1, _r1, 3);
+
+//                         sum0 += r0[0] * k0[0];
+
+                        r0 += 8;
+                        k0 += 16;
+                        k1 += 16;
+                    }
+
+                    vst1q_f32(output0_tm0 + r * 4, _sum0_0);
+                    vst1q_f32(output0_tm1 + r * 4, _sum1_0);
+
+                    vst1q_f32(output1_tm0 + r * 4, _sum0_1);
+                    vst1q_f32(output1_tm1 + r * 4, _sum1_1);
+                }
+                for (; i<tiles; i++)
+                {
+                    float* output0_tm = out0_tm.row(i);
+
+                    float* output1_tm = out1_tm.row(i);
+
+                    const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2 + i%2);
+
+                    const float* k0 = kernel0_tm.row(r);
+                    const float* k1 = kernel1_tm.row(r);
+
+                    float32x4_t _sum0_0 = vdupq_n_f32(0.f);
+
+                    float32x4_t _sum0_1 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q<inch; q++)
+                    {
+                        float32x4_t _r0 = vld1q_f32( r0 );
+
+                        float32x4_t _w0_0 = vld1q_f32( k0 );
+                        float32x4_t _w1_0 = vld1q_f32( k0 + 4 );
+                        float32x4_t _w2_0 = vld1q_f32( k0 + 8 );
+                        float32x4_t _w3_0 = vld1q_f32( k0 + 12 );
+
+                        float32x4_t _w0_1 = vld1q_f32( k1 );
+                        float32x4_t _w1_1 = vld1q_f32( k1 + 4 );
+                        float32x4_t _w2_1 = vld1q_f32( k1 + 8 );
+                        float32x4_t _w3_1 = vld1q_f32( k1 + 12 );
+
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w0_0, _r0, 0);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w1_0, _r0, 1);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w2_0, _r0, 2);
+                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w3_0, _r0, 3);
+
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w0_1, _r0, 0);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w1_1, _r0, 1);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w2_1, _r0, 2);
+                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w3_1, _r0, 3);
+
+//                         sum0 += r0[0] * k0[0];
+
+                        r0 += 4;
+                        k0 += 16;
+                        k1 += 16;
+                    }
+
+                    vst1q_f32(output0_tm + r * 4, _sum0_0);
+
+                    vst1q_f32(output1_tm + r * 4, _sum0_1);
+                }
+
+            }
+        }
+#endif // __ARM_NEON && __aarch64__
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p=remain_outch_start; p<outch; p++)
         {
             Mat out0_tm = top_blob_tm.channel(p);
             const Mat kernel0_tm = kernel_tm.channel(p);
 
-            out0_tm.fill(vdupq_n_f32(0.f));
-
-            int q = 0;
-
-            for (; q<inch; q++)
+            for (int r=0; r<64; r++)
             {
-                const float* r0 = bottom_blob_tm.channel(q);
+                const Mat bb2 = bottom_blob_tm2.channel(r);
 
-                float* output0_tm = out0_tm;
-
-                // tile
-                for (int i=0; i<h_tm/8 * w_tm/8; i++)
+                int i=0;
+                for (; i+7<tiles; i+=8)
                 {
-                    const float* k0 = kernel0_tm.row(q);
+                    float* output0_tm0 = out0_tm.row(i);
+                    float* output0_tm1 = out0_tm.row(i+1);
+                    float* output0_tm2 = out0_tm.row(i+2);
+                    float* output0_tm3 = out0_tm.row(i+3);
+                    float* output0_tm4 = out0_tm.row(i+4);
+                    float* output0_tm5 = out0_tm.row(i+5);
+                    float* output0_tm6 = out0_tm.row(i+6);
+                    float* output0_tm7 = out0_tm.row(i+7);
 
-                    // TODO neon optimize
-                    for (int m=0; m<64; m++)
+                    const float* r0 = bb2.row(i/8);
+
+                    const float* k0 = kernel0_tm.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3 = vdupq_n_f32(0.f);
+                    float32x4_t _sum4 = vdupq_n_f32(0.f);
+                    float32x4_t _sum5 = vdupq_n_f32(0.f);
+                    float32x4_t _sum6 = vdupq_n_f32(0.f);
+                    float32x4_t _sum7 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q<inch; q++)
                     {
-                        float32x4_t _val = vld1q_f32(r0);
+                        float32x4_t _r0 = vld1q_f32( r0 );
+                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
+                        float32x4_t _r2 = vld1q_f32( r0 + 8 );
+                        float32x4_t _r3 = vld1q_f32( r0 + 12 );
+                        float32x4_t _r4 = vld1q_f32( r0 + 16 );
+                        float32x4_t _r5 = vld1q_f32( r0 + 20 );
+                        float32x4_t _r6 = vld1q_f32( r0 + 24 );
+                        float32x4_t _r7 = vld1q_f32( r0 + 28 );
 
                         float32x4_t _w0 = vld1q_f32( k0 );
                         float32x4_t _w1 = vld1q_f32( k0 + 4 );
                         float32x4_t _w2 = vld1q_f32( k0 + 8 );
                         float32x4_t _w3 = vld1q_f32( k0 + 12 );
 
-                        float32x4_t _sum = vld1q_f32(output0_tm);
+#if __aarch64__
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w0, _r0, 0);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w1, _r0, 1);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w2, _r0, 2);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w3, _r0, 3);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w0, _r1, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w1, _r1, 1);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w2, _r1, 2);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w3, _r1, 3);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _w0, _r2, 0);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _w1, _r2, 1);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _w2, _r2, 2);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _w3, _r2, 3);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _w0, _r3, 0);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _w1, _r3, 1);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _w2, _r3, 2);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _w3, _r3, 3);
+                        _sum4 = vmlaq_laneq_f32(_sum4, _w0, _r4, 0);
+                        _sum4 = vmlaq_laneq_f32(_sum4, _w1, _r4, 1);
+                        _sum4 = vmlaq_laneq_f32(_sum4, _w2, _r4, 2);
+                        _sum4 = vmlaq_laneq_f32(_sum4, _w3, _r4, 3);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _w0, _r5, 0);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _w1, _r5, 1);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _w2, _r5, 2);
+                        _sum5 = vmlaq_laneq_f32(_sum5, _w3, _r5, 3);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _w0, _r6, 0);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _w1, _r6, 1);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _w2, _r6, 2);
+                        _sum6 = vmlaq_laneq_f32(_sum6, _w3, _r6, 3);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _w0, _r7, 0);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _w1, _r7, 1);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _w2, _r7, 2);
+                        _sum7 = vmlaq_laneq_f32(_sum7, _w3, _r7, 3);
+#else
+                        _sum0 = vmlaq_lane_f32(_sum0, _w0, vget_low_f32(_r0), 0);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w1, vget_low_f32(_r0), 1);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w2, vget_high_f32(_r0), 0);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w3, vget_high_f32(_r0), 1);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w0, vget_low_f32(_r1), 0);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w1, vget_low_f32(_r1), 1);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w2, vget_high_f32(_r1), 0);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w3, vget_high_f32(_r1), 1);
+                        _sum2 = vmlaq_lane_f32(_sum2, _w0, vget_low_f32(_r2), 0);
+                        _sum2 = vmlaq_lane_f32(_sum2, _w1, vget_low_f32(_r2), 1);
+                        _sum2 = vmlaq_lane_f32(_sum2, _w2, vget_high_f32(_r2), 0);
+                        _sum2 = vmlaq_lane_f32(_sum2, _w3, vget_high_f32(_r2), 1);
+                        _sum3 = vmlaq_lane_f32(_sum3, _w0, vget_low_f32(_r3), 0);
+                        _sum3 = vmlaq_lane_f32(_sum3, _w1, vget_low_f32(_r3), 1);
+                        _sum3 = vmlaq_lane_f32(_sum3, _w2, vget_high_f32(_r3), 0);
+                        _sum3 = vmlaq_lane_f32(_sum3, _w3, vget_high_f32(_r3), 1);
+                        _sum4 = vmlaq_lane_f32(_sum4, _w0, vget_low_f32(_r4), 0);
+                        _sum4 = vmlaq_lane_f32(_sum4, _w1, vget_low_f32(_r4), 1);
+                        _sum4 = vmlaq_lane_f32(_sum4, _w2, vget_high_f32(_r4), 0);
+                        _sum4 = vmlaq_lane_f32(_sum4, _w3, vget_high_f32(_r4), 1);
+                        _sum5 = vmlaq_lane_f32(_sum5, _w0, vget_low_f32(_r5), 0);
+                        _sum5 = vmlaq_lane_f32(_sum5, _w1, vget_low_f32(_r5), 1);
+                        _sum5 = vmlaq_lane_f32(_sum5, _w2, vget_high_f32(_r5), 0);
+                        _sum5 = vmlaq_lane_f32(_sum5, _w3, vget_high_f32(_r5), 1);
+                        _sum6 = vmlaq_lane_f32(_sum6, _w0, vget_low_f32(_r6), 0);
+                        _sum6 = vmlaq_lane_f32(_sum6, _w1, vget_low_f32(_r6), 1);
+                        _sum6 = vmlaq_lane_f32(_sum6, _w2, vget_high_f32(_r6), 0);
+                        _sum6 = vmlaq_lane_f32(_sum6, _w3, vget_high_f32(_r6), 1);
+                        _sum7 = vmlaq_lane_f32(_sum7, _w0, vget_low_f32(_r7), 0);
+                        _sum7 = vmlaq_lane_f32(_sum7, _w1, vget_low_f32(_r7), 1);
+                        _sum7 = vmlaq_lane_f32(_sum7, _w2, vget_high_f32(_r7), 0);
+                        _sum7 = vmlaq_lane_f32(_sum7, _w3, vget_high_f32(_r7), 1);
+#endif
+//                         sum0 += r0[0] * k0[0];
+
+                        r0 += 32;
+                        k0 += 16;
+                    }
+
+                    vst1q_f32(output0_tm0 + r * 4, _sum0);
+                    vst1q_f32(output0_tm1 + r * 4, _sum1);
+                    vst1q_f32(output0_tm2 + r * 4, _sum2);
+                    vst1q_f32(output0_tm3 + r * 4, _sum3);
+                    vst1q_f32(output0_tm4 + r * 4, _sum4);
+                    vst1q_f32(output0_tm5 + r * 4, _sum5);
+                    vst1q_f32(output0_tm6 + r * 4, _sum6);
+                    vst1q_f32(output0_tm7 + r * 4, _sum7);
+                }
+                for (; i+3<tiles; i+=4)
+                {
+                    float* output0_tm0 = out0_tm.row(i);
+                    float* output0_tm1 = out0_tm.row(i+1);
+                    float* output0_tm2 = out0_tm.row(i+2);
+                    float* output0_tm3 = out0_tm.row(i+3);
+
+                    const float* r0 = bb2.row(i/8 + (i%8)/4);
+
+                    const float* k0 = kernel0_tm.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q<inch; q++)
+                    {
+                        float32x4_t _r0 = vld1q_f32( r0 );
+                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
+                        float32x4_t _r2 = vld1q_f32( r0 + 8 );
+                        float32x4_t _r3 = vld1q_f32( r0 + 12 );
+
+                        float32x4_t _w0 = vld1q_f32( k0 );
+                        float32x4_t _w1 = vld1q_f32( k0 + 4 );
+                        float32x4_t _w2 = vld1q_f32( k0 + 8 );
+                        float32x4_t _w3 = vld1q_f32( k0 + 12 );
 
 #if __aarch64__
-                        _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
-                        _sum = vmlaq_laneq_f32(_sum, _w1, _val, 1);
-                        _sum = vmlaq_laneq_f32(_sum, _w2, _val, 2);
-                        _sum = vmlaq_laneq_f32(_sum, _w3, _val, 3);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w0, _r0, 0);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w1, _r0, 1);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w2, _r0, 2);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w3, _r0, 3);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w0, _r1, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w1, _r1, 1);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w2, _r1, 2);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w3, _r1, 3);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _w0, _r2, 0);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _w1, _r2, 1);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _w2, _r2, 2);
+                        _sum2 = vmlaq_laneq_f32(_sum2, _w3, _r2, 3);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _w0, _r3, 0);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _w1, _r3, 1);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _w2, _r3, 2);
+                        _sum3 = vmlaq_laneq_f32(_sum3, _w3, _r3, 3);
 #else
-                        _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
-                        _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
-                        _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
-                        _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w0, vget_low_f32(_r0), 0);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w1, vget_low_f32(_r0), 1);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w2, vget_high_f32(_r0), 0);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w3, vget_high_f32(_r0), 1);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w0, vget_low_f32(_r1), 0);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w1, vget_low_f32(_r1), 1);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w2, vget_high_f32(_r1), 0);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w3, vget_high_f32(_r1), 1);
+                        _sum2 = vmlaq_lane_f32(_sum2, _w0, vget_low_f32(_r2), 0);
+                        _sum2 = vmlaq_lane_f32(_sum2, _w1, vget_low_f32(_r2), 1);
+                        _sum2 = vmlaq_lane_f32(_sum2, _w2, vget_high_f32(_r2), 0);
+                        _sum2 = vmlaq_lane_f32(_sum2, _w3, vget_high_f32(_r2), 1);
+                        _sum3 = vmlaq_lane_f32(_sum3, _w0, vget_low_f32(_r3), 0);
+                        _sum3 = vmlaq_lane_f32(_sum3, _w1, vget_low_f32(_r3), 1);
+                        _sum3 = vmlaq_lane_f32(_sum3, _w2, vget_high_f32(_r3), 0);
+                        _sum3 = vmlaq_lane_f32(_sum3, _w3, vget_high_f32(_r3), 1);
 #endif
+//                         sum0 += r0[0] * k0[0];
 
-                        vst1q_f32(output0_tm, _sum);
+                        r0 += 16;
+                        k0 += 16;
+                    }
+
+                    vst1q_f32(output0_tm0 + r * 4, _sum0);
+                    vst1q_f32(output0_tm1 + r * 4, _sum1);
+                    vst1q_f32(output0_tm2 + r * 4, _sum2);
+                    vst1q_f32(output0_tm3 + r * 4, _sum3);
+                }
+                for (; i+1<tiles; i+=2)
+                {
+                    float* output0_tm0 = out0_tm.row(i);
+                    float* output0_tm1 = out0_tm.row(i+1);
+
+                    const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2);
+
+                    const float* k0 = kernel0_tm.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q<inch; q++)
+                    {
+                        float32x4_t _r0 = vld1q_f32( r0 );
+                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
+
+                        float32x4_t _w0 = vld1q_f32( k0 );
+                        float32x4_t _w1 = vld1q_f32( k0 + 4 );
+                        float32x4_t _w2 = vld1q_f32( k0 + 8 );
+                        float32x4_t _w3 = vld1q_f32( k0 + 12 );
+
+#if __aarch64__
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w0, _r0, 0);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w1, _r0, 1);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w2, _r0, 2);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w3, _r0, 3);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w0, _r1, 0);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w1, _r1, 1);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w2, _r1, 2);
+                        _sum1 = vmlaq_laneq_f32(_sum1, _w3, _r1, 3);
+#else
+                        _sum0 = vmlaq_lane_f32(_sum0, _w0, vget_low_f32(_r0), 0);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w1, vget_low_f32(_r0), 1);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w2, vget_high_f32(_r0), 0);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w3, vget_high_f32(_r0), 1);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w0, vget_low_f32(_r1), 0);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w1, vget_low_f32(_r1), 1);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w2, vget_high_f32(_r1), 0);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w3, vget_high_f32(_r1), 1);
+#endif
+//                         sum0 += r0[0] * k0[0];
+
+                        r0 += 8;
+                        k0 += 16;
+                    }
+
+                    vst1q_f32(output0_tm0 + r * 4, _sum0);
+                    vst1q_f32(output0_tm1 + r * 4, _sum1);
+                }
+                for (; i<tiles; i++)
+                {
+                    float* output0_tm = out0_tm.row(i);
+
+                    const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2 + i%2);
+
+                    const float* k0 = kernel0_tm.row(r);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+
+                    int q=0;
+                    for (; q<inch; q++)
+                    {
+                        float32x4_t _r0 = vld1q_f32( r0 );
+
+                        float32x4_t _w0 = vld1q_f32( k0 );
+                        float32x4_t _w1 = vld1q_f32( k0 + 4 );
+                        float32x4_t _w2 = vld1q_f32( k0 + 8 );
+                        float32x4_t _w3 = vld1q_f32( k0 + 12 );
+
+#if __aarch64__
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w0, _r0, 0);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w1, _r0, 1);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w2, _r0, 2);
+                        _sum0 = vmlaq_laneq_f32(_sum0, _w3, _r0, 3);
+#else
+                        _sum0 = vmlaq_lane_f32(_sum0, _w0, vget_low_f32(_r0), 0);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w1, vget_low_f32(_r0), 1);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w2, vget_high_f32(_r0), 0);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w3, vget_high_f32(_r0), 1);
+#endif
+//                         sum0 += r0[0] * k0[0];
 
                         r0 += 4;
                         k0 += 16;
-                        output0_tm += 4;
-
-//                         output0_tm[m] += r0[m] * k0[m];
                     }
+
+                    vst1q_f32(output0_tm + r * 4, _sum0);
                 }
 
             }
         }
+
     }
     bottom_blob_tm = Mat();
     // END dot
