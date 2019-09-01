@@ -23,6 +23,7 @@ Split::Split()
     one_blob_only = false;
     support_inplace = false;
     support_vulkan = true;
+    support_packing = true;
 }
 
 int Split::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& /*opt*/) const
