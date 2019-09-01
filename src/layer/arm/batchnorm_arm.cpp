@@ -53,7 +53,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         const float* a_data_ptr = a_data;
         const float* b_data_ptr = b_data;
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q=0; q<channels/4; q++)
         {
             float32x4_t _a = vld1q_f32(a_data_ptr);
             float32x4_t _b = vld1q_f32(b_data_ptr);
