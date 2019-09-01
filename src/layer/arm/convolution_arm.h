@@ -50,6 +50,8 @@ public:
     Mat weight_data_pack4;
     Mat weight_data_pack1to4;
     Mat weight_data_pack4to1;
+
+    Mat weight_3x3_winograd64_data_pack4;
 };
 
 } // namespace ncnn
