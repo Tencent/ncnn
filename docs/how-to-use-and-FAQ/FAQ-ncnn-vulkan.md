@@ -1,6 +1,6 @@
 ### how to enable ncnn vulkan capablity
 
-follow [the build and install instruction](../how-to-build/build.md)
+follow [the build and install instruction](how-to-build)
 
 make sure you have installed vulkan sdk from [lunarg vulkan sdk website](https://vulkan.lunarg.com/sdk/home)
 
@@ -38,7 +38,7 @@ Some platforms have been tested and known working. In theory, if your platform s
 You can search [the vulkan database](https://vulkan.gpuinfo.org) to see if your device supports vulkan.
 
 Some old buggy drivers may produce wrong result, that are blacklisted in ncnn and treated as non-vulkan capable device.
-You could check if your device and driver have this issue with  [my conformance test here](../benchmark/vulkan-conformance-test.md).
+You could check if your device and driver have this issue with  [my conformance test here](vulkan-conformance-test).
 Most of these systems are android with version lower than 8.1.
 
 ### why using vulkan over cuda/opencl/metal
@@ -79,7 +79,7 @@ link your project with MoltenVK framework and Metal
 
 These layers have vulkan support currently
 
-AbsVal, BatchNorm, BinaryOp(no broadcasting), Cast, Clip, Concat, Convolution(pad -233 not supported), ConvolutionDepthWise(pad -233 not supported), Crop, Deconvolution, DeconvolutionDepthWise, Dropout, Eltwise, Flatten, HardSigmoid, InnerProduct, Interp, LRN, Packing, Padding, Permute, Pooling(pad SAME not supported), PReLU, PriorBox, ReLU, Reorg, Reshape, Scale, ShuffleChannel, Sigmoid, Softmax, TanH, UnaryOp
+AbsVal, BatchNorm, BinaryOp, Cast, Clip, Concat, Convolution, ConvolutionDepthWise, Crop, Deconvolution, DeconvolutionDepthWise, Dropout, Eltwise, Flatten, HardSigmoid, InnerProduct, Interp, LRN, Packing, Padding, Permute, Pooling(pad SAME not supported), PReLU, PriorBox, ReLU, Reorg, Reshape, Scale, ShuffleChannel, Sigmoid, Softmax, TanH, UnaryOp
 
 For these layers without vulkan support, ncnn inference engine will automatically fallback to cpu path.
 

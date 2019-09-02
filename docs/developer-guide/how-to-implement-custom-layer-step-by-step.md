@@ -301,7 +301,7 @@ int MyLayer::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 # step7 integret with ncnn library
 you may probably need to modify caffe2ncnn or mxnet2ncnn etc. to write your layer specific parameters and weights into ncnn param and model file
 
-the param and model file structure [param-and-model-file-structure](param-and-model-file-structure.md)
+the param and model file structure [param-and-model-file-structure](param-and-model-file-structure)
 
 ```
 // example param file content

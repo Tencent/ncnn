@@ -43,9 +43,9 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 **[download prebuild binary package for android and ios](https://github.com/Tencent/ncnn/releases)**
 
-**[how to use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/how-to-use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
+**[use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
 
-**[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/ncnn-%E7%BB%84%E4%BB%B6%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8C%97-alexnet) 附带详细步骤，新人强烈推荐 :)**
+**[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) 附带详细步骤，新人强烈推荐 :)**
 
 **[use netron for ncnn model visualization](https://lutzroeder.github.io/netron/)**
 
@@ -126,7 +126,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ### Example project
 
-* https://github.com/Tencent/ncnn/tree/master/examples/squeezencnn
+* https://github.com/nihui/ncnn-android-squeezenet
 * https://github.com/chehongshu/ncnnforandroid_objectiondetection_Mobilenetssd
 * https://github.com/moli232777144/mtcnn_ncnn
 
