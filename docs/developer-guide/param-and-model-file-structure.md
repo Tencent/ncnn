@@ -34,7 +34,7 @@ Softmax       softmax  1 1 fc prob 0=0
 ```
 key index should be unique in each layer line, pair can be omitted if the default value used
 
-the meaning of existing param key index can be looked up at [operation-param-weight-table](https://github.com/Tencent/ncnn/wiki/operation-param-weight-table)
+the meaning of existing param key index can be looked up at [operation-param-weight-table](operation-param-weight-table)
 
 * integer or float key : index 0 ~ 19
 * integer value : int

@@ -6,7 +6,7 @@ Checkout the latest ncnn code, build it and regenerate param and model binary fi
 
 Make sure that your param file starts with the magic number 7767517.
 
-you may find more info on [how-to-use-ncnn-with-alexnet](how-to-use-ncnn-with-alexnet.md)
+you may find more info on [use-ncnn-with-alexnet](use-ncnn-with-alexnet)
 
 ### find_blob_index_by_name XYZ failed
 
@@ -29,13 +29,13 @@ layer {
 }
 ```
 
-you may find more info on [how-to-use-ncnn-with-alexnet](how-to-use-ncnn-with-alexnet.md).
+you may find more info on [use-ncnn-with-alexnet](use-ncnn-with-alexnet).
 
 ### layer XYZ not exists or registered
 
 Your network contains some operations that are not implemented in ncnn.
 
-You may implement them as custom layer followed in [how-to-implement-custom-layer-step-by-step](how-to-implement-custom-layer-step-by-step.md).
+You may implement them as custom layer followed in [how-to-implement-custom-layer-step-by-step](how-to-implement-custom-layer-step-by-step).
 
 Or you could simply register them as no-op if you are sure those operations make no sense.
 
