@@ -76,7 +76,8 @@ void main()
         afp size = afp(min_sizes_data[0]);
         for (int pi = 1; pi < num_ratios; pi++)
         {
-            afp ratio = sqrt(sfp2afp(aspect_ratios_data[pi]));
+            afp v = sfp2afp(aspect_ratios_data[pi]);
+            afp ratio = sqrt(v);
             afp cwr = size * afp(p.h) / afp(p.w) * ratio / afp(2);
             afp chr = size / ratio / afp(2);
 

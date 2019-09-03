@@ -59,7 +59,8 @@ void main()
         afp max_value = afp(-99999999.f);
         for (int i = 0; i < p.w; i++)
         {
-            max_value = max(max_value, sfp2afp(bottom_top_blob_data[i]));
+            afp v = sfp2afp(bottom_top_blob_data[i]);
+            max_value = max(max_value, v);
         }
         max_workspace_data[0] = afp2sfp(max_value);
         return;
@@ -71,7 +72,8 @@ void main()
         for (int i = 0; i < p.h; i++)
         {
             int v_offset = i * p.w + gx;
-            max_value = max(max_value, sfp2afp(bottom_top_blob_data[v_offset]));
+            afp v = sfp2afp(bottom_top_blob_data[v_offset]);
+            max_value = max(max_value, v);
         }
         max_workspace_data[gx] = afp2sfp(max_value);
         return;
@@ -83,7 +85,8 @@ void main()
         for (int i = 0; i < p.w; i++)
         {
             int v_offset = gx * p.w + i;
-            max_value = max(max_value, sfp2afp(bottom_top_blob_data[v_offset]));
+            afp v = sfp2afp(bottom_top_blob_data[v_offset]);
+            max_value = max(max_value, v);
         }
         max_workspace_data[gx] = afp2sfp(max_value);
         return;
@@ -95,7 +98,8 @@ void main()
         for (int i = 0; i < p.c; i++)
         {
             int v_offset = i * p.cstep + gy * p.w + gx;
-            max_value = max(max_value, sfp2afp(bottom_top_blob_data[v_offset]));
+            afp v = sfp2afp(bottom_top_blob_data[v_offset]);
+            max_value = max(max_value, v);
         }
         max_workspace_data[gy * p.w + gx] = afp2sfp(max_value);
         return;
@@ -107,7 +111,8 @@ void main()
         for (int i = 0; i < p.h; i++)
         {
             int v_offset = gy * p.cstep + i * p.w + gx;
-            max_value = max(max_value, sfp2afp(bottom_top_blob_data[v_offset]));
+            afp v = sfp2afp(bottom_top_blob_data[v_offset]);
+            max_value = max(max_value, v);
         }
         max_workspace_data[gy * p.w + gx] = afp2sfp(max_value);
         return;
@@ -119,7 +124,8 @@ void main()
         for (int i = 0; i < p.w; i++)
         {
             int v_offset = gy * p.cstep + gx * p.w + i;
-            max_value = max(max_value, sfp2afp(bottom_top_blob_data[v_offset]));
+            afp v = sfp2afp(bottom_top_blob_data[v_offset]);
+            max_value = max(max_value, v);
         }
         max_workspace_data[gy * p.h + gx] = afp2sfp(max_value);
         return;

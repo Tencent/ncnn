@@ -82,7 +82,8 @@ void main()
                     if (gx * stride_w + x >= p.w)
                         continue;
 
-                    res = max(res, sfp2afpvec4(bottom_blob_data[v_offset + x]));
+                    afpvec4 v = sfp2afpvec4(bottom_blob_data[v_offset + x]);
+                    res = max(res, v);
                 }
 
                 v_offset += p.w;
@@ -154,7 +155,8 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res = max(res, sfp2afpvec4(bottom_blob_data[v_offset + x]));
+                afpvec4 v = sfp2afpvec4(bottom_blob_data[v_offset + x]);
+                res = max(res, v);
             }
 
             v_offset += p.w;

@@ -65,7 +65,8 @@ void main()
 
         for (int i = 0; i < size; i++)
         {
-            res = max(res, sfp2afpvec4(bottom_blob_data[v_offset + i]));
+            afpvec4 v = sfp2afpvec4(bottom_blob_data[v_offset + i]);
+            res = max(res, v);
         }
     }
     else if (pooling_type == 1)

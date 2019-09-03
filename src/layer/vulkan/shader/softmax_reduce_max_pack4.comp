@@ -59,7 +59,8 @@ void main()
         afpvec4 max_value = afpvec4(-99999999.f);
         for (int i = 0; i < p.w; i++)
         {
-            max_value = max(max_value, sfp2afpvec4(bottom_top_blob_data[i]));
+            afpvec4 v = sfp2afpvec4(bottom_top_blob_data[i]);
+            max_value = max(max_value, v);
         }
         afpvec2 max2 = max(max_value.rg, max_value.ba);
         max_value = afpvec4(max(max2.r, max2.g));
@@ -73,7 +74,8 @@ void main()
         for (int i = 0; i < p.h; i++)
         {
             int v_offset = i * p.w + gx;
-            max_value = max(max_value, sfp2afpvec4(bottom_top_blob_data[v_offset]));
+            afpvec4 v = sfp2afpvec4(bottom_top_blob_data[v_offset]);
+            max_value = max(max_value, v);
         }
         afpvec2 max2 = max(max_value.rg, max_value.ba);
         max_value = afpvec4(max(max2.r, max2.g));
@@ -87,7 +89,8 @@ void main()
         for (int i = 0; i < p.w; i++)
         {
             int v_offset = gx * p.w + i;
-            max_value = max(max_value, sfp2afpvec4(bottom_top_blob_data[v_offset]));
+            afpvec4 v = sfp2afpvec4(bottom_top_blob_data[v_offset]);
+            max_value = max(max_value, v);
         }
         max_workspace_data[gx] = afp2sfpvec4(max_value);
         return;
@@ -99,7 +102,8 @@ void main()
         for (int i = 0; i < p.c; i++)
         {
             int v_offset = i * p.cstep + gy * p.w + gx;
-            max_value = max(max_value, sfp2afpvec4(bottom_top_blob_data[v_offset]));
+            afpvec4 v = sfp2afpvec4(bottom_top_blob_data[v_offset]);
+            max_value = max(max_value, v);
         }
         afpvec2 max2 = max(max_value.rg, max_value.ba);
         max_value = afpvec4(max(max2.r, max2.g));
@@ -113,7 +117,8 @@ void main()
         for (int i = 0; i < p.h; i++)
         {
             int v_offset = gy * p.cstep + i * p.w + gx;
-            max_value = max(max_value, sfp2afpvec4(bottom_top_blob_data[v_offset]));
+            afpvec4 v = sfp2afpvec4(bottom_top_blob_data[v_offset]);
+            max_value = max(max_value, v);
         }
         max_workspace_data[gy * p.w + gx] = afp2sfpvec4(max_value);
         return;
@@ -125,7 +130,8 @@ void main()
         for (int i = 0; i < p.w; i++)
         {
             int v_offset = gy * p.cstep + gx * p.w + i;
-            max_value = max(max_value, sfp2afpvec4(bottom_top_blob_data[v_offset]));
+            afpvec4 v = sfp2afpvec4(bottom_top_blob_data[v_offset]);
+            max_value = max(max_value, v);
         }
         max_workspace_data[gy * p.h + gx] = afp2sfpvec4(max_value);
         return;
