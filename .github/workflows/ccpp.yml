@@ -1,0 +1,15 @@
+name: C/C++ CI
+
+on: [push, pull request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@master
+    - name: cmake
+      run: cmake .
+    - name: make
+      run: make
