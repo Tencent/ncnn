@@ -19,7 +19,7 @@ Besides, you may interest in https://github.com/conanhujinming/matcaffe2caffe
 
 If your caffemodel is trained using c++ caffe and opencv, then the input image should be BGR order.
 
-If your model is trained using matlab caffe or mxnet or tensorflow, the input image would probably be RGB order.
+If your model is trained using matlab caffe or pytorch or mxnet or tensorflow, the input image would probably be RGB order.
 
 The channel order can be changed on-the-fly through proper pixel type enum
 ```
@@ -76,6 +76,21 @@ So you have to pre process the input data by yourself (use opencv or something)
 transform_param {
     mean_file: "imagenet_mean.binaryproto"
 }
+```
+
+For pytorch or mxnet-gluon
+```
+transforms.ToTensor(),
+transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+```
+Then the corresponding code for ncnn pre process is
+```
+// R' = (R / 255 - 0.485) / 0.229 = (R - 0.485 * 255) / 0.229 / 255
+// G' = (G / 255 - 0.456) / 0.224 = (G - 0.456 * 255) / 0.224 / 255
+// B' = (B / 255 - 0.406) / 0.225 = (B - 0.406 * 255) / 0.225 / 255
+const float mean_vals[3] = {0.485f*255.f, 0.456f*255.f, 0.406f*255.f};
+const float norm_vals[3] = {1/0.229f/255.f, 1/0.224f/255.f, 1/0.225f/255.f};
+in.substract_mean_normalize(mean_vals, norm_vals);
 ```
 
 ### use the desired blob
