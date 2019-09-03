@@ -82,7 +82,8 @@ void main()
                     if (gx * stride_w + x >= p.w)
                         break;
 
-                    res = max(res, sfp2afp(bottom_blob_data[v_offset + x]));
+                    afp v = sfp2afp(bottom_blob_data[v_offset + x]);
+                    res = max(res, v);
                 }
 
                 v_offset += p.w;
@@ -154,7 +155,8 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res = max(res, sfp2afp(bottom_blob_data[v_offset + x]));
+                afp v = sfp2afp(bottom_blob_data[v_offset + x]);
+                res = max(res, v);
             }
 
             v_offset += p.w;
