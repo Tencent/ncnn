@@ -404,7 +404,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g=0; g<group; g++)
                 {
-                    int* outptr = top_blob.channel(g);
+                    int* outptr = top_blob_tm.channel(g);
                     const signed char* kptr = (const signed char*)weight_data + maxk * g;
                     const Mat m = bottom_blob_bordered.channel(g);
 
@@ -467,7 +467,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 {
                     for (int p=0; p<num_output_g; p++)
                     {
-                        int* outptr = top_blob.channel(g * num_output_g + p);
+                        int* outptr = top_blob_tm.channel(g * num_output_g + p);
                         const signed char* weight_data_ptr = (const signed char*)weight_data + maxk * channels_g * num_output_g * g;
 
                         for (int i = 0; i < outh; i++)
