@@ -22,6 +22,13 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(BatchNorm_arm)
 
+BatchNorm_arm::BatchNorm_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
@@ -35,16 +42,45 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int size = w * h;
+    int elempack = bottom_top_blob.elempack;
 
-    const float* a_data_ptr = a_data;
-    const float* b_data_ptr = b_data;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+
+    if (elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels/4; q++)
+        {
+            float32x4_t _a = vld1q_f32((const float*)a_data + q * 4);
+            float32x4_t _b = vld1q_f32((const float*)b_data + q * 4);
+
+            float* ptr = bottom_top_blob.channel(q);
+
+            for (int i=0; i<size; i++)
+            {
+                float32x4_t _p = vld1q_f32(ptr);
+                _p = vmlaq_f32(_a, _p, _b);
+                vst1q_f32(ptr, _p);
+
+                ptr += 4;
+            }
+        }
+
+        return 0;
+    }
+
+    } // opt.use_packing_layout
+#endif // __ARM_NEON
+
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
-        float a = a_data_ptr[q];
-        float b = b_data_ptr[q];
+        float a = a_data[q];
+        float b = b_data[q];
 
 #if __ARM_NEON
         int nn = size >> 2;

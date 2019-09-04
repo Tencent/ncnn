@@ -166,7 +166,9 @@ int LRN_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int pad = local_size / 2;
         if (pad > 0)
         {
-            copy_make_border(square_blob, square_blob_bordered, pad, local_size - pad - 1, pad, local_size - pad - 1, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(square_blob, square_blob_bordered, pad, local_size - pad - 1, pad, local_size - pad - 1, BORDER_CONSTANT, 0.f, opt_b);
             if (square_blob_bordered.empty())
                 return -100;
 

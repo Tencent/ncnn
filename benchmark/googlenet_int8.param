@@ -151,4 +151,4 @@ Concat           inception_5b/output 4 1 inception_5b/1x1_inception_5b/relu_1x1 
 Pooling          pool5/7x7_s1     1 1 inception_5b/output pool5/7x7_s1 0=1 1=7 2=1 3=0 4=0
 Dropout          pool5/drop_7x7_s1 1 1 pool5/7x7_s1 pool5/7x7_s1_pool5/drop_7x7_s1
 InnerProduct     loss3/classifier 1 1 pool5/7x7_s1_pool5/drop_7x7_s1 loss3/classifier 0=1000 1=1 2=1024000
-Softmax          prob             1 1 loss3/classifier prob 0=0
+Softmax          prob             1 1 loss3/classifier output 0=0

@@ -22,12 +22,6 @@ Padding::Padding()
 {
     one_blob_only = true;
     support_inplace = false;
-    support_vulkan = true;
-
-#if NCNN_VULKAN
-    pipeline_padding = 0;
-    pipeline_padding_pack4 = 0;
-#endif // NCNN_VULKAN
 }
 
 int Padding::load_param(const ParamDict& pd)
@@ -38,6 +32,11 @@ int Padding::load_param(const ParamDict& pd)
     right = pd.get(3, 0);
     type = pd.get(4, 0);
     value = pd.get(5, 0.f);
+
+    if (top == -233 && bottom == -233 && left == -233 && right == -233)
+    {
+        one_blob_only = false;
+    }
 
     return 0;
 }
@@ -186,6 +185,94 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             outptr += w;
         }
     }
+    else if (type == 2)
+    {
+        int y = 0;
+        // fill top
+        ptr += top * src.w;
+        for (; y < top; y++)
+        {
+            int x = 0;
+            for (; x < left; x++)
+            {
+                outptr[x] = ptr[left - x];
+            }
+            if(src.w < 12)
+            {
+                for (; x < (left + src.w); x++)
+                {
+                    outptr[x] = ptr[x - left];
+                }
+            }
+            else
+            {
+                memcpy(outptr + left, ptr, src.w * sizeof(T));
+                x += src.w;
+            }
+            for (; x < w; x++)
+            {
+                outptr[x] = ptr[src.w - (x - left - src.w) - 2];
+            }
+            outptr += w;
+            ptr -= src.w;
+        }
+        // fill center
+        for (; y < (top + src.h); y++)
+        {
+            int x = 0;
+            for (; x < left; x++)
+            {
+                outptr[x] = ptr[left - x];
+            }
+            if(src.w < 12)
+            {
+                for (; x < (left + src.w); x++)
+                {
+                    outptr[x] = ptr[x - left];
+                }
+            }
+            else
+            {
+                memcpy(outptr + left, ptr, src.w * sizeof(T));
+                x += src.w;
+            }
+            for (; x < w; x++)
+            {
+                outptr[x] = ptr[src.w - (x - left - src.w) - 2];
+            }
+            ptr += src.w;
+            outptr += w;
+        }
+        // fill bottom
+        ptr -= 2 * src.w;
+        for (; y < h; y++)
+        {
+            int x = 0;
+            for (; x < left; x++)
+            {
+                outptr[x] = ptr[left - x];
+            }
+            if(src.w < 12)
+            {
+                for (; x < (left + src.w); x++)
+                {
+                    outptr[x] = ptr[x - left];
+                }
+            }
+            else
+            {
+                memcpy(outptr + left, ptr, src.w * sizeof(T));
+                x += src.w;
+            }
+            for (; x < w; x++)
+            {
+                outptr[x] = ptr[src.w - (x - left - src.w) - 2];
+            }
+            outptr += w;
+            ptr -= src.w;
+        }
+    }
+
 }
 
 int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -258,88 +345,92 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     return 0;
 }
 
-#if NCNN_VULKAN
-int Padding::create_pipeline()
+int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    std::vector<vk_specialization_type> specializations(6);
-    specializations[0].i = top;
-    specializations[1].i = bottom;
-    specializations[2].i = left;
-    specializations[3].i = right;
-    specializations[4].i = type;
-    specializations[5].f = value;
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& reference_blob = bottom_blobs[1];
 
-    // pack1
+    Mat& top_blob = top_blobs[0];
+
+    int _top;
+    int _bottom;
+    int _left;
+    int _right;
     {
-        pipeline_padding = new Pipeline(vkdev);
-        pipeline_padding->set_optimal_local_size_xyz();
-        pipeline_padding->create("padding", specializations, 2, 10);
+        const int* param_data = reference_blob;
+
+        _top = param_data[0];
+        _bottom = param_data[1];
+        _left = param_data[2];
+        _right = param_data[3];
     }
 
-    // pack4
+    if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0)
     {
-        pipeline_padding_pack4 = new Pipeline(vkdev);
-        pipeline_padding_pack4->set_optimal_local_size_xyz();
-        pipeline_padding_pack4->create("padding_pack4", specializations, 2, 10);
+        top_blob = bottom_blob;
+        return 0;
     }
 
-    return 0;
-}
-
-int Padding::destroy_pipeline()
-{
-    delete pipeline_padding;
-    pipeline_padding = 0;
-
-    delete pipeline_padding_pack4;
-    pipeline_padding_pack4 = 0;
-
-    return 0;
-}
-
-int Padding::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
-
-    // TODO vec and image padding
     int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
 
-    int outw = w + left + right;
-    int outh = h + top + bottom;
+    int outw = w + _left + _right;
 
-    top_blob.create(outw, outh, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
-    if (top_blob.empty())
-        return -100;
+    if (dims == 1)
+    {
+        top_blob.create(outw, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-//     fprintf(stderr, "Padding::forward %p %p\n", bottom_blob.buffer(), top_blob.buffer());
+        if (elemsize == 1)
+            copy_make_border_image<signed char>(bottom_blob, top_blob, 0, _left, type, value);
+        else if (elemsize == 4)
+            copy_make_border_image<float>(bottom_blob, top_blob, 0, _left, type, value);
 
-    std::vector<VkMat> bindings(2);
-    bindings[0] = bottom_blob;
-    bindings[1] = top_blob;
+        return 0;
+    }
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = bottom_blob.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = top_blob.cstep;
+    int outh = h + _top + _bottom;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_padding_pack4 : pipeline_padding;
+    if (dims == 2)
+    {
+        top_blob.create(outw, outh, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-    // record
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        if (elemsize == 1)
+            copy_make_border_image<signed char>(bottom_blob, top_blob, _top, _left, type, value);
+        else if (elemsize == 4)
+            copy_make_border_image<float>(bottom_blob, top_blob, _top, _left, type, value);
+
+        return 0;
+    }
+
+    if (dims == 3)
+    {
+        top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const Mat m = bottom_blob.channel(q);
+            Mat borderm = top_blob.channel(q);
+
+            if (elemsize == 1)
+                copy_make_border_image<signed char>(m, borderm, _top, _left, type, value);
+            else if (elemsize == 4)
+                copy_make_border_image<float>(m, borderm, _top, _left, type, value);
+        }
+
+        return 0;
+    }
 
     return 0;
 }
-#endif // NCNN_VULKAN
 
 } // namespace ncnn

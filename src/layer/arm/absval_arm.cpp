@@ -22,12 +22,47 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(AbsVal_arm)
 
+AbsVal_arm::AbsVal_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+
+    if (elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+
+            for (int i=0; i<size; i++)
+            {
+                float32x4_t _p = vld1q_f32(ptr);
+                _p = vabsq_f32(_p);
+                vst1q_f32(ptr, _p);
+
+                ptr += 4;
+            }
+        }
+
+        return 0;
+    }
+
+    } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)

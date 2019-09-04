@@ -24,12 +24,6 @@ UnaryOp::UnaryOp()
 {
     one_blob_only = true;
     support_inplace = true;
-    support_vulkan = true;
-
-#if NCNN_VULKAN
-    pipeline_unaryop = 0;
-    pipeline_unaryop_pack4 = 0;
-#endif // NCNN_VULKAN
 }
 
 int UnaryOp::load_param(const ParamDict& pd)
@@ -135,6 +129,11 @@ struct unary_op_reciprocal : std::unary_function<T,T> {
     T operator() (const T& x) const { return 1.f / x; }
 };
 
+template<typename T>
+struct unary_op_tanh : std::unary_function<T,T> {
+    T operator() (const T& x) const { return tanh(x); }
+};
+
 int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (op_type == Operation_ABS)
@@ -185,63 +184,10 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (op_type == Operation_RECIPROCAL)
         return unary_op_inplace< unary_op_reciprocal<float> >(bottom_top_blob, opt);
 
-    return 0;
-}
-
-#if NCNN_VULKAN
-int UnaryOp::create_pipeline()
-{
-    pipeline_unaryop = new Pipeline(vkdev);
-    pipeline_unaryop->set_optimal_local_size_xyz();
-
-    std::vector<vk_specialization_type> specializations(1);
-    specializations[0].i = op_type;
-
-    pipeline_unaryop->create("unaryop", specializations, 1, 5);
-
-    // pack4
-    {
-        pipeline_unaryop_pack4 = new Pipeline(vkdev);
-        pipeline_unaryop_pack4->set_optimal_local_size_xyz();
-        pipeline_unaryop_pack4->create("unaryop_pack4", specializations, 1, 5);
-    }
+    if (op_type == Operation_TANH)
+        return unary_op_inplace< unary_op_tanh<float> >(bottom_top_blob, opt);
 
     return 0;
 }
-
-int UnaryOp::destroy_pipeline()
-{
-    delete pipeline_unaryop;
-    pipeline_unaryop = 0;
-
-    delete pipeline_unaryop_pack4;
-    pipeline_unaryop_pack4 = 0;
-
-    return 0;
-}
-
-int UnaryOp::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
-{
-    int packing = bottom_top_blob.packing;
-//     fprintf(stderr, "UnaryOp::forward_inplace %p\n", bottom_top_blob.buffer());
-
-    std::vector<VkMat> bindings(1);
-    bindings[0] = bottom_top_blob;
-
-    std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = bottom_top_blob.cstep;
-
-    const Pipeline* pipeline = packing == 4 ? pipeline_unaryop_pack4 : pipeline_unaryop;
-
-    // record
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
-
-    return 0;
-}
-#endif // NCNN_VULKAN
 
 } // namespace ncnn

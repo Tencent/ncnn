@@ -29,7 +29,7 @@ static int detect_shufflenetv2(const cv::Mat& bgr, std::vector<float>& cls_score
     ncnn::Net shufflenetv2;
 
 #if NCNN_VULKAN
-    shufflenetv2.use_vulkan_compute = true;
+    shufflenetv2.opt.use_vulkan_compute = true;
 #endif // NCNN_VULKAN
 
     // https://github.com/miaow1988/ShuffleNet_V2_pytorch_caffe

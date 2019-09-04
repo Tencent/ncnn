@@ -136,6 +136,16 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
     int c = 0;
     int nconsumed = 0;
     int nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+    if (nscan != 1)
+    {
+        // (None
+        if (strncmp(it->second.c_str() + c, "(None", 5) == 0)
+        {
+            i = -233;
+            nconsumed = 5;
+            nscan = 1;
+        }
+    }
     while (nscan == 1)
     {
         list.push_back(i);
@@ -144,6 +154,16 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
         i = 0;
         c += nconsumed;
         nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+        if (nscan != 1)
+        {
+            // , None
+            if (strncmp(it->second.c_str() + c, ", None", 6) == 0)
+            {
+                i = -233;
+                nconsumed = 6;
+                nscan = 1;
+            }
+        }
     }
 
     return list;
@@ -297,7 +317,12 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
     char line[1024];
 
     //{
-    (void)fgets(line, 1024, fp);
+    char* s = fgets(line, 1024, fp);
+    if (!s)
+    {
+        fprintf(stderr, "fgets %s failed\n", jsonpath);
+        return false;
+    }
 
     MXNetNode n;
 
@@ -522,23 +547,44 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         return false;
     }
 
+    int nread;
     uint64_t header;
     uint64_t reserved;
-    fread(&header, 1, sizeof(uint64_t), fp);
-    fread(&reserved, 1, sizeof(uint64_t), fp);
+    nread = fread(&header, sizeof(uint64_t), 1, fp);
+    if (nread != 1)
+    {
+        fprintf(stderr, "read header failed %d\n", nread);
+        return false;
+    }
+    nread = fread(&reserved, sizeof(uint64_t), 1, fp);
+    if (nread != 1)
+    {
+        fprintf(stderr, "read reserved failed %d\n", nread);
+        return false;
+    }
 
     // NDArray vec
 
     // each data
     uint64_t data_count;
-    fread(&data_count, 1, sizeof(uint64_t), fp);
+    nread = fread(&data_count, sizeof(uint64_t), 1, fp);
+    if (nread != 1)
+    {
+        fprintf(stderr, "read data_count failed %d\n", nread);
+        return false;
+    }
 
 //     fprintf(stderr, "data count = %d\n", (int)data_count);
 
     for (int i = 0; i < (int)data_count; i++)
     {
         uint32_t magic;// 0xF993FAC9
-        fread(&magic, 1, sizeof(uint32_t), fp);
+        nread = fread(&magic, sizeof(uint32_t), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read magic failed %d\n", nread);
+            return false;
+        }
 
         // shape
         uint32_t ndim;
@@ -547,19 +593,44 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         if (magic == 0xF993FAC9)
         {
             int32_t stype;
-            fread(&stype, 1, sizeof(int32_t), fp);
+            nread = fread(&stype, sizeof(int32_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read stype failed %d\n", nread);
+                return false;
+            }
 
-            fread(&ndim, 1, sizeof(uint32_t), fp);
+            nread = fread(&ndim, sizeof(uint32_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read ndim failed %d\n", nread);
+                return false;
+            }
 
             shape.resize(ndim);
-            fread(&shape[0], 1, ndim * sizeof(int64_t), fp);
+            nread = fread(&shape[0], ndim * sizeof(int64_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read shape failed %d\n", nread);
+                return false;
+            }
         }
         else if (magic == 0xF993FAC8)
         {
-            fread(&ndim, 1, sizeof(uint32_t), fp);
+            nread = fread(&ndim, sizeof(uint32_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read ndim failed %d\n", nread);
+                return false;
+            }
 
             shape.resize(ndim);
-            fread(&shape[0], 1, ndim * sizeof(int64_t), fp);
+            nread = fread(&shape[0], ndim * sizeof(int64_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read shape failed %d\n", nread);
+                return false;
+            }
         }
         else
         {
@@ -569,7 +640,12 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
 
             std::vector<uint32_t> shape32;
             shape32.resize(ndim);
-            fread(&shape32[0], 1, ndim * sizeof(uint32_t), fp);
+            nread = fread(&shape32[0], ndim * sizeof(uint32_t), 1, fp);
+            if (nread != 1)
+            {
+                fprintf(stderr, "read shape failed %d\n", nread);
+                return false;
+            }
 
             for (int j=0; j<(int)ndim; j++)
             {
@@ -580,11 +656,26 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         // context
         int32_t dev_type;
         int32_t dev_id;
-        fread(&dev_type, 1, sizeof(int32_t), fp);
-        fread(&dev_id, 1, sizeof(int32_t), fp);
+        nread = fread(&dev_type, sizeof(int32_t), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read dev_type failed %d\n", nread);
+            return false;
+        }
+        nread = fread(&dev_id, sizeof(int32_t), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read dev_id failed %d\n", nread);
+            return false;
+        }
 
         int32_t type_flag;
-        fread(&type_flag, 1, sizeof(int32_t), fp);
+        nread = fread(&type_flag, sizeof(int32_t), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read type_flag failed %d\n", nread);
+            return false;
+        }
 
         // data
         size_t len = 0;
@@ -596,7 +687,12 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         MXNetParam p;
 
         p.data.resize(len);
-        fread(&p.data[0], 1, len * sizeof(float), fp);
+        nread = fread(&p.data[0], len * sizeof(float), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read MXNetParam data failed %d\n", nread);
+            return false;
+        }
 
         params.push_back(p);
 
@@ -605,19 +701,34 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
 
     // each name
     uint64_t name_count;
-    fread(&name_count, 1, sizeof(uint64_t), fp);
+    nread = fread(&name_count, sizeof(uint64_t), 1, fp);
+    if (nread != 1)
+    {
+        fprintf(stderr, "read name_count failed %d\n", nread);
+        return false;
+    }
 
 //     fprintf(stderr, "name count = %d\n", (int)name_count);
 
     for (int i = 0; i < (int)name_count; i++)
     {
         uint64_t len;
-        fread(&len, 1, sizeof(uint64_t), fp);
+        nread = fread(&len, sizeof(uint64_t), 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read name length failed %d\n", nread);
+            return false;
+        }
 
         MXNetParam& p = params[i];
 
         p.name.resize(len);
-        fread((char*)p.name.data(), 1, len, fp);
+        nread = fread((char*)p.name.data(), len, 1, fp);
+        if (nread != 1)
+        {
+            fprintf(stderr, "read MXNetParam name failed %d\n", nread);
+            return false;
+        }
 
         // cut leading arg:
         if (memcmp(p.name.c_str(), "arg:", 4) == 0)
@@ -901,6 +1012,10 @@ int main(int argc, char** argv)
 
             fprintf(pp, "%-16s", "Input");
         }
+        else if (n.op == "_contrib_BilinearResize2D")
+        {
+            fprintf(pp, "%-16s", "Interp");
+        }
         else if (n.op == "_contrib_MultiBoxDetection")
         {
             fprintf(pp, "%-16s", "DetectionOutput");
@@ -964,6 +1079,10 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, "%-16s", "TanH");
             }
+        }
+        else if (n.op == "add_n" || n.op == "ElementWiseSum")
+        {
+            fprintf(pp, "%-16s", "Eltwise");
         }
         else if (n.op == "arccos")
         {
@@ -1039,19 +1158,19 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Dropout");
         }
-        else if (n.op == "elemwise_add")
+        else if (n.op == "elemwise_add" || n.op == "_add" || n.op == "_plus" || n.op == "_Plus")
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
-        else if (n.op == "elemwise_div")
+        else if (n.op == "elemwise_div" || n.op == "_div" || n.op == "_Div")
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
-        else if (n.op == "elemwise_mul")
+        else if (n.op == "elemwise_mul" || n.op == "_mul" || n.op == "_Mul")
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
-        else if (n.op == "elemwise_sub")
+        else if (n.op == "elemwise_sub" || n.op == "_sub" || n.op == "_minus" || n.op == "_Minus")
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
@@ -1187,6 +1306,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Softmax");
         }
+        else if (n.op == "softmax")
+        {
+            fprintf(pp, "%-16s", "Softmax");
+        }
         else if (n.op == "sqrt")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -1297,6 +1420,19 @@ int main(int argc, char** argv)
             // dummy input shape
 //             fprintf(pp, " 0 0 0");
         }
+        else if (n.op == "_contrib_BilinearResize2D")
+        {
+            float scale_height = n.has_attr("scale_height") ? n.attr("scale_height") : 1.f;
+            float scale_width = n.has_attr("scale_width") ? n.attr("scale_width") : 1.f;
+            int height = n.has_attr("scale_height") ? 0 : n.attr("height");
+            int width = n.has_attr("scale_width") ? 0 : n.attr("width");
+
+            fprintf(pp, " 0=2");
+            fprintf(pp, " 1=%f", scale_height);
+            fprintf(pp, " 2=%f", scale_width);
+            fprintf(pp, " 3=%d", height);
+            fprintf(pp, " 4=%d", width);
+        }
         else if (n.op == "_contrib_MultiBoxDetection")
         {
             float threshold = n.has_attr("threshold") ? n.attr("threshold") : 0.01f;
@@ -1363,7 +1499,8 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(stderr, "Unsupported steps param! %f %f\n", steps[0], steps[1]);
+                fprintf(pp, " 11=%f", steps[1]);
+                fprintf(pp, " 12=%f", steps[0]);
             }
 
             std::vector<float> offsets = n.attr("offsets");
@@ -1469,6 +1606,11 @@ int main(int argc, char** argv)
             {
 //                 fprintf(pp, " 0=%f", 0.f);
             }
+        }
+        else if (n.op == "add_n" || n.op == "ElementWiseSum")
+        {
+            int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "arccos")
         {
@@ -1619,6 +1761,8 @@ int main(int argc, char** argv)
             std::vector<int> dilate = n.attr("dilate");
             std::vector<int> stride = n.attr("stride");
             std::vector<int> pad = n.attr("pad");
+            std::vector<int> adj = n.attr("adj");
+            std::vector<int> target_shape = n.attr("target_shape");
             int no_bias = n.attr("no_bias");
             int num_group = n.attr("num_group");
 
@@ -1647,11 +1791,32 @@ int main(int argc, char** argv)
                 fprintf(pp, " 13=%d", stride[0]);
             }
 
-            if (pad.size() == 1) {
-                fprintf(pp, " 4=%d", pad[0]);
-            } else if (pad.size() == 2) {
-                fprintf(pp, " 4=%d", pad[1]);
-                fprintf(pp, " 14=%d", pad[0]);
+            if (target_shape.size() == 0)
+            {
+                if (pad.size() == 1) {
+                    fprintf(pp, " 4=%d", pad[0]);
+                } else if (pad.size() == 2) {
+                    fprintf(pp, " 4=%d", pad[1]);
+                    fprintf(pp, " 14=%d", pad[0]);
+                }
+
+                if (adj.size() == 1) {
+                    fprintf(pp, " 18=%d", adj[0]);
+                } else if (adj.size() == 2) {
+                    fprintf(pp, " 18=%d", adj[1]);
+                    fprintf(pp, " 19=%d", adj[0]);
+                }
+            }
+            else
+            {
+                fprintf(pp, " 4=-233");
+
+                if (target_shape.size() == 1) {
+                    fprintf(pp, " 20=%d", target_shape[0]);
+                } else if (target_shape.size() == 2) {
+                    fprintf(pp, " 20=%d", target_shape[1]);
+                    fprintf(pp, " 21=%d", target_shape[0]);
+                }
             }
 
             fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
@@ -1724,22 +1889,22 @@ int main(int argc, char** argv)
 //             float p = n.attr("p");
 //             fprintf(pp, " 0=%d", p);
         }
-        else if (n.op == "elemwise_add")
+        else if (n.op == "elemwise_add" || n.op == "_add" || n.op == "_plus" || n.op == "_Plus")
         {
             int op_type = 0;
             fprintf(pp, " 0=%d", op_type);
         }
-        else if (n.op == "elemwise_div")
+        else if (n.op == "elemwise_div" || n.op == "_div" || n.op == "_Div")
         {
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
         }
-        else if (n.op == "elemwise_mul")
+        else if (n.op == "elemwise_mul" || n.op == "_mul" || n.op == "_Mul")
         {
             int op_type = 2;
             fprintf(pp, " 0=%d", op_type);
         }
-        else if (n.op == "elemwise_sub")
+        else if (n.op == "elemwise_sub" || n.op == "_sub" || n.op == "_minus" || n.op == "_Minus")
         {
             int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
@@ -1994,14 +2159,36 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, " 0=%d", pool);
-            if (!kernel.empty())
+
+            if (kernel.size() == 1) {
                 fprintf(pp, " 1=%d", kernel[0]);
-            if (!stride.empty())
+            } else if (kernel.size() == 2) {
+                fprintf(pp, " 1=%d", kernel[1]);
+                fprintf(pp, " 11=%d", kernel[0]);
+            }
+
+            if (stride.size() == 1) {
                 fprintf(pp, " 2=%d", stride[0]);
-            if (!pad.empty())
+            } else if (stride.size() == 2) {
+                fprintf(pp, " 2=%d", stride[1]);
+                fprintf(pp, " 12=%d", stride[0]);
+            }
+
+            if (pad.size() == 1) {
                 fprintf(pp, " 3=%d", pad[0]);
+            } else if (pad.size() == 2) {
+                fprintf(pp, " 3=%d", pad[1]);
+                fprintf(pp, " 13=%d", pad[0]);
+            }
+
             fprintf(pp, " 4=%d", global_pool);
             fprintf(pp, " 5=%d", pad_mode);
+
+            if (pool_type == "avg")
+            {
+                int avgpool_count_include_pad = n.has_attr("count_include_pad") ? n.attr("count_include_pad") : 0;
+                fprintf(pp, " 6=%d", avgpool_count_include_pad);
+            }
         }
         else if (n.op == "prod")
         {
@@ -2070,26 +2257,36 @@ int main(int argc, char** argv)
             int outh = -233;
             int outc = -233;
 
-            if (begin.size() == 2)
+            if (begin.size() == 1)
             {
-                woffset = begin[1];
-                outw = end[1] == -1 ? -234 : end[1] - begin[1];
+                woffset = begin[0] == -233 ? 0 : begin[0];
+                hoffset = -233;
+                coffset = -233;
+                outw = end[0] == -233 ? -233 : end[0] - begin[0];
+            }
+            else if (begin.size() == 2)
+            {
+                woffset = begin[1] == -233 ? 0 : begin[1];
+                hoffset = -233;
+                coffset = -233;
+                outw = end[1] == -233 ? -233 : end[1] - begin[1];
             }
             else if (begin.size() == 3)
             {
-                woffset = begin[2];
-                hoffset = begin[1];
-                outw = end[2] == -1 ? -234 : end[2] - begin[2];
-                outh = end[1] == -1 ? -234 : end[1] - begin[1];
+                woffset = begin[2] == -233 ? 0 : begin[2];
+                hoffset = begin[1] == -233 ? 0 : begin[1];
+                coffset = -233;
+                outw = end[2] == -233 ? -233 : end[2] - begin[2];
+                outh = end[1] == -233 ? -233 : end[1] - begin[1];
             }
             else if (begin.size() == 4)
             {
-                woffset = begin[3];
-                hoffset = begin[2];
-                coffset = begin[1];
-                outw = end[3] == -1 ? -234 : end[3] - begin[3];
-                outh = end[2] == -1 ? -234 : end[2] - begin[2];
-                outc = end[1] == -1 ? -234 : end[1] - begin[1];
+                woffset = begin[3] == -233 ? 0 : begin[3];
+                hoffset = begin[2] == -233 ? 0 : begin[2];
+                coffset = begin[1] == -233 ? 0 : begin[1];
+                outw = end[3] == -233 ? -233 : end[3] - begin[3];
+                outh = end[2] == -233 ? -233 : end[2] - begin[2];
+                outc = end[1] == -233 ? -233 : end[1] - begin[1];
             }
 
             fprintf(pp, " 0=%d", woffset);
@@ -2103,6 +2300,10 @@ int main(int argc, char** argv)
         {
             int num_outputs = n.attr("num_outputs");
             int squeeze_axis = n.attr("squeeze_axis");// TODO
+            if (squeeze_axis)
+            {
+                fprintf(stderr, "Unsupported SliceChannel squeeze_axis !\n");
+            }
 
             fprintf(pp, " -23300=%d", num_outputs);
             for (int j=0; j<num_outputs; j++)
@@ -2115,6 +2316,10 @@ int main(int argc, char** argv)
             fprintf(pp, " 1=1");
         }
         else if (n.op == "SoftmaxOutput")
+        {
+            fprintf(pp, " 1=1");
+        }
+        else if (n.op == "softmax")
         {
             fprintf(pp, " 1=1");
         }

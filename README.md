@@ -17,19 +17,20 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 * Classical CNN: VGG AlexNet GoogleNet Inception ...
 * Practical CNN: ResNet DenseNet SENet FPN ...
-* Light-weight CNN: SqueezeNet MobileNetV1/V2 ShuffleNetV1/V2 MNasNet ...
+* Light-weight CNN: SqueezeNet MobileNetV1/V2/V3 ShuffleNetV1/V2 MNasNet ...
 * Detection: MTCNN facedetection ...
 * Detection: VGG-SSD MobileNet-SSD SqueezeNet-SSD MobileNetV2-SSDLite ...
 * Detection: Faster-RCNN R-FCN ...
 * Detection: YOLOV2 YOLOV3 MobileNet-YOLOV3 ...
-* Segmentation: FCN PSPNet ...
+* Segmentation: FCN PSPNet UNet ...
 
 ---
 
 ### HowTo
 
-**[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / Raspberry Pi3 / Android  / iOS**
+**[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / Raspberry Pi3 / Android / NVIDIA Jetson / iOS**
 
+* [Build for NVIDIA Jetson](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-nvidia-jetson)
 * [Build for Linux x86](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-linux-x86)
 * [Build for Windows x64 using VS2017](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-windows-x64-using-visual-studio-community-2017)
 * [Build for MacOSX](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-macosx)
@@ -42,9 +43,11 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 **[download prebuild binary package for android and ios](https://github.com/Tencent/ncnn/releases)**
 
-**[how to use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/how-to-use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
+**[use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
 
-**[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/ncnn-%E7%BB%84%E4%BB%B6%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8C%97-alexnet) 附带详细步骤，新人强烈推荐 :)**
+**[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) 附带详细步骤，新人强烈推荐 :)**
+
+**[use netron for ncnn model visualization](https://lutzroeder.github.io/netron/)**
 
 [ncnn low-level operation api](https://github.com/Tencent/ncnn/wiki/low-level-operation-api)
 
@@ -99,31 +102,31 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 ---
 ### supported platform matrix
 
-* YY = known work and runs fast with good optimization
-* Y = known work, but speed may not be fast enough
-* ? = shall work, not confirmed
+* ✅ = known work and runs fast with good optimization
+* ✔️ = known work, but speed may not be fast enough
+* ❔ = shall work, not confirmed
 * / = not applied
 
 |    |Windows|Linux|Android|MacOS|iOS|
 |---|---|---|---|---|---|
-|intel-cpu|Y|Y|?|Y|/|
-|intel-gpu|Y|Y|?|?|/|
-|amd-cpu|Y|Y|?|Y|/|
-|amd-gpu|Y|Y|?|?|/|
-|nvidia-gpu|Y|Y|?|?|/|
-|qcom-cpu|?|Y|YY|/|/|
-|qcom-gpu|?|Y|Y|/|/|
-|arm-cpu|?|?|YY|/|/|
-|arm-gpu|?|?|Y|/|/|
-|apple-cpu|/|/|/|/|YY|
-|apple-gpu|/|/|/|/|Y|
+|intel-cpu|✔️|✔️|❔|✔️|/|
+|intel-gpu|✔️|✔️|❔|❔|/|
+|amd-cpu|✔️|✔️|❔|✔️|/|
+|amd-gpu|✔️|✔️|❔|❔|/|
+|nvidia-gpu|✔️|✔️|❔|❔|/|
+|qcom-cpu|❔|✔️|✅|/|/|
+|qcom-gpu|❔|✔️|✔️|/|/|
+|arm-cpu|❔|❔|✅|/|/|
+|arm-gpu|❔|❔|✔️|/|/|
+|apple-cpu|/|/|/|/|✅|
+|apple-gpu|/|/|/|/|✔️|
 
 
 ---
 
 ### Example project
 
-* https://github.com/Tencent/ncnn/tree/master/examples/squeezencnn
+* https://github.com/nihui/ncnn-android-squeezenet
 * https://github.com/chehongshu/ncnnforandroid_objectiondetection_Mobilenetssd
 * https://github.com/moli232777144/mtcnn_ncnn
 
@@ -131,7 +134,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-23.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png)
 
-### 技术交流QQ群：637093648(已满qaq) 853969140  答案：卷卷卷卷卷
+### 技术交流QQ群：637093648(超多大佬)  答案：卷卷卷卷卷
 
 ---
 

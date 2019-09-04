@@ -19,8 +19,8 @@
 #include "mat.h"
 #include "platform.h"
 
-// at most 20 parameters
-#define NCNN_MAX_PARAM_COUNT 20
+// at most 32 parameters
+#define NCNN_MAX_PARAM_COUNT 32
 
 namespace ncnn {
 
@@ -44,12 +44,6 @@ public:
     void set(int id, float f);
     // set array
     void set(int id, const Mat& v);
-
-public:
-    int use_winograd_convolution;
-    int use_sgemm_convolution;
-    int use_int8_inference;
-    int use_vulkan_compute;
 
 protected:
     friend class Net;

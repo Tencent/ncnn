@@ -23,22 +23,12 @@ class Deconvolution : public Layer
 {
 public:
     Deconvolution();
-    ~Deconvolution();
 
     virtual int load_param(const ParamDict& pd);
 
     virtual int load_model(const ModelBin& mb);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-#if NCNN_VULKAN
-    virtual int upload_model(VkTransfer& cmd);
-
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
 
 public:
     // param
@@ -49,39 +39,25 @@ public:
     int dilation_h;
     int stride_w;
     int stride_h;
-    int pad_w;
-    int pad_h;
+    int pad_left;
+    int pad_right;
+    int pad_top;
+    int pad_bottom;
+    int output_pad_right;
+    int output_pad_bottom;
+    int output_w;
+    int output_h;
     int bias_term;
 
     int weight_data_size;
 
+    // 0=none 1=relu 2=leakyrelu 3=clip 4=sigmoid
+    int activation_type;
+    Mat activation_params;
+
     // model
     Mat weight_data;
     Mat bias_data;
-
-#if NCNN_VULKAN
-    VkMat weight_data_gpu;
-    VkMat bias_data_gpu;
-
-    ncnn::Layer* crop;
-
-    Pipeline* pipeline_deconvolution;
-
-    VkMat bias_data_gpu_pack4;
-
-    // pack4
-    VkMat weight_data_gpu_pack4;
-    Pipeline* pipeline_deconvolution_pack4;
-
-    // pack1to4
-    VkMat weight_data_gpu_pack1to4;
-    Pipeline* pipeline_deconvolution_pack1to4;
-
-    // pack4to1
-    VkMat weight_data_gpu_pack4to1;
-    Pipeline* pipeline_deconvolution_pack4to1;
-#endif // NCNN_VULKAN
-
 };
 
 } // namespace ncnn

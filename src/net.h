@@ -17,10 +17,11 @@
 
 #include <stdio.h>
 #include <vector>
+#include "platform.h"
 #include "blob.h"
 #include "layer.h"
 #include "mat.h"
-#include "platform.h"
+#include "option.h"
 
 namespace ncnn {
 
@@ -35,6 +36,20 @@ public:
     Net();
     // clear and destroy
     ~Net();
+
+public:
+    // option can be changed before loading
+    Option opt;
+
+#if NCNN_VULKAN
+    // set gpu device by index
+    void set_vulkan_device(int device_index);
+
+    // set gpu device by device handle, no owner transfer
+    void set_vulkan_device(const VulkanDevice* vkdev);
+
+    const VulkanDevice* vulkan_device() const;
+#endif // NCNN_VULKAN
 
 #if NCNN_STRING
     // register custom layer by layer type name
@@ -82,38 +97,10 @@ public:
     // construct an Extractor from network
     Extractor create_extractor() const;
 
-public:
-    // enable winograd convolution optimization
-    // improve convolution 3x3 stride1 performace, may consume more memory
-    // changes should be applied before loading network structure and weight
-    // enabled by default
-    int use_winograd_convolution;
-
-    // enable sgemm convolution optimization
-    // improve convolution 1x1 stride1 performace, may consume more memory
-    // changes should be applied before loading network structure and weight
-    // enabled by default
-    int use_sgemm_convolution;
-
-    // enable quantized int8 inference
-    // use low-precision int8 path for quantized model
-    // changes should be applied before loading network structure and weight
-    // enabled by default
-    int use_int8_inference;
-
-    // enable vulkan compute
-    int use_vulkan_compute;
-
-#if NCNN_VULKAN
-
-    void set_vulkan_device(const VulkanDevice* vkdev);
-
-#endif // NCNN_VULKAN
-
 protected:
     // parse the structure of network
     // fuse int8 op dequantize and quantize by requantize
-    void fuse_network();
+    int fuse_network();
 
 #if NCNN_VULKAN
 
@@ -136,7 +123,7 @@ protected:
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt) const;
 
 #if NCNN_VULKAN
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<int>& wait_barrier_counts, VkCompute& cmd, Option& opt) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, Option& opt) const;
 #endif // NCNN_VULKAN
 
 protected:
@@ -147,7 +134,6 @@ protected:
 
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
-    const VulkanDevice* vkdev_local;
 
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
@@ -237,9 +223,6 @@ private:
 
 #if NCNN_VULKAN
     std::vector<VkMat> blob_mats_gpu;
-
-    // the barrier count must be hit before reclaiming buffer memory alias-able
-    std::vector<int> wait_barrier_counts;
 #endif // NCNN_VULKAN
 };
 

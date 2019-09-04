@@ -71,16 +71,21 @@ public:
     uint32_t max_workgroup_size[3];
     size_t memory_map_alignment;
     size_t buffer_offset_alignment;
+    float timestamp_period;
 
     // runtime
-    uint32_t compute_queue_index;
-    uint32_t transfer_queue_index;
+    uint32_t compute_queue_family_index;
+    uint32_t transfer_queue_family_index;
+
+    uint32_t compute_queue_count;
+    uint32_t transfer_queue_count;
 
     uint32_t unified_memory_index;
     uint32_t device_local_memory_index;
     uint32_t host_visible_memory_index;
 
     // fp16 and int8 feature
+    bool support_fp16_packed;
     bool support_fp16_storage;
     bool support_fp16_arithmetic;
     bool support_int8_storage;
@@ -114,9 +119,17 @@ public:
 
     VkShaderModule get_shader_module(const char* name) const;
 
-    // create allocator on this device
-    VkAllocator* allocator() const;
-    VkAllocator* staging_allocator() const;
+    VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
+
+    VkQueue acquire_queue(uint32_t queue_family_index) const;
+    void reclaim_queue(uint32_t queue_family_index, VkQueue queue) const;
+
+    // allocator on this device
+    VkAllocator* acquire_blob_allocator() const;
+    void reclaim_blob_allocator(VkAllocator* allocator) const;
+
+    VkAllocator* acquire_staging_allocator() const;
+    void reclaim_staging_allocator(VkAllocator* allocator) const;
 
     // VK_KHR_descriptor_update_template
     PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;
@@ -144,10 +157,21 @@ private:
     VkDevice device;
     std::vector<VkShaderModule> shader_modules;
 
-    // default locked allocator
-    VkAllocator* blob_buffer_allocator;
-    VkAllocator* staging_buffer_allocator;
+    // hardware queue
+    mutable std::vector<VkQueue> compute_queues;
+    mutable std::vector<VkQueue> transfer_queues;
+    mutable Mutex queue_lock;
+
+    // default blob allocator for each queue
+    mutable std::vector<VkAllocator*> blob_allocators;
+    mutable Mutex blob_allocator_lock;
+
+    // default staging allocator for each queue
+    mutable std::vector<VkAllocator*> staging_allocators;
+    mutable Mutex staging_allocator_lock;
 };
+
+VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
 
 } // namespace ncnn
 

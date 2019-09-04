@@ -1,5 +1,8 @@
 // BUG1989 is pleased to support the open source community by supporting ncnn available.
 //
+// author:BUG1989 (https://github.com/BUG1989/) Long-term support.
+// author:FuGuangping (https://github.com/fu1899) Implemented the first version of INT8 quantization on ARMv7.
+//
 // Copyright (C) 2019 BUG1989. All rights reserved.
 // Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -12,10 +15,6 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-
-#if __ARM_NEON
-#include <arm_neon.h>
-#endif // __ARM_NEON
 
 static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat> &kernel_tm2, int inch, int outch)
 {
@@ -196,70 +195,6 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
     }
 }
 
-static void conv3x3s2_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
-{
-    kernel_tm.create(8*9, inch, outch/8 + outch%8, (size_t)1u);
-
-    const signed char* kernel = _kernel;
-
-    int p=0;
-    for (; p+7<outch; p+=8)
-    {
-        const signed char* k0 = kernel + (p+0)*inch*9;
-        const signed char* k1 = kernel + (p+1)*inch*9;
-        const signed char* k2 = kernel + (p+2)*inch*9;
-        const signed char* k3 = kernel + (p+3)*inch*9;
-        const signed char* k4 = kernel + (p+4)*inch*9;
-        const signed char* k5 = kernel + (p+5)*inch*9;
-        const signed char* k6 = kernel + (p+6)*inch*9;
-        const signed char* k7 = kernel + (p+7)*inch*9;
-
-        signed char* ktmp = kernel_tm.channel(p/8);
-
-        for (int q=0; q<inch; q++)
-        {
-            for (int k=0; k<9; k++)
-            {
-                ktmp[0] = k0[k];
-                ktmp[1] = k1[k];
-                ktmp[2] = k2[k];
-                ktmp[3] = k3[k];
-                ktmp[4] = k4[k];
-                ktmp[5] = k5[k];
-                ktmp[6] = k6[k];
-                ktmp[7] = k7[k];
-                ktmp += 8;
-            }
-
-            k0 += 9;
-            k1 += 9;
-            k2 += 9;
-            k3 += 9;
-            k4 += 9;
-            k5 += 9;
-            k6 += 9;
-            k7 += 9;
-        }
-    }
-    for (; p<outch; p++)
-    {
-        const signed char* k0 = kernel + (p+0)*inch*9;
-
-        signed char* ktmp = kernel_tm.channel(p/8 + p%8);
-
-        for (int q=0; q<inch; q++)
-        {
-            for (int k=0; k<9; k++)
-            {
-                ktmp[k] = k0[k];
-            }
-            ktmp += 9;
-
-            k0 += 9;
-        }
-    }
-}
-
 static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Option& opt)
 {
     int w = bottom_blob.w;
@@ -278,7 +213,9 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
     w = outw + 2;
     h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);  
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
 
     // BEGIN transform input
     Mat bottom_blob_tm;
@@ -1113,7 +1050,2205 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
     // END transform output 
     
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);  
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
+}
+
+static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat> &kernel_tm2, int inch, int outch)
+{
+    Mat kernel_tm(6*6, inch, outch, 2ul);
+
+    // G
+    // const float ktm[6][3] = {
+    //     {  1.0f/4,     0.0f,    0.0f},
+    //     { -1.0f/6,  -1.0f/6, -1.0f/6},
+    //     { -1.0f/6,   1.0f/6, -1.0f/6},
+    //     { 1.0f/24,  1.0f/12,  1.0f/6},
+    //     { 1.0f/24, -1.0f/12,  1.0f/6},
+    //     {    0.0f,     0.0f,    1.0f}
+    // };
+    const short ktm[6][3] = {
+        {  6,    0,    0},
+        { -4,   -4,   -4},
+        { -4,    4,   -4},
+        {  1,    2,    4},
+        {  1,   -2,    4},
+        {  0,    0,   24}
+    };    
+
+    #pragma omp parallel for
+    for (int p = 0; p<outch; p++)
+    {
+        for (int q = 0; q<inch; q++)
+        {
+            const signed char* kernel0 = (const signed char*)kernel + p*inch * 9 + q * 9;
+            short* kernel_tm0 = kernel_tm.channel(p).row<short>(q);
+
+            // transform kernel
+            const signed char* k0 = kernel0;
+            const signed char* k1 = kernel0 + 3;
+            const signed char* k2 = kernel0 + 6;
+
+            // h
+            short tmp[6][3];
+            for (int i=0; i<6; i++)
+            {
+                tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
+                tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
+                tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
+            }
+
+            // U
+            for (int j=0; j<6; j++)
+            {
+                short* tmpp = &tmp[j][0];
+
+                for (int i=0; i<6; i++)
+                {
+                    kernel_tm0[j*6 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
+                }
+            }
+        }
+    }
+
+    for (int r=0; r<9; r++)
+    {
+        Mat kernel_tm_test(4*8, inch, outch/8 + (outch%8)/4 + outch%4, 2u);
+
+        int p = 0;
+        for (; p+7<outch; p+=8)
+        {
+            const short* kernel0 = (const short*)kernel_tm.channel(p);
+            const short* kernel1 = (const short*)kernel_tm.channel(p+1);
+            const short* kernel2 = (const short*)kernel_tm.channel(p+2);
+            const short* kernel3 = (const short*)kernel_tm.channel(p+3);
+            const short* kernel4 = (const short*)kernel_tm.channel(p+4);
+            const short* kernel5 = (const short*)kernel_tm.channel(p+5);
+            const short* kernel6 = (const short*)kernel_tm.channel(p+6);
+            const short* kernel7 = (const short*)kernel_tm.channel(p+7);
+
+            short* ktmp = kernel_tm_test.channel(p/8);
+
+            for (int q=0; q<inch; q++)
+            {
+                ktmp[0] = kernel0[r*4+0];
+                ktmp[1] = kernel0[r*4+1];
+                ktmp[2] = kernel0[r*4+2];
+                ktmp[3] = kernel0[r*4+3];
+
+                ktmp[4] = kernel1[r*4+0];
+                ktmp[5] = kernel1[r*4+1];
+                ktmp[6] = kernel1[r*4+2];
+                ktmp[7] = kernel1[r*4+3];
+
+                ktmp[8] = kernel2[r*4+0];
+                ktmp[9] = kernel2[r*4+1];
+                ktmp[10] = kernel2[r*4+2];
+                ktmp[11] = kernel2[r*4+3];
+
+                ktmp[12] = kernel3[r*4+0];
+                ktmp[13] = kernel3[r*4+1];
+                ktmp[14] = kernel3[r*4+2];
+                ktmp[15] = kernel3[r*4+3];
+
+                ktmp[16] = kernel4[r*4+0];
+                ktmp[17] = kernel4[r*4+1];
+                ktmp[18] = kernel4[r*4+2];
+                ktmp[19] = kernel4[r*4+3];
+
+                ktmp[20] = kernel5[r*4+0];
+                ktmp[21] = kernel5[r*4+1];
+                ktmp[22] = kernel5[r*4+2];
+                ktmp[23] = kernel5[r*4+3];
+
+                ktmp[24] = kernel6[r*4+0];
+                ktmp[25] = kernel6[r*4+1];
+                ktmp[26] = kernel6[r*4+2];
+                ktmp[27] = kernel6[r*4+3];
+
+                ktmp[28] = kernel7[r*4+0];
+                ktmp[29] = kernel7[r*4+1];
+                ktmp[30] = kernel7[r*4+2];
+                ktmp[31] = kernel7[r*4+3];
+
+                ktmp += 32;
+                kernel0 += 36;
+                kernel1 += 36;
+                kernel2 += 36;
+                kernel3 += 36;
+                kernel4 += 36;
+                kernel5 += 36;
+                kernel6 += 36;
+                kernel7 += 36;
+            }
+        }
+
+        for (; p+3<outch; p+=4)
+        {
+            const short* kernel0 = (const short*)kernel_tm.channel(p);
+            const short* kernel1 = (const short*)kernel_tm.channel(p+1);
+            const short* kernel2 = (const short*)kernel_tm.channel(p+2);
+            const short* kernel3 = (const short*)kernel_tm.channel(p+3);
+
+            short* ktmp = kernel_tm_test.channel(p/8 + (p%8)/4);
+
+            for (int q=0; q<inch; q++)
+            {
+                ktmp[0] = kernel0[r*4+0];
+                ktmp[1] = kernel0[r*4+1];
+                ktmp[2] = kernel0[r*4+2];
+                ktmp[3] = kernel0[r*4+3];
+
+                ktmp[4] = kernel1[r*4+0];
+                ktmp[5] = kernel1[r*4+1];
+                ktmp[6] = kernel1[r*4+2];
+                ktmp[7] = kernel1[r*4+3];
+
+                ktmp[8] = kernel2[r*4+0];
+                ktmp[9] = kernel2[r*4+1];
+                ktmp[10] = kernel2[r*4+2];
+                ktmp[11] = kernel2[r*4+3];
+
+                ktmp[12] = kernel3[r*4+0];
+                ktmp[13] = kernel3[r*4+1];
+                ktmp[14] = kernel3[r*4+2];
+                ktmp[15] = kernel3[r*4+3];
+
+                ktmp += 16;
+                kernel0 += 36;
+                kernel1 += 36;
+                kernel2 += 36;
+                kernel3 += 36;
+            }
+        }
+
+        for (; p<outch; p++)
+        {
+            const short* kernel0 = (const short*)kernel_tm.channel(p);
+
+            short* ktmp = kernel_tm_test.channel(p/8 + (p%8)/4 + p%4);
+
+            for (int q=0; q<inch; q++)
+            {
+                ktmp[0] = kernel0[r*4+0];
+                ktmp[1] = kernel0[r*4+1];
+                ktmp[2] = kernel0[r*4+2];
+                ktmp[3] = kernel0[r*4+3];
+
+                ktmp += 4;
+                kernel0 += 36;
+            }        
+        }
+        kernel_tm2.push_back(kernel_tm_test);
+    }    
+}
+
+static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Option& opt)
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int inch = bottom_blob.c;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    // pad to 4n+2, winograd F(4,3)
+    Mat bottom_blob_bordered = bottom_blob;
+
+    outw = (outw + 3) / 4 * 4;
+    outh = (outh + 3) / 4 * 4;
+
+    w = outw + 2;
+    h = outh + 2;
+
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
+
+    // BEGIN transform input
+    Mat bottom_blob_tm;
+    {
+        int w_tm = outw / 4 * 6;
+        int h_tm = outh / 4 * 6;
+
+        int nColBlocks = h_tm/6; // may be the block num in Feathercnn
+        int nRowBlocks = w_tm/6;
+
+        const int tiles = nColBlocks * nRowBlocks;
+
+        bottom_blob_tm.create(4, inch, tiles*9, 2u, opt.workspace_allocator);
+
+        // BT
+        // const float itm[4][4] = {
+        //     {4.0f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f},
+        //     {0.0f,-4.0f, -4.0f, 1.0f, 1.0f, 0.0f},
+        //     {0.0f, 4.0f, -4.0f,-1.0f, 1.0f, 0.0f},
+        //     {0.0f,-2.0f, -1.0f, 2.0f, 1.0f, 0.0f},
+        //     {0.0f, 2.0f, -1.0f,-2.0f, 1.0f, 0.0f},
+        //     {0.0f, 4.0f,  0.0f,-5.0f, 0.0f, 1.0f}
+        // };
+
+		// 0 =	4 * r00  - 5 * r02	+ r04
+        // 1 = -4 * (r01 + r02)  + r03 + r04
+        // 2 =	4 * (r01 - r02)  - r03 + r04
+        // 3 = -2 * r01 - r02 + 2 * r03 + r04
+        // 4 =	2 * r01 - r02 - 2 * r03 + r04
+		// 5 =	4 * r01 - 5 * r03 + r05
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<inch; q++)
+        {
+            const signed char* img = bottom_blob_bordered.channel(q);
+
+            for (int j = 0; j < nColBlocks; j++)
+            {
+                const signed char* r0 = img + w * j * 4;
+                const signed char* r1 = r0 + w;
+                const signed char* r2 = r1 + w;
+                const signed char* r3 = r2 + w;
+                const signed char* r4 = r3 + w;
+                const signed char* r5 = r4 + w;
+
+                for (int i = 0; i < nRowBlocks; i++)
+                {
+                    short* out_tm0 = bottom_blob_tm.channel(tiles*0+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm1 = bottom_blob_tm.channel(tiles*1+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm2 = bottom_blob_tm.channel(tiles*2+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm3 = bottom_blob_tm.channel(tiles*3+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm4 = bottom_blob_tm.channel(tiles*4+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm5 = bottom_blob_tm.channel(tiles*5+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm6 = bottom_blob_tm.channel(tiles*6+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm7 = bottom_blob_tm.channel(tiles*7+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm8 = bottom_blob_tm.channel(tiles*8+j*nRowBlocks+i).row<short>(q);
+#if __ARM_NEON
+                    int8x8_t _d0, _d1, _d2, _d3, _d4, _d5;
+                    int16x8_t _w0, _w1, _w2, _w3, _w4, _w5;
+                    int16x8_t _t0, _t1, _t2, _t3, _t4, _t5;
+                    int16x8_t _n0, _n1, _n2, _n3, _n4, _n5;
+                    // load
+                    _d0 = vld1_s8(r0);
+                    _d1 = vld1_s8(r1);
+                    _d2 = vld1_s8(r2);
+                    _d3 = vld1_s8(r3);
+                    _d4 = vld1_s8(r4);
+                    _d5 = vld1_s8(r5);
+
+                    int8x8_t _1_n = vdup_n_s8(-1);
+                    int8x8_t _2_p = vdup_n_s8(2);
+                    int8x8_t _2_n = vdup_n_s8(-2);
+                    int8x8_t _4_p = vdup_n_s8(4);
+                    int8x8_t _4_n = vdup_n_s8(-4);
+                    int8x8_t _5_n = vdup_n_s8(-5);
+
+                    int16x8_t _1_n_s16 = vdupq_n_s16(-1);
+                    int16x8_t _2_p_s16 = vdupq_n_s16(2);
+                    int16x8_t _2_n_s16 = vdupq_n_s16(-2);
+                    int16x8_t _4_p_s16 = vdupq_n_s16(4);
+                    int16x8_t _4_n_s16 = vdupq_n_s16(-4);
+                    int16x8_t _5_n_s16 = vdupq_n_s16(-5);
+                    // w = B_t * d
+                    _w0 = vmull_s8(_d0, _4_p);
+                    _w0 = vmlal_s8(_w0, _d2, _5_n);
+                    _w0 = vaddw_s8(_w0, _d4);
+
+                    _w1 = vmull_s8(_d1, _4_n);
+                    _w1 = vmlal_s8(_w1, _d2, _4_n);
+                    _w1 = vaddw_s8(_w1, _d3);
+                    _w1 = vaddw_s8(_w1, _d4);
+
+                    _w2 = vmull_s8(_d1, _4_p);
+                    _w2 = vmlal_s8(_w2, _d2, _4_n);
+                    _w2 = vmlal_s8(_w2, _d3, _1_n);
+                    _w2 = vaddw_s8(_w2, _d4);
+
+                    _w3 = vmull_s8(_d1, _2_n);
+                    _w3 = vmlal_s8(_w3, _d2, _1_n);
+                    _w3 = vmlal_s8(_w3, _d3, _2_p);
+                    _w3 = vaddw_s8(_w3, _d4);
+
+                    _w4 = vmull_s8(_d1, _2_p);
+                    _w4 = vmlal_s8(_w4, _d2, _1_n);
+                    _w4 = vmlal_s8(_w4, _d3, _2_n);
+                    _w4 = vaddw_s8(_w4, _d4);
+
+                    _w5 = vmull_s8(_d1, _4_p);
+                    _w5 = vmlal_s8(_w5, _d3, _5_n);
+                    _w5 = vaddw_s8(_w5, _d5);
+                    // transpose d to d_t
+                    {
+                        _t0[0]=_w0[0]; _t1[0]=_w0[1]; _t2[0]=_w0[2]; _t3[0]=_w0[3]; _t4[0]=_w0[4]; _t5[0]=_w0[5];
+                        _t0[1]=_w1[0]; _t1[1]=_w1[1]; _t2[1]=_w1[2]; _t3[1]=_w1[3]; _t4[1]=_w1[4]; _t5[1]=_w1[5];
+                        _t0[2]=_w2[0]; _t1[2]=_w2[1]; _t2[2]=_w2[2]; _t3[2]=_w2[3]; _t4[2]=_w2[4]; _t5[2]=_w2[5];
+                        _t0[3]=_w3[0]; _t1[3]=_w3[1]; _t2[3]=_w3[2]; _t3[3]=_w3[3]; _t4[3]=_w3[4]; _t5[3]=_w3[5];
+                        _t0[4]=_w4[0]; _t1[4]=_w4[1]; _t2[4]=_w4[2]; _t3[4]=_w4[3]; _t4[4]=_w4[4]; _t5[4]=_w4[5];
+                        _t0[5]=_w5[0]; _t1[5]=_w5[1]; _t2[5]=_w5[2]; _t3[5]=_w5[3]; _t4[5]=_w5[4]; _t5[5]=_w5[5];
+                    } 
+                    // d = B_t * d_t
+                    _n0 = vmulq_s16(_t0, _4_p_s16);
+                    _n0 = vmlaq_s16(_n0, _t2, _5_n_s16);
+                    _n0 = vaddq_s16(_n0, _t4);
+
+                    _n1 = vmulq_s16(_t1, _4_n_s16);
+                    _n1 = vmlaq_s16(_n1, _t2, _4_n_s16);
+                    _n1 = vaddq_s16(_n1, _t3);
+                    _n1 = vaddq_s16(_n1, _t4);
+
+                    _n2 = vmulq_s16(_t1, _4_p_s16);
+                    _n2 = vmlaq_s16(_n2, _t2, _4_n_s16);
+                    _n2 = vmlaq_s16(_n2, _t3, _1_n_s16);
+                    _n2 = vaddq_s16(_n2, _t4);
+
+                    _n3 = vmulq_s16(_t1, _2_n_s16);
+                    _n3 = vmlaq_s16(_n3, _t2, _1_n_s16);
+                    _n3 = vmlaq_s16(_n3, _t3, _2_p_s16);
+                    _n3 = vaddq_s16(_n3, _t4);
+
+                    _n4 = vmulq_s16(_t1, _2_p_s16);
+                    _n4 = vmlaq_s16(_n4, _t2, _1_n_s16);
+                    _n4 = vmlaq_s16(_n4, _t3, _2_n_s16);
+                    _n4 = vaddq_s16(_n4, _t4);
+
+                    _n5 = vmulq_s16(_t1, _4_p_s16);
+                    _n5 = vmlaq_s16(_n5, _t3, _5_n_s16);
+                    _n5 = vaddq_s16(_n5, _t5);
+                    // save to out_tm
+                    out_tm0[0]=_n0[0];out_tm0[1]=_n0[1];out_tm0[2]=_n0[2];out_tm0[3]=_n0[3];
+                    out_tm1[0]=_n0[4];out_tm1[1]=_n0[5];out_tm1[2]=_n1[0];out_tm1[3]=_n1[1];
+                    out_tm2[0]=_n1[2];out_tm2[1]=_n1[3];out_tm2[2]=_n1[4];out_tm2[3]=_n1[5];
+
+                    out_tm3[0]=_n2[0];out_tm3[1]=_n2[1];out_tm3[2]=_n2[2];out_tm3[3]=_n2[3];
+                    out_tm4[0]=_n2[4];out_tm4[1]=_n2[5];out_tm4[2]=_n3[0];out_tm4[3]=_n3[1];
+                    out_tm5[0]=_n3[2];out_tm5[1]=_n3[3];out_tm5[2]=_n3[4];out_tm5[3]=_n3[5];
+
+                    out_tm6[0]=_n4[0];out_tm6[1]=_n4[1];out_tm6[2]=_n4[2];out_tm6[3]=_n4[3];
+                    out_tm7[0]=_n4[4];out_tm7[1]=_n4[5];out_tm7[2]=_n5[0];out_tm7[3]=_n5[1];
+                    out_tm8[0]=_n5[2];out_tm8[1]=_n5[3];out_tm8[2]=_n5[4];out_tm8[3]=_n5[5];
+#else
+                    short d0[6],d1[6],d2[6],d3[6],d4[6],d5[6];
+                    short w0[6],w1[6],w2[6],w3[6],w4[6],w5[6];
+                    short t0[6],t1[6],t2[6],t3[6],t4[6],t5[6];
+
+                    // load
+                    for (int n = 0; n < 6; n++)
+                    {
+                        d0[n] = r0[n];
+                        d1[n] = r1[n];
+                        d2[n] = r2[n];
+                        d3[n] = r3[n];
+                        d4[n] = r4[n];
+                        d5[n] = r5[n];
+                    }
+                    // w = B_t * d
+                    for (int n = 0; n < 6; n++)
+                    {   
+                        w0[n] =  4*d0[n]          - 5*d2[n]           + d4[n];
+                        w1[n] =          -4*d1[n] - 4*d2[n] +   d3[n] + d4[n];
+                        w2[n] =           4*d1[n] - 4*d2[n] -   d3[n] + d4[n];
+                        w3[n] =          -2*d1[n] -   d2[n] + 2*d3[n] + d4[n];
+                        w4[n] =           2*d1[n] -   d2[n] - 2*d3[n] + d4[n];
+                        w5[n] =           4*d1[n]           - 5*d3[n]          + d5[n];
+                    }
+                    // transpose d to d_t
+                    {
+                        t0[0]=w0[0]; t1[0]=w0[1]; t2[0]=w0[2]; t3[0]=w0[3]; t4[0]=w0[4]; t5[0]=w0[5];
+                        t0[1]=w1[0]; t1[1]=w1[1]; t2[1]=w1[2]; t3[1]=w1[3]; t4[1]=w1[4]; t5[1]=w1[5];
+                        t0[2]=w2[0]; t1[2]=w2[1]; t2[2]=w2[2]; t3[2]=w2[3]; t4[2]=w2[4]; t5[2]=w2[5];
+                        t0[3]=w3[0]; t1[3]=w3[1]; t2[3]=w3[2]; t3[3]=w3[3]; t4[3]=w3[4]; t5[3]=w3[5];
+                        t0[4]=w4[0]; t1[4]=w4[1]; t2[4]=w4[2]; t3[4]=w4[3]; t4[4]=w4[4]; t5[4]=w4[5];
+                        t0[5]=w5[0]; t1[5]=w5[1]; t2[5]=w5[2]; t3[5]=w5[3]; t4[5]=w5[4]; t5[5]=w5[5];
+                    }
+                    // d = B_t * d_t
+                    for (int n = 0; n < 6; n++)
+                    {   
+                        d0[n] =  4*t0[n]           - 5*t2[n]           + t4[n];
+                        d1[n] =          - 4*t1[n] - 4*t2[n] +   t3[n] + t4[n];
+                        d2[n] =            4*t1[n] - 4*t2[n] -   t3[n] + t4[n];
+                        d3[n] =          - 2*t1[n] -   t2[n] + 2*t3[n] + t4[n];
+                        d4[n] =            2*t1[n] -   t2[n] - 2*t3[n] + t4[n];
+                        d5[n] =            4*t1[n]           - 5*t3[n]          + t5[n];
+                    }
+                    // save to out_tm
+                    {
+                        out_tm0[0]=d0[0];out_tm0[1]=d0[1];out_tm0[2]=d0[2];out_tm0[3]=d0[3];
+                        out_tm1[0]=d0[4];out_tm1[1]=d0[5];out_tm1[2]=d1[0];out_tm1[3]=d1[1];
+                        out_tm2[0]=d1[2];out_tm2[1]=d1[3];out_tm2[2]=d1[4];out_tm2[3]=d1[5];
+
+                        out_tm3[0]=d2[0];out_tm3[1]=d2[1];out_tm3[2]=d2[2];out_tm3[3]=d2[3];
+                        out_tm4[0]=d2[4];out_tm4[1]=d2[5];out_tm4[2]=d3[0];out_tm4[3]=d3[1];
+                        out_tm5[0]=d3[2];out_tm5[1]=d3[3];out_tm5[2]=d3[4];out_tm5[3]=d3[5];
+
+                        out_tm6[0]=d4[0];out_tm6[1]=d4[1];out_tm6[2]=d4[2];out_tm6[3]=d4[3];
+                        out_tm7[0]=d4[4];out_tm7[1]=d4[5];out_tm7[2]=d5[0];out_tm7[3]=d5[1];
+                        out_tm8[0]=d5[2];out_tm8[1]=d5[3];out_tm8[2]=d5[4];out_tm8[3]=d5[5];
+                    }
+#endif // __ARM_NEON
+                    r0 += 4;
+                    r1 += 4;
+                    r2 += 4;
+                    r3 += 4;
+                    r4 += 4;
+                    r5 += 4;
+                }
+            }
+        }
+    }
+    bottom_blob_bordered = Mat();  
+
+    // BEGIN dot
+    Mat top_blob_tm;
+    {
+        int w_tm = outw / 4 * 6;
+        int h_tm = outh / 4 * 6;
+
+        int nColBlocks = h_tm/6; // may be the block num in Feathercnn
+        int nRowBlocks = w_tm/6;
+
+        const int tiles = nColBlocks * nRowBlocks; 
+
+        top_blob_tm.create(36, tiles, outch, 4u, opt.workspace_allocator);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int r=0; r<9; r++)
+        {
+            int nn_outch = 0;
+            int remain_outch_start = 0;
+
+            nn_outch = outch >> 3;
+            remain_outch_start = nn_outch << 3;
+
+            for (int pp=0; pp<nn_outch; pp++)
+            {
+                int p = pp * 8;
+
+                int* output0_tm = top_blob_tm.channel(p);
+                int* output1_tm = top_blob_tm.channel(p+1);
+                int* output2_tm = top_blob_tm.channel(p+2);
+                int* output3_tm = top_blob_tm.channel(p+3);
+                int* output4_tm = top_blob_tm.channel(p+4);
+                int* output5_tm = top_blob_tm.channel(p+5);
+                int* output6_tm = top_blob_tm.channel(p+6);
+                int* output7_tm = top_blob_tm.channel(p+7);
+
+                output0_tm = output0_tm + r*4;
+                output1_tm = output1_tm + r*4;
+                output2_tm = output2_tm + r*4;
+                output3_tm = output3_tm + r*4;
+                output4_tm = output4_tm + r*4;
+                output5_tm = output5_tm + r*4;
+                output6_tm = output6_tm + r*4;
+                output7_tm = output7_tm + r*4;
+
+                for (int i=0; i<tiles; i++)
+                {
+                    const short* kptr = kernel_tm_test[r].channel(p/8);
+                    const short* r0 = bottom_blob_tm.channel(tiles*r+i);
+#if __ARM_NEON
+#if __aarch64__
+                    asm volatile(
+                        // inch loop
+                        "eor    v0.16b, v0.16b, v0.16b    \n"
+                        "eor    v1.16b, v1.16b, v1.16b    \n"
+                        "eor    v2.16b, v2.16b, v2.16b    \n"
+                        "eor    v3.16b, v3.16b, v3.16b    \n"
+                        "eor    v4.16b, v4.16b, v4.16b    \n"
+                        "eor    v5.16b, v5.16b, v5.16b    \n"
+                        "eor    v6.16b, v6.16b, v6.16b    \n"
+                        "eor    v7.16b, v7.16b, v7.16b    \n"
+                        "mov    w4, %w20                  \n"
+                        
+                        "0:                               \n" // for (int q=0; q<inch; q++)
+                        "prfm    pldl1keep, [%9, #128]    \n" // _r0 = vld1_s16(r0);
+                        "ld1     {v8.4h}, [%8]            \n" 
+                        "ld1     {v9.4h, v10.4h}, [%9]    \n" // _k01 = vld1q_s16(kptr);
+                        "add     %9, %9, #16              \n"
+                        "ld1     {v11.4h, v12.4h}, [%9]   \n" // _k23 = vld1q_s16(kptr+8);
+                        "add     %9, %9, #16              \n"
+                        "ld1     {v13.4h, v14.4h}, [%9]   \n" // _k45 = vld1q_s16(kptr+16);
+                        "add     %9, %9, #16              \n"
+                        "ld1     {v15.4h, v16.4h}, [%9]   \n" // _k67 = vld1q_s16(kptr+24);
+                        "add     %8, %8, #8               \n"
+                        "add     %9, %9, #16              \n"
+
+                        "subs    w4, w4, #1               \n"
+
+                        "smlal   v0.4s, v8.4h, v9.4h      \n" // sum0 += (a00-a03) * (k00-k03)
+                        "smlal   v1.4s, v8.4h, v10.4h     \n" // sum1 += (a00-a03) * (k10-k13)
+                        "smlal   v2.4s, v8.4h, v11.4h     \n" // sum2 += (a00-a03) * (k20-k23)
+                        "smlal   v3.4s, v8.4h, v12.4h     \n" // sum3 += (a00-a03) * (k30-k33)
+                        "smlal   v4.4s, v8.4h, v13.4h     \n" // sum4 += (a00-a03) * (k40-k43)
+                        "smlal   v5.4s, v8.4h, v14.4h     \n" // sum5 += (a00-a03) * (k50-k53)
+                        "smlal   v6.4s, v8.4h, v15.4h     \n" // sum6 += (a00-a03) * (k60-k63)
+                        "smlal   v7.4s, v8.4h, v16.4h     \n" // sum7 += (a00-a03) * (k70-k73)
+                        
+                        "bne     0b                       \n" // end for
+
+                        "st1     {v0.4s}, [%0]            \n" // store the result to memory
+                        "st1     {v1.4s}, [%1]            \n" //
+                        "st1     {v2.4s}, [%2]            \n" //
+                        "st1     {v3.4s}, [%3]            \n" //
+                        "st1     {v4.4s}, [%4]            \n" //
+                        "st1     {v5.4s}, [%5]            \n" //
+                        "st1     {v6.4s}, [%6]            \n" //
+                        "st1     {v7.4s}, [%7]            \n" //
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(output4_tm), // %4
+                          "=r"(output5_tm), // %5
+                          "=r"(output6_tm), // %6
+                          "=r"(output7_tm), // %7
+                          "=r"(r0),         // %8
+                          "=r"(kptr)        // %9
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(output4_tm),
+                          "5"(output5_tm),
+                          "6"(output6_tm),
+                          "7"(output7_tm),
+                          "8"(r0),
+                          "9"(kptr),
+                          "r"(inch)         // %20
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16"
+                    );
+#else
+                    asm volatile(
+                        // inch loop
+                        "vmov.s32    q0, #0           \n"
+                        "vmov.s32    q1, #0           \n"
+                        "vmov.s32    q2, #0           \n"
+                        "vmov.s32    q3, #0           \n"
+                        "vmov.s32    q4, #0           \n"
+                        "vmov.s32    q5, #0           \n"
+                        "vmov.s32    q6, #0           \n"
+                        "vmov.s32    q7, #0           \n"
+                        "mov         r4, %20          \n"
+                        
+                        "0:                           \n" // for (int q=0; q<inch; q++)
+                        "vld1.s16    {d16}, [%8]!     \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "vld1.s16    {d18-d19}, [%9]  \n" // _k01 = vld1q_s16(kptr);
+                        "add         %9, #16          \n" 
+                        "vld1.s16    {d20-d21}, [%9]  \n" // _k23 = vld1q_s16(kptr+8);
+                        "add         %9, #16          \n"   
+                        "vld1.s16    {d22-d23}, [%9]  \n" // _k45 = vld1q_s16(kptr+16);
+                        "add         %9, #16          \n"  
+                        "vld1.s16    {d24-d25}, [%9]  \n" // _k67 = vld1q_s16(kptr+24);
+                        "add         %9, #16          \n"
+
+                        "vmlal.s16   q0, d16, d18     \n" // sum0 += (a00-a03) * (k00-k03)
+                        "vmlal.s16   q1, d16, d19     \n" // sum1 += (a00-a03) * (k10-k13)
+                        "vmlal.s16   q2, d16, d20     \n" // sum2 += (a00-a03) * (k20-k23)
+                        "vmlal.s16   q3, d16, d21     \n" // sum3 += (a00-a03) * (k30-k33)
+                        "vmlal.s16   q4, d16, d22     \n" // sum4 += (a00-a03) * (k40-k43)
+                        "vmlal.s16   q5, d16, d23     \n" // sum5 += (a00-a03) * (k50-k53)
+                        "vmlal.s16   q6, d16, d24     \n" // sum6 += (a00-a03) * (k60-k63)
+                        "vmlal.s16   q7, d16, d25     \n" // sum7 += (a00-a03) * (k70-k73)
+
+                        "subs        r4, r4, #1       \n"
+                        "bne         0b               \n" // end for
+
+                        "vst1.s32    {d0-d1}, [%0]    \n" // store the result to memory
+                        "vst1.s32    {d2-d3}, [%1]    \n"
+                        "vst1.s32    {d4-d5}, [%2]    \n"
+                        "vst1.s32    {d6-d7}, [%3]    \n"
+                        "vst1.s32    {d8-d9}, [%4]    \n"
+                        "vst1.s32    {d10-d11}, [%5]  \n"
+                        "vst1.s32    {d12-d13}, [%6]  \n"
+                        "vst1.s32    {d14-d15}, [%7]  \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(output4_tm), // %4
+                          "=r"(output5_tm), // %5
+                          "=r"(output6_tm), // %6
+                          "=r"(output7_tm), // %7
+                          "=r"(r0),         // %8
+                          "=r"(kptr)        // %9
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(output4_tm),
+                          "5"(output5_tm),
+                          "6"(output6_tm),
+                          "7"(output7_tm),
+                          "8"(r0),
+                          "9"(kptr),
+                          "r"(inch)         // %20
+                        : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12"
+                    );
+#endif // __aarch64__                    
+#else
+                    int sum0[4] = {0};
+                    int sum1[4] = {0};
+                    int sum2[4] = {0};
+                    int sum3[4] = {0};
+                    int sum4[4] = {0};
+                    int sum5[4] = {0};
+                    int sum6[4] = {0};
+                    int sum7[4] = {0};
+
+                    for (int q=0; q<inch; q++)
+                    {
+                        for (int n=0; n<4; n++)
+                        {
+                            sum0[n] += (int)r0[n] * kptr[n];
+                            sum1[n] += (int)r0[n] * kptr[n+4];
+                            sum2[n] += (int)r0[n] * kptr[n+8];
+                            sum3[n] += (int)r0[n] * kptr[n+12];
+                            sum4[n] += (int)r0[n] * kptr[n+16];
+                            sum5[n] += (int)r0[n] * kptr[n+20];
+                            sum6[n] += (int)r0[n] * kptr[n+24];
+                            sum7[n] += (int)r0[n] * kptr[n+28];
+                        }
+                        kptr += 32;
+                        r0 += 4;
+                    }
+
+                    for (int n=0; n<4; n++)
+                    {
+                        output0_tm[n] = sum0[n];
+                        output1_tm[n] = sum1[n];
+                        output2_tm[n] = sum2[n];
+                        output3_tm[n] = sum3[n];
+                        output4_tm[n] = sum4[n];
+                        output5_tm[n] = sum5[n];
+                        output6_tm[n] = sum6[n];
+                        output7_tm[n] = sum7[n];
+                    }
+#endif // __ARM_NEON
+                    output0_tm += 36;
+                    output1_tm += 36;
+                    output2_tm += 36;
+                    output3_tm += 36;
+                    output4_tm += 36;
+                    output5_tm += 36;
+                    output6_tm += 36;
+                    output7_tm += 36;
+                }
+            }
+
+            nn_outch = (outch - remain_outch_start) >> 2;
+
+            for (int pp=0; pp<nn_outch; pp++)
+            {
+                int p = remain_outch_start + pp * 4;
+
+                int* output0_tm = top_blob_tm.channel(p);
+                int* output1_tm = top_blob_tm.channel(p+1);
+                int* output2_tm = top_blob_tm.channel(p+2);
+                int* output3_tm = top_blob_tm.channel(p+3);
+
+                output0_tm = output0_tm + r*4;
+                output1_tm = output1_tm + r*4;
+                output2_tm = output2_tm + r*4;
+                output3_tm = output3_tm + r*4;
+
+                for (int i=0; i<tiles; i++)
+                {
+                    const short* kptr = kernel_tm_test[r].channel(p/8 + (p%8)/4);
+                    const short* r0 = bottom_blob_tm.channel(tiles*r+i);
+#if __ARM_NEON
+#if __aarch64__
+                    asm volatile(
+                        // inch loop
+                        "eor    v0.16b, v0.16b, v0.16b    \n"
+                        "eor    v1.16b, v1.16b, v1.16b    \n"
+                        "eor    v2.16b, v2.16b, v2.16b    \n"
+                        "eor    v3.16b, v3.16b, v3.16b    \n"
+                        "mov    w4, %w12                  \n"
+                        
+                        "0:                               \n" // for (int q=0; q<inch; q++)
+                        "prfm    pldl1keep, [%5, #128]    \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "ld1     {v8.4h}, [%4]            \n" 
+                        "ld1     {v9.4h, v10.4h}, [%5]    \n" // _k01 = vld1q_s16(kptr);
+                        "add     %5, %5, #16              \n"
+                        "ld1     {v11.4h, v12.4h}, [%5]   \n" // _k23 = vld1q_s16(kptr+8);
+                        "add     %4, %4, #8               \n"
+                        "add     %5, %5, #16              \n"
+
+                        "subs    w4, w4, #1               \n"
+
+                        "smlal   v0.4s, v8.4h, v9.4h      \n" // sum0 += (a00-a03) * (k00-k03)
+                        "smlal   v1.4s, v8.4h, v10.4h     \n" // sum1 += (a00-a03) * (k10-k13)
+                        "smlal   v2.4s, v8.4h, v11.4h     \n" // sum2 += (a00-a03) * (k20-k23)
+                        "smlal   v3.4s, v8.4h, v12.4h     \n" // sum3 += (a00-a03) * (k30-k33)
+                        
+                        "bne     0b                       \n" // end for
+
+                        "st1     {v0.4s}, [%0]            \n" // store the result to memory
+                        "st1     {v1.4s}, [%1]            \n" //
+                        "st1     {v2.4s}, [%2]            \n" //
+                        "st1     {v3.4s}, [%3]            \n" //
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(r0),         // %4
+                          "=r"(kptr)        // %5
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(r0),
+                          "5"(kptr),
+                          "r"(inch)         // %12
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12"
+                    );
+#else
+                    asm volatile(
+                        // inch loop
+                        "vmov.s32    q0, #0           \n"
+                        "vmov.s32    q1, #0           \n"
+                        "vmov.s32    q2, #0           \n"
+                        "vmov.s32    q3, #0           \n"
+                        "mov         r4, %12          \n"
+                        
+                        "0:                           \n" // for (int q=0; q<inch; q++)
+                        "vld1.s16    {d16}, [%4]!     \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "vld1.s16    {d18-d19}, [%5]  \n" // _k01 = vld1q_s16(kptr);
+                        "add         %5, #16          \n" 
+                        "vld1.s16    {d20-d21}, [%5]  \n" // _k23 = vld1q_s16(kptr+8);
+                        "add         %5, #16          \n"
+
+                        "vmlal.s16   q0, d16, d18     \n" // sum0 += (a00-a03) * (k00-k03)
+                        "vmlal.s16   q1, d16, d19     \n" // sum1 += (a00-a03) * (k10-k13)
+                        "vmlal.s16   q2, d16, d20     \n" // sum2 += (a00-a03) * (k20-k23)
+                        "vmlal.s16   q3, d16, d21     \n" // sum3 += (a00-a03) * (k30-k33)
+
+                        "subs        r4, r4, #1       \n"
+                        "bne         0b               \n" // end for
+
+                        "vst1.s32    {d0-d1}, [%0]    \n" // store the result to memory
+                        "vst1.s32    {d2-d3}, [%1]    \n"
+                        "vst1.s32    {d4-d5}, [%2]    \n"
+                        "vst1.s32    {d6-d7}, [%3]    \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(r0),         // %4
+                          "=r"(kptr)        // %5
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(r0),
+                          "5"(kptr),
+                          "r"(inch)         // %12
+                        : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10"
+                    );
+#endif // __aarch64__                    
+#else
+                    int sum0[4] = {0};
+                    int sum1[4] = {0};
+                    int sum2[4] = {0};
+                    int sum3[4] = {0};
+
+                    for (int q=0; q<inch; q++)
+                    {   
+                        for (int n=0; n<4; n++)
+                        {
+                            sum0[n] += (int)r0[n] * kptr[n];
+                            sum1[n] += (int)r0[n] * kptr[n+4];
+                            sum2[n] += (int)r0[n] * kptr[n+8];
+                            sum3[n] += (int)r0[n] * kptr[n+12];
+                        }
+                        kptr += 16;
+                        r0 += 4;
+                    }
+
+                    for (int n=0; n<4; n++)
+                    {
+                        output0_tm[n] = sum0[n];
+                        output1_tm[n] = sum1[n];
+                        output2_tm[n] = sum2[n];
+                        output3_tm[n] = sum3[n];
+                    }
+#endif // __ARM_NEON
+                    output0_tm += 36;
+                    output1_tm += 36;
+                    output2_tm += 36;
+                    output3_tm += 36;
+                }
+            }
+
+            remain_outch_start += nn_outch << 2;
+
+            for (int p=remain_outch_start; p<outch; p++)
+            {
+                int* output0_tm = top_blob_tm.channel(p);
+
+                output0_tm = output0_tm + r*4;
+
+                for (int i=0; i<tiles; i++)
+                {
+                    const short* kptr = kernel_tm_test[r].channel(p/8 + (p%8)/4 + p%4);
+                    const short* r0 = bottom_blob_tm.channel(tiles*r+i);
+#if __ARM_NEON
+#if __aarch64__
+                    asm volatile(
+                        // inch loop
+                        "eor    v0.16b, v0.16b, v0.16b    \n"
+                        "mov    w4, %w6                   \n"
+                        
+                        "0:                               \n" // for (int q=0; q<inch; q++) 
+                        "ld1     {v8.4h}, [%1]            \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "ld1     {v9.4h}, [%2]            \n" // _k0 = vld1q_s16(kptr);
+                        "add     %1, %1, #8               \n"
+                        "add     %2, %2, #8               \n"
+
+                        "subs    w4, w4, #1               \n"
+
+                        "smlal   v0.4s, v8.4h, v9.4h      \n" // sum0 += (a00-a03) * (k00-k03)
+
+                        "bne     0b                       \n" // end for
+
+                        "st1     {v0.4s}, [%0]            \n" // store the result to memory
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(r0),         // %1
+                          "=r"(kptr)        // %2
+                        : "0"(output0_tm),
+                          "1"(r0),
+                          "2"(kptr),
+                          "r"(inch)         // %6
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9"
+                    );
+#else
+                    asm volatile(
+                        // inch loop
+                        "vmov.s32    q0, #0           \n"
+                        "mov         r4, %6           \n"
+                        
+                        "0:                           \n" // for (int q=0; q<inch; q++)
+                        "vld1.s16    {d16}, [%1]      \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "add         %1, #8           \n"
+                        "vld1.s16    {d18}, [%2]      \n" // _k0 = vld1q_s16(kptr);
+                        "add         %2, #8           \n"
+                        "vmlal.s16   q0, d16, d18     \n" // sum0 += (a00-a03) * (k00-k03)
+
+                        "subs        r4, r4, #1       \n"
+                        "bne         0b               \n" // end for
+
+                        "vst1.s32    {d0-d1}, [%0]    \n" // store the result to memory
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(r0),         // %1
+                          "=r"(kptr)        // %2
+                        : "0"(output0_tm),
+                          "1"(r0),
+                          "2"(kptr),
+                          "r"(inch)         // %6
+                        : "cc", "memory", "r4", "q0", "q8", "q9"
+                    );  
+#endif // __aarch64__                    
+#else // __ARM_NEON
+                    int sum0[4] = {0};
+
+                    for (int q=0; q<inch; q++)
+                    {
+                        for (int n=0; n<4; n++)
+                        {
+                            sum0[n] += (int)r0[n] * kptr[n];
+                        }
+                        kptr += 4; 
+                        r0 += 4;
+                    }
+
+                    for (int n=0; n<4; n++)
+                    {
+                        output0_tm[n] = sum0[n];
+                    }           
+#endif // __ARM_NEON                           
+                    output0_tm += 36;
+                }
+            }
+
+            // for (int p=0; p<outch; p++)
+            // {
+            //     Mat out0_tm = top_blob_tm.channel(p);
+            //     const Mat kernel0_tm = kernel_tm.channel(p);
+
+            //     for (int i=0; i<tiles; i++)
+            //     {
+            //         int* output0_tm = out0_tm.row<int>(i);
+
+            //         int sum0[36] = {0};
+
+            //         for (int q=0; q<inch; q++)
+            //         {
+            //             const short* r0 = bottom_blob_tm.channel(q).row<short>(i);
+            //             const short* k0 = kernel0_tm.row<short>(q);
+
+            //             for (int n=0; n<36; n++)
+            //             {
+            //                 sum0[n] += (int)r0[n] * k0[n];
+            //             }
+            //         }
+
+            //         for (int n=0; n<36; n++)
+            //         {
+            //             output0_tm[n] = sum0[n];
+            //         }
+            //     }
+            // }
+        }
+
+    }
+    bottom_blob_tm = Mat();
+    // END dot 
+
+    // BEGIN transform output
+    Mat top_blob_bordered;
+    top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
+    {
+        // AT
+        // const float itm[4][6] = {
+        //     {1.0f, 1.0f,  1.0f, 1.0f,  1.0f, 0.0f},
+        //     {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.0f},
+        //     {0.0f, 1.0f,  1.0f, 4.0f,  4.0f, 0.0f},
+        //     {0.0f, 1.0f, -1.0f, 8.0f, -8.0f, 1.0f}
+        // };
+
+        // 0 =	r00 + r01 + r02 + r03 +	r04
+        // 1 =		  r01 - r02 + 2 * (r03 - r04)
+        // 2 =		  r01 + r02 + 4 * (r03 + r04)
+        // 3 =		  r01 - r02 + 8 * (r03 - r04)  + r05
+        
+
+        int w_tm = outw / 4 * 6;
+        int h_tm = outh / 4 * 6;
+
+        int nColBlocks = h_tm/6; // may be the block num in Feathercnn
+        int nRowBlocks = w_tm/6;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p=0; p<outch; p++)
+        {
+            int* out_tile = top_blob_tm.channel(p);
+            int* outRow0 = top_blob_bordered.channel(p);
+            int* outRow1 = outRow0 + outw;
+            int* outRow2 = outRow0 + outw * 2;
+            int* outRow3 = outRow0 + outw * 3;
+
+            for (int j=0; j<nColBlocks; j++)
+            {
+                for(int i=0; i<nRowBlocks; i++)
+                {
+#if __ARM_NEON
+                    int32x4_t _s0, _s1, _s2, _s3, _s4, _s5;
+                    int32x2_t _s0n, _s1n, _s2n, _s3n, _s4n, _s5n;
+                    int32x4_t _w0, _w1, _w2, _w3;
+                    int32x2_t _w0n, _w1n, _w2n, _w3n;
+                    int32x4_t _d0, _d1, _d2, _d3, _d4, _d5;
+                    int32x4_t _o0, _o1, _o2, _o3;
+                    // load
+                    _s0 = vld1q_s32(out_tile);
+                    _s0n = vld1_s32(out_tile+4);
+                    _s1 = vld1q_s32(out_tile+6);
+                    _s1n = vld1_s32(out_tile+10);
+                    _s2 = vld1q_s32(out_tile+12);
+                    _s2n = vld1_s32(out_tile+16);
+                    _s3 = vld1q_s32(out_tile+18);
+                    _s3n = vld1_s32(out_tile+22);
+                    _s4 = vld1q_s32(out_tile+24);
+                    _s4n = vld1_s32(out_tile+28);
+                    _s5 = vld1q_s32(out_tile+30);
+                    _s5n = vld1_s32(out_tile+34);
+                    // w = A_T * W
+                    int32x2_t _tp0 = {-1, 2};
+                    int32x2_t _tp1 = {-2, 4};
+                    int32x2_t _tp2 = {8, -8};
+
+                    _w0 = vaddq_s32(_s0, _s1);
+                    _w0n = vadd_s32(_s0n, _s1n);
+                    _w0 = vaddq_s32(_w0, _s2);
+                    _w0n = vadd_s32(_w0n, _s2n);
+                    _w0 = vaddq_s32(_w0, _s3);
+                    _w0n = vadd_s32(_w0n, _s3n);
+                    _w0 = vaddq_s32(_w0, _s4);
+                    _w0n = vadd_s32(_w0n, _s4n);
+
+                    _w1 = vsubq_s32(_s1, _s2);
+                    _w1n = vsub_s32(_s1n, _s2n);
+                    _w1 = vmlaq_lane_s32(_w1, _s3, _tp0, 1);
+                    _w1n = vmla_lane_s32(_w1n, _s3n, _tp0, 1);
+                    _w1 = vmlaq_lane_s32(_w1, _s4, _tp1, 0);
+                    _w1n = vmla_lane_s32(_w1n, _s4n, _tp1, 0);
+
+                    _w2 = vaddq_s32(_s1, _s2);
+                    _w2n = vadd_s32(_s1n, _s2n);
+                    _w2 = vmlaq_lane_s32(_w2, _s3, _tp1, 1);
+                    _w2n = vmla_lane_s32(_w2n, _s3n, _tp1, 1);
+                    _w2 = vmlaq_lane_s32(_w2, _s4, _tp1, 1);
+                    _w2n = vmla_lane_s32(_w2n, _s4n, _tp1, 1);
+
+                    _w3 = vsubq_s32(_s1, _s2);
+                    _w3n = vsub_s32(_s1n, _s2n);
+                    _w3 = vmlaq_lane_s32(_w3, _s3, _tp2, 0);
+                    _w3n = vmla_lane_s32(_w3n, _s3n, _tp2, 0);
+                    _w3 = vmlaq_lane_s32(_w3, _s4, _tp2, 1);
+                    _w3n = vmla_lane_s32(_w3n, _s4n, _tp2, 1);
+                    _w3 = vaddq_s32(_w3, _s5);
+                    _w3n = vadd_s32(_w3n, _s5n);
+                    // transpose w to w_t
+                    {
+                        _d0[0] = _w0[0]; _d0[1] = _w1[0]; _d0[2] = _w2[0]; _d0[3] = _w3[0];
+                        _d1[0] = _w0[1]; _d1[1] = _w1[1]; _d1[2] = _w2[1]; _d1[3] = _w3[1];
+                        _d2[0] = _w0[2]; _d2[1] = _w1[2]; _d2[2] = _w2[2]; _d2[3] = _w3[2];
+                        _d3[0] = _w0[3]; _d3[1] = _w1[3]; _d3[2] = _w2[3]; _d3[3] = _w3[3];
+                        _d4[0] = _w0n[0]; _d4[1] = _w1n[0]; _d4[2] = _w2n[0]; _d4[3] = _w3n[0];
+                        _d5[0] = _w0n[1]; _d5[1] = _w1n[1]; _d5[2] = _w2n[1]; _d5[3] = _w3n[1];
+                    }
+                    // Y = A_T * w_t
+                    _o0 = vaddq_s32(_d0, _d1);
+                    _o0 = vaddq_s32(_o0, _d2);
+                    _o0 = vaddq_s32(_o0, _d3);
+                    _o0 = vaddq_s32(_o0, _d4);
+
+                    _o1 = vsubq_s32(_d1, _d2);
+                    _o1 = vmlaq_lane_s32(_o1, _d3, _tp0, 1);
+                    _o1 = vmlaq_lane_s32(_o1, _d4, _tp1, 0);
+
+                    _o2 = vaddq_s32(_d1, _d2);
+                    _o2 = vmlaq_lane_s32(_o2, _d3, _tp1, 1);
+                    _o2 = vmlaq_lane_s32(_o2, _d4, _tp1, 1);
+
+                    _o3 = vsubq_s32(_d1, _d2);
+                    _o3 = vmlaq_lane_s32(_o3, _d3, _tp2, 0);
+                    _o3 = vmlaq_lane_s32(_o3, _d4, _tp2, 1);
+                    _o3 = vaddq_s32(_o3, _d5);
+                    // save to top blob tm
+                    for (int n = 0; n < 4; n++)
+                    {
+                        outRow0[n] = _o0[n] / 576;
+                        outRow1[n] = _o1[n] / 576;
+                        outRow2[n] = _o2[n] / 576;
+                        outRow3[n] = _o3[n] / 576;
+                    }
+#else
+                    int s0[6],s1[6],s2[6],s3[6],s4[6],s5[6];
+                    int w0[6],w1[6],w2[6],w3[6];
+                    int d0[4],d1[4],d2[4],d3[4],d4[4],d5[4];
+                    int o0[4],o1[4],o2[4],o3[4];
+
+                    // load
+                    for (int n = 0; n < 6; n++)
+                    {
+                        s0[n] = out_tile[n];
+                        s1[n] = out_tile[n+ 6];
+                        s2[n] = out_tile[n+12];
+                        s3[n] = out_tile[n+18];
+                        s4[n] = out_tile[n+24];
+                        s5[n] = out_tile[n+30];
+                    }
+                    // w = A_T * W
+                    for (int n = 0; n < 6; n++)
+                    {
+                        w0[n] = s0[n] + s1[n] + s2[n] +   s3[n] +   s4[n];
+                        w1[n] =         s1[n] - s2[n] + 2*s3[n] - 2*s4[n];
+                        w2[n] =         s1[n] + s2[n] + 4*s3[n] + 4*s4[n];
+                        w3[n] =         s1[n] - s2[n] + 8*s3[n] - 8*s4[n] + s5[n];
+                    }
+                    // transpose w to w_t
+                    {
+                        d0[0] = w0[0]; d0[1] = w1[0]; d0[2] = w2[0]; d0[3] = w3[0];
+                        d1[0] = w0[1]; d1[1] = w1[1]; d1[2] = w2[1]; d1[3] = w3[1];
+                        d2[0] = w0[2]; d2[1] = w1[2]; d2[2] = w2[2]; d2[3] = w3[2];
+                        d3[0] = w0[3]; d3[1] = w1[3]; d3[2] = w2[3]; d3[3] = w3[3];
+                        d4[0] = w0[4]; d4[1] = w1[4]; d4[2] = w2[4]; d4[3] = w3[4];
+                        d5[0] = w0[5]; d5[1] = w1[5]; d5[2] = w2[5]; d5[3] = w3[5];
+                    }
+                    // Y = A_T * w_t
+                    for (int n = 0; n < 4; n++)
+                    {
+                        o0[n] = d0[n] + d1[n] + d2[n] +   d3[n] +   d4[n];
+                        o1[n] =         d1[n] - d2[n] + 2*d3[n] - 2*d4[n];
+                        o2[n] =         d1[n] + d2[n] + 4*d3[n] + 4*d4[n];
+                        o3[n] =         d1[n] - d2[n] + 8*d3[n] - 8*d4[n] + d5[n];
+                    }
+                    // save to top blob tm
+                    for (int n = 0; n < 4; n++)
+                    {
+                        outRow0[n] = o0[n] / 576;
+                        outRow1[n] = o1[n] / 576;
+                        outRow2[n] = o2[n] / 576;
+                        outRow3[n] = o3[n] / 576;
+                    }
+#endif // __ARM_NEON 
+                    out_tile += 36;
+
+                    outRow0 += 4;
+                    outRow1 += 4;
+                    outRow2 += 4;
+                    outRow3 += 4;                   
+                }
+
+                outRow0 += outw * 3;
+                outRow1 += outw * 3;
+                outRow2 += outw * 3;
+                outRow3 += outw * 3;
+            }
+        }
+    }
+    // END transform output
+
+    // cut result pad
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
+}
+
+static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int inch = bottom_blob.c;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    const float* bias = _bias;
+
+    // pad to 4n+2, winograd F(4,3)
+    Mat bottom_blob_bordered = bottom_blob;
+
+    outw = (outw + 3) / 4 * 4;
+    outh = (outh + 3) / 4 * 4;
+
+    w = outw + 2;
+    h = outh + 2;
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
+
+    // BEGIN transform input
+    Mat bottom_blob_tm;
+    {
+        int w_tm = outw / 4 * 6;
+        int h_tm = outh / 4 * 6;
+
+        int nColBlocks = h_tm/6; // may be the block num in Feathercnn
+        int nRowBlocks = w_tm/6;
+
+        const int tiles = nColBlocks * nRowBlocks;
+
+        bottom_blob_tm.create(4, inch, tiles*9, 2u, opt.workspace_allocator);
+
+        // BT
+        // const float itm[4][4] = {
+        //     {4.0f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f},
+        //     {0.0f,-4.0f, -4.0f, 1.0f, 1.0f, 0.0f},
+        //     {0.0f, 4.0f, -4.0f,-1.0f, 1.0f, 0.0f},
+        //     {0.0f,-2.0f, -1.0f, 2.0f, 1.0f, 0.0f},
+        //     {0.0f, 2.0f, -1.0f,-2.0f, 1.0f, 0.0f},
+        //     {0.0f, 4.0f,  0.0f,-5.0f, 0.0f, 1.0f}
+        // };
+
+		// 0 =	4 * r00  - 5 * r02	+ r04
+        // 1 = -4 * (r01 + r02)  + r03 + r04
+        // 2 =	4 * (r01 - r02)  - r03 + r04
+        // 3 = -2 * r01 - r02 + 2 * r03 + r04
+        // 4 =	2 * r01 - r02 - 2 * r03 + r04
+		// 5 =	4 * r01 - 5 * r03 + r05
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<inch; q++)
+        {
+            const signed char* img = bottom_blob_bordered.channel(q);
+
+            for (int j = 0; j < nColBlocks; j++)
+            {
+                const signed char* r0 = img + w * j * 4;
+                const signed char* r1 = r0 + w;
+                const signed char* r2 = r1 + w;
+                const signed char* r3 = r2 + w;
+                const signed char* r4 = r3 + w;
+                const signed char* r5 = r4 + w;
+
+                for (int i = 0; i < nRowBlocks; i++)
+                {
+                    short* out_tm0 = bottom_blob_tm.channel(tiles*0+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm1 = bottom_blob_tm.channel(tiles*1+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm2 = bottom_blob_tm.channel(tiles*2+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm3 = bottom_blob_tm.channel(tiles*3+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm4 = bottom_blob_tm.channel(tiles*4+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm5 = bottom_blob_tm.channel(tiles*5+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm6 = bottom_blob_tm.channel(tiles*6+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm7 = bottom_blob_tm.channel(tiles*7+j*nRowBlocks+i).row<short>(q);
+                    short* out_tm8 = bottom_blob_tm.channel(tiles*8+j*nRowBlocks+i).row<short>(q);
+#if __ARM_NEON
+                    int8x8_t _d0, _d1, _d2, _d3, _d4, _d5;
+                    int16x8_t _w0, _w1, _w2, _w3, _w4, _w5;
+                    int16x8_t _t0, _t1, _t2, _t3, _t4, _t5;
+                    int16x8_t _n0, _n1, _n2, _n3, _n4, _n5;
+                    // load
+                    _d0 = vld1_s8(r0);
+                    _d1 = vld1_s8(r1);
+                    _d2 = vld1_s8(r2);
+                    _d3 = vld1_s8(r3);
+                    _d4 = vld1_s8(r4);
+                    _d5 = vld1_s8(r5);
+
+                    int8x8_t _1_n = vdup_n_s8(-1);
+                    int8x8_t _2_p = vdup_n_s8(2);
+                    int8x8_t _2_n = vdup_n_s8(-2);
+                    int8x8_t _4_p = vdup_n_s8(4);
+                    int8x8_t _4_n = vdup_n_s8(-4);
+                    int8x8_t _5_n = vdup_n_s8(-5);
+
+                    int16x8_t _1_n_s16 = vdupq_n_s16(-1);
+                    int16x8_t _2_p_s16 = vdupq_n_s16(2);
+                    int16x8_t _2_n_s16 = vdupq_n_s16(-2);
+                    int16x8_t _4_p_s16 = vdupq_n_s16(4);
+                    int16x8_t _4_n_s16 = vdupq_n_s16(-4);
+                    int16x8_t _5_n_s16 = vdupq_n_s16(-5);
+                    // w = B_t * d
+                    _w0 = vmull_s8(_d0, _4_p);
+                    _w0 = vmlal_s8(_w0, _d2, _5_n);
+                    _w0 = vaddw_s8(_w0, _d4);
+
+                    _w1 = vmull_s8(_d1, _4_n);
+                    _w1 = vmlal_s8(_w1, _d2, _4_n);
+                    _w1 = vaddw_s8(_w1, _d3);
+                    _w1 = vaddw_s8(_w1, _d4);
+
+                    _w2 = vmull_s8(_d1, _4_p);
+                    _w2 = vmlal_s8(_w2, _d2, _4_n);
+                    _w2 = vmlal_s8(_w2, _d3, _1_n);
+                    _w2 = vaddw_s8(_w2, _d4);
+
+                    _w3 = vmull_s8(_d1, _2_n);
+                    _w3 = vmlal_s8(_w3, _d2, _1_n);
+                    _w3 = vmlal_s8(_w3, _d3, _2_p);
+                    _w3 = vaddw_s8(_w3, _d4);
+
+                    _w4 = vmull_s8(_d1, _2_p);
+                    _w4 = vmlal_s8(_w4, _d2, _1_n);
+                    _w4 = vmlal_s8(_w4, _d3, _2_n);
+                    _w4 = vaddw_s8(_w4, _d4);
+
+                    _w5 = vmull_s8(_d1, _4_p);
+                    _w5 = vmlal_s8(_w5, _d3, _5_n);
+                    _w5 = vaddw_s8(_w5, _d5);
+                    // transpose d to d_t
+                    {
+                        _t0[0]=_w0[0]; _t1[0]=_w0[1]; _t2[0]=_w0[2]; _t3[0]=_w0[3]; _t4[0]=_w0[4]; _t5[0]=_w0[5];
+                        _t0[1]=_w1[0]; _t1[1]=_w1[1]; _t2[1]=_w1[2]; _t3[1]=_w1[3]; _t4[1]=_w1[4]; _t5[1]=_w1[5];
+                        _t0[2]=_w2[0]; _t1[2]=_w2[1]; _t2[2]=_w2[2]; _t3[2]=_w2[3]; _t4[2]=_w2[4]; _t5[2]=_w2[5];
+                        _t0[3]=_w3[0]; _t1[3]=_w3[1]; _t2[3]=_w3[2]; _t3[3]=_w3[3]; _t4[3]=_w3[4]; _t5[3]=_w3[5];
+                        _t0[4]=_w4[0]; _t1[4]=_w4[1]; _t2[4]=_w4[2]; _t3[4]=_w4[3]; _t4[4]=_w4[4]; _t5[4]=_w4[5];
+                        _t0[5]=_w5[0]; _t1[5]=_w5[1]; _t2[5]=_w5[2]; _t3[5]=_w5[3]; _t4[5]=_w5[4]; _t5[5]=_w5[5];
+                    } 
+                    // d = B_t * d_t
+                    _n0 = vmulq_s16(_t0, _4_p_s16);
+                    _n0 = vmlaq_s16(_n0, _t2, _5_n_s16);
+                    _n0 = vaddq_s16(_n0, _t4);
+
+                    _n1 = vmulq_s16(_t1, _4_n_s16);
+                    _n1 = vmlaq_s16(_n1, _t2, _4_n_s16);
+                    _n1 = vaddq_s16(_n1, _t3);
+                    _n1 = vaddq_s16(_n1, _t4);
+
+                    _n2 = vmulq_s16(_t1, _4_p_s16);
+                    _n2 = vmlaq_s16(_n2, _t2, _4_n_s16);
+                    _n2 = vmlaq_s16(_n2, _t3, _1_n_s16);
+                    _n2 = vaddq_s16(_n2, _t4);
+
+                    _n3 = vmulq_s16(_t1, _2_n_s16);
+                    _n3 = vmlaq_s16(_n3, _t2, _1_n_s16);
+                    _n3 = vmlaq_s16(_n3, _t3, _2_p_s16);
+                    _n3 = vaddq_s16(_n3, _t4);
+
+                    _n4 = vmulq_s16(_t1, _2_p_s16);
+                    _n4 = vmlaq_s16(_n4, _t2, _1_n_s16);
+                    _n4 = vmlaq_s16(_n4, _t3, _2_n_s16);
+                    _n4 = vaddq_s16(_n4, _t4);
+
+                    _n5 = vmulq_s16(_t1, _4_p_s16);
+                    _n5 = vmlaq_s16(_n5, _t3, _5_n_s16);
+                    _n5 = vaddq_s16(_n5, _t5);
+                    // save to out_tm
+                    out_tm0[0]=_n0[0];out_tm0[1]=_n0[1];out_tm0[2]=_n0[2];out_tm0[3]=_n0[3];
+                    out_tm1[0]=_n0[4];out_tm1[1]=_n0[5];out_tm1[2]=_n1[0];out_tm1[3]=_n1[1];
+                    out_tm2[0]=_n1[2];out_tm2[1]=_n1[3];out_tm2[2]=_n1[4];out_tm2[3]=_n1[5];
+
+                    out_tm3[0]=_n2[0];out_tm3[1]=_n2[1];out_tm3[2]=_n2[2];out_tm3[3]=_n2[3];
+                    out_tm4[0]=_n2[4];out_tm4[1]=_n2[5];out_tm4[2]=_n3[0];out_tm4[3]=_n3[1];
+                    out_tm5[0]=_n3[2];out_tm5[1]=_n3[3];out_tm5[2]=_n3[4];out_tm5[3]=_n3[5];
+
+                    out_tm6[0]=_n4[0];out_tm6[1]=_n4[1];out_tm6[2]=_n4[2];out_tm6[3]=_n4[3];
+                    out_tm7[0]=_n4[4];out_tm7[1]=_n4[5];out_tm7[2]=_n5[0];out_tm7[3]=_n5[1];
+                    out_tm8[0]=_n5[2];out_tm8[1]=_n5[3];out_tm8[2]=_n5[4];out_tm8[3]=_n5[5];
+#else
+                    short d0[6],d1[6],d2[6],d3[6],d4[6],d5[6];
+                    short w0[6],w1[6],w2[6],w3[6],w4[6],w5[6];
+                    short t0[6],t1[6],t2[6],t3[6],t4[6],t5[6];
+
+                    // load
+                    for (int n = 0; n < 6; n++)
+                    {
+                        d0[n] = r0[n];
+                        d1[n] = r1[n];
+                        d2[n] = r2[n];
+                        d3[n] = r3[n];
+                        d4[n] = r4[n];
+                        d5[n] = r5[n];
+                    }
+                    // w = B_t * d
+                    for (int n = 0; n < 6; n++)
+                    {   
+                        w0[n] =  4*d0[n]          - 5*d2[n]           + d4[n];
+                        w1[n] =          -4*d1[n] - 4*d2[n] +   d3[n] + d4[n];
+                        w2[n] =           4*d1[n] - 4*d2[n] -   d3[n] + d4[n];
+                        w3[n] =          -2*d1[n] -   d2[n] + 2*d3[n] + d4[n];
+                        w4[n] =           2*d1[n] -   d2[n] - 2*d3[n] + d4[n];
+                        w5[n] =           4*d1[n]           - 5*d3[n]          + d5[n];
+                    }
+                    // transpose d to d_t
+                    {
+                        t0[0]=w0[0]; t1[0]=w0[1]; t2[0]=w0[2]; t3[0]=w0[3]; t4[0]=w0[4]; t5[0]=w0[5];
+                        t0[1]=w1[0]; t1[1]=w1[1]; t2[1]=w1[2]; t3[1]=w1[3]; t4[1]=w1[4]; t5[1]=w1[5];
+                        t0[2]=w2[0]; t1[2]=w2[1]; t2[2]=w2[2]; t3[2]=w2[3]; t4[2]=w2[4]; t5[2]=w2[5];
+                        t0[3]=w3[0]; t1[3]=w3[1]; t2[3]=w3[2]; t3[3]=w3[3]; t4[3]=w3[4]; t5[3]=w3[5];
+                        t0[4]=w4[0]; t1[4]=w4[1]; t2[4]=w4[2]; t3[4]=w4[3]; t4[4]=w4[4]; t5[4]=w4[5];
+                        t0[5]=w5[0]; t1[5]=w5[1]; t2[5]=w5[2]; t3[5]=w5[3]; t4[5]=w5[4]; t5[5]=w5[5];
+                    }
+                    // d = B_t * d_t
+                    for (int n = 0; n < 6; n++)
+                    {   
+                        d0[n] =  4*t0[n]           - 5*t2[n]           + t4[n];
+                        d1[n] =          - 4*t1[n] - 4*t2[n] +   t3[n] + t4[n];
+                        d2[n] =            4*t1[n] - 4*t2[n] -   t3[n] + t4[n];
+                        d3[n] =          - 2*t1[n] -   t2[n] + 2*t3[n] + t4[n];
+                        d4[n] =            2*t1[n] -   t2[n] - 2*t3[n] + t4[n];
+                        d5[n] =            4*t1[n]           - 5*t3[n]          + t5[n];
+                    }
+                    // save to out_tm
+                    {
+                        out_tm0[0]=d0[0];out_tm0[1]=d0[1];out_tm0[2]=d0[2];out_tm0[3]=d0[3];
+                        out_tm1[0]=d0[4];out_tm1[1]=d0[5];out_tm1[2]=d1[0];out_tm1[3]=d1[1];
+                        out_tm2[0]=d1[2];out_tm2[1]=d1[3];out_tm2[2]=d1[4];out_tm2[3]=d1[5];
+
+                        out_tm3[0]=d2[0];out_tm3[1]=d2[1];out_tm3[2]=d2[2];out_tm3[3]=d2[3];
+                        out_tm4[0]=d2[4];out_tm4[1]=d2[5];out_tm4[2]=d3[0];out_tm4[3]=d3[1];
+                        out_tm5[0]=d3[2];out_tm5[1]=d3[3];out_tm5[2]=d3[4];out_tm5[3]=d3[5];
+
+                        out_tm6[0]=d4[0];out_tm6[1]=d4[1];out_tm6[2]=d4[2];out_tm6[3]=d4[3];
+                        out_tm7[0]=d4[4];out_tm7[1]=d4[5];out_tm7[2]=d5[0];out_tm7[3]=d5[1];
+                        out_tm8[0]=d5[2];out_tm8[1]=d5[3];out_tm8[2]=d5[4];out_tm8[3]=d5[5];
+                    }
+#endif // __ARM_NEON
+                    r0 += 4;
+                    r1 += 4;
+                    r2 += 4;
+                    r3 += 4;
+                    r4 += 4;
+                    r5 += 4;
+                }
+            }
+        }
+    }
+    bottom_blob_bordered = Mat(); 
+
+    // BEGIN dot
+    Mat top_blob_tm;
+    {
+        int w_tm = outw / 4 * 6;
+        int h_tm = outh / 4 * 6;
+
+        int nColBlocks = h_tm/6; // may be the block num in Feathercnn
+        int nRowBlocks = w_tm/6;
+
+        const int tiles = nColBlocks * nRowBlocks; 
+
+        top_blob_tm.create(36, tiles, outch, 4u, opt.workspace_allocator);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int r=0; r<9; r++)
+        {
+            int nn_outch = 0;
+            int remain_outch_start = 0;
+
+            nn_outch = outch >> 3;
+            remain_outch_start = nn_outch << 3;
+
+            for (int pp=0; pp<nn_outch; pp++)
+            {
+                int p = pp * 8;
+
+                int* output0_tm = top_blob_tm.channel(p);
+                int* output1_tm = top_blob_tm.channel(p+1);
+                int* output2_tm = top_blob_tm.channel(p+2);
+                int* output3_tm = top_blob_tm.channel(p+3);
+                int* output4_tm = top_blob_tm.channel(p+4);
+                int* output5_tm = top_blob_tm.channel(p+5);
+                int* output6_tm = top_blob_tm.channel(p+6);
+                int* output7_tm = top_blob_tm.channel(p+7);
+
+                output0_tm = output0_tm + r*4;
+                output1_tm = output1_tm + r*4;
+                output2_tm = output2_tm + r*4;
+                output3_tm = output3_tm + r*4;
+                output4_tm = output4_tm + r*4;
+                output5_tm = output5_tm + r*4;
+                output6_tm = output6_tm + r*4;
+                output7_tm = output7_tm + r*4;
+
+                for (int i=0; i<tiles; i++)
+                {
+                    const short* kptr = kernel_tm_test[r].channel(p/8);
+                    const short* r0 = bottom_blob_tm.channel(tiles*r+i);
+#if __ARM_NEON
+#if __aarch64__
+                    asm volatile(
+                        // inch loop
+                        "eor    v0.16b, v0.16b, v0.16b    \n"
+                        "eor    v1.16b, v1.16b, v1.16b    \n"
+                        "eor    v2.16b, v2.16b, v2.16b    \n"
+                        "eor    v3.16b, v3.16b, v3.16b    \n"
+                        "eor    v4.16b, v4.16b, v4.16b    \n"
+                        "eor    v5.16b, v5.16b, v5.16b    \n"
+                        "eor    v6.16b, v6.16b, v6.16b    \n"
+                        "eor    v7.16b, v7.16b, v7.16b    \n"
+                        "mov    w4, %w20                  \n"
+                        
+                        "0:                               \n" // for (int q=0; q<inch; q++)
+                        "prfm    pldl1keep, [%9, #128]    \n" // _r0 = vld1_s16(r0);
+                        "ld1     {v8.4h}, [%8]            \n" 
+                        "ld1     {v9.4h, v10.4h}, [%9]    \n" // _k01 = vld1q_s16(kptr);
+                        "add     %9, %9, #16              \n"
+                        "ld1     {v11.4h, v12.4h}, [%9]   \n" // _k23 = vld1q_s16(kptr+8);
+                        "add     %9, %9, #16              \n"
+                        "ld1     {v13.4h, v14.4h}, [%9]   \n" // _k45 = vld1q_s16(kptr+16);
+                        "add     %9, %9, #16              \n"
+                        "ld1     {v15.4h, v16.4h}, [%9]   \n" // _k67 = vld1q_s16(kptr+24);
+                        "add     %8, %8, #8               \n"
+                        "add     %9, %9, #16              \n"
+
+                        "subs    w4, w4, #1               \n"
+
+                        "smlal   v0.4s, v8.4h, v9.4h      \n" // sum0 += (a00-a03) * (k00-k03)
+                        "smlal   v1.4s, v8.4h, v10.4h     \n" // sum1 += (a00-a03) * (k10-k13)
+                        "smlal   v2.4s, v8.4h, v11.4h     \n" // sum2 += (a00-a03) * (k20-k23)
+                        "smlal   v3.4s, v8.4h, v12.4h     \n" // sum3 += (a00-a03) * (k30-k33)
+                        "smlal   v4.4s, v8.4h, v13.4h     \n" // sum4 += (a00-a03) * (k40-k43)
+                        "smlal   v5.4s, v8.4h, v14.4h     \n" // sum5 += (a00-a03) * (k50-k53)
+                        "smlal   v6.4s, v8.4h, v15.4h     \n" // sum6 += (a00-a03) * (k60-k63)
+                        "smlal   v7.4s, v8.4h, v16.4h     \n" // sum7 += (a00-a03) * (k70-k73)
+                        
+                        "bne     0b                       \n" // end for
+
+                        "st1     {v0.4s}, [%0]            \n" // store the result to memory
+                        "st1     {v1.4s}, [%1]            \n" //
+                        "st1     {v2.4s}, [%2]            \n" //
+                        "st1     {v3.4s}, [%3]            \n" //
+                        "st1     {v4.4s}, [%4]            \n" //
+                        "st1     {v5.4s}, [%5]            \n" //
+                        "st1     {v6.4s}, [%6]            \n" //
+                        "st1     {v7.4s}, [%7]            \n" //
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(output4_tm), // %4
+                          "=r"(output5_tm), // %5
+                          "=r"(output6_tm), // %6
+                          "=r"(output7_tm), // %7
+                          "=r"(r0),         // %8
+                          "=r"(kptr)        // %9
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(output4_tm),
+                          "5"(output5_tm),
+                          "6"(output6_tm),
+                          "7"(output7_tm),
+                          "8"(r0),
+                          "9"(kptr),
+                          "r"(inch)         // %20
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16"
+                    );
+#else
+                    asm volatile(
+                        // inch loop
+                        "vmov.s32    q0, #0           \n"
+                        "vmov.s32    q1, #0           \n"
+                        "vmov.s32    q2, #0           \n"
+                        "vmov.s32    q3, #0           \n"
+                        "vmov.s32    q4, #0           \n"
+                        "vmov.s32    q5, #0           \n"
+                        "vmov.s32    q6, #0           \n"
+                        "vmov.s32    q7, #0           \n"
+                        "mov         r4, %20          \n"
+                        
+                        "0:                           \n" // for (int q=0; q<inch; q++)
+                        "vld1.s16    {d16}, [%8]!     \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "vld1.s16    {d18-d19}, [%9]  \n" // _k01 = vld1q_s16(kptr);
+                        "add         %9, #16          \n" 
+                        "vld1.s16    {d20-d21}, [%9]  \n" // _k23 = vld1q_s16(kptr+8);
+                        "add         %9, #16          \n"   
+                        "vld1.s16    {d22-d23}, [%9]  \n" // _k45 = vld1q_s16(kptr+16);
+                        "add         %9, #16          \n"  
+                        "vld1.s16    {d24-d25}, [%9]  \n" // _k67 = vld1q_s16(kptr+24);
+                        "add         %9, #16          \n"
+
+                        "vmlal.s16   q0, d16, d18     \n" // sum0 += (a00-a03) * (k00-k03)
+                        "vmlal.s16   q1, d16, d19     \n" // sum1 += (a00-a03) * (k10-k13)
+                        "vmlal.s16   q2, d16, d20     \n" // sum2 += (a00-a03) * (k20-k23)
+                        "vmlal.s16   q3, d16, d21     \n" // sum3 += (a00-a03) * (k30-k33)
+                        "vmlal.s16   q4, d16, d22     \n" // sum4 += (a00-a03) * (k40-k43)
+                        "vmlal.s16   q5, d16, d23     \n" // sum5 += (a00-a03) * (k50-k53)
+                        "vmlal.s16   q6, d16, d24     \n" // sum6 += (a00-a03) * (k60-k63)
+                        "vmlal.s16   q7, d16, d25     \n" // sum7 += (a00-a03) * (k70-k73)
+
+                        "subs        r4, r4, #1       \n"
+                        "bne         0b               \n" // end for
+
+                        "vst1.s32    {d0-d1}, [%0]    \n" // store the result to memory
+                        "vst1.s32    {d2-d3}, [%1]    \n"
+                        "vst1.s32    {d4-d5}, [%2]    \n"
+                        "vst1.s32    {d6-d7}, [%3]    \n"
+                        "vst1.s32    {d8-d9}, [%4]    \n"
+                        "vst1.s32    {d10-d11}, [%5]  \n"
+                        "vst1.s32    {d12-d13}, [%6]  \n"
+                        "vst1.s32    {d14-d15}, [%7]  \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(output4_tm), // %4
+                          "=r"(output5_tm), // %5
+                          "=r"(output6_tm), // %6
+                          "=r"(output7_tm), // %7
+                          "=r"(r0),         // %8
+                          "=r"(kptr)        // %9
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(output4_tm),
+                          "5"(output5_tm),
+                          "6"(output6_tm),
+                          "7"(output7_tm),
+                          "8"(r0),
+                          "9"(kptr),
+                          "r"(inch)         // %20
+                        : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12"
+                    );
+#endif // __aarch64__                    
+#else
+                    int sum0[4] = {0};
+                    int sum1[4] = {0};
+                    int sum2[4] = {0};
+                    int sum3[4] = {0};
+                    int sum4[4] = {0};
+                    int sum5[4] = {0};
+                    int sum6[4] = {0};
+                    int sum7[4] = {0};
+
+                    for (int q=0; q<inch; q++)
+                    {
+                        for (int n=0; n<4; n++)
+                        {
+                            sum0[n] += (int)r0[n] * kptr[n];
+                            sum1[n] += (int)r0[n] * kptr[n+4];
+                            sum2[n] += (int)r0[n] * kptr[n+8];
+                            sum3[n] += (int)r0[n] * kptr[n+12];
+                            sum4[n] += (int)r0[n] * kptr[n+16];
+                            sum5[n] += (int)r0[n] * kptr[n+20];
+                            sum6[n] += (int)r0[n] * kptr[n+24];
+                            sum7[n] += (int)r0[n] * kptr[n+28];
+                        }
+                        kptr += 32;
+                        r0 += 4;
+                    }
+
+                    for (int n=0; n<4; n++)
+                    {
+                        output0_tm[n] = sum0[n];
+                        output1_tm[n] = sum1[n];
+                        output2_tm[n] = sum2[n];
+                        output3_tm[n] = sum3[n];
+                        output4_tm[n] = sum4[n];
+                        output5_tm[n] = sum5[n];
+                        output6_tm[n] = sum6[n];
+                        output7_tm[n] = sum7[n];
+                    }
+#endif // __ARM_NEON
+                    output0_tm += 36;
+                    output1_tm += 36;
+                    output2_tm += 36;
+                    output3_tm += 36;
+                    output4_tm += 36;
+                    output5_tm += 36;
+                    output6_tm += 36;
+                    output7_tm += 36;
+                }
+            }
+
+            nn_outch = (outch - remain_outch_start) >> 2;
+
+            for (int pp=0; pp<nn_outch; pp++)
+            {
+                int p = remain_outch_start + pp * 4;
+
+                int* output0_tm = top_blob_tm.channel(p);
+                int* output1_tm = top_blob_tm.channel(p+1);
+                int* output2_tm = top_blob_tm.channel(p+2);
+                int* output3_tm = top_blob_tm.channel(p+3);
+
+                output0_tm = output0_tm + r*4;
+                output1_tm = output1_tm + r*4;
+                output2_tm = output2_tm + r*4;
+                output3_tm = output3_tm + r*4;
+
+                for (int i=0; i<tiles; i++)
+                {
+                    const short* kptr = kernel_tm_test[r].channel(p/8 + (p%8)/4);
+                    const short* r0 = bottom_blob_tm.channel(tiles*r+i);
+#if __ARM_NEON
+#if __aarch64__
+                    asm volatile(
+                        // inch loop
+                        "eor    v0.16b, v0.16b, v0.16b    \n"
+                        "eor    v1.16b, v1.16b, v1.16b    \n"
+                        "eor    v2.16b, v2.16b, v2.16b    \n"
+                        "eor    v3.16b, v3.16b, v3.16b    \n"
+                        "mov    w4, %w12                  \n"
+                        
+                        "0:                               \n" // for (int q=0; q<inch; q++)
+                        "prfm    pldl1keep, [%5, #128]    \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "ld1     {v8.4h}, [%4]            \n" 
+                        "ld1     {v9.4h, v10.4h}, [%5]    \n" // _k01 = vld1q_s16(kptr);
+                        "add     %5, %5, #16              \n"
+                        "ld1     {v11.4h, v12.4h}, [%5]   \n" // _k23 = vld1q_s16(kptr+8);
+                        "add     %4, %4, #8               \n"
+                        "add     %5, %5, #16              \n"
+
+                        "subs    w4, w4, #1               \n"
+
+                        "smlal   v0.4s, v8.4h, v9.4h      \n" // sum0 += (a00-a03) * (k00-k03)
+                        "smlal   v1.4s, v8.4h, v10.4h     \n" // sum1 += (a00-a03) * (k10-k13)
+                        "smlal   v2.4s, v8.4h, v11.4h     \n" // sum2 += (a00-a03) * (k20-k23)
+                        "smlal   v3.4s, v8.4h, v12.4h     \n" // sum3 += (a00-a03) * (k30-k33)
+                        
+                        "bne     0b                       \n" // end for
+
+                        "st1     {v0.4s}, [%0]            \n" // store the result to memory
+                        "st1     {v1.4s}, [%1]            \n" //
+                        "st1     {v2.4s}, [%2]            \n" //
+                        "st1     {v3.4s}, [%3]            \n" //
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(r0),         // %4
+                          "=r"(kptr)        // %5
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(r0),
+                          "5"(kptr),
+                          "r"(inch)         // %12
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12"
+                    );
+#else
+                    asm volatile(
+                        // inch loop
+                        "vmov.s32    q0, #0           \n"
+                        "vmov.s32    q1, #0           \n"
+                        "vmov.s32    q2, #0           \n"
+                        "vmov.s32    q3, #0           \n"
+                        "mov         r4, %12          \n"
+                        
+                        "0:                           \n" // for (int q=0; q<inch; q++)
+                        "vld1.s16    {d16}, [%4]!     \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "vld1.s16    {d18-d19}, [%5]  \n" // _k01 = vld1q_s16(kptr);
+                        "add         %5, #16          \n" 
+                        "vld1.s16    {d20-d21}, [%5]  \n" // _k23 = vld1q_s16(kptr+8);
+                        "add         %5, #16          \n"
+
+                        "vmlal.s16   q0, d16, d18     \n" // sum0 += (a00-a03) * (k00-k03)
+                        "vmlal.s16   q1, d16, d19     \n" // sum1 += (a00-a03) * (k10-k13)
+                        "vmlal.s16   q2, d16, d20     \n" // sum2 += (a00-a03) * (k20-k23)
+                        "vmlal.s16   q3, d16, d21     \n" // sum3 += (a00-a03) * (k30-k33)
+
+                        "subs        r4, r4, #1       \n"
+                        "bne         0b               \n" // end for
+
+                        "vst1.s32    {d0-d1}, [%0]    \n" // store the result to memory
+                        "vst1.s32    {d2-d3}, [%1]    \n"
+                        "vst1.s32    {d4-d5}, [%2]    \n"
+                        "vst1.s32    {d6-d7}, [%3]    \n"
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(output1_tm), // %1
+                          "=r"(output2_tm), // %2
+                          "=r"(output3_tm), // %3
+                          "=r"(r0),         // %4
+                          "=r"(kptr)        // %5
+                        : "0"(output0_tm),
+                          "1"(output1_tm),
+                          "2"(output2_tm),
+                          "3"(output3_tm),
+                          "4"(r0),
+                          "5"(kptr),
+                          "r"(inch)         // %12
+                        : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10"
+                    );
+#endif // __aarch64__                    
+#else
+                    int sum0[4] = {0};
+                    int sum1[4] = {0};
+                    int sum2[4] = {0};
+                    int sum3[4] = {0};
+
+                    for (int q=0; q<inch; q++)
+                    {   
+                        for (int n=0; n<4; n++)
+                        {
+                            sum0[n] += (int)r0[n] * kptr[n];
+                            sum1[n] += (int)r0[n] * kptr[n+4];
+                            sum2[n] += (int)r0[n] * kptr[n+8];
+                            sum3[n] += (int)r0[n] * kptr[n+12];
+                        }
+                        kptr += 16;
+                        r0 += 4;
+                    }
+
+                    for (int n=0; n<4; n++)
+                    {
+                        output0_tm[n] = sum0[n];
+                        output1_tm[n] = sum1[n];
+                        output2_tm[n] = sum2[n];
+                        output3_tm[n] = sum3[n];
+                    }
+#endif // __ARM_NEON
+                    output0_tm += 36;
+                    output1_tm += 36;
+                    output2_tm += 36;
+                    output3_tm += 36;
+                }
+            }
+
+            remain_outch_start += nn_outch << 2;
+
+            for (int p=remain_outch_start; p<outch; p++)
+            {
+                int* output0_tm = top_blob_tm.channel(p);
+
+                output0_tm = output0_tm + r*4;
+
+                for (int i=0; i<tiles; i++)
+                {
+                    const short* kptr = kernel_tm_test[r].channel(p/8 + (p%8)/4 + p%4);
+                    const short* r0 = bottom_blob_tm.channel(tiles*r+i);
+#if __ARM_NEON
+#if __aarch64__
+                    asm volatile(
+                        // inch loop
+                        "eor    v0.16b, v0.16b, v0.16b    \n"
+                        "mov    w4, %w6                   \n"
+                        
+                        "0:                               \n" // for (int q=0; q<inch; q++) 
+                        "ld1     {v8.4h}, [%1]            \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "ld1     {v9.4h}, [%2]            \n" // _k0 = vld1q_s16(kptr);
+                        "add     %1, %1, #8               \n"
+                        "add     %2, %2, #8               \n"
+
+                        "subs    w4, w4, #1               \n"
+
+                        "smlal   v0.4s, v8.4h, v9.4h      \n" // sum0 += (a00-a03) * (k00-k03)
+
+                        "bne     0b                       \n" // end for
+
+                        "st1     {v0.4s}, [%0]            \n" // store the result to memory
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(r0),         // %1
+                          "=r"(kptr)        // %2
+                        : "0"(output0_tm),
+                          "1"(r0),
+                          "2"(kptr),
+                          "r"(inch)         // %6
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9"
+                    );
+#else
+                    asm volatile(
+                        // inch loop
+                        "vmov.s32    q0, #0           \n"
+                        "mov         r4, %6           \n"
+                        
+                        "0:                           \n" // for (int q=0; q<inch; q++)
+                        "vld1.s16    {d16}, [%1]      \n" // _r0 = vld1_s16(r0);  // input inch0
+                        "add         %1, #8           \n"
+                        "vld1.s16    {d18}, [%2]      \n" // _k0 = vld1q_s16(kptr);
+                        "add         %2, #8           \n"
+                        "vmlal.s16   q0, d16, d18     \n" // sum0 += (a00-a03) * (k00-k03)
+
+                        "subs        r4, r4, #1       \n"
+                        "bne         0b               \n" // end for
+
+                        "vst1.s32    {d0-d1}, [%0]    \n" // store the result to memory
+
+                        : "=r"(output0_tm), // %0
+                          "=r"(r0),         // %1
+                          "=r"(kptr)        // %2
+                        : "0"(output0_tm),
+                          "1"(r0),
+                          "2"(kptr),
+                          "r"(inch)         // %6
+                        : "cc", "memory", "r4", "q0", "q8", "q9"
+                    );  
+#endif // __aarch64__                    
+#else // __ARM_NEON
+                    int sum0[4] = {0};
+
+                    for (int q=0; q<inch; q++)
+                    {
+                        for (int n=0; n<4; n++)
+                        {
+                            sum0[n] += (int)r0[n] * kptr[n];
+                        }
+                        kptr += 4; 
+                        r0 += 4;
+                    }
+
+                    for (int n=0; n<4; n++)
+                    {
+                        output0_tm[n] = sum0[n];
+                    }           
+#endif // __ARM_NEON                           
+                    output0_tm += 36;
+                }
+            }
+
+            // for (int p=0; p<outch; p++)
+            // {
+            //     Mat out0_tm = top_blob_tm.channel(p);
+            //     const Mat kernel0_tm = kernel_tm.channel(p);
+
+            //     for (int i=0; i<tiles; i++)
+            //     {
+            //         int* output0_tm = out0_tm.row<int>(i);
+
+            //         int sum0[36] = {0};
+
+            //         for (int q=0; q<inch; q++)
+            //         {
+            //             const short* r0 = bottom_blob_tm.channel(q).row<short>(i);
+            //             const short* k0 = kernel0_tm.row<short>(q);
+
+            //             for (int n=0; n<36; n++)
+            //             {
+            //                 sum0[n] += (int)r0[n] * k0[n];
+            //             }
+            //         }
+
+            //         for (int n=0; n<36; n++)
+            //         {
+            //             output0_tm[n] = sum0[n];
+            //         }
+            //     }
+            // }
+        }
+
+    }
+    bottom_blob_tm = Mat();
+    // END dot
+
+    // BEGIN transform output
+    Mat top_blob_bordered;
+    top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
+    {
+        // AT
+        // const float itm[4][6] = {
+        //     {1.0f, 1.0f,  1.0f, 1.0f,  1.0f, 0.0f},
+        //     {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.0f},
+        //     {0.0f, 1.0f,  1.0f, 4.0f,  4.0f, 0.0f},
+        //     {0.0f, 1.0f, -1.0f, 8.0f, -8.0f, 1.0f}
+        // };
+
+        // 0 =	r00 + r01 + r02 + r03 +	r04
+        // 1 =		  r01 - r02 + 2 * (r03 - r04)
+        // 2 =		  r01 + r02 + 4 * (r03 + r04)
+        // 3 =		  r01 - r02 + 8 * (r03 - r04)  + r05
+        
+
+        int w_tm = outw / 4 * 6;
+        int h_tm = outh / 4 * 6;
+
+        int nColBlocks = h_tm/6; // may be the block num in Feathercnn
+        int nRowBlocks = w_tm/6;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p=0; p<outch; p++)
+        {
+            int* out_tile = top_blob_tm.channel(p);
+            float* outRow0 = top_blob_bordered.channel(p);
+            float* outRow1 = outRow0 + outw;
+            float* outRow2 = outRow0 + outw * 2;
+            float* outRow3 = outRow0 + outw * 3;
+
+            const float bias0 = bias ? bias[p] : 0.f;
+
+            const float scale_dequant0 = scales_dequant[p];
+
+            const float scale0 = scale_dequant0 / 576.0;
+
+            for (int j=0; j<nColBlocks; j++)
+            {
+                for(int i=0; i<nRowBlocks; i++)
+                {
+#if __ARM_NEON
+                    int32x4_t _s0, _s1, _s2, _s3, _s4, _s5;
+                    int32x2_t _s0n, _s1n, _s2n, _s3n, _s4n, _s5n;
+                    int32x4_t _w0, _w1, _w2, _w3;
+                    int32x2_t _w0n, _w1n, _w2n, _w3n;
+                    int32x4_t _d0, _d1, _d2, _d3, _d4, _d5;
+                    int32x4_t _o0, _o1, _o2, _o3;
+                    // load
+                    _s0 = vld1q_s32(out_tile);
+                    _s0n = vld1_s32(out_tile+4);
+                    _s1 = vld1q_s32(out_tile+6);
+                    _s1n = vld1_s32(out_tile+10);
+                    _s2 = vld1q_s32(out_tile+12);
+                    _s2n = vld1_s32(out_tile+16);
+                    _s3 = vld1q_s32(out_tile+18);
+                    _s3n = vld1_s32(out_tile+22);
+                    _s4 = vld1q_s32(out_tile+24);
+                    _s4n = vld1_s32(out_tile+28);
+                    _s5 = vld1q_s32(out_tile+30);
+                    _s5n = vld1_s32(out_tile+34);
+
+                    // w = A_T * W
+                    int32x2_t _tp0 = {-1, 2};
+                    int32x2_t _tp1 = {-2, 4};
+                    int32x2_t _tp2 = {8, -8};
+
+                    _w0 = vaddq_s32(_s0, _s1);
+                    _w0n = vadd_s32(_s0n, _s1n);
+                    _w0 = vaddq_s32(_w0, _s2);
+                    _w0n = vadd_s32(_w0n, _s2n);
+                    _w0 = vaddq_s32(_w0, _s3);
+                    _w0n = vadd_s32(_w0n, _s3n);
+                    _w0 = vaddq_s32(_w0, _s4);
+                    _w0n = vadd_s32(_w0n, _s4n);
+
+                    _w1 = vsubq_s32(_s1, _s2);
+                    _w1n = vsub_s32(_s1n, _s2n);
+                    _w1 = vmlaq_lane_s32(_w1, _s3, _tp0, 1);
+                    _w1n = vmla_lane_s32(_w1n, _s3n, _tp0, 1);
+                    _w1 = vmlaq_lane_s32(_w1, _s4, _tp1, 0);
+                    _w1n = vmla_lane_s32(_w1n, _s4n, _tp1, 0);
+
+                    _w2 = vaddq_s32(_s1, _s2);
+                    _w2n = vadd_s32(_s1n, _s2n);
+                    _w2 = vmlaq_lane_s32(_w2, _s3, _tp1, 1);
+                    _w2n = vmla_lane_s32(_w2n, _s3n, _tp1, 1);
+                    _w2 = vmlaq_lane_s32(_w2, _s4, _tp1, 1);
+                    _w2n = vmla_lane_s32(_w2n, _s4n, _tp1, 1);
+
+                    _w3 = vsubq_s32(_s1, _s2);
+                    _w3n = vsub_s32(_s1n, _s2n);
+                    _w3 = vmlaq_lane_s32(_w3, _s3, _tp2, 0);
+                    _w3n = vmla_lane_s32(_w3n, _s3n, _tp2, 0);
+                    _w3 = vmlaq_lane_s32(_w3, _s4, _tp2, 1);
+                    _w3n = vmla_lane_s32(_w3n, _s4n, _tp2, 1);
+                    _w3 = vaddq_s32(_w3, _s5);
+                    _w3n = vadd_s32(_w3n, _s5n);
+
+                    // transpose w to w_t
+                    {
+                        _d0[0] = _w0[0]; _d0[1] = _w1[0]; _d0[2] = _w2[0]; _d0[3] = _w3[0];
+                        _d1[0] = _w0[1]; _d1[1] = _w1[1]; _d1[2] = _w2[1]; _d1[3] = _w3[1];
+                        _d2[0] = _w0[2]; _d2[1] = _w1[2]; _d2[2] = _w2[2]; _d2[3] = _w3[2];
+                        _d3[0] = _w0[3]; _d3[1] = _w1[3]; _d3[2] = _w2[3]; _d3[3] = _w3[3];
+                        _d4[0] = _w0n[0]; _d4[1] = _w1n[0]; _d4[2] = _w2n[0]; _d4[3] = _w3n[0];
+                        _d5[0] = _w0n[1]; _d5[1] = _w1n[1]; _d5[2] = _w2n[1]; _d5[3] = _w3n[1];
+                    }                  
+
+                    // Y = A_T * w_t
+                    _o0 = vaddq_s32(_d0, _d1);
+                    _o0 = vaddq_s32(_o0, _d2);
+                    _o0 = vaddq_s32(_o0, _d3);
+                    _o0 = vaddq_s32(_o0, _d4);
+
+                    _o1 = vsubq_s32(_d1, _d2);
+                    _o1 = vmlaq_lane_s32(_o1, _d3, _tp0, 1);
+                    _o1 = vmlaq_lane_s32(_o1, _d4, _tp1, 0);
+
+                    _o2 = vaddq_s32(_d1, _d2);
+                    _o2 = vmlaq_lane_s32(_o2, _d3, _tp1, 1);
+                    _o2 = vmlaq_lane_s32(_o2, _d4, _tp1, 1);
+
+                    _o3 = vsubq_s32(_d1, _d2);
+                    _o3 = vmlaq_lane_s32(_o3, _d3, _tp2, 0);
+                    _o3 = vmlaq_lane_s32(_o3, _d4, _tp2, 1);
+                    _o3 = vaddq_s32(_o3, _d5);                    
+
+                    // save to top blob tm                     
+                    float32x4_t _scale0 = vdupq_n_f32(scale0);
+                    float32x4_t _out0_f32 = vdupq_n_f32(bias0);
+                    float32x4_t _out1_f32 = vdupq_n_f32(bias0);
+                    float32x4_t _out2_f32 = vdupq_n_f32(bias0);
+                    float32x4_t _out3_f32 = vdupq_n_f32(bias0);
+
+                    _out0_f32 = vmlaq_f32(_out0_f32, vcvtq_f32_s32(_o0), _scale0);
+                    _out1_f32 = vmlaq_f32(_out1_f32, vcvtq_f32_s32(_o1), _scale0);
+                    _out2_f32 = vmlaq_f32(_out2_f32, vcvtq_f32_s32(_o2), _scale0);
+                    _out3_f32 = vmlaq_f32(_out3_f32, vcvtq_f32_s32(_o3), _scale0); 
+                    
+                    vst1q_f32(outRow0, _out0_f32);
+                    vst1q_f32(outRow1, _out1_f32);
+                    vst1q_f32(outRow2, _out2_f32);
+                    vst1q_f32(outRow3, _out3_f32);
+#else
+                    int s0[6],s1[6],s2[6],s3[6],s4[6],s5[6];
+                    int w0[6],w1[6],w2[6],w3[6];
+                    int d0[4],d1[4],d2[4],d3[4],d4[4],d5[4];
+                    int o0[4],o1[4],o2[4],o3[4];
+
+                    // load
+                    for (int n = 0; n < 6; n++)
+                    {
+                        s0[n] = out_tile[n];
+                        s1[n] = out_tile[n+ 6];
+                        s2[n] = out_tile[n+12];
+                        s3[n] = out_tile[n+18];
+                        s4[n] = out_tile[n+24];
+                        s5[n] = out_tile[n+30];
+                    }
+                    // w = A_T * W
+                    for (int n = 0; n < 6; n++)
+                    {
+                        w0[n] = s0[n] + s1[n] + s2[n] +   s3[n] +   s4[n];
+                        w1[n] =         s1[n] - s2[n] + 2*s3[n] - 2*s4[n];
+                        w2[n] =         s1[n] + s2[n] + 4*s3[n] + 4*s4[n];
+                        w3[n] =         s1[n] - s2[n] + 8*s3[n] - 8*s4[n] + s5[n];
+                    }
+                    // transpose w to w_t
+                    {
+                        d0[0] = w0[0]; d0[1] = w1[0]; d0[2] = w2[0]; d0[3] = w3[0];
+                        d1[0] = w0[1]; d1[1] = w1[1]; d1[2] = w2[1]; d1[3] = w3[1];
+                        d2[0] = w0[2]; d2[1] = w1[2]; d2[2] = w2[2]; d2[3] = w3[2];
+                        d3[0] = w0[3]; d3[1] = w1[3]; d3[2] = w2[3]; d3[3] = w3[3];
+                        d4[0] = w0[4]; d4[1] = w1[4]; d4[2] = w2[4]; d4[3] = w3[4];
+                        d5[0] = w0[5]; d5[1] = w1[5]; d5[2] = w2[5]; d5[3] = w3[5];
+                    }
+                    // Y = A_T * w_t
+                    for (int n = 0; n < 4; n++)
+                    {
+                        o0[n] = d0[n] + d1[n] + d2[n] +   d3[n] +   d4[n];
+                        o1[n] =         d1[n] - d2[n] + 2*d3[n] - 2*d4[n];
+                        o2[n] =         d1[n] + d2[n] + 4*d3[n] + 4*d4[n];
+                        o3[n] =         d1[n] - d2[n] + 8*d3[n] - 8*d4[n] + d5[n];
+                    }
+                    // save to top blob tm
+                    for (int n = 0; n < 4; n++)
+                    {
+                        outRow0[n] = (float)o0[n] * scale0 + bias0;
+                        outRow1[n] = (float)o1[n] * scale0 + bias0;
+                        outRow2[n] = (float)o2[n] * scale0 + bias0;
+                        outRow3[n] = (float)o3[n] * scale0 + bias0;
+                    }
+#endif // __ARM_NEON 
+                    out_tile += 36;
+
+                    outRow0 += 4;
+                    outRow1 += 4;
+                    outRow2 += 4;
+                    outRow3 += 4;
+                }
+
+                outRow0 += outw * 3;
+                outRow1 += outw * 3;
+                outRow2 += outw * 3;
+                outRow3 += outw * 3;
+            }
+        }
+    }
+    // END transform output
+
+    // cut result pad
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
+}
+
+static void conv3x3s2_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
+{
+    kernel_tm.create(8*9, inch, outch/8 + outch%8, (size_t)1u);
+
+    const signed char* kernel = _kernel;
+
+    int p=0;
+    for (; p+7<outch; p+=8)
+    {
+        const signed char* k0 = kernel + (p+0)*inch*9;
+        const signed char* k1 = kernel + (p+1)*inch*9;
+        const signed char* k2 = kernel + (p+2)*inch*9;
+        const signed char* k3 = kernel + (p+3)*inch*9;
+        const signed char* k4 = kernel + (p+4)*inch*9;
+        const signed char* k5 = kernel + (p+5)*inch*9;
+        const signed char* k6 = kernel + (p+6)*inch*9;
+        const signed char* k7 = kernel + (p+7)*inch*9;
+
+        signed char* ktmp = kernel_tm.channel(p/8);
+
+        for (int q=0; q<inch; q++)
+        {
+            for (int k=0; k<9; k++)
+            {
+                ktmp[0] = k0[k];
+                ktmp[1] = k1[k];
+                ktmp[2] = k2[k];
+                ktmp[3] = k3[k];
+                ktmp[4] = k4[k];
+                ktmp[5] = k5[k];
+                ktmp[6] = k6[k];
+                ktmp[7] = k7[k];
+                ktmp += 8;
+            }
+
+            k0 += 9;
+            k1 += 9;
+            k2 += 9;
+            k3 += 9;
+            k4 += 9;
+            k5 += 9;
+            k6 += 9;
+            k7 += 9;
+        }
+    }
+    for (; p<outch; p++)
+    {
+        const signed char* k0 = kernel + (p+0)*inch*9;
+
+        signed char* ktmp = kernel_tm.channel(p/8 + p%8);
+
+        for (int q=0; q<inch; q++)
+        {
+            for (int k=0; k<9; k++)
+            {
+                ktmp[k] = k0[k];
+            }
+            ktmp += 9;
+
+            k0 += 9;
+        }
+    }
 }
 
 static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)

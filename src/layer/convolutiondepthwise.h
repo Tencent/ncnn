@@ -23,24 +23,17 @@ class ConvolutionDepthWise : public Layer
 {
 public:
     ConvolutionDepthWise();
-    ~ConvolutionDepthWise();
 
     virtual int load_param(const ParamDict& pd);
 
     virtual int load_model(const ModelBin& mb);
 
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
+
     virtual int create_requantize_op(void);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-#if NCNN_VULKAN
-    virtual int upload_model(VkTransfer& cmd);
-
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
 
 public:
     // param
@@ -51,8 +44,10 @@ public:
     int dilation_h;
     int stride_w;
     int stride_h;
-    int pad_w;
-    int pad_h;
+    int pad_left;// -233=SAME_UPPER -234=SAME_LOWER
+    int pad_right;
+    int pad_top;
+    int pad_bottom;
     int bias_term;
 
     int weight_data_size;
@@ -60,37 +55,13 @@ public:
 
     int int8_scale_term;
 
+    // 0=none 1=relu 2=leakyrelu 3=clip 4=sigmoid
+    int activation_type;
+    Mat activation_params;
+
     // model
     Mat weight_data;
     Mat bias_data;
-
-#if NCNN_VULKAN
-    VkMat weight_data_gpu;
-    VkMat bias_data_gpu;
-
-    ncnn::Layer* padding;
-    ncnn::Layer* packing_pack1;
-    ncnn::Layer* packing_pack4;
-
-    Pipeline* pipeline_convolutiondepthwise;
-
-    // pack4
-    VkMat weight_data_gpu_pack4;
-    VkMat bias_data_gpu_pack4;
-
-    Pipeline* pipeline_convolutiondepthwise_pack4;
-
-    Pipeline* pipeline_convolutiondepthwise_group;
-    Pipeline* pipeline_convolutiondepthwise_group_pack4;
-
-    // pack1to4
-    VkMat weight_data_gpu_pack1to4;
-    Pipeline* pipeline_convolutiondepthwise_group_pack1to4;
-
-    // pack4to1
-    VkMat weight_data_gpu_pack4to1;
-    Pipeline* pipeline_convolutiondepthwise_group_pack4to1;
-#endif // NCNN_VULKAN
 
     Mat weight_data_int8_scales;
     Mat bottom_blob_int8_scales;
@@ -102,6 +73,10 @@ public:
     std::vector<ncnn::Layer*> quantize_ops;
     std::vector<ncnn::Layer*> dequantize_ops;
     std::vector<ncnn::Layer*> requantize_ops;
+
+    // merge de/requantize op into convolutiondepthwise op
+    std::vector<float> dequantize_scales;
+    std::vector<float> requantize_scales;
 };
 
 } // namespace ncnn

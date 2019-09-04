@@ -28,14 +28,7 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-#if NCNN_VULKAN
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
-
-private:
+public:
     // reshape flag
     // 0 = copy from bottom
     // -1 = remaining
@@ -45,13 +38,6 @@ private:
     int c;
     int permute;
     int ndim;
-
-#if NCNN_VULKAN
-    Pipeline* pipeline_reshape;
-    Pipeline* pipeline_reshape_pack4;
-    Pipeline* pipeline_reshape_pack1to4;
-    Pipeline* pipeline_reshape_pack4to1;
-#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn

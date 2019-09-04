@@ -23,9 +23,11 @@ class YoloDetectionOutput : public Layer
 {
 public:
     YoloDetectionOutput();
-    ~YoloDetectionOutput();
 
     virtual int load_param(const ParamDict& pd);
+
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
 

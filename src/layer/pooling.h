@@ -23,18 +23,10 @@ class Pooling : public Layer
 {
 public:
     Pooling();
-    ~Pooling();
 
     virtual int load_param(const ParamDict& pd);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-#if NCNN_VULKAN
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
 
     enum { PoolMethod_MAX = 0, PoolMethod_AVE = 1 };
 
@@ -50,17 +42,8 @@ public:
     int pad_top;
     int pad_bottom;
     int global_pooling;
-    int pad_mode;// 0=full 1=valid 2=SAME
-
-#if NCNN_VULKAN
-    ncnn::Layer* padding;
-
-    Pipeline* pipeline_pooling;
-    Pipeline* pipeline_pooling_global;
-    Pipeline* pipeline_pooling_pack4;
-    Pipeline* pipeline_pooling_global_pack4;
-#endif // NCNN_VULKAN
-
+    int pad_mode;// 0=full 1=valid 2=SAME_UPPER 3=SAME_LOWER
+    int avgpool_count_include_pad;
 };
 
 } // namespace ncnn

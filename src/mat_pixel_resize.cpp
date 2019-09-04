@@ -103,18 +103,22 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w >> 1) + 1);
-    Mat rowsbuf1((w >> 1) + 1);
+    Mat rowsbuf0(w, (size_t)2u);
+    Mat rowsbuf1(w, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -1;
+    int prev_sy1 = -2;
 
     for (int dy = 0; dy < h; dy++ )
     {
         int sy = yofs[dy];
 
         if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 1)
         {
             // hresize one row
             short* rows0_old = rows0;
@@ -160,7 +164,7 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
             }
         }
 
-        prev_sy1 = sy + 1;
+        prev_sy1 = sy;
 
         // vresize
         short b0 = ibeta[0];
@@ -354,18 +358,22 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w*2 >> 1) + 2);
-    Mat rowsbuf1((w*2 >> 1) + 2);
+    Mat rowsbuf0(w*2+2, (size_t)2u);
+    Mat rowsbuf1(w*2+2, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -1;
+    int prev_sy1 = -4;
 
     for (int dy = 0; dy < h; dy++ )
     {
         int sy = yofs[dy];
 
         if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 2)
         {
             // hresize one row
             short* rows0_old = rows0;
@@ -383,7 +391,13 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
 #if __ARM_NEON
                 int16x4_t _a0a1XX = vld1_s16(ialphap);
                 int16x4_t _a0a0a1a1 = vzip_s16(_a0a1XX, _a0a1XX).val[0];
-                uint8x8_t _S1 = vld1_u8(S1p);
+                uint8x8_t _S1 = uint8x8_t();
+
+                _S1 = vld1_lane_u8(S1p, _S1, 0);
+                _S1 = vld1_lane_u8(S1p+1, _S1, 1);
+                _S1 = vld1_lane_u8(S1p+2, _S1, 2);
+                _S1 = vld1_lane_u8(S1p+3, _S1, 3);
+
                 int16x8_t _S116 = vreinterpretq_s16_u16(vmovl_u8(_S1));
                 int16x4_t _S1lowhigh = vget_low_s16(_S116);
                 int32x4_t _S1ma0a1 = vmull_s16(_S1lowhigh, _a0a0a1a1);
@@ -423,8 +437,19 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
 #if __ARM_NEON
                 int16x4_t _a0 = vdup_n_s16(a0);
                 int16x4_t _a1 = vdup_n_s16(a1);
-                uint8x8_t _S0 = vld1_u8(S0p);
-                uint8x8_t _S1 = vld1_u8(S1p);
+                uint8x8_t _S0 = uint8x8_t();
+                uint8x8_t _S1 = uint8x8_t();
+
+                _S0 = vld1_lane_u8(S0p, _S0, 0);
+                _S0 = vld1_lane_u8(S0p+1, _S0, 1);
+                _S0 = vld1_lane_u8(S0p+2, _S0, 2);
+                _S0 = vld1_lane_u8(S0p+3, _S0, 3);
+
+                _S1 = vld1_lane_u8(S1p, _S1, 0);
+                _S1 = vld1_lane_u8(S1p+1, _S1, 1);
+                _S1 = vld1_lane_u8(S1p+2, _S1, 2);
+                _S1 = vld1_lane_u8(S1p+3, _S1, 3);
+
                 int16x8_t _S016 = vreinterpretq_s16_u16(vmovl_u8(_S0));
                 int16x8_t _S116 = vreinterpretq_s16_u16(vmovl_u8(_S1));
                 int16x4_t _S0lowhigh = vget_low_s16(_S016);
@@ -449,7 +474,7 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
             }
         }
 
-        prev_sy1 = sy + 1;
+        prev_sy1 = sy;
 
         // vresize
         short b0 = ibeta[0];
@@ -643,18 +668,22 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w*3 >> 1) + 3);
-    Mat rowsbuf1((w*3 >> 1) + 3);
+    Mat rowsbuf0(w*3+1, (size_t)2u);
+    Mat rowsbuf1(w*3+1, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -1;
+    int prev_sy1 = -6;
 
     for (int dy = 0; dy < h; dy++ )
     {
         int sy = yofs[dy];
 
         if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 3)
         {
             // hresize one row
             short* rows0_old = rows0;
@@ -674,7 +703,15 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
 #if __ARM_NEON
                 int16x4_t _a0 = vdup_n_s16(a0);
                 int16x4_t _a1 = vdup_n_s16(a1);
-                uint8x8_t _S1 = vld1_u8(S1p);
+                uint8x8_t _S1 = uint8x8_t();
+
+                _S1 = vld1_lane_u8(S1p, _S1, 0);
+                _S1 = vld1_lane_u8(S1p+1, _S1, 1);
+                _S1 = vld1_lane_u8(S1p+2, _S1, 2);
+                _S1 = vld1_lane_u8(S1p+3, _S1, 3);
+                _S1 = vld1_lane_u8(S1p+4, _S1, 4);
+                _S1 = vld1_lane_u8(S1p+5, _S1, 5);
+
                 int16x8_t _S116 = vreinterpretq_s16_u16(vmovl_u8(_S1));
                 int16x4_t _S1low = vget_low_s16(_S116);
                 int16x4_t _S1high = vext_s16(_S1low, vget_high_s16(_S116), 3);
@@ -712,8 +749,23 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
 #if __ARM_NEON
                 int16x4_t _a0 = vdup_n_s16(a0);
                 int16x4_t _a1 = vdup_n_s16(a1);
-                uint8x8_t _S0 = vld1_u8(S0p);
-                uint8x8_t _S1 = vld1_u8(S1p);
+                uint8x8_t _S0 = uint8x8_t();
+                uint8x8_t _S1 = uint8x8_t();
+
+                _S0 = vld1_lane_u8(S0p, _S0, 0);
+                _S0 = vld1_lane_u8(S0p+1, _S0, 1);
+                _S0 = vld1_lane_u8(S0p+2, _S0, 2);
+                _S0 = vld1_lane_u8(S0p+3, _S0, 3);
+                _S0 = vld1_lane_u8(S0p+4, _S0, 4);
+                _S0 = vld1_lane_u8(S0p+5, _S0, 5);
+
+                _S1 = vld1_lane_u8(S1p, _S1, 0);
+                _S1 = vld1_lane_u8(S1p+1, _S1, 1);
+                _S1 = vld1_lane_u8(S1p+2, _S1, 2);
+                _S1 = vld1_lane_u8(S1p+3, _S1, 3);
+                _S1 = vld1_lane_u8(S1p+4, _S1, 4);
+                _S1 = vld1_lane_u8(S1p+5, _S1, 5);
+
                 int16x8_t _S016 = vreinterpretq_s16_u16(vmovl_u8(_S0));
                 int16x8_t _S116 = vreinterpretq_s16_u16(vmovl_u8(_S1));
                 int16x4_t _S0low = vget_low_s16(_S016);
@@ -743,7 +795,7 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
             }
         }
 
-        prev_sy1 = sy + 1;
+        prev_sy1 = sy;
 
         // vresize
         short b0 = ibeta[0];
@@ -937,18 +989,22 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
 #undef SATURATE_CAST_SHORT
 
     // loop body
-    Mat rowsbuf0((w*4 >> 1) + 4);
-    Mat rowsbuf1((w*4 >> 1) + 4);
+    Mat rowsbuf0(w*4, (size_t)2u);
+    Mat rowsbuf1(w*4, (size_t)2u);
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -1;
+    int prev_sy1 = -8;
 
     for (int dy = 0; dy < h; dy++ )
     {
         int sy = yofs[dy];
 
         if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 4)
         {
             // hresize one row
             short* rows0_old = rows0;
@@ -1040,7 +1096,7 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
             }
         }
 
-        prev_sy1 = sy + 1;
+        prev_sy1 = sy;
 
         // vresize
         short b0 = ibeta[0];

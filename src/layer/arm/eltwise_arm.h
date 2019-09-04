@@ -19,9 +19,11 @@
 
 namespace ncnn {
 
-class Eltwise_arm : public Eltwise
+class Eltwise_arm : virtual public Eltwise
 {
 public:
+    Eltwise_arm();
+
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 };
 

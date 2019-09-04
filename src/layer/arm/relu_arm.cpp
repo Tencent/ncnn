@@ -22,6 +22,13 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(ReLU_arm)
 
+ReLU_arm::ReLU_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int ReLU_arm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
@@ -112,6 +119,59 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+
+    if (elempack == 4)
+    {
+        if (slope == 0.f)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+
+                float32x4_t _zero = vdupq_n_f32(0.f);
+                for (int i=0; i<size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    _p = vmaxq_f32(_p, _zero);
+                    vst1q_f32(ptr, _p);
+
+                    ptr += 4;
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+
+                float32x4_t _zero = vdupq_n_f32(0.f);
+                float32x4_t _slope = vdupq_n_f32(slope);
+                for (int i=0; i<size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    uint32x4_t _lemask = vcleq_f32(_p, _zero);
+                    float32x4_t _ps = vmulq_f32(_p, _slope);
+                    _p = vbslq_f32(_lemask, _ps, _p);
+                    vst1q_f32(ptr, _p);
+
+                    ptr += 4;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     if (slope == 0.f)
     {

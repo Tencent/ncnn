@@ -18,10 +18,12 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <math.h>
+#include "platform.h"
 #include "mat.h"
 #include "modelbin.h"
+#include "option.h"
 #include "paramdict.h"
-#include "platform.h"
 
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>
@@ -30,52 +32,6 @@
 #endif // NCNN_VULKAN
 
 namespace ncnn {
-
-#if NCNN_VULKAN
-class VkAllocator;
-#endif // NCNN_VULKAN
-
-class Allocator;
-class Option
-{
-public:
-    // default option
-    Option();
-
-public:
-    // light mode
-    // intermediate blob will be recycled when enabled
-    // enabled by default
-    bool lightmode;
-
-    // thread count
-    // default value is the one returned by get_cpu_count()
-    int num_threads;
-
-    // blob memory allocator
-    Allocator* blob_allocator;
-
-    // workspace memory allocator
-    Allocator* workspace_allocator;
-
-#if NCNN_VULKAN
-    // enable vulkan compute
-    bool vulkan_compute;
-
-    // blob memory allocator
-    VkAllocator* blob_vkallocator;
-
-    // workspace memory allocator
-    VkAllocator* workspace_vkallocator;
-
-    // staging memory allocator
-    VkAllocator* staging_vkallocator;
-#endif // NCNN_VULKAN
-};
-
-// the global default option
-const Option& get_default_option();
-int set_default_option(const Option& opt);
 
 class Layer
 {
@@ -93,6 +49,14 @@ public:
     // return 0 if success
     virtual int load_model(const ModelBin& mb);
 
+    // layer implementation specific setup
+    // return 0 if success
+    virtual int create_pipeline(const Option& opt = Option());
+
+    // layer implementation specific clean
+    // return 0 if success
+    virtual int destroy_pipeline(const Option& opt = Option());
+
 public:
     // one input and one output blob
     bool one_blob_only;
@@ -103,35 +67,35 @@ public:
     // support vulkan compute
     bool support_vulkan;
 
+    // accept input blob with packed storage
+    bool support_packing;
+
 public:
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt = get_default_option()) const;
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt = get_default_option()) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt = Option()) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt = Option()) const;
 
     // implement inplace inference
     // return 0 if success
-    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt = get_default_option()) const;
-    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt = get_default_option()) const;
+    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt = Option()) const;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt = Option()) const;
 
 #if NCNN_VULKAN
 public:
     // upload weight blob from host to device
-    virtual int upload_model(VkTransfer& cmd);
-
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
+    virtual int upload_model(VkTransfer& cmd, const Option& opt = Option());
 
 public:
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt = get_default_option()) const;
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt = get_default_option()) const;
+    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt = Option()) const;
+    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt = Option()) const;
 
     // implement inplace inference
     // return 0 if success
-    virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt = get_default_option()) const;
-    virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt = get_default_option()) const;
+    virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt = Option()) const;
+    virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt = Option()) const;
 
 public:
     // assigned immediately after creating this layer

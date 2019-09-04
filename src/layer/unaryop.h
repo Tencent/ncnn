@@ -28,13 +28,6 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-#if NCNN_VULKAN
-    virtual int create_pipeline();
-    virtual int destroy_pipeline();
-
-    virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
-
     enum {
         Operation_ABS   = 0,
         Operation_NEG   = 1,
@@ -51,17 +44,13 @@ public:
         Operation_ASIN  = 12,
         Operation_ACOS  = 13,
         Operation_ATAN  = 14,
-        Operation_RECIPROCAL = 15
+        Operation_RECIPROCAL = 15,
+        Operation_TANH = 16
     };
 
 public:
     // param
     int op_type;
-
-#if NCNN_VULKAN
-    Pipeline* pipeline_unaryop;
-    Pipeline* pipeline_unaryop_pack4;
-#endif // NCNN_VULKAN
 };
 
 } // namespace ncnn
