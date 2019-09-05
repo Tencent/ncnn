@@ -1432,7 +1432,7 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
 
     if (type_to == PIXEL_RGB || type_to == PIXEL_BGR)
     {
-        Mat src(target_width, target_height, (size_t)3u, 3);
+        Mat src(w, h, (size_t)3u, 3);
 
         to_pixels(src, type);
 
@@ -1440,7 +1440,7 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
     }
     else if (type_to == PIXEL_GRAY)
     {
-        Mat src(target_width, target_height, (size_t)1u, 1);
+        Mat src(w, h, (size_t)1u, 1);
 
         to_pixels(src, type);
 
@@ -1448,7 +1448,7 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
     }
     else if (type_to == PIXEL_RGBA)
     {
-        Mat src(target_width, target_height, (size_t)4u, 4);
+        Mat src(w, h, (size_t)4u, 4);
 
         to_pixels(src, type);
 

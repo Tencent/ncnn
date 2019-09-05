@@ -1761,6 +1761,8 @@ int main(int argc, char** argv)
             std::vector<int> dilate = n.attr("dilate");
             std::vector<int> stride = n.attr("stride");
             std::vector<int> pad = n.attr("pad");
+            std::vector<int> adj = n.attr("adj");
+            std::vector<int> target_shape = n.attr("target_shape");
             int no_bias = n.attr("no_bias");
             int num_group = n.attr("num_group");
 
@@ -1789,11 +1791,32 @@ int main(int argc, char** argv)
                 fprintf(pp, " 13=%d", stride[0]);
             }
 
-            if (pad.size() == 1) {
-                fprintf(pp, " 4=%d", pad[0]);
-            } else if (pad.size() == 2) {
-                fprintf(pp, " 4=%d", pad[1]);
-                fprintf(pp, " 14=%d", pad[0]);
+            if (target_shape.size() == 0)
+            {
+                if (pad.size() == 1) {
+                    fprintf(pp, " 4=%d", pad[0]);
+                } else if (pad.size() == 2) {
+                    fprintf(pp, " 4=%d", pad[1]);
+                    fprintf(pp, " 14=%d", pad[0]);
+                }
+
+                if (adj.size() == 1) {
+                    fprintf(pp, " 18=%d", adj[0]);
+                } else if (adj.size() == 2) {
+                    fprintf(pp, " 18=%d", adj[1]);
+                    fprintf(pp, " 19=%d", adj[0]);
+                }
+            }
+            else
+            {
+                fprintf(pp, " 4=-233");
+
+                if (target_shape.size() == 1) {
+                    fprintf(pp, " 20=%d", target_shape[0]);
+                } else if (target_shape.size() == 2) {
+                    fprintf(pp, " 20=%d", target_shape[1]);
+                    fprintf(pp, " 21=%d", target_shape[0]);
+                }
             }
 
             fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);

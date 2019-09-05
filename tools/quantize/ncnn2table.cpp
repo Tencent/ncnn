@@ -487,6 +487,7 @@ struct PreParam
     float norm[3];
     int weith;
     int height;
+    bool swapRB;
 };
 
 static int post_training_quantize(const std::vector<std::string> filenames, const char* param_path, const char* bin_path, const char* table_path, struct PreParam per_param)
@@ -501,6 +502,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     float mean_vals[3], norm_vals[3];
     int weith = per_param.weith;
     int height = per_param.height;
+    bool swapRB = per_param.swapRB;
 
     mean_vals[0] = per_param.mean[0];
     mean_vals[1] = per_param.mean[1];
@@ -562,7 +564,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
             return -1;
         }
 
-        ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, weith, height);
+        ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, swapRB ? ncnn::Mat::PIXEL_BGR2RGB : ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, weith, height);
         in.substract_mean_normalize(mean_vals, norm_vals);
 
         ncnn::Extractor ex = net.create_extractor();
@@ -621,7 +623,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
             return -1;
         }  
 
-        ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, weith, height);
+        ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, swapRB ? ncnn::Mat::PIXEL_BGR2RGB : ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, weith, height);
         in.substract_mean_normalize(mean_vals, norm_vals);
       
         ncnn::Extractor ex = net.create_extractor();
@@ -690,8 +692,9 @@ void showUsage()
     std::cout << " -m, --mean       value of mean" << std::endl;
     std::cout << " -n, --norm       value of normalize(scale value,defualt is 1)" << std::endl;
     std::cout << " -s, --size       the size of input image(using the resize the original image,default is w=224,h=224)" << std::endl;
+    std::cout << " -c  --swapRB     flag which indicates that swap first and last channels in 3-channel image is necessary" << std::endl;
     std::cout << " -t, --thread     number of threads(defalut is 1)" << std::endl;    
-    std::cout << "example: ./ncnn2table --param squeezenet-fp32.param --bin squeezenet-fp32.bin --images images/ --output squeezenet.table --mean 104,117,123 --norm 1,1,1 --size 227,227 --thread 2" << std::endl;
+    std::cout << "example: ./ncnn2table --param squeezenet-fp32.param --bin squeezenet-fp32.bin --images images/ --output squeezenet.table --mean 104,117,123 --norm 1,1,1 --size 227,227 --swapRB --thread 2" << std::endl;
 }
 
 // string.split('x')
@@ -727,7 +730,8 @@ int main(int argc, char** argv)
         .mean = {104.f, 117.f, 103.f}, 
         .norm = {1.f, 1.f, 1.f}, 
         .weith = 224, 
-        .height =224
+        .height =224,
+        .swapRB = false
     };
 
     int c;
@@ -744,12 +748,13 @@ int main(int argc, char** argv)
             {"mean",    required_argument, 0,  'm' },
             {"norm",    required_argument, 0,  'n' },
             {"size",    required_argument, 0,  's' },
+            {"swapRB",  no_argument,       0,  'c' },
             {"thread",  required_argument, 0,  't' },
             {"help",    no_argument,       0,  'h' },
             {0,         0,                 0,  0 }
         };
 
-        c = getopt_long(argc, argv, "p:b:i:o:m:n:s:t:h", long_options, &option_index);
+        c = getopt_long(argc, argv, "p:b:i:o:m:n:s:ct:h", long_options, &option_index);
         if (c == -1)
             break;
 
@@ -807,6 +812,12 @@ int main(int argc, char** argv)
         }
             break;                        
 
+        case 'c':
+        {
+            printf("swapRB = '%s'\n", "true");
+            pre_param.swapRB = true;
+        }
+            break;
         case 't':
             printf("thread = '%s'\n", optarg);
             num_threads = atoi(optarg);

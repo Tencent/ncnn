@@ -34,6 +34,8 @@ public:
 public:
     Pipeline* pipeline_crop;
     Pipeline* pipeline_crop_pack4;
+    Pipeline* pipeline_crop_pack1to4;
+    Pipeline* pipeline_crop_pack4to1;
 };
 
 } // namespace ncnn

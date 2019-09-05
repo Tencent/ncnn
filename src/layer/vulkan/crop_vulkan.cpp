@@ -25,6 +25,8 @@ Crop_vulkan::Crop_vulkan()
 
     pipeline_crop = 0;
     pipeline_crop_pack4 = 0;
+    pipeline_crop_pack1to4 = 0;
+    pipeline_crop_pack4to1 = 0;
 }
 
 int Crop_vulkan::create_pipeline(const Option& opt)
@@ -45,6 +47,20 @@ int Crop_vulkan::create_pipeline(const Option& opt)
         pipeline_crop_pack4->create("crop_pack4", opt, specializations, 2, 13);
     }
 
+    // pack1to4
+    {
+        pipeline_crop_pack1to4 = new Pipeline(vkdev);
+        pipeline_crop_pack1to4->set_optimal_local_size_xyz();
+        pipeline_crop_pack1to4->create("crop_pack1to4", opt, specializations, 2, 13);
+    }
+
+    // pack4to1
+    {
+        pipeline_crop_pack4to1 = new Pipeline(vkdev);
+        pipeline_crop_pack4to1->set_optimal_local_size_xyz();
+        pipeline_crop_pack4to1->create("crop_pack4to1", opt, specializations, 2, 13);
+    }
+
     return 0;
 }
 
@@ -55,6 +71,12 @@ int Crop_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_crop_pack4;
     pipeline_crop_pack4 = 0;
+
+    delete pipeline_crop_pack1to4;
+    pipeline_crop_pack1to4 = 0;
+
+    delete pipeline_crop_pack4to1;
+    pipeline_crop_pack4to1 = 0;
 
     return 0;
 }
@@ -73,6 +95,9 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     int _woffset = woffset;
     int _hoffset = hoffset;
     int _coffset = coffset;
+    int _woffset2 = woffset2;
+    int _hoffset2 = hoffset2;
+    int _coffset2 = coffset2;
     int _outw;
     int _outh;
     int _outc;
@@ -80,52 +105,58 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     if (_hoffset == -233 && _coffset == -233)
     {
         _woffset = 0;
+        _woffset2 = 0;
         _outw = w;
         _hoffset = 0;
+        _hoffset2 = 0;
         _outh = h;
 
         _coffset = woffset;
+        _coffset2 = woffset2;
 
         if (outw == -233)
-            _outc = channels * elempack - _coffset;
+            _outc = channels * elempack - _coffset - _coffset2;
         else
-            _outc = std::min(outw, channels * elempack - _coffset);
+            _outc = std::min(outw, channels * elempack - _coffset - _coffset2);
     }
     else if (_hoffset == -233)
     {
         _woffset = 0;
+        _woffset2 = 0;
         _outw = w;
 
         _hoffset = woffset;
+        _hoffset2 = woffset2;
 
         if (outw == -233)
-            _outh = h - _hoffset;
+            _outh = h - _hoffset - _hoffset2;
         else
-            _outh = std::min(outw, h - _hoffset);
+            _outh = std::min(outw, h - _hoffset - _hoffset2);
 
         _coffset = hoffset;
+        _coffset2 = hoffset2;
 
         if (outh == -233)
-            _outc = channels * elempack - _coffset;
+            _outc = channels * elempack - _coffset - _coffset2;
         else
-            _outc = std::min(outh, channels * elempack - _coffset);
+            _outc = std::min(outh, channels * elempack - _coffset - _coffset2);
     }
     else
     {
         if (outw == -233)
-            _outw = w - _woffset;
+            _outw = w - _woffset - _woffset2;
         else
-            _outw = std::min(outw, w - _woffset);
+            _outw = std::min(outw, w - _woffset - _woffset2);
 
         if (outh == -233)
-            _outh = h - _hoffset;
+            _outh = h - _hoffset - _hoffset2;
         else
-            _outh = std::min(outh, h - _hoffset);
+            _outh = std::min(outh, h - _hoffset - _hoffset2);
 
         if (outc == -233)
-            _outc = channels * elempack - _coffset;
+            _outc = channels * elempack - _coffset - _coffset2;
         else
-            _outc = std::min(outc, channels * elempack - _coffset);
+            _outc = std::min(outc, channels * elempack - _coffset - _coffset2);
     }
 
     int out_elempack = _outc % 4 == 0 ? 4 : 1;
@@ -167,19 +198,17 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     }
     else if (elempack == 4 && out_elempack == 4)
     {
-        constants[12].i = _coffset / 4;
+        constants[12].i = _coffset / 4;// TODO pack4to1to4
 
         pipeline = pipeline_crop_pack4;
     }
     else if (elempack == 1 && out_elempack == 4)
     {
-        // TODO
-        return -1;
+        pipeline = pipeline_crop_pack1to4;
     }
     else if (elempack == 4 && out_elempack == 1)
     {
-        // TODO
-        return -1;
+        pipeline = pipeline_crop_pack4to1;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
@@ -266,19 +295,17 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     }
     else if (elempack == 4 && out_elempack == 4)
     {
-        constants[12].i = _coffset / 4;
+        constants[12].i = _coffset / 4;// TODO pack4to1to4
 
         pipeline = pipeline_crop_pack4;
     }
     else if (elempack == 1 && out_elempack == 4)
     {
-        // TODO
-        return -1;
+        pipeline = pipeline_crop_pack1to4;
     }
     else if (elempack == 4 && out_elempack == 1)
     {
-        // TODO
-        return -1;
+        pipeline = pipeline_crop_pack4to1;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
