@@ -495,6 +495,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     int size = filenames.size();
 
     QuantNet net;
+    net.opt = g_default_option;
 
     net.load_param(param_path);
     net.load_model(bin_path);
