@@ -245,7 +245,7 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     } // opt.use_packing_layout
 #endif // __ARM_NEON
 
-    return 0;
+    return UnaryOp::forward_inplace(bottom_top_blob, opt);
 }
 
 } // namespace ncnn
