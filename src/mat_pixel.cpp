@@ -24,11 +24,11 @@
 namespace ncnn {
 
 #if NCNN_PIXEL
-static Mat from_rgb(const unsigned char* rgb, int w, int h, Allocator* allocator)
+static int from_rgb(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
 {
-    Mat m(w, h, 3, 4u, allocator);
+    m.create(w, h, 3, 4u, allocator);
     if (m.empty())
-        return m;
+        return -100;
 
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
@@ -125,7 +125,7 @@ static Mat from_rgb(const unsigned char* rgb, int w, int h, Allocator* allocator
         ptr2++;
     }
 
-    return m;
+    return 0;
 }
 
 static void to_rgb(const Mat& m, unsigned char* rgb)
@@ -155,11 +155,11 @@ static void to_rgb(const Mat& m, unsigned char* rgb)
 #undef SATURATE_CAST_UCHAR
 }
 
-static Mat from_gray(const unsigned char* gray, int w, int h, Allocator* allocator)
+static int from_gray(const unsigned char* gray, int w, int h, Mat& m, Allocator* allocator)
 {
-    Mat m(w, h, 1, 4u, allocator);
+    m.create(w, h, 1, 4u, allocator);
     if (m.empty())
-        return m;
+        return -100;
 
     float* ptr = m;
 
@@ -233,7 +233,7 @@ static Mat from_gray(const unsigned char* gray, int w, int h, Allocator* allocat
         ptr++;
     }
 
-    return m;
+    return 0;
 }
 
 static void to_gray(const Mat& m, unsigned char* gray)
@@ -257,11 +257,11 @@ static void to_gray(const Mat& m, unsigned char* gray)
 #undef SATURATE_CAST_UCHAR
 }
 
-static Mat from_rgba(const unsigned char* rgba, int w, int h, Allocator* allocator)
+static int from_rgba(const unsigned char* rgba, int w, int h, Mat& m, Allocator* allocator)
 {
-    Mat m(w, h, 4, 4u, allocator);
+    m.create(w, h, 4, 4u, allocator);
     if (m.empty())
-        return m;
+        return -100;
 
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
@@ -375,7 +375,7 @@ static Mat from_rgba(const unsigned char* rgba, int w, int h, Allocator* allocat
         ptr3++;
     }
 
-    return m;
+    return 0;
 }
 
 static void to_rgba(const Mat& m, unsigned char* rgba)
@@ -408,11 +408,11 @@ static void to_rgba(const Mat& m, unsigned char* rgba)
 #undef SATURATE_CAST_UCHAR
 }
 
-static Mat from_rgb2bgr(const unsigned char* rgb, int w, int h, Allocator* allocator)
+static int from_rgb2bgr(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
 {
-    Mat m(w, h, 3, 4u, allocator);
+    m.create(w, h, 3, 4u, allocator);
     if (m.empty())
-        return m;
+        return -100;
 
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
@@ -509,7 +509,7 @@ static Mat from_rgb2bgr(const unsigned char* rgb, int w, int h, Allocator* alloc
         ptr2++;
     }
 
-    return m;
+    return 0;
 }
 
 static void to_bgr2rgb(const Mat& m, unsigned char* rgb)
@@ -539,7 +539,7 @@ static void to_bgr2rgb(const Mat& m, unsigned char* rgb)
 #undef SATURATE_CAST_UCHAR
 }
 
-static Mat from_rgb2gray(const unsigned char* rgb, int w, int h, Allocator* allocator)
+static int from_rgb2gray(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
 {
     // coeffs for r g b = 0.299f, 0.587f, 0.114f
     const unsigned char Y_shift = 8;//14
@@ -547,9 +547,9 @@ static Mat from_rgb2gray(const unsigned char* rgb, int w, int h, Allocator* allo
     const unsigned char G2Y = 150;
     const unsigned char B2Y = 29;
 
-    Mat m(w, h, 1, 4u, allocator);
+    m.create(w, h, 1, 4u, allocator);
     if (m.empty())
-        return m;
+        return -100;
 
     float* ptr = m;
 
@@ -628,10 +628,53 @@ static Mat from_rgb2gray(const unsigned char* rgb, int w, int h, Allocator* allo
         ptr++;
     }
 
-    return m;
+    return 0;
 }
 
-static Mat from_bgr2gray(const unsigned char* bgr, int w, int h, Allocator* allocator)
+static int from_rgb2rgba(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
+{
+    m.create(w, h, 4, 4u, allocator);
+    if (m.empty())
+        return -100;
+
+    Mat rgb_channels = m.channel_range(0, 3);
+    from_rgb(rgb, w, h, rgb_channels, allocator);
+
+    Mat alpha_channel = m.channel(3);
+    alpha_channel.fill(255.f);
+
+    return 0;
+}
+
+static void to_rgb2rgba(const Mat& m, unsigned char* rgba)
+{
+    const float* ptr0 = m.channel(0);
+    const float* ptr1 = m.channel(1);
+    const float* ptr2 = m.channel(2);
+
+    int size = m.w * m.h;
+
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+
+    int remain = size;
+
+    for (; remain>0; remain--)
+    {
+        rgba[0] = SATURATE_CAST_UCHAR(*ptr0);
+        rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
+        rgba[2] = SATURATE_CAST_UCHAR(*ptr2);
+        rgba[3] = 255;
+
+        rgba += 4;
+        ptr0++;
+        ptr1++;
+        ptr2++;
+    }
+
+#undef SATURATE_CAST_UCHAR
+}
+
+static int from_bgr2gray(const unsigned char* bgr, int w, int h, Mat& m, Allocator* allocator)
 {
     // coeffs for r g b = 0.299f, 0.587f, 0.114f
     const unsigned char Y_shift = 8;//14
@@ -639,9 +682,9 @@ static Mat from_bgr2gray(const unsigned char* bgr, int w, int h, Allocator* allo
     const unsigned char G2Y = 150;
     const unsigned char B2Y = 29;
 
-    Mat m(w, h, 1, 4u, allocator);
+    m.create(w, h, 1, 4u, allocator);
     if (m.empty())
-        return m;
+        return -100;
 
     float* ptr = m;
 
@@ -720,14 +763,57 @@ static Mat from_bgr2gray(const unsigned char* bgr, int w, int h, Allocator* allo
         ptr++;
     }
 
-    return m;
+    return 0;
 }
 
-static Mat from_gray2rgb(const unsigned char* gray, int w, int h, Allocator* allocator)
+static int from_bgr2rgba(const unsigned char* bgr, int w, int h, Mat& m, Allocator* allocator)
 {
-    Mat m(w, h, 3, 4u, allocator);
+    m.create(w, h, 4, 4u, allocator);
     if (m.empty())
-        return m;
+        return -100;
+
+    Mat rgb_channels = m.channel_range(0, 3);
+    from_rgb2bgr(bgr, w, h, rgb_channels, allocator);
+
+    Mat alpha_channel = m.channel(3);
+    alpha_channel.fill(255.f);
+
+    return 0;
+}
+
+static void to_bgr2rgba(const Mat& m, unsigned char* rgba)
+{
+    const float* ptr0 = m.channel(0);
+    const float* ptr1 = m.channel(1);
+    const float* ptr2 = m.channel(2);
+
+    int size = m.w * m.h;
+
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+
+    int remain = size;
+
+    for (; remain>0; remain--)
+    {
+        rgba[0] = SATURATE_CAST_UCHAR(*ptr2);
+        rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
+        rgba[2] = SATURATE_CAST_UCHAR(*ptr0);
+        rgba[3] = 255;
+
+        rgba += 4;
+        ptr0++;
+        ptr1++;
+        ptr2++;
+    }
+
+#undef SATURATE_CAST_UCHAR
+}
+
+static int from_gray2rgb(const unsigned char* gray, int w, int h, Mat& m, Allocator* allocator)
+{
+    m.create(w, h, 3, 4u, allocator);
+    if (m.empty())
+        return -100;
 
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
@@ -827,14 +913,54 @@ static Mat from_gray2rgb(const unsigned char* gray, int w, int h, Allocator* all
         ptr2++;
     }
 
-    return m;
+    return 0;
 }
 
-static Mat from_rgba2rgb(const unsigned char* rgba, int w, int h, Allocator* allocator)
+static int from_gray2rgba(const unsigned char* gray, int w, int h, Mat& m, Allocator* allocator)
 {
-    Mat m(w, h, 3, 4u, allocator);
+    m.create(w, h, 4, 4u, allocator);
     if (m.empty())
-        return m;
+        return -100;
+
+    Mat rgb_channels = m.channel_range(0, 3);
+    from_gray2rgb(gray, w, h, rgb_channels, allocator);
+
+    Mat alpha_channel = m.channel(3);
+    alpha_channel.fill(255.f);
+
+    return 0;
+}
+
+static void to_gray2rgba(const Mat& m, unsigned char* rgba)
+{
+    const float* ptr = m;
+
+    int size = m.w * m.h;
+
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+
+    int remain = size;
+
+    for (; remain>0; remain--)
+    {
+        unsigned char gray = SATURATE_CAST_UCHAR(*ptr);
+        rgba[0] = gray;
+        rgba[1] = gray;
+        rgba[2] = gray;
+        rgba[3] = 255;
+
+        rgba += 4;
+        ptr++;
+    }
+
+#undef SATURATE_CAST_UCHAR
+}
+
+static int from_rgba2rgb(const unsigned char* rgba, int w, int h, Mat& m, Allocator* allocator)
+{
+    m.create(w, h, 3, 4u, allocator);
+    if (m.empty())
+        return -100;
 
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
@@ -931,14 +1057,14 @@ static Mat from_rgba2rgb(const unsigned char* rgba, int w, int h, Allocator* all
         ptr2++;
     }
 
-    return m;
+    return 0;
 }
 
-static Mat from_rgba2bgr(const unsigned char* rgba, int w, int h, Allocator* allocator)
+static int from_rgba2bgr(const unsigned char* rgba, int w, int h, Mat& m, Allocator* allocator)
 {
-    Mat m(w, h, 3, 4u, allocator);
+    m.create(w, h, 3, 4u, allocator);
     if (m.empty())
-        return m;
+        return -100;
 
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
@@ -1035,10 +1161,10 @@ static Mat from_rgba2bgr(const unsigned char* rgba, int w, int h, Allocator* all
         ptr2++;
     }
 
-    return m;
+    return 0;
 }
 
-static Mat from_rgba2gray(const unsigned char* rgba, int w, int h, Allocator* allocator)
+static int from_rgba2gray(const unsigned char* rgba, int w, int h, Mat& m, Allocator* allocator)
 {
     // coeffs for r g b = 0.299f, 0.587f, 0.114f
     const unsigned char Y_shift = 8;//14
@@ -1046,9 +1172,9 @@ static Mat from_rgba2gray(const unsigned char* rgba, int w, int h, Allocator* al
     const unsigned char G2Y = 150;
     const unsigned char B2Y = 29;
 
-    Mat m(w, h, 1, 4u, allocator);
+    m.create(w, h, 1, 4u, allocator);
     if (m.empty())
-        return m;
+        return -100;
 
     float* ptr = m;
 
@@ -1127,7 +1253,7 @@ static Mat from_rgba2gray(const unsigned char* rgba, int w, int h, Allocator* al
         ptr++;
     }
 
-    return m;
+    return 0;
 }
 
 void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb)
@@ -1328,42 +1454,62 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
 
 Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator)
 {
+    Mat m;
+
     if (type & PIXEL_CONVERT_MASK)
     {
-        if (type == PIXEL_RGB2BGR || type == PIXEL_BGR2RGB)
-            return from_rgb2bgr(pixels, w, h, allocator);
-
-        if (type == PIXEL_RGB2GRAY)
-            return from_rgb2gray(pixels, w, h, allocator);
-
-        if (type == PIXEL_BGR2GRAY)
-            return from_bgr2gray(pixels, w, h, allocator);
-
-        if (type == PIXEL_GRAY2RGB || type == PIXEL_GRAY2BGR)
-            return from_gray2rgb(pixels, w, h, allocator);
-
-        if (type == PIXEL_RGBA2RGB)
-            return from_rgba2rgb(pixels, w, h, allocator);
-
-        if (type == PIXEL_RGBA2BGR)
-            return from_rgba2bgr(pixels, w, h, allocator);
-
-        if (type == PIXEL_RGBA2GRAY)
-            return from_rgba2gray(pixels, w, h, allocator);
+        switch (type)
+        {
+        case PIXEL_RGB2BGR:
+        case PIXEL_BGR2RGB:
+            from_rgb2bgr(pixels, w, h, m, allocator);
+            break;
+        case PIXEL_RGB2GRAY:
+            from_rgb2gray(pixels, w, h, m, allocator);
+            break;
+        case PIXEL_RGB2RGBA:
+            from_rgb2rgba(pixels, w, h, m, allocator);
+            break;
+        case PIXEL_BGR2GRAY:
+            from_bgr2gray(pixels, w, h, m, allocator);
+            break;
+        case PIXEL_BGR2RGBA:
+            from_bgr2rgba(pixels, w, h, m, allocator);
+            break;
+        case PIXEL_GRAY2RGB:
+        case PIXEL_GRAY2BGR:
+            from_gray2rgb(pixels, w, h, m, allocator);
+            break;
+        case PIXEL_GRAY2RGBA:
+            from_gray2rgba(pixels, w, h, m, allocator);
+            break;
+        case PIXEL_RGBA2RGB:
+            from_rgba2rgb(pixels, w, h, m, allocator);
+            break;
+        case PIXEL_RGBA2BGR:
+            from_rgba2bgr(pixels, w, h, m, allocator);
+            break;
+        case PIXEL_RGBA2GRAY:
+            from_rgba2gray(pixels, w, h, m, allocator);
+            break;
+        default:
+            // unimplemented convert type
+            break;
+        }
     }
     else
     {
         if (type == PIXEL_RGB || type == PIXEL_BGR)
-            return from_rgb(pixels, w, h, allocator);
+            from_rgb(pixels, w, h, m, allocator);
 
         if (type == PIXEL_GRAY)
-            return from_gray(pixels, w, h, allocator);
+            from_gray(pixels, w, h, m, allocator);
 
         if (type == PIXEL_RGBA)
-            return from_rgba(pixels, w, h, allocator);
+            from_rgba(pixels, w, h, m, allocator);
     }
 
-    return Mat();
+    return m;
 }
 
 Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height, Allocator* allocator)
@@ -1371,55 +1517,67 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     if (w == target_width && h == target_height)
         return Mat::from_pixels(pixels, type, w, h);
 
-    Mat m;
-
     int type_from = type & PIXEL_FORMAT_MASK;
 
     if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
     {
         Mat dst(target_width, target_height, (size_t)3u, 3);
-
         resize_bilinear_c3(pixels, w, h, dst, target_width, target_height);
 
-        m = Mat::from_pixels(dst, type, target_width, target_height, allocator);
+        return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
     else if (type_from == PIXEL_GRAY)
     {
         Mat dst(target_width, target_height, (size_t)1u, 1);
-
         resize_bilinear_c1(pixels, w, h, dst, target_width, target_height);
 
-        m = Mat::from_pixels(dst, type, target_width, target_height, allocator);
+        return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
     else if (type_from == PIXEL_RGBA)
     {
         Mat dst(target_width, target_height, (size_t)4u, 4);
-
         resize_bilinear_c4(pixels, w, h, dst, target_width, target_height);
 
-        m = Mat::from_pixels(dst, type, target_width, target_height, allocator);
+        return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
 
-    return m;
+    return Mat();
 }
 
 void Mat::to_pixels(unsigned char* pixels, int type) const
 {
     if (type & PIXEL_CONVERT_MASK)
     {
-        if (type == PIXEL_RGB2BGR || type == PIXEL_BGR2RGB)
-            return to_bgr2rgb(*this, pixels);
+        switch (type)
+        {
+        case PIXEL_RGB2BGR:
+        case PIXEL_BGR2RGB:
+            to_bgr2rgb(*this, pixels);
+            break;
+        case PIXEL_RGB2RGBA:
+            to_rgb2rgba(*this, pixels);
+            break;
+        case PIXEL_BGR2RGBA:
+            to_bgr2rgba(*this, pixels);
+            break;
+        case PIXEL_GRAY2RGBA:
+            to_gray2rgba(*this, pixels);
+            break;
+        default:
+            // unimplemented convert type
+            break;
+        }
     }
     else
     {
         if (type == PIXEL_RGB || type == PIXEL_BGR)
-            return to_rgb(*this, pixels);
+            to_rgb(*this, pixels);
 
         if (type == PIXEL_GRAY)
-            return to_gray(*this, pixels);
+            to_gray(*this, pixels);
 
         if (type == PIXEL_RGBA)
-            return to_rgba(*this, pixels);
+            to_rgba(*this, pixels);
     }
 }
 
