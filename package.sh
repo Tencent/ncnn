@@ -11,7 +11,7 @@ mkdir -p $ANDROIDPKGNAME/arm64-v8a
 mkdir -p $ANDROIDPKGNAME/include
 cp build-android-armv7/install/lib/lib${NAME}.a $ANDROIDPKGNAME/armeabi-v7a/
 cp build-android-aarch64/install/lib/lib${NAME}.a $ANDROIDPKGNAME/arm64-v8a/
-cp build-android-aarch64/install/include/* $ANDROIDPKGNAME/include/
+cp -r build-android-aarch64/install/include/* $ANDROIDPKGNAME/include/
 rm -f $ANDROIDPKGNAME.zip
 zip -9 -r $ANDROIDPKGNAME.zip $ANDROIDPKGNAME
 
@@ -43,7 +43,7 @@ mkdir -p $ANDROIDPKGNAME/arm64-v8a
 mkdir -p $ANDROIDPKGNAME/include
 cp build-android-armv7-vulkan/install/lib/lib${NAME}.a $ANDROIDPKGNAME/armeabi-v7a/
 cp build-android-aarch64-vulkan/install/lib/lib${NAME}.a $ANDROIDPKGNAME/arm64-v8a/
-cp build-android-aarch64-vulkan/install/include/* $ANDROIDPKGNAME/include/
+cp -r build-android-aarch64-vulkan/install/include/* $ANDROIDPKGNAME/include/
 rm -f $ANDROIDPKGNAME.zip
 zip -9 -r $ANDROIDPKGNAME.zip $ANDROIDPKGNAME
 
