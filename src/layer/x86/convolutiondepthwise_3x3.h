@@ -47,6 +47,87 @@ static void convdw3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
         const float* k1 = kernel0 + 3;
         const float* k2 = kernel0 + 6;
 
+#if __AVX__ || __SSE__
+		__m128 k0_data = _mm_loadu_ps(k0);
+		__m128 k1_data = _mm_loadu_ps(k1);
+		__m128 k2_data = _mm_loadu_ps(k2);
+
+		int i = 0;
+		for (; i + 1 < outh; i += 2)
+		{
+
+			int remain = outw;
+
+			for (; remain > 0; remain--)
+			{
+				__m128 r0_data = _mm_loadu_ps(r0);
+				__m128 r1_data = _mm_loadu_ps(r1);
+				__m128 r2_data = _mm_loadu_ps(r2);
+				__m128 r3_data = _mm_loadu_ps(r3);
+				__m128 sum = _mm_setzero_ps();
+				__m128 sum2 = _mm_setzero_ps();
+				float sum_sum = 0, sum_sum2 = 0;
+
+				sum = _mm_add_ps(_mm_mul_ps(r0_data, k0_data), sum);
+				sum = _mm_add_ps(_mm_mul_ps(r1_data, k1_data), sum);
+				sum = _mm_add_ps(_mm_mul_ps(r2_data, k2_data), sum);
+				sum_sum += sum.m128_f32[0] + sum.m128_f32[1] + sum.m128_f32[2] + bias0;
+
+				sum2 = _mm_add_ps(_mm_mul_ps(r1_data, k0_data), sum2);
+				sum2 = _mm_add_ps(_mm_mul_ps(r2_data, k1_data), sum2);
+				sum2 = _mm_add_ps(_mm_mul_ps(r3_data, k2_data), sum2);
+				sum_sum2 += sum2.m128_f32[0] + sum2.m128_f32[1] + sum2.m128_f32[2] + bias0;
+
+				*outptr = sum_sum;
+				*outptr2 = sum_sum2;
+
+				r0++;
+				r1++;
+				r2++;
+				r3++;
+				outptr++;
+				outptr2++;
+			}
+
+			r0 += 2 + w;
+			r1 += 2 + w;
+			r2 += 2 + w;
+			r3 += 2 + w;
+
+			outptr += outw;
+			outptr2 += outw;
+		}
+
+		for (; i < outh; i++)
+		{
+			int remain = outw;
+
+			for (; remain > 0; remain--)
+			{
+				__m128 r0_data = _mm_loadu_ps(r0);
+				__m128 r1_data = _mm_loadu_ps(r1);
+				__m128 r2_data = _mm_loadu_ps(r2);
+
+				__m128 sum = _mm_setzero_ps();
+				float sum_sum = 0;
+
+				sum = _mm_add_ps(_mm_mul_ps(r0_data, k0_data), sum);
+				sum = _mm_add_ps(_mm_mul_ps(r1_data, k1_data), sum);
+				sum = _mm_add_ps(_mm_mul_ps(r2_data, k2_data), sum);
+				sum_sum += sum.m128_f32[0] + sum.m128_f32[1] + sum.m128_f32[2] + bias0;
+
+				*outptr = sum_sum;
+				r0++;
+				r1++;
+				r2++;
+				outptr++;
+			}
+
+			r0 += 2;
+			r1 += 2;
+			r2 += 2;
+		}
+#else
         int i = 0;
 
         for (; i+1 < outh; i+=2)
@@ -127,6 +208,8 @@ static void convdw3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
             r1 += 2;
             r2 += 2;
         }
+#endif
+
     }
 }
 
@@ -165,6 +248,44 @@ static void convdw3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
         const float* k1 = kernel0 + 3;
         const float* k2 = kernel0 + 6;
 
+#if __AVX__ || __SSE__
+		__m128 k0_data = _mm_loadu_ps(k0);
+		__m128 k1_data = _mm_loadu_ps(k1);
+		__m128 k2_data = _mm_loadu_ps(k2);
+
+		int i = 0;
+
+		for (; i < outh; i++)
+		{
+			int remain = outw;
+
+			for (; remain > 0; remain--)
+			{
+				__m128 r0_data = _mm_loadu_ps(r0);
+				__m128 r1_data = _mm_loadu_ps(r1);
+				__m128 r2_data = _mm_loadu_ps(r2);
+				__m128 sum = _mm_setzero_ps();
+				float sum_sum = 0;
+
+				sum = _mm_add_ps(_mm_mul_ps(r0_data, k0_data), sum);
+				sum = _mm_add_ps(_mm_mul_ps(r1_data, k1_data), sum);
+				sum = _mm_add_ps(_mm_mul_ps(r2_data, k2_data), sum);
+				sum_sum += sum.m128_f32[0] + sum.m128_f32[1] + sum.m128_f32[2] + bias0;
+
+				*outptr = sum_sum;
+
+				r0 += 2;
+				r1 += 2;
+				r2 += 2;
+				outptr++;
+			}
+
+			r0 += tailstep;
+			r1 += tailstep;
+			r2 += tailstep;
+		}
+
+#else
         int i = 0;
 
         for (; i < outh; i++)
@@ -196,6 +317,6 @@ static void convdw3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
             r1 += tailstep;
             r2 += tailstep;
         }
-
+#endif
     }
 }

@@ -58,6 +58,23 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
             int remain = size;
 
+#if __AVX__ || __SSE__
+			__m128 k_data = _mm_loadu_ps(kernel0);
+
+			for (; remain > 0; remain--)
+			{
+				float r_array[4] = { *r0, *r1, *r2, *r3 };
+				__m128 r_data = _mm_loadu_ps(r_array);
+				__m128 sum = _mm_mul_ps(k_data, r_data);
+				*outptr += sum.m128_f32[0] + sum.m128_f32[1] + sum.m128_f32[2] + sum.m128_f32[3];
+
+				r0++;
+				r1++;
+				r2++;
+				r3++;
+				outptr++;
+			}
+#else
             for (; remain>0; remain--)
             {
                 float sum = *r0 * k0;
@@ -73,6 +90,7 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
                 r3++;
                 outptr++;
             }
+#endif
 
         }
 
@@ -91,6 +109,43 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
             int remain = size;
 
+#if __AVX__ || __SSE__
+#if __AVX__
+			int circle_num = size / 8;
+			__m256 k_data = _mm256_set1_ps(k0);
+			int index = 0;
+			for (; index < circle_num; index++)
+			{
+				int index_offset = index * 8;
+				__m256 out_data = _mm256_loadu_ps(outptr + index_offset);
+				__m256 r_data = _mm256_loadu_ps(r0 + index_offset);
+				out_data = _mm256_add_ps(_mm256_mul_ps(r_data, k_data), out_data);
+				_mm256_storeu_ps(outptr + index_offset, out_data);
+			}
+
+			for (index = 8 * index; index < size; index++)
+			{
+				outptr[index] += r0[index] * k0;
+			}
+#else
+			int circle_num = size / 4;
+			__m128 k_data = _mm_set1_ps(k0);
+			int index = 0;
+			for (; index < circle_num; index++)
+			{
+				int index_offset = index * 4;
+				__m128 out_data = _mm_loadu_ps(outptr + index_offset);
+				__m128 r_data = _mm_loadu_ps(r0 + index_offset);
+				out_data = _mm_add_ps(_mm_mul_ps(r_data, k_data), out_data);
+				_mm_storeu_ps(outptr + index_offset, out_data);
+			}
+
+			for (index = 4 * index; index < size; index++)
+			{
+				outptr[index] += r0[index] * k0;
+			}
+#endif
+#else
             for (; remain>0; remain--)
             {
                 float sum = *r0 * k0;
@@ -100,6 +155,7 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
                 r0++;
                 outptr++;
             }
+#endif
 
         }
     }
@@ -151,6 +207,34 @@ static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
             const float* r2 = img2;
             const float* r3 = img3;
 
+#if __AVX__ || __SSE__
+			float k_array[4] = { k0, k1, k2, k3 };
+			__m128 k_data = _mm_loadu_ps(k_array);
+
+			for (int i = 0; i < outh; i++)
+			{
+				int remain = outw;
+
+				for (; remain > 0; remain--)
+				{
+					float r_array[4] = { *r0, *r1, *r2, *r3 };
+					__m128 r_data = _mm_loadu_ps(r_array);
+					__m128 sum = _mm_mul_ps(k_data, r_data);
+					*outptr += sum.m128_f32[0] + sum.m128_f32[1] + sum.m128_f32[2] + sum.m128_f32[3];
+
+					r0 += 2;
+					r1 += 2;
+					r2 += 2;
+					r3 += 2;
+					outptr++;
+				}
+
+				r0 += tailstep;
+				r1 += tailstep;
+				r2 += tailstep;
+				r3 += tailstep;
+			}
+#else
             for (int i = 0; i < outh; i++)
             {
                 int remain = outw;
@@ -176,6 +260,7 @@ static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
                 r2 += tailstep;
                 r3 += tailstep;
             }
+#endif
 
         }
 

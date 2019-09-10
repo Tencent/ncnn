@@ -1432,10 +1432,10 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     va += 4;
                     vb += 1;
                 }         
-                output0[0] = _sum0_3[0];
-                output1[0] = _sum0_3[1];
-                output2[0] = _sum0_3[2];
-                output3[0] = _sum0_3[3];
+                output0[0] = _sum0_3.m128_f32[0];
+                output1[0] = _sum0_3.m128_f32[1];
+                output2[0] = _sum0_3.m128_f32[2];
+                output3[0] = _sum0_3.m128_f32[3];
 #else
                 float sum0 = biasptr[0];
                 float sum1 = biasptr[1];
@@ -1573,7 +1573,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     va += 4;
                     vb += 4;                    
                 }
-                float sum0 = bias0 + _sum0[0] + _sum0[1] + _sum0[2] + _sum0[3];
+                float sum0 = bias0 + _sum0.m128_f32[0] + _sum0.m128_f32[1] + _sum0.m128_f32[2] + _sum0.m128_f32[3];
 #else
                 float sum0 = bias0;
 #endif // __SSE__
