@@ -27,6 +27,10 @@ set(ncnn_SRCS
     benchmark.cpp
 )
 
+if (ANDROID)
+    list(APPEND ncnn_SRCS mat_pixel_android.cpp)
+endif()
+
 macro(ncnn_add_layer class)
     string(TOLOWER ${class} name)
 
