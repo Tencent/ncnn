@@ -1515,7 +1515,7 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Alloca
 Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height, Allocator* allocator)
 {
     if (w == target_width && h == target_height)
-        return Mat::from_pixels(pixels, type, w, h);
+        return Mat::from_pixels(pixels, type, w, h, allocator);
 
     int type_from = type & PIXEL_FORMAT_MASK;
 
