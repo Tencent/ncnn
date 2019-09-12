@@ -69,6 +69,7 @@ void main()
     if (op_type == 13) res = acos(v);
     if (op_type == 14) res = atan(v);
     if (op_type == 15) res = afp(1.f) / v;
+    if (op_type == 16) res = tanh(v);
 
     bottom_top_blob_data[gi] = afp2sfpvec4(res);
 }
