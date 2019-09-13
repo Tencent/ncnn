@@ -162,7 +162,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
         const int tiles = w_tm/8 * h_tm/8;
 
-        bottom_blob_tm.create(8*8, tiles, inch, elemsize, elempack);
+        bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
 
 //         const float itm[8][8] = {
 //             {1.0f,  0.0f, -5.25f,  0.00f,  5.25f,  0.00f, -1.0f, 0.0f},
@@ -207,7 +207,6 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                 for (int j=0; j<w_tm/8; j++)
                 {
                     const float* r0 = img0.row(i * 6) + (j * 6) * 4;
-                    float* r0_tm = img0_tm.row(i * w_tm/8 + j);
 
                     for (int m=0; m<8; m++)
                     {
@@ -273,6 +272,8 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                         r0 += w * 4;
                     }
 
+                    float* r0_tm_0 = (float*)img0_tm + (i * w_tm/8 + j) * 4;
+
                     for (int m=0; m<8; m++)
                     {
                         float32x4_t _tmp00 = vld1q_f32(tmp[m][0]);
@@ -286,8 +287,6 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                         float32x4_t _r0tm0 = vmlaq_n_f32(vsubq_f32(_tmp00, _tmp06), vsubq_f32(_tmp04, _tmp02), 5.25f);
                         float32x4_t _r0tm7 = vmlaq_n_f32(vsubq_f32(_tmp07, _tmp01), vsubq_f32(_tmp03, _tmp05), 5.25f);
-                        vst1q_f32(r0_tm, _r0tm0);
-                        vst1q_f32(r0_tm + 28, _r0tm7);
 
 //                         r0_tm[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25;
 //                         r0_tm[7] = tmp0[7] - tmp0[1] + (tmp0[3] - tmp0[5]) * 5.25;
@@ -300,8 +299,6 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                         float32x4_t _r0tm1 = vaddq_f32(_tmp12a, _tmp12b);
                         float32x4_t _r0tm2 = vsubq_f32(_tmp12a, _tmp12b);
-                        vst1q_f32(r0_tm + 4, _r0tm1);
-                        vst1q_f32(r0_tm + 8, _r0tm2);
 
 //                         r0_tm[1] = tmp12a + tmp12b;
 //                         r0_tm[2] = tmp12a - tmp12b;
@@ -314,8 +311,6 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                         float32x4_t _r0tm3 = vaddq_f32(_tmp34a, _tmp34b);
                         float32x4_t _r0tm4 = vsubq_f32(_tmp34a, _tmp34b);
-                        vst1q_f32(r0_tm + 12, _r0tm3);
-                        vst1q_f32(r0_tm + 16, _r0tm4);
 
 //                         r0_tm[3] = tmp34a + tmp34b;
 //                         r0_tm[4] = tmp34a - tmp34b;
@@ -328,13 +323,26 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                         float32x4_t _r0tm5 = vaddq_f32(_tmp56a, _tmp56b);
                         float32x4_t _r0tm6 = vsubq_f32(_tmp56a, _tmp56b);
-                        vst1q_f32(r0_tm + 20, _r0tm5);
-                        vst1q_f32(r0_tm + 24, _r0tm6);
 
 //                         r0_tm[5] = tmp56a + tmp56b;
 //                         r0_tm[6] = tmp56a - tmp56b;
 
-                        r0_tm += 8*4;
+                        vst1q_f32(r0_tm_0, _r0tm0);
+                        r0_tm_0 += tiles * 4;
+                        vst1q_f32(r0_tm_0, _r0tm1);
+                        r0_tm_0 += tiles * 4;
+                        vst1q_f32(r0_tm_0, _r0tm2);
+                        r0_tm_0 += tiles * 4;
+                        vst1q_f32(r0_tm_0, _r0tm3);
+                        r0_tm_0 += tiles * 4;
+                        vst1q_f32(r0_tm_0, _r0tm4);
+                        r0_tm_0 += tiles * 4;
+                        vst1q_f32(r0_tm_0, _r0tm5);
+                        r0_tm_0 += tiles * 4;
+                        vst1q_f32(r0_tm_0, _r0tm6);
+                        r0_tm_0 += tiles * 4;
+                        vst1q_f32(r0_tm_0, _r0tm7);
+                        r0_tm_0 += tiles * 4;
                     }
                 }
             }
@@ -353,7 +361,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         const int tiles = h_tm/8 * w_tm/8;
 
         // permute
-//         bottom_blob_tm.create(8*8, tiles, inch, elemsize, elempack);
+//         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
         Mat bottom_blob_tm2(8 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -367,25 +375,20 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             {
                 float* tm2p = tm2.row(i/8);
 
-                const float* r0 = bottom_blob_tm.channel(0).row(i) + r * 4;
-                const float* r1 = bottom_blob_tm.channel(0).row(i+1) + r * 4;
-                const float* r2 = bottom_blob_tm.channel(0).row(i+2) + r * 4;
-                const float* r3 = bottom_blob_tm.channel(0).row(i+3) + r * 4;
-                const float* r4 = bottom_blob_tm.channel(0).row(i+4) + r * 4;
-                const float* r5 = bottom_blob_tm.channel(0).row(i+5) + r * 4;
-                const float* r6 = bottom_blob_tm.channel(0).row(i+6) + r * 4;
-                const float* r7 = bottom_blob_tm.channel(0).row(i+7) + r * 4;
+                const float* r0 = bottom_blob_tm;
+
+                r0 += (r*tiles + i) * 4;
 
                 for (int q=0; q<inch; q++)
                 {
                     float32x4_t _r0 = vld1q_f32(r0);
-                    float32x4_t _r1 = vld1q_f32(r1);
-                    float32x4_t _r2 = vld1q_f32(r2);
-                    float32x4_t _r3 = vld1q_f32(r3);
-                    float32x4_t _r4 = vld1q_f32(r4);
-                    float32x4_t _r5 = vld1q_f32(r5);
-                    float32x4_t _r6 = vld1q_f32(r6);
-                    float32x4_t _r7 = vld1q_f32(r7);
+                    float32x4_t _r1 = vld1q_f32(r0 + 4);
+                    float32x4_t _r2 = vld1q_f32(r0 + 8);
+                    float32x4_t _r3 = vld1q_f32(r0 + 12);
+                    float32x4_t _r4 = vld1q_f32(r0 + 16);
+                    float32x4_t _r5 = vld1q_f32(r0 + 20);
+                    float32x4_t _r6 = vld1q_f32(r0 + 24);
+                    float32x4_t _r7 = vld1q_f32(r0 + 28);
                     vst1q_f32(tm2p, _r0);
                     vst1q_f32(tm2p + 4, _r1);
                     vst1q_f32(tm2p + 8, _r2);
@@ -397,13 +400,6 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 //                     tm2p[0] = r0[0];
 
                     r0 += bottom_blob_tm.cstep * 4;
-                    r1 += bottom_blob_tm.cstep * 4;
-                    r2 += bottom_blob_tm.cstep * 4;
-                    r3 += bottom_blob_tm.cstep * 4;
-                    r4 += bottom_blob_tm.cstep * 4;
-                    r5 += bottom_blob_tm.cstep * 4;
-                    r6 += bottom_blob_tm.cstep * 4;
-                    r7 += bottom_blob_tm.cstep * 4;
                     tm2p += 32;
                 }
             }
@@ -411,17 +407,16 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             {
                 float* tm2p = tm2.row(i/8 + (i%8)/4);
 
-                const float* r0 = bottom_blob_tm.channel(0).row(i) + r * 4;
-                const float* r1 = bottom_blob_tm.channel(0).row(i+1) + r * 4;
-                const float* r2 = bottom_blob_tm.channel(0).row(i+2) + r * 4;
-                const float* r3 = bottom_blob_tm.channel(0).row(i+3) + r * 4;
+                const float* r0 = bottom_blob_tm;
+
+                r0 += (r*tiles + i) * 4;
 
                 for (int q=0; q<inch; q++)
                 {
                     float32x4_t _r0 = vld1q_f32(r0);
-                    float32x4_t _r1 = vld1q_f32(r1);
-                    float32x4_t _r2 = vld1q_f32(r2);
-                    float32x4_t _r3 = vld1q_f32(r3);
+                    float32x4_t _r1 = vld1q_f32(r0 + 4);
+                    float32x4_t _r2 = vld1q_f32(r0 + 8);
+                    float32x4_t _r3 = vld1q_f32(r0 + 12);
                     vst1q_f32(tm2p, _r0);
                     vst1q_f32(tm2p + 4, _r1);
                     vst1q_f32(tm2p + 8, _r2);
@@ -429,9 +424,6 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 //                     tm2p[0] = r0[0];
 
                     r0 += bottom_blob_tm.cstep * 4;
-                    r1 += bottom_blob_tm.cstep * 4;
-                    r2 += bottom_blob_tm.cstep * 4;
-                    r3 += bottom_blob_tm.cstep * 4;
                     tm2p += 16;
                 }
             }
@@ -439,19 +431,19 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             {
                 float* tm2p = tm2.row(i/8 + (i%8)/4 + (i%4)/2);
 
-                const float* r0 = bottom_blob_tm.channel(0).row(i) + r * 4;
-                const float* r1 = bottom_blob_tm.channel(0).row(i+1) + r * 4;
+                const float* r0 = bottom_blob_tm;
+
+                r0 += (r*tiles + i) * 4;
 
                 for (int q=0; q<inch; q++)
                 {
                     float32x4_t _r0 = vld1q_f32(r0);
-                    float32x4_t _r1 = vld1q_f32(r1);
+                    float32x4_t _r1 = vld1q_f32(r0 + 4);
                     vst1q_f32(tm2p, _r0);
                     vst1q_f32(tm2p + 4, _r1);
 //                     tm2p[0] = r0[0];
 
                     r0 += bottom_blob_tm.cstep * 4;
-                    r1 += bottom_blob_tm.cstep * 4;
                     tm2p += 8;
                 }
             }
@@ -459,7 +451,9 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             {
                 float* tm2p = tm2.row(i/8 + (i%8)/4 + (i%4)/2 + i%2);
 
-                const float* r0 = bottom_blob_tm.channel(0).row(i) + r * 4;
+                const float* r0 = bottom_blob_tm;
+
+                r0 += (r*tiles + i) * 4;
 
                 for (int q=0; q<inch; q++)
                 {
@@ -476,7 +470,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         bottom_blob_tm = Mat();
         // permute end
 
-        top_blob_tm.create(8*8, tiles, outch, elemsize, elempack);
+        top_blob_tm.create(tiles, 64, outch, elemsize, elempack);
 
         int nn_outch = 0;
         int remain_outch_start = 0;
@@ -495,6 +489,9 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             const Mat kernel0_tm = kernel_tm.channel(p);
             const Mat kernel1_tm = kernel_tm.channel(p+1);
 
+            float* output0_tm = out0_tm;
+            float* output1_tm = out1_tm;
+
             for (int r=0; r<64; r++)
             {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
@@ -502,24 +499,6 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                 int i=0;
                 for (; i+7<tiles; i+=8)
                 {
-                    float* output0_tm0 = out0_tm.row(i);
-                    float* output0_tm1 = out0_tm.row(i+1);
-                    float* output0_tm2 = out0_tm.row(i+2);
-                    float* output0_tm3 = out0_tm.row(i+3);
-                    float* output0_tm4 = out0_tm.row(i+4);
-                    float* output0_tm5 = out0_tm.row(i+5);
-                    float* output0_tm6 = out0_tm.row(i+6);
-                    float* output0_tm7 = out0_tm.row(i+7);
-
-                    float* output1_tm0 = out1_tm.row(i);
-                    float* output1_tm1 = out1_tm.row(i+1);
-                    float* output1_tm2 = out1_tm.row(i+2);
-                    float* output1_tm3 = out1_tm.row(i+3);
-                    float* output1_tm4 = out1_tm.row(i+4);
-                    float* output1_tm5 = out1_tm.row(i+5);
-                    float* output1_tm6 = out1_tm.row(i+6);
-                    float* output1_tm7 = out1_tm.row(i+7);
-
                     const float* r0 = bb2.row(i/8);
 
                     const float* k0 = kernel0_tm.row(r);
@@ -638,36 +617,28 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                         k1 += 16;
                     }
 
-                    vst1q_f32(output0_tm0 + r * 4, _sum0_0);
-                    vst1q_f32(output0_tm1 + r * 4, _sum1_0);
-                    vst1q_f32(output0_tm2 + r * 4, _sum2_0);
-                    vst1q_f32(output0_tm3 + r * 4, _sum3_0);
-                    vst1q_f32(output0_tm4 + r * 4, _sum4_0);
-                    vst1q_f32(output0_tm5 + r * 4, _sum5_0);
-                    vst1q_f32(output0_tm6 + r * 4, _sum6_0);
-                    vst1q_f32(output0_tm7 + r * 4, _sum7_0);
+                    vst1q_f32(output0_tm + 0, _sum0_0);
+                    vst1q_f32(output0_tm + 4, _sum1_0);
+                    vst1q_f32(output0_tm + 8, _sum2_0);
+                    vst1q_f32(output0_tm + 12, _sum3_0);
+                    vst1q_f32(output0_tm + 16, _sum4_0);
+                    vst1q_f32(output0_tm + 20, _sum5_0);
+                    vst1q_f32(output0_tm + 24, _sum6_0);
+                    vst1q_f32(output0_tm + 28, _sum7_0);
+                    output0_tm += 32;
 
-                    vst1q_f32(output1_tm0 + r * 4, _sum0_1);
-                    vst1q_f32(output1_tm1 + r * 4, _sum1_1);
-                    vst1q_f32(output1_tm2 + r * 4, _sum2_1);
-                    vst1q_f32(output1_tm3 + r * 4, _sum3_1);
-                    vst1q_f32(output1_tm4 + r * 4, _sum4_1);
-                    vst1q_f32(output1_tm5 + r * 4, _sum5_1);
-                    vst1q_f32(output1_tm6 + r * 4, _sum6_1);
-                    vst1q_f32(output1_tm7 + r * 4, _sum7_1);
+                    vst1q_f32(output1_tm + 0, _sum0_1);
+                    vst1q_f32(output1_tm + 4, _sum1_1);
+                    vst1q_f32(output1_tm + 8, _sum2_1);
+                    vst1q_f32(output1_tm + 12, _sum3_1);
+                    vst1q_f32(output1_tm + 16, _sum4_1);
+                    vst1q_f32(output1_tm + 20, _sum5_1);
+                    vst1q_f32(output1_tm + 24, _sum6_1);
+                    vst1q_f32(output1_tm + 28, _sum7_1);
+                    output1_tm += 32;
                 }
                 for (; i+3<tiles; i+=4)
                 {
-                    float* output0_tm0 = out0_tm.row(i);
-                    float* output0_tm1 = out0_tm.row(i+1);
-                    float* output0_tm2 = out0_tm.row(i+2);
-                    float* output0_tm3 = out0_tm.row(i+3);
-
-                    float* output1_tm0 = out1_tm.row(i);
-                    float* output1_tm1 = out1_tm.row(i+1);
-                    float* output1_tm2 = out1_tm.row(i+2);
-                    float* output1_tm3 = out1_tm.row(i+3);
-
                     const float* r0 = bb2.row(i/8 + (i%8)/4);
 
                     const float* k0 = kernel0_tm.row(r);
@@ -742,24 +713,20 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                         k1 += 16;
                     }
 
-                    vst1q_f32(output0_tm0 + r * 4, _sum0_0);
-                    vst1q_f32(output0_tm1 + r * 4, _sum1_0);
-                    vst1q_f32(output0_tm2 + r * 4, _sum2_0);
-                    vst1q_f32(output0_tm3 + r * 4, _sum3_0);
+                    vst1q_f32(output0_tm + 0, _sum0_0);
+                    vst1q_f32(output0_tm + 4, _sum1_0);
+                    vst1q_f32(output0_tm + 8, _sum2_0);
+                    vst1q_f32(output0_tm + 12, _sum3_0);
+                    output0_tm += 16;
 
-                    vst1q_f32(output1_tm0 + r * 4, _sum0_1);
-                    vst1q_f32(output1_tm1 + r * 4, _sum1_1);
-                    vst1q_f32(output1_tm2 + r * 4, _sum2_1);
-                    vst1q_f32(output1_tm3 + r * 4, _sum3_1);
+                    vst1q_f32(output1_tm + 0, _sum0_1);
+                    vst1q_f32(output1_tm + 4, _sum1_1);
+                    vst1q_f32(output1_tm + 8, _sum2_1);
+                    vst1q_f32(output1_tm + 12, _sum3_1);
+                    output1_tm += 16;
                 }
                 for (; i+1<tiles; i+=2)
                 {
-                    float* output0_tm0 = out0_tm.row(i);
-                    float* output0_tm1 = out0_tm.row(i+1);
-
-                    float* output1_tm0 = out1_tm.row(i);
-                    float* output1_tm1 = out1_tm.row(i+1);
-
                     const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2);
 
                     const float* k0 = kernel0_tm.row(r);
@@ -812,18 +779,16 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                         k1 += 16;
                     }
 
-                    vst1q_f32(output0_tm0 + r * 4, _sum0_0);
-                    vst1q_f32(output0_tm1 + r * 4, _sum1_0);
+                    vst1q_f32(output0_tm + 0, _sum0_0);
+                    vst1q_f32(output0_tm + 4, _sum1_0);
+                    output0_tm += 8;
 
-                    vst1q_f32(output1_tm0 + r * 4, _sum0_1);
-                    vst1q_f32(output1_tm1 + r * 4, _sum1_1);
+                    vst1q_f32(output1_tm + 0, _sum0_1);
+                    vst1q_f32(output1_tm + 4, _sum1_1);
+                    output1_tm += 8;
                 }
                 for (; i<tiles; i++)
                 {
-                    float* output0_tm = out0_tm.row(i);
-
-                    float* output1_tm = out1_tm.row(i);
-
                     const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2 + i%2);
 
                     const float* k0 = kernel0_tm.row(r);
@@ -865,9 +830,11 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                         k1 += 16;
                     }
 
-                    vst1q_f32(output0_tm + r * 4, _sum0_0);
+                    vst1q_f32(output0_tm, _sum0_0);
+                    output0_tm += 4;
 
-                    vst1q_f32(output1_tm + r * 4, _sum0_1);
+                    vst1q_f32(output1_tm, _sum0_1);
+                    output1_tm += 4;
                 }
 
             }
@@ -880,6 +847,8 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             Mat out0_tm = top_blob_tm.channel(p);
             const Mat kernel0_tm = kernel_tm.channel(p);
 
+            float* output0_tm = out0_tm;
+
             for (int r=0; r<64; r++)
             {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
@@ -887,15 +856,6 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                 int i=0;
                 for (; i+7<tiles; i+=8)
                 {
-                    float* output0_tm0 = out0_tm.row(i);
-                    float* output0_tm1 = out0_tm.row(i+1);
-                    float* output0_tm2 = out0_tm.row(i+2);
-                    float* output0_tm3 = out0_tm.row(i+3);
-                    float* output0_tm4 = out0_tm.row(i+4);
-                    float* output0_tm5 = out0_tm.row(i+5);
-                    float* output0_tm6 = out0_tm.row(i+6);
-                    float* output0_tm7 = out0_tm.row(i+7);
-
                     const float* r0 = bb2.row(i/8);
 
                     const float* k0 = kernel0_tm.row(r);
@@ -999,22 +959,18 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                         k0 += 16;
                     }
 
-                    vst1q_f32(output0_tm0 + r * 4, _sum0);
-                    vst1q_f32(output0_tm1 + r * 4, _sum1);
-                    vst1q_f32(output0_tm2 + r * 4, _sum2);
-                    vst1q_f32(output0_tm3 + r * 4, _sum3);
-                    vst1q_f32(output0_tm4 + r * 4, _sum4);
-                    vst1q_f32(output0_tm5 + r * 4, _sum5);
-                    vst1q_f32(output0_tm6 + r * 4, _sum6);
-                    vst1q_f32(output0_tm7 + r * 4, _sum7);
+                    vst1q_f32(output0_tm + 0, _sum0);
+                    vst1q_f32(output0_tm + 4, _sum1);
+                    vst1q_f32(output0_tm + 8, _sum2);
+                    vst1q_f32(output0_tm + 12, _sum3);
+                    vst1q_f32(output0_tm + 16, _sum4);
+                    vst1q_f32(output0_tm + 20, _sum5);
+                    vst1q_f32(output0_tm + 24, _sum6);
+                    vst1q_f32(output0_tm + 28, _sum7);
+                    output0_tm += 32;
                 }
                 for (; i+3<tiles; i+=4)
                 {
-                    float* output0_tm0 = out0_tm.row(i);
-                    float* output0_tm1 = out0_tm.row(i+1);
-                    float* output0_tm2 = out0_tm.row(i+2);
-                    float* output0_tm3 = out0_tm.row(i+3);
-
                     const float* r0 = bb2.row(i/8 + (i%8)/4);
 
                     const float* k0 = kernel0_tm.row(r);
@@ -1078,16 +1034,14 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                         k0 += 16;
                     }
 
-                    vst1q_f32(output0_tm0 + r * 4, _sum0);
-                    vst1q_f32(output0_tm1 + r * 4, _sum1);
-                    vst1q_f32(output0_tm2 + r * 4, _sum2);
-                    vst1q_f32(output0_tm3 + r * 4, _sum3);
+                    vst1q_f32(output0_tm + 0, _sum0);
+                    vst1q_f32(output0_tm + 4, _sum1);
+                    vst1q_f32(output0_tm + 8, _sum2);
+                    vst1q_f32(output0_tm + 12, _sum3);
+                    output0_tm += 16;
                 }
                 for (; i+1<tiles; i+=2)
                 {
-                    float* output0_tm0 = out0_tm.row(i);
-                    float* output0_tm1 = out0_tm.row(i+1);
-
                     const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2);
 
                     const float* k0 = kernel0_tm.row(r);
@@ -1131,13 +1085,12 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                         k0 += 16;
                     }
 
-                    vst1q_f32(output0_tm0 + r * 4, _sum0);
-                    vst1q_f32(output0_tm1 + r * 4, _sum1);
+                    vst1q_f32(output0_tm + 0, _sum0);
+                    vst1q_f32(output0_tm + 4, _sum1);
+                    output0_tm += 8;
                 }
                 for (; i<tiles; i++)
                 {
-                    float* output0_tm = out0_tm.row(i);
-
                     const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2 + i%2);
 
                     const float* k0 = kernel0_tm.row(r);
@@ -1171,7 +1124,8 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                         k0 += 16;
                     }
 
-                    vst1q_f32(output0_tm + r * 4, _sum0);
+                    vst1q_f32(output0_tm, _sum0);
+                    output0_tm += 4;
                 }
 
             }
@@ -1202,6 +1156,8 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         // 5 = r7 + (r1 - r2) + (r3 - r4) * 32+ (r5 - r6)
 
         int w_tm = outw / 6 * 8;
+        int h_tm = outh / 6 * 8;
+        const int tiles = w_tm/8 * h_tm/8;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p<outch; p++)
@@ -1219,20 +1175,31 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             {
                 for (int j=0; j<outw/6; j++)
                 {
-                    const float* output0_tm = out0_tm.row(i * w_tm/8 + j);
+//                     top_blob_tm.create(tiles, 64, outch, elemsize, elempack);
+
+                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm/8 + j) * 4;
+
                     float* output0 = out0.row(i * 6) + (j * 6) * 4;
 
                     // TODO neon optimize
                     for (int m=0; m<8; m++)
                     {
-                        float32x4_t _out0tm0 = vld1q_f32(output0_tm);
-                        float32x4_t _out0tm1 = vld1q_f32(output0_tm + 4);
-                        float32x4_t _out0tm2 = vld1q_f32(output0_tm + 8);
-                        float32x4_t _out0tm3 = vld1q_f32(output0_tm + 12);
-                        float32x4_t _out0tm4 = vld1q_f32(output0_tm + 16);
-                        float32x4_t _out0tm5 = vld1q_f32(output0_tm + 20);
-                        float32x4_t _out0tm6 = vld1q_f32(output0_tm + 24);
-                        float32x4_t _out0tm7 = vld1q_f32(output0_tm + 28);
+                        float32x4_t _out0tm0 = vld1q_f32(output0_tm_0);
+                        output0_tm_0 += tiles * 4;
+                        float32x4_t _out0tm1 = vld1q_f32(output0_tm_0);
+                        output0_tm_0 += tiles * 4;
+                        float32x4_t _out0tm2 = vld1q_f32(output0_tm_0);
+                        output0_tm_0 += tiles * 4;
+                        float32x4_t _out0tm3 = vld1q_f32(output0_tm_0);
+                        output0_tm_0 += tiles * 4;
+                        float32x4_t _out0tm4 = vld1q_f32(output0_tm_0);
+                        output0_tm_0 += tiles * 4;
+                        float32x4_t _out0tm5 = vld1q_f32(output0_tm_0);
+                        output0_tm_0 += tiles * 4;
+                        float32x4_t _out0tm6 = vld1q_f32(output0_tm_0);
+                        output0_tm_0 += tiles * 4;
+                        float32x4_t _out0tm7 = vld1q_f32(output0_tm_0);
+                        output0_tm_0 += tiles * 4;
 
                         float32x4_t _tmp024a = vaddq_f32(_out0tm1, _out0tm2);
                         float32x4_t _tmp135a = vsubq_f32(_out0tm1, _out0tm2);
@@ -1273,8 +1240,6 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 //                         tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * 16;
 //                         tmp[3][m] = tmp135a + tmp135b * 8 + tmp135c * 4;
 //                         tmp[5][m] = output0_tm[7] + tmp135a + tmp135b * 32 + tmp135c;
-
-                        output0_tm += 8*4;
                     }
 
                     for (int m=0; m<6; m++)
