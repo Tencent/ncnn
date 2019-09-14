@@ -371,3 +371,4 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 }
 
 } // namespace ncnn
+

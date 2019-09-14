@@ -412,3 +412,4 @@ static void convdw3x3s2_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, 
         }
     }
 }
+
