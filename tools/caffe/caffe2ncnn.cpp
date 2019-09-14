@@ -108,8 +108,8 @@ static signed char float2int8(float value)
 
     if (tmp > 127)
         return 127;
-    if (tmp < -128)
-        return -128;
+    if (tmp < -127)
+        return -127;
 
     return tmp;
 }
