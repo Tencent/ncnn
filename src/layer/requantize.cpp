@@ -193,4 +193,3 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 }
 
 } // namespace ncnn
-
