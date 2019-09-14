@@ -91,12 +91,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
     int outh = (h - 1) * stride_h + kernel_extent_h;
 
     Mat top_blob_bordered;
-    if (output_w == outw && output_h == outh && output_pad_right == 0 && output_pad_bottom == 0)
-    {
-        top_blob_bordered = top_blob;
-        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.blob_allocator);
-    }
-    else if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
     }
@@ -303,27 +298,19 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
         }
     }
 
-    if (output_w == outw && output_h == outh && output_pad_right == 0 && output_pad_bottom == 0)
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
-        top_blob = top_blob_bordered;
-    }
-    else if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
-    {
+        Mat top_blob_bordered_adj = top_blob_bordered;
         if (output_pad_right > 0 || output_pad_bottom > 0)
         {
-            Mat top_blob_unbordered;
-            Option opt_ub = opt;
-            opt_ub.blob_allocator = opt.workspace_allocator;
-            copy_cut_border(top_blob_bordered, top_blob_unbordered, pad_top, pad_bottom, pad_left, pad_right, opt_ub);
-            if (top_blob_unbordered.empty())
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
+            if (top_blob_bordered_adj.empty())
                 return -100;
+        }
 
-            copy_make_border(top_blob_unbordered, top_blob, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt);
-        }
-        else
-        {
-            copy_cut_border(top_blob_bordered, top_blob, pad_top, pad_bottom, pad_left, pad_right, opt);
-        }
+        copy_cut_border(top_blob_bordered_adj, top_blob, pad_top, pad_bottom, pad_left, pad_right, opt);
         if (top_blob.empty())
             return -100;
 
@@ -363,7 +350,16 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
     }
     else
     {
-        top_blob = top_blob_bordered;
+        if (output_pad_right > 0 || output_pad_bottom > 0)
+        {
+            copy_make_border(top_blob_bordered, top_blob, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt);
+            if (top_blob.empty())
+                return -100;
+        }
+        else
+        {
+            top_blob = top_blob_bordered;
+        }
     }
 
     return 0;
