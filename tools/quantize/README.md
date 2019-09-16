@@ -25,6 +25,6 @@ We suggest that using the verification dataset for calibration, which is more th
 ### 3. Quantization
 
 ```
-./ncnn2int8 mobilenet-nobn-fp32.param mobilenet-nobn-fp32.bin mobilenet-int8.param mobilenet-int8.bin 
+./ncnn2int8 mobilenet-nobn-fp32.param mobilenet-nobn-fp32.bin mobilenet-int8.param mobilenet-int8.bin mobilenet-nobn.table
 ```
 
