@@ -1910,9 +1910,32 @@ int main(int argc, char** argv)
         }
         else if (op == "Slice")
         {
+            std::vector<int> axes = get_node_attr_ai(node, "axes");
             std::vector<int> starts = get_node_attr_ai(node, "starts");
             std::vector<int> ends = get_node_attr_ai(node, "ends");
             std::vector<int> steps = get_node_attr_ai(node, "steps");// TODO
+
+            if(axes.empty())  // In case axes is not provided, we create it
+            {
+                switch(starts.size())
+                {
+                    case 1:
+                    case 2:
+                        axes.push_back(3); // w
+                        break;
+                    case 3:
+                        axes.push_back(2); // h
+                        axes.push_back(3); // w
+                        break;
+                    case 4:
+                        axes.push_back(1); // c
+                        axes.push_back(2); // h
+                        axes.push_back(3); // w
+                        break;
+                    default:
+                        break;
+                }
+            }
 
             // assert step == 1
             for (int i=0; i<(int)steps.size(); i++)
@@ -1921,51 +1944,29 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
-            int woffset = 0;
-            int hoffset = 0;
-            int coffset = 0;
-            int outw = -233;
-            int outh = -233;
-            int outc = -233;
+            int offsets[3];
+            int outs[3];
 
-            if (starts.size() == 1) 
+            for(int i=0; i<3; ++i)
             {
-                woffset = starts[0];
-                hoffset = -233;
-                coffset = -233;
-                outw = ends[0] == -1 ? -233: ends[0] - starts[0]; // for onnx from pytorch, -233 works
-            } 
-            else if (starts.size() == 2)
-            {
-                woffset = starts[1];
-                hoffset = -233;
-                coffset = -233;
-                outw = ends[1] == -1 ? -233 : ends[1] - starts[1];
-            }
-            else if (starts.size() == 3)
-            {
-                woffset = starts[2];
-                hoffset = starts[1];
-                coffset = -233;
-                outw = ends[2] == -1 ? -233 : ends[2] - starts[2];
-                outh = ends[1] == -1 ? -233 : ends[1] - starts[1];
-            }
-            else if (starts.size() == 4)
-            {
-                woffset = starts[3];
-                hoffset = starts[2];
-                coffset = starts[1];
-                outw = ends[3] == -1 ? -233 : ends[3] - starts[3];
-                outh = ends[2] == -1 ? -233 : ends[2] - starts[2];
-                outc = ends[1] == -1 ? -233 : ends[1] - starts[1];
+                offsets[i] = 0;
+                outs[i] = -233;
             }
 
-            fprintf(pp, " 0=%d", woffset);
-            fprintf(pp, " 1=%d", hoffset);
-            fprintf(pp, " 2=%d", coffset);
-            fprintf(pp, " 3=%d", outw);
-            fprintf(pp, " 4=%d", outh);
-            fprintf(pp, " 5=%d", outc);
+            for(int i=0; i<(int)axes.size(); i++)
+            {
+                int index = axes[i] - 1;
+                if(index < 0 || index > 2) continue;
+                offsets[index] = starts[i];
+                outs[index] = ends[i] == -1 ? -233: ends[i] - starts[i];
+            }
+
+            fprintf(pp, " 0=%d", offsets[2]);
+            fprintf(pp, " 1=%d", offsets[1]);
+            fprintf(pp, " 2=%d", offsets[0]);
+            fprintf(pp, " 3=%d", outs[2]);
+            fprintf(pp, " 4=%d", outs[1]);
+            fprintf(pp, " 5=%d", outs[0]);
         }
         else if (op == "Softmax")
         {
