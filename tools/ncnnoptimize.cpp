@@ -1627,7 +1627,7 @@ int NetOptimize::fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp)
     fprintf(pp, " -%d=%d", 23300 + id, count);
     for (int i=0; i<count; i++)
     {
-        fprintf(pp, ",%f", ptr[i]);
+        fprintf(pp, ",%g", ptr[i]);
     }
 
     return 0;
@@ -1756,7 +1756,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::BatchNorm* op_default = (ncnn::BatchNorm*)layer_default;
 
             fprintf_param_value(" 0=%d", channels)
-            fprintf_param_value(" 1=%f", eps)
+            fprintf_param_value(" 1=%g", eps)
 
             fwrite_weight_data(op->slope_data, bp);
             fwrite_weight_data(op->mean_data, bp);
@@ -1779,15 +1779,15 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", op_type)
             fprintf_param_value(" 1=%d", with_scalar)
-            fprintf_param_value(" 2=%f", b)
+            fprintf_param_value(" 2=%g", b)
         }
         else if (layer->type == "Clip")
         {
             ncnn::Clip* op = (ncnn::Clip*)layer;
             ncnn::Clip* op_default = (ncnn::Clip*)layer_default;
 
-            fprintf_param_value(" 0=%f", min)
-            fprintf_param_value(" 1=%f", max)
+            fprintf_param_value(" 0=%g", min)
+            fprintf_param_value(" 1=%g", max)
         }
         else if (layer->type == "Concat")
         {
@@ -1923,21 +1923,21 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::DetectionOutput* op_default = (ncnn::DetectionOutput*)layer_default;
 
             fprintf_param_value(" 0=%d", num_class)
-            fprintf_param_value(" 1=%f", nms_threshold)
+            fprintf_param_value(" 1=%g", nms_threshold)
             fprintf_param_value(" 2=%d", nms_top_k)
             fprintf_param_value(" 3=%d", keep_top_k)
-            fprintf_param_value(" 4=%f", confidence_threshold)
-            fprintf_param_value(" 5=%f", variances[0])
-            fprintf_param_value(" 6=%f", variances[1])
-            fprintf_param_value(" 7=%f", variances[2])
-            fprintf_param_value(" 8=%f", variances[3])
+            fprintf_param_value(" 4=%g", confidence_threshold)
+            fprintf_param_value(" 5=%g", variances[0])
+            fprintf_param_value(" 6=%g", variances[1])
+            fprintf_param_value(" 7=%g", variances[2])
+            fprintf_param_value(" 8=%g", variances[3])
         }
         else if (layer->type == "Dropout")
         {
             ncnn::Dropout* op = (ncnn::Dropout*)layer;
             ncnn::Dropout* op_default = (ncnn::Dropout*)layer_default;
 
-            fprintf_param_value(" 0=%f", scale)
+            fprintf_param_value(" 0=%g", scale)
         }
         else if (layer->type == "Eltwise")
         {
@@ -1952,32 +1952,32 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::ELU* op = (ncnn::ELU*)layer;
             ncnn::ELU* op_default = (ncnn::ELU*)layer_default;
 
-            fprintf_param_value(" 0=%f", alpha)
+            fprintf_param_value(" 0=%g", alpha)
         }
         else if (layer->type == "Exp")
         {
             ncnn::Exp* op = (ncnn::Exp*)layer;
             ncnn::Exp* op_default = (ncnn::Exp*)layer_default;
 
-            fprintf_param_value(" 0=%f", base)
-            fprintf_param_value(" 1=%f", scale)
-            fprintf_param_value(" 2=%f", shift)
+            fprintf_param_value(" 0=%g", base)
+            fprintf_param_value(" 1=%g", scale)
+            fprintf_param_value(" 2=%g", shift)
         }
         else if (layer->type == "HardSigmoid")
         {
             ncnn::HardSigmoid* op = (ncnn::HardSigmoid*)layer;
             ncnn::HardSigmoid* op_default = (ncnn::HardSigmoid*)layer_default;
 
-            fprintf_param_value(" 0=%f", alpha)
-            fprintf_param_value(" 1=%f", beta)
+            fprintf_param_value(" 0=%g", alpha)
+            fprintf_param_value(" 1=%g", beta)
         }
         else if (layer->type == "HardSwish")
         {
             ncnn::HardSwish* op = (ncnn::HardSwish*)layer;
             ncnn::HardSwish* op_default = (ncnn::HardSwish*)layer_default;
 
-            fprintf_param_value(" 0=%f", alpha)
-            fprintf_param_value(" 1=%f", beta)
+            fprintf_param_value(" 0=%g", alpha)
+            fprintf_param_value(" 1=%g", beta)
         }
         else if (layer->type == "InnerProduct")
         {
@@ -2009,7 +2009,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::InstanceNorm* op_default = (ncnn::InstanceNorm*)layer_default;
 
             fprintf_param_value(" 0=%d", channels)
-            fprintf_param_value(" 1=%f", eps)
+            fprintf_param_value(" 1=%g", eps)
 
             fwrite_weight_data(op->gamma_data, bp);
             fwrite_weight_data(op->beta_data, bp);
@@ -2020,8 +2020,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Interp* op_default = (ncnn::Interp*)layer_default;
 
             fprintf_param_value(" 0=%d", resize_type)
-            fprintf_param_value(" 1=%f", height_scale)
-            fprintf_param_value(" 2=%f", width_scale)
+            fprintf_param_value(" 1=%g", height_scale)
+            fprintf_param_value(" 2=%g", width_scale)
             fprintf_param_value(" 3=%d", output_height)
             fprintf_param_value(" 4=%d", output_width)
         }
@@ -2030,9 +2030,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Log* op = (ncnn::Log*)layer;
             ncnn::Log* op_default = (ncnn::Log*)layer_default;
 
-            fprintf_param_value(" 0=%f", base)
-            fprintf_param_value(" 1=%f", scale)
-            fprintf_param_value(" 2=%f", shift)
+            fprintf_param_value(" 0=%g", base)
+            fprintf_param_value(" 1=%g", scale)
+            fprintf_param_value(" 2=%g", shift)
         }
         else if (layer->type == "LRN")
         {
@@ -2041,9 +2041,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", region_type)
             fprintf_param_value(" 1=%d", local_size)
-            fprintf_param_value(" 2=%f", alpha)
-            fprintf_param_value(" 3=%f", beta)
-            fprintf_param_value(" 4=%f", bias)
+            fprintf_param_value(" 2=%g", alpha)
+            fprintf_param_value(" 3=%g", beta)
+            fprintf_param_value(" 4=%g", bias)
         }
         else if (layer->type == "MemoryData")
         {
@@ -2062,7 +2062,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", normalize_variance)
             fprintf_param_value(" 1=%d", across_channels)
-            fprintf_param_value(" 2=%f", eps)
+            fprintf_param_value(" 2=%g", eps)
         }
         else if (layer->type == "Normalize")
         {
@@ -2071,7 +2071,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", across_spatial)
             fprintf_param_value(" 1=%d", channel_shared)
-            fprintf_param_value(" 2=%f", eps)
+            fprintf_param_value(" 2=%g", eps)
             fprintf_param_value(" 3=%d", scale_data_size)
             fprintf_param_value(" 4=%d", across_channel)
 
@@ -2087,7 +2087,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%d", left)
             fprintf_param_value(" 3=%d", right)
             fprintf_param_value(" 4=%d", type)
-            fprintf_param_value(" 5=%f", value)
+            fprintf_param_value(" 5=%g", value)
         }
         else if (layer->type == "Permute")
         {
@@ -2118,9 +2118,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Power* op = (ncnn::Power*)layer;
             ncnn::Power* op_default = (ncnn::Power*)layer_default;
 
-            fprintf_param_value(" 0=%f", power)
-            fprintf_param_value(" 1=%f", scale)
-            fprintf_param_value(" 2=%f", shift)
+            fprintf_param_value(" 0=%g", power)
+            fprintf_param_value(" 1=%g", scale)
+            fprintf_param_value(" 2=%g", shift)
         }
         else if (layer->type == "PReLU")
         {
@@ -2139,17 +2139,17 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (!op->min_sizes.empty()) fprintf_param_float_array(0, op->min_sizes, pp); }
             { if (!op->max_sizes.empty()) fprintf_param_float_array(1, op->max_sizes, pp); }
             { if (!op->aspect_ratios.empty()) fprintf_param_float_array(2, op->aspect_ratios, pp); }
-            fprintf_param_value(" 3=%f", variances[0])
-            fprintf_param_value(" 4=%f", variances[1])
-            fprintf_param_value(" 5=%f", variances[2])
-            fprintf_param_value(" 6=%f", variances[3])
+            fprintf_param_value(" 3=%g", variances[0])
+            fprintf_param_value(" 4=%g", variances[1])
+            fprintf_param_value(" 5=%g", variances[2])
+            fprintf_param_value(" 6=%g", variances[3])
             fprintf_param_value(" 7=%d", flip)
             fprintf_param_value(" 8=%d", clip)
             fprintf_param_value(" 9=%d", image_width)
             fprintf_param_value(" 10=%d", image_height)
-            fprintf_param_value(" 11=%f", step_width)
-            fprintf_param_value(" 12=%f", step_height)
-            fprintf_param_value(" 13=%f", offset)
+            fprintf_param_value(" 11=%g", step_width)
+            fprintf_param_value(" 12=%g", step_height)
+            fprintf_param_value(" 13=%g", offset)
         }
         else if (layer->type == "Proposal")
         {
@@ -2160,7 +2160,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", base_size)
             fprintf_param_value(" 2=%d", pre_nms_topN)
             fprintf_param_value(" 3=%d", after_nms_topN)
-            fprintf_param_value(" 4=%f", nms_thresh)
+            fprintf_param_value(" 4=%g", nms_thresh)
             fprintf_param_value(" 5=%d", min_size)
         }
         else if (layer->type == "PSROIPooling")
@@ -2170,7 +2170,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", pooled_width)
             fprintf_param_value(" 1=%d", pooled_height)
-            fprintf_param_value(" 2=%f", spatial_scale)
+            fprintf_param_value(" 2=%g", spatial_scale)
             fprintf_param_value(" 3=%d", output_dim)
         }
         else if (layer->type == "Quantize")
@@ -2178,7 +2178,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Quantize* op = (ncnn::Quantize*)layer;
             ncnn::Quantize* op_default = (ncnn::Quantize*)layer_default;
 
-            fprintf_param_value(" 0=%f", scale)
+            fprintf_param_value(" 0=%g", scale)
         }
         else if (layer->type == "Reduction")
         {
@@ -2187,14 +2187,14 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", operation)
             fprintf_param_value(" 1=%d", dim)
-            fprintf_param_value(" 2=%f", coeff)
+            fprintf_param_value(" 2=%g", coeff)
         }
         else if (layer->type == "ReLU")
         {
             ncnn::ReLU* op = (ncnn::ReLU*)layer;
             ncnn::ReLU* op_default = (ncnn::ReLU*)layer_default;
 
-            fprintf_param_value(" 0=%f", slope)
+            fprintf_param_value(" 0=%g", slope)
         }
         else if (layer->type == "Reorg")
         {
@@ -2208,8 +2208,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Requantize* op = (ncnn::Requantize*)layer;
             ncnn::Requantize* op_default = (ncnn::Requantize*)layer_default;
 
-            fprintf_param_value(" 0=%f", scale_in)
-            fprintf_param_value(" 1=%f", scale_out)
+            fprintf_param_value(" 0=%g", scale_in)
+            fprintf_param_value(" 1=%g", scale_out)
             fprintf_param_value(" 2=%d", bias_term)
             fprintf_param_value(" 3=%d", bias_data_size)
             fprintf_param_value(" 4=%d", fusion_relu)
@@ -2231,7 +2231,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", pooled_width)
             fprintf_param_value(" 1=%d", pooled_height)
-            fprintf_param_value(" 2=%f", spatial_scale)
+            fprintf_param_value(" 2=%g", spatial_scale)
         }
         else if (layer->type == "ROIPooling")
         {
@@ -2240,7 +2240,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", pooled_width)
             fprintf_param_value(" 1=%d", pooled_height)
-            fprintf_param_value(" 2=%f", spatial_scale)
+            fprintf_param_value(" 2=%g", spatial_scale)
         }
         else if (layer->type == "Scale")
         {
@@ -2287,7 +2287,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Threshold* op = (ncnn::Threshold*)layer;
             ncnn::Threshold* op_default = (ncnn::Threshold*)layer_default;
 
-            fprintf_param_value(" 0=%f", threshold)
+            fprintf_param_value(" 0=%g", threshold)
         }
         else if (layer->type == "UnaryOp")
         {
@@ -2303,8 +2303,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_class)
             fprintf_param_value(" 1=%d", num_box)
-            fprintf_param_value(" 2=%f", confidence_threshold)
-            fprintf_param_value(" 3=%f", nms_threshold)
+            fprintf_param_value(" 2=%g", confidence_threshold)
+            fprintf_param_value(" 3=%g", nms_threshold)
             { if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp); }
         }
         else if (layer->type == "Yolov3DetectionOutput")
@@ -2314,8 +2314,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_class)
             fprintf_param_value(" 1=%d", num_box)
-            fprintf_param_value(" 2=%f", confidence_threshold)
-            fprintf_param_value(" 3=%f", nms_threshold)
+            fprintf_param_value(" 2=%g", confidence_threshold)
+            fprintf_param_value(" 3=%g", nms_threshold)
             { if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp); }
             { if (!op->mask.empty()) fprintf_param_int_array(5, op->mask, pp); }
             { if (!op->anchors_scale.empty()) fprintf_param_float_array(6, op->anchors_scale, pp); }

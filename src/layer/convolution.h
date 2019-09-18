@@ -48,6 +48,7 @@ public:
     int pad_right;
     int pad_top;
     int pad_bottom;
+    float pad_value;
     int bias_term;
 
     int weight_data_size;

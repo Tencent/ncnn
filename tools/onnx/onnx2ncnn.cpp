@@ -1346,8 +1346,8 @@ int main(int argc, char** argv)
         {
             float min = get_node_attr_f(node, "min", -FLT_MAX);
             float max = get_node_attr_f(node, "max", FLT_MAX);
-            fprintf(pp, " 0=%f", min);
-            fprintf(pp, " 1=%f", max);
+            fprintf(pp, " 0=%g", min);
+            fprintf(pp, " 1=%g", max);
         }
         else if (op == "Concat")
         {
@@ -1606,7 +1606,7 @@ int main(int argc, char** argv)
         else if (op == "Elu")
         {
             float alpha = get_node_attr_f(node, "alpha", 1.f);
-            fprintf(pp, " 0=%f", alpha);
+            fprintf(pp, " 0=%g", alpha);
         }
         else if (op == "Exp")
         {
@@ -1674,16 +1674,16 @@ int main(int argc, char** argv)
             float alpha = get_node_attr_f(node, "alpha", 0.2f);
             float beta = get_node_attr_f(node, "beta", 0.5f);
 
-            fprintf(pp, " 0=%f", alpha);
-            fprintf(pp, " 1=%f", beta);
+            fprintf(pp, " 0=%g", alpha);
+            fprintf(pp, " 1=%g", beta);
         }
         else if (op == "HardSwish")
         {
             float alpha = get_node_attr_f(node, "alpha", 0.2f);
             float beta = get_node_attr_f(node, "beta", 0.5f);
 
-            fprintf(pp, " 0=%f", alpha);
-            fprintf(pp, " 1=%f", beta);
+            fprintf(pp, " 0=%g", alpha);
+            fprintf(pp, " 1=%g", beta);
         }
         else if (op == "ImageScaler")
         {
@@ -1709,7 +1709,7 @@ int main(int argc, char** argv)
             int channels = get_tensor_proto_data_size(scale);
 
             fprintf(pp, " 0=%d", channels);
-            fprintf(pp, " 1=%f", eps);
+            fprintf(pp, " 1=%g", eps);
             fwrite_tensor_proto_data(scale, bp);
             fwrite_tensor_proto_data(B, bp);
         }
@@ -1717,7 +1717,7 @@ int main(int argc, char** argv)
         {
             float alpha = get_node_attr_f(node, "alpha", 0.01f);
 
-            fprintf(pp, " 0=%f", alpha);
+            fprintf(pp, " 0=%g", alpha);
         }
         else if (op == "Log")
         {
@@ -1735,9 +1735,9 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", norm_region);
             fprintf(pp, " 1=%d", size);
-            fprintf(pp, " 2=%f", alpha);
-            fprintf(pp, " 3=%f", beta);
-            fprintf(pp, " 4=%f", bias);
+            fprintf(pp, " 2=%g", alpha);
+            fprintf(pp, " 3=%g", beta);
+            fprintf(pp, " 4=%g", bias);
         }
         else if (op == "MatMul")
         {
@@ -1843,7 +1843,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 2=%d", left);
             fprintf(pp, " 3=%d", right);
             fprintf(pp, " 4=%d", type);
-            fprintf(pp, " 5=%f", value);
+            fprintf(pp, " 5=%g", value);
         }
         else if (op == "Pow")
         {
@@ -2098,8 +2098,8 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, " 0=%d", resize_type);
-            fprintf(pp, " 1=%f", h_scale);
-            fprintf(pp, " 2=%f", w_scale);
+            fprintf(pp, " 1=%g", h_scale);
+            fprintf(pp, " 2=%g", w_scale);
         }
         else
         {
@@ -2109,7 +2109,7 @@ int main(int argc, char** argv)
                 const onnx::AttributeProto& attr = node.attribute(j);
                 if (attr.type() == 1)
                 {
-                    fprintf(stderr, "  # %s=%f\n", attr.name().c_str(), attr.f());
+                    fprintf(stderr, "  # %s=%g\n", attr.name().c_str(), attr.f());
                 }
                 else if (attr.type() == 2)
                 {
