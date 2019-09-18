@@ -49,7 +49,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         pd.set(2, pad_left);
         pd.set(3, pad_right);
         pd.set(4, 0);
-        pd.set(5, 0.f);
+        pd.set(5, pad_value);
 
         padding->load_param(pd);
 
