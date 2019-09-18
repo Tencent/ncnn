@@ -1024,6 +1024,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "PriorBox");
         }
+        else if (n.op == "_copy")
+        {
+            fprintf(pp, "%-16s", "Noop");
+        }
         else if (n.op == "_div_scalar")
         {
             fprintf(pp, "%-16s", "BinaryOp");
@@ -1222,6 +1226,10 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "PReLU");
             }
         }
+        else if (n.op == "LinearRegressionOutput")
+        {
+            fprintf(pp, "%-16s", "Noop");
+        }
         else if (n.op == "log")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -1229,6 +1237,10 @@ int main(int argc, char** argv)
         else if (n.op == "LogisticRegressionOutput")
         {
             fprintf(pp, "%-16s", "Sigmoid");
+        }
+        else if (n.op == "MAERegressionOutput")
+        {
+            fprintf(pp, "%-16s", "Noop");
         }
         else if (n.op == "max")
         {
@@ -1428,8 +1440,8 @@ int main(int argc, char** argv)
             int width = n.has_attr("scale_width") ? 0 : n.attr("width");
 
             fprintf(pp, " 0=2");
-            fprintf(pp, " 1=%f", scale_height);
-            fprintf(pp, " 2=%f", scale_width);
+            fprintf(pp, " 1=%g", scale_height);
+            fprintf(pp, " 2=%g", scale_width);
             fprintf(pp, " 3=%d", height);
             fprintf(pp, " 4=%d", width);
         }
@@ -1440,12 +1452,12 @@ int main(int argc, char** argv)
             int nms_topk = n.has_attr("nms_topk") ? n.attr("nms_topk") : 300;
 
             fprintf(pp, " 0=-233");
-            fprintf(pp, " 1=%f", nms_threshold);
+            fprintf(pp, " 1=%g", nms_threshold);
             fprintf(pp, " 2=%d", nms_topk);
 
             int keep_top_k = 100;
             fprintf(pp, " 3=%d", keep_top_k);
-            fprintf(pp, " 4=%f", threshold);
+            fprintf(pp, " 4=%g", threshold);
 
             std::vector<float> variances = n.attr("variances");
             if (variances.empty())
@@ -1457,10 +1469,10 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(pp, " 5=%f", variances[0]);
-                fprintf(pp, " 6=%f", variances[1]);
-                fprintf(pp, " 7=%f", variances[2]);
-                fprintf(pp, " 8=%f", variances[3]);
+                fprintf(pp, " 5=%g", variances[0]);
+                fprintf(pp, " 6=%g", variances[1]);
+                fprintf(pp, " 7=%g", variances[2]);
+                fprintf(pp, " 8=%g", variances[3]);
             }
         }
         else if (n.op == "_contrib_MultiBoxPrior")
@@ -1470,14 +1482,14 @@ int main(int argc, char** argv)
             fprintf(pp, " -23300=%d", (int)sizes.size());
             for (int j=0; j<(int)sizes.size(); j++)
             {
-                fprintf(pp, ",%f", sizes[j]);
+                fprintf(pp, ",%g", sizes[j]);
             }
 
             std::vector<float> aspect_ratios = n.attr("ratios");
             fprintf(pp, " -23302=%d", (int)aspect_ratios.size());
             for (int j=0; j<(int)aspect_ratios.size(); j++)
             {
-                fprintf(pp, ",%f", aspect_ratios[j]);
+                fprintf(pp, ",%g", aspect_ratios[j]);
             }
 
             int flip = 0;
@@ -1499,8 +1511,8 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(pp, " 11=%f", steps[1]);
-                fprintf(pp, " 12=%f", steps[0]);
+                fprintf(pp, " 11=%g", steps[1]);
+                fprintf(pp, " 12=%g", steps[0]);
             }
 
             std::vector<float> offsets = n.attr("offsets");
@@ -1510,8 +1522,11 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(stderr, "Unsupported offsets param! %f %f\n", offsets[0], offsets[1]);
+                fprintf(stderr, "Unsupported offsets param! %g %g\n", offsets[0], offsets[1]);
             }
+        }
+        else if (n.op == "_copy")
+        {
         }
         else if (n.op == "_div_scalar")
         {
@@ -1520,7 +1535,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%g", scalar);
         }
         else if (n.op == "_maximum_scalar")
         {
@@ -1529,7 +1544,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%g", scalar);
         }
         else if (n.op == "_minimum_scalar")
         {
@@ -1538,7 +1553,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%g", scalar);
         }
         else if (n.op == "_minus_scalar")
         {
@@ -1547,7 +1562,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%g", scalar);
         }
         else if (n.op == "_mul_scalar")
         {
@@ -1556,7 +1571,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%g", scalar);
         }
         else if (n.op == "_plus_scalar")
         {
@@ -1565,7 +1580,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%g", scalar);
         }
         else if (n.op == "_power_scalar")
         {
@@ -1574,7 +1589,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%g", scalar);
         }
         else if (n.op == "_rdiv_scalar")
         {
@@ -1583,7 +1598,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%g", scalar);
         }
         else if (n.op == "_rminus_scalar")
         {
@@ -1592,7 +1607,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%g", scalar);
         }
         else if (n.op == "abs")
         {
@@ -1604,7 +1619,7 @@ int main(int argc, char** argv)
             std::string type = n.attr("act_type");
             if (type == "relu")
             {
-//                 fprintf(pp, " 0=%f", 0.f);
+//                 fprintf(pp, " 0=%g", 0.f);
             }
         }
         else if (n.op == "add_n" || n.op == "ElementWiseSum")
@@ -1693,8 +1708,8 @@ int main(int argc, char** argv)
         {
             float min = n.attr("a_min");
             float max = n.attr("a_max");
-            fprintf(pp, " 0=%f", min);
-            fprintf(pp, " 1=%f", max);
+            fprintf(pp, " 0=%g", min);
+            fprintf(pp, " 1=%g", max);
         }
         else if (n.op == "Concat")
         {
@@ -1984,7 +1999,7 @@ int main(int argc, char** argv)
             std::vector<float> beta_data = n.weight(1);
 
             fprintf(pp, " 0=%d", (int)gamma_data.size());
-            fprintf(pp, " 1=%f", eps);
+            fprintf(pp, " 1=%g", eps);
 
             fwrite(gamma_data.data(), sizeof(float), gamma_data.size(), bp);
             fwrite(beta_data.data(), sizeof(float), beta_data.size(), bp);
@@ -2018,7 +2033,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", across_spatial);
             fprintf(pp, " 4=%d", across_channel);
             fprintf(pp, " 1=%d", channel_shared);
-            fprintf(pp, " 2=%f", eps);
+            fprintf(pp, " 2=%g", eps);
             fprintf(pp, " 3=%d", scale_data_size);
 
             const float scale_data[1] = { 1.f };
@@ -2030,12 +2045,12 @@ int main(int argc, char** argv)
             if (type == "elu")
             {
                 float slope = n.has_attr("slope") ? n.attr("slope") : 0.25f;
-                fprintf(pp, " 0=%f", slope);
+                fprintf(pp, " 0=%g", slope);
             }
             else if (type == "leaky" || type.empty())
             {
                 float slope = n.has_attr("slope") ? n.attr("slope") : 0.25f;
-                fprintf(pp, " 0=%f", slope);
+                fprintf(pp, " 0=%g", slope);
             }
             else if (type == "prelu")
             {
@@ -2046,12 +2061,18 @@ int main(int argc, char** argv)
                 fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             }
         }
+        else if (n.op == "LinearRegressionOutput")
+        {
+        }
         else if (n.op == "log")
         {
             int op_type = 8;
             fprintf(pp, " 0=%d", op_type);
         }
         else if (n.op == "LogisticRegressionOutput")
+        {
+        }
+        else if (n.op == "MAERegressionOutput")
         {
         }
         else if (n.op == "max")
@@ -2127,7 +2148,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 2=%d", left);
             fprintf(pp, " 3=%d", right);
             fprintf(pp, " 4=%d", type);
-            fprintf(pp, " 5=%f", constant_value);
+            fprintf(pp, " 5=%g", constant_value);
         }
         else if (n.op == "Pooling")
         {
@@ -2398,8 +2419,8 @@ int main(int argc, char** argv)
             if (sample_type == "nearest")
             {
                 fprintf(pp, " 0=1");
-                fprintf(pp, " 1=%f", (float)scale);
-                fprintf(pp, " 2=%f", (float)scale);
+                fprintf(pp, " 1=%g", (float)scale);
+                fprintf(pp, " 2=%g", (float)scale);
             }
             else if (sample_type == "bilinear")
             {
