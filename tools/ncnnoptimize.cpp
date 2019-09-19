@@ -1812,6 +1812,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
             { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
             { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            fprintf_param_value(" 18=%g", pad_value)
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
@@ -1838,6 +1839,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
             { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
             { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            fprintf_param_value(" 18=%g", pad_value)
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
