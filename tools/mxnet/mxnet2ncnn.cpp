@@ -969,6 +969,79 @@ int main(int argc, char** argv)
             reduced_node_count += 2;
             i += 2;
         }
+        else if (n.op == "_plus_scalar")
+        {
+            // HardSigmoid <= _plus_scalar(+3) - clip(0,6) - _div_scalar(/6)
+            const MXNetNode& n1 = nodes[i+1];
+            const MXNetNode& n2 = nodes[i+2];
+            const MXNetNode& n3 = nodes[i+3];
+
+            if ((float)n.attr("scalar") != 3.f)
+                continue;
+
+            if (n1.op != "clip" || (float)n1.attr("a_min") != 0.f || (float)n1.attr("a_max") != 6.f)
+                continue;
+
+            if (n2.op != "_div_scalar" || (float)n2.attr("scalar") != 6.f)
+                continue;
+
+            // reduce
+            nodes[i].op = "noop_reducedncnn";
+            nodes[i+1].op = "noop_reducedncnn";
+
+            node_reference.erase(node_reference.find(i));
+            node_reference.erase(node_reference.find(i+1));
+            blob_names.erase(n.name);
+            blob_names.erase(n1.name);
+
+            if (n3.op != "elemwise_mul" || n3.inputs[0] != n.inputs[0])
+            {
+                MXNetNode new_node;
+                new_node.nodes = &nodes;
+                new_node.params = &params;
+                new_node.op = "HardSigmoid";
+                new_node.name = n2.name;
+                new_node.output_size = n2.output_size;
+                char alpha[16], beta[16];
+                sprintf(alpha, "%f", 1.f/6.f);
+                sprintf(beta, "%f", 3.f/6.f);
+                new_node.attrs["alpha"] = alpha;
+                new_node.attrs["beta"] = beta;
+                new_node.inputs = n.inputs;
+                new_node.subinputs = n.subinputs;
+
+                nodes[i+2] = new_node;
+
+                reduced_node_count += 2;
+                i += 2;
+            }
+            else // HardSwish <= HardSigmoid - Mul
+            {
+                nodes[i+2].op = "noop_reducedncnn";
+                node_reference[i-1]--;
+                node_reference.erase(node_reference.find(i+2));
+                blob_names.erase(n2.name);
+
+                MXNetNode new_node;
+                new_node.nodes = &nodes;
+                new_node.params = &params;
+                new_node.op = "HardSwish";
+                new_node.name = n3.name;
+                new_node.output_size = n3.output_size;
+                char alpha[16], beta[16];
+                sprintf(alpha, "%f", 1.f/6.f);
+                sprintf(beta, "%f", 3.f/6.f);
+                new_node.attrs["alpha"] = alpha;
+                new_node.attrs["beta"] = beta;
+                new_node.inputs = n.inputs;
+                new_node.subinputs = n.subinputs;
+
+                nodes[i+3] = new_node;
+
+                reduced_node_count += 3;
+                i += 3;
+            }
+        }
     }
 
     // remove node_reference entry with reference equals to one
@@ -1201,6 +1274,14 @@ int main(int argc, char** argv)
         else if (n.op == "FullyConnected")
         {
             fprintf(pp, "%-16s", "InnerProduct");
+        }
+        else if (n.op == "HardSigmoid")
+        {
+            fprintf(pp, "%-16s", "HardSigmoid");
+        }
+        else if (n.op == "HardSwish")
+        {
+            fprintf(pp, "%-16s", "HardSwish");
         }
         else if (n.op == "InstanceNorm")
         {
@@ -1990,6 +2071,22 @@ int main(int argc, char** argv)
             fwrite(&quantize_tag, sizeof(int), 1, bp);
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
+        }
+        else if (n.op == "HardSigmoid")
+        {
+            float alpha = n.attr("alpha");
+            float beta = n.attr("beta");
+
+            fprintf(pp, " 0=%g", alpha);
+            fprintf(pp, " 1=%g", beta);
+        }
+        else if (n.op == "HardSwish")
+        {
+            float alpha = n.attr("alpha");
+            float beta = n.attr("beta");
+
+            fprintf(pp, " 0=%g", alpha);
+            fprintf(pp, " 1=%g", beta);
         }
         else if (n.op == "InstanceNorm")
         {
