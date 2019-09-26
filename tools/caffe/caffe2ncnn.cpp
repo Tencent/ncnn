@@ -912,10 +912,10 @@ int main(int argc, char** argv)
             const caffe::DetectionOutputParameter& detection_output_param = layer.detection_output_param();
             const caffe::NonMaximumSuppressionParameter& nms_param = detection_output_param.nms_param();
             fprintf(pp, " 0=%d", detection_output_param.num_classes());
-            fprintf(pp, " 1=%g", nms_param.nms_threshold());
+            fprintf(pp, " 1=%e", nms_param.nms_threshold());
             fprintf(pp, " 2=%d", nms_param.top_k());
             fprintf(pp, " 3=%d", detection_output_param.keep_top_k());
-            fprintf(pp, " 4=%g", detection_output_param.confidence_threshold());
+            fprintf(pp, " 4=%e", detection_output_param.confidence_threshold());
         }
         else if (layer.type() == "Dropout")
         {
@@ -923,7 +923,7 @@ int main(int argc, char** argv)
             if (dropout_param.has_scale_train() && !dropout_param.scale_train())
             {
                 float scale = 1.f - dropout_param.dropout_ratio();
-                fprintf(pp, " 0=%g", scale);
+                fprintf(pp, " 0=%e", scale);
             }
         }
         else if (layer.type() == "Eltwise")
@@ -934,13 +934,13 @@ int main(int argc, char** argv)
             fprintf(pp, " -23301=%d", coeff_size);
             for (int j=0; j<coeff_size; j++)
             {
-                fprintf(pp, ",%g", eltwise_param.coeff(j));
+                fprintf(pp, ",%e", eltwise_param.coeff(j));
             }
         }
         else if (layer.type() == "ELU")
         {
             const caffe::ELUParameter& elu_param = layer.elu_param();
-            fprintf(pp, " 0=%g", elu_param.alpha());
+            fprintf(pp, " 0=%e", elu_param.alpha());
         }
         else if (layer.type() == "Embed")
         {
@@ -1158,8 +1158,8 @@ int main(int argc, char** argv)
         {
             const caffe::InterpParameter& interp_param = layer.interp_param();
             fprintf(pp, " 0=%d", 2);
-            fprintf(pp, " 1=%g", (float)interp_param.zoom_factor());
-            fprintf(pp, " 2=%g", (float)interp_param.zoom_factor());
+            fprintf(pp, " 1=%e", (float)interp_param.zoom_factor());
+            fprintf(pp, " 2=%e", (float)interp_param.zoom_factor());
             fprintf(pp, " 3=%d", interp_param.height());
             fprintf(pp, " 4=%d", interp_param.width());
         }
@@ -1168,8 +1168,8 @@ int main(int argc, char** argv)
             const caffe::LRNParameter& lrn_param = layer.lrn_param();
             fprintf(pp, " 0=%d", lrn_param.norm_region());
             fprintf(pp, " 1=%d", lrn_param.local_size());
-            fprintf(pp, " 2=%g", lrn_param.alpha());
-            fprintf(pp, " 3=%g", lrn_param.beta());
+            fprintf(pp, " 2=%e", lrn_param.alpha());
+            fprintf(pp, " 3=%e", lrn_param.beta());
         }
         else if (layer.type() == "LSTM")
         {
@@ -1243,7 +1243,7 @@ int main(int argc, char** argv)
             const caffe::MVNParameter& mvn_param = layer.mvn_param();
             fprintf(pp, " 0=%d", mvn_param.normalize_variance());
             fprintf(pp, " 1=%d", mvn_param.across_channels());
-            fprintf(pp, " 2=%g", mvn_param.eps());
+            fprintf(pp, " 2=%e", mvn_param.eps());
         }
         else if (layer.type() == "Normalize")
         {
@@ -1252,7 +1252,7 @@ int main(int argc, char** argv)
             const caffe::NormalizeParameter& norm_param = layer.norm_param();
             fprintf(pp, " 0=%d", norm_param.across_spatial());
             fprintf(pp, " 1=%d", norm_param.channel_shared());
-            fprintf(pp, " 2=%g", norm_param.eps());
+            fprintf(pp, " 2=%e", norm_param.eps());
             fprintf(pp, " 3=%d", scale_blob.data_size());
 
             fwrite(scale_blob.data().data(), sizeof(float), scale_blob.data_size(), bp);
@@ -1355,9 +1355,9 @@ int main(int argc, char** argv)
         else if (layer.type() == "Power")
         {
             const caffe::PowerParameter& power_param = layer.power_param();
-            fprintf(pp, " 0=%g", power_param.power());
-            fprintf(pp, " 1=%g", power_param.scale());
-            fprintf(pp, " 2=%g", power_param.shift());
+            fprintf(pp, " 0=%e", power_param.power());
+            fprintf(pp, " 1=%e", power_param.scale());
+            fprintf(pp, " 2=%e", power_param.shift());
         }
         else if (layer.type() == "PReLU")
         {
@@ -1426,12 +1426,12 @@ int main(int argc, char** argv)
             fprintf(pp, " -23300=%d", prior_box_param.min_size_size());
             for (int j=0; j<prior_box_param.min_size_size(); j++)
             {
-                fprintf(pp, ",%g", prior_box_param.min_size(j));
+                fprintf(pp, ",%e", prior_box_param.min_size(j));
             }
             fprintf(pp, " -23301=%d", prior_box_param.max_size_size());
             for (int j=0; j<prior_box_param.max_size_size(); j++)
             {
-                fprintf(pp, ",%g", prior_box_param.max_size(j));
+                fprintf(pp, ",%e", prior_box_param.max_size(j));
             }
             fprintf(pp, " -23302=%d", num_aspect_ratio);
             for (int j=0; j<prior_box_param.aspect_ratio_size(); j++)
@@ -1440,26 +1440,26 @@ int main(int argc, char** argv)
                 if (fabs(ar - 1.) < 1e-6) {
                     continue;
                 }
-                fprintf(pp, ",%g", ar);
+                fprintf(pp, ",%e", ar);
             }
-            fprintf(pp, " 3=%g", variances[0]);
-            fprintf(pp, " 4=%g", variances[1]);
-            fprintf(pp, " 5=%g", variances[2]);
-            fprintf(pp, " 6=%g", variances[3]);
+            fprintf(pp, " 3=%e", variances[0]);
+            fprintf(pp, " 4=%e", variances[1]);
+            fprintf(pp, " 5=%e", variances[2]);
+            fprintf(pp, " 6=%e", variances[3]);
             fprintf(pp, " 7=%d", flip);
             fprintf(pp, " 8=%d", clip);
             fprintf(pp, " 9=%d", image_width);
             fprintf(pp, " 10=%d", image_height);
-            fprintf(pp, " 11=%g", step_width);
-            fprintf(pp, " 12=%g", step_height);
-            fprintf(pp, " 13=%g", prior_box_param.offset());
+            fprintf(pp, " 11=%e", step_width);
+            fprintf(pp, " 12=%e", step_height);
+            fprintf(pp, " 13=%e", prior_box_param.offset());
         }
         else if (layer.type() == "PSROIPooling")
         {
             const caffe::PSROIPoolingParameter& psroi_pooling_param = layer.psroi_pooling_param();
             fprintf(pp, " 0=%d", psroi_pooling_param.group_size());
             fprintf(pp, " 1=%d", psroi_pooling_param.group_size());
-            fprintf(pp, " 2=%g", psroi_pooling_param.spatial_scale());
+            fprintf(pp, " 2=%e", psroi_pooling_param.spatial_scale());
             fprintf(pp, " 3=%d", psroi_pooling_param.output_dim());
         }
         else if (layer.type() == "Python")
@@ -1482,7 +1482,7 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", base_size);
                 fprintf(pp, " 2=%d", pre_nms_topN);
                 fprintf(pp, " 3=%d", after_nms_topN);
-                fprintf(pp, " 4=%g", nms_thresh);
+                fprintf(pp, " 4=%e", nms_thresh);
                 fprintf(pp, " 5=%d", min_size);
             }
         }
@@ -1491,15 +1491,15 @@ int main(int argc, char** argv)
             const caffe::ReLUParameter& relu_param = layer.relu_param();
             if (relu_param.has_negative_slope())
             {
-                fprintf(pp, " 0=%g", relu_param.negative_slope());
+                fprintf(pp, " 0=%e", relu_param.negative_slope());
             }
         }
         else if (layer.type() == "ReLU6")
         {
             float min = 0.f;
             float max = 6.f;
-            fprintf(pp, " 0=%g", min);
-            fprintf(pp, " 1=%g", max);
+            fprintf(pp, " 0=%e", min);
+            fprintf(pp, " 1=%e", max);
         }
         else if (layer.type() == "Reorg")
         {
@@ -1533,14 +1533,14 @@ int main(int argc, char** argv)
             const caffe::ROIAlignParameter& roi_align_param = layer.roi_align_param();
             fprintf(pp, " 0=%d", roi_align_param.pooled_w());
             fprintf(pp, " 1=%d", roi_align_param.pooled_h());
-            fprintf(pp, " 2=%g", roi_align_param.spatial_scale());
+            fprintf(pp, " 2=%e", roi_align_param.spatial_scale());
         }
         else if (layer.type() == "ROIPooling")
         {
             const caffe::ROIPoolingParameter& roi_pooling_param = layer.roi_pooling_param();
             fprintf(pp, " 0=%d", roi_pooling_param.pooled_w());
             fprintf(pp, " 1=%d", roi_pooling_param.pooled_h());
-            fprintf(pp, " 2=%g", roi_pooling_param.spatial_scale());
+            fprintf(pp, " 2=%e", roi_pooling_param.spatial_scale());
         }
         else if (layer.type() == "Scale")
         {
@@ -1609,7 +1609,7 @@ int main(int argc, char** argv)
         else if (layer.type() == "Threshold")
         {
             const caffe::ThresholdParameter& threshold_param = layer.threshold_param();
-            fprintf(pp, " 0=%g", threshold_param.threshold());
+            fprintf(pp, " 0=%e", threshold_param.threshold());
         }
         else if (layer.type() == "YoloDetectionOutput")
         {
@@ -1617,14 +1617,14 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", yolo_detection_output_param.num_classes());
             fprintf(pp, " 1=%d", yolo_detection_output_param.num_box());
-            fprintf(pp, " 2=%g", yolo_detection_output_param.confidence_threshold());
-            fprintf(pp, " 3=%g", yolo_detection_output_param.nms_threshold());
+            fprintf(pp, " 2=%e", yolo_detection_output_param.confidence_threshold());
+            fprintf(pp, " 3=%e", yolo_detection_output_param.nms_threshold());
 
             int num_bias = yolo_detection_output_param.biases_size();
             fprintf(pp, " -23304=%d", num_bias);
             for (int j=0; j<num_bias; j++)
             {
-                fprintf(pp, ",%g", yolo_detection_output_param.biases(j));
+                fprintf(pp, ",%e", yolo_detection_output_param.biases(j));
             }
         }
 		else if (layer.type() == "Yolov3DetectionOutput")
@@ -1633,26 +1633,26 @@ int main(int argc, char** argv)
 
 			fprintf(pp, " 0=%d", yolov3_detection_output_param.num_classes());
 			fprintf(pp, " 1=%d", yolov3_detection_output_param.num_box());
-			fprintf(pp, " 2=%g", yolov3_detection_output_param.confidence_threshold());
-			fprintf(pp, " 3=%g", yolov3_detection_output_param.nms_threshold());
+			fprintf(pp, " 2=%e", yolov3_detection_output_param.confidence_threshold());
+			fprintf(pp, " 3=%e", yolov3_detection_output_param.nms_threshold());
 
 			int num_bias = yolov3_detection_output_param.biases_size();
 			fprintf(pp, " -23304=%d", num_bias);
 			for (int j = 0; j<num_bias; j++)
 			{
-				fprintf(pp, ",%g", yolov3_detection_output_param.biases(j));
+				fprintf(pp, ",%e", yolov3_detection_output_param.biases(j));
 			}
 			int num_mask = yolov3_detection_output_param.mask_size();
 			fprintf(pp, " -23305=%d", num_mask);
 			for (int j = 0; j<num_mask; j++)
 			{
-				fprintf(pp, ",%g", (float)yolov3_detection_output_param.mask(j));
+				fprintf(pp, ",%e", (float)yolov3_detection_output_param.mask(j));
 			}
 			int num_anchors = yolov3_detection_output_param.anchors_scale_size();
 			fprintf(pp, " -23306=%d", num_anchors);
 			for (int j = 0; j<num_anchors; j++)
 			{
-				fprintf(pp, ",%g", (float)yolov3_detection_output_param.anchors_scale(j));
+				fprintf(pp, ",%e", (float)yolov3_detection_output_param.anchors_scale(j));
 			}
 			fprintf(pp, " 7=%d", yolov3_detection_output_param.mask_group_num());
 		}
