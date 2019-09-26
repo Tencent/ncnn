@@ -157,6 +157,7 @@ public:
     int fuse_innerproduct_activation();
 
     int eliminate_dropout();
+    int eliminate_noop();
     int eliminate_flatten_after_global_pooling();
     int eliminate_reshape_after_global_pooling();
     int eliminate_flatten_after_innerproduct();
@@ -1295,6 +1296,48 @@ int NetOptimize::eliminate_dropout()
     return 0;
 }
 
+int NetOptimize::eliminate_noop()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "Noop")
+            continue;
+
+        ncnn::Layer* noop = layers[i];
+
+        // Any - Noop
+        int bottom_blob_index = layers[i]->bottoms[0];
+
+        int j = i - 1;
+        for (; j>=0; j--)
+        {
+            if (layers[j]->type == "ncnnfused")
+                continue;
+
+            if (layers[j]->tops.size() != 1)
+                continue;
+
+            if (layers[j]->tops[0] == bottom_blob_index)
+                break;
+        }
+
+        if (j == -1)
+            continue;
+
+        ncnn::Layer* any = layers[j];
+
+        fprintf(stderr, "eliminate_noop %s %s\n", any->name.c_str(), noop->name.c_str());
+
+        int top_blob_index_final = noop->tops[0];
+        any->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = j;
+        noop->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
 int NetOptimize::eliminate_reshape_after_global_pooling()
 {
     const int layer_count = layers.size();
@@ -2396,6 +2439,7 @@ int main(int argc, char** argv)
     optimizer.fuse_innerproduct_activation();
 
     optimizer.eliminate_dropout();
+    optimizer.eliminate_noop();
     optimizer.eliminate_flatten_after_global_pooling();
     optimizer.eliminate_reshape_after_global_pooling();
     optimizer.eliminate_reshape_before_binaryop();
