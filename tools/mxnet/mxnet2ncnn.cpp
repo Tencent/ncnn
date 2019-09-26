@@ -313,6 +313,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
     }
 
     int internal_unknown = 0;
+    int internal_underscore = 0;
 
     char line[1024];
 
@@ -396,6 +397,16 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                     n.name = unknownname;
 
                     internal_unknown++;
+                }
+                if (n.name[0] == '_')
+                {
+                    // workaround for potential duplicated _plus0
+                    char underscorename[256];
+                    sprintf(underscorename, "underscorencnn_%d%s", internal_underscore, n.name.c_str());
+
+                    n.name = underscorename;
+
+                    internal_underscore++;
                 }
                 nodes.push_back(n);
 
@@ -748,6 +759,170 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
     return true;
 }
 
+static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<int, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+{
+    int node_count = nodes.size();
+    for (int i=0; i<node_count; i++)
+    {
+        const MXNetNode& n = nodes[i];
+
+        if (n.is_weight())
+            continue;
+
+        // ShuffleChannel <= Reshape - SwapAxis - Reshape
+        if (n.op == "Reshape")
+        {
+            if (node_reference.find(i) == node_reference.end() || node_reference[i] != 1)
+                continue;
+
+            // "shape": "(0, -4, X, -1, -2)"
+            std::vector<int> shape = n.attr("shape");
+            if (shape.size() != 5)
+                continue;
+            if (shape[0] != 0 || shape[1] != -4 || shape[3] != -1 || shape[4] != -2)
+                continue;
+
+            if (i+2 >= node_count)
+                continue;
+
+            const MXNetNode& n2 = nodes[i+1];
+            const MXNetNode& n3 = nodes[i+2];
+
+            if (n2.op != "SwapAxis" || n3.op != "Reshape")
+                continue;
+
+            if (node_reference.find(i+1) == node_reference.end() || node_reference[i+1] != 1)
+                continue;
+
+            // "dim1": "1", "dim2": "2"
+            int dim1 = n2.attr("dim1");
+            int dim2 = n2.attr("dim2");
+            if (dim1 != 1 || dim2 != 2)
+                continue;
+
+            // "shape": "(0, -3, -2)"
+            std::vector<int> shape3 = n3.attr("shape");
+            if (shape3.size() != 3)
+                continue;
+            if (shape3[0] != 0 || shape3[1] != -3 || shape3[2] != -2)
+                continue;
+
+            // reduce
+            nodes[i].op = "noop_reducedncnn";
+            nodes[i+1].op = "noop_reducedncnn";
+
+            node_reference.erase(node_reference.find(i));
+            node_reference.erase(node_reference.find(i+1));
+            blob_names.erase(n.name);
+            blob_names.erase(n2.name);
+
+            MXNetNode new_node;
+            new_node.nodes = &nodes;
+            new_node.params = &params;
+            new_node.op = "ShuffleChannel";
+//             new_node.name = n.name + "_" + n2.name + "_" + n3.name;
+            new_node.name = n3.name;
+            new_node.output_size = n3.output_size;
+            char group[16];
+            sprintf(group, "%d", shape[2]);
+            new_node.attrs["group"] = group;
+            new_node.inputs = n.inputs;
+            new_node.subinputs = n.subinputs;
+
+            nodes[i+2] = new_node;
+
+            reduced_node_count += 2;
+            i += 2;
+        }
+    }
+}
+
+static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<int, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+{
+    int node_count = nodes.size();
+    for (int i=0; i<node_count; i++)
+    {
+        const MXNetNode& n = nodes[i];
+
+        if (n.is_weight())
+            continue;
+
+        if (n.op == "_plus_scalar")
+        {
+            // HardSigmoid <= _plus_scalar(+3) - clip(0,6) - _div_scalar(/6)
+            const MXNetNode& n1 = nodes[i+1];
+            const MXNetNode& n2 = nodes[i+2];
+            const MXNetNode& n3 = nodes[i+3];
+
+            if ((float)n.attr("scalar") != 3.f)
+                continue;
+
+            if (n1.op != "clip" || (float)n1.attr("a_min") != 0.f || (float)n1.attr("a_max") != 6.f)
+                continue;
+
+            if (n2.op != "_div_scalar" || (float)n2.attr("scalar") != 6.f)
+                continue;
+
+            // reduce
+            nodes[i].op = "noop_reducedncnn";
+            nodes[i+1].op = "noop_reducedncnn";
+
+            node_reference.erase(node_reference.find(i));
+            node_reference.erase(node_reference.find(i+1));
+            blob_names.erase(n.name);
+            blob_names.erase(n1.name);
+
+            if (n3.op != "elemwise_mul" || n3.inputs[0] != n.inputs[0])
+            {
+                MXNetNode new_node;
+                new_node.nodes = &nodes;
+                new_node.params = &params;
+                new_node.op = "HardSigmoid";
+                new_node.name = n2.name;
+                new_node.output_size = n2.output_size;
+                char alpha[16], beta[16];
+                sprintf(alpha, "%f", 1.f/6.f);
+                sprintf(beta, "%f", 3.f/6.f);
+                new_node.attrs["alpha"] = alpha;
+                new_node.attrs["beta"] = beta;
+                new_node.inputs = n.inputs;
+                new_node.subinputs = n.subinputs;
+
+                nodes[i+2] = new_node;
+
+                reduced_node_count += 2;
+                i += 2;
+            }
+            else // HardSwish <= HardSigmoid - Mul
+            {
+                nodes[i+2].op = "noop_reducedncnn";
+                node_reference[i-1]--;
+                node_reference.erase(node_reference.find(i+2));
+                blob_names.erase(n2.name);
+
+                MXNetNode new_node;
+                new_node.nodes = &nodes;
+                new_node.params = &params;
+                new_node.op = "HardSwish";
+                new_node.name = n3.name;
+                new_node.output_size = n3.output_size;
+                char alpha[16], beta[16];
+                sprintf(alpha, "%f", 1.f/6.f);
+                sprintf(beta, "%f", 3.f/6.f);
+                new_node.attrs["alpha"] = alpha;
+                new_node.attrs["beta"] = beta;
+                new_node.inputs = n.inputs;
+                new_node.subinputs = n.subinputs;
+
+                nodes[i+3] = new_node;
+
+                reduced_node_count += 3;
+                i += 3;
+            }
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     const char* jsonpath = argv[1];
@@ -897,152 +1072,8 @@ int main(int argc, char** argv)
 
     // op chain fusion
     int reduced_node_count = 0;
-    for (int i=0; i<node_count; i++)
-    {
-        const MXNetNode& n = nodes[i];
-
-        if (n.is_weight())
-            continue;
-
-        // ShuffleChannel <= Reshape - SwapAxis - Reshape
-        if (n.op == "Reshape")
-        {
-            if (node_reference[i] != 1)
-                continue;
-
-            // "shape": "(0, -4, X, -1, -2)"
-            std::vector<int> shape = n.attr("shape");
-            if (shape.size() != 5)
-                continue;
-            if (shape[0] != 0 || shape[1] != -4 || shape[3] != -1 || shape[4] != -2)
-                continue;
-
-            if (i+2 >= node_count)
-                continue;
-
-            const MXNetNode& n2 = nodes[i+1];
-            const MXNetNode& n3 = nodes[i+2];
-
-            if (n2.op != "SwapAxis" || n3.op != "Reshape")
-                continue;
-
-            if (node_reference[i+1] != 1)
-                continue;
-
-            // "dim1": "1", "dim2": "2"
-            int dim1 = n2.attr("dim1");
-            int dim2 = n2.attr("dim2");
-            if (dim1 != 1 || dim2 != 2)
-                continue;
-
-            // "shape": "(0, -3, -2)"
-            std::vector<int> shape3 = n3.attr("shape");
-            if (shape3.size() != 3)
-                continue;
-            if (shape3[0] != 0 || shape3[1] != -3 || shape3[2] != -2)
-                continue;
-
-            // reduce
-            nodes[i].op = "noop_reducedncnn";
-            nodes[i+1].op = "noop_reducedncnn";
-
-            node_reference.erase(node_reference.find(i));
-            node_reference.erase(node_reference.find(i+1));
-            blob_names.erase(n.name);
-            blob_names.erase(n2.name);
-
-            MXNetNode new_node;
-            new_node.nodes = &nodes;
-            new_node.params = &params;
-            new_node.op = "ShuffleChannel";
-//             new_node.name = n.name + "_" + n2.name + "_" + n3.name;
-            new_node.name = n3.name;
-            new_node.output_size = n3.output_size;
-            char group[16];
-            sprintf(group, "%d", shape[2]);
-            new_node.attrs["group"] = group;
-            new_node.inputs = n.inputs;
-            new_node.subinputs = n.subinputs;
-
-            nodes[i+2] = new_node;
-
-            reduced_node_count += 2;
-            i += 2;
-        }
-        else if (n.op == "_plus_scalar")
-        {
-            // HardSigmoid <= _plus_scalar(+3) - clip(0,6) - _div_scalar(/6)
-            const MXNetNode& n1 = nodes[i+1];
-            const MXNetNode& n2 = nodes[i+2];
-            const MXNetNode& n3 = nodes[i+3];
-
-            if ((float)n.attr("scalar") != 3.f)
-                continue;
-
-            if (n1.op != "clip" || (float)n1.attr("a_min") != 0.f || (float)n1.attr("a_max") != 6.f)
-                continue;
-
-            if (n2.op != "_div_scalar" || (float)n2.attr("scalar") != 6.f)
-                continue;
-
-            // reduce
-            nodes[i].op = "noop_reducedncnn";
-            nodes[i+1].op = "noop_reducedncnn";
-
-            node_reference.erase(node_reference.find(i));
-            node_reference.erase(node_reference.find(i+1));
-            blob_names.erase(n.name);
-            blob_names.erase(n1.name);
-
-            if (n3.op != "elemwise_mul" || n3.inputs[0] != n.inputs[0])
-            {
-                MXNetNode new_node;
-                new_node.nodes = &nodes;
-                new_node.params = &params;
-                new_node.op = "HardSigmoid";
-                new_node.name = n2.name;
-                new_node.output_size = n2.output_size;
-                char alpha[16], beta[16];
-                sprintf(alpha, "%f", 1.f/6.f);
-                sprintf(beta, "%f", 3.f/6.f);
-                new_node.attrs["alpha"] = alpha;
-                new_node.attrs["beta"] = beta;
-                new_node.inputs = n.inputs;
-                new_node.subinputs = n.subinputs;
-
-                nodes[i+2] = new_node;
-
-                reduced_node_count += 2;
-                i += 2;
-            }
-            else // HardSwish <= HardSigmoid - Mul
-            {
-                nodes[i+2].op = "noop_reducedncnn";
-                node_reference[i-1]--;
-                node_reference.erase(node_reference.find(i+2));
-                blob_names.erase(n2.name);
-
-                MXNetNode new_node;
-                new_node.nodes = &nodes;
-                new_node.params = &params;
-                new_node.op = "HardSwish";
-                new_node.name = n3.name;
-                new_node.output_size = n3.output_size;
-                char alpha[16], beta[16];
-                sprintf(alpha, "%f", 1.f/6.f);
-                sprintf(beta, "%f", 3.f/6.f);
-                new_node.attrs["alpha"] = alpha;
-                new_node.attrs["beta"] = beta;
-                new_node.inputs = n.inputs;
-                new_node.subinputs = n.subinputs;
-
-                nodes[i+3] = new_node;
-
-                reduced_node_count += 3;
-                i += 3;
-            }
-        }
-    }
+    fuse_shufflechannel (nodes, params, node_reference, blob_names, reduced_node_count);
+    fuse_hardsigmoid_hardswish(nodes, params, node_reference, blob_names, reduced_node_count);
 
     // remove node_reference entry with reference equals to one
     int splitncnn_blob_count = 0;
