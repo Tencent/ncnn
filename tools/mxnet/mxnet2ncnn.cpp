@@ -2462,6 +2462,11 @@ int main(int argc, char** argv)
         }
         else if (n.op == "SoftmaxActivation")
         {
+            std::string mode = n.attr("mode");
+            if (mode != "channel")
+            {
+                fprintf(stderr, "Unsupported SoftmaxActivation mode !\n");
+            }
             fprintf(pp, " 1=1");
         }
         else if (n.op == "SoftmaxOutput")
