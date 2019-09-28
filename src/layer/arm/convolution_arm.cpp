@@ -40,6 +40,7 @@ namespace ncnn {
 #if __ARM_NEON
 #include "convolution_1x1_pack4.h"
 #include "convolution_3x3_pack4.h"
+#include "convolution_3x3_pack1to4.h"
 #endif // __ARM_NEON
 
 DEFINE_LAYER_CREATOR(Convolution_arm)
@@ -702,6 +703,18 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (elempack == 1 && out_elempack == 4)
     {
+        if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv3x3s2_pack1to4_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+
+            return 0;
+        }
+
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<num_output / out_elempack; p++)
