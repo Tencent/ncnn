@@ -27,20 +27,78 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
     const float* bias = _bias;
 
     // interleave
+#if __aarch64__
+    Mat tmp(12, inch, size/12 + (size%12)/8 + (size%8)/4 + (size%4)/2 + size%2, elemsize, elempack, opt.workspace_allocator);
+#else
     Mat tmp(8, inch, size/8 + (size%8)/4 + (size%4)/2 + size%2, elemsize, elempack, opt.workspace_allocator);
+#endif
     {
-        int nn_size = size >> 3;
-        int remain_size_start = nn_size << 3;
+        int nn_size;
+        int remain_size_start;
+
+#if __aarch64__
+        nn_size = size / 12;
+        remain_size_start = nn_size * 12;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii=0; ii<nn_size; ii++)
         {
-            int i = ii * 8;
+            int i = ii * 12;
 
             const float* img0 = bottom_blob.channel(0);
             img0 += i*4;
 
+            float* tmpptr = tmp.channel(i/12);
+
+            for (int q=0; q<inch; q++)
+            {
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0] \n"
+                    "st1    {v0.4s}, [%1], #16          \n"
+                    "st1    {v4.4s}, [%1], #16          \n"
+                    "st1    {v8.4s}, [%1], #16          \n"
+                    "sub    %0, %0, #128                \n"
+                    "st1    {v1.4s}, [%1], #16          \n"
+                    "st1    {v5.4s}, [%1], #16          \n"
+                    "st1    {v9.4s}, [%1], #16          \n"
+                    "st1    {v2.4s}, [%1], #16          \n"
+                    "st1    {v6.4s}, [%1], #16          \n"
+                    "st1    {v10.4s}, [%1], #16         \n"
+                    "st1    {v3.4s}, [%1], #16          \n"
+                    "st1    {v7.4s}, [%1], #16          \n"
+                    "st1    {v11.4s}, [%1], #16         \n"
+                    : "=r"(img0),   // %0
+                      "=r"(tmpptr)  // %1
+                    : "0"(img0),
+                      "1"(tmpptr)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
+                );
+                img0 += bottom_blob.cstep * 4;
+            }
+        }
+#else
+        remain_size_start = 0;
+#endif
+        nn_size = (size - remain_size_start) >> 3;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii=0; ii<nn_size; ii++)
+        {
+            int i = remain_size_start + ii * 8;
+
+            const float* img0 = bottom_blob.channel(0);
+            img0 += i*4;
+
+#if __aarch64__
+            float* tmpptr = tmp.channel(i/12+(i%12)/8);
+#else
             float* tmpptr = tmp.channel(i/8);
+#endif
 
             for (int q=0; q<inch; q++)
             {
@@ -94,6 +152,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             }
         }
 
+        remain_size_start += nn_size << 3;
         nn_size = (size - remain_size_start) >> 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -104,7 +163,11 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             const float* img0 = bottom_blob.channel(0);
             img0 += i*4;
 
+#if __aarch64__
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4);
+#else
             float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+#endif
 
             for (int q=0; q<inch; q++)
             {
@@ -146,7 +209,11 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             const float* img0 = bottom_blob.channel(0);
             img0 += i*4;
 
+#if __aarch64__
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2);
+#else
             float* tmpptr = tmp.channel(i/8 + (i%8)/4 + (i%4)/2);
+#endif
 
             for (int q=0; q<inch; q++)
             {
@@ -185,7 +252,11 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             const float* img0 = bottom_blob.channel(0);
             img0 += i*4;
 
+#if __aarch64__
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2 + i%2);
+#else
             float* tmpptr = tmp.channel(i/8 + (i%8)/4 + (i%4)/2 + i%2);
+#endif
 
             for (int q=0; q<inch; q++)
             {
@@ -236,9 +307,202 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         const float* biasptr = bias ? bias + p * 4 : zeros;
 
         int i=0;
+        for (; i+11<size; i+=12)
+        {
+            const float* tmpptr = tmp.channel(i/12);
+
+            const float* kptr0 = (const float*)kernel + p * inch * 16;
+            const float* kptr1 = (const float*)kernel + (p+1) * inch * 16;
+
+            int nn = inch;// inch always > 0
+
+            asm volatile(
+                "ld1    {v0.4s, v1.4s}, [%12]       \n"
+                "mov    v8.16b, v0.16b              \n"
+                "mov    v9.16b, v0.16b              \n"
+                "mov    v10.16b, v0.16b             \n"
+                "mov    v11.16b, v0.16b             \n"
+                "mov    v12.16b, v0.16b             \n"
+                "mov    v13.16b, v0.16b             \n"
+                "mov    v14.16b, v0.16b             \n"
+                "mov    v15.16b, v0.16b             \n"
+                "mov    v16.16b, v0.16b             \n"
+                "mov    v17.16b, v0.16b             \n"
+                "mov    v18.16b, v0.16b             \n"
+                "mov    v19.16b, v0.16b             \n"
+                "mov    v20.16b, v1.16b             \n"
+                "mov    v21.16b, v1.16b             \n"
+                "mov    v22.16b, v1.16b             \n"
+                "mov    v23.16b, v1.16b             \n"
+                "mov    v24.16b, v1.16b             \n"
+                "mov    v25.16b, v1.16b             \n"
+                "mov    v26.16b, v1.16b             \n"
+                "mov    v27.16b, v1.16b             \n"
+                "mov    v28.16b, v1.16b             \n"
+                "mov    v29.16b, v1.16b             \n"
+                "mov    v30.16b, v1.16b             \n"
+                "mov    v31.16b, v1.16b             \n"
+
+                "0:                                 \n"
+
+                "prfm   pldl1keep, [%3, #384]       \n"
+                "ld1    {v0.4s, v1.4s, v2.4s}, [%3], #48 \n"
+
+                "prfm   pldl1keep, [%4, #128]       \n"
+                "ld1    {v4.4s, v5.4s}, [%4], #32   \n"// w0123_0
+
+                "prfm   pldl1keep, [%5, #128]       \n"
+                "ld1    {v6.4s, v7.4s}, [%5], #32   \n"// w0123_1
+
+                "fmla   v8.4s, v4.4s, v0.s[0]       \n"
+                "fmla   v9.4s, v4.4s, v0.s[1]       \n"
+                "fmla   v10.4s, v4.4s, v0.s[2]      \n"
+                "fmla   v11.4s, v4.4s, v0.s[3]      \n"
+                "fmla   v12.4s, v4.4s, v1.s[0]      \n"
+                "fmla   v13.4s, v4.4s, v1.s[1]      \n"
+                "fmla   v14.4s, v4.4s, v1.s[2]      \n"
+                "fmla   v15.4s, v4.4s, v1.s[3]      \n"
+                "fmla   v16.4s, v4.4s, v2.s[0]      \n"
+                "fmla   v17.4s, v4.4s, v2.s[1]      \n"
+                "fmla   v18.4s, v4.4s, v2.s[2]      \n"
+                "fmla   v19.4s, v4.4s, v2.s[3]      \n"
+
+                "fmla   v20.4s, v6.4s, v0.s[0]      \n"
+                "fmla   v21.4s, v6.4s, v0.s[1]      \n"
+                "fmla   v22.4s, v6.4s, v0.s[2]      \n"
+                "fmla   v23.4s, v6.4s, v0.s[3]      \n"
+                "fmla   v24.4s, v6.4s, v1.s[0]      \n"
+                "fmla   v25.4s, v6.4s, v1.s[1]      \n"
+                "fmla   v26.4s, v6.4s, v1.s[2]      \n"
+                "fmla   v27.4s, v6.4s, v1.s[3]      \n"
+                "fmla   v28.4s, v6.4s, v2.s[0]      \n"
+                "fmla   v29.4s, v6.4s, v2.s[1]      \n"
+                "fmla   v30.4s, v6.4s, v2.s[2]      \n"
+                "fmla   v31.4s, v6.4s, v2.s[3]      \n"
+
+                "prfm   pldl1keep, [%3, #384]       \n"
+                "ld1    {v0.4s, v1.4s, v2.4s}, [%3], #48 \n"
+
+                "fmla   v8.4s, v5.4s, v0.s[0]       \n"
+                "fmla   v9.4s, v5.4s, v0.s[1]       \n"
+                "fmla   v10.4s, v5.4s, v0.s[2]      \n"
+                "fmla   v11.4s, v5.4s, v0.s[3]      \n"
+                "fmla   v12.4s, v5.4s, v1.s[0]      \n"
+                "fmla   v13.4s, v5.4s, v1.s[1]      \n"
+                "fmla   v14.4s, v5.4s, v1.s[2]      \n"
+                "fmla   v15.4s, v5.4s, v1.s[3]      \n"
+                "fmla   v16.4s, v5.4s, v2.s[0]      \n"
+                "fmla   v17.4s, v5.4s, v2.s[1]      \n"
+                "fmla   v18.4s, v5.4s, v2.s[2]      \n"
+                "fmla   v19.4s, v5.4s, v2.s[3]      \n"
+
+                "prfm   pldl1keep, [%4, #128]       \n"
+                "ld1    {v4.4s, v5.4s}, [%4], #32   \n"// w0123_0
+
+                "fmla   v20.4s, v7.4s, v0.s[0]      \n"
+                "fmla   v21.4s, v7.4s, v0.s[1]      \n"
+                "fmla   v22.4s, v7.4s, v0.s[2]      \n"
+                "fmla   v23.4s, v7.4s, v0.s[3]      \n"
+                "fmla   v24.4s, v7.4s, v1.s[0]      \n"
+                "fmla   v25.4s, v7.4s, v1.s[1]      \n"
+                "fmla   v26.4s, v7.4s, v1.s[2]      \n"
+                "fmla   v27.4s, v7.4s, v1.s[3]      \n"
+                "fmla   v28.4s, v7.4s, v2.s[0]      \n"
+                "fmla   v29.4s, v7.4s, v2.s[1]      \n"
+                "fmla   v30.4s, v7.4s, v2.s[2]      \n"
+                "fmla   v31.4s, v7.4s, v2.s[3]      \n"
+
+                "prfm   pldl1keep, [%3, #384]       \n"
+                "ld1    {v0.4s, v1.4s, v2.4s}, [%3], #48 \n"
+
+                "prfm   pldl1keep, [%5, #128]       \n"
+                "ld1    {v6.4s, v7.4s}, [%5], #32   \n"// w0123_1
+
+                "fmla   v8.4s, v4.4s, v0.s[0]       \n"
+                "fmla   v9.4s, v4.4s, v0.s[1]       \n"
+                "fmla   v10.4s, v4.4s, v0.s[2]      \n"
+                "fmla   v11.4s, v4.4s, v0.s[3]      \n"
+                "fmla   v12.4s, v4.4s, v1.s[0]      \n"
+                "fmla   v13.4s, v4.4s, v1.s[1]      \n"
+                "fmla   v14.4s, v4.4s, v1.s[2]      \n"
+                "fmla   v15.4s, v4.4s, v1.s[3]      \n"
+                "fmla   v16.4s, v4.4s, v2.s[0]      \n"
+                "fmla   v17.4s, v4.4s, v2.s[1]      \n"
+                "fmla   v18.4s, v4.4s, v2.s[2]      \n"
+                "fmla   v19.4s, v4.4s, v2.s[3]      \n"
+
+                "fmla   v20.4s, v6.4s, v0.s[0]      \n"
+                "fmla   v21.4s, v6.4s, v0.s[1]      \n"
+                "fmla   v22.4s, v6.4s, v0.s[2]      \n"
+                "fmla   v23.4s, v6.4s, v0.s[3]      \n"
+                "fmla   v24.4s, v6.4s, v1.s[0]      \n"
+                "fmla   v25.4s, v6.4s, v1.s[1]      \n"
+                "fmla   v26.4s, v6.4s, v1.s[2]      \n"
+                "fmla   v27.4s, v6.4s, v1.s[3]      \n"
+                "fmla   v28.4s, v6.4s, v2.s[0]      \n"
+                "fmla   v29.4s, v6.4s, v2.s[1]      \n"
+                "fmla   v30.4s, v6.4s, v2.s[2]      \n"
+                "fmla   v31.4s, v6.4s, v2.s[3]      \n"
+
+                "prfm   pldl1keep, [%3, #384]       \n"
+                "ld1    {v0.4s, v1.4s, v2.4s}, [%3], #48 \n"
+
+                "fmla   v8.4s, v5.4s, v0.s[0]       \n"
+                "fmla   v9.4s, v5.4s, v0.s[1]       \n"
+                "fmla   v10.4s, v5.4s, v0.s[2]      \n"
+                "fmla   v11.4s, v5.4s, v0.s[3]      \n"
+                "fmla   v12.4s, v5.4s, v1.s[0]      \n"
+                "fmla   v13.4s, v5.4s, v1.s[1]      \n"
+                "fmla   v14.4s, v5.4s, v1.s[2]      \n"
+                "fmla   v15.4s, v5.4s, v1.s[3]      \n"
+                "fmla   v16.4s, v5.4s, v2.s[0]      \n"
+                "fmla   v17.4s, v5.4s, v2.s[1]      \n"
+                "fmla   v18.4s, v5.4s, v2.s[2]      \n"
+                "fmla   v19.4s, v5.4s, v2.s[3]      \n"
+
+                "subs   %w0, %w0, #1                \n"
+
+                "fmla   v20.4s, v7.4s, v0.s[0]      \n"
+                "fmla   v21.4s, v7.4s, v0.s[1]      \n"
+                "fmla   v22.4s, v7.4s, v0.s[2]      \n"
+                "fmla   v23.4s, v7.4s, v0.s[3]      \n"
+                "fmla   v24.4s, v7.4s, v1.s[0]      \n"
+                "fmla   v25.4s, v7.4s, v1.s[1]      \n"
+                "fmla   v26.4s, v7.4s, v1.s[2]      \n"
+                "fmla   v27.4s, v7.4s, v1.s[3]      \n"
+                "fmla   v28.4s, v7.4s, v2.s[0]      \n"
+                "fmla   v29.4s, v7.4s, v2.s[1]      \n"
+                "fmla   v30.4s, v7.4s, v2.s[2]      \n"
+                "fmla   v31.4s, v7.4s, v2.s[3]      \n"
+
+                "bne    0b                          \n"
+
+                "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
+                "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%2], #64 \n"
+                "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
+                "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%2], #64 \n"
+                "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%2], #64 \n"
+
+                : "=r"(nn),         // %0
+                  "=r"(outptr0),    // %1
+                  "=r"(outptr1),    // %2
+                  "=r"(tmpptr),     // %3
+                  "=r"(kptr0),      // %4
+                  "=r"(kptr1)       // %5
+                : "0"(nn),
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(tmpptr),
+                  "4"(kptr0),
+                  "5"(kptr1),
+                  "r"(biasptr)      // %12
+                : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+            );
+        }
         for (; i+7<size; i+=8)
         {
-            const float* tmpptr = tmp.channel(i/8);
+            float* tmpptr = tmp.channel(i/12+(i%12)/8);
 
             const float* kptr0 = (const float*)kernel + p * inch * 16;
             const float* kptr1 = (const float*)kernel + (p+1) * inch * 16;
@@ -378,7 +642,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         }
         for (; i+3<size; i+=4)
         {
-            const float* tmpptr = tmp.channel(i/8+(i%8)/4);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4);
 
             const float* kptr0 = (const float*)kernel + p * inch * 16;
             const float* kptr1 = (const float*)kernel + (p+1) * inch * 16;
@@ -472,7 +736,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         }
         for (; i+1<size; i+=2)
         {
-            const float* tmpptr = tmp.channel(i/8+(i%8)/4 + (i%4)/2);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2);
 
             const float* kptr0 = (const float*)kernel + p * inch * 16;
             const float* kptr1 = (const float*)kernel + (p+1) * inch * 16;
@@ -543,7 +807,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         }
         for (; i<size; i++)
         {
-            const float* tmpptr = tmp.channel(i/8+(i%8)/4 + (i%4)/2 + i%2);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2 + i%2);
 
             const float* kptr0 = (const float*)kernel + p * inch * 16;
             const float* kptr1 = (const float*)kernel + (p+1) * inch * 16;
@@ -613,9 +877,124 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         const float* biasptr = bias ? bias + p * 4 : zeros;
 
         int i=0;
+#if __aarch64__
+        for (; i+11<size; i+=12)
+        {
+            float* tmpptr = tmp.channel(i/12);
+
+            const float* kptr0 = (const float*)kernel + p * inch * 16;
+
+            int nn = inch;// inch always > 0
+
+            asm volatile(
+                "ld1    {v0.4s}, [%8]               \n"
+                "mov    v8.16b, v0.16b              \n"
+                "mov    v9.16b, v0.16b              \n"
+                "mov    v10.16b, v0.16b             \n"
+                "mov    v11.16b, v0.16b             \n"
+                "mov    v12.16b, v0.16b             \n"
+                "mov    v13.16b, v0.16b             \n"
+                "mov    v14.16b, v0.16b             \n"
+                "mov    v15.16b, v0.16b             \n"
+                "mov    v16.16b, v0.16b             \n"
+                "mov    v17.16b, v0.16b             \n"
+                "mov    v18.16b, v0.16b             \n"
+                "mov    v19.16b, v0.16b             \n"
+
+                "0:                                 \n"
+
+                "prfm   pldl1keep, [%2, #512]       \n"
+                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
+
+                "prfm   pldl1keep, [%3, #512]       \n"
+                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%3], #64 \n"// w0123_0
+
+                "fmla   v8.4s, v4.4s, v0.s[0]       \n"
+                "fmla   v9.4s, v4.4s, v0.s[1]       \n"
+                "fmla   v10.4s, v4.4s, v0.s[2]      \n"
+                "fmla   v11.4s, v4.4s, v0.s[3]      \n"
+                "fmla   v12.4s, v4.4s, v1.s[0]      \n"
+                "fmla   v13.4s, v4.4s, v1.s[1]      \n"
+                "fmla   v14.4s, v4.4s, v1.s[2]      \n"
+                "fmla   v15.4s, v4.4s, v1.s[3]      \n"
+                "fmla   v16.4s, v4.4s, v2.s[0]      \n"
+                "fmla   v17.4s, v4.4s, v2.s[1]      \n"
+                "fmla   v18.4s, v4.4s, v2.s[2]      \n"
+                "fmla   v19.4s, v4.4s, v2.s[3]      \n"
+
+                "prfm   pldl1keep, [%2, #512]       \n"
+                "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%2], #64 \n"
+
+                "fmla   v8.4s, v5.4s, v3.s[0]       \n"
+                "fmla   v9.4s, v5.4s, v3.s[1]       \n"
+                "fmla   v10.4s, v5.4s, v3.s[2]      \n"
+                "fmla   v11.4s, v5.4s, v3.s[3]      \n"
+                "fmla   v12.4s, v5.4s, v20.s[0]     \n"
+                "fmla   v13.4s, v5.4s, v20.s[1]     \n"
+                "fmla   v14.4s, v5.4s, v20.s[2]     \n"
+                "fmla   v15.4s, v5.4s, v20.s[3]     \n"
+                "fmla   v16.4s, v5.4s, v21.s[0]     \n"
+                "fmla   v17.4s, v5.4s, v21.s[1]     \n"
+                "fmla   v18.4s, v5.4s, v21.s[2]     \n"
+                "fmla   v19.4s, v5.4s, v21.s[3]     \n"
+
+                "prfm   pldl1keep, [%2, #512]       \n"
+                "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%2], #64 \n"
+
+                "fmla   v8.4s, v6.4s, v22.s[0]      \n"
+                "fmla   v9.4s, v6.4s, v22.s[1]      \n"
+                "fmla   v10.4s, v6.4s, v22.s[2]     \n"
+                "fmla   v11.4s, v6.4s, v22.s[3]     \n"
+                "fmla   v12.4s, v6.4s, v23.s[0]     \n"
+                "fmla   v13.4s, v6.4s, v23.s[1]     \n"
+                "fmla   v14.4s, v6.4s, v23.s[2]     \n"
+                "fmla   v15.4s, v6.4s, v23.s[3]     \n"
+                "fmla   v16.4s, v6.4s, v24.s[0]     \n"
+                "fmla   v17.4s, v6.4s, v24.s[1]     \n"
+                "fmla   v18.4s, v6.4s, v24.s[2]     \n"
+                "fmla   v19.4s, v6.4s, v24.s[3]     \n"
+
+                "subs   %w0, %w0, #1                \n"
+
+                "fmla   v8.4s, v7.4s, v25.s[0]      \n"
+                "fmla   v9.4s, v7.4s, v25.s[1]      \n"
+                "fmla   v10.4s, v7.4s, v25.s[2]     \n"
+                "fmla   v11.4s, v7.4s, v25.s[3]     \n"
+                "fmla   v12.4s, v7.4s, v26.s[0]     \n"
+                "fmla   v13.4s, v7.4s, v26.s[1]     \n"
+                "fmla   v14.4s, v7.4s, v26.s[2]     \n"
+                "fmla   v15.4s, v7.4s, v26.s[3]     \n"
+                "fmla   v16.4s, v7.4s, v27.s[0]     \n"
+                "fmla   v17.4s, v7.4s, v27.s[1]     \n"
+                "fmla   v18.4s, v7.4s, v27.s[2]     \n"
+                "fmla   v19.4s, v7.4s, v27.s[3]     \n"
+
+                "bne    0b                          \n"
+
+                "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
+                "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
+                "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+
+                : "=r"(nn),         // %0
+                  "=r"(outptr0),    // %1
+                  "=r"(tmpptr),     // %2
+                  "=r"(kptr0)       // %3
+                : "0"(nn),
+                  "1"(outptr0),
+                  "2"(tmpptr),
+                  "3"(kptr0),
+                  "r"(biasptr)      // %8
+                : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27"
+            );
+        }
+#endif
         for (; i+7<size; i+=8)
         {
-            const float* tmpptr = tmp.channel(i/8);
+#if __aarch64__
+            float* tmpptr = tmp.channel(i/12+(i%12)/8);
+#else
+            float* tmpptr = tmp.channel(i/8);
+#endif
 
             const float* kptr0 = (const float*)kernel + p * inch * 16;
 
@@ -780,7 +1159,11 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         }
         for (; i+3<size; i+=4)
         {
-            const float* tmpptr = tmp.channel(i/8+(i%8)/4);
+#if __aarch64__
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4);
+#else
+            float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+#endif
 
             const float* kptr0 = (const float*)kernel + p * inch * 16;
 
@@ -896,7 +1279,11 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         }
         for (; i+1<size; i+=2)
         {
-            const float* tmpptr = tmp.channel(i/8+(i%8)/4 + (i%4)/2);
+#if __aarch64__
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2);
+#else
+            float* tmpptr = tmp.channel(i/8 + (i%8)/4 + (i%4)/2);
+#endif
 
             const float* kptr0 = (const float*)kernel + p * inch * 16;
 
@@ -992,7 +1379,11 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         }
         for (; i<size; i++)
         {
-            const float* tmpptr = tmp.channel(i/8+(i%8)/4 + (i%4)/2 + i%2);
+#if __aarch64__
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2 + i%2);
+#else
+            float* tmpptr = tmp.channel(i/8 + (i%8)/4 + (i%4)/2 + i%2);
+#endif
 
             const float* kptr0 = (const float*)kernel + p * inch * 16;
 
