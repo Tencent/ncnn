@@ -28,6 +28,10 @@ namespace ncnn {
 
 #include "convolutiondepthwise_3x3_int8.h"
 
+#if __ARM_NEON
+#include "convolutiondepthwise_3x3_pack4.h"
+#endif // __ARM_NEON
+
 DEFINE_LAYER_CREATOR(ConvolutionDepthWise_arm)
 
 ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
@@ -508,6 +512,30 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     {
     if (elempack == 4)
     {
+        if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+        {
+            convdw3x3s1_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+
+            return 0;
+        }
+
+        if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            convdw3x3s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+
+            return 0;
+        }
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group / elempack; g++)
         {
