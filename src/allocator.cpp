@@ -750,7 +750,7 @@ VkStagingBufferAllocator::VkStagingBufferAllocator(const VulkanDevice* _vkdev) :
 
     memory_type_index = vkdev->info.unified_memory_index;
 
-    if (memory_type_index == -1)
+    if (memory_type_index == (uint32_t)-1)
         memory_type_index = vkdev->info.host_visible_memory_index;
 
     size_compare_ratio = 192;// 0.75f * 256

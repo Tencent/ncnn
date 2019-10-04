@@ -66,6 +66,7 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
 
 int Reshape_vulkan::destroy_pipeline(const Option& opt)
 {
+    UNUSED(opt);
     delete pipeline_reshape;
     pipeline_reshape = 0;
 

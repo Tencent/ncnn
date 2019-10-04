@@ -29,6 +29,7 @@ public:
 
     virtual int upload_model(VkTransfer& cmd, const Option& opt);
 
+    using ConvolutionDepthWise::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
