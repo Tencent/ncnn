@@ -84,9 +84,8 @@ int Interp_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Interp_vulkan::destroy_pipeline(const Option& opt)
+int Interp_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    UNUSED(opt);
     delete pipeline_interp;
     pipeline_interp = 0;
 

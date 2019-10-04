@@ -58,9 +58,8 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Eltwise_vulkan::destroy_pipeline(const Option& opt)
+int Eltwise_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    UNUSED(opt);
     delete pipeline_eltwise[0];
     delete pipeline_eltwise[1];
     pipeline_eltwise[0] = 0;

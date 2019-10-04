@@ -69,9 +69,8 @@ int Cast_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Cast_vulkan::destroy_pipeline(const Option& opt)
+int Cast_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    UNUSED(opt);
     delete pipeline_cast_fp32_to_fp16;
     pipeline_cast_fp32_to_fp16 = 0;
 

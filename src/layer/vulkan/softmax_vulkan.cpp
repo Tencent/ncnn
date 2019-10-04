@@ -80,9 +80,8 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Softmax_vulkan::destroy_pipeline(const Option& opt)
+int Softmax_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    UNUSED(opt);
     delete pipeline_softmax_reduce_max;
     pipeline_softmax_reduce_max = 0;
 

@@ -48,9 +48,8 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int ShuffleChannel_vulkan::destroy_pipeline(const Option& opt)
+int ShuffleChannel_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    UNUSED(opt);
     delete pipeline_shufflechannel;
     pipeline_shufflechannel = 0;
 

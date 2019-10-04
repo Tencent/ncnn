@@ -47,9 +47,8 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Packing_vulkan::destroy_pipeline(const Option& opt)
+int Packing_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    UNUSED(opt);
     delete pipeline_packing_1to4;
     pipeline_packing_1to4 = 0;
 

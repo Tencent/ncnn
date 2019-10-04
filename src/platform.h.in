@@ -33,8 +33,6 @@
 #include <pthread.h>
 #endif
 
-#define UNUSED(expr) do { (void)expr; } while(0);
-
 namespace ncnn {
 
 #ifdef _WIN32

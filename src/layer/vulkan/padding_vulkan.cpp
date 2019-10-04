@@ -49,9 +49,8 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Padding_vulkan::destroy_pipeline(const Option& opt)
+int Padding_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    UNUSED(opt);
     delete pipeline_padding;
     pipeline_padding = 0;
 

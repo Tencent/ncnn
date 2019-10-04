@@ -64,9 +64,8 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Crop_vulkan::destroy_pipeline(const Option& opt)
+int Crop_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    UNUSED(opt);
     delete pipeline_crop;
     pipeline_crop = 0;
 

@@ -80,9 +80,8 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int PriorBox_vulkan::destroy_pipeline(const Option& opt)
+int PriorBox_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    UNUSED(opt);
     delete pipeline_priorbox;
     pipeline_priorbox = 0;
 
