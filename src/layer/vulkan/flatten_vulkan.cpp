@@ -57,6 +57,7 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
 
 int Flatten_vulkan::destroy_pipeline(const Option& opt)
 {
+    UNUSED(opt);
     delete pipeline_flatten;
     pipeline_flatten = 0;
 

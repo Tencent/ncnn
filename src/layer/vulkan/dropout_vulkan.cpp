@@ -51,6 +51,7 @@ int Dropout_vulkan::create_pipeline(const Option& opt)
 
 int Dropout_vulkan::destroy_pipeline(const Option& opt)
 {
+    UNUSED(opt);
     delete pipeline_dropout;
     pipeline_dropout = 0;
 
@@ -62,6 +63,7 @@ int Dropout_vulkan::destroy_pipeline(const Option& opt)
 
 int Dropout_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
+    UNUSED(opt);
     if (scale == 1.f)
     {
         return 0;

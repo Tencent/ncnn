@@ -71,6 +71,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
 
 int Scale_vulkan::destroy_pipeline(const Option& opt)
 {
+    UNUSED(opt);
     delete pipeline_scale;
     pipeline_scale = 0;
 
@@ -121,6 +122,7 @@ int Scale_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
 {
+    UNUSED(opt);
     VkMat& bottom_top_blob = bottom_top_blobs[0];
     const VkMat& scale_blob = bottom_top_blobs[1];
 

@@ -102,6 +102,7 @@ int LRN_vulkan::create_pipeline(const Option& opt)
 
 int LRN_vulkan::destroy_pipeline(const Option& opt)
 {
+    UNUSED(opt);
     delete pipeline_lrn_square_pad;
     pipeline_lrn_square_pad = 0;
 

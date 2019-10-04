@@ -51,6 +51,7 @@ int Clip_vulkan::create_pipeline(const Option& opt)
 
 int Clip_vulkan::destroy_pipeline(const Option& opt)
 {
+    UNUSED(opt);
     delete pipeline_clip;
     pipeline_clip = 0;
 
@@ -62,6 +63,7 @@ int Clip_vulkan::destroy_pipeline(const Option& opt)
 
 int Clip_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
+    UNUSED(opt);
     int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(1);
