@@ -49,7 +49,7 @@ int HardSigmoid_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int HardSigmoid_vulkan::destroy_pipeline(const Option& opt)
+int HardSigmoid_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_hardsigmoid;
     pipeline_hardsigmoid = 0;
@@ -60,7 +60,7 @@ int HardSigmoid_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int HardSigmoid_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int HardSigmoid_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     int elempack = bottom_top_blob.elempack;
 

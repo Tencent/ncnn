@@ -48,7 +48,7 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int UnaryOp_vulkan::destroy_pipeline(const Option& opt)
+int UnaryOp_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_unaryop;
     pipeline_unaryop = 0;
@@ -59,7 +59,7 @@ int UnaryOp_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int UnaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int UnaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     int elempack = bottom_top_blob.elempack;
 

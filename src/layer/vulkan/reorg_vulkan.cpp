@@ -56,7 +56,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Reorg_vulkan::destroy_pipeline(const Option& opt)
+int Reorg_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_reorg;
     pipeline_reorg = 0;

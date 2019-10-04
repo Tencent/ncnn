@@ -47,7 +47,7 @@ int AbsVal_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int AbsVal_vulkan::destroy_pipeline(const Option& opt)
+int AbsVal_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_absval;
     pipeline_absval = 0;
@@ -58,7 +58,7 @@ int AbsVal_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     int elempack = bottom_top_blob.elempack;
 

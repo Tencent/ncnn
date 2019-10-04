@@ -64,7 +64,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Crop_vulkan::destroy_pipeline(const Option& opt)
+int Crop_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_crop;
     pipeline_crop = 0;
@@ -90,7 +90,6 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     int elempack = bottom_blob.elempack;
 
     // TODO vec and image crop
-    int dims = bottom_blob.dims;
 
     int _woffset = woffset;
     int _hoffset = hoffset;
@@ -221,14 +220,11 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& reference_blob = bottom_blobs[1];
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     // TODO vec and image crop
-    int dims = bottom_blob.dims;
 
     int _woffset = woffset;
     int _hoffset = hoffset;
