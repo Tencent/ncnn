@@ -49,7 +49,7 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Padding_vulkan::destroy_pipeline(const Option& opt)
+int Padding_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_padding;
     pipeline_padding = 0;
@@ -75,7 +75,6 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int elempack = bottom_blob.elempack;
 
     // TODO vec and image padding
-    int dims = bottom_blob.dims;
 
     int outw = w + left + right;
     int outh = h + top + bottom;
@@ -142,7 +141,6 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int elempack = bottom_blob.elempack;
 
     // TODO vec and image padding
-    int dims = bottom_blob.dims;
 
     int outw = w + _left + _right;
     int outh = h + _top + _bottom;

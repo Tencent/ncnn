@@ -29,6 +29,7 @@ public:
 
     virtual int upload_model(VkTransfer& cmd, const Option& opt);
 
+    using PriorBox::forward;
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
 public:

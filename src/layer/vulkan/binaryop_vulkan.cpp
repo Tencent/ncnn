@@ -89,7 +89,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int BinaryOp_vulkan::destroy_pipeline(const Option& opt)
+int BinaryOp_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_binaryop;
     pipeline_binaryop = 0;
@@ -198,7 +198,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     return 0;
 }
 
-int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     int elempack = bottom_top_blob.elempack;
 

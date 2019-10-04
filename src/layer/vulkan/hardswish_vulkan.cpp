@@ -49,7 +49,7 @@ int HardSwish_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int HardSwish_vulkan::destroy_pipeline(const Option& opt)
+int HardSwish_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_hardswish;
     pipeline_hardswish = 0;
@@ -60,7 +60,7 @@ int HardSwish_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int HardSwish_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int HardSwish_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     int elempack = bottom_top_blob.elempack;
 
