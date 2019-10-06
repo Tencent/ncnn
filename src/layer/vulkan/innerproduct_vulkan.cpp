@@ -274,7 +274,6 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 

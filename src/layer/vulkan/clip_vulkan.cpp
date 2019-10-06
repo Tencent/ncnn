@@ -49,7 +49,7 @@ int Clip_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Clip_vulkan::destroy_pipeline(const Option& opt)
+int Clip_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_clip;
     pipeline_clip = 0;
@@ -60,7 +60,7 @@ int Clip_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Clip_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int Clip_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     int elempack = bottom_top_blob.elempack;
 

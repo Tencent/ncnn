@@ -110,7 +110,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int InstanceNorm_vulkan::destroy_pipeline(const Option& opt)
+int InstanceNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_instancenorm_reduce_sum4_fp16_to_fp32;
     pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = 0;
