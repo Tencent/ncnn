@@ -14,6 +14,8 @@
 
 #include "innerproduct_arm.h"
 
+#include "layer_type.h"
+
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
@@ -28,6 +30,8 @@ InnerProduct_arm::InnerProduct_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+    flatten = 0;
 }
 
 int InnerProduct_arm::create_pipeline(const Option& opt)
@@ -37,6 +41,16 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
+
+    {
+        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+
+        ncnn::ParamDict pd;
+
+        flatten->load_param(pd);
+
+        flatten->create_pipeline(opt);
+    }
 
     // pack4
     if (num_input % 4 == 0 && num_output % 4 == 0)
@@ -157,6 +171,18 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     return 0;
 }
 
+int InnerProduct_arm::destroy_pipeline(const Option& opt)
+{
+    if (flatten)
+    {
+        flatten->destroy_pipeline(opt);
+        delete flatten;
+        flatten = 0;
+    }
+
+    return 0;
+}
+
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     if (use_int8_inference)
@@ -176,7 +202,16 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (opt.use_packing_layout)
     {
 
-    int num_input = bottom_blob.w;
+    // flatten
+    Mat bottom_blob_flattened = bottom_blob;
+    {
+        ncnn::Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+    }
+
+    int num_input = bottom_blob_flattened.w;
 
     int out_elempack = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -192,7 +227,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         for (int p=0; p<num_output / out_elempack; p++)
         {
             const float* w = (const float*)weight_data_pack4 + num_input * p * 16;
-            const float* m = bottom_blob;
+            const float* m = bottom_blob_flattened;
 
             float32x4_t _sum = vdupq_n_f32(0.f);
 
@@ -273,7 +308,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         for (int p=0; p<num_output / out_elempack; p++)
         {
             const float* w = (const float*)weight_data_pack1to4 + num_input * p * 4;
-            const float* m = bottom_blob;
+            const float* m = bottom_blob_flattened;
 
             float32x4_t _sum = vdupq_n_f32(0.f);
 
@@ -338,7 +373,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         for (int p=0; p<num_output; p++)
         {
             const float* w = (const float*)weight_data_pack4to1 + num_input * p * 4;
-            const float* m = bottom_blob;
+            const float* m = bottom_blob_flattened;
 
             float sum = 0.f;
 
