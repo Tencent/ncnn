@@ -19,6 +19,7 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
+#include "neon_activation.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -588,37 +589,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                         _sum = vmlaq_f32(_sum, _val, _w);
                     }
 
-                    if (activation_type == 1)
-                    {
-                        float32x4_t _zero = vdupq_n_f32(0.f);
-                        _sum = vmaxq_f32(_sum, _zero);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float32x4_t _zero = vdupq_n_f32(0.f);
-                        float32x4_t _slope = vdupq_n_f32(activation_params[0]);
-                        uint32x4_t _lemask = vcleq_f32(_sum, _zero);
-                        float32x4_t _ps = vmulq_f32(_sum, _slope);
-                        _sum = vbslq_f32(_lemask, _ps, _sum);
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float32x4_t _min = vdupq_n_f32(activation_params[0]);
-                        float32x4_t _max = vdupq_n_f32(activation_params[1]);
-                        _sum = vmaxq_f32(_sum, _min);
-                        _sum = vminq_f32(_sum, _max);
-                    }
-                    else if (activation_type == 4)
-                    {
-                        float32x4_t _one = vdupq_n_f32(1.f);
-                        _sum = vnegq_f32(_sum);
-                        _sum = exp_ps(_sum);
-                        _sum = vaddq_f32(_sum, _one);
-                        float32x4_t _outp = vrecpeq_f32(_sum);
-                        _outp = vmulq_f32(vrecpsq_f32(_sum, _outp), _outp);
-//                         _outp = vmulq_f32(vrecpsq_f32(_sum, _outp), _outp);
-                        _sum = _outp;
-                    }
+                    _sum = activation_ps(_sum, activation_type, activation_params);
 
                     vst1q_f32(outptr + j * 4, _sum);
                 }
@@ -709,37 +680,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                             }
                         }
 
-                        if (activation_type == 1)
-                        {
-                            float32x4_t _zero = vdupq_n_f32(0.f);
-                            _sum = vmaxq_f32(_sum, _zero);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float32x4_t _zero = vdupq_n_f32(0.f);
-                            float32x4_t _slope = vdupq_n_f32(activation_params[0]);
-                            uint32x4_t _lemask = vcleq_f32(_sum, _zero);
-                            float32x4_t _ps = vmulq_f32(_sum, _slope);
-                            _sum = vbslq_f32(_lemask, _ps, _sum);
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float32x4_t _min = vdupq_n_f32(activation_params[0]);
-                            float32x4_t _max = vdupq_n_f32(activation_params[1]);
-                            _sum = vmaxq_f32(_sum, _min);
-                            _sum = vminq_f32(_sum, _max);
-                        }
-                        else if (activation_type == 4)
-                        {
-                            float32x4_t _one = vdupq_n_f32(1.f);
-                            _sum = vnegq_f32(_sum);
-                            _sum = exp_ps(_sum);
-                            _sum = vaddq_f32(_sum, _one);
-                            float32x4_t _outp = vrecpeq_f32(_sum);
-                            _outp = vmulq_f32(vrecpsq_f32(_sum, _outp), _outp);
-//                             _outp = vmulq_f32(vrecpsq_f32(_sum, _outp), _outp);
-                            _sum = _outp;
-                        }
+                        _sum = activation_ps(_sum, activation_type, activation_params);
 
                         vst1q_f32(outptr + j * 4, _sum);
                     }
@@ -793,37 +734,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                             }
                         }
 
-                        if (activation_type == 1)
-                        {
-                            float32x4_t _zero = vdupq_n_f32(0.f);
-                            _sum = vmaxq_f32(_sum, _zero);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float32x4_t _zero = vdupq_n_f32(0.f);
-                            float32x4_t _slope = vdupq_n_f32(activation_params[0]);
-                            uint32x4_t _lemask = vcleq_f32(_sum, _zero);
-                            float32x4_t _ps = vmulq_f32(_sum, _slope);
-                            _sum = vbslq_f32(_lemask, _ps, _sum);
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float32x4_t _min = vdupq_n_f32(activation_params[0]);
-                            float32x4_t _max = vdupq_n_f32(activation_params[1]);
-                            _sum = vmaxq_f32(_sum, _min);
-                            _sum = vminq_f32(_sum, _max);
-                        }
-                        else if (activation_type == 4)
-                        {
-                            float32x4_t _one = vdupq_n_f32(1.f);
-                            _sum = vnegq_f32(_sum);
-                            _sum = exp_ps(_sum);
-                            _sum = vaddq_f32(_sum, _one);
-                            float32x4_t _outp = vrecpeq_f32(_sum);
-                            _outp = vmulq_f32(vrecpsq_f32(_sum, _outp), _outp);
-//                             _outp = vmulq_f32(vrecpsq_f32(_sum, _outp), _outp);
-                            _sum = _outp;
-                        }
+                        _sum = activation_ps(_sum, activation_type, activation_params);
 
                         vst1q_f32(outptr + j * 4, _sum);
                     }
@@ -882,28 +793,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                             }
                         }
 
-                        if (activation_type == 1)
-                        {
-                            sum = std::max(sum, 0.f);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float slope = activation_params[0];
-                            sum = sum > 0.f ? sum : sum * slope;
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float min = activation_params[0];
-                            float max = activation_params[1];
-                            if (sum < min)
-                                sum = min;
-                            if (sum > max)
-                                sum = max;
-                        }
-                        else if (activation_type == 4)
-                        {
-                            sum = 1.f / (1.f + exp(-sum));
-                        }
+                        sum = activation_ss(sum, activation_type, activation_params);
 
                         outptr[j] = sum;
                     }
