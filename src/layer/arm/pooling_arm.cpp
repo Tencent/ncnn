@@ -25,6 +25,7 @@ namespace ncnn {
 #include "pooling_3x3.h"
 
 #if __ARM_NEON
+#include "pooling_2x2_pack4.h"
 #include "pooling_3x3_pack4.h"
 #endif
 
@@ -217,6 +218,13 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (pooling_type == PoolMethod_MAX)
         {
+            if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
+            {
+                pooling2x2s2_max_pack4_neon(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+
             if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2)
             {
                 pooling3x3s2_max_pack4_neon(bottom_blob_bordered, top_blob, opt);

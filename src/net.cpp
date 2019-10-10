@@ -154,7 +154,10 @@ int Net::load_param(FILE* fp)
     if (opt.use_vulkan_compute)
     {
         if (!vkdev) vkdev = get_gpu_device();
-
+        if (!vkdev) opt.use_vulkan_compute = false;// no vulkan device, fallback to cpu
+    }
+    if (opt.use_vulkan_compute)
+    {
         // sanitize use options
         if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
         if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
@@ -325,7 +328,10 @@ int Net::load_param_mem(const char* _mem)
     if (opt.use_vulkan_compute)
     {
         if (!vkdev) vkdev = get_gpu_device();
-
+        if (!vkdev) opt.use_vulkan_compute = false;// no vulkan device, fallback to cpu
+    }
+    if (opt.use_vulkan_compute)
+    {
         // sanitize use options
         if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
         if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
@@ -500,7 +506,10 @@ int Net::load_param_bin(FILE* fp)
     if (opt.use_vulkan_compute)
     {
         if (!vkdev) vkdev = get_gpu_device();
-
+        if (!vkdev) opt.use_vulkan_compute = false;// no vulkan device, fallback to cpu
+    }
+    if (opt.use_vulkan_compute)
+    {
         // sanitize use options
         if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
         if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
@@ -720,7 +729,10 @@ int Net::load_param(const unsigned char* _mem)
     if (opt.use_vulkan_compute)
     {
         if (!vkdev) vkdev = get_gpu_device();
-
+        if (!vkdev) opt.use_vulkan_compute = false;// no vulkan device, fallback to cpu
+    }
+    if (opt.use_vulkan_compute)
+    {
         // sanitize use options
         if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
         if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;

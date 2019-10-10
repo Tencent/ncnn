@@ -14,9 +14,12 @@
 
 #include "innerproduct_arm.h"
 
+#include "layer_type.h"
+
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
+#include "neon_activation.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -28,6 +31,8 @@ InnerProduct_arm::InnerProduct_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+    flatten = 0;
 }
 
 int InnerProduct_arm::create_pipeline(const Option& opt)
@@ -37,6 +42,16 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
+
+    {
+        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+
+        ncnn::ParamDict pd;
+
+        flatten->load_param(pd);
+
+        flatten->create_pipeline(opt);
+    }
 
     // pack4
     if (num_input % 4 == 0 && num_output % 4 == 0)
@@ -157,6 +172,18 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     return 0;
 }
 
+int InnerProduct_arm::destroy_pipeline(const Option& opt)
+{
+    if (flatten)
+    {
+        flatten->destroy_pipeline(opt);
+        delete flatten;
+        flatten = 0;
+    }
+
+    return 0;
+}
+
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     if (use_int8_inference)
@@ -176,7 +203,16 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (opt.use_packing_layout)
     {
 
-    int num_input = bottom_blob.w;
+    // flatten
+    Mat bottom_blob_flattened = bottom_blob;
+    {
+        ncnn::Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+    }
+
+    int num_input = bottom_blob_flattened.w;
 
     int out_elempack = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -192,7 +228,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         for (int p=0; p<num_output / out_elempack; p++)
         {
             const float* w = (const float*)weight_data_pack4 + num_input * p * 16;
-            const float* m = bottom_blob;
+            const float* m = bottom_blob_flattened;
 
             float32x4_t _sum = vdupq_n_f32(0.f);
 
@@ -227,37 +263,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 m += 4;
             }
 
-            if (activation_type == 1)
-            {
-                float32x4_t _zero = vdupq_n_f32(0.f);
-                _sum = vmaxq_f32(_sum, _zero);
-            }
-            else if (activation_type == 2)
-            {
-                float32x4_t _zero = vdupq_n_f32(0.f);
-                float32x4_t _slope = vdupq_n_f32(activation_params[0]);
-                uint32x4_t _lemask = vcleq_f32(_sum, _zero);
-                float32x4_t _ps = vmulq_f32(_sum, _slope);
-                _sum = vbslq_f32(_lemask, _ps, _sum);
-            }
-            else if (activation_type == 3)
-            {
-                float32x4_t _min = vdupq_n_f32(activation_params[0]);
-                float32x4_t _max = vdupq_n_f32(activation_params[1]);
-                _sum = vmaxq_f32(_sum, _min);
-                _sum = vminq_f32(_sum, _max);
-            }
-            else if (activation_type == 4)
-            {
-                float32x4_t _one = vdupq_n_f32(1.f);
-                _sum = vnegq_f32(_sum);
-                _sum = exp_ps(_sum);
-                _sum = vaddq_f32(_sum, _one);
-                float32x4_t _outp = vrecpeq_f32(_sum);
-                _outp = vmulq_f32(vrecpsq_f32(_sum, _outp), _outp);
-//                 _outp = vmulq_f32(vrecpsq_f32(_sum, _outp), _outp);
-                _sum = _outp;
-            }
+            _sum = activation_ps(_sum, activation_type, activation_params);
 
             float* outptr = top_blob;
             vst1q_f32(outptr + p * 4, _sum);
@@ -273,7 +279,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         for (int p=0; p<num_output / out_elempack; p++)
         {
             const float* w = (const float*)weight_data_pack1to4 + num_input * p * 4;
-            const float* m = bottom_blob;
+            const float* m = bottom_blob_flattened;
 
             float32x4_t _sum = vdupq_n_f32(0.f);
 
@@ -292,37 +298,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 w += 4;
             }
 
-            if (activation_type == 1)
-            {
-                float32x4_t _zero = vdupq_n_f32(0.f);
-                _sum = vmaxq_f32(_sum, _zero);
-            }
-            else if (activation_type == 2)
-            {
-                float32x4_t _zero = vdupq_n_f32(0.f);
-                float32x4_t _slope = vdupq_n_f32(activation_params[0]);
-                uint32x4_t _lemask = vcleq_f32(_sum, _zero);
-                float32x4_t _ps = vmulq_f32(_sum, _slope);
-                _sum = vbslq_f32(_lemask, _ps, _sum);
-            }
-            else if (activation_type == 3)
-            {
-                float32x4_t _min = vdupq_n_f32(activation_params[0]);
-                float32x4_t _max = vdupq_n_f32(activation_params[1]);
-                _sum = vmaxq_f32(_sum, _min);
-                _sum = vminq_f32(_sum, _max);
-            }
-            else if (activation_type == 4)
-            {
-                float32x4_t _one = vdupq_n_f32(1.f);
-                _sum = vnegq_f32(_sum);
-                _sum = exp_ps(_sum);
-                _sum = vaddq_f32(_sum, _one);
-                float32x4_t _outp = vrecpeq_f32(_sum);
-                _outp = vmulq_f32(vrecpsq_f32(_sum, _outp), _outp);
-//                 _outp = vmulq_f32(vrecpsq_f32(_sum, _outp), _outp);
-                _sum = _outp;
-            }
+            _sum = activation_ps(_sum, activation_type, activation_params);
 
             float* outptr = top_blob;
             vst1q_f32(outptr + p * 4, _sum);
@@ -338,7 +314,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         for (int p=0; p<num_output; p++)
         {
             const float* w = (const float*)weight_data_pack4to1 + num_input * p * 4;
-            const float* m = bottom_blob;
+            const float* m = bottom_blob_flattened;
 
             float sum = 0.f;
 
@@ -363,28 +339,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 m += 4;
             }
 
-            if (activation_type == 1)
-            {
-                sum = std::max(sum, 0.f);
-            }
-            else if (activation_type == 2)
-            {
-                float slope = activation_params[0];
-                sum = sum > 0.f ? sum : sum * slope;
-            }
-            else if (activation_type == 3)
-            {
-                float min = activation_params[0];
-                float max = activation_params[1];
-                if (sum < min)
-                    sum = min;
-                if (sum > max)
-                    sum = max;
-            }
-            else if (activation_type == 4)
-            {
-                sum = 1.f / (1.f + exp(-sum));
-            }
+            sum = activation_ss(sum, activation_type, activation_params);
 
             top_blob[p] = sum;
         }

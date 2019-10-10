@@ -12,6 +12,545 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
+{
+    int inch = bottom_blob.c;
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    const float* bias = _bias;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p=0; p<outch; p++)
+    {
+        Mat out0 = top_blob.channel(p);
+
+        float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
+        out0.fill(_bias0);
+
+        const float* k0 = kernel.channel(p);
+
+        for (int q=0; q<inch; q++)
+        {
+            float* outptr0 = out0.row(0);
+
+            const Mat img0 = bottom_blob.channel(q);
+
+            const float* r0 = img0.row(0);
+            const float* r1 = img0.row(1);
+            const float* r2 = img0.row(2);
+
+            float32x4_t _k00 = vld1q_f32(k0);
+            float32x4_t _k01 = vld1q_f32(k0+4);
+            float32x4_t _k02 = vld1q_f32(k0+8);
+            float32x4_t _k10 = vld1q_f32(k0+12);
+            float32x4_t _k11 = vld1q_f32(k0+16);
+            float32x4_t _k12 = vld1q_f32(k0+20);
+            float32x4_t _k20 = vld1q_f32(k0+24);
+            float32x4_t _k21 = vld1q_f32(k0+28);
+            float32x4_t _k22 = vld1q_f32(k0+32);
+
+            int i = 0;
+
+            for (; i < outh; i++)
+            {
+                int j = 0;
+
+#if __aarch64__
+                for (; j+7<outw; j+=8)
+                {
+                    asm volatile(
+                        "prfm   pldl1keep, [%0, #512]       \n"
+                        "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+
+                        "prfm   pldl1keep, [%1, #256]       \n"
+                        "ld1    {v0.4s, v1.4s}, [%1], #32   \n"
+
+                        "prfm   pldl1keep, [%0, #512]       \n"
+                        "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0] \n"
+
+                        "fmla   v24.4s, %8.4s, v0.s[0]      \n"
+                        "fmla   v25.4s, %8.4s, v0.s[1]      \n"
+                        "fmla   v26.4s, %8.4s, v0.s[2]      \n"
+                        "fmla   v27.4s, %8.4s, v0.s[3]      \n"
+                        "fmla   v28.4s, %8.4s, v1.s[0]      \n"
+                        "fmla   v29.4s, %8.4s, v1.s[1]      \n"
+                        "fmla   v30.4s, %8.4s, v1.s[2]      \n"
+                        "fmla   v31.4s, %8.4s, v1.s[3]      \n"
+
+                        "ld1    {v2.2s}, [%1]               \n"
+
+                        "fmla   v24.4s, %9.4s, v0.s[1]      \n"
+                        "fmla   v25.4s, %9.4s, v0.s[2]      \n"
+                        "fmla   v26.4s, %9.4s, v0.s[3]      \n"
+                        "fmla   v27.4s, %9.4s, v1.s[0]      \n"
+                        "fmla   v28.4s, %9.4s, v1.s[1]      \n"
+                        "fmla   v29.4s, %9.4s, v1.s[2]      \n"
+                        "fmla   v30.4s, %9.4s, v1.s[3]      \n"
+                        "fmla   v31.4s, %9.4s, v2.s[0]      \n"
+
+                        "prfm   pldl1keep, [%2, #256]       \n"
+                        "ld1    {v4.4s, v5.4s}, [%2], #32   \n"
+
+                        "fmla   v24.4s, %10.4s, v0.s[2]     \n"
+                        "fmla   v25.4s, %10.4s, v0.s[3]     \n"
+                        "fmla   v26.4s, %10.4s, v1.s[0]     \n"
+                        "fmla   v27.4s, %10.4s, v1.s[1]     \n"
+                        "fmla   v28.4s, %10.4s, v1.s[2]     \n"
+                        "fmla   v29.4s, %10.4s, v1.s[3]     \n"
+                        "fmla   v30.4s, %10.4s, v2.s[0]     \n"
+                        "fmla   v31.4s, %10.4s, v2.s[1]     \n"
+
+                        "ld1    {v2.2s}, [%2]               \n"
+
+                        "fmla   v24.4s, %11.4s, v4.s[0]     \n"
+                        "fmla   v25.4s, %11.4s, v4.s[1]     \n"
+                        "fmla   v26.4s, %11.4s, v4.s[2]     \n"
+                        "fmla   v27.4s, %11.4s, v4.s[3]     \n"
+                        "fmla   v28.4s, %11.4s, v5.s[0]     \n"
+                        "fmla   v29.4s, %11.4s, v5.s[1]     \n"
+                        "fmla   v30.4s, %11.4s, v5.s[2]     \n"
+                        "fmla   v31.4s, %11.4s, v5.s[3]     \n"
+
+                        "fmla   v24.4s, %12.4s, v4.s[1]     \n"
+                        "fmla   v25.4s, %12.4s, v4.s[2]     \n"
+                        "fmla   v26.4s, %12.4s, v4.s[3]     \n"
+                        "fmla   v27.4s, %12.4s, v5.s[0]     \n"
+                        "fmla   v28.4s, %12.4s, v5.s[1]     \n"
+                        "fmla   v29.4s, %12.4s, v5.s[2]     \n"
+                        "fmla   v30.4s, %12.4s, v5.s[3]     \n"
+                        "fmla   v31.4s, %12.4s, v2.s[0]     \n"
+
+                        "prfm   pldl1keep, [%3, #256]       \n"
+                        "ld1    {v0.4s, v1.4s}, [%3], #32   \n"
+
+                        "fmla   v24.4s, %13.4s, v4.s[2]     \n"
+                        "fmla   v25.4s, %13.4s, v4.s[3]     \n"
+                        "fmla   v26.4s, %13.4s, v5.s[0]     \n"
+                        "fmla   v27.4s, %13.4s, v5.s[1]     \n"
+                        "fmla   v28.4s, %13.4s, v5.s[2]     \n"
+                        "fmla   v29.4s, %13.4s, v5.s[3]     \n"
+                        "fmla   v30.4s, %13.4s, v2.s[0]     \n"
+                        "fmla   v31.4s, %13.4s, v2.s[1]     \n"
+
+                        "ld1    {v2.2s}, [%3]               \n"
+
+                        "fmla   v24.4s, %14.4s, v0.s[0]     \n"
+                        "fmla   v25.4s, %14.4s, v0.s[1]     \n"
+                        "fmla   v26.4s, %14.4s, v0.s[2]     \n"
+                        "fmla   v27.4s, %14.4s, v0.s[3]     \n"
+                        "fmla   v28.4s, %14.4s, v1.s[0]     \n"
+                        "fmla   v29.4s, %14.4s, v1.s[1]     \n"
+                        "fmla   v30.4s, %14.4s, v1.s[2]     \n"
+                        "fmla   v31.4s, %14.4s, v1.s[3]     \n"
+
+                        "fmla   v24.4s, %15.4s, v0.s[1]     \n"
+                        "fmla   v25.4s, %15.4s, v0.s[2]     \n"
+                        "fmla   v26.4s, %15.4s, v0.s[3]     \n"
+                        "fmla   v27.4s, %15.4s, v1.s[0]     \n"
+                        "fmla   v28.4s, %15.4s, v1.s[1]     \n"
+                        "fmla   v29.4s, %15.4s, v1.s[2]     \n"
+                        "fmla   v30.4s, %15.4s, v1.s[3]     \n"
+                        "fmla   v31.4s, %15.4s, v2.s[0]     \n"
+
+                        "sub    %0, %0, #64                 \n"
+
+                        "fmla   v24.4s, %16.4s, v0.s[2]     \n"
+                        "fmla   v25.4s, %16.4s, v0.s[3]     \n"
+                        "fmla   v26.4s, %16.4s, v1.s[0]     \n"
+                        "fmla   v27.4s, %16.4s, v1.s[1]     \n"
+                        "fmla   v28.4s, %16.4s, v1.s[2]     \n"
+                        "fmla   v29.4s, %16.4s, v1.s[3]     \n"
+                        "fmla   v30.4s, %16.4s, v2.s[0]     \n"
+                        "fmla   v31.4s, %16.4s, v2.s[1]     \n"
+
+                        "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+
+                        : "=r"(outptr0),    // %0
+                          "=r"(r0),         // %1
+                          "=r"(r1),         // %2
+                          "=r"(r2)          // %3
+                        : "0"(outptr0),
+                          "1"(r0),
+                          "2"(r1),
+                          "3"(r2),
+                          "w"(_k00),        // %8
+                          "w"(_k01),        // %9
+                          "w"(_k02),        // %10
+                          "w"(_k10),        // %11
+                          "w"(_k11),        // %12
+                          "w"(_k12),        // %13
+                          "w"(_k20),        // %14
+                          "w"(_k21),        // %15
+                          "w"(_k22)         // %16
+                        : "memory", "v0", "v1", "v2", "v4", "v5", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+                    );
+                }
+#endif // __aarch64__
+                for (; j+3<outw; j+=4)
+                {
+#if __aarch64__
+                    asm volatile(
+                        "prfm   pldl1keep, [%0, #512]       \n"
+                        "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0] \n"
+
+                        "prfm   pldl1keep, [%1, #128]       \n"
+                        "ld1    {v0.4s}, [%1], #16          \n"
+
+                        "fmla   v24.4s, %8.4s, v0.s[0]      \n"
+                        "fmla   v25.4s, %8.4s, v0.s[1]      \n"
+                        "fmla   v26.4s, %8.4s, v0.s[2]      \n"
+                        "fmla   v27.4s, %8.4s, v0.s[3]      \n"
+
+                        "ld1    {v1.2s}, [%1]               \n"
+
+                        "fmla   v24.4s, %9.4s, v0.s[1]      \n"
+                        "fmla   v25.4s, %9.4s, v0.s[2]      \n"
+                        "fmla   v26.4s, %9.4s, v0.s[3]      \n"
+                        "fmla   v27.4s, %9.4s, v1.s[0]      \n"
+
+                        "prfm   pldl1keep, [%2, #128]       \n"
+                        "ld1    {v2.4s}, [%2], #16          \n"
+
+                        "fmla   v24.4s, %10.4s, v0.s[2]     \n"
+                        "fmla   v25.4s, %10.4s, v0.s[3]     \n"
+                        "fmla   v26.4s, %10.4s, v1.s[0]     \n"
+                        "fmla   v27.4s, %10.4s, v1.s[1]     \n"
+
+                        "ld1    {v3.2s}, [%2]               \n"
+
+                        "fmla   v24.4s, %11.4s, v2.s[0]     \n"
+                        "fmla   v25.4s, %11.4s, v2.s[1]     \n"
+                        "fmla   v26.4s, %11.4s, v2.s[2]     \n"
+                        "fmla   v27.4s, %11.4s, v2.s[3]     \n"
+
+                        "fmla   v24.4s, %12.4s, v2.s[1]     \n"
+                        "fmla   v25.4s, %12.4s, v2.s[2]     \n"
+                        "fmla   v26.4s, %12.4s, v2.s[3]     \n"
+                        "fmla   v27.4s, %12.4s, v3.s[0]     \n"
+
+                        "prfm   pldl1keep, [%3, #128]       \n"
+                        "ld1    {v0.4s}, [%3], #16          \n"
+
+                        "fmla   v24.4s, %13.4s, v2.s[2]     \n"
+                        "fmla   v25.4s, %13.4s, v2.s[3]     \n"
+                        "fmla   v26.4s, %13.4s, v3.s[0]     \n"
+                        "fmla   v27.4s, %13.4s, v3.s[1]     \n"
+
+                        "ld1    {v1.2s}, [%3]               \n"
+
+                        "fmla   v24.4s, %14.4s, v0.s[0]     \n"
+                        "fmla   v25.4s, %14.4s, v0.s[1]     \n"
+                        "fmla   v26.4s, %14.4s, v0.s[2]     \n"
+                        "fmla   v27.4s, %14.4s, v0.s[3]     \n"
+
+                        "fmla   v24.4s, %15.4s, v0.s[1]     \n"
+                        "fmla   v25.4s, %15.4s, v0.s[2]     \n"
+                        "fmla   v26.4s, %15.4s, v0.s[3]     \n"
+                        "fmla   v27.4s, %15.4s, v1.s[0]     \n"
+
+                        "fmla   v24.4s, %16.4s, v0.s[2]     \n"
+                        "fmla   v25.4s, %16.4s, v0.s[3]     \n"
+                        "fmla   v26.4s, %16.4s, v1.s[0]     \n"
+                        "fmla   v27.4s, %16.4s, v1.s[1]     \n"
+
+                        "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+
+                        : "=r"(outptr0),    // %0
+                          "=r"(r0),         // %1
+                          "=r"(r1),         // %2
+                          "=r"(r2)          // %3
+                        : "0"(outptr0),
+                          "1"(r0),
+                          "2"(r1),
+                          "3"(r2),
+                          "w"(_k00),        // %8
+                          "w"(_k01),        // %9
+                          "w"(_k02),        // %10
+                          "w"(_k10),        // %11
+                          "w"(_k11),        // %12
+                          "w"(_k12),        // %13
+                          "w"(_k20),        // %14
+                          "w"(_k21),        // %15
+                          "w"(_k22)         // %16
+                        : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27"
+                    );
+#else // __aarch64__
+                    asm volatile(
+                        "pld        [%0, #512]          \n"
+                        "vldm       %0, {d24-d31}       \n"
+
+                        "pld        [%1, #128]          \n"
+                        "vld1.f32   {d0-d1}, [%1]!      \n"
+
+                        "vmla.f32   q12, %q8, d0[0]     \n"
+                        "vmla.f32   q13, %q8, d0[1]     \n"
+                        "vmla.f32   q14, %q8, d1[0]     \n"
+                        "vmla.f32   q15, %q8, d1[1]     \n"
+
+                        "vld1.f32   {d2}, [%1]          \n"
+
+                        "vmla.f32   q12, %q9, d0[1]     \n"
+                        "vmla.f32   q13, %q9, d1[0]     \n"
+                        "vmla.f32   q14, %q9, d1[1]     \n"
+                        "vmla.f32   q15, %q9, d2[0]     \n"
+
+                        "pld        [%2, #128]          \n"
+                        "vld1.f32   {d4-d5}, [%2]!      \n"
+
+                        "vmla.f32   q12, %q10, d1[0]    \n"
+                        "vmla.f32   q13, %q10, d1[1]    \n"
+                        "vmla.f32   q14, %q10, d2[0]    \n"
+                        "vmla.f32   q15, %q10, d2[1]    \n"
+
+                        "vmla.f32   q12, %q11, d4[0]    \n"
+                        "vmla.f32   q13, %q11, d4[1]    \n"
+                        "vmla.f32   q14, %q11, d5[0]    \n"
+                        "vmla.f32   q15, %q11, d5[1]    \n"
+
+                        "vld1.f32   {d3}, [%2]          \n"
+
+                        "vmla.f32   q12, %q12, d4[1]    \n"
+                        "vmla.f32   q13, %q12, d5[0]    \n"
+                        "vmla.f32   q14, %q12, d5[1]    \n"
+                        "vmla.f32   q15, %q12, d3[0]    \n"
+
+                        "pld        [%3, #128]          \n"
+                        "vld1.f32   {d0-d1}, [%3]!      \n"
+
+                        "vmla.f32   q12, %q13, d5[0]    \n"
+                        "vmla.f32   q13, %q13, d5[1]    \n"
+                        "vmla.f32   q14, %q13, d3[0]    \n"
+                        "vmla.f32   q15, %q13, d3[1]    \n"
+
+                        "vmla.f32   q12, %q14, d0[0]    \n"
+                        "vmla.f32   q13, %q14, d0[1]    \n"
+                        "vmla.f32   q14, %q14, d1[0]    \n"
+                        "vmla.f32   q15, %q14, d1[1]    \n"
+
+                        "vld1.f32   {d2}, [%3]          \n"
+
+                        "vmla.f32   q12, %q15, d0[1]    \n"
+                        "vmla.f32   q13, %q15, d1[0]    \n"
+                        "vmla.f32   q14, %q15, d1[1]    \n"
+                        "vmla.f32   q15, %q15, d2[0]    \n"
+
+                        "vmla.f32   q12, %q16, d1[0]    \n"
+                        "vmla.f32   q13, %q16, d1[1]    \n"
+                        "vmla.f32   q14, %q16, d2[0]    \n"
+                        "vmla.f32   q15, %q16, d2[1]    \n"
+
+                        "vstm       %0!, {d24-d31}      \n"
+
+                        : "=r"(outptr0),    // %0
+                          "=r"(r0),         // %1
+                          "=r"(r1),         // %2
+                          "=r"(r2)          // %3
+                        : "0"(outptr0),
+                          "1"(r0),
+                          "2"(r1),
+                          "3"(r2),
+                          "w"(_k00),        // %8
+                          "w"(_k01),        // %9
+                          "w"(_k02),        // %10
+                          "w"(_k10),        // %11
+                          "w"(_k11),        // %12
+                          "w"(_k12),        // %13
+                          "w"(_k20),        // %14
+                          "w"(_k21),        // %15
+                          "w"(_k22)         // %16
+                        : "memory", "q0", "q1", "q2", "q12", "q13", "q14", "q15"
+                    );
+#endif // __aarch64__
+                }
+                for (; j+1<outw; j+=2)
+                {
+#if __aarch64__
+                    asm volatile(
+                        "prfm   pldl1keep, [%0, #256]       \n"
+                        "ld1    {v24.4s, v25.4s}, [%0]      \n"
+
+                        "prfm   pldl1keep, [%1, #128]       \n"
+                        "ld1    {v0.4s}, [%1]               \n"
+
+                        "fmul   v26.4s, %8.4s, v0.s[0]      \n"
+                        "fmul   v27.4s, %8.4s, v0.s[1]      \n"
+                        "fmla   v24.4s, %9.4s, v0.s[1]      \n"
+                        "fmla   v25.4s, %9.4s, v0.s[2]      \n"
+
+                        "prfm   pldl1keep, [%2, #128]       \n"
+                        "ld1    {v1.4s}, [%2]               \n"
+
+                        "fmla   v26.4s, %10.4s, v0.s[2]     \n"
+                        "fmla   v27.4s, %10.4s, v0.s[3]     \n"
+                        "fmla   v24.4s, %11.4s, v1.s[0]     \n"
+                        "fmla   v25.4s, %11.4s, v1.s[1]     \n"
+
+                        "add    %1, %1, #8                  \n"
+
+                        "fmla   v26.4s, %12.4s, v1.s[1]     \n"
+                        "fmla   v27.4s, %12.4s, v1.s[2]     \n"
+
+                        "prfm   pldl1keep, [%3, #128]       \n"
+                        "ld1    {v0.4s}, [%3]               \n"
+
+                        "fmla   v24.4s, %13.4s, v1.s[2]     \n"
+                        "fmla   v25.4s, %13.4s, v1.s[3]     \n"
+                        "fmla   v26.4s, %14.4s, v0.s[0]     \n"
+                        "fmla   v27.4s, %14.4s, v0.s[1]     \n"
+
+                        "add    %2, %2, #8                  \n"
+
+                        "fmla   v24.4s, %15.4s, v0.s[1]     \n"
+                        "fmla   v25.4s, %15.4s, v0.s[2]     \n"
+                        "fmla   v26.4s, %16.4s, v0.s[2]     \n"
+                        "fmla   v27.4s, %16.4s, v0.s[3]     \n"
+
+                        "add    %3, %3, #8                  \n"
+
+                        "fadd   v24.4s, v24.4s, v26.4s      \n"
+                        "fadd   v25.4s, v25.4s, v27.4s      \n"
+
+                        "st1    {v24.4s, v25.4s}, [%0], #32 \n"
+
+                        : "=r"(outptr0),    // %0
+                          "=r"(r0),         // %1
+                          "=r"(r1),         // %2
+                          "=r"(r2)          // %3
+                        : "0"(outptr0),
+                          "1"(r0),
+                          "2"(r1),
+                          "3"(r2),
+                          "w"(_k00),        // %8
+                          "w"(_k01),        // %9
+                          "w"(_k02),        // %10
+                          "w"(_k10),        // %11
+                          "w"(_k11),        // %12
+                          "w"(_k12),        // %13
+                          "w"(_k20),        // %14
+                          "w"(_k21),        // %15
+                          "w"(_k22)         // %16
+                        : "memory", "v0", "v1", "v24", "v25", "v26", "v27"
+                    );
+#else // __aarch64__
+                    asm volatile(
+                        "pld        [%0, #256]          \n"
+                        "vld1.f32   {d24-d27}, [%0 :128] \n"
+
+                        "pld        [%1, #128]          \n"
+                        "vld1.f32   {d0-d1}, [%1]       \n"
+
+                        "vmul.f32   q14, %q8, d0[0]     \n"
+                        "vmul.f32   q15, %q8, d0[1]     \n"
+                        "vmla.f32   q12, %q9, d0[1]     \n"
+                        "vmla.f32   q13, %q9, d1[0]     \n"
+
+                        "pld        [%2, #128]          \n"
+                        "vld1.f32   {d2-d3}, [%2]       \n"
+
+                        "vmla.f32   q14, %q10, d1[0]    \n"
+                        "vmla.f32   q15, %q10, d1[1]    \n"
+                        "vmla.f32   q12, %q11, d2[0]    \n"
+                        "vmla.f32   q13, %q11, d2[1]    \n"
+
+                        "add        %1, %1, #8          \n"
+
+                        "vmla.f32   q14, %q12, d2[1]    \n"
+                        "vmla.f32   q15, %q12, d3[0]    \n"
+
+                        "pld        [%3, #128]          \n"
+                        "vld1.f32   {d0-d1}, [%3]       \n"
+
+                        "vmla.f32   q12, %q13, d3[0]    \n"
+                        "vmla.f32   q13, %q13, d3[1]    \n"
+                        "vmla.f32   q14, %q14, d0[0]    \n"
+                        "vmla.f32   q15, %q14, d0[1]    \n"
+
+                        "add        %2, %2, #8          \n"
+
+                        "vmla.f32   q12, %q15, d0[1]    \n"
+                        "vmla.f32   q13, %q15, d1[0]    \n"
+                        "vmla.f32   q14, %q16, d1[0]    \n"
+                        "vmla.f32   q15, %q16, d1[1]    \n"
+
+                        "add        %3, %3, #8          \n"
+
+                        "vadd.f32   q12, q12, q14       \n"
+                        "vadd.f32   q13, q13, q15       \n"
+
+                        "vst1.f32   {d24-d27}, [%0 :128]! \n"
+
+                        : "=r"(outptr0),    // %0
+                          "=r"(r0),         // %1
+                          "=r"(r1),         // %2
+                          "=r"(r2)          // %3
+                        : "0"(outptr0),
+                          "1"(r0),
+                          "2"(r1),
+                          "3"(r2),
+                          "w"(_k00),        // %8
+                          "w"(_k01),        // %9
+                          "w"(_k02),        // %10
+                          "w"(_k10),        // %11
+                          "w"(_k11),        // %12
+                          "w"(_k12),        // %13
+                          "w"(_k20),        // %14
+                          "w"(_k21),        // %15
+                          "w"(_k22)         // %16
+                        : "memory", "q0", "q1", "q12", "q13", "q14", "q15"
+                    );
+#endif // __aarch64__
+                }
+                for (; j<outw; j++)
+                {
+                    float32x4_t _sum0 = vld1q_f32(outptr0);
+
+                    float32x4_t _r0 = vld1q_f32(r0);
+                    float32x4_t _r1 = vld1q_f32(r1);
+                    float32x4_t _r2 = vld1q_f32(r2);
+
+#if __aarch64__
+                    _sum0 = vfmaq_laneq_f32(_sum0, _k00, _r0, 0);
+                    _sum0 = vfmaq_laneq_f32(_sum0, _k01, _r0, 1);
+                    _sum0 = vfmaq_laneq_f32(_sum0, _k02, _r0, 2);
+                    _sum0 = vfmaq_laneq_f32(_sum0, _k10, _r1, 0);
+                    _sum0 = vfmaq_laneq_f32(_sum0, _k11, _r1, 1);
+                    _sum0 = vfmaq_laneq_f32(_sum0, _k12, _r1, 2);
+                    _sum0 = vfmaq_laneq_f32(_sum0, _k20, _r2, 0);
+                    _sum0 = vfmaq_laneq_f32(_sum0, _k21, _r2, 1);
+                    _sum0 = vfmaq_laneq_f32(_sum0, _k22, _r2, 2);
+#else
+                    _sum0 = vmlaq_lane_f32(_sum0, _k00, vget_low_f32(_r0), 0);
+                    _sum0 = vmlaq_lane_f32(_sum0, _k01, vget_low_f32(_r0), 1);
+                    _sum0 = vmlaq_lane_f32(_sum0, _k02, vget_high_f32(_r0), 0);
+                    _sum0 = vmlaq_lane_f32(_sum0, _k10, vget_low_f32(_r1), 0);
+                    _sum0 = vmlaq_lane_f32(_sum0, _k11, vget_low_f32(_r1), 1);
+                    _sum0 = vmlaq_lane_f32(_sum0, _k12, vget_high_f32(_r1), 0);
+                    _sum0 = vmlaq_lane_f32(_sum0, _k20, vget_low_f32(_r2), 0);
+                    _sum0 = vmlaq_lane_f32(_sum0, _k21, vget_low_f32(_r2), 1);
+                    _sum0 = vmlaq_lane_f32(_sum0, _k22, vget_high_f32(_r2), 0);
+#endif
+
+                    vst1q_f32(outptr0, _sum0);
+
+                    r0 += 1;
+                    r1 += 1;
+                    r2 += 1;
+                    outptr0 += 4;
+                }
+
+                r0 += 2;
+                r1 += 2;
+                r2 += 2;
+            }
+
+            k0 += 9*4;
+        }
+    }
+}
+
 static void conv3x3s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
