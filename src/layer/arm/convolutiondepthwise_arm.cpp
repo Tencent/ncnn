@@ -106,183 +106,6 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         }
     }
 
-    // group convolution
-    const int channels_g = channels / group;
-    const int num_output_g = num_output / group;
-
-    // pack4
-    if (channels_g % 4 == 0 && num_output_g % 4 == 0)
-    {
-        // src = kw-kh-inch-outch
-        // dst = 4a-4b-kw-kh-inch/4a-outch/4b
-        {
-            Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
-
-            weight_data_pack4_groups.create(maxk, channels_g/4, num_output_g/4 * group, (size_t)4*16, 16);
-
-            for (int g=0; g<group; g++)
-            {
-                const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
-
-                Mat weight_data_pack4_g = weight_data_pack4_groups.channel_range(num_output_g/4 * g, num_output_g/4);
-
-                for (int q=0; q+3<num_output_g; q+=4)
-                {
-                    const Mat k0 = weight_data_r2.channel(q);
-                    const Mat k1 = weight_data_r2.channel(q+1);
-                    const Mat k2 = weight_data_r2.channel(q+2);
-                    const Mat k3 = weight_data_r2.channel(q+3);
-
-                    Mat g0 = weight_data_pack4_g.channel(q/4);
-
-                    for (int p=0; p+3<channels_g; p+=4)
-                    {
-                        const float* k00 = k0.row(p);
-                        const float* k01 = k0.row(p+1);
-                        const float* k02 = k0.row(p+2);
-                        const float* k03 = k0.row(p+3);
-
-                        const float* k10 = k1.row(p);
-                        const float* k11 = k1.row(p+1);
-                        const float* k12 = k1.row(p+2);
-                        const float* k13 = k1.row(p+3);
-
-                        const float* k20 = k2.row(p);
-                        const float* k21 = k2.row(p+1);
-                        const float* k22 = k2.row(p+2);
-                        const float* k23 = k2.row(p+3);
-
-                        const float* k30 = k3.row(p);
-                        const float* k31 = k3.row(p+1);
-                        const float* k32 = k3.row(p+2);
-                        const float* k33 = k3.row(p+3);
-
-                        float* g00 = g0.row(p/4);
-
-                        for (int k=0; k<maxk; k++)
-                        {
-                            g00[0] = k00[k];
-                            g00[1] = k10[k];
-                            g00[2] = k20[k];
-                            g00[3] = k30[k];
-
-                            g00[4] = k01[k];
-                            g00[5] = k11[k];
-                            g00[6] = k21[k];
-                            g00[7] = k31[k];
-
-                            g00[8] = k02[k];
-                            g00[9] = k12[k];
-                            g00[10] = k22[k];
-                            g00[11] = k32[k];
-
-                            g00[12] = k03[k];
-                            g00[13] = k13[k];
-                            g00[14] = k23[k];
-                            g00[15] = k33[k];
-
-                            g00 += 16;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // pack1to4
-    if (channels_g % 4 != 0 && num_output_g % 4 == 0)
-    {
-        // src = kw-kh-inch-outch
-        // dst = 4b-kw-kh-inch-outch/4b
-        {
-            Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
-
-            weight_data_pack1to4_groups.create(maxk, channels_g, num_output_g/4 * group, (size_t)4*4, 4);
-
-            for (int g=0; g<group; g++)
-            {
-                const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
-
-                Mat weight_data_pack1to4_g = weight_data_pack1to4_groups.channel_range(num_output_g/4 * g, num_output_g/4);
-
-                for (int q=0; q+3<num_output_g; q+=4)
-                {
-                    const Mat k0 = weight_data_r2.channel(q);
-                    const Mat k1 = weight_data_r2.channel(q+1);
-                    const Mat k2 = weight_data_r2.channel(q+2);
-                    const Mat k3 = weight_data_r2.channel(q+3);
-
-                    Mat g0 = weight_data_pack1to4_g.channel(q/4);
-
-                    for (int p=0; p<channels_g; p++)
-                    {
-                        const float* k00 = k0.row(p);
-                        const float* k10 = k1.row(p);
-                        const float* k20 = k2.row(p);
-                        const float* k30 = k3.row(p);
-
-                        float* g00 = g0.row(p);
-
-                        for (int k=0; k<maxk; k++)
-                        {
-                            g00[0] = k00[k];
-                            g00[1] = k10[k];
-                            g00[2] = k20[k];
-                            g00[3] = k30[k];
-
-                            g00 += 4;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // pack4to1
-    if (channels_g % 4 == 0 && num_output_g % 4 != 0)
-    {
-        // src = kw-kh-inch-outch
-        // dst = 4a-kw-kh-inch/4a-outch
-        {
-            Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
-
-            weight_data_pack4to1_groups.create(maxk, channels_g/4, num_output_g * group, (size_t)4*4, 4);
-
-            for (int g=0; g<group; g++)
-            {
-                const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
-
-                Mat weight_data_pack4to1_g = weight_data_pack4to1_groups.channel_range(num_output_g * g, num_output_g);
-
-                for (int q=0; q<num_output_g; q++)
-                {
-                    const Mat k0 = weight_data_r2.channel(q);
-                    Mat g0 = weight_data_pack4to1_g.channel(q);
-
-                    for (int p=0; p+3<channels_g; p+=4)
-                    {
-                        const float* k00 = k0.row(p);
-                        const float* k01 = k0.row(p+1);
-                        const float* k02 = k0.row(p+2);
-                        const float* k03 = k0.row(p+3);
-
-                        float* g00 = g0.row(p/4);
-
-                        for (int k=0; k<maxk; k++)
-                        {
-                            g00[0] = k00[k];
-                            g00[1] = k01[k];
-                            g00[2] = k02[k];
-                            g00[3] = k03[k];
-
-                            g00 += 4;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     } // opt.use_packing_layout
 #endif // __ARM_NEON
 
@@ -624,183 +447,52 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     if (channels_g % 4 == 0 && num_output_g % 4 == 0)
     {
-#ifdef _WIN32
-        #pragma omp parallel for num_threads(opt.num_threads)
-#else // _WIN32
-        #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-#endif // _WIN32
         for (int g=0; g<group; g++)
         {
-            for (int p=0; p<num_output_g / 4; p++)
-            {
-                float* outptr = top_blob_unpacked.channel(g * num_output_g / 4 + p);
-                const float* weight_data_ptr = (const float*)weight_data_pack4_groups + maxk * channels_g / 4 * num_output_g / 4 * g * 16;
+            const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / 4, channels_g / 4);
+            Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g / 4, num_output_g / 4);
 
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float32x4_t _sum = vdupq_n_f32(0.f);
+            const ncnn::Layer* op = group_ops[g];
 
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f32(((const float*)bias_data) + num_output_g * g + p * 4);
-                        }
+            ncnn::Option opt_g = opt;
+            opt_g.blob_allocator = top_blob_unpacked.allocator;
 
-                        const float* kptr = weight_data_ptr + maxk * channels_g / 4 * p * 16;
-
-                        // channels_g
-                        for (int q=0; q<channels_g / 4; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(channels_g / 4 * g + q);
-                            const float* sptr = m.row(i*stride_h) + j*stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float32x4_t _val = vld1q_f32( sptr + space_ofs[k] * 4 );
-
-                                float32x4_t _w0 = vld1q_f32( kptr );
-                                float32x4_t _w1 = vld1q_f32( kptr + 4 );
-                                float32x4_t _w2 = vld1q_f32( kptr + 8 );
-                                float32x4_t _w3 = vld1q_f32( kptr + 12 );
-
-#if __aarch64__
-                                _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
-                                _sum = vmlaq_laneq_f32(_sum, _w1, _val, 1);
-                                _sum = vmlaq_laneq_f32(_sum, _w2, _val, 2);
-                                _sum = vmlaq_laneq_f32(_sum, _w3, _val, 3);
-#else
-                                _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
-                                _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
-                                _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
-                                _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
-#endif
-
-                                kptr += 16;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1q_f32(outptr + j * 4, _sum);
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
+            // forward
+            op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
         }
     }
 
     if (channels_g % 4 != 0 && num_output_g % 4 == 0)
     {
-#ifdef _WIN32
-        #pragma omp parallel for num_threads(opt.num_threads)
-#else // _WIN32
-        #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-#endif // _WIN32
         for (int g=0; g<group; g++)
         {
-            for (int p=0; p<num_output_g / 4; p++)
-            {
-                float* outptr = top_blob_unpacked.channel(g * num_output_g / 4 + p);
-                const float* weight_data_ptr = (const float*)weight_data_pack1to4_groups + maxk * channels_g * num_output_g / 4 * g * 4;
+            const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g, channels_g);
+            Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g / 4, num_output_g / 4);
 
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float32x4_t _sum = vdupq_n_f32(0.f);
+            const ncnn::Layer* op = group_ops[g];
 
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f32(((const float*)bias_data) + (num_output_g / 4 * g + p) * 4);
-                        }
+            ncnn::Option opt_g = opt;
+            opt_g.blob_allocator = top_blob_unpacked.allocator;
 
-                        const float* kptr = weight_data_ptr + maxk * channels_g * p * 4;
-
-                        // channels_g
-                        for (int q=0; q<channels_g; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(channels_g * g + q);
-                            const float* sptr = m.row(i*stride_h) + j*stride_w;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float32x4_t _val = vdupq_n_f32( sptr[ space_ofs[k] ] );
-                                float32x4_t _w = vld1q_f32( kptr );
-                                _sum = vmlaq_f32(_sum, _val, _w);
-
-                                kptr += 4;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1q_f32(outptr + j * 4, _sum);
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
+            // forward
+            op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
         }
     }
 
     if (channels_g % 4 == 0 && num_output_g % 4 != 0)
     {
-#ifdef _WIN32
-        #pragma omp parallel for num_threads(opt.num_threads)
-#else // _WIN32
-        #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-#endif // _WIN32
         for (int g=0; g<group; g++)
         {
-            for (int p=0; p<num_output_g; p++)
-            {
-                float* outptr = top_blob_unpacked.channel(g * num_output_g + p);
-                const float* weight_data_ptr = (const float*)weight_data_pack4to1_groups + maxk * channels_g / 4 * num_output_g * g * 4;
+            const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / 4, channels_g / 4);
+            Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g, num_output_g);
 
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
+            const ncnn::Layer* op = group_ops[g];
 
-                        if (bias_term)
-                            sum = bias_data[num_output_g * g + p];
+            ncnn::Option opt_g = opt;
+            opt_g.blob_allocator = top_blob_unpacked.allocator;
 
-                        const float* kptr = weight_data_ptr + maxk * channels_g / 4 * p * 4;
-
-                        // channels_g
-                        for (int q=0; q<channels_g / 4; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(channels_g / 4 * g + q);
-                            const float* sptr = m.row(i*stride_h) + j*stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float32x4_t _val = vld1q_f32( sptr + space_ofs[k] * 4 );
-                                float32x4_t _w = vld1q_f32( kptr );
-                                float32x4_t _s4 = vmulq_f32(_val, _w);
-#if __aarch64__
-                                sum += vaddvq_f32(_s4); // dot
-#else
-                                float32x2_t _ss = vadd_f32(vget_low_f32(_s4), vget_high_f32(_s4));
-                                _ss = vpadd_f32(_ss, _ss);
-                                sum += vget_lane_f32(_ss, 0);
-#endif
-
-                                kptr += 4;
-                            }
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = sum;
-                    }
-
-                    outptr += outw;
-                }
-            }
+            // forward
+            op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
         }
     }
 
@@ -812,6 +504,11 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     else
     {
         top_blob = top_blob_unpacked;
+    }
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
     }
 
     return 0;
@@ -877,7 +574,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 if (activation)
                 {
                     activation->forward_inplace(top_blob, opt);
-                }  
+                }
 
                 return 0;
             }
@@ -937,7 +634,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                         if (activation)
                         {
                             activation->forward_inplace(top_blob, opt);
-                        }  
+                        }
 
                         return 0;
                     }
@@ -962,7 +659,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 if (activation)
                 {
                     activation->forward_inplace(top_blob, opt);
-                }  
+                }
 
                 return 0;
             }
@@ -989,7 +686,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         if (activation)
         {
             activation->forward_inplace(top_blob, opt);
-        }  
+        }
 
         return 0;
     }
