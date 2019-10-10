@@ -50,7 +50,10 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
 
         flatten->load_param(pd);
 
-        flatten->create_pipeline(opt);
+        Option opt_cpu = opt;
+        opt_cpu.use_vulkan_compute = false;
+
+        flatten->create_pipeline(opt_cpu);
     }
 
     // pack4
@@ -176,7 +179,10 @@ int InnerProduct_arm::destroy_pipeline(const Option& opt)
 {
     if (flatten)
     {
-        flatten->destroy_pipeline(opt);
+        Option opt_cpu = opt;
+        opt_cpu.use_vulkan_compute = false;
+
+        flatten->destroy_pipeline(opt_cpu);
         delete flatten;
         flatten = 0;
     }
