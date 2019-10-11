@@ -26,9 +26,14 @@ class Convolution_arm : virtual public Convolution
 public:
     Convolution_arm();
 
+    virtual int transform_weight(const Option& opt);
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
+#if __ARM_NEON
+    virtual int forward_nc4hw4(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+    virtual int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     virtual int forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv, const Option& opt) const;
 

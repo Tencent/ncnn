@@ -27,6 +27,13 @@ set(ncnn_SRCS
     benchmark.cpp
 )
 
+file(GLOB_RECURSE GEMM_SRCS "layer/arm/gemm/*.S")
+message(STATUS "gemm srcs: ${GEMM_SRCS}")
+list(APPEND ncnn_SRCS ${GEMM_SRCS})
+message(STATUS "ncnn srcs: ${ncnn_SRCS}")
+
+
+
 if (ANDROID)
     list(APPEND ncnn_SRCS mat_pixel_android.cpp)
 endif()
