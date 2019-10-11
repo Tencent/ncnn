@@ -48,7 +48,7 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int UnaryOp_vulkan::destroy_pipeline(const Option& opt)
+int UnaryOp_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_unaryop;
     pipeline_unaryop = 0;
@@ -59,9 +59,9 @@ int UnaryOp_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int UnaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int UnaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
@@ -73,7 +73,7 @@ int UnaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_unaryop_pack4 : pipeline_unaryop;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_unaryop_pack4 : pipeline_unaryop;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

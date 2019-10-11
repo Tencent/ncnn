@@ -16,7 +16,6 @@
 #include <stdio.h>
 
 #ifdef _WIN32
-#define NOMINMAX
 #include <algorithm>
 #include <windows.h> // Sleep()
 #else
@@ -280,6 +279,8 @@ int main(int argc, char** argv)
 // #endif // NCNN_VULKAN
 //     benchmark("mobilenet_v2_int8", ncnn::Mat(224, 224, 3));
 
+    benchmark("mobilenet_v3", ncnn::Mat(224, 224, 3));
+
     benchmark("shufflenet", ncnn::Mat(224, 224, 3));
 
     benchmark("mnasnet", ncnn::Mat(224, 224, 3));
@@ -332,7 +333,7 @@ int main(int argc, char** argv)
 
     benchmark("mobilenet_yolo", ncnn::Mat(416, 416, 3));
 
-    benchmark("mobilenet_yolov3", ncnn::Mat(416, 416, 3));
+    benchmark("mobilenetv2_yolov3", ncnn::Mat(352, 352, 3));
 
 #if NCNN_VULKAN
     delete g_blob_vkallocator;

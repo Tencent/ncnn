@@ -12,17 +12,31 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ---
 
+### Current building status matrix
+
+| System | CPU (32bit) | CPU (64bit) | GPU (32bit) | GPU (64bit) |
+| :---: | :---: | :---: | :--: | :--: |
+| Linux (GCC) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=linux-gcc&label=build)](https://travis-ci.org/Tencent/ncnn) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=linux-gcc-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
+| Linux (Clang) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=linux-clang&label=build)](https://travis-ci.org/Tencent/ncnn) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=linux-clang-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
+| Windows (VS2017) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=windows-vs2017&label=build)](https://travis-ci.org/Tencent/ncnn) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=windows-vs2017-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
+| MacOS | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=macos-clang&label=build)](https://travis-ci.org/Tencent/ncnn) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=macos-clang-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
+| Android | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-armv7&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-armv7-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-aarch64&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-aarch64-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
+| iOS | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=ios-iphoneos&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=ios-iphoneos&label=build)](https://travis-ci.org/Tencent/ncnn) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=ios-iphoneos-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
+| iOS Simulator | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=ios-iphonesimulator&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=ios-iphonesimulator&label=build)](https://travis-ci.org/Tencent/ncnn) | — | — |
+
+---
+
 ### Support most commonly used CNN network
 ### 支持大部分常用的 CNN 网络
 
 * Classical CNN: VGG AlexNet GoogleNet Inception ...
 * Practical CNN: ResNet DenseNet SENet FPN ...
-* Light-weight CNN: SqueezeNet MobileNetV1/V2 ShuffleNetV1/V2 MNasNet ...
+* Light-weight CNN: SqueezeNet MobileNetV1/V2/V3 ShuffleNetV1/V2 MNasNet ...
 * Detection: MTCNN facedetection ...
 * Detection: VGG-SSD MobileNet-SSD SqueezeNet-SSD MobileNetV2-SSDLite ...
 * Detection: Faster-RCNN R-FCN ...
 * Detection: YOLOV2 YOLOV3 MobileNet-YOLOV3 ...
-* Segmentation: FCN PSPNet ...
+* Segmentation: FCN PSPNet UNet ...
 
 ---
 
@@ -43,9 +57,11 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 **[download prebuild binary package for android and ios](https://github.com/Tencent/ncnn/releases)**
 
-**[how to use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/how-to-use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
+**[use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
 
-**[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/ncnn-%E7%BB%84%E4%BB%B6%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8C%97-alexnet) 附带详细步骤，新人强烈推荐 :)**
+**[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) 附带详细步骤，新人强烈推荐 :)**
+
+**[use netron for ncnn model visualization](https://lutzroeder.github.io/netron/)**
 
 [ncnn low-level operation api](https://github.com/Tencent/ncnn/wiki/low-level-operation-api)
 
@@ -124,7 +140,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ### Example project
 
-* https://github.com/Tencent/ncnn/tree/master/examples/squeezencnn
+* https://github.com/nihui/ncnn-android-squeezenet
 * https://github.com/chehongshu/ncnnforandroid_objectiondetection_Mobilenetssd
 * https://github.com/moli232777144/mtcnn_ncnn
 

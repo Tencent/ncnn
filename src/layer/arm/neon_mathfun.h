@@ -314,3 +314,5 @@ static inline float32x4_t pow_ps(float32x4_t a, float32x4_t b)
     // pow(x, m) = exp(m * log(x))
     return exp_ps(vmulq_f32(b, log_ps(a)));
 }
+
+#include "neon_mathfun_tanh.h"

@@ -50,7 +50,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int PReLU_vulkan::destroy_pipeline(const Option& opt)
+int PReLU_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_prelu;
     pipeline_prelu = 0;
@@ -78,9 +78,9 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
-int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
@@ -93,7 +93,7 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_prelu_pack4 : pipeline_prelu;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_prelu_pack4 : pipeline_prelu;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

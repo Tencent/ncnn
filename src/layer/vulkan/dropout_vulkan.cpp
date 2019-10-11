@@ -49,7 +49,7 @@ int Dropout_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Dropout_vulkan::destroy_pipeline(const Option& opt)
+int Dropout_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_dropout;
     pipeline_dropout = 0;
@@ -60,14 +60,14 @@ int Dropout_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Dropout_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int Dropout_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     if (scale == 1.f)
     {
         return 0;
     }
 
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
@@ -79,7 +79,7 @@ int Dropout_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_dropout_pack4 : pipeline_dropout;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_dropout_pack4 : pipeline_dropout;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

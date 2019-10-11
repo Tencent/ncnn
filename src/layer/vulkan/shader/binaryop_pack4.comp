@@ -71,6 +71,7 @@ void main()
 
     if (with_scalar == 1)
     {
+        // type 5 10 15
         afp b = afp(const_b);
 
         if (op_type == 0) res = v1 + b;
@@ -84,12 +85,10 @@ void main()
         if (op_type == 8) res = b / v1;
 
         a_blob_data[gi] = afp2sfpvec4(res);
-
-        return;
     }
-
-    if (p.adims == p.bdims)
+    else
     {
+        // type 7 13 19
         afpvec4 v2 = sfp2afpvec4(b_blob_data[gi]);
 
         if (op_type == 0) res = v1 + v2;
@@ -103,9 +102,5 @@ void main()
         if (op_type == 8) res = v2 / v1;
 
         top_blob_data[gi] = afp2sfpvec4(res);
-
-        return;
     }
-
-    // TODO broadcast
 }

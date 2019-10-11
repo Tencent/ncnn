@@ -29,6 +29,7 @@ public:
 
     virtual int upload_model(VkTransfer& cmd, const Option& opt);
 
+    using Convolution::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
@@ -49,8 +50,8 @@ public:
     Pipeline* pipeline_convolution_pack4_3x3s1d1_lds_8_8_2;
 
     // pack4 winograd23
-    ncnn::Layer* winograd23_padding;
-    ncnn::Layer* winograd23_crop;
+    ncnn::Layer* winograd_padding;
+    ncnn::Layer* winograd_crop;
     VkMat weight_data_gpu_pack4_tm;
     Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input;
     Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_gemm;

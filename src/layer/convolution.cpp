@@ -38,13 +38,17 @@ int Convolution::load_param(const ParamDict& pd)
     dilation_h = pd.get(12, dilation_w);
     stride_w = pd.get(3, 1);
     stride_h = pd.get(13, stride_w);
-    pad_w = pd.get(4, 0);
-    pad_h = pd.get(14, pad_w);
+    pad_left = pd.get(4, 0);
+    pad_right = pd.get(15, pad_left);
+    pad_top = pd.get(14, pad_left);
+    pad_bottom = pd.get(16, pad_top);
+    pad_value = pd.get(18, 0.f);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
     int8_scale_term = pd.get(8, 0);
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
+    impl_type = pd.get(17, 0);
 
     return 0;
 }
@@ -328,29 +332,41 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     }
 
     Mat bottom_blob_bordered = bottom_blob_unbordered;
-    if (pad_w > 0 || pad_h > 0)
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
-        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
-        if (bottom_blob_bordered.empty())
-            return -100;
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
     }
-    else if (pad_w == -233 && pad_h == -233)
+    else if (pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
     {
+        // tensorflow padding=SAME or onnx padding=SAME_UPPER
         int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
-            if (bottom_blob_bordered.empty())
-                return -100;
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
         }
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
     }
+    else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
+    {
+        // onnx padding=SAME_LOWER
+        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+        }
+    }
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;

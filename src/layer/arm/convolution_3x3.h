@@ -5629,7 +5629,9 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 
     w = outw + 2;
     h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
 
     const float* bias = _bias;
 
@@ -8341,7 +8343,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
     // END transform output
 
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
 static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
@@ -8362,7 +8364,9 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
     w = outw + 2;
     h = outh + 2;
-    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt.workspace_allocator, opt.num_threads);
+    Option opt_b = opt;
+    opt_b.blob_allocator = opt.workspace_allocator;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, 0, 0.f, opt_b);
 
     const float* bias = _bias;
 
@@ -10923,7 +10927,14 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
+        top_blob_bordered = top_blob;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
+    }
     {
 //         const float otm[6][8] = {
 //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
@@ -11699,7 +11710,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
     // END transform output
 
     // cut result pad
-    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt.blob_allocator, opt.num_threads);
+    if (top_blob_bordered.w != top_blob.w || top_blob_bordered.h != top_blob.h)
+        copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
 static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)

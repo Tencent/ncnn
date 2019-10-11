@@ -36,3 +36,6 @@
 *.exe
 *.out
 *.app
+
+# MACOSX
+.DS_Store

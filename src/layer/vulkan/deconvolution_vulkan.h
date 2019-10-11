@@ -29,6 +29,7 @@ public:
 
     virtual int upload_model(VkTransfer& cmd, const Option& opt);
 
+    using Deconvolution::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
@@ -36,6 +37,8 @@ public:
     VkMat bias_data_gpu;
 
     ncnn::Layer* crop;
+    ncnn::Layer* output_pad;
+    ncnn::Layer* output_crop;
 
     Pipeline* pipeline_deconvolution;
 

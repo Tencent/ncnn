@@ -44,8 +44,11 @@ public:
     int dilation_h;
     int stride_w;
     int stride_h;
-    int pad_w;
-    int pad_h;
+    int pad_left;// -233=SAME_UPPER -234=SAME_LOWER
+    int pad_right;
+    int pad_top;
+    int pad_bottom;
+    float pad_value;
     int bias_term;
 
     int weight_data_size;
@@ -74,6 +77,9 @@ public:
     // merge de/requantize op into convolution op
     std::vector<float> dequantize_scales;
     std::vector<float> requantize_scales;    
+
+    // implementation type, 0 means do not use auto pack model 
+    int impl_type;
 };
 
 } // namespace ncnn

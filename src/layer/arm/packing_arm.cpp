@@ -34,16 +34,16 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return Packing::forward(bottom_blob, top_blob, opt);
     }
 
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
-    if (packing == out_packing)
+    if (elempack == out_elempack)
     {
         top_blob = bottom_blob;
         return 0;
     }
 
-    bool pack1to4 = packing == 1 && out_packing == 4;
-    bool pack4to1 = packing == 4 && out_packing == 1;
+    bool pack1to4 = elempack == 1 && out_elempack == 4;
+    bool pack4to1 = elempack == 4 && out_elempack == 1;
 
     if (!pack1to4 && !pack4to1)
     {
@@ -59,17 +59,17 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (!use_padding)
     {
         // identity if use_padding not allowed
-        if (dims == 1 && w * packing % out_packing != 0)
+        if (dims == 1 && w * elempack % out_elempack != 0)
         {
             top_blob = bottom_blob;
             return 0;
         }
-        if (dims == 2 && h * packing % out_packing != 0)
+        if (dims == 2 && h * elempack % out_elempack != 0)
         {
             top_blob = bottom_blob;
             return 0;
         }
-        if (dims == 3 && channels * packing % out_packing != 0)
+        if (dims == 3 && channels * elempack % out_elempack != 0)
         {
             top_blob = bottom_blob;
             return 0;
@@ -79,19 +79,19 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (dims == 1)
     {
         top_blob = bottom_blob;
-        top_blob.w = w * packing / out_packing;
-        top_blob.cstep = w * packing / out_packing;
-        top_blob.elemsize = elemsize / packing * out_packing;
-        top_blob.packing = out_packing;
+        top_blob.w = w * elempack / out_elempack;
+        top_blob.cstep = w * elempack / out_elempack;
+        top_blob.elemsize = elemsize / elempack * out_elempack;
+        top_blob.elempack = out_elempack;
         return 0;
     }
 
     if (dims == 2)
     {
-        int outh = h * packing / out_packing;
-        size_t out_elemsize = elemsize / packing * out_packing;
+        int outh = h * elempack / out_elempack;
+        size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(w, outh, out_elemsize, out_packing, opt.blob_allocator);
+        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -195,10 +195,10 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (dims == 3)
     {
         int size = w * h;
-        int outc = channels * packing / out_packing;
-        size_t out_elemsize = elemsize / packing * out_packing;
+        int outc = channels * elempack / out_elempack;
+        size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(w, h, outc, out_elemsize, out_packing, opt.blob_allocator);
+        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 

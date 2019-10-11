@@ -59,7 +59,7 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         padding->create_pipeline(opt);
     }
 
-    std::vector<vk_specialization_type> specializations(7);
+    std::vector<vk_specialization_type> specializations(8);
     specializations[0].i = pooling_type;
     specializations[1].i = kernel_w;
     specializations[2].i = kernel_h;
@@ -67,6 +67,7 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
     specializations[4].i = stride_h;
     specializations[5].i = global_pooling;
     specializations[6].i = pad_mode;
+    specializations[7].i = avgpool_count_include_pad;
 
     // pack1
     {
@@ -135,11 +136,11 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     if (global_pooling)
     {
-        top_blob.create(channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -159,7 +160,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = packing == 4 ? pipeline_pooling_global_pack4 : pipeline_pooling_global;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_global_pack4 : pipeline_pooling_global;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -192,7 +193,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int outw = (w - kernel_w) / stride_w + 1;
     int outh = (h - kernel_h) / stride_h + 1;
 
-    top_blob.create(outw, outh, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -212,11 +213,9 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_pooling_pack4 : pipeline_pooling;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_pack4 : pipeline_pooling;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-    // TODO avgpool exclude padding
 
     return 0;
 }
