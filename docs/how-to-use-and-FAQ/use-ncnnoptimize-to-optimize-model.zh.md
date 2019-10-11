@@ -1,5 +1,8 @@
 ## ncnn optimize: auto pack model 技术文档
 
+### 功能
+在目标硬件上自动调优模型，挑选卷积的实现方案。结果会是全局最优的。
+
 ### 前置条件
 
 1. 请先准备一块 arm linux 开发板，直接用手机步骤会麻烦点。假设想把模型放到 qcom845 芯片手机上执行，尽量准备 845 开发板。若条件有限，大的架构(armv8还是armv7)一致也行，最终优化速度用 CPU 主频直接折算;
@@ -8,7 +11,7 @@
 
 ### 使用方法
 
-直接执行命令
+执行命令
 ```
 ncnn optimize ncnn.param ncnn.bin out.param out.bin 0 data 227 227 3
 
