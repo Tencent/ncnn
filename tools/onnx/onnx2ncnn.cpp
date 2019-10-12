@@ -1213,6 +1213,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Softmax");
         }
+        else if (op == "Split")
+        {
+            fprintf(pp, "%-16s", "Slice");
+        }
         else if (op == "Sqrt")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -2022,6 +2026,21 @@ int main(int argc, char** argv)
             int axis = get_node_attr_i(node, "axis", 1);
             fprintf(pp, " 0=%d", axis-1);
             fprintf(pp, " 1=1");
+        }
+        else if (op == "Split")
+        {
+            int axis = get_node_attr_i(node, "axis", 0);
+            std::vector<int> split = get_node_attr_ai(node, "split");
+            if (axis < 1 || split.size() < 2)
+                fprintf(stderr, "Unsupported split attributes !\n");
+
+            fprintf(pp, " -23300=%d", output_size);
+            for (int i=0; i< split.size() - 1; i++)
+            {
+                fprintf(pp, ",%d", split[i]);
+            }
+            fprintf(pp, ",-233");
+            fprintf(pp, " 1=%d", axis - 1);
         }
         else if (op == "Sqrt")
         {
