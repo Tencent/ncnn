@@ -42,6 +42,7 @@ namespace ncnn {
 #include "convolution_1x1_pack4.h"
 #include "convolution_3x3_pack4.h"
 #include "convolution_3x3_pack1to4.h"
+#include "convolution_5x5_pack4.h"
 #endif // __ARM_NEON
 
 DEFINE_LAYER_CREATOR(Convolution_arm)
@@ -613,6 +614,30 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
             conv3x3s1_winograd64_pack4_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data_pack4, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+
+            return 0;
+        }
+
+        if (kernel_w == 5 && kernel_h == 5 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv5x5s1_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+
+            return 0;
+        }
+
+        if (kernel_w == 5 && kernel_h == 5 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv5x5s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
             if (activation)
             {
