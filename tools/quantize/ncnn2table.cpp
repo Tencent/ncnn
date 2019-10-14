@@ -558,7 +558,11 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
         if ((i+1)%100 == 0)
             fprintf(stderr, "          %d/%d\n", (int)(i+1), (int)size);
 
+#if OpenCV_VERSION_MAJOR > 2
+        cv::Mat bgr = cv::imread(img_name, cv::IMREAD_COLOR);
+#else
         cv::Mat bgr = cv::imread(img_name, CV_LOAD_IMAGE_COLOR);
+#endif
         if (bgr.empty())
         {
             fprintf(stderr, "cv::imread %s failed\n", img_name.c_str());
@@ -616,8 +620,11 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
 
         if ((i+1)%100 == 0)
             fprintf(stderr, "          %d/%d\n", (int)(i+1), (int)size);
-
+#if OpenCV_VERSION_MAJOR > 2
+        cv::Mat bgr = cv::imread(img_name, cv::IMREAD_COLOR);
+#else
         cv::Mat bgr = cv::imread(img_name, CV_LOAD_IMAGE_COLOR);
+#endif
         if (bgr.empty())
         {
             fprintf(stderr, "cv::imread %s failed\n", img_name.c_str());
