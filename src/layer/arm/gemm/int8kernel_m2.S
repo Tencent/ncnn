@@ -7,28 +7,34 @@
 #define n           x4
 #define ldc         x5
 
-#define src_ori     x6
-#define kd8_ori     x7
-#define dst_ptr_0   x9
-#define dst_ptr_1   x10
-#define tmp_ptr_b   x14
+#ifdef GEMM_REQUANT
+#define scales      x6
+#define bias        x7
+#endif
 
-#define is_kd8_even x15
-#define kd4_ori     x16
-#define kd2_ori     x17
-#define kd1_ori     x18
-#define kd          x19
+#define src_ori     x8
+#define kd8_ori     x9
+#define dst_ptr_0   x10
+#define dst_ptr_1   x11
+#define tmp_ptr_b   x12
 
-#define nd4_ori     x20
-#define nd2_ori     x21
-#define nd1_ori     x22
-#define nd          x23
+#define is_kd8_even x13
+#define kd4_ori     x14
+#define kd2_ori     x15
+#define kd1_ori     x16
+#define kd          x17
 
-#define temp        x24
-#define temp1       x25
-#define temp2       x26
+#define nd4_ori     x18
+#define nd2_ori     x19
+#define nd1_ori     x20
+#define nd          x21
 
-//void int8kernel_m2(int32_t* dst, const uint8_t* src, const uint8_t* weight, size_t k, size_t n, size_t ldc);
+#define temp        x22
+#define temp1       x23
+#define temp2       x24
+
+//void int8kernel_m2(int32_t* dst, const uint8_t* pa, const uint8_t* pb, size_t k, size_t n, ldc);
+//void int8kernel_m2_requant(int32_t* dst, const uint8_t* pa, const uint8_t* pb, size_t k, size_t n, ldc, scales, bias);
 
 .macro INIT
     eor v8.16b, v8.16b, v8.16b
@@ -85,9 +91,12 @@
 
 .text
 .align 5
-.global int8kernel_m2
-.type int8kernel_m2, %function
-int8kernel_m2:
+#ifndef FUNCTION_NAME
+#define FUNCTION_NAME int8kernel_m2
+#endif
+.global FUNCTION_NAME 
+.type FUNCTION_NAME, %function
+FUNCTION_NAME:
 
     add sp, sp, #-(11 * 16)
     stp d8, d9, [sp, #(0 * 16)]
@@ -102,7 +111,9 @@ int8kernel_m2:
     stp x26, x27, [sp, #(9 * 16)]
     str x28, [sp, #(10 * 16)]
 
-    lsl ldc, ldc, #2  // sizeof(int32_t) = 4
+#ifndef GEMM_REQUANT    // if requant, typeof C = int8_t
+    lsl ldc, ldc, #2    // else sizeof(int32_t) = 4
+#endif
     mov dst_ptr_0, dst
     add dst_ptr_1, dst_ptr_0, ldc
     
@@ -286,8 +297,43 @@ loopnd4:
         smlal v9.4s, v4.4h, v2.h[1]
 
     loopnd4_end:
+#ifdef GEMM_REQUANT
+        ld1 {v12.2s}, [scales]
+        // int32 => fp32
+        scvtf v8.4s, v8.4s
+        scvtf v9.4s, v9.4s
+        // fp32 *= scale_tm
+        fmul v8.4s, v8.4s, v12.s[0]
+        fmul v9.4s, v9.4s, v12.s[1]
+
+        cmp bias, #0
+        beq loopnd4_end_requant   // skip add bias
+
+        // fp32 += bias_tm
+        ld1 {v14.2s}, [bias]
+        dup v15.4s, v14.s[0]
+        fadd v8.4s, v8.4s, v15.4s
+        dup v15.4s, v14.s[1]
+        fadd v9.4s, v9.4s, v15.4s
+
+        loopnd4_end_requant:
+            // fp32 -> int32
+            fcvtas v8.4s, v8.4s
+            fcvtas v9.4s, v9.4s
+            // int32 -> int16
+            sqxtn v6.4h, v8.4s
+            sqxtn2 v6.8h, v9.4s
+            // int16 -> int8
+            sqxtn v8.8b, v6.8h
+            // save
+            st1 {v8.s}[0], [dst_ptr_0]
+            add dst_ptr_0, dst_ptr_0, #4
+            st1 {v8.s}[1], [dst_ptr_1]
+            add dst_ptr_1, dst_ptr_1, #4
+#else
         st1 {v8.4s}, [dst_ptr_0], #16
         st1 {v9.4s}, [dst_ptr_1], #16
+#endif
 
         subs nd4_ori, nd4_ori, #1
         mov pa, src_ori 
@@ -423,8 +469,43 @@ nd2_start:
         smlal v12.4s, v4.4h, v2.h[1]
 
     loopnd2_end:
+#ifdef GEMM_REQUANT
+        mov v8.d[1], v12.d[0]
+
+        // v12: 0 1
+        ld1 {v12.2s}, [scales]
+        zip1 v12.4s, v12.4s, v12.4s
+        // v12: 0 0 1 1
+
+        // int32 => fp32
+        scvtf v8.4s, v8.4s
+        // fp32 *= scale_tm
+        fmul v8.4s, v8.4s, v12.4s 
+
+        cmp bias, #0
+        beq loopnd2_end_requant   // skip add bias
+
+        // fp32 += bias_tm
+        ld1 {v12.2s}, [bias]
+        zip1 v12.4s, v12.4s, v12.4s
+        fadd v8.4s, v8.4s, v12.4s
+
+        loopnd2_end_requant:
+            // fp32 -> int32
+            fcvtas v8.4s, v8.4s
+            // int32 -> int16
+            sqxtn v8.4h, v8.4s
+            // int16 -> int8
+            sqxtn v8.8b, v8.8h
+            // save
+            st1 {v8.h}[0], [dst_ptr_0]
+            add dst_ptr_0, dst_ptr_0, #2
+            st1 {v8.h}[1], [dst_ptr_1]
+            add dst_ptr_1, dst_ptr_1, #2
+#else
         st1 {v8.2s}, [dst_ptr_0], #8
         st1 {v12.2s}, [dst_ptr_1], #8
+#endif
         mov pa, src_ori
 
 nd1_start:
@@ -537,9 +618,38 @@ nd1_start:
         add v12.4s, v12.4s, v1.4s
 
     loopnd1_end:
+#ifdef GEMM_REQUANT
+        mov v8.s[1], v12.s[0]
+
+        // v12: s0 s1 
+        ld1 {v12.2s}, [scales]
+        // int32 => fp32
+        scvtf v8.2s, v8.2s
+        // fp32 *= scale_tm
+        fmul v8.2s, v8.2s, v12.2s 
+
+        cmp bias, #0
+        beq loopnd1_end_requant   // skip add bias
+
+        // fp32 += bias_tm
+        ld1 {v12.2s}, [bias]
+        fadd v8.2s, v8.2s, v12.2s
+
+        loopnd1_end_requant:
+            // fp32 -> int32
+            fcvtas v8.2s, v8.2s
+            // int32 -> int16
+            sqxtn v8.4h, v8.4s
+            // int16 -> int8
+            sqxtn v8.8b, v8.8h
+            // save
+            st1 {v8.b}[0], [dst_ptr_0]
+            st1 {v8.b}[1], [dst_ptr_1]
+#else
         // no need to add the last output pointer
         st1 {v8.s}[0], [dst_ptr_0]
         st1 {v12.s}[0], [dst_ptr_1]
+#endif
 
 finish:
     mov x0, #0              // set return value

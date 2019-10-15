@@ -112,14 +112,33 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
     }
 }
 
-static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &kernel, const Mat &_bias, const std::vector<float>& scales_requant, const Option& opt)
 {
-    float* bias    = _bias;
-    float* scales  = scales_requant.data();
-    // outptr0[0]  = float2int8(((float)sum0 * scale_requant_in + bias0) * scale_requant_out);
     const size_t n = bottom_blob.w * bottom_blob.h;
     const size_t k = bottom_blob.c;
     const size_t m = top_blob.c;
+
+    std::vector<float> scales_tm(m);
+    std::vector<float> bias_tm(m);
+    float* scales  = scales_tm.data();
+    float* bias    = static_cast<float*>(_bias.data);
+
+    // outptr0[0]  = float2int8(((float)sum0 * scale_requant_in + bias0) * scale_requant_out);
+    // the equation could convert to:
+    //      out = float2int8( (float)sum * (scale_requant_in * scale_requant_out) + (bias * scale_requant_out) )
+    // prebuild the list of (scales_requant_in*scale_requant_out)
+    for (size_t i = 0; i < m; ++i)
+    {
+        scales_tm[i] = scales_requant[2*i] * scales_requant[2*i + 1];
+    }
+    if (_bias.data != NULL)
+    {
+        for (size_t i = 0; i < m; ++i)
+        {
+            bias_tm[i] = bias[i] * scales_requant[2*i + 1];
+        }
+        bias = bias_tm.data();
+    }
 
     ncnn::Mat bottom_tm(k * n, (size_t)1u, opt.workspace_allocator);
     {
@@ -152,7 +171,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
     for (; i+4 <= m; i += 4)
     {
         int8kernel_m4_requant(pc, pa, pb, k, n, ldc, scales, bias);
-        scales += 8;
+        scales += 4;
         bias += 4;
         pc += 4 * ldc;
         pa += 4 * k;
@@ -161,27 +180,27 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
     {
         case 3:
             int8kernel_m2_requant(pc, pa, pb, k, n, ldc, scales, bias);
-            scales += 4;
+            scales += 2;
             bias += 2;
             pc += 2 * ldc;
             pa += 2 * k;
             int8kernel_m1_requant(pc, pa, pb, k, n, ldc, scales, bias);
-            scales += 2;
-            bias++;
+            scales ++;
+            bias ++;
             pc += n;
             pa += k;
             break;
         case 2:
             int8kernel_m2_requant(pc, pa, pb, k, n, ldc, scales, bias);
-            scales += 4;
+            scales += 2;
             bias += 2;
             pc += 2 * ldc;
             pa += 2 * k;
             break;
         case 1:
             int8kernel_m1_requant(pc, pa, pb, k, n, ldc, scales, bias);
-            scales += 2;
-            bias += 1;
+            scales ++;
+            bias ++;
             pc += ldc;
             pa += k;
             break;
