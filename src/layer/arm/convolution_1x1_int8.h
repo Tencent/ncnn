@@ -24,6 +24,7 @@ static inline signed char float2int8(float v)
 }
 
 #if __aarch64__
+#include "gemm/reorder_b.h"
 extern "C" {
     void int8kernel_m4(int32_t* dst, const int8_t* sa, const int8_t* sb, size_t k, size_t n, size_t ldc);
     void int8kernel_m2(int32_t* dst, const int8_t* sa, const int8_t* sb, size_t k, size_t n, size_t ldc);
@@ -54,23 +55,9 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
     ncnn::Mat bottom_tm(k * n, (size_t)1u, opt.workspace_allocator);
     {
-        // split input into block8x4
-        // first tranpose, then pack with block4x8
-        ncnn::Mat bottom_trans(k * n, (size_t)1u, opt.workspace_allocator);
-        
         int8_t *pData    = static_cast<int8_t*>(bottom_blob.data);
-        int8_t *pTrans   = static_cast<int8_t*>(bottom_trans.data);
         int8_t *pReorder = static_cast<int8_t*>(bottom_tm.data);
-        // transpose
-        // #pragma omp parallel for num_threads(opt.num_threads)
-        for (size_t i = 0; i < k; i++)
-        {
-            for (size_t j = 0; j < n; j++)
-            {
-                pTrans[j * k + i] = pData[i * bottom_blob.cstep + j];
-            }
-        }
-        reorder_a(pTrans, pReorder, n, k, k);
+        reorder_b(pData, pReorder, k, n, bottom_blob.cstep);
     }
     
     // GEMM
@@ -142,23 +129,9 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
     ncnn::Mat bottom_tm(k * n, (size_t)1u, opt.workspace_allocator);
     {
-        // split input into block8x4
-        // first tranpose, then pack with block4x8
-        ncnn::Mat bottom_trans(k * n, (size_t)1u, opt.workspace_allocator);
-        
         int8_t *pData    = static_cast<int8_t*>(bottom_blob.data);
-        int8_t *pTrans   = static_cast<int8_t*>(bottom_trans.data);
         int8_t *pReorder = static_cast<int8_t*>(bottom_tm.data);
-        // transpose
-        // #pragma omp parallel for num_threads(opt.num_threads)
-        for (size_t i = 0; i < k; i++)
-        {
-            for (size_t j = 0; j < n; j++)
-            {
-                pTrans[j * k + i] = pData[i * bottom_blob.cstep + j];
-            }
-        }
-        reorder_a(pTrans, pReorder, n, k, k);
+        reorder_b(pData, pReorder, k, n, bottom_blob.cstep);
     }
     
     // GEMM
