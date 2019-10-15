@@ -221,7 +221,7 @@ loopnd4:
         sadalp v20.4s, v0.8h
         sadalp v21.4s, v1.8h
 
-        // start v10v11, v14v15, v18v19, v22v23, error here!
+        // start v10v11, v14v15, v18v19, v22v23
         ld1 {v4.8b, v5.8b}, [pb], #16
         smull v0.8h, v4.8b, v2.8b
         smull v1.8h, v5.8b, v2.8b
