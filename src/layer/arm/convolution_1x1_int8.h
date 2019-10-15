@@ -15,14 +15,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static inline signed char float2int8(float v)
-{
-    int int32 = round(v);
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
-}
-
 #if __aarch64__
 #include "gemm/reorder_b.h"
 extern "C" {
@@ -184,6 +176,14 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 }
 
 #else
+static inline signed char float2int8(float v)
+{
+    int int32 = round(v);
+    if (int32 > 127) return 127;
+    if (int32 < -127) return -127;
+    return (signed char)int32;
+}
+
 static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
 {
     const signed char* kernel = _kernel;
