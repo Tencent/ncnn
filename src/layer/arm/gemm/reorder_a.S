@@ -1,4 +1,6 @@
+#ifdef __arm__
 #ifdef __aarch64__
+#include "public.h"
 
 #define  ptr_src  x0
 #define  ptr_dst  x1
@@ -23,9 +25,7 @@
 
 .text
 .align 5
-.global reorder_a
-.type reorder_a, %function
-reorder_a:
+ASM_DECLARE reorder_a
 //void reorder_a(int8_t* src, int8_t* dst, size_t m, size_t k, size_t lda);
 
     add sp, sp, #-(11 * 16)
@@ -238,4 +238,5 @@ end:
     ldr x28, [sp, #(10 * 16)]
     add sp, sp, #(11*16)
     ret
+#endif
 #endif

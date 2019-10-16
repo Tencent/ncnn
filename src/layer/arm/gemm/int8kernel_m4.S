@@ -1,4 +1,6 @@
+#if __arm__
 #ifdef __aarch64__
+#include "public.h"
 
 #define dst         x0
 #define pa          x1
@@ -95,10 +97,8 @@
 #ifndef FUNCTION_NAME
 #define FUNCTION_NAME int8kernel_m4
 #endif
+ASM_DECLARE FUNCTION_NAME
 
-.global FUNCTION_NAME 
-.type FUNCTION_NAME, %function
-FUNCTION_NAME:
     add sp, sp, #-(11 * 16)
     stp d8, d9, [sp, #(0 * 16)]
     stp d10, d11, [sp, #(1 * 16)]
@@ -914,4 +914,5 @@ finish:
     add sp, sp, #(11*16)
     ret
 
+#endif
 #endif
