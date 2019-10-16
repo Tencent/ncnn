@@ -1175,6 +1175,12 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "ReduceMax" || op == "ReduceMin" || op == "ReduceMean" ||
+                op == "ReduceProd" || op == "ReduceSum" || op == "ReduceSumSquare" ||
+                op == "ReduceL1" || op == "ReduceL2" || op == "ReduceLogSum" || op == "ReduceLogSumExp")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
         else if (op == "Relu")
         {
             fprintf(pp, "%-16s", "ReLU");
@@ -1918,6 +1924,57 @@ int main(int argc, char** argv)
         {
             int op_type = 15;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "ReduceMax" || op == "ReduceMin" || op == "ReduceMean" ||
+                op == "ReduceProd" || op == "ReduceSum" || op == "ReduceSumSquare" ||
+                op == "ReduceL1" || op == "ReduceL2" || op == "ReduceLogSum" || op == "ReduceLogSumExp")
+        {
+            printf("Warning: Although we support Reduce op here, but we still "
+                   "recommend you to use other equivalent op instead of Reduce op, "
+                   "because the Reduce op is not fully optimized.\n");
+
+            int op_type = -233;
+            if (op == "ReduceSum")
+                op_type = 0;
+            else if (op == "ReduceL1")
+                op_type = 1;
+            else if (op == "ReduceSumSquare")
+                op_type = 2;
+            else if (op == "ReduceMean")
+                op_type = 3;
+            else if (op == "ReduceMax")
+                op_type = 4;
+            else if (op == "ReduceMin")
+                op_type = 5;
+            else if (op == "ReduceProd")
+                op_type = 6;
+            else if (op == "ReduceL2")
+                op_type = 7;
+            else if (op == "ReduceLogSum")
+                op_type = 8;
+            else if (op == "ReduceLogSumExp")
+                op_type = 9;
+            fprintf(pp, " 0=%d", op_type);
+
+            std::vector<int> axes = get_node_attr_ai(node, "axes");
+            int keepdims = get_node_attr_i(node, "keepdims", 1);
+            
+            int dim = -233;
+            if (axes.size() == 1){
+                if (axes[0] == 3) dim = 2;
+                if (axes[0] == 1) dim = -2;
+            } else if (axes.size() == 2) {
+                if (axes[0] == 2 && axes[1] == 3) dim = 1;
+                if (axes[0] == 1 && axes[1] == 2) dim = -1;
+            } else if (axes.size() == 3) {
+                if (axes[0] == 1 && axes[1] == 2, axes[2] = 3) dim = 0;
+            }
+
+            if (dim == -233)
+                fprintf(stderr, "Unsupported reduced axes in Reduce op !\n");
+            
+            fprintf(pp, " 1=%d", dim);
+            fprintf(pp, " 3=%d", keepdims);
         }
         else if (op == "Reshape")
         {

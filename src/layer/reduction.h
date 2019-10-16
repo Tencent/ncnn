@@ -35,7 +35,10 @@ public:
         ReductionOp_MEAN    = 3,
         ReductionOp_MAX     = 4,
         ReductionOp_MIN     = 5,
-        ReductionOp_PROD    = 6
+        ReductionOp_PROD    = 6,
+        ReductionOp_L2      = 7,
+        ReductionOp_LogSum  = 8,
+        ReductionOp_LogSumExp = 9
     };
 
 public:
@@ -43,6 +46,7 @@ public:
     int operation;
     int dim;
     float coeff;
+    int keepdims;
 };
 
 } // namespace ncnn
