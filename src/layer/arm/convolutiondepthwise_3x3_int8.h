@@ -1197,7 +1197,7 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                   "r"(bias0),    // %17
                   "r"(scale_requant_in), // %18
                   "r"(scale_requant_out) // %19
-                : "cc", "memory", "q0", "q1", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
             );
             }             
 #endif // __aarch64__            
@@ -1483,7 +1483,7 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                   "r"(bias0),     // %13
                   "r"(scale_requant_in), // %14
                   "r"(scale_requant_out) // %15
-                : "cc", "memory", "q0", "q1", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
             );
             }  
 #endif // __aarch64__            
@@ -1783,7 +1783,7 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                   "r"(bias0),            // %13
                   "r"(scale_requant_in), // %14
                   "r"(scale_requant_out) // %15                 
-                : "cc", "memory", "q0", "q1", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
             );
             }
 #endif // __aarch64__             
