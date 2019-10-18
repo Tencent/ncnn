@@ -37,8 +37,6 @@ InnerProduct_arm::InnerProduct_arm()
 
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
-    int num_input = weight_data_size / num_output;
-
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
@@ -54,119 +52,6 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
         opt_cpu.use_vulkan_compute = false;
 
         flatten->create_pipeline(opt_cpu);
-    }
-
-    // pack4
-    if (num_input % 4 == 0 && num_output % 4 == 0)
-    {
-        // src = inch-outch
-        // dst = 4a-4b-inch/4a-outch/4b
-        {
-            Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
-
-            weight_data_pack4.create(num_input/4, num_output/4, (size_t)4*16, 16);
-
-            for (int q=0; q+3<num_output; q+=4)
-            {
-                const float* k0 = weight_data_r2.row(q);
-                const float* k1 = weight_data_r2.row(q+1);
-                const float* k2 = weight_data_r2.row(q+2);
-                const float* k3 = weight_data_r2.row(q+3);
-
-                float* g00 = weight_data_pack4.row(q/4);
-
-                for (int p=0; p+3<num_input; p+=4)
-                {
-                    g00[0] = k0[0];
-                    g00[1] = k1[0];
-                    g00[2] = k2[0];
-                    g00[3] = k3[0];
-
-                    g00[4] = k0[1];
-                    g00[5] = k1[1];
-                    g00[6] = k2[1];
-                    g00[7] = k3[1];
-
-                    g00[8] = k0[2];
-                    g00[9] = k1[2];
-                    g00[10] = k2[2];
-                    g00[11] = k3[2];
-
-                    g00[12] = k0[3];
-                    g00[13] = k1[3];
-                    g00[14] = k2[3];
-                    g00[15] = k3[3];
-
-                    k0 += 4;
-                    k1 += 4;
-                    k2 += 4;
-                    k3 += 4;
-                    g00 += 16;
-                }
-            }
-        }
-    }
-
-    // pack1to4
-    if (num_input % 4 != 0 && num_output % 4 == 0)
-    {
-        // src = inch-outch
-        // dst = 4b-inch-outch/4b
-        {
-            Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
-
-            weight_data_pack1to4.create(num_input, num_output/4, (size_t)4*4, 4);
-
-            for (int q=0; q+3<num_output; q+=4)
-            {
-                const float* k0 = weight_data_r2.row(q);
-                const float* k1 = weight_data_r2.row(q+1);
-                const float* k2 = weight_data_r2.row(q+2);
-                const float* k3 = weight_data_r2.row(q+3);
-
-                float* g00 = weight_data_pack1to4.row(q/4);
-
-                for (int p=0; p<num_input; p++)
-                {
-                    g00[0] = k0[p];
-                    g00[1] = k1[p];
-                    g00[2] = k2[p];
-                    g00[3] = k3[p];
-
-                    g00 += 4;
-                }
-            }
-        }
-    }
-
-    // pack4to1
-    if (num_input % 4 == 0 && num_output % 4 != 0)
-    {
-        // src = inch-outch
-        // dst = 4a-inch/4a-outch
-        {
-            Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
-
-            weight_data_pack4to1.create(num_input/4, num_output, (size_t)4*4, 4);
-
-            for (int q=0; q<num_output; q++)
-            {
-                const float* k0 = weight_data_r2.row(q);
-
-                float* g00 = weight_data_pack4to1.row(q);
-
-                for (int p=0; p+3<num_input; p+=4)
-                {
-                    g00[0] = k0[0];
-                    g00[1] = k0[1];
-                    g00[2] = k0[2];
-                    g00[3] = k0[3];
-
-                    k0 += 4;
-                    g00 += 4;
-                }
-            }
-        }
     }
 
     } // opt.use_packing_layout
@@ -209,8 +94,12 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (opt.use_packing_layout)
     {
 
+    if (elempack == 4)
+    {
+
     // flatten
     Mat bottom_blob_flattened = bottom_blob;
+    if (bottom_blob.dims != 1)
     {
         ncnn::Option opt_flatten = opt;
         opt_flatten.blob_allocator = opt.workspace_allocator;
@@ -218,139 +107,15 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
     }
 
-    int num_input = bottom_blob_flattened.w;
-
-    int out_elempack = num_output % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    if (elempack == 4 && out_elempack == 4)
+    // pack1
     {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output / out_elempack; p++)
-        {
-            const float* w = (const float*)weight_data_pack4 + num_input * p * 16;
-            const float* m = bottom_blob_flattened;
-
-            float32x4_t _sum = vdupq_n_f32(0.f);
-
-            if (bias_term)
-            {
-                _sum = vld1q_f32(((const float*)bias_data) + p * 4);
-            }
-
-            // num_input
-            for (int i = 0; i < num_input; i++)
-            {
-                float32x4_t _val = vld1q_f32( m );
-
-                float32x4_t _w0 = vld1q_f32( w );
-                float32x4_t _w1 = vld1q_f32( w + 4 );
-                float32x4_t _w2 = vld1q_f32( w + 8 );
-                float32x4_t _w3 = vld1q_f32( w + 12 );
-
-#if __aarch64__
-                _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
-                _sum = vmlaq_laneq_f32(_sum, _w1, _val, 1);
-                _sum = vmlaq_laneq_f32(_sum, _w2, _val, 2);
-                _sum = vmlaq_laneq_f32(_sum, _w3, _val, 3);
-#else
-                _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
-                _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
-                _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
-                _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
-#endif
-
-                w += 16;
-                m += 4;
-            }
-
-            _sum = activation_ps(_sum, activation_type, activation_params);
-
-            float* outptr = top_blob;
-            vst1q_f32(outptr + p * 4, _sum);
-        }
-
-        return 0;
+        bottom_blob_flattened.w *= bottom_blob_flattened.elempack;
+        bottom_blob_flattened.elemsize = 4u;
+        bottom_blob_flattened.elempack = 1;
     }
 
-    if (elempack == 1 && out_elempack == 4)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output / out_elempack; p++)
-        {
-            const float* w = (const float*)weight_data_pack1to4 + num_input * p * 4;
-            const float* m = bottom_blob_flattened;
+    return forward(bottom_blob_flattened, top_blob, opt);
 
-            float32x4_t _sum = vdupq_n_f32(0.f);
-
-            if (bias_term)
-            {
-                _sum = vld1q_f32(((const float*)bias_data) + p * 4);
-            }
-
-            // num_input
-            for (int i = 0; i < num_input; i++)
-            {
-                float32x4_t _val = vdupq_n_f32( m[i] );
-                float32x4_t _w = vld1q_f32( w );
-                _sum = vmlaq_f32(_sum, _val, _w);
-
-                w += 4;
-            }
-
-            _sum = activation_ps(_sum, activation_type, activation_params);
-
-            float* outptr = top_blob;
-            vst1q_f32(outptr + p * 4, _sum);
-        }
-
-        return 0;
-    }
-
-    if (elempack == 4 && out_elempack == 1)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output; p++)
-        {
-            const float* w = (const float*)weight_data_pack4to1 + num_input * p * 4;
-            const float* m = bottom_blob_flattened;
-
-            float sum = 0.f;
-
-            if (bias_term)
-                sum = bias_data[p];
-
-            // num_input
-            for (int i = 0; i < num_input; i++)
-            {
-                float32x4_t _val = vld1q_f32( m );
-                float32x4_t _w = vld1q_f32( w );
-                float32x4_t _s4 = vmulq_f32(_val, _w);
-#if __aarch64__
-                sum += vaddvq_f32(_s4); // dot
-#else
-                float32x2_t _ss = vadd_f32(vget_low_f32(_s4), vget_high_f32(_s4));
-                _ss = vpadd_f32(_ss, _ss);
-                sum += vget_lane_f32(_ss, 0);
-#endif
-
-                w += 4;
-                m += 4;
-            }
-
-            sum = activation_ss(sum, activation_type, activation_params);
-
-            top_blob[p] = sum;
-        }
-
-        return 0;
     }
 
     } // opt.use_packing_layout

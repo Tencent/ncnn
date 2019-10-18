@@ -484,10 +484,27 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
         // permute
 //         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
+        Mat bottom_blob_tm2;
 #if __aarch64__
-        Mat bottom_blob_tm2(12 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+        if (tiles >= 12)
+            bottom_blob_tm2.create(12 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+        else if (tiles >= 8)
+            bottom_blob_tm2.create(8 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+        else if (tiles >= 4)
+            bottom_blob_tm2.create(4 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+        else if (tiles >= 2)
+            bottom_blob_tm2.create(2 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+        else // if (tiles >= 1)
+            bottom_blob_tm2.create(1 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
 #else
-        Mat bottom_blob_tm2(8 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+        if (tiles >= 8)
+            bottom_blob_tm2.create(8 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+        else if (tiles >= 4)
+            bottom_blob_tm2.create(4 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+        else if (tiles >= 2)
+            bottom_blob_tm2.create(2 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+        else // if (tiles >= 1)
+            bottom_blob_tm2.create(1 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
 #endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -726,7 +743,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         bottom_blob_tm = Mat();
         // permute end
 
-        top_blob_tm.create(tiles, 64, outch, elemsize, elempack);
+        top_blob_tm.create(tiles, 64, outch, elemsize, elempack, opt.workspace_allocator);
 
         int nn_outch = 0;
         int remain_outch_start = 0;
@@ -1875,7 +1892,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    top_blob_bordered.create(outw, outh, outch, elemsize, elempack);
+    top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
     {
 //         const float otm[6][8] = {
 //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
