@@ -31,11 +31,6 @@ public:
 
 public:
     ncnn::Layer* flatten;
-
-    // pack4
-    Mat weight_data_pack4;
-    Mat weight_data_pack1to4;
-    Mat weight_data_pack4to1;
 };
 
 } // namespace ncnn
