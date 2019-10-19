@@ -782,7 +782,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     */
     
     int dims = bottom_blob.dims;
-    int axes_flag[dims] = {0};
+    int axes_flag[3] = {0};
     int reduction_type = -233;
 
     if (type)
