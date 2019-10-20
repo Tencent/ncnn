@@ -152,7 +152,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
 
     // interleave
 #if __aarch64__
-    Mat tmp(12, inch, size/12 + (size%12)/8 + (size%8)/4 + (size%4)/2 + size%2, elemsize, elempack, opt.workspace_allocator);
+    Mat tmp(12, inch, size/12 + (size%12)/8 + (size%12%8)/4 + (size%12%4)/2 + size%12%2, elemsize, elempack, opt.workspace_allocator);
 #else
     Mat tmp(8, inch, size/8 + (size%8)/4 + (size%4)/2 + size%2, elemsize, elempack, opt.workspace_allocator);
 #endif
@@ -288,7 +288,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             img0 += i*4;
 
 #if __aarch64__
-            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%12%8)/4);
 #else
             float* tmpptr = tmp.channel(i/8 + (i%8)/4);
 #endif
@@ -334,7 +334,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             img0 += i*4;
 
 #if __aarch64__
-            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2);
 #else
             float* tmpptr = tmp.channel(i/8 + (i%8)/4 + (i%4)/2);
 #endif
@@ -377,7 +377,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             img0 += i*4;
 
 #if __aarch64__
-            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2 + i%2);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2 + i%12%2);
 #else
             float* tmpptr = tmp.channel(i/8 + (i%8)/4 + (i%4)/2 + i%2);
 #endif
@@ -755,7 +755,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         }
         for (; i+3<size; i+=4)
         {
-            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%12%8)/4);
 
             const float* kptr01 = (const float*)kernel.channel(pp);
 
@@ -846,7 +846,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         }
         for (; i+1<size; i+=2)
         {
-            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2);
 
             const float* kptr01 = (const float*)kernel.channel(pp);
 
@@ -913,7 +913,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         }
         for (; i<size; i++)
         {
-            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2 + i%2);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2 + i%12%2);
 
             const float* kptr01 = (const float*)kernel.channel(pp);
 
@@ -1262,7 +1262,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         for (; i+3<size; i+=4)
         {
 #if __aarch64__
-            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%12%8)/4);
             const float* kptr0 = (const float*)kernel.channel(p/2+p%2);
 #else
             float* tmpptr = tmp.channel(i/8 + (i%8)/4);
@@ -1382,7 +1382,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         for (; i+1<size; i+=2)
         {
 #if __aarch64__
-            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2);
             const float* kptr0 = (const float*)kernel.channel(p/2+p%2);
 #else
             float* tmpptr = tmp.channel(i/8 + (i%8)/4 + (i%4)/2);
@@ -1482,7 +1482,7 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         for (; i<size; i++)
         {
 #if __aarch64__
-            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2 + i%2);
+            float* tmpptr = tmp.channel(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2 + i%12%2);
             const float* kptr0 = (const float*)kernel.channel(p/2+p%2);
 #else
             float* tmpptr = tmp.channel(i/8 + (i%8)/4 + (i%4)/2 + i%2);
