@@ -487,24 +487,24 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         Mat bottom_blob_tm2;
 #if __aarch64__
         if (tiles >= 12)
-            bottom_blob_tm2.create(12 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(12 * inch, tiles/12 + (tiles%12)/8 + (tiles%12%8)/4 + (tiles%12%4)/2 + tiles%12%2, 64, elemsize, elempack, opt.workspace_allocator);
         else if (tiles >= 8)
-            bottom_blob_tm2.create(8 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(8 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
         else if (tiles >= 4)
-            bottom_blob_tm2.create(4 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(4 * inch, tiles/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
         else if (tiles >= 2)
-            bottom_blob_tm2.create(2 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(2 * inch, tiles/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
         else // if (tiles >= 1)
-            bottom_blob_tm2.create(1 * inch, tiles/12 + (tiles%12)/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(1 * inch, tiles, 64, elemsize, elempack, opt.workspace_allocator);
 #else
         if (tiles >= 8)
             bottom_blob_tm2.create(8 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
         else if (tiles >= 4)
-            bottom_blob_tm2.create(4 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(4 * inch, tiles/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
         else if (tiles >= 2)
-            bottom_blob_tm2.create(2 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(2 * inch, tiles/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
         else // if (tiles >= 1)
-            bottom_blob_tm2.create(1 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(1 * inch, tiles, 64, elemsize, elempack, opt.workspace_allocator);
 #endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -621,7 +621,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             for (; i+3<tiles; i+=4)
             {
 #if __aarch64__
-                float* tm2p = tm2.row(i/12 + (i%12)/8 + (i%8)/4);
+                float* tm2p = tm2.row(i/12 + (i%12)/8 + (i%12%8)/4);
 #else
                 float* tm2p = tm2.row(i/8 + (i%8)/4);
 #endif
@@ -661,7 +661,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             for (; i+1<tiles; i+=2)
             {
 #if __aarch64__
-                float* tm2p = tm2.row(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2);
+                float* tm2p = tm2.row(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2);
 #else
                 float* tm2p = tm2.row(i/8 + (i%8)/4 + (i%4)/2);
 #endif
@@ -701,7 +701,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             for (; i<tiles; i++)
             {
 #if __aarch64__
-                float* tm2p = tm2.row(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2 + i%2);
+                float* tm2p = tm2.row(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2 + i%12%2);
 #else
                 float* tm2p = tm2.row(i/8 + (i%8)/4 + (i%4)/2 + i%2);
 #endif
@@ -1086,7 +1086,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                 }
                 for (; i+3<tiles; i+=4)
                 {
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%8)/4);
+                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4);
 
                     const float* k01 = kernel01_tm.row(r);
 
@@ -1175,7 +1175,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                 }
                 for (; i+1<tiles; i+=2)
                 {
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2);
+                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2);
 
                     const float* k01 = kernel01_tm.row(r);
 
@@ -1240,7 +1240,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                 }
                 for (; i<tiles; i++)
                 {
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2 + i%2);
+                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2 + i%12%2);
 
                     const float* k01 = kernel01_tm.row(r);
 
@@ -1591,7 +1591,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                 for (; i+3<tiles; i+=4)
                 {
 #if __aarch64__
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%8)/4);
+                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4);
 #else
                     const float* r0 = bb2.row(i/8 + (i%8)/4);
 #endif
@@ -1707,7 +1707,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                 for (; i+1<tiles; i+=2)
                 {
 #if __aarch64__
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2);
+                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2);
 #else
                     const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2);
 #endif
@@ -1803,7 +1803,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                 for (; i<tiles; i++)
                 {
 #if __aarch64__
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%8)/4 + (i%4)/2 + i%2);
+                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4 + (i%12%4)/2 + i%12%2);
 #else
                     const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2 + i%2);
 #endif
