@@ -987,7 +987,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             ncnn::Reduction* op_default = (ncnn::Reduction*)layer_default;
 
             fprintf_param_value(" 0=%d", operation)
-            fprintf_param_value(" 1=%d", dim)
+            fprintf_param_value(" 1=%d", reduce_all)
             fprintf_param_value(" 2=%f", coeff)
         }
         else if (layer->type == "ReLU")
