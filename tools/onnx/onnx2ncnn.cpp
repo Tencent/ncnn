@@ -1929,10 +1929,6 @@ int main(int argc, char** argv)
                 op == "ReduceProd" || op == "ReduceSum" || op == "ReduceSumSquare" ||
                 op == "ReduceL1" || op == "ReduceL2" || op == "ReduceLogSum" || op == "ReduceLogSumExp")
         {
-            printf("Warning: Although we support Reduce op here, but we still "
-                   "recommend you to use other equivalent op instead of Reduce op, "
-                   "because the Reduce op is not fully optimized.\n");
-
             int op_type = -233;
             if (op == "ReduceSum")
                 op_type = 0;
@@ -1962,7 +1958,7 @@ int main(int argc, char** argv)
             if (axes.size() > 0)
             {
                 // if axes set, reduce according to axes
-                fprintf(pp, " 1=%d", 1); 
+                fprintf(pp, " 1=%d", 0); 
                 fprintf(pp, " -23303=%d", axes.size());
                 for (int i=0; i< axes.size(); i++)
                 {
@@ -1974,7 +1970,7 @@ int main(int argc, char** argv)
             else
             {
                 // if axes not set, reduce all axes by default
-                fprintf(pp, " 1=%d", 0);
+                fprintf(pp, " 1=%d", 1);
             }
             fprintf(pp, " 4=%d", keepdims);
         }

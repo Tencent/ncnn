@@ -45,7 +45,7 @@ public:
 public:
     // param
     int operation;
-    int type;
+    int reduce_all;
     float coeff;
     Mat axes;
     int keepdims;
