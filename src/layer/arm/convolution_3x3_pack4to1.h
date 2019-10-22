@@ -70,7 +70,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack4to1_neon(const Mat& kerne
 #if __aarch64__
     kernel_tm_pack4.create(8 * inch/4, 64, outch/8 + (outch%8)/4 + outch%4, (size_t)4u*4, 4);
 #else
-    kernel_tm_pack4.create(4 * inch/4, 64, outch/4, (size_t)4u*4, 4);
+    kernel_tm_pack4.create(4 * inch/4, 64, outch/4 + outch%4, (size_t)4u*4, 4);
 #endif
 
     int p=0;
@@ -1592,10 +1592,10 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
 
                         "bne        0b              \n"
 
-                        "vst1.f32   {d16-d19}, [%1 :128]! \n"
-                        "vst1.f32   {d20-d23}, [%2 :128]! \n"
-                        "vst1.f32   {d24-d27}, [%3 :128]! \n"
-                        "vst1.f32   {d28-d31}, [%4 :128]! \n"
+                        "vst1.f32   {d16-d19}, [%1]! \n"
+                        "vst1.f32   {d20-d23}, [%2]! \n"
+                        "vst1.f32   {d24-d27}, [%3]! \n"
+                        "vst1.f32   {d28-d31}, [%4]! \n"
 
                         : "=r"(nn),         // %0
                           "=r"(output0_tm), // %1
@@ -1726,10 +1726,10 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
 
                         "bne        0b              \n"
 
-                        "vst1.f32   {d16-d17}, [%1 :128]! \n"
-                        "vst1.f32   {d18-d19}, [%2 :128]! \n"
-                        "vst1.f32   {d20-d21}, [%3 :128]! \n"
-                        "vst1.f32   {d22-d23}, [%4 :128]! \n"
+                        "vst1.f32   {d16-d17}, [%1]! \n"
+                        "vst1.f32   {d18-d19}, [%2]! \n"
+                        "vst1.f32   {d20-d21}, [%3]! \n"
+                        "vst1.f32   {d22-d23}, [%4]! \n"
 
                         : "=r"(nn),         // %0
                           "=r"(output0_tm), // %1
@@ -2045,7 +2045,7 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "vadd.f32   q8, q8, q10     \n"
                         "vadd.f32   q9, q9, q11     \n"
 
-                        "vst1.f32   {d16-d19}, [%1 :128]! \n"
+                        "vst1.f32   {d16-d19}, [%1]! \n"
 
                         : "=r"(nn),         // %0
                           "=r"(output0_tm), // %1
