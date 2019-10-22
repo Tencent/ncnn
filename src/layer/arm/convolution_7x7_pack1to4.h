@@ -1685,8 +1685,8 @@ static void conv7x7s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "vmla.f32   q14, q6, d0[1]  \n"
                         "vmla.f32   q15, q6, d1[1]  \n"
 
-                        "sub        %1, %1, 16      \n"
-                        "sub        %2, %2, 16      \n"
+                        "sub        %1, %1, #16     \n"
+                        "sub        %2, %2, #16     \n"
 
                         "vmla.f32   q12, q7, d1[0]  \n"
                         "vmla.f32   q13, q7, d2[0]  \n"
@@ -1700,19 +1700,19 @@ static void conv7x7s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "vmla.f32   q14, q10, d2[1] \n"
                         "vmla.f32   q15, q10, d3[1] \n"
 
-                        "sub        %3, %3, 16      \n"
-                        "sub        %4, %4, 16      \n"
+                        "sub        %3, %3, #16     \n"
+                        "sub        %4, %4, #16     \n"
 
                         "vmla.f32   q12, q11, d3[0] \n"
                         "vmla.f32   q13, q11, d8[0] \n"
 
-                        "sub        %5, %5, 16      \n"
-                        "sub        %6, %6, 16      \n"
+                        "sub        %5, %5, #16     \n"
+                        "sub        %6, %6, #16     \n"
 
                         "vadd.f32   q14, q14, q12   \n"
                         "vadd.f32   q15, q15, q13   \n"
 
-                        "sub        %7, %7, 16      \n"
+                        "sub        %7, %7, #16     \n"
 
                         "vst1.f32   {d28-d31}, [%0 :128]! \n"
 
