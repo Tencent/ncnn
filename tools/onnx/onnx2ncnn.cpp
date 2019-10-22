@@ -1175,6 +1175,12 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "ReduceMax" || op == "ReduceMin" || op == "ReduceMean" ||
+                op == "ReduceProd" || op == "ReduceSum" || op == "ReduceSumSquare" ||
+                op == "ReduceL1" || op == "ReduceL2" || op == "ReduceLogSum" || op == "ReduceLogSumExp")
+        {
+            fprintf(pp, "%-16s", "Reduction");
+        }
         else if (op == "Relu")
         {
             fprintf(pp, "%-16s", "ReLU");
@@ -1918,6 +1924,55 @@ int main(int argc, char** argv)
         {
             int op_type = 15;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "ReduceMax" || op == "ReduceMin" || op == "ReduceMean" ||
+                op == "ReduceProd" || op == "ReduceSum" || op == "ReduceSumSquare" ||
+                op == "ReduceL1" || op == "ReduceL2" || op == "ReduceLogSum" || op == "ReduceLogSumExp")
+        {
+            int op_type = -233;
+            if (op == "ReduceSum")
+                op_type = 0;
+            else if (op == "ReduceSumSquare")
+                op_type = 2;
+            else if (op == "ReduceMean")
+                op_type = 3;
+            else if (op == "ReduceMax")
+                op_type = 4;
+            else if (op == "ReduceMin")
+                op_type = 5;
+            else if (op == "ReduceProd")
+                op_type = 6;
+            else if (op == "ReduceL1")
+                op_type = 7;
+            else if (op == "ReduceL2")
+                op_type = 8;
+            else if (op == "ReduceLogSum")
+                op_type = 9;
+            else if (op == "ReduceLogSumExp")
+                op_type = 10;
+            fprintf(pp, " 0=%d", op_type);
+
+            std::vector<int> axes = get_node_attr_ai(node, "axes");
+            int keepdims = get_node_attr_i(node, "keepdims", 1);
+            
+            if (axes.size() > 0)
+            {
+                // if axes set, reduce according to axes
+                fprintf(pp, " 1=%d", 0); 
+                fprintf(pp, " -23303=%d", axes.size());
+                for (int i=0; i< axes.size(); i++)
+                {
+                    if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
+                        fprintf(stderr, "Unsupported reduction axes !\n");
+                    fprintf(pp, ",%d", axes[i]);
+                }
+            }
+            else
+            {
+                // if axes not set, reduce all axes by default
+                fprintf(pp, " 1=%d", 1);
+            }
+            fprintf(pp, " 4=%d", keepdims);
         }
         else if (op == "Reshape")
         {
