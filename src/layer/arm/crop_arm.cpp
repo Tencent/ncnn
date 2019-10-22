@@ -309,16 +309,11 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 {
                     _outw = reference_blob.w;
                 }
-                else if (reference_blob.dims == 3)
+                else // if (reference_blob.dims == 3)
                 {
                     _outw = reference_blob.w;
                 }
             }
-
-            if (outw == -233)
-                _outw = w * elempack - _woffset;
-            else
-                _outw = std::min(outw, w * elempack - _woffset);
 
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -366,22 +361,12 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     _outw = reference_blob.w;
                     _outh = reference_blob.h * ref_elempack;
                 }
-                else if (reference_blob.dims == 3)
+                else // if (reference_blob.dims == 3)
                 {
                     _outw = reference_blob.w;
                     _outh = reference_blob.h;
                 }
             }
-
-            if (outw == -233)
-                _outw = w - _woffset;
-            else
-                _outw = std::min(outw, w - _woffset);
-
-            if (outh == -233)
-                _outh = h * elempack - _hoffset;
-            else
-                _outh = std::min(outh, h * elempack - _hoffset);
 
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -433,28 +418,13 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     _outh = reference_blob.h * ref_elempack;
                     _outc = channels * elempack;
                 }
-                else if (reference_blob.dims == 3)
+                else // if (reference_blob.dims == 3)
                 {
                     _outw = reference_blob.w;
                     _outh = reference_blob.h;
                     _outc = reference_blob.c * ref_elempack;
                 }
             }
-
-            if (outw == -233)
-                _outw = w - _woffset;
-            else
-                _outw = std::min(outw, w - _woffset);
-
-            if (outh == -233)
-                _outh = h - _hoffset;
-            else
-                _outh = std::min(outh, h - _hoffset);
-
-            if (outc == -233)
-                _outc = channels * elempack - _coffset;
-            else
-                _outc = std::min(outc, channels * elempack - _coffset);
 
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
