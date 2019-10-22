@@ -14,7 +14,7 @@
 
 static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch)
 {
-    // winograd23 transform kernel
+    // winograd63 transform kernel
     Mat kernel_tm;
     kernel_tm.create(8*8, inch, outch);
 
