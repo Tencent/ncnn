@@ -2021,6 +2021,7 @@ int main(int argc, char** argv)
         {
             std::vector<int> starts = get_node_attr_ai(node, "starts");
             std::vector<int> ends = get_node_attr_ai(node, "ends");
+            std::vector<int> axes = get_node_attr_ai(node, "axes");
             std::vector<int> steps = get_node_attr_ai(node, "steps");// TODO
 
             // assert step == 1
@@ -2030,51 +2031,26 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
-            int woffset = 0;
-            int hoffset = 0;
-            int coffset = 0;
-            int outw = -233;
-            int outh = -233;
-            int outc = -233;
-
-            if (starts.size() == 1) 
+            fprintf(pp, " -23309=%d", starts.size());
+            for (int i=0; i<(int)starts.size(); i++)
             {
-                woffset = starts[0];
-                hoffset = -233;
-                coffset = -233;
-                outw = ends[0] == -1 ? -233: ends[0] - starts[0]; // for onnx from pytorch, -233 works
-            } 
-            else if (starts.size() == 2)
-            {
-                woffset = starts[1];
-                hoffset = -233;
-                coffset = -233;
-                outw = ends[1] == -1 ? -233 : ends[1] - starts[1];
+                fprintf(pp, ",%d", starts[i]);
             }
-            else if (starts.size() == 3)
+            fprintf(pp, " -23310=%d", ends.size());
+            for (int i=0; i<(int)ends.size(); i++)
             {
-                woffset = starts[2];
-                hoffset = starts[1];
-                coffset = -233;
-                outw = ends[2] == -1 ? -233 : ends[2] - starts[2];
-                outh = ends[1] == -1 ? -233 : ends[1] - starts[1];
+                fprintf(pp, ",%d", ends[i]);
             }
-            else if (starts.size() == 4)
+            if (!axes.empty())
             {
-                woffset = starts[3];
-                hoffset = starts[2];
-                coffset = starts[1];
-                outw = ends[3] == -1 ? -233 : ends[3] - starts[3];
-                outh = ends[2] == -1 ? -233 : ends[2] - starts[2];
-                outc = ends[1] == -1 ? -233 : ends[1] - starts[1];
+                fprintf(pp, " -23311=%d", axes.size());
+                for (int i=0; i<(int)axes.size(); i++)
+                {
+                    if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
+                        fprintf(stderr, "Unsupported reduction axes !\n");
+                    fprintf(pp, ",%d", axes[i]);
+                }
             }
-
-            fprintf(pp, " 0=%d", woffset);
-            fprintf(pp, " 1=%d", hoffset);
-            fprintf(pp, " 2=%d", coffset);
-            fprintf(pp, " 3=%d", outw);
-            fprintf(pp, " 4=%d", outh);
-            fprintf(pp, " 5=%d", outc);
         }
         else if (op == "Softmax")
         {

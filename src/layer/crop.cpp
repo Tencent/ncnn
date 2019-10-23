@@ -21,7 +21,7 @@ DEFINE_LAYER_CREATOR(Crop)
 
 Crop::Crop()
 {
-    one_blob_only = false;
+    one_blob_only = true;
     support_inplace = false;
 }
 
@@ -37,9 +37,15 @@ int Crop::load_param(const ParamDict& pd)
     hoffset2 = pd.get(7, 0);
     coffset2 = pd.get(8, 0);
 
-    if (outw != 0 || outh != 0 || outc != 0)
+    starts = pd.get(9, Mat());
+    ends = pd.get(10, Mat());
+    axes = pd.get(11, Mat());
+
+    bool numpy_style_slice = !starts.empty() && !ends.empty();
+
+    if (outw == 0 && outh == 0 && outc == 0 && !numpy_style_slice)
     {
-        one_blob_only = true;
+        one_blob_only = false;
     }
 
     return 0;
@@ -90,13 +96,185 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     int _outh;
     int _outc;
 
+    bool numpy_style_slice = !starts.empty() && !ends.empty();
+    if (numpy_style_slice)
+    {
+        _woffset = 0;
+        _hoffset = 0;
+        _coffset = 0;
+        _outw = w;
+        _outh = h;
+        _outc = channels;
+
+        const int* starts_ptr = starts;
+        const int* ends_ptr = ends;
+        const int* axes_ptr = axes;
+
+        int _axes[4] = {0,1,2,3};
+        int num_axis = axes.w;
+        if (num_axis == 0)
+        {
+            num_axis = dims + 1;// +1 for N-dim
+        }
+        else
+        {
+            for (int i=0; i<num_axis; i++)
+            {
+                int axis = axes_ptr[i];
+                if (axis < 0)
+                    axis = dims + 1 + axis;// +1 for N-dim
+                _axes[i] = axis;
+            }
+        }
+
+        for (int i=0; i<num_axis; i++)
+        {
+            int axis = _axes[i];
+            if (axis == 0)
+                continue;// skip N-dim
+
+            int start = starts_ptr[i];
+            int end = ends_ptr[i];
+
+            if (dims == 1) // axis == 1
+            {
+                _woffset = start > 0 ? start : w + start;
+                _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+            }
+            if (dims == 2)
+            {
+                if (axis == 1)
+                {
+                    _hoffset = start > 0 ? start : h + start;
+                    _outh = std::min(h, end > 0 ? end : h + end) - _woffset;
+                }
+                if (axis == 2)
+                {
+                    _woffset = start > 0 ? start : w + start;
+                    _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+                }
+            }
+            if (dims == 3)
+            {
+                if (axis == 1)
+                {
+                    _coffset = start > 0 ? start : channels + start;
+                    _outc = std::min(channels, end > 0 ? end : channels + end) - _coffset;
+                }
+                if (axis == 2)
+                {
+                    _hoffset = start > 0 ? start : h + start;
+                    _outh = std::min(h, end > 0 ? end : h + end) - _woffset;
+                }
+                if (axis == 3)
+                {
+                    _woffset = start > 0 ? start : w + start;
+                    _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+                }
+            }
+        }
+    }
+    else
+    {
+        if (dims == 1)
+        {
+            if (outw == -233)
+                _outw = w - _woffset - _woffset2;
+            else
+                _outw = std::min(outw, w - _woffset - _woffset2);
+        }
+        if (dims == 2)
+        {
+            if (_hoffset == -233)
+            {
+                _woffset = 0;
+                _woffset2 = 0;
+                _outw = w;
+
+                _hoffset = woffset;
+                _hoffset2 = woffset2;
+
+                if (outw == -233)
+                    _outh = h - _hoffset - _hoffset2;
+                else
+                    _outh = std::min(outw, h - _hoffset - _hoffset2);
+            }
+            else
+            {
+                if (outw == -233)
+                    _outw = w - _woffset - _woffset2;
+                else
+                    _outw = std::min(outw, w - _woffset - _woffset2);
+
+                if (outh == -233)
+                    _outh = h - _hoffset - _hoffset2;
+                else
+                    _outh = std::min(outh, h - _hoffset - _hoffset2);
+            }
+        }
+        if (dims == 3)
+        {
+            if (_hoffset == -233 && _coffset == -233)
+            {
+                _woffset = 0;
+                _woffset2 = 0;
+                _outw = w;
+                _hoffset = 0;
+                _hoffset2 = 0;
+                _outh = h;
+
+                _coffset = woffset;
+                _coffset2 = woffset2;
+
+                if (outw == -233)
+                    _outc = channels - _coffset - _coffset2;
+                else
+                    _outc = std::min(outw, channels - _coffset - _coffset2);
+            }
+            else if (_hoffset == -233)
+            {
+                _woffset = 0;
+                _woffset2 = 0;
+                _outw = w;
+
+                _hoffset = woffset;
+                _hoffset2 = woffset2;
+
+                if (outw == -233)
+                    _outh = h - _hoffset - _hoffset2;
+                else
+                    _outh = std::min(outw, h - _hoffset - _hoffset2);
+
+                _coffset = hoffset;
+                _coffset2 = hoffset2;
+
+                if (outh == -233)
+                    _outc = channels - _coffset - _coffset2;
+                else
+                    _outc = std::min(outh, channels - _coffset - _coffset2);
+            }
+            else
+            {
+                if (outw == -233)
+                    _outw = w - _woffset - _woffset2;
+                else
+                    _outw = std::min(outw, w - _woffset - _woffset2);
+
+                if (outh == -233)
+                    _outh = h - _hoffset - _hoffset2;
+                else
+                    _outh = std::min(outh, h - _hoffset - _hoffset2);
+
+                if (outc == -233)
+                    _outc = channels - _coffset - _coffset2;
+                else
+                    _outc = std::min(outc, channels - _coffset - _coffset2);
+            }
+        }
+    }
+
     if (dims == 1)
     {
-        if (outw == -233)
-            _outw = w - _woffset - _woffset2;
-        else
-            _outw = std::min(outw, w - _woffset - _woffset2);
-
         if (_outw == w)
         {
             top_blob = bottom_blob;
@@ -117,33 +295,6 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
     if (dims == 2)
     {
-        if (_hoffset == -233)
-        {
-            _woffset = 0;
-            _woffset2 = 0;
-            _outw = w;
-
-            _hoffset = woffset;
-            _hoffset2 = woffset2;
-
-            if (outw == -233)
-                _outh = h - _hoffset - _hoffset2;
-            else
-                _outh = std::min(outw, h - _hoffset - _hoffset2);
-        }
-        else
-        {
-            if (outw == -233)
-                _outw = w - _woffset - _woffset2;
-            else
-                _outw = std::min(outw, w - _woffset - _woffset2);
-
-            if (outh == -233)
-                _outh = h - _hoffset - _hoffset2;
-            else
-                _outh = std::min(outh, h - _hoffset - _hoffset2);
-        }
-
         if (_outw == w && _outh == h)
         {
             top_blob = bottom_blob;
@@ -164,63 +315,6 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
     if (dims == 3)
     {
-        if (_hoffset == -233 && _coffset == -233)
-        {
-            _woffset = 0;
-            _woffset2 = 0;
-            _outw = w;
-            _hoffset = 0;
-            _hoffset2 = 0;
-            _outh = h;
-
-            _coffset = woffset;
-            _coffset2 = woffset2;
-
-            if (outw == -233)
-                _outc = channels - _coffset - _coffset2;
-            else
-                _outc = std::min(outw, channels - _coffset - _coffset2);
-        }
-        else if (_hoffset == -233)
-        {
-            _woffset = 0;
-            _woffset2 = 0;
-            _outw = w;
-
-            _hoffset = woffset;
-            _hoffset2 = woffset2;
-
-            if (outw == -233)
-                _outh = h - _hoffset - _hoffset2;
-            else
-                _outh = std::min(outw, h - _hoffset - _hoffset2);
-
-            _coffset = hoffset;
-            _coffset2 = hoffset2;
-
-            if (outh == -233)
-                _outc = channels - _coffset - _coffset2;
-            else
-                _outc = std::min(outh, channels - _coffset - _coffset2);
-        }
-        else
-        {
-            if (outw == -233)
-                _outw = w - _woffset - _woffset2;
-            else
-                _outw = std::min(outw, w - _woffset - _woffset2);
-
-            if (outh == -233)
-                _outh = h - _hoffset - _hoffset2;
-            else
-                _outh = std::min(outh, h - _hoffset - _hoffset2);
-
-            if (outc == -233)
-                _outc = channels - _coffset - _coffset2;
-            else
-                _outc = std::min(outc, channels - _coffset - _coffset2);
-        }
-
         if (_outw == w && _outh == h && _outc == channels)
         {
             top_blob = bottom_blob;
@@ -293,7 +387,47 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         {
             _outw = reference_blob.w;
         }
+    }
+    if (dims == 2)
+    {
+        if (_woffset == -233 && _hoffset == -233)
+        {
+            const int* param_data = reference_blob;
 
+            _woffset = param_data[0];
+            _hoffset = param_data[1];
+            _outw = param_data[3];
+            _outh = param_data[4];
+        }
+        else
+        {
+            _outw = reference_blob.w;
+            _outh = reference_blob.h;
+        }
+    }
+    if (dims == 3)
+    {
+        if (_woffset == -233 && _hoffset == -233 && _coffset == -233)
+        {
+            const int* param_data = reference_blob;
+
+            _woffset = param_data[0];
+            _hoffset = param_data[1];
+            _coffset = param_data[2];
+            _outw = param_data[3];
+            _outh = param_data[4];
+            _outc = param_data[5];
+        }
+        else
+        {
+            _outw = reference_blob.w;
+            _outh = reference_blob.h;
+            _outc = reference_blob.dims == 3 ? reference_blob.c : channels;
+        }
+    }
+
+    if (dims == 1)
+    {
         if (_outw == w)
         {
             top_blob = bottom_blob;
@@ -314,21 +448,6 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     if (dims == 2)
     {
-        if (_woffset == -233 && _hoffset == -233)
-        {
-            const int* param_data = reference_blob;
-
-            _woffset = param_data[0];
-            _hoffset = param_data[1];
-            _outw = param_data[3];
-            _outh = param_data[4];
-        }
-        else
-        {
-            _outw = reference_blob.w;
-            _outh = reference_blob.h;
-        }
-
         if (_outw == w && _outh == h)
         {
             top_blob = bottom_blob;
@@ -349,24 +468,6 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     if (dims == 3)
     {
-        if (_woffset == -233 && _hoffset == -233 && _coffset == -233)
-        {
-            const int* param_data = reference_blob;
-
-            _woffset = param_data[0];
-            _hoffset = param_data[1];
-            _coffset = param_data[2];
-            _outw = param_data[3];
-            _outh = param_data[4];
-            _outc = param_data[5];
-        }
-        else
-        {
-            _outw = reference_blob.w;
-            _outh = reference_blob.h;
-            _outc = reference_blob.dims == 3 ? reference_blob.c : channels;
-        }
-
         if (_outw == w && _outh == h && _outc == channels)
         {
             top_blob = bottom_blob;

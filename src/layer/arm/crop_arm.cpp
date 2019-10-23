@@ -78,7 +78,85 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     int _outh;
     int _outc;
 
-    if (elempack == 4)
+    bool numpy_style_slice = !starts.empty() && !ends.empty();
+    if (numpy_style_slice)
+    {
+        _woffset = 0;
+        _hoffset = 0;
+        _coffset = 0;
+        _outw = dims == 1 ? w * elempack : w;
+        _outh = dims == 2 ? h * elempack : h;
+        _outc = dims == 3 ? channels * elempack : channels;
+
+        const int* starts_ptr = starts;
+        const int* ends_ptr = ends;
+        const int* axes_ptr = axes;
+
+        int _axes[4] = {0,1,2,3};
+        int num_axis = axes.w;
+        if (num_axis == 0)
+        {
+            num_axis = dims + 1;// +1 for N-dim
+        }
+        else
+        {
+            for (int i=0; i<num_axis; i++)
+            {
+                int axis = axes_ptr[i];
+                if (axis < 0)
+                    axis = dims + 1 + axis;// +1 for N-dim
+                _axes[i] = axis;
+            }
+        }
+
+        for (int i=0; i<num_axis; i++)
+        {
+            int axis = _axes[i];
+            if (axis == 0)
+                continue;// skip N-dim
+
+            int start = starts_ptr[i];
+            int end = ends_ptr[i];
+
+            if (dims == 1) // axis == 1
+            {
+                _woffset = start > 0 ? start : w * elempack + start;
+                _outw = std::min(w * elempack, end > 0 ? end : w * elempack + end) - _woffset;
+            }
+            if (dims == 2)
+            {
+                if (axis == 1)
+                {
+                    _hoffset = start > 0 ? start : h * elempack + start;
+                    _outh = std::min(h * elempack, end > 0 ? end : h * elempack + end) - _woffset;
+                }
+                if (axis == 2)
+                {
+                    _woffset = start > 0 ? start : w + start;
+                    _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+                }
+            }
+            if (dims == 3)
+            {
+                if (axis == 1)
+                {
+                    _coffset = start > 0 ? start : channels * elempack + start;
+                    _outc = std::min(channels * elempack, end > 0 ? end : channels * elempack + end) - _coffset;
+                }
+                if (axis == 2)
+                {
+                    _hoffset = start > 0 ? start : h + start;
+                    _outh = std::min(h, end > 0 ? end : h + end) - _woffset;
+                }
+                if (axis == 3)
+                {
+                    _woffset = start > 0 ? start : w + start;
+                    _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+                }
+            }
+        }
+    }
+    else
     {
         if (dims == 1)
         {
@@ -86,28 +164,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 _outw = w * elempack - _woffset - _woffset2;
             else
                 _outw = std::min(outw, w * elempack - _woffset - _woffset2);
-
-            int out_elempack = _outw % 4 == 0 ? 4 : 1;
-            size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (_outw / out_elempack == w)
-            {
-                top_blob = bottom_blob;
-                return 0;
-            }
-
-            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (_woffset % 4 == 0 && out_elempack == 4)
-            {
-                crop_pack4_neon(bottom_blob, top_blob, 0, _woffset / elempack);
-
-                return 0;
-            }
         }
-
         if (dims == 2)
         {
             if (_hoffset == -233)
@@ -136,28 +193,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 else
                     _outh = std::min(outh, h * elempack - _hoffset - _hoffset2);
             }
-
-            int out_elempack = _outh % 4 == 0 ? 4 : 1;
-            size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (_outw == w && _outh / out_elempack == h)
-            {
-                top_blob = bottom_blob;
-                return 0;
-            }
-
-            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (_hoffset % 4 == 0 && out_elempack == 4)
-            {
-                crop_pack4_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
-
-                return 0;
-            }
         }
-
         if (dims == 3)
         {
             if (_hoffset == -233 && _coffset == -233)
@@ -216,7 +252,59 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 else
                     _outc = std::min(outc, channels * elempack - _coffset - _coffset2);
             }
+        }
+    }
 
+    if (elempack == 4)
+    {
+        if (dims == 1)
+        {
+            int out_elempack = _outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw / out_elempack == w)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (_woffset % 4 == 0 && out_elempack == 4)
+            {
+                crop_pack4_neon(bottom_blob, top_blob, 0, _woffset / elempack);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int out_elempack = _outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh / out_elempack == h)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (_hoffset % 4 == 0 && out_elempack == 4)
+            {
+                crop_pack4_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -273,48 +361,116 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+    int ref_elempack = reference_blob.elempack;
+
     Mat& top_blob = top_blobs[0];
 
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
 
+    int _woffset = woffset;
+    int _hoffset = hoffset;
+    int _coffset = coffset;
+    int _outw;
+    int _outh;
+    int _outc;
+
+    if (dims == 1)
+    {
+        if (_woffset == -233)
+        {
+            const int* param_data = reference_blob;
+
+            _woffset = param_data[0];
+            _outw = param_data[3];
+        }
+        else
+        {
+            if (reference_blob.dims == 1)
+            {
+                _outw = reference_blob.w * ref_elempack;
+            }
+            else if (reference_blob.dims == 2)
+            {
+                _outw = reference_blob.w;
+            }
+            else // if (reference_blob.dims == 3)
+            {
+                _outw = reference_blob.w;
+            }
+        }
+    }
+    if (dims == 2)
+    {
+        if (_woffset == -233 && _hoffset == -233)
+        {
+            const int* param_data = reference_blob;
+
+            _woffset = param_data[0];
+            _hoffset = param_data[1];
+            _outw = param_data[3];
+            _outh = param_data[4];
+        }
+        else
+        {
+            if (reference_blob.dims == 1)
+            {
+                _outw = reference_blob.w * ref_elempack;
+                _outh = h * elempack;
+            }
+            else if (reference_blob.dims == 2)
+            {
+                _outw = reference_blob.w;
+                _outh = reference_blob.h * ref_elempack;
+            }
+            else // if (reference_blob.dims == 3)
+            {
+                _outw = reference_blob.w;
+                _outh = reference_blob.h;
+            }
+        }
+    }
+    if (dims == 3)
+    {
+        if (_woffset == -233 && _hoffset == -233 && _coffset == -233)
+        {
+            const int* param_data = reference_blob;
+
+            _woffset = param_data[0];
+            _hoffset = param_data[1];
+            _coffset = param_data[2];
+            _outw = param_data[3];
+            _outh = param_data[4];
+            _outc = param_data[5];
+        }
+        else
+        {
+            if (reference_blob.dims == 1)
+            {
+                _outw = reference_blob.w * ref_elempack;
+                _outh = h;
+                _outc = channels * elempack;
+            }
+            else if (reference_blob.dims == 2)
+            {
+                _outw = reference_blob.w;
+                _outh = reference_blob.h * ref_elempack;
+                _outc = channels * elempack;
+            }
+            else // if (reference_blob.dims == 3)
+            {
+                _outw = reference_blob.w;
+                _outh = reference_blob.h;
+                _outc = reference_blob.c * ref_elempack;
+            }
+        }
+    }
+
     if (elempack == 4)
     {
-        int _woffset = woffset;
-        int _hoffset = hoffset;
-        int _coffset = coffset;
-        int _outw;
-        int _outh;
-        int _outc;
-
         if (dims == 1)
         {
-            if (_woffset == -233)
-            {
-                const int* param_data = reference_blob;
-
-                _woffset = param_data[0];
-                _outw = param_data[3];
-            }
-            else
-            {
-                int ref_elempack = reference_blob.elempack;
-
-                if (reference_blob.dims == 1)
-                {
-                    _outw = reference_blob.w * ref_elempack;
-                }
-                else if (reference_blob.dims == 2)
-                {
-                    _outw = reference_blob.w;
-                }
-                else // if (reference_blob.dims == 3)
-                {
-                    _outw = reference_blob.w;
-                }
-            }
-
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -338,36 +494,6 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 2)
         {
-            if (_woffset == -233 && _hoffset == -233)
-            {
-                const int* param_data = reference_blob;
-
-                _woffset = param_data[0];
-                _hoffset = param_data[1];
-                _outw = param_data[3];
-                _outh = param_data[4];
-            }
-            else
-            {
-                int ref_elempack = reference_blob.elempack;
-
-                if (reference_blob.dims == 1)
-                {
-                    _outw = reference_blob.w * ref_elempack;
-                    _outh = h * elempack;
-                }
-                else if (reference_blob.dims == 2)
-                {
-                    _outw = reference_blob.w;
-                    _outh = reference_blob.h * ref_elempack;
-                }
-                else // if (reference_blob.dims == 3)
-                {
-                    _outw = reference_blob.w;
-                    _outh = reference_blob.h;
-                }
-            }
-
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -391,41 +517,6 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 3)
         {
-            if (_woffset == -233 && _hoffset == -233 && _coffset == -233)
-            {
-                const int* param_data = reference_blob;
-
-                _woffset = param_data[0];
-                _hoffset = param_data[1];
-                _coffset = param_data[2];
-                _outw = param_data[3];
-                _outh = param_data[4];
-                _outc = param_data[5];
-            }
-            else
-            {
-                int ref_elempack = reference_blob.elempack;
-
-                if (reference_blob.dims == 1)
-                {
-                    _outw = reference_blob.w * ref_elempack;
-                    _outh = h;
-                    _outc = channels * elempack;
-                }
-                else if (reference_blob.dims == 2)
-                {
-                    _outw = reference_blob.w;
-                    _outh = reference_blob.h * ref_elempack;
-                    _outc = channels * elempack;
-                }
-                else // if (reference_blob.dims == 3)
-                {
-                    _outw = reference_blob.w;
-                    _outh = reference_blob.h;
-                    _outc = reference_blob.c * ref_elempack;
-                }
-            }
-
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -462,7 +553,6 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 return 0;
             }
         }
-
     }
 
     } // opt.use_packing_layout
