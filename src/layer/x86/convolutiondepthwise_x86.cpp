@@ -35,9 +35,6 @@ ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 
 int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 {
-    Option opt_cpu = opt;
-    opt_cpu.use_vulkan_compute = false;
-
     if (activation_type == 1)
     {
         activation = ncnn::create_layer(ncnn::LayerType::ReLU);
@@ -72,7 +69,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 
     if (activation)
     {
-        activation->create_pipeline(opt_cpu);
+        activation->create_pipeline(opt);
     }
 
     // create Convolution op for each group
@@ -156,7 +153,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
             op->load_model(ModelBinFromMatArray(weights));
         }
 
-        op->create_pipeline(opt_cpu);
+        op->create_pipeline(opt);
 
         group_ops[g] = op;
     }      
@@ -166,19 +163,16 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 
 int ConvolutionDepthWise_x86::destroy_pipeline(const Option& opt)
 {
-    Option opt_cpu = opt;
-    opt_cpu.use_vulkan_compute = false;
-
     if (activation)
     {
-        activation->destroy_pipeline(opt_cpu);
+        activation->destroy_pipeline(opt);
         delete activation;
         activation = 0;
     }
 
     for (int i=0; i<(int)group_ops.size(); i++)
     {
-        group_ops[i]->destroy_pipeline(opt_cpu);
+        group_ops[i]->destroy_pipeline(opt);
         delete group_ops[i];
     }
     group_ops.clear();
