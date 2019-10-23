@@ -259,6 +259,26 @@ static int get_max_freq_khz(int cpuid)
         sprintf(path, "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", cpuid);
         fp = fopen(path, "rb");
 
+        int max_freq_khz = 0;
+        while (!feof(fp))
+        {
+            int freq_khz = 0;
+            int nscan = fscanf(fp, "%d %*d", &freq_khz);
+            if (nscan != 1)
+                break;
+
+            if (freq_khz > max_freq_khz)
+                max_freq_khz = freq_khz;
+        }
+
+        fclose(fp);
+
+        if (max_freq_khz != 0)
+            return max_freq_khz;
+        else
+            fp = NULL;
+
+
         if (!fp)
         {
             // third try, for online cpu
@@ -354,7 +374,7 @@ static int sort_cpuid_by_max_frequency(std::vector<int>& cpuids, int* little_clu
     {
         int max_freq_khz = get_max_freq_khz(i);
 
-//         printf("%d max freq = %d khz\n", i, max_freq_khz);
+        // printf("%d max freq = %d khz\n", i, max_freq_khz);
 
         cpuids[i] = i;
         cpu_max_freq_khz[i] = max_freq_khz;
