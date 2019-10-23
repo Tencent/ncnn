@@ -100,9 +100,6 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
 
 int ConvolutionDepthWise::create_pipeline(const Option& opt)
 {
-    Option opt_cpu = opt;
-    opt_cpu.use_vulkan_compute = false;
-
     use_int8_inference = opt.use_int8_inference;
 
     if (int8_scale_term == 0)
@@ -135,7 +132,7 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
             op->load_param(pd);
 
-            op->create_pipeline(opt_cpu);
+            op->create_pipeline(opt);
 
             ncnn::Option opt;
             opt.blob_allocator = int8_weight_data.allocator;
@@ -164,7 +161,7 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
             quantize_ops[g]->load_param(pd);
 
-            quantize_ops[g]->create_pipeline(opt_cpu);
+            quantize_ops[g]->create_pipeline(opt);
         }
 
         for (int g=0; g<group; g++)
@@ -189,7 +186,7 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
             dequantize_ops[g]->load_model(ModelBinFromMatArray(weights));
 
-            dequantize_ops[g]->create_pipeline(opt_cpu);
+            dequantize_ops[g]->create_pipeline(opt);
 
             dequantize_scales.push_back(top_rescale);
         }
@@ -200,26 +197,23 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
 int ConvolutionDepthWise::destroy_pipeline(const Option& opt)
 {
-    Option opt_cpu = opt;
-    opt_cpu.use_vulkan_compute = false;
-
     for (int i=0; i<(int)quantize_ops.size(); i++)
     {
-        quantize_ops[i]->destroy_pipeline(opt_cpu);
+        quantize_ops[i]->destroy_pipeline(opt);
         delete quantize_ops[i];
     }
     quantize_ops.clear();
 
     for (int i=0; i<(int)dequantize_ops.size(); i++)
     {
-        dequantize_ops[i]->destroy_pipeline(opt_cpu);
+        dequantize_ops[i]->destroy_pipeline(opt);
         delete dequantize_ops[i];
     }
     dequantize_ops.clear();
 
     for (int i=0; i<(int)requantize_ops.size(); i++)
     {
-        requantize_ops[i]->destroy_pipeline(opt_cpu);
+        requantize_ops[i]->destroy_pipeline(opt);
         delete requantize_ops[i];
     }
     requantize_ops.clear();

@@ -95,9 +95,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
     if (activation)
     {
-        Option opt_cpu = opt;
-        opt_cpu.use_vulkan_compute = false;
-        activation->create_pipeline(opt_cpu);
+        activation->create_pipeline(opt);
     }
 
     const int maxk = kernel_w * kernel_h;
@@ -393,9 +391,7 @@ int Convolution_arm::destroy_pipeline(const Option& opt)
 {
     if (activation)
     {
-        Option opt_cpu = opt;
-        opt_cpu.use_vulkan_compute = false;
-        activation->destroy_pipeline(opt_cpu);
+        activation->destroy_pipeline(opt);
         delete activation;
         activation = 0;
     }
