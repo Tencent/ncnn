@@ -1904,6 +1904,12 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", outw)
             fprintf_param_value(" 4=%d", outh)
             fprintf_param_value(" 5=%d", outc)
+            fprintf_param_value(" 6=%d", woffset2)
+            fprintf_param_value(" 7=%d", hoffset2)
+            fprintf_param_value(" 8=%d", coffset2)
+            { if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp); }
+            { if (!op->ends.empty()) fprintf_param_int_array(10, op->ends, pp); }
+            { if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp); }
         }
         else if (layer->type == "Deconvolution")
         {

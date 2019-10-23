@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -1406,6 +1407,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Crop");
         }
+        else if (n.op == "slice_axis")
+        {
+            fprintf(pp, "%-16s", "Crop");
+        }
         else if (n.op == "SliceChannel")
         {
             fprintf(pp, "%-16s", "Slice");
@@ -2395,51 +2400,26 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
-            int woffset = 0;
-            int hoffset = 0;
-            int coffset = 0;
-            int outw = -233;
-            int outh = -233;
-            int outc = -233;
+            fprintf(pp, " -23309=%d", begin.size());
+            for (int i=0; i<(int)begin.size(); i++)
+            {
+                fprintf(pp, ",%d", begin[i]);
+            }
+            fprintf(pp, " -23310=%d", end.size());
+            for (int i=0; i<(int)end.size(); i++)
+            {
+                fprintf(pp, ",%d", end[i]);
+            }
+        }
+        else if (n.op == "slice_axis")
+        {
+            int axis = n.attr("axis");
+            int begin = n.attr("begin");
+            int end = n.has_attr("end") ? n.attr("end") : INT_MAX;
 
-            if (begin.size() == 1)
-            {
-                woffset = begin[0] == -233 ? 0 : begin[0];
-                hoffset = -233;
-                coffset = -233;
-                outw = end[0] == -233 ? -233 : end[0] - begin[0];
-            }
-            else if (begin.size() == 2)
-            {
-                woffset = begin[1] == -233 ? 0 : begin[1];
-                hoffset = -233;
-                coffset = -233;
-                outw = end[1] == -233 ? -233 : end[1] - begin[1];
-            }
-            else if (begin.size() == 3)
-            {
-                woffset = begin[2] == -233 ? 0 : begin[2];
-                hoffset = begin[1] == -233 ? 0 : begin[1];
-                coffset = -233;
-                outw = end[2] == -233 ? -233 : end[2] - begin[2];
-                outh = end[1] == -233 ? -233 : end[1] - begin[1];
-            }
-            else if (begin.size() == 4)
-            {
-                woffset = begin[3] == -233 ? 0 : begin[3];
-                hoffset = begin[2] == -233 ? 0 : begin[2];
-                coffset = begin[1] == -233 ? 0 : begin[1];
-                outw = end[3] == -233 ? -233 : end[3] - begin[3];
-                outh = end[2] == -233 ? -233 : end[2] - begin[2];
-                outc = end[1] == -233 ? -233 : end[1] - begin[1];
-            }
-
-            fprintf(pp, " 0=%d", woffset);
-            fprintf(pp, " 1=%d", hoffset);
-            fprintf(pp, " 2=%d", coffset);
-            fprintf(pp, " 3=%d", outw);
-            fprintf(pp, " 4=%d", outh);
-            fprintf(pp, " 5=%d", outc);
+            fprintf(pp, " -23309=1,%d", begin);
+            fprintf(pp, " -23310=1,%d", end);
+            fprintf(pp, " -23311=1,%d", axis);
         }
         else if (n.op == "SliceChannel")
         {
