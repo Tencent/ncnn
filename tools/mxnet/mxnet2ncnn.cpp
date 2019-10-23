@@ -1354,21 +1354,13 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Noop");
         }
-        else if (n.op == "max")
+        else if (n.op == "max" || n.op == "mean" || n.op == "min" || n.op == "prod" || n.op == "sum")
         {
             fprintf(pp, "%-16s", "Reduction");
         }
         else if (n.op == "maximum")
         {
             fprintf(pp, "%-16s", "BinaryOp");
-        }
-        else if (n.op == "mean")
-        {
-            fprintf(pp, "%-16s", "Reduction");
-        }
-        else if (n.op == "min")
-        {
-            fprintf(pp, "%-16s", "Reduction");
         }
         else if (n.op == "minimum")
         {
@@ -1385,10 +1377,6 @@ int main(int argc, char** argv)
         else if (n.op == "Pooling")
         {
             fprintf(pp, "%-16s", "Pooling");
-        }
-        else if (n.op == "prod")
-        {
-            fprintf(pp, "%-16s", "Reduction");
         }
         else if (n.op == "reciprocal")
         {
@@ -1441,10 +1429,6 @@ int main(int argc, char** argv)
         else if (n.op == "square")
         {
             fprintf(pp, "%-16s", "UnaryOp");
-        }
-        else if (n.op == "sum")
-        {
-            fprintf(pp, "%-16s", "Reduction");
         }
         else if (n.op == "tan")
         {
@@ -2203,25 +2187,42 @@ int main(int argc, char** argv)
         else if (n.op == "MAERegressionOutput")
         {
         }
-        else if (n.op == "max")
+        else if (n.op == "max" || n.op == "mean" || n.op == "min" || n.op == "prod" || n.op == "sum")
         {
-            int operation = 4;
+            int operation = -233;
+            if (n.op == "max") operation = 4;
+            if (n.op == "mean") operation = 3;
+            if (n.op == "min") operation = 5;
+            if (n.op == "prod") operation = 6;
+            if (n.op == "sum") operation = 0;
+
+            std::vector<int> axis = n.attr("axis");
+            int keepdims = n.attr("keepdims");
+
             fprintf(pp, " 0=%d", operation);
+            if (axis.empty())
+            {
+                // if axis not set, reduce all axis by default
+                fprintf(pp, " 1=%d", 1);
+            }
+            else
+            {
+                // if axis set, reduce according to axis
+                fprintf(pp, " 1=%d", 0);
+                fprintf(pp, " -23303=%d", axis.size());
+                for (int i=0; i< axis.size(); i++)
+                {
+                    if (axis[i] == 0 || axis[i] > 3 || axis[i] < -3)
+                        fprintf(stderr, "Unsupported reduction axis !\n");
+                    fprintf(pp, ",%d", axis[i]);
+                }
+            }
+            fprintf(pp, " 4=%d", keepdims);
         }
         else if (n.op == "maximum")
         {
             int op_type = 4;
             fprintf(pp, " 0=%d", op_type);
-        }
-        else if (n.op == "mean")
-        {
-            int operation = 3;
-            fprintf(pp, " 0=%d", operation);
-        }
-        else if (n.op == "min")
-        {
-            int operation = 5;
-            fprintf(pp, " 0=%d", operation);
         }
         else if (n.op == "minimum")
         {
@@ -2250,7 +2251,7 @@ int main(int argc, char** argv)
             }
             else if (mode == "reflect")
             {
-                // FIXME
+                type = 2;
             }
 
             if (pad_width.size() != 8)
@@ -2338,11 +2339,6 @@ int main(int argc, char** argv)
                 int avgpool_count_include_pad = n.has_attr("count_include_pad") ? n.attr("count_include_pad") : 0;
                 fprintf(pp, " 6=%d", avgpool_count_include_pad);
             }
-        }
-        else if (n.op == "prod")
-        {
-            int operation = 6;
-            fprintf(pp, " 0=%d", operation);
         }
         else if (n.op == "reciprocal")
         {
@@ -2486,11 +2482,6 @@ int main(int argc, char** argv)
         {
             int op_type = 4;
             fprintf(pp, " 0=%d", op_type);
-        }
-        else if (n.op == "sum")
-        {
-            int operation = 0;
-            fprintf(pp, " 0=%d", operation);
         }
         else if (n.op == "tan")
         {
