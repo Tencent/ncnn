@@ -1319,7 +1319,7 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
                     "prfm   pldl1keep, [%2, #128]        \n"
                     "ld1    {v0.4s}, [%2], #16           \n"
 
-                    "prfm   pldl1keep, [%1, #128]                       \n"
+                    "prfm   pldl1keep, [%1, #512]        \n"
                     "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64   \n" // data
                     "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
 
@@ -1327,14 +1327,14 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
                     "fmla    v16.4s, v8.4s, v0.s[0]      \n"// sum0 += (a00-a70) * k00
                     "fmla    v17.4s, v9.4s, v0.s[0]      \n"//
                     // k1
-                    "fmla    v16.4s, v10.4s, v1.s[0]     \n"// sum0 += (a01-a71) * k01
-                    "fmla    v17.4s, v11.4s, v1.s[0]     \n"//
+                    "fmla    v16.4s, v10.4s, v0.s[1]     \n"// sum0 += (a01-a71) * k01
+                    "fmla    v17.4s, v11.4s, v0.s[1]     \n"//
                     // k2
-                    "fmla    v16.4s, v12.4s, v2.s[0]     \n"// sum0 += (a02-a72) * k02
-                    "fmla    v17.4s, v13.4s, v2.s[0]     \n"//
+                    "fmla    v16.4s, v12.4s, v0.s[2]     \n"// sum0 += (a02-a72) * k02
+                    "fmla    v17.4s, v13.4s, v0.s[2]     \n"//
                     // k3
-                    "fmla    v16.4s, v14.4s, v3.s[0]     \n"// sum0 += (a03-a73) * k03
-                    "fmla    v17.4s, v15.4s, v3.s[0]     \n"//
+                    "fmla    v16.4s, v14.4s, v0.s[3]     \n"// sum0 += (a03-a73) * k03
+                    "fmla    v17.4s, v15.4s, v0.s[3]     \n"//
 
                     "subs   w4, w4, #1                   \n"
                     "bne    0b                           \n"
@@ -1484,7 +1484,7 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
                 const float* vb = bottom_tm.channel(j/8 + j%8);
 #if __ARM_NEON && __aarch64__
                 const float* va = kernel_tm.channel(i/8 + (i%8)/4 + i%4);
-#else                
+#else
                 const float* va = kernel_tm.channel(i/4 + i%4);
 #endif // __ARM_NEON && __aarch64__
 
@@ -1516,7 +1516,7 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
 #else
                 float sum0 = bias0;
 #endif // __ARM_NEON
-                for (int k=0; k<L; k++)
+                for (; k<L; k++)
                 {
                     sum0 += va[0] * vb[0];
 
