@@ -108,9 +108,22 @@ int Convolution_arm::create_pipeline(const Option& opt)
     // pack4
     if (num_input % 4 == 0 && num_output % 4 == 0)
     {
-        // src = kw-kh-inch-outch
-        // dst = 4b-4a-kw-kh-inch/4a-outch/4b
+        if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
+            conv1x1s1_sgemm_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv3x3s1_winograd64_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
+        }
+        else
+        {
+            // src = kw-kh-inch-outch
+            // dst = 4b-4a-kw-kh-inch/4a-outch/4b
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             weight_data_pack4.create(maxk, num_input/4, num_output/4, (size_t)4*16, 16);
@@ -175,21 +188,6 @@ int Convolution_arm::create_pipeline(const Option& opt)
                 }
             }
         }
-
-        if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv1x1s1_sgemm_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
-        }
-
-        if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv1x1s1_sgemm_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
-        }
-
-        if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv3x3s1_winograd64_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
-        }
     }
 
     // pack1to4
@@ -237,9 +235,22 @@ int Convolution_arm::create_pipeline(const Option& opt)
     // pack4to1
     if (num_input % 4 == 0 && num_output % 4 != 0)
     {
-        // src = kw-kh-inch-outch
-        // dst = 4a-kw-kh-inch/4a-outch
+        if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
+            conv1x1s1_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv3x3s1_winograd64_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
+        }
+        else
+        {
+            // src = kw-kh-inch-outch
+            // dst = 4a-kw-kh-inch/4a-outch
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             weight_data_pack4to1.create(maxk, num_input/4, num_output, (size_t)4*4, 4);
@@ -269,21 +280,6 @@ int Convolution_arm::create_pipeline(const Option& opt)
                     }
                 }
             }
-        }
-
-        if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv1x1s1_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
-        }
-
-        if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv1x1s1_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
-        }
-
-        if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv3x3s1_winograd64_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
         }
     }
 
