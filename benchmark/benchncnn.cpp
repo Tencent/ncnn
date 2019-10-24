@@ -283,6 +283,8 @@ int main(int argc, char** argv)
 
     benchmark("shufflenet", ncnn::Mat(224, 224, 3));
 
+    benchmark("shufflenet_v2", ncnn::Mat(224, 224, 3));
+
     benchmark("mnasnet", ncnn::Mat(224, 224, 3));
 
     benchmark("proxylessnasnet", ncnn::Mat(224, 224, 3));
