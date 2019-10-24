@@ -1435,6 +1435,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (n.op == "squeeze")
+        {
+            fprintf(pp, "%-16s", "Squeeze");
+        }
         else if (n.op == "tan")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -2049,20 +2053,7 @@ int main(int argc, char** argv)
         {
             int axis = n.attr("axis");
 
-            int expand_w = 0;
-            int expand_h = 0;
-            int expand_c = 0;
-
-            if (axis == 0)
-                expand_c = 1;
-            if (axis == 1)
-                expand_h = 1;
-            if (axis == 2)
-                expand_w = 1;
-
-            fprintf(pp, " 0=%d", expand_w);
-            fprintf(pp, " 1=%d", expand_h);
-            fprintf(pp, " 2=%d", expand_c);
+            fprintf(pp, " -23303=1,%d", axis);
         }
         else if (n.op == "Flatten")
         {
@@ -2462,6 +2453,25 @@ int main(int argc, char** argv)
         {
             int op_type = 4;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "squeeze")
+        {
+            std::vector<int> axis = n.attr("axis");
+
+            if (axis.empty())
+            {
+                fprintf(pp, " 0=1");
+                fprintf(pp, " 1=1");
+                fprintf(pp, " 2=1");
+            }
+            else
+            {
+                fprintf(pp, " -23303=%d", axis.size());
+                for (int i=0; i<(int)axis.size(); i++)
+                {
+                    fprintf(pp, ",%d", axis[i]);
+                }
+            }
         }
         else if (n.op == "tan")
         {
