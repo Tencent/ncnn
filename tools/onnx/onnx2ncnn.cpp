@@ -1227,6 +1227,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Squeeze")
+        {
+            fprintf(pp, "%-16s", "Squeeze");
+        }
         else if (op == "Sub")
         {
             fprintf(pp, "%-16s", "BinaryOp");
@@ -1250,6 +1254,10 @@ int main(int argc, char** argv)
         else if (op == "Upsample" || op == "Resize")
         {
             fprintf(pp, "%-16s", "Interp");
+        }
+        else if (op == "Unsqueeze")
+        {
+            fprintf(pp, "%-16s", "ExpandDims");
         }
         else
         {
@@ -2078,6 +2086,27 @@ int main(int argc, char** argv)
             int op_type = 5;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (op == "Squeeze")
+        {
+            std::vector<int> axes = get_node_attr_ai(node, "axes");
+
+            if (axes.empty())
+            {
+                fprintf(pp, " 0=1");
+                fprintf(pp, " 1=1");
+                fprintf(pp, " 2=1");
+            }
+            else
+            {
+                fprintf(pp, " -23303=%d", axes.size());
+                for (int i=0; i<(int)axes.size(); i++)
+                {
+                    if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
+                        fprintf(stderr, "Unsupported squeeze axes !\n");
+                    fprintf(pp, ",%d", axes[i]);
+                }
+            }
+        }
         else if (op == "Sub")
         {
             int op_type = 1;
@@ -2200,6 +2229,18 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", resize_type);
             fprintf(pp, " 1=%e", h_scale);
             fprintf(pp, " 2=%e", w_scale);
+        }
+        else if (op == "Unsqueeze")
+        {
+            std::vector<int> axes = get_node_attr_ai(node, "axes");
+
+            fprintf(pp, " -23303=%d", axes.size());
+            for (int i=0; i<(int)axes.size(); i++)
+            {
+                if (axes[i] == 0 || axes[i] > 4 || axes[i] < -4)
+                    fprintf(stderr, "Unsupported unsqueeze axes !\n");
+                fprintf(pp, ",%d", axes[i]);
+            }
         }
         else
         {
