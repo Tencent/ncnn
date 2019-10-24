@@ -354,7 +354,7 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
             if (shape3.size() != 4)
                 continue;
 
-            if (shape3[0] != 1 || shape3[1] != -1)
+            if (shape3[0] != 1 || (shape3[1] != -1 && shape3[1] != shape[1] * shape[2]))
                 continue;
 
             // reduce
