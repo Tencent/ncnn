@@ -61,6 +61,8 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
             sum = op(sum, ptr[i]);
         }
         b[0] = sum;
+        
+        return 0;
     }
 
     if (dims == 2)
@@ -96,6 +98,8 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                 sum = op2(sum, sums[i]);
             }
             b[0] = sum;
+
+            return 0;
         }
 
         if (reduce_w && !reduce_h)
@@ -115,6 +119,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                 }
                 b[i] = sum;
             }
+            return 0;
         }
 
         if (!reduce_w && reduce_h)
@@ -131,6 +136,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                     b[j] = op(b[j], ptr[j]);
                 }
             }
+            return 0;
         }
     }
 
@@ -168,6 +174,8 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                 sum = op2(sum, sums[i]);
             }
             b[0] = sum;
+
+            return 0;
         }
 
         if (reduce_w && reduce_h && !reduce_c)
@@ -187,6 +195,8 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                 }
                 b[q] = sum;
             }
+
+            return 0;
         }
 
         if (reduce_w && !reduce_h && !reduce_c)
@@ -211,6 +221,8 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                     ptr += w;
                 }
             }
+
+            return 0;
         }
 
         if (reduce_w && !reduce_h && reduce_c)
@@ -251,6 +263,8 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                     b[i] = op2(b[i], mins_ptr[i]);
                 }
             }
+
+            return 0;
         }
 
         if (!reduce_w && reduce_h && reduce_c)
@@ -290,6 +304,8 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                     b[j] = op2(b[j], mins_ptr[j]);
                 }
             }
+
+            return 0;
         }
 
         if (!reduce_w && !reduce_h && reduce_c)
@@ -308,6 +324,8 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                     b[i] = op(b[i], ptr[i]);
                 }
             }
+
+            return 0;
         }
 
         if (!reduce_w && reduce_h && !reduce_c)
@@ -332,6 +350,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                     ptr += w;
                 }
             }
+            return 0;
         }
     }
 
@@ -360,6 +379,7 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
         }
         b[0] = sum;
 
+        return 0;
     }
 
     if (dims == 2)
@@ -394,8 +414,9 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
             {
                 sum = op2(sum, sums[i]);
             }
-
             b[0] = sum;
+
+            return 0;
         }
 
         if (reduce_w && !reduce_h)
@@ -415,6 +436,8 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
                 }
                 b[i] = sum;
             }
+
+            return 0;
         }
 
         if (!reduce_w && reduce_h)
@@ -431,6 +454,8 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
                     b[j] = op(b[j], ptr[j]);
                 }
             }
+
+            return 0;
         }
     }
 
@@ -467,8 +492,9 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
             {
                 sum = op2(sum, sums[i]);
             }
-
             b[0] = sum;
+
+            return 0;
         }
 
         if (reduce_w && reduce_h && !reduce_c)
@@ -490,6 +516,8 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
 
                 outptr[0] = sum;
             }
+
+            return 0;
         }
 
         if (reduce_w && !reduce_h && !reduce_c)
@@ -514,6 +542,8 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
                     ptr += w;
                 }
             }
+
+            return 0;
         }
 
         if (reduce_w && !reduce_h && reduce_c)
@@ -555,9 +585,11 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
                     b[i] = op2(b[i], mins_ptr[i]);
                 }
             }
+
+            return 0;
         }
 
-        if (reduce_w && !reduce_h && !reduce_c)
+        if (!reduce_w && reduce_h && reduce_c)
         {
             // w h c -> w 1 1
             b.create(w, 1, 1, elemsize, opt.blob_allocator);
@@ -594,6 +626,8 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
                     b[j] = op2(b[j], mins_ptr[j]);
                 }
             }
+
+            return 0;
         }
 
         if (!reduce_w && !reduce_h && reduce_c)
@@ -612,6 +646,8 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
                     b[i] = op(b[i], ptr[i]);
                 }
             }
+
+            return 0;
         }
 
         if (!reduce_w && reduce_h && !reduce_c)
@@ -635,6 +671,8 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
                     ptr += w;
                 }
             }
+
+            return 0;
         }
     }
 
