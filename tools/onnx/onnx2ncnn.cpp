@@ -1312,6 +1312,7 @@ int main(int argc, char** argv)
         {
             int op_type = 0;
             fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 3=1");
         }
         else if (op == "Asin")
         {
@@ -1666,6 +1667,7 @@ int main(int argc, char** argv)
         {
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 3=1");
         }
         else if (op == "Dropout")
         {
@@ -1843,16 +1845,19 @@ int main(int argc, char** argv)
         {
             int op_type = 4;
             fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 3=1");
         }
         else if (op == "Min")
         {
             int op_type = 5;
             fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 3=1");
         }
         else if (op == "Mul")
         {
             int op_type = 2;
             fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 3=1");
         }
         else if (op == "Neg")
         {
@@ -1917,6 +1922,7 @@ int main(int argc, char** argv)
         {
             int op_type = 6;
             fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 3=1");
         }
         else if (op == "PRelu")
         {
@@ -2111,6 +2117,7 @@ int main(int argc, char** argv)
         {
             int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 3=1");
         }
         else if (op == "Sum")
         {
