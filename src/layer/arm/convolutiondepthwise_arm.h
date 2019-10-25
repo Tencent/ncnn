@@ -33,6 +33,8 @@ public:
     Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
 
+    bool use_fp32_packing_inference;
+
     // packing
     Mat weight_data_pack4;
 };
