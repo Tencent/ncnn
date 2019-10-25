@@ -14,6 +14,7 @@
 
 #include "net.h"
 #include "layer_type.h"
+#include "datareader.h"
 #include "modelbin.h"
 #include "paramdict.h"
 #include "convolution.h"
@@ -120,17 +121,17 @@ int Net::register_custom_layer(int index, layer_creator_func creator)
     return 0;
 }
 
-#if NCNN_STDIO
-#if NCNN_STRING
-int Net::load_param(FILE* fp)
+int Net::load_param(const DataReader& dr)
 {
-    int magic = 0;
-    int nbr = fscanf(fp, "%d", &magic);
-    if (nbr != 1)
-    {
-        fprintf(stderr, "issue with param file\n");
-        return -1;
+#define SCAN_VALUE(fmt, v) \
+    if (dr.scan(fmt, &v) != 1) \
+    { \
+        fprintf(stderr, "parse" #v "failed\n"); \
+        return -1; \
     }
+
+    int magic = 0;
+    SCAN_VALUE("%d", magic)
     if (magic != 7767517)
     {
         fprintf(stderr, "param is too old, please regenerate\n");
@@ -140,10 +141,11 @@ int Net::load_param(FILE* fp)
     // parse
     int layer_count = 0;
     int blob_count = 0;
-    nbr = fscanf(fp, "%d %d", &layer_count, &blob_count);
-    if (nbr != 2 || layer_count <= 0 || blob_count <= 0)
+    SCAN_VALUE("%d", layer_count)
+    SCAN_VALUE("%d", blob_count)
+    if (layer_count <= 0 || blob_count <= 0)
     {
-        fprintf(stderr, "issue with param file\n");
+        fprintf(stderr, "invalid layer_count or blob_count\n");
         return -1;
     }
 
@@ -172,17 +174,14 @@ int Net::load_param(FILE* fp)
     int blob_index = 0;
     for (int i=0; i<layer_count; i++)
     {
-        int nscan = 0;
-
-        char layer_type[257];
-        char layer_name[257];
+        char layer_type[256];
+        char layer_name[256];
         int bottom_count = 0;
         int top_count = 0;
-        nscan = fscanf(fp, "%256s %256s %d %d", layer_type, layer_name, &bottom_count, &top_count);
-        if (nscan != 4)
-        {
-            continue;
-        }
+        SCAN_VALUE("%255s", layer_type)
+        SCAN_VALUE("%255s", layer_name)
+        SCAN_VALUE("%d", bottom_count)
+        SCAN_VALUE("%d", top_count)
 
         Layer* layer = create_layer(layer_type);
         if (!layer)
@@ -209,12 +208,8 @@ int Net::load_param(FILE* fp)
 
         for (int j=0; j<bottom_count; j++)
         {
-            char bottom_name[257];
-            nscan = fscanf(fp, "%256s", bottom_name);
-            if (nscan != 1)
-            {
-                continue;
-            }
+            char bottom_name[256];
+            SCAN_VALUE("%255s", bottom_name)
 
             int bottom_blob_index = find_blob_index_by_name(bottom_name);
             if (bottom_blob_index == -1)
@@ -241,12 +236,8 @@ int Net::load_param(FILE* fp)
         {
             Blob& blob = blobs[blob_index];
 
-            char blob_name[257];
-            nscan = fscanf(fp, "%256s", blob_name);
-            if (nscan != 1)
-            {
-                continue;
-            }
+            char blob_name[256];
+            SCAN_VALUE("%255s", blob_name)
 
             blob.name = std::string(blob_name);
 //             fprintf(stderr, "new blob %s\n", blob_name);
@@ -259,7 +250,7 @@ int Net::load_param(FILE* fp)
         }
 
         // layer specific params
-        int pdlr = pd.load_param(fp);
+        int pdlr = pd.load_param(dr);
         if (pdlr != 0)
         {
             fprintf(stderr, "ParamDict load_param failed\n");
@@ -276,215 +267,21 @@ int Net::load_param(FILE* fp)
         layers[i] = layer;
     }
 
+#undef SCAN_VALUE
     return 0;
 }
 
-#if _MSC_VER
-static inline int mem_sscanf_with_n(int* _internal_nconsumed_ptr, const char*& ptr, const char* format, ...)
+int Net::load_param_bin(const DataReader& dr)
 {
-    *_internal_nconsumed_ptr = 0;
-
-    va_list args;
-    va_start(args, format);
-
-    int _n = vsscanf(ptr, format, args);
-
-    va_end(args);
-
-    ptr += *_internal_nconsumed_ptr;
-
-    return *_internal_nconsumed_ptr > 0 ? _n : 0;
-}
-#define mem_sscanf(ptr, format, ...)  mem_sscanf_with_n(&_internal_nconsumed, ptr, format "%n", __VA_ARGS__, &_internal_nconsumed)
-#else
-// return value from macro requires gcc extension https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html
-#define mem_sscanf(ptr, format, ...)  ({int _b=0; int _n = sscanf(ptr, format "%n", __VA_ARGS__, &_b); ptr+=_b;_b>0?_n:0;})
-#endif // _MSC_VER
-
-int Net::load_param_mem(const char* _mem)
-{
-#if _MSC_VER
-    int _internal_nconsumed;
-#endif
+#define READ_VALUE(buf) \
+    if (dr.read(&buf, sizeof(buf)) != sizeof(buf)) \
+    { \
+        fprintf(stderr, "read" #buf "failed\n"); \
+        return -1; \
+    }
 
     int magic = 0;
-    const char* mem = _mem;
-    mem_sscanf(mem, "%d", &magic);
-    if (magic != 7767517)
-    {
-        fprintf(stderr, "param is too old, please regenerate\n");
-        return -1;
-    }
-
-    // parse
-    int layer_count = 0;
-    int blob_count = 0;
-    mem_sscanf(mem, "%d %d", &layer_count, &blob_count);
-
-    layers.resize(layer_count);
-    blobs.resize(blob_count);
-
-#if NCNN_VULKAN
-    if (opt.use_vulkan_compute)
-    {
-        if (!vkdev) vkdev = get_gpu_device();
-        if (!vkdev) opt.use_vulkan_compute = false;// no vulkan device, fallback to cpu
-    }
-    if (opt.use_vulkan_compute)
-    {
-        // sanitize use options
-        if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-        if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-        if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
-        if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
-        if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
-    }
-#endif // NCNN_VULKAN
-
-    ParamDict pd;
-
-    int blob_index = 0;
-    for (int i=0; i<layer_count; i++)
-    {
-        int nscan = 0;
-
-        char layer_type[257];
-        char layer_name[257];
-        int bottom_count = 0;
-        int top_count = 0;
-        nscan = mem_sscanf(mem, "%256s %256s %d %d", layer_type, layer_name, &bottom_count, &top_count);
-        if (nscan != 4)
-        {
-            continue;
-        }
-
-        Layer* layer = create_layer(layer_type);
-        if (!layer)
-        {
-            layer = create_custom_layer(layer_type);
-        }
-        if (!layer)
-        {
-            fprintf(stderr, "layer %s not exists or registered\n", layer_type);
-            clear();
-            return -1;
-        }
-
-#if NCNN_VULKAN
-        if (opt.use_vulkan_compute)
-            layer->vkdev = vkdev;
-#endif // NCNN_VULKAN
-
-        layer->type = std::string(layer_type);
-        layer->name = std::string(layer_name);
-//         fprintf(stderr, "new layer %d %s\n", i, layer_name);
-
-        layer->bottoms.resize(bottom_count);
-
-        for (int j=0; j<bottom_count; j++)
-        {
-            char bottom_name[257];
-            nscan = mem_sscanf(mem, "%256s", bottom_name);
-            if (nscan != 1)
-            {
-                continue;
-            }
-
-            int bottom_blob_index = find_blob_index_by_name(bottom_name);
-            if (bottom_blob_index == -1)
-            {
-                Blob& blob = blobs[blob_index];
-
-                bottom_blob_index = blob_index;
-
-                blob.name = std::string(bottom_name);
-//                 fprintf(stderr, "new blob %s\n", bottom_name);
-
-                blob_index++;
-            }
-
-            Blob& blob = blobs[bottom_blob_index];
-
-            blob.consumers.push_back(i);
-
-            layer->bottoms[j] = bottom_blob_index;
-        }
-
-        layer->tops.resize(top_count);
-        for (int j=0; j<top_count; j++)
-        {
-            Blob& blob = blobs[blob_index];
-
-            char blob_name[257];
-            nscan = mem_sscanf(mem, "%256s", blob_name);
-            if (nscan != 1)
-            {
-                continue;
-            }
-
-            blob.name = std::string(blob_name);
-//             fprintf(stderr, "new blob %s\n", blob_name);
-
-            blob.producer = i;
-
-            layer->tops[j] = blob_index;
-
-            blob_index++;
-        }
-
-        // layer specific params
-        int pdlr = pd.load_param_mem(mem);
-        if (pdlr != 0)
-        {
-            fprintf(stderr, "ParamDict load_param failed\n");
-            continue;
-        }
-
-        int lr = layer->load_param(pd);
-        if (lr != 0)
-        {
-            fprintf(stderr, "layer load_param failed\n");
-            continue;
-        }
-
-        layers[i] = layer;
-    }
-
-    return 0;
-}
-
-int Net::load_param(const char* protopath)
-{
-    FILE* fp = fopen(protopath, "rb");
-    if (!fp)
-    {
-        fprintf(stderr, "fopen %s failed\n", protopath);
-        return -1;
-    }
-
-    int ret = load_param(fp);
-
-    fclose(fp);
-
-    return ret;
-}
-#endif // NCNN_STRING
-
-template<typename T> bool readValue(T & val, FILE * fp)
-{
-    size_t res = fread(&val, sizeof(T), 1, fp);
-    if (res != 1) {
-        fprintf(stderr, "issue with param file reading\n");
-        return false;
-    }
-    return true;
-}
-
-int Net::load_param_bin(FILE* fp)
-{
-    int magic = 0;
-    if (!readValue(magic, fp))
-        return -1;
+    READ_VALUE(magic)
     if (magic != 7767517)
     {
         fprintf(stderr, "param is too old, please regenerate\n");
@@ -492,12 +289,14 @@ int Net::load_param_bin(FILE* fp)
     }
 
     int layer_count = 0;
-    if (!readValue(layer_count, fp))
-        return -1;
-
     int blob_count = 0;
-    if (!readValue(blob_count, fp))
+    READ_VALUE(layer_count)
+    READ_VALUE(blob_count)
+    if (layer_count <= 0 || blob_count <= 0)
+    {
+        fprintf(stderr, "invalid layer_count or blob_count\n");
         return -1;
+    }
 
     layers.resize(layer_count);
     blobs.resize(blob_count);
@@ -524,16 +323,11 @@ int Net::load_param_bin(FILE* fp)
     for (int i=0; i<layer_count; i++)
     {
         int typeindex;
-        if (!readValue(typeindex, fp))
-            return -1;
-
         int bottom_count;
-        if (!readValue(bottom_count, fp))
-            return -1;
-
         int top_count;
-        if (!readValue(top_count, fp))
-            return -1;
+        READ_VALUE(typeindex)
+        READ_VALUE(bottom_count)
+        READ_VALUE(top_count)
 
         Layer* layer = create_layer(typeindex);
         if (!layer)
@@ -561,8 +355,7 @@ int Net::load_param_bin(FILE* fp)
         for (int j=0; j<bottom_count; j++)
         {
             int bottom_blob_index;
-            if (!readValue(bottom_blob_index, fp))
-                return -1;
+            READ_VALUE(bottom_blob_index)
 
             Blob& blob = blobs[bottom_blob_index];
 
@@ -575,8 +368,7 @@ int Net::load_param_bin(FILE* fp)
         for (int j=0; j<top_count; j++)
         {
             int top_blob_index;
-            if (!readValue(top_blob_index, fp))
-                return -1;
+            READ_VALUE(top_blob_index)
 
             Blob& blob = blobs[top_blob_index];
 
@@ -589,7 +381,7 @@ int Net::load_param_bin(FILE* fp)
         }
 
         // layer specific params
-        int pdlr = pd.load_param_bin(fp);
+        int pdlr = pd.load_param_bin(dr);
         if (pdlr != 0)
         {
             fprintf(stderr, "ParamDict load_param failed\n");
@@ -606,26 +398,11 @@ int Net::load_param_bin(FILE* fp)
         layers[i] = layer;
     }
 
+#undef READ_VALUE
     return 0;
 }
 
-int Net::load_param_bin(const char* protopath)
-{
-    FILE* fp = fopen(protopath, "rb");
-    if (!fp)
-    {
-        fprintf(stderr, "fopen %s failed\n", protopath);
-        return -1;
-    }
-
-    int ret = load_param_bin(fp);
-
-    fclose(fp);
-
-    return ret;
-}
-
-int Net::load_model(FILE* fp)
+int Net::load_model(const DataReader& dr)
 {
     if (layers.empty())
     {
@@ -636,13 +413,14 @@ int Net::load_model(FILE* fp)
     // load file
     int ret = 0;
 
-    ModelBinFromStdio mb(fp);
+    ModelBinFromDataReader mb(dr);
     for (size_t i=0; i<layers.size(); i++)
     {
         Layer* layer = layers[i];
-        
+
         //Here we found inconsistent content in the parameter file.
-        if (!layer){
+        if (!layer)
+        {
             fprintf(stderr, "load_model error at layer %d, parameter file has inconsistent content.\n", (int)i);
             ret = -1;
             break;
@@ -679,6 +457,62 @@ int Net::load_model(FILE* fp)
     return ret;
 }
 
+#if NCNN_STDIO
+#if NCNN_STRING
+int Net::load_param(FILE* fp)
+{
+    DataReaderFromStdio dr(fp);
+    return load_param(dr);
+}
+
+int Net::load_param_mem(const char* _mem)
+{
+    const unsigned char* mem = (const unsigned char*)_mem;
+    DataReaderFromMemory dr(mem);
+    return load_param(dr);
+}
+
+int Net::load_param(const char* protopath)
+{
+    FILE* fp = fopen(protopath, "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "fopen %s failed\n", protopath);
+        return -1;
+    }
+
+    int ret = load_param(fp);
+    fclose(fp);
+    return ret;
+}
+#endif // NCNN_STRING
+
+int Net::load_param_bin(FILE* fp)
+{
+    DataReaderFromStdio dr(fp);
+    return load_param_bin(dr);
+}
+
+int Net::load_param_bin(const char* protopath)
+{
+    FILE* fp = fopen(protopath, "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "fopen %s failed\n", protopath);
+        return -1;
+    }
+
+    int ret = load_param_bin(fp);
+    fclose(fp);
+    return ret;
+}
+
+int Net::load_model(FILE* fp)
+{
+    DataReaderFromStdio dr(fp);
+    return load_model(dr);
+}
+
 int Net::load_model(const char* modelpath)
 {
     FILE* fp = fopen(modelpath, "rb");
@@ -689,197 +523,90 @@ int Net::load_model(const char* modelpath)
     }
 
     int ret = load_model(fp);
-
     fclose(fp);
-
     return ret;
 }
 #endif // NCNN_STDIO
 
 int Net::load_param(const unsigned char* _mem)
 {
-    if ((uintptr_t)_mem & 0x3)
-    {
-        // reject unaligned memory
-        fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
-        return -1;
-    }
-
     const unsigned char* mem = _mem;
-
-    int magic = *(int*)(mem);
-    mem += 4;
-
-    if (magic != 7767517)
-    {
-        fprintf(stderr, "param is too old, please regenerate\n");
-        return -1;
-    }
-
-    int layer_count = *(int*)(mem);
-    mem += 4;
-
-    int blob_count = *(int*)(mem);
-    mem += 4;
-
-    layers.resize(layer_count);
-    blobs.resize(blob_count);
-
-#if NCNN_VULKAN
-    if (opt.use_vulkan_compute)
-    {
-        if (!vkdev) vkdev = get_gpu_device();
-        if (!vkdev) opt.use_vulkan_compute = false;// no vulkan device, fallback to cpu
-    }
-    if (opt.use_vulkan_compute)
-    {
-        // sanitize use options
-        if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-        if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-        if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
-        if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
-        if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
-    }
-#endif // NCNN_VULKAN
-
-    ParamDict pd;
-
-    for (int i=0; i<layer_count; i++)
-    {
-        int typeindex = *(int*)mem;
-        mem += 4;
-
-        int bottom_count = *(int*)mem;
-        mem += 4;
-
-        int top_count = *(int*)mem;
-        mem += 4;
-
-        Layer* layer = create_layer(typeindex);
-        if (!layer)
-        {
-            int custom_index = typeindex & ~LayerType::CustomBit;
-            layer = create_custom_layer(custom_index);
-        }
-        if (!layer)
-        {
-            fprintf(stderr, "layer %d not exists or registered\n", typeindex);
-            clear();
-            return -1;
-        }
-
-#if NCNN_VULKAN
-        if (opt.use_vulkan_compute)
-            layer->vkdev = vkdev;
-#endif // NCNN_VULKAN
-
-//         layer->type = std::string(layer_type);
-//         layer->name = std::string(layer_name);
-//         fprintf(stderr, "new layer %d\n", typeindex);
-
-        layer->bottoms.resize(bottom_count);
-        for (int j=0; j<bottom_count; j++)
-        {
-            int bottom_blob_index = *(int*)mem;
-            mem += 4;
-
-            Blob& blob = blobs[bottom_blob_index];
-
-            blob.consumers.push_back(i);
-
-            layer->bottoms[j] = bottom_blob_index;
-        }
-
-        layer->tops.resize(top_count);
-        for (int j=0; j<top_count; j++)
-        {
-            int top_blob_index = *(int*)mem;
-            mem += 4;
-
-            Blob& blob = blobs[top_blob_index];
-
-//             blob.name = std::string(blob_name);
-//             fprintf(stderr, "new blob %s\n", blob_name);
-
-            blob.producer = i;
-
-            layer->tops[j] = top_blob_index;
-        }
-
-        // layer specific params
-        int pdlr = pd.load_param(mem);
-        if (pdlr != 0)
-        {
-            fprintf(stderr, "ParamDict load_param failed\n");
-            continue;
-        }
-
-        int lr = layer->load_param(pd);
-        if (lr != 0)
-        {
-            fprintf(stderr, "layer load_param failed\n");
-            continue;
-        }
-
-        layers[i] = layer;
-    }
-
+    DataReaderFromMemory dr(mem);
+    load_param_bin(dr);
     return mem - _mem;
 }
 
 int Net::load_model(const unsigned char* _mem)
 {
-    if (layers.empty())
-    {
-        fprintf(stderr, "network graph not ready\n");
-        return -1;
-    }
-
-    if ((uintptr_t)_mem & 0x3)
-    {
-        // reject unaligned memory
-        fprintf(stderr, "memory not 32-bit aligned at %p\n", _mem);
-        return -1;
-    }
-
     const unsigned char* mem = _mem;
-    ModelBinFromMemory mb(mem);
-    for (size_t i=0; i<layers.size(); i++)
-    {
-        Layer* layer = layers[i];
-
-        //Here we found inconsistent content in the parameter file.
-        if (!layer){
-            fprintf(stderr, "load_model error at layer %d, parameter file has inconsistent content.\n", (int)i);
-            return -1;
-        }
-
-        int lret = layer->load_model(mb);
-        if (lret != 0)
-        {
-            fprintf(stderr, "layer load_model failed\n");
-            return -1;
-        }
-
-        int cret = layer->create_pipeline(opt);
-        if (cret != 0)
-        {
-            fprintf(stderr, "layer create_pipeline failed\n");
-            return -1;
-        }
-    }
-
-#if NCNN_VULKAN
-    if (opt.use_vulkan_compute)
-    {
-        create_pipeline();
-
-        upload_model();
-    }
-#endif // NCNN_VULKAN
-
+    DataReaderFromMemory dr(mem);
+    load_model(dr);
     return mem - _mem;
 }
+
+#if __ANDROID_API__ >= 9
+#if NCNN_STRING
+int Net::load_param(AAsset* asset)
+{
+    DataReaderFromAndroidAsset dr(asset);
+    return load_param(dr);
+}
+
+int Net::load_param(AAssetManager* mgr, const char* assetpath)
+{
+    AAsset* asset = AAssetManager_open(mgr, assetpath, AASSET_MODE_BUFFER);
+    if (!asset)
+    {
+        fprintf(stderr, "AAssetManager_open %s failed\n", assetpath);
+        return -1;
+    }
+
+    int ret = load_param(asset);
+    AAsset_close(asset);
+    return ret;
+}
+#endif // NCNN_STRING
+
+int Net::load_param_bin(AAsset* asset)
+{
+    DataReaderFromAndroidAsset dr(asset);
+    return load_param_bin(dr);
+}
+
+int Net::load_param_bin(AAssetManager* mgr, const char* assetpath)
+{
+    AAsset* asset = AAssetManager_open(mgr, assetpath, AASSET_MODE_BUFFER);
+    if (!asset)
+    {
+        fprintf(stderr, "AAssetManager_open %s failed\n", assetpath);
+        return -1;
+    }
+
+    int ret = load_param_bin(asset);
+    AAsset_close(asset);
+    return ret;
+}
+
+int Net::load_model(AAsset* asset)
+{
+    DataReaderFromAndroidAsset dr(asset);
+    return load_model(dr);
+}
+
+int Net::load_model(AAssetManager* mgr, const char* assetpath)
+{
+    AAsset* asset = AAssetManager_open(mgr, assetpath, AASSET_MODE_STREAMING);
+    if (!asset)
+    {
+        fprintf(stderr, "AAssetManager_open %s failed\n", assetpath);
+        return -1;
+    }
+
+    int ret = load_model(asset);
+    AAsset_close(asset);
+    return ret;
+}
+#endif // __ANDROID_API__ >= 9
 
 int Net::fuse_network()
 {

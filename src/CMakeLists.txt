@@ -13,6 +13,7 @@ set(ncnn_SRCS
     blob.cpp
     command.cpp
     cpu.cpp
+    datareader.cpp
     gpu.cpp
     layer.cpp
     mat.cpp

@@ -17,6 +17,7 @@
 #include <vector>
 
 // ncnn public header
+#include "datareader.h"
 #include "net.h"
 #include "layer.h"
 
@@ -89,57 +90,15 @@
 
 #endif // defined(__aarch64__) && defined(LINUX)
 
-// always return empty weights
-class ModelBinFromEmpty : public ncnn::ModelBin
+class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
-    virtual ncnn::Mat load(int w, int /*type*/) const { return ncnn::Mat(w); }
+    virtual int scan(const char* format, void* p) const { return 0; }
+    virtual int read(void* /*buf*/, int size) const { return size; }
 };
 
 class NetOptimize : public ncnn::Net
 {
-public:
-    int load_model()
-    {
-        // load file
-        int ret = 0;
-
-        ModelBinFromEmpty mb;
-        for (size_t i=0; i<layers.size(); i++)
-        {
-            ncnn::Layer* layer = layers[i];
-
-            int lret = layer->load_model(mb);
-            if (lret != 0)
-            {
-                fprintf(stderr, "layer load_model %d failed\n", (int)i);
-                ret = -1;
-                break;
-            }
-
-            int cret = layer->create_pipeline(opt);
-            if (cret != 0)
-            {
-                fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
-                ret = -1;
-                break;
-            }
-        }
-
-#if NCNN_VULKAN
-        if (opt.use_vulkan_compute)
-        {
-            upload_model();
-
-            create_pipeline();
-        }
-#endif // NCNN_VULKAN
-
-        fuse_network();
-
-        return ret;
-    }
-
 public:
     // 0=fp32 1=fp16
     int storage_type;
@@ -2446,9 +2405,12 @@ int main(int argc, char** argv)
 
     optimizer.load_param(inparam);
     if (strcmp(inbin, "null") == 0)
-        optimizer.load_model();
+    {
+        DataReaderFromEmpty dr;
+        optimizer.load_model(dr);
+    }
     else
-        optimizer.ncnn::Net::load_model(inbin);
+        optimizer.load_model(inbin);
 
 #if defined(__aarch64__) && defined(LINUX)
     optimizer.find_fastest_fp32_conv(dataname, inw, inh, inc);
