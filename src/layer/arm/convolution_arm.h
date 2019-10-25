@@ -46,12 +46,15 @@ public:
     Mat weight_sgemm_data;
     std::vector<Mat> weight_3x3_winograd23_int8_data;
 
+    bool use_fp32_packing_inference;
+
     // pack4
     Mat weight_data_pack4;
     Mat weight_data_pack1to4;
     Mat weight_data_pack4to1;
 
     Mat weight_3x3_winograd64_data_pack4;
+    Mat weight_1x1_sgemm_data_pack4;
 };
 
 } // namespace ncnn

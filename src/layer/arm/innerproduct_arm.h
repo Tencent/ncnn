@@ -30,12 +30,9 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-    ncnn::Layer* flatten;
+    bool use_fp32_packing_inference;
 
-    // pack4
-    Mat weight_data_pack4;
-    Mat weight_data_pack1to4;
-    Mat weight_data_pack4to1;
+    ncnn::Layer* flatten;
 };
 
 } // namespace ncnn

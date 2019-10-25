@@ -13,9 +13,8 @@
 // specific language governing permissions and limitations under the License.
 
 #include <ctype.h>
-#include <stdarg.h>
-#include <stdio.h>
 #include "paramdict.h"
+#include "datareader.h"
 #include "platform.h"
 
 namespace ncnn {
@@ -67,7 +66,6 @@ void ParamDict::clear()
     }
 }
 
-#if NCNN_STDIO
 #if NCNN_STRING
 static bool vstr_is_float(const char vstr[16])
 {
@@ -84,7 +82,7 @@ static bool vstr_is_float(const char vstr[16])
     return false;
 }
 
-int ParamDict::load_param(FILE* fp)
+int ParamDict::load_param(const DataReader& dr)
 {
     clear();
 
@@ -92,7 +90,7 @@ int ParamDict::load_param(FILE* fp)
 
     // parse each key=value pair
     int id = 0;
-    while (fscanf(fp, "%d=", &id) == 1)
+    while (dr.scan("%d=", &id) == 1)
     {
         bool is_array = id <= -23300;
         if (is_array)
@@ -103,7 +101,7 @@ int ParamDict::load_param(FILE* fp)
         if (is_array)
         {
             int len = 0;
-            int nscan = fscanf(fp, "%d", &len);
+            int nscan = dr.scan("%d", &len);
             if (nscan != 1)
             {
                 fprintf(stderr, "ParamDict read array length failed\n");
@@ -115,7 +113,7 @@ int ParamDict::load_param(FILE* fp)
             for (int j = 0; j < len; j++)
             {
                 char vstr[16];
-                nscan = fscanf(fp, ",%15[^,\n ]", vstr);
+                nscan = dr.scan(",%15[^,\n ]", vstr);
                 if (nscan != 1)
                 {
                     fprintf(stderr, "ParamDict read array element failed\n");
@@ -144,7 +142,7 @@ int ParamDict::load_param(FILE* fp)
         else
         {
             char vstr[16];
-            int nscan = fscanf(fp, "%15s", vstr);
+            int nscan = dr.scan("%15s", vstr);
             if (nscan != 1)
             {
                 fprintf(stderr, "ParamDict read value failed\n");
@@ -167,122 +165,11 @@ int ParamDict::load_param(FILE* fp)
         params[id].loaded = 1;
     }
 
-    return 0;
-}
-
-#if _MSC_VER
-static inline int mem_sscanf_with_n(int* _internal_nconsumed_ptr, const char*& ptr, const char* format, ...)
-{
-    *_internal_nconsumed_ptr = 0;
-
-    va_list args;
-    va_start(args, format);
-
-    int _n = vsscanf(ptr, format, args);
-
-    va_end(args);
-
-    ptr += *_internal_nconsumed_ptr;
-
-    return *_internal_nconsumed_ptr > 0 ? _n : 0;
-}
-#define mem_sscanf(ptr, format, ...)  mem_sscanf_with_n(&_internal_nconsumed, ptr, format "%n", __VA_ARGS__, &_internal_nconsumed)
-#else
-// return value from macro requires gcc extension https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html
-#define mem_sscanf(ptr, format, ...)  ({int _b=0; int _n = sscanf(ptr, format "%n", __VA_ARGS__, &_b); ptr+=_b;_b>0?_n:0;})
-#endif // _MSC_VER
-
-int ParamDict::load_param_mem(const char*& mem)
-{
-#if _MSC_VER
-    int _internal_nconsumed;
-#endif
-
-    clear();
-
-//     0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0
-
-    // parse each key=value pair
-    int id = 0;
-    while (mem_sscanf(mem, "%d=", &id) == 1)
-    {
-        bool is_array = id <= -23300;
-        if (is_array)
-        {
-            id = -id - 23300;
-        }
-
-        if (is_array)
-        {
-            int len = 0;
-            int nscan = mem_sscanf(mem, "%d", &len);
-            if (nscan != 1)
-            {
-                fprintf(stderr, "ParamDict read array length failed\n");
-                return -1;
-            }
-
-            params[id].v.create(len);
-
-            for (int j = 0; j < len; j++)
-            {
-                char vstr[16];
-                nscan = mem_sscanf(mem, ",%15[^,\n ]", vstr);
-                if (nscan != 1)
-                {
-                    fprintf(stderr, "ParamDict read array element failed\n");
-                    return -1;
-                }
-
-                bool is_float = vstr_is_float(vstr);
-
-                if (is_float)
-                {
-                    float* ptr = params[id].v;
-                    nscan = sscanf(vstr, "%f", &ptr[j]);
-                }
-                else
-                {
-                    int* ptr = params[id].v;
-                    nscan = sscanf(vstr, "%d", &ptr[j]);
-                }
-                if (nscan != 1)
-                {
-                    fprintf(stderr, "ParamDict parse array element failed\n");
-                    return -1;
-                }
-            }
-        }
-        else
-        {
-            char vstr[16];
-            int nscan = mem_sscanf(mem, "%15s", vstr);
-            if (nscan != 1)
-            {
-                fprintf(stderr, "ParamDict read value failed\n");
-                return -1;
-            }
-
-            bool is_float = vstr_is_float(vstr);
-
-            if (is_float)
-                nscan = sscanf(vstr, "%f", &params[id].f);
-            else
-                nscan = sscanf(vstr, "%d", &params[id].i);
-            if (nscan != 1)
-            {
-                fprintf(stderr, "ParamDict parse value failed\n");
-                return -1;
-            }
-        }
-
-        params[id].loaded = 1;
-    }
     return 0;
 }
 #endif // NCNN_STRING
 
-int ParamDict::load_param_bin(FILE* fp)
+int ParamDict::load_param_bin(const DataReader& dr)
 {
     clear();
 
@@ -301,10 +188,10 @@ int ParamDict::load_param_bin(FILE* fp)
 
     int id = 0;
     int nread;
-    nread = fread(&id, sizeof(int), 1, fp);
-    if (nread != 1)
+    nread = dr.read(&id, sizeof(int));
+    if (nread != (int)sizeof(int))
     {
-        fprintf(stderr, "ParamDict read magic failed %d\n", nread);
+        fprintf(stderr, "ParamDict read id failed %d\n", nread);
         return -1;
     }
 
@@ -319,8 +206,8 @@ int ParamDict::load_param_bin(FILE* fp)
         if (is_array)
         {
             int len = 0;
-            nread = fread(&len, sizeof(int), 1, fp);
-            if (nread != 1)
+            nread = dr.read(&len, sizeof(int));
+            if (nread != (int)sizeof(int))
             {
                 fprintf(stderr, "ParamDict read array length failed %d\n", nread);
                 return -1;
@@ -329,8 +216,8 @@ int ParamDict::load_param_bin(FILE* fp)
             params[id].v.create(len);
 
             float* ptr = params[id].v;
-            nread = fread(ptr, sizeof(float), len, fp);
-            if (nread != len)
+            nread = dr.read(ptr, sizeof(float) * len);
+            if (nread != (int)sizeof(float) * len)
             {
                 fprintf(stderr, "ParamDict read array element failed %d\n", nread);
                 return -1;
@@ -338,8 +225,8 @@ int ParamDict::load_param_bin(FILE* fp)
         }
         else
         {
-            nread = fread(&params[id].f, sizeof(float), 1, fp);
-            if (nread != 1)
+            nread = dr.read(&params[id].f, sizeof(float));
+            if (nread != (int)sizeof(float))
             {
                 fprintf(stderr, "ParamDict read value failed %d\n", nread);
                 return -1;
@@ -348,53 +235,12 @@ int ParamDict::load_param_bin(FILE* fp)
 
         params[id].loaded = 1;
 
-        nread = fread(&id, sizeof(int), 1, fp);
-        if (nread != 1)
+        nread = dr.read(&id, sizeof(int));
+        if (nread != (int)sizeof(int))
         {
             fprintf(stderr, "ParamDict read EOP failed %d\n", nread);
             return -1;
         }
-    }
-
-    return 0;
-}
-#endif // NCNN_STDIO
-
-int ParamDict::load_param(const unsigned char*& mem)
-{
-    clear();
-
-    int id = *(int*)(mem);
-    mem += 4;
-
-    while (id != -233)
-    {
-        bool is_array = id <= -23300;
-        if (is_array)
-        {
-            id = -id - 23300;
-        }
-
-        if (is_array)
-        {
-            int len = *(int*)(mem);
-            mem += 4;
-
-            params[id].v.create(len);
-
-            memcpy(params[id].v.data, mem, len * 4);
-            mem += len * 4;
-        }
-        else
-        {
-            params[id].f = *(float*)(mem);
-            mem += 4;
-        }
-
-        params[id].loaded = 1;
-
-        id = *(int*)(mem);
-        mem += 4;
     }
 
     return 0;

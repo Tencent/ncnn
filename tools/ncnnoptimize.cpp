@@ -17,6 +17,7 @@
 #include <vector>
 
 // ncnn public header
+#include "datareader.h"
 #include "net.h"
 #include "layer.h"
 
@@ -36,6 +37,7 @@
 #include "layer/eltwise.h"
 #include "layer/elu.h"
 #include "layer/exp.h"
+#include "layer/expanddims.h"
 #include "layer/flatten.h"
 #include "layer/hardsigmoid.h"
 #include "layer/hardswish.h"
@@ -68,6 +70,7 @@
 #include "layer/slice.h"
 #include "layer/shufflechannel.h"
 #include "layer/softmax.h"
+#include "layer/squeeze.h"
 #include "layer/threshold.h"
 #include "layer/unaryop.h"
 #include "layer/yolodetectionoutput.h"
@@ -87,57 +90,15 @@
 
 #endif // defined(__aarch64__) && defined(LINUX)
 
-// always return empty weights
-class ModelBinFromEmpty : public ncnn::ModelBin
+class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
-    virtual ncnn::Mat load(int w, int /*type*/) const { return ncnn::Mat(w); }
+    virtual int scan(const char* format, void* p) const { return 0; }
+    virtual int read(void* /*buf*/, int size) const { return size; }
 };
 
 class NetOptimize : public ncnn::Net
 {
-public:
-    int load_model()
-    {
-        // load file
-        int ret = 0;
-
-        ModelBinFromEmpty mb;
-        for (size_t i=0; i<layers.size(); i++)
-        {
-            ncnn::Layer* layer = layers[i];
-
-            int lret = layer->load_model(mb);
-            if (lret != 0)
-            {
-                fprintf(stderr, "layer load_model %d failed\n", (int)i);
-                ret = -1;
-                break;
-            }
-
-            int cret = layer->create_pipeline(opt);
-            if (cret != 0)
-            {
-                fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
-                ret = -1;
-                break;
-            }
-        }
-
-#if NCNN_VULKAN
-        if (opt.use_vulkan_compute)
-        {
-            upload_model();
-
-            create_pipeline();
-        }
-#endif // NCNN_VULKAN
-
-        fuse_network();
-
-        return ret;
-    }
-
 public:
     // 0=fp32 1=fp16
     int storage_type;
@@ -1904,6 +1865,12 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", outw)
             fprintf_param_value(" 4=%d", outh)
             fprintf_param_value(" 5=%d", outc)
+            fprintf_param_value(" 6=%d", woffset2)
+            fprintf_param_value(" 7=%d", hoffset2)
+            fprintf_param_value(" 8=%d", coffset2)
+            { if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp); }
+            { if (!op->ends.empty()) fprintf_param_int_array(10, op->ends, pp); }
+            { if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp); }
         }
         else if (layer->type == "Deconvolution")
         {
@@ -2007,6 +1974,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%e", base)
             fprintf_param_value(" 1=%e", scale)
             fprintf_param_value(" 2=%e", shift)
+        }
+        else if (layer->type == "ExpandDims")
+        {
+            ncnn::ExpandDims* op = (ncnn::ExpandDims*)layer;
+            ncnn::ExpandDims* op_default = (ncnn::ExpandDims*)layer_default;
+
+            fprintf_param_value(" 0=%d", expand_w)
+            fprintf_param_value(" 1=%d", expand_h)
+            fprintf_param_value(" 2=%d", expand_c)
+            { if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp); }
         }
         else if (layer->type == "HardSigmoid")
         {
@@ -2231,7 +2208,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Reduction* op_default = (ncnn::Reduction*)layer_default;
 
             fprintf_param_value(" 0=%d", operation)
-            fprintf_param_value(" 1=%d", dim)
+            fprintf_param_value(" 1=%d", reduce_all)
             fprintf_param_value(" 2=%e", coeff)
         }
         else if (layer->type == "ReLU")
@@ -2327,6 +2304,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
                 fprintf(pp, " 1=%d", fixbug0);
             }
         }
+        else if (layer->type == "Squeeze")
+        {
+            ncnn::Squeeze* op = (ncnn::Squeeze*)layer;
+            ncnn::Squeeze* op_default = (ncnn::Squeeze*)layer_default;
+
+            fprintf_param_value(" 0=%d", squeeze_w)
+            fprintf_param_value(" 1=%d", squeeze_h)
+            fprintf_param_value(" 2=%d", squeeze_c)
+            { if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp); }
+        }
         else if (layer->type == "Threshold")
         {
             ncnn::Threshold* op = (ncnn::Threshold*)layer;
@@ -2418,9 +2405,12 @@ int main(int argc, char** argv)
 
     optimizer.load_param(inparam);
     if (strcmp(inbin, "null") == 0)
-        optimizer.load_model();
+    {
+        DataReaderFromEmpty dr;
+        optimizer.load_model(dr);
+    }
     else
-        optimizer.ncnn::Net::load_model(inbin);
+        optimizer.load_model(inbin);
 
 #if defined(__aarch64__) && defined(LINUX)
     optimizer.find_fastest_fp32_conv(dataname, inw, inh, inc);

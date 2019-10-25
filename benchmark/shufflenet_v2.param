@@ -1,0 +1,111 @@
+7767517
+109 125
+Input                    data                     0 1 data 0=224 1=224 2=3
+Convolution              conv1                    1 1 data conv1_conv1_relu 0=24 1=3 3=2 4=1 5=1 6=648 9=1
+Pooling                  pool1                    1 1 conv1_conv1_relu pool1 1=3 2=2
+Split                    splitncnn_0              1 2 pool1 pool1_splitncnn_0 pool1_splitncnn_1
+ConvolutionDepthWise     branch1_1_conv1          1 1 pool1_splitncnn_1 branch1_1_conv1_branch1_1_conv1_scale 0=24 1=3 3=2 4=1 5=1 6=216 7=24
+Convolution              branch1_1_conv2          1 1 branch1_1_conv1_branch1_1_conv1_scale branch1_1_conv2_branch1_1_conv2_relu 0=58 1=1 5=1 6=1392 9=1
+Convolution              branch1_2_conv1          1 1 pool1_splitncnn_0 branch1_2_conv1_branch1_2_conv1_relu 0=58 1=1 5=1 6=1392 9=1
+ConvolutionDepthWise     branch1_2_conv2          1 1 branch1_2_conv1_branch1_2_conv1_relu branch1_2_conv2_branch1_2_conv2_scale 0=58 1=3 3=2 4=1 5=1 6=522 7=58
+Convolution              branch1_2_conv3          1 1 branch1_2_conv2_branch1_2_conv2_scale branch1_2_conv3_branch1_2_conv3_relu 0=58 1=1 5=1 6=3364 9=1
+Concat                   concat1                  2 1 branch1_1_conv2_branch1_1_conv2_relu branch1_2_conv3_branch1_2_conv3_relu concat1
+ShuffleChannel           shuffle1                 1 1 concat1 shuffle1 0=2
+Slice                    slice2                   1 2 shuffle1 branch2_1 branch2_2 -23300=2,58,-233
+Convolution              branch2_2_conv1          1 1 branch2_2 branch2_2_conv1_branch2_2_conv1_relu 0=58 1=1 5=1 6=3364 9=1
+ConvolutionDepthWise     branch2_2_conv2          1 1 branch2_2_conv1_branch2_2_conv1_relu branch2_2_conv2_branch2_2_conv2_scale 0=58 1=3 4=1 5=1 6=522 7=58
+Convolution              branch2_2_conv3          1 1 branch2_2_conv2_branch2_2_conv2_scale branch2_2_conv3_branch2_2_conv3_relu 0=58 1=1 5=1 6=3364 9=1
+Concat                   concat2                  2 1 branch2_1 branch2_2_conv3_branch2_2_conv3_relu concat2
+ShuffleChannel           shuffle2                 1 1 concat2 shuffle2 0=2
+Slice                    slice3                   1 2 shuffle2 branch3_1 branch3_2 -23300=2,58,-233
+Convolution              branch3_2_conv1          1 1 branch3_2 branch3_2_conv1_branch3_2_conv1_relu 0=58 1=1 5=1 6=3364 9=1
+ConvolutionDepthWise     branch3_2_conv2          1 1 branch3_2_conv1_branch3_2_conv1_relu branch3_2_conv2_branch3_2_conv2_scale 0=58 1=3 4=1 5=1 6=522 7=58
+Convolution              branch3_2_conv3          1 1 branch3_2_conv2_branch3_2_conv2_scale branch3_2_conv3_branch3_2_conv3_relu 0=58 1=1 5=1 6=3364 9=1
+Concat                   concat3                  2 1 branch3_1 branch3_2_conv3_branch3_2_conv3_relu concat3
+ShuffleChannel           shuffle3                 1 1 concat3 shuffle3 0=2
+Slice                    slice4                   1 2 shuffle3 branch4_1 branch4_2 -23300=2,58,-233
+Convolution              branch4_2_conv1          1 1 branch4_2 branch4_2_conv1_branch4_2_conv1_relu 0=58 1=1 5=1 6=3364 9=1
+ConvolutionDepthWise     branch4_2_conv2          1 1 branch4_2_conv1_branch4_2_conv1_relu branch4_2_conv2_branch4_2_conv2_scale 0=58 1=3 4=1 5=1 6=522 7=58
+Convolution              branch4_2_conv3          1 1 branch4_2_conv2_branch4_2_conv2_scale branch4_2_conv3_branch4_2_conv3_relu 0=58 1=1 5=1 6=3364 9=1
+Concat                   concat4                  2 1 branch4_1 branch4_2_conv3_branch4_2_conv3_relu concat4
+ShuffleChannel           shuffle4                 1 1 concat4 shuffle4 0=2
+Split                    splitncnn_1              1 2 shuffle4 shuffle4_splitncnn_0 shuffle4_splitncnn_1
+ConvolutionDepthWise     branch5_1_conv1          1 1 shuffle4_splitncnn_1 branch5_1_conv1_branch5_1_conv1_scale 0=116 1=3 3=2 4=1 5=1 6=1044 7=116
+Convolution              branch5_1_conv2          1 1 branch5_1_conv1_branch5_1_conv1_scale branch5_1_conv2_branch5_1_conv2_relu 0=116 1=1 5=1 6=13456 9=1
+Convolution              branch5_2_conv1          1 1 shuffle4_splitncnn_0 branch5_2_conv1_branch5_2_conv1_relu 0=116 1=1 5=1 6=13456 9=1
+ConvolutionDepthWise     branch5_2_conv2          1 1 branch5_2_conv1_branch5_2_conv1_relu branch5_2_conv2_branch5_2_conv2_scale 0=116 1=3 3=2 4=1 5=1 6=1044 7=116
+Convolution              branch5_2_conv3          1 1 branch5_2_conv2_branch5_2_conv2_scale branch5_2_conv3_branch5_2_conv3_relu 0=116 1=1 5=1 6=13456 9=1
+Concat                   concat5                  2 1 branch5_1_conv2_branch5_1_conv2_relu branch5_2_conv3_branch5_2_conv3_relu concat5
+ShuffleChannel           shuffle5                 1 1 concat5 shuffle5 0=2
+Slice                    slice6                   1 2 shuffle5 branch6_1 branch6_2 -23300=2,116,-233
+Convolution              branch6_2_conv1          1 1 branch6_2 branch6_2_conv1_branch6_2_conv1_relu 0=116 1=1 5=1 6=13456 9=1
+ConvolutionDepthWise     branch6_2_conv2          1 1 branch6_2_conv1_branch6_2_conv1_relu branch6_2_conv2_branch6_2_conv2_scale 0=116 1=3 4=1 5=1 6=1044 7=116
+Convolution              branch6_2_conv3          1 1 branch6_2_conv2_branch6_2_conv2_scale branch6_2_conv3_branch6_2_conv3_relu 0=116 1=1 5=1 6=13456 9=1
+Concat                   concat6                  2 1 branch6_1 branch6_2_conv3_branch6_2_conv3_relu concat6
+ShuffleChannel           shuffle6                 1 1 concat6 shuffle6 0=2
+Slice                    slice7                   1 2 shuffle6 branch7_1 branch7_2 -23300=2,116,-233
+Convolution              branch7_2_conv1          1 1 branch7_2 branch7_2_conv1_branch7_2_conv1_relu 0=116 1=1 5=1 6=13456 9=1
+ConvolutionDepthWise     branch7_2_conv2          1 1 branch7_2_conv1_branch7_2_conv1_relu branch7_2_conv2_branch7_2_conv2_scale 0=116 1=3 4=1 5=1 6=1044 7=116
+Convolution              branch7_2_conv3          1 1 branch7_2_conv2_branch7_2_conv2_scale branch7_2_conv3_branch7_2_conv3_relu 0=116 1=1 5=1 6=13456 9=1
+Concat                   concat7                  2 1 branch7_1 branch7_2_conv3_branch7_2_conv3_relu concat7
+ShuffleChannel           shuffle7                 1 1 concat7 shuffle7 0=2
+Slice                    slice8                   1 2 shuffle7 branch8_1 branch8_2 -23300=2,116,-233
+Convolution              branch8_2_conv1          1 1 branch8_2 branch8_2_conv1_branch8_2_conv1_relu 0=116 1=1 5=1 6=13456 9=1
+ConvolutionDepthWise     branch8_2_conv2          1 1 branch8_2_conv1_branch8_2_conv1_relu branch8_2_conv2_branch8_2_conv2_scale 0=116 1=3 4=1 5=1 6=1044 7=116
+Convolution              branch8_2_conv3          1 1 branch8_2_conv2_branch8_2_conv2_scale branch8_2_conv3_branch8_2_conv3_relu 0=116 1=1 5=1 6=13456 9=1
+Concat                   concat8                  2 1 branch8_1 branch8_2_conv3_branch8_2_conv3_relu concat8
+ShuffleChannel           shuffle8                 1 1 concat8 shuffle8 0=2
+Slice                    slice9                   1 2 shuffle8 branch9_1 branch9_2 -23300=2,116,-233
+Convolution              branch9_2_conv1          1 1 branch9_2 branch9_2_conv1_branch9_2_conv1_relu 0=116 1=1 5=1 6=13456 9=1
+ConvolutionDepthWise     branch9_2_conv2          1 1 branch9_2_conv1_branch9_2_conv1_relu branch9_2_conv2_branch9_2_conv2_scale 0=116 1=3 4=1 5=1 6=1044 7=116
+Convolution              branch9_2_conv3          1 1 branch9_2_conv2_branch9_2_conv2_scale branch9_2_conv3_branch9_2_conv3_relu 0=116 1=1 5=1 6=13456 9=1
+Concat                   concat9                  2 1 branch9_1 branch9_2_conv3_branch9_2_conv3_relu concat9
+ShuffleChannel           shuffle9                 1 1 concat9 shuffle9 0=2
+Slice                    slice10                  1 2 shuffle9 branch10_1 branch10_2 -23300=2,116,-233
+Convolution              branch10_2_conv1         1 1 branch10_2 branch10_2_conv1_branch10_2_conv1_relu 0=116 1=1 5=1 6=13456 9=1
+ConvolutionDepthWise     branch10_2_conv2         1 1 branch10_2_conv1_branch10_2_conv1_relu branch10_2_conv2_branch10_2_conv2_scale 0=116 1=3 4=1 5=1 6=1044 7=116
+Convolution              branch10_2_conv3         1 1 branch10_2_conv2_branch10_2_conv2_scale branch10_2_conv3_branch10_2_conv3_relu 0=116 1=1 5=1 6=13456 9=1
+Concat                   concat10                 2 1 branch10_1 branch10_2_conv3_branch10_2_conv3_relu concat10
+ShuffleChannel           shuffle10                1 1 concat10 shuffle10 0=2
+Slice                    slice11                  1 2 shuffle10 branch11_1 branch11_2 -23300=2,116,-233
+Convolution              branch11_2_conv1         1 1 branch11_2 branch11_2_conv1_branch11_2_conv1_relu 0=116 1=1 5=1 6=13456 9=1
+ConvolutionDepthWise     branch11_2_conv2         1 1 branch11_2_conv1_branch11_2_conv1_relu branch11_2_conv2_branch11_2_conv2_scale 0=116 1=3 4=1 5=1 6=1044 7=116
+Convolution              branch11_2_conv3         1 1 branch11_2_conv2_branch11_2_conv2_scale branch11_2_conv3_branch11_2_conv3_relu 0=116 1=1 5=1 6=13456 9=1
+Concat                   concat11                 2 1 branch11_1 branch11_2_conv3_branch11_2_conv3_relu concat11
+ShuffleChannel           shuffle11                1 1 concat11 shuffle11 0=2
+Slice                    slice12                  1 2 shuffle11 branch12_1 branch12_2 -23300=2,116,-233
+Convolution              branch12_2_conv1         1 1 branch12_2 branch12_2_conv1_branch12_2_conv1_relu 0=116 1=1 5=1 6=13456 9=1
+ConvolutionDepthWise     branch12_2_conv2         1 1 branch12_2_conv1_branch12_2_conv1_relu branch12_2_conv2_branch12_2_conv2_scale 0=116 1=3 4=1 5=1 6=1044 7=116
+Convolution              branch12_2_conv3         1 1 branch12_2_conv2_branch12_2_conv2_scale branch12_2_conv3_branch12_2_conv3_relu 0=116 1=1 5=1 6=13456 9=1
+Concat                   concat12                 2 1 branch12_1 branch12_2_conv3_branch12_2_conv3_relu concat12
+ShuffleChannel           shuffle12                1 1 concat12 shuffle12 0=2
+Split                    splitncnn_2              1 2 shuffle12 shuffle12_splitncnn_0 shuffle12_splitncnn_1
+ConvolutionDepthWise     branch13_1_conv1         1 1 shuffle12_splitncnn_1 branch13_1_conv1_branch13_1_conv1_scale 0=232 1=3 3=2 4=1 5=1 6=2088 7=232
+Convolution              branch13_1_conv2         1 1 branch13_1_conv1_branch13_1_conv1_scale branch13_1_conv2_branch13_1_conv2_relu 0=232 1=1 5=1 6=53824 9=1
+Convolution              branch13_2_conv1         1 1 shuffle12_splitncnn_0 branch13_2_conv1_branch13_2_conv1_relu 0=232 1=1 5=1 6=53824 9=1
+ConvolutionDepthWise     branch13_2_conv2         1 1 branch13_2_conv1_branch13_2_conv1_relu branch13_2_conv2_branch13_2_conv2_scale 0=232 1=3 3=2 4=1 5=1 6=2088 7=232
+Convolution              branch13_2_conv3         1 1 branch13_2_conv2_branch13_2_conv2_scale branch13_2_conv3_branch13_2_conv3_relu 0=232 1=1 5=1 6=53824 9=1
+Concat                   concat13                 2 1 branch13_1_conv2_branch13_1_conv2_relu branch13_2_conv3_branch13_2_conv3_relu concat13
+ShuffleChannel           shuffle13                1 1 concat13 shuffle13 0=2
+Slice                    slice14                  1 2 shuffle13 branch14_1 branch14_2 -23300=2,232,-233
+Convolution              branch14_2_conv1         1 1 branch14_2 branch14_2_conv1_branch14_2_conv1_relu 0=232 1=1 5=1 6=53824 9=1
+ConvolutionDepthWise     branch14_2_conv2         1 1 branch14_2_conv1_branch14_2_conv1_relu branch14_2_conv2_branch14_2_conv2_scale 0=232 1=3 4=1 5=1 6=2088 7=232
+Convolution              branch14_2_conv3         1 1 branch14_2_conv2_branch14_2_conv2_scale branch14_2_conv3_branch14_2_conv3_relu 0=232 1=1 5=1 6=53824 9=1
+Concat                   concat14                 2 1 branch14_1 branch14_2_conv3_branch14_2_conv3_relu concat14
+ShuffleChannel           shuffle14                1 1 concat14 shuffle14 0=2
+Slice                    slice15                  1 2 shuffle14 branch15_1 branch15_2 -23300=2,232,-233
+Convolution              branch15_2_conv1         1 1 branch15_2 branch15_2_conv1_branch15_2_conv1_relu 0=232 1=1 5=1 6=53824 9=1
+ConvolutionDepthWise     branch15_2_conv2         1 1 branch15_2_conv1_branch15_2_conv1_relu branch15_2_conv2_branch15_2_conv2_scale 0=232 1=3 4=1 5=1 6=2088 7=232
+Convolution              branch15_2_conv3         1 1 branch15_2_conv2_branch15_2_conv2_scale branch15_2_conv3_branch15_2_conv3_relu 0=232 1=1 5=1 6=53824 9=1
+Concat                   concat15                 2 1 branch15_1 branch15_2_conv3_branch15_2_conv3_relu concat15
+ShuffleChannel           shuffle15                1 1 concat15 shuffle15 0=2
+Slice                    slice16                  1 2 shuffle15 branch16_1 branch16_2 -23300=2,232,-233
+Convolution              branch16_2_conv1         1 1 branch16_2 branch16_2_conv1_branch16_2_conv1_relu 0=232 1=1 5=1 6=53824 9=1
+ConvolutionDepthWise     branch16_2_conv2         1 1 branch16_2_conv1_branch16_2_conv1_relu branch16_2_conv2_branch16_2_conv2_scale 0=232 1=3 4=1 5=1 6=2088 7=232
+Convolution              branch16_2_conv3         1 1 branch16_2_conv2_branch16_2_conv2_scale branch16_2_conv3_branch16_2_conv3_relu 0=232 1=1 5=1 6=53824 9=1
+Concat                   concat16                 2 1 branch16_1 branch16_2_conv3_branch16_2_conv3_relu concat16
+ShuffleChannel           shuffle16                1 1 concat16 shuffle16 0=2
+Convolution              conv5                    1 1 shuffle16 conv5_conv5_relu 0=1024 1=1 5=1 6=475136 9=1
+Pooling                  pool_ave                 1 1 conv5_conv5_relu pool_ave 0=1 4=1
+InnerProduct             fc1000                   1 1 pool_ave fc1000 0=1000 1=1 2=1024000
+Softmax                  prob                     1 1 fc1000 output

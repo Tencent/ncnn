@@ -46,6 +46,12 @@ public:
     int woffset2;
     int hoffset2;
     int coffset2;
+
+    // numpy-style slice
+    // if provided, all the above attributes will be ignored
+    Mat starts;
+    Mat ends;
+    Mat axes;
 };
 
 } // namespace ncnn
