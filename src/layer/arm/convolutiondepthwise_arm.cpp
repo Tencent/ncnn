@@ -40,6 +40,7 @@ ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+    use_fp32_packing_inference = false;
 #endif // __ARM_NEON
 
     activation = 0;
@@ -89,7 +90,16 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
+    bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
+
+    use_fp32_packing_inference = opt.use_packing_layout && weight_data_is_float32 && !use_int8_inference;
+
+    if (use_int8_inference)
+    {
+        support_packing = false;
+    }
+
+    if (use_fp32_packing_inference)
     {
 
     // depth-wise
@@ -100,6 +110,8 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_pack4, 4);
+
+            return 0;
         }
     }
 
@@ -298,7 +310,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
+    if (use_fp32_packing_inference)
     {
 
     const int maxk = kernel_w * kernel_h;

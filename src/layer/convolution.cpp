@@ -77,19 +77,16 @@ int Convolution::load_model(const ModelBin& mb)
 
 int Convolution::create_pipeline(const Option& opt)
 {
-    use_int8_inference = opt.use_int8_inference;
-
-    if (int8_scale_term == 0)
-        use_int8_inference = false;
-
     bool weight_data_is_int8 = (weight_data.elemsize == (size_t)1u);
     bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
 
-    if (weight_data_is_int8 && !use_int8_inference)
+    if (weight_data_is_int8 && !opt.use_int8_inference)
     {
         fprintf(stderr, "quantized int8 weight loaded but use_int8_inference disabled\n");
         return -1;
     }
+
+    use_int8_inference = opt.use_int8_inference && (weight_data_is_int8 || (weight_data_is_float32 && int8_scale_term));
 
     // runtime quantize the weight data
     if (weight_data_is_float32 && use_int8_inference)

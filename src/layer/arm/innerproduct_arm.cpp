@@ -30,6 +30,7 @@ InnerProduct_arm::InnerProduct_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+    use_fp32_packing_inference = false;
 #endif // __ARM_NEON
 
     flatten = 0;
@@ -38,7 +39,16 @@ InnerProduct_arm::InnerProduct_arm()
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
 #if __ARM_NEON
-    if (opt.use_packing_layout)
+    bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
+
+    use_fp32_packing_inference = opt.use_packing_layout && weight_data_is_float32 && !use_int8_inference;
+
+    if (use_int8_inference)
+    {
+        support_packing = false;
+    }
+
+    if (use_fp32_packing_inference)
     {
 
     {
@@ -85,7 +95,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int size = w * h;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
+    if (use_fp32_packing_inference)
     {
 
     if (elempack == 4)
