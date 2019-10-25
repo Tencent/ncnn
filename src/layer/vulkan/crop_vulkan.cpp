@@ -142,19 +142,19 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
             if (dims == 1) // axis == 1
             {
-                _woffset = start > 0 ? start : w * elempack + start;
+                _woffset = start >= 0 ? start : w * elempack + start;
                 _outw = std::min(w * elempack, end > 0 ? end : w * elempack + end) - _woffset;
             }
             if (dims == 2)
             {
                 if (axis == 1)
                 {
-                    _hoffset = start > 0 ? start : h * elempack + start;
+                    _hoffset = start >= 0 ? start : h * elempack + start;
                     _outh = std::min(h * elempack, end > 0 ? end : h * elempack + end) - _woffset;
                 }
                 if (axis == 2)
                 {
-                    _woffset = start > 0 ? start : w + start;
+                    _woffset = start >= 0 ? start : w + start;
                     _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
                 }
             }
@@ -162,17 +162,17 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             {
                 if (axis == 1)
                 {
-                    _coffset = start > 0 ? start : channels * elempack + start;
+                    _coffset = start >= 0 ? start : channels * elempack + start;
                     _outc = std::min(channels * elempack, end > 0 ? end : channels * elempack + end) - _coffset;
                 }
                 if (axis == 2)
                 {
-                    _hoffset = start > 0 ? start : h + start;
+                    _hoffset = start >= 0 ? start : h + start;
                     _outh = std::min(h, end > 0 ? end : h + end) - _woffset;
                 }
                 if (axis == 3)
                 {
-                    _woffset = start > 0 ? start : w + start;
+                    _woffset = start >= 0 ? start : w + start;
                     _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
                 }
             }
