@@ -24,6 +24,7 @@
 
 #include "benchmark.h"
 #include "cpu.h"
+#include "datareader.h"
 #include "net.h"
 
 #if NCNN_VULKAN
@@ -39,61 +40,12 @@ public:
 GlobalGpuInstance g_global_gpu_instance;
 #endif // NCNN_VULKAN
 
-namespace ncnn {
-
-// always return empty weights
-class ModelBinFromEmpty : public ModelBin
+class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
-    virtual Mat load(int w, int /*type*/) const { return Mat(w); }
+    virtual int scan(const char* format, void* p) const { return 0; }
+    virtual int read(void* /*buf*/, int size) const { return size; }
 };
-
-class BenchNet : public Net
-{
-public:
-    int load_model()
-    {
-        // load file
-        int ret = 0;
-
-        ModelBinFromEmpty mb;
-        for (size_t i=0; i<layers.size(); i++)
-        {
-            Layer* layer = layers[i];
-
-            int lret = layer->load_model(mb);
-            if (lret != 0)
-            {
-                fprintf(stderr, "layer load_model %d failed\n", (int)i);
-                ret = -1;
-                break;
-            }
-
-            int cret = layer->create_pipeline(opt);
-            if (cret != 0)
-            {
-                fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
-                ret = -1;
-                break;
-            }
-        }
-
-#if NCNN_VULKAN
-        if (opt.use_vulkan_compute)
-        {
-            upload_model();
-
-            create_pipeline();
-        }
-#endif // NCNN_VULKAN
-
-        fuse_network();
-
-        return ret;
-    }
-};
-
-} // namespace ncnn
 
 static int g_warmup_loop_count = 3;
 static int g_loop_count = 4;
@@ -109,7 +61,7 @@ static ncnn::VkAllocator* g_staging_vkallocator = 0;
 
 void benchmark(const char* comment, const ncnn::Mat& in, const ncnn::Option& opt)
 {
-    ncnn::BenchNet net;
+    ncnn::Net net;
 
     net.opt = opt;
 
@@ -124,7 +76,8 @@ void benchmark(const char* comment, const ncnn::Mat& in, const ncnn::Option& opt
     sprintf(parampath, "%s.param", comment);
     net.load_param(parampath);
 
-    net.load_model();
+    DataReaderFromEmpty dr;
+    net.load_model(dr);
 
     g_blob_pool_allocator.clear();
     g_workspace_pool_allocator.clear();
