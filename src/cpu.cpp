@@ -259,25 +259,27 @@ static int get_max_freq_khz(int cpuid)
         sprintf(path, "/sys/devices/system/cpu/cpu%d/cpufreq/stats/time_in_state", cpuid);
         fp = fopen(path, "rb");
 
-        int max_freq_khz = 0;
-        while (!feof(fp))
+        if (fp)
         {
-            int freq_khz = 0;
-            int nscan = fscanf(fp, "%d %*d", &freq_khz);
-            if (nscan != 1)
-                break;
+            int max_freq_khz = 0;
+            while (!feof(fp))
+            {
+                int freq_khz = 0;
+                int nscan = fscanf(fp, "%d %*d", &freq_khz);
+                if (nscan != 1)
+                    break;
 
-            if (freq_khz > max_freq_khz)
-                max_freq_khz = freq_khz;
-        }
+                if (freq_khz > max_freq_khz)
+                    max_freq_khz = freq_khz;
+            }
 
-        fclose(fp);
+            fclose(fp);
 
-        if (max_freq_khz != 0)
-            return max_freq_khz;
-        else
+            if (max_freq_khz != 0)
+                return max_freq_khz;
+
             fp = NULL;
-
+        }
 
         if (!fp)
         {
