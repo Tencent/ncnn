@@ -110,34 +110,34 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
     for (size_t i = 0; i < objects.size(); i++)
     {
-		    if (objects[i].prob > 0.6) 
-		    {
-		        const Object& obj = objects[i];
+        if (objects[i].prob > 0.6) 
+	{
+	    const Object& obj = objects[i];
 
-		        fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
-		                obj.rect.x, obj.rect.y, obj.rect.width, obj.rect.height);
+	    fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
+		    obj.rect.x, obj.rect.y, obj.rect.width, obj.rect.height);
 
-		        cv::rectangle(image, obj.rect, cv::Scalar(255, 0, 0));
+	    cv::rectangle(image, obj.rect, cv::Scalar(255, 0, 0));
 
-		        char text[256];
-		        sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
+	    char text[256];
+	    sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
 
-		        int baseLine = 0;
-		        cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+	    int baseLine = 0;
+	    cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
 
-		        int x = obj.rect.x;
-		        int y = obj.rect.y - label_size.height - baseLine;
-		        if (y < 0)
-		          y = 0;
-		        if (x + label_size.width > image.cols)
-		          x = image.cols - label_size.width;
+	    int x = obj.rect.x;
+	    int y = obj.rect.y - label_size.height - baseLine;
+            if (y < 0)
+	        y = 0;
+	    if (x + label_size.width > image.cols)
+		x = image.cols - label_size.width;
 
-		        cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-		                      cv::Scalar(255, 255, 255), -1);
+	    cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+		          cv::Scalar(255, 255, 255), -1);
 
-		        cv::putText(image, text, cv::Point(x, y + label_size.height),
-		                    cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
-		    }
+	    cv::putText(image, text, cv::Point(x, y + label_size.height),
+		        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+	}
     }
 
     cv::imshow("image", image);
