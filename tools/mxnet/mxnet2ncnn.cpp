@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -1354,21 +1355,13 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Noop");
         }
-        else if (n.op == "max")
+        else if (n.op == "max" || n.op == "mean" || n.op == "min" || n.op == "prod" || n.op == "sum")
         {
             fprintf(pp, "%-16s", "Reduction");
         }
         else if (n.op == "maximum")
         {
             fprintf(pp, "%-16s", "BinaryOp");
-        }
-        else if (n.op == "mean")
-        {
-            fprintf(pp, "%-16s", "Reduction");
-        }
-        else if (n.op == "min")
-        {
-            fprintf(pp, "%-16s", "Reduction");
         }
         else if (n.op == "minimum")
         {
@@ -1385,10 +1378,6 @@ int main(int argc, char** argv)
         else if (n.op == "Pooling")
         {
             fprintf(pp, "%-16s", "Pooling");
-        }
-        else if (n.op == "prod")
-        {
-            fprintf(pp, "%-16s", "Reduction");
         }
         else if (n.op == "reciprocal")
         {
@@ -1418,6 +1407,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Crop");
         }
+        else if (n.op == "slice_axis")
+        {
+            fprintf(pp, "%-16s", "Crop");
+        }
         else if (n.op == "SliceChannel")
         {
             fprintf(pp, "%-16s", "Slice");
@@ -1442,9 +1435,9 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
-        else if (n.op == "sum")
+        else if (n.op == "squeeze")
         {
-            fprintf(pp, "%-16s", "Reduction");
+            fprintf(pp, "%-16s", "Squeeze");
         }
         else if (n.op == "tan")
         {
@@ -2060,20 +2053,7 @@ int main(int argc, char** argv)
         {
             int axis = n.attr("axis");
 
-            int expand_w = 0;
-            int expand_h = 0;
-            int expand_c = 0;
-
-            if (axis == 0)
-                expand_c = 1;
-            if (axis == 1)
-                expand_h = 1;
-            if (axis == 2)
-                expand_w = 1;
-
-            fprintf(pp, " 0=%d", expand_w);
-            fprintf(pp, " 1=%d", expand_h);
-            fprintf(pp, " 2=%d", expand_c);
+            fprintf(pp, " -23303=1,%d", axis);
         }
         else if (n.op == "Flatten")
         {
@@ -2203,25 +2183,42 @@ int main(int argc, char** argv)
         else if (n.op == "MAERegressionOutput")
         {
         }
-        else if (n.op == "max")
+        else if (n.op == "max" || n.op == "mean" || n.op == "min" || n.op == "prod" || n.op == "sum")
         {
-            int operation = 4;
+            int operation = -233;
+            if (n.op == "max") operation = 4;
+            if (n.op == "mean") operation = 3;
+            if (n.op == "min") operation = 5;
+            if (n.op == "prod") operation = 6;
+            if (n.op == "sum") operation = 0;
+
+            std::vector<int> axis = n.attr("axis");
+            int keepdims = n.attr("keepdims");
+
             fprintf(pp, " 0=%d", operation);
+            if (axis.empty())
+            {
+                // if axis not set, reduce all axis by default
+                fprintf(pp, " 1=%d", 1);
+            }
+            else
+            {
+                // if axis set, reduce according to axis
+                fprintf(pp, " 1=%d", 0);
+                fprintf(pp, " -23303=%d", axis.size());
+                for (int i=0; i< axis.size(); i++)
+                {
+                    if (axis[i] == 0 || axis[i] > 3 || axis[i] < -3)
+                        fprintf(stderr, "Unsupported reduction axis !\n");
+                    fprintf(pp, ",%d", axis[i]);
+                }
+            }
+            fprintf(pp, " 4=%d", keepdims);
         }
         else if (n.op == "maximum")
         {
             int op_type = 4;
             fprintf(pp, " 0=%d", op_type);
-        }
-        else if (n.op == "mean")
-        {
-            int operation = 3;
-            fprintf(pp, " 0=%d", operation);
-        }
-        else if (n.op == "min")
-        {
-            int operation = 5;
-            fprintf(pp, " 0=%d", operation);
         }
         else if (n.op == "minimum")
         {
@@ -2250,7 +2247,7 @@ int main(int argc, char** argv)
             }
             else if (mode == "reflect")
             {
-                // FIXME
+                type = 2;
             }
 
             if (pad_width.size() != 8)
@@ -2339,11 +2336,6 @@ int main(int argc, char** argv)
                 fprintf(pp, " 6=%d", avgpool_count_include_pad);
             }
         }
-        else if (n.op == "prod")
-        {
-            int operation = 6;
-            fprintf(pp, " 0=%d", operation);
-        }
         else if (n.op == "reciprocal")
         {
             int op_type = 15;
@@ -2399,51 +2391,26 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
-            int woffset = 0;
-            int hoffset = 0;
-            int coffset = 0;
-            int outw = -233;
-            int outh = -233;
-            int outc = -233;
+            fprintf(pp, " -23309=%d", begin.size());
+            for (int i=0; i<(int)begin.size(); i++)
+            {
+                fprintf(pp, ",%d", begin[i]);
+            }
+            fprintf(pp, " -23310=%d", end.size());
+            for (int i=0; i<(int)end.size(); i++)
+            {
+                fprintf(pp, ",%d", end[i]);
+            }
+        }
+        else if (n.op == "slice_axis")
+        {
+            int axis = n.attr("axis");
+            int begin = n.attr("begin");
+            int end = n.has_attr("end") ? n.attr("end") : INT_MAX;
 
-            if (begin.size() == 1)
-            {
-                woffset = begin[0] == -233 ? 0 : begin[0];
-                hoffset = -233;
-                coffset = -233;
-                outw = end[0] == -233 ? -233 : end[0] - begin[0];
-            }
-            else if (begin.size() == 2)
-            {
-                woffset = begin[1] == -233 ? 0 : begin[1];
-                hoffset = -233;
-                coffset = -233;
-                outw = end[1] == -233 ? -233 : end[1] - begin[1];
-            }
-            else if (begin.size() == 3)
-            {
-                woffset = begin[2] == -233 ? 0 : begin[2];
-                hoffset = begin[1] == -233 ? 0 : begin[1];
-                coffset = -233;
-                outw = end[2] == -233 ? -233 : end[2] - begin[2];
-                outh = end[1] == -233 ? -233 : end[1] - begin[1];
-            }
-            else if (begin.size() == 4)
-            {
-                woffset = begin[3] == -233 ? 0 : begin[3];
-                hoffset = begin[2] == -233 ? 0 : begin[2];
-                coffset = begin[1] == -233 ? 0 : begin[1];
-                outw = end[3] == -233 ? -233 : end[3] - begin[3];
-                outh = end[2] == -233 ? -233 : end[2] - begin[2];
-                outc = end[1] == -233 ? -233 : end[1] - begin[1];
-            }
-
-            fprintf(pp, " 0=%d", woffset);
-            fprintf(pp, " 1=%d", hoffset);
-            fprintf(pp, " 2=%d", coffset);
-            fprintf(pp, " 3=%d", outw);
-            fprintf(pp, " 4=%d", outh);
-            fprintf(pp, " 5=%d", outc);
+            fprintf(pp, " -23309=1,%d", begin);
+            fprintf(pp, " -23310=1,%d", end);
+            fprintf(pp, " -23311=1,%d", axis);
         }
         else if (n.op == "SliceChannel")
         {
@@ -2487,10 +2454,24 @@ int main(int argc, char** argv)
             int op_type = 4;
             fprintf(pp, " 0=%d", op_type);
         }
-        else if (n.op == "sum")
+        else if (n.op == "squeeze")
         {
-            int operation = 0;
-            fprintf(pp, " 0=%d", operation);
+            std::vector<int> axis = n.attr("axis");
+
+            if (axis.empty())
+            {
+                fprintf(pp, " 0=1");
+                fprintf(pp, " 1=1");
+                fprintf(pp, " 2=1");
+            }
+            else
+            {
+                fprintf(pp, " -23303=%d", axis.size());
+                for (int i=0; i<(int)axis.size(); i++)
+                {
+                    fprintf(pp, ",%d", axis[i]);
+                }
+            }
         }
         else if (n.op == "tan")
         {

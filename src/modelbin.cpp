@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <vector>
-#include "platform.h"
+#include "datareader.h"
 
 namespace ncnn {
 
@@ -43,16 +43,12 @@ Mat ModelBin::load(int w, int h, int c, int type) const
     return m.reshape(w, h, c);
 }
 
-#if NCNN_STDIO
-ModelBinFromStdio::ModelBinFromStdio(FILE* _binfp) : binfp(_binfp)
+ModelBinFromDataReader::ModelBinFromDataReader(const DataReader& _dr) : dr(_dr)
 {
 }
 
-Mat ModelBinFromStdio::load(int w, int type) const
+Mat ModelBinFromDataReader::load(int w, int type) const
 {
-    if (!binfp)
-        return Mat();
-
     if (type == 0)
     {
         int nread;
@@ -69,8 +65,8 @@ Mat ModelBinFromStdio::load(int w, int type) const
             unsigned int tag;
         } flag_struct;
 
-        nread = fread(&flag_struct, sizeof(flag_struct), 1, binfp);
-        if (nread != 1)
+        nread = dr.read(&flag_struct, sizeof(flag_struct));
+        if (nread != (int)sizeof(flag_struct))
         {
             fprintf(stderr, "ModelBin read flag_struct failed %d\n", nread);
             return Mat();
@@ -84,8 +80,8 @@ Mat ModelBinFromStdio::load(int w, int type) const
             int align_data_size = alignSize(w * sizeof(unsigned short), 4);
             std::vector<unsigned short> float16_weights;
             float16_weights.resize(align_data_size);
-            nread = fread(float16_weights.data(), align_data_size, 1, binfp);
-            if (nread != 1)
+            nread = dr.read(float16_weights.data(), align_data_size);
+            if (nread != align_data_size)
             {
                 fprintf(stderr, "ModelBin read float16_weights failed %d\n", nread);
                 return Mat();
@@ -99,8 +95,8 @@ Mat ModelBinFromStdio::load(int w, int type) const
             int align_data_size = alignSize(w, 4);
             std::vector<signed char> int8_weights;
             int8_weights.resize(align_data_size);
-            nread = fread(int8_weights.data(), align_data_size, 1, binfp);
-            if (nread != 1)
+            nread = dr.read(int8_weights.data(), align_data_size);
+            if (nread != align_data_size)
             {
                 fprintf(stderr, "ModelBin read int8_weights failed %d\n", nread);
                 return Mat();
@@ -121,8 +117,8 @@ Mat ModelBinFromStdio::load(int w, int type) const
                 return m;
 
             // raw data with extra scaling
-            nread = fread(m, w * sizeof(float), 1, binfp);
-            if (nread != 1)
+            nread = dr.read(m, w * sizeof(float));
+            if (nread != w * (int)sizeof(float))
             {
                 fprintf(stderr, "ModelBin read weight_data failed %d\n", nread);
                 return Mat();
@@ -139,8 +135,8 @@ Mat ModelBinFromStdio::load(int w, int type) const
         {
             // quantized data
             float quantization_value[256];
-            nread = fread(quantization_value, 256 * sizeof(float), 1, binfp);
-            if (nread != 1)
+            nread = dr.read(quantization_value, 256 * sizeof(float));
+            if (nread != 256 * (int)sizeof(float))
             {
                 fprintf(stderr, "ModelBin read quantization_value failed %d\n", nread);
                 return Mat();
@@ -149,8 +145,8 @@ Mat ModelBinFromStdio::load(int w, int type) const
             int align_weight_data_size = alignSize(w * sizeof(unsigned char), 4);
             std::vector<unsigned char> index_array;
             index_array.resize(align_weight_data_size);
-            nread = fread(index_array.data(), align_weight_data_size, 1, binfp);
-            if (nread != 1)
+            nread = dr.read(index_array.data(), align_weight_data_size);
+            if (nread != align_weight_data_size)
             {
                 fprintf(stderr, "ModelBin read index_array failed %d\n", nread);
                 return Mat();
@@ -165,8 +161,8 @@ Mat ModelBinFromStdio::load(int w, int type) const
         else if (flag_struct.f0 == 0)
         {
             // raw data
-            nread = fread(m, w * sizeof(float), 1, binfp);
-            if (nread != 1)
+            nread = dr.read(m, w * sizeof(float));
+            if (nread != w * (int)sizeof(float))
             {
                 fprintf(stderr, "ModelBin read weight_data failed %d\n", nread);
                 return Mat();
@@ -182,109 +178,13 @@ Mat ModelBinFromStdio::load(int w, int type) const
             return m;
 
         // raw data
-        int nread = fread(m, w * sizeof(float), 1, binfp);
-        if (nread != 1)
+        int nread = dr.read(m, w * sizeof(float));
+        if (nread != w * (int)sizeof(float))
         {
             fprintf(stderr, "ModelBin read weight_data failed %d\n", nread);
             return Mat();
         }
 
-        return m;
-    }
-    else
-    {
-        fprintf(stderr, "ModelBin load type %d not implemented\n", type);
-        return Mat();
-    }
-
-    return Mat();
-}
-#endif // NCNN_STDIO
-
-ModelBinFromMemory::ModelBinFromMemory(const unsigned char*& _mem) : mem(_mem)
-{
-}
-
-Mat ModelBinFromMemory::load(int w, int type) const
-{
-    if (!mem)
-        return Mat();
-
-    if (type == 0)
-    {
-        union
-        {
-            struct
-            {
-                unsigned char f0;
-                unsigned char f1;
-                unsigned char f2;
-                unsigned char f3;
-            };
-            unsigned int tag;
-        } flag_struct;
-
-        memcpy(&flag_struct, mem, sizeof(flag_struct));
-        mem += sizeof(flag_struct);
-
-        unsigned int flag = flag_struct.f0 + flag_struct.f1 + flag_struct.f2 + flag_struct.f3;
-
-        if (flag_struct.tag == 0x01306B47)
-        {
-            // half-precision data
-            Mat m = Mat::from_float16((unsigned short*)mem, w);
-            mem += alignSize(w * sizeof(unsigned short), 4);
-            return m;
-        }
-        else if (flag_struct.tag == 0x000D4B38)
-        {
-            // int8 data
-            Mat m = Mat(w, (signed char*)mem, 1u);
-            mem += alignSize(w, 4);
-            return m;
-        }
-        else if (flag_struct.tag == 0x0002C056)
-        {
-            // raw data with extra scaling
-            Mat m = Mat(w, (float*)mem);
-            mem += w * sizeof(float);
-            return m;
-        }
-
-        if (flag != 0)
-        {
-            // quantized data
-            const float* quantization_value = (const float*)mem;
-            mem += 256 * sizeof(float);
-
-            const unsigned char* index_array = (const unsigned char*)mem;
-            mem += alignSize(w * sizeof(unsigned char), 4);
-
-            Mat m(w);
-            if (m.empty())
-                return m;
-
-            float* ptr = m;
-            for (int i = 0; i < w; i++)
-            {
-                ptr[i] = quantization_value[ index_array[i] ];
-            }
-
-            return m;
-        }
-        else if (flag_struct.f0 == 0)
-        {
-            // raw data
-            Mat m = Mat(w, (float*)mem);
-            mem += w * sizeof(float);
-            return m;
-        }
-    }
-    else if (type == 1)
-    {
-        // raw data
-        Mat m = Mat(w, (float*)mem);
-        mem += w * sizeof(float);
         return m;
     }
     else

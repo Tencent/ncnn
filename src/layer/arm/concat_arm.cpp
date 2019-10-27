@@ -35,9 +35,6 @@ int Concat_arm::create_pipeline(const Option& opt)
     if (opt.use_packing_layout)
     {
 
-    Option opt_cpu = opt;
-    opt_cpu.use_vulkan_compute = false;
-
     {
         packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
 
@@ -46,7 +43,7 @@ int Concat_arm::create_pipeline(const Option& opt)
 
         packing_pack4->load_param(pd);
 
-        packing_pack4->create_pipeline(opt_cpu);
+        packing_pack4->create_pipeline(opt);
     }
 
     }
@@ -61,13 +58,9 @@ int Concat_arm::destroy_pipeline(const Option& opt)
     if (opt.use_packing_layout)
     {
 
-    Option opt_cpu = opt;
-    opt_cpu.use_vulkan_compute = false;
-
     if (packing_pack4)
     {
-        packing_pack4->destroy_pipeline(opt_cpu);
-
+        packing_pack4->destroy_pipeline(opt);
         delete packing_pack4;
         packing_pack4 = 0;
     }

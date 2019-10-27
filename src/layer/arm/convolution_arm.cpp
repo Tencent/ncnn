@@ -54,6 +54,7 @@ Convolution_arm::Convolution_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+    use_fp32_packing_inference = false;
 #endif // __ARM_NEON
 
     activation = 0;
@@ -95,24 +96,44 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
     if (activation)
     {
-        Option opt_cpu = opt;
-        opt_cpu.use_vulkan_compute = false;
-        activation->create_pipeline(opt_cpu);
+        activation->create_pipeline(opt);
     }
 
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
+    bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
+
+    use_fp32_packing_inference = opt.use_packing_layout && weight_data_is_float32 && !use_int8_inference;
+
+    if (use_int8_inference)
+    {
+        support_packing = false;
+    }
+
+    if (use_fp32_packing_inference)
     {
 
     // pack4
     if (num_input % 4 == 0 && num_output % 4 == 0)
     {
-        // src = kw-kh-inch-outch
-        // dst = 4b-4a-kw-kh-inch/4a-outch/4b
+        if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
+            conv1x1s1_sgemm_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv3x3s1_winograd64_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
+        }
+        else
+        {
+            // src = kw-kh-inch-outch
+            // dst = 4b-4a-kw-kh-inch/4a-outch/4b
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             weight_data_pack4.create(maxk, num_input/4, num_output/4, (size_t)4*16, 16);
@@ -178,20 +199,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
             }
         }
 
-        if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv1x1s1_sgemm_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
-        }
-
-        if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv1x1s1_sgemm_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
-        }
-
-        if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv3x3s1_winograd64_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
-        }
+        return 0;
     }
 
     // pack1to4
@@ -234,14 +242,29 @@ int Convolution_arm::create_pipeline(const Option& opt)
                 }
             }
         }
+
+        return 0;
     }
 
     // pack4to1
     if (num_input % 4 == 0 && num_output % 4 != 0)
     {
-        // src = kw-kh-inch-outch
-        // dst = 4a-kw-kh-inch/4a-outch
+        if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
+            conv1x1s1_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+        {
+            conv3x3s1_winograd64_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
+        }
+        else
+        {
+            // src = kw-kh-inch-outch
+            // dst = 4a-kw-kh-inch/4a-outch
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             weight_data_pack4to1.create(maxk, num_input/4, num_output, (size_t)4*4, 4);
@@ -273,20 +296,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
             }
         }
 
-        if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv1x1s1_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
-        }
-
-        if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv1x1s1_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
-        }
-
-        if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv3x3s1_winograd64_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
-        }
+        return 0;
     }
 
     } // opt.use_packing_layout
@@ -393,9 +403,7 @@ int Convolution_arm::destroy_pipeline(const Option& opt)
 {
     if (activation)
     {
-        Option opt_cpu = opt;
-        opt_cpu.use_vulkan_compute = false;
-        activation->destroy_pipeline(opt_cpu);
+        activation->destroy_pipeline(opt);
         delete activation;
         activation = 0;
     }
@@ -533,7 +541,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     // value = value + bias
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
+    if (use_fp32_packing_inference)
     {
 
     int w = bottom_blob.w;

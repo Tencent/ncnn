@@ -23,11 +23,16 @@
 #include "mat.h"
 #include "option.h"
 
+#if __ANDROID_API__ >= 9
+#include <android/asset_manager.h>
+#endif // __ANDROID_API__ >= 9
+
 namespace ncnn {
 
 #if NCNN_VULKAN
 class VkCompute;
 #endif // NCNN_VULKAN
+class DataReader;
 class Extractor;
 class Net
 {
@@ -60,6 +65,12 @@ public:
     // return 0 if success
     int register_custom_layer(int index, layer_creator_func creator);
 
+    int load_param(const DataReader& dr);
+
+    int load_param_bin(const DataReader& dr);
+
+    int load_model(const DataReader& dr);
+
 #if NCNN_STDIO
 #if NCNN_STRING
     // load network structure from plain param file
@@ -90,6 +101,21 @@ public:
     // memory pointer must be 32-bit aligned
     // return bytes consumed
     int load_model(const unsigned char* mem);
+
+#if __ANDROID_API__ >= 9
+#if NCNN_STRING
+    // convenient load network structure from android asset plain param file
+    int load_param(AAsset* asset);
+    int load_param(AAssetManager* mgr, const char* assetpath);
+#endif // NCNN_STRING
+    // convenient load network structure from android asset binary param file
+    int load_param_bin(AAsset* asset);
+    int load_param_bin(AAssetManager* mgr, const char* assetpath);
+
+    // convenient load network weight data from android asset model file
+    int load_model(AAsset* asset);
+    int load_model(AAssetManager* mgr, const char* assetpath);
+#endif // __ANDROID_API__ >= 9
 
     // unload network structure and weight data
     void clear();

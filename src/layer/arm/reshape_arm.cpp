@@ -44,10 +44,7 @@ int Reshape_arm::create_pipeline(const Option& opt)
 
         flatten->load_param(pd);
 
-        Option opt_cpu = opt;
-        opt_cpu.use_vulkan_compute = false;
-
-        flatten->create_pipeline(opt_cpu);
+        flatten->create_pipeline(opt);
     }
 #endif // __ARM_NEON
 
@@ -58,10 +55,7 @@ int Reshape_arm::destroy_pipeline(const Option& opt)
 {
     if (flatten)
     {
-        Option opt_cpu = opt;
-        opt_cpu.use_vulkan_compute = false;
-
-        flatten->destroy_pipeline(opt_cpu);
+        flatten->destroy_pipeline(opt);
         delete flatten;
         flatten = 0;
     }
