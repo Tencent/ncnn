@@ -31,6 +31,7 @@ option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
 option(NCNN_VULKAN "vulkan compute support" OFF)
 option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
 option(NCNN_AVX2 "optimize x86 platform with avx2" OFF)
+option(NCNN_DISABLE_PIC "disable position-independent code" OFF)
 
 if(ANDROID OR IOS)
     option(NCNN_DISABLE_RTTI "disable rtti" ON)
