@@ -42,6 +42,8 @@ int PriorBox::load_param(const ParamDict& pd)
     step_width = pd.get(11, -233.f);
     step_height = pd.get(12, -233.f);
     offset = pd.get(13, 0.f);
+    step_mmdetection = pd.get(14, 0);
+    center_mmdetection = pd.get(15, 0);
 
     return 0;
 }
@@ -137,8 +139,12 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float step_h = step_height;
     if (step_w == -233)
         step_w = (float)image_w / w;
+        if (step_mmdetection)
+            step_w = ceil((float)image_w / w);
     if (step_h == -233)
         step_h = (float)image_h / h;
+        if (step_mmdetection)
+            step_h = ceil((float)image_h / h);
 
     int num_min_size = min_sizes.w;
     int num_max_size = max_sizes.w;
@@ -160,6 +166,11 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         float center_x = offset * step_w;
         float center_y = offset * step_h + i * step_h;
+        if (center_mmdetection) 
+        {
+            center_x = offset * (step_w - 1);
+            center_y = offset * (step_h - 1) + i * step_h;
+        }
 
         for (int j = 0; j < w; j++)
         {
