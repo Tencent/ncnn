@@ -308,10 +308,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
 else()
     target_compile_options(ncnn
         PRIVATE -Wall -Wextra -Wno-unused-function)
-    set_target_properties(ncnn
-        PROPERTIES
-            POSITION_INDEPENDENT_CODE ON
-            INTERFACE_POSITION_INDEPENDENT_CODE ON)
+    if(NOT NCNN_DISABLE_PIC)
+        set_target_properties(ncnn
+            PROPERTIES
+                POSITION_INDEPENDENT_CODE ON
+                INTERFACE_POSITION_INDEPENDENT_CODE ON)
+    endif()
 
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
         if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
