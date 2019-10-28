@@ -14,6 +14,7 @@
 
 #include <float.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef _WIN32
 #include <algorithm>
@@ -44,10 +45,10 @@ class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
     virtual int scan(const char* format, void* p) const { return 0; }
-    virtual int read(void* /*buf*/, int size) const { return size; }
+    virtual int read(void* buf, int size) const { memset(buf, 0, size); return size; }
 };
 
-static int g_warmup_loop_count = 3;
+static int g_warmup_loop_count = 8;
 static int g_loop_count = 4;
 
 static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
@@ -59,8 +60,11 @@ static ncnn::VkAllocator* g_blob_vkallocator = 0;
 static ncnn::VkAllocator* g_staging_vkallocator = 0;
 #endif // NCNN_VULKAN
 
-void benchmark(const char* comment, const ncnn::Mat& in, const ncnn::Option& opt)
+void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& opt)
 {
+    ncnn::Mat in = _in;
+    in.fill(0.01f);
+
     ncnn::Net net;
 
     net.opt = opt;
