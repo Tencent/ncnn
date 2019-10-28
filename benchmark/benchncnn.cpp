@@ -94,7 +94,7 @@ void benchmark(const char* comment, const ncnn::Mat& in, const ncnn::Option& opt
 #ifdef _WIN32
     Sleep(10 * 1000);
 #else
-//     sleep(10);
+    sleep(10);
 #endif
 
     ncnn::Mat out;
