@@ -138,13 +138,17 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float step_w = step_width;
     float step_h = step_height;
     if (step_w == -233)
+    {
         step_w = (float)image_w / w;
         if (step_mmdetection)
             step_w = ceil((float)image_w / w);
+    }
     if (step_h == -233)
+    {
         step_h = (float)image_h / h;
         if (step_mmdetection)
             step_h = ceil((float)image_h / h);
+    }
 
     int num_min_size = min_sizes.w;
     int num_max_size = max_sizes.w;
