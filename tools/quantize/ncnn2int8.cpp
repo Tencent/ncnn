@@ -53,6 +53,7 @@
 #include "layer/interp.h"
 #include "layer/log.h"
 #include "layer/lrn.h"
+#include "layer/memorydata.h"
 #include "layer/mvn.h"
 #include "layer/normalize.h"
 #include "layer/padding.h"
@@ -98,53 +99,38 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
     std::string keystr;
     std::vector<float> scales;
 
-    while (!feof(fp))
-    {
-        char key[256];
-        int nscan = fscanf(fp, "%255s", key);
-        if (nscan != 1)
-        {
-            break;
-        }
+    char *line = NULL;
+    char *pch = NULL;
+    size_t len = 0;
+    ssize_t read;
 
-        if (in_scale_vector)
+    while ((read = getline(&line, &len, fp)) != -1)
+    {
+
+        float scale = 1.f;
+        char key[256];
+        line[strcspn(line, "\r\n")] = 0;
+        pch = strtok (line, " ");
+        if (pch == NULL) break;
+
+        bool iskey = 1;
+        while (pch != NULL)
         {
-            float scale = 1.f;
-            int nscan = sscanf(key, "%f", &scale);
-            if (nscan == 1)
+            if (iskey)
             {
-                scales.push_back(scale);
-                continue;
+                sscanf(pch, "%255s", key);
+                keystr = key;
+                iskey = 0;
             }
             else
             {
-                // XYZ_param_N pattern
-                if (strstr(keystr.c_str(), "_param_"))
-                {
-                    weight_int8scale_table[ keystr ] = scales;
-                }
-                else
-                {
-                    blob_int8scale_table[ keystr ] = scales;
-                }
-
-                keystr.clear();
-                scales.clear();
-
-                in_scale_vector = false;
+                sscanf(pch, "%f", &scale);
+                scales.push_back(scale);
             }
+
+            pch = strtok (NULL, " ");
         }
 
-        if (!in_scale_vector)
-        {
-            keystr = key;
-
-            in_scale_vector = true;
-        }
-    }
-
-    if (in_scale_vector)
-    {
         // XYZ_param_N pattern
         if (strstr(keystr.c_str(), "_param_"))
         {
@@ -154,6 +140,8 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
         {
             blob_int8scale_table[ keystr ] = scales;
         }
+        keystr.clear();
+        scales.clear();
     }
 
     fclose(fp);
@@ -674,6 +662,12 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", outw)
             fprintf_param_value(" 4=%d", outh)
             fprintf_param_value(" 5=%d", outc)
+            fprintf_param_value(" 6=%d", woffset2)
+            fprintf_param_value(" 7=%d", hoffset2)
+            fprintf_param_value(" 8=%d", coffset2)
+            { if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp); }
+            { if (!op->ends.empty()) fprintf_param_int_array(10, op->ends, pp); }
+            { if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp); }
         }
         else if (layer->type == "Deconvolution")
         {
@@ -855,6 +849,16 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%f", alpha)
             fprintf_param_value(" 3=%f", beta)
             fprintf_param_value(" 4=%f", bias)
+        }
+        else if (layer->type == "MemoryData")
+        {
+            ncnn::MemoryData* op = (ncnn::MemoryData*)layer;
+            ncnn::MemoryData* op_default = (ncnn::MemoryData*)layer_default;
+
+            fprintf_param_value(" 0=%d", w)
+            fprintf_param_value(" 1=%d", h)
+            fprintf_param_value(" 2=%d", c)
+            fwrite_weight_data(op->data, bp);
         }
         else if (layer->type == "MVN")
         {
