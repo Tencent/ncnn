@@ -100,7 +100,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (num_input % 4 != 0 && num_output % 4 != 0)
     {
         pipeline_deconvolution = new Pipeline(vkdev);
-        pipeline_deconvolution->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_deconvolution->create("deconvolution", opt, specializations, 4, 10);
     }
 
@@ -108,7 +108,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (num_input % 4 == 0 && num_output % 4 == 0)
     {
         pipeline_deconvolution_pack4 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack4->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_deconvolution_pack4->create("deconvolution_pack4", opt, specializations, 4, 10);
     }
 
@@ -116,7 +116,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (num_input % 4 != 0 && num_output % 4 == 0)
     {
         pipeline_deconvolution_pack1to4 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack1to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack1to4->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_deconvolution_pack1to4->create("deconvolution_pack1to4", opt, specializations, 4, 10);
     }
 
@@ -124,7 +124,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (num_input % 4 == 0 && num_output % 4 != 0)
     {
         pipeline_deconvolution_pack4to1 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack4to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack4to1->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_deconvolution_pack4to1->create("deconvolution_pack4to1", opt, specializations, 4, 10);
     }
 

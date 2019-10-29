@@ -18,7 +18,7 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
 {
     if (activation_type == 1)
     {
-        v = std::max(v, 0.f);
+        v = (std::max)(v, 0.f);
     }
     else if (activation_type == 2)
     {

@@ -108,8 +108,8 @@ static inline float intersection_area(const Rect& a, const Rect& b)
         return 0.f;
     }
 
-    float inter_width = std::min(a.x2, b.x2) - std::max(a.x1, b.x1);
-    float inter_height = std::min(a.y2, b.y2) - std::max(a.y1, b.y1);
+    float inter_width = (std::min)(a.x2, b.x2) - (std::max)(a.x1, b.x1);
+    float inter_height = (std::min)(a.y2, b.y2) - (std::max)(a.y1, b.y1);
 
     return inter_width * inter_height;
 }
@@ -282,10 +282,10 @@ int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             float* pb = pbs.row(i);
 
             // clip box
-            pb[0] = std::max(std::min(pb[0], im_w - 1), 0.f);
-            pb[1] = std::max(std::min(pb[1], im_h - 1), 0.f);
-            pb[2] = std::max(std::min(pb[2], im_w - 1), 0.f);
-            pb[3] = std::max(std::min(pb[3], im_h - 1), 0.f);
+            pb[0] = (std::max)((std::min)(pb[0], im_w - 1), 0.f);
+            pb[1] = (std::max)((std::min)(pb[1], im_h - 1), 0.f);
+            pb[2] = (std::max)((std::min)(pb[2], im_w - 1), 0.f);
+            pb[3] = (std::max)((std::min)(pb[3], im_h - 1), 0.f);
         }
     }
 
@@ -332,7 +332,7 @@ int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     nms_sorted_bboxes(proposal_boxes, picked, nms_thresh);
 
     // take after_nms_topN
-    int picked_count = std::min((int)picked.size(), after_nms_topN);
+    int picked_count = (std::min)((int)picked.size(), after_nms_topN);
 
     // return the top proposals
     Mat& roi_blob = top_blobs[0];

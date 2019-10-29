@@ -65,8 +65,8 @@ int PSROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     float roi_x2 = round(roi_ptr[2] + 1.f) * spatial_scale;
     float roi_y2 = round(roi_ptr[3] + 1.f) * spatial_scale;
 
-    float roi_w = std::max(roi_x2 - roi_x1, 0.1f);
-    float roi_h = std::max(roi_y2 - roi_y1, 0.1f);
+    float roi_w = (std::max)(roi_x2 - roi_x1, 0.1f);
+    float roi_h = (std::max)(roi_y2 - roi_y1, 0.1f);
 
     float bin_size_w = roi_w / (float)pooled_width;
     float bin_size_h = roi_h / (float)pooled_height;
@@ -87,10 +87,10 @@ int PSROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 int hend = ceil(roi_y1 + (float)(ph + 1) * bin_size_h);
                 int wend = ceil(roi_x1 + (float)(pw + 1) * bin_size_w);
 
-                hstart = std::min(std::max(hstart, 0), h);
-                wstart = std::min(std::max(wstart, 0), w);
-                hend = std::min(std::max(hend, 0), h);
-                wend = std::min(std::max(wend, 0), w);
+                hstart = (std::min)((std::max)(hstart, 0), h);
+                wstart = (std::min)((std::max)(wstart, 0), w);
+                hend = (std::min)((std::max)(hend, 0), h);
+                wend = (std::min)((std::max)(wend, 0), w);
 
                 bool is_empty = (hend <= hstart) || (wend <= wstart);
                 int area = (hend - hstart) * (wend - wstart);

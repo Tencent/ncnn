@@ -24,6 +24,8 @@
 namespace ncnn {
 
 #if NCNN_PIXEL
+#define SATURATE_CAST_UCHAR(X) (unsigned char)(std::min)((std::max)((int)(X), 0), 255);
+
 static int from_rgb(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 3, 4u, allocator);
@@ -136,8 +138,6 @@ static void to_rgb(const Mat& m, unsigned char* rgb)
 
     int size = m.w * m.h;
 
-#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
-
     int remain = size;
 
     for (; remain>0; remain--)
@@ -151,8 +151,6 @@ static void to_rgb(const Mat& m, unsigned char* rgb)
         ptr1++;
         ptr2++;
     }
-
-#undef SATURATE_CAST_UCHAR
 }
 
 static int from_gray(const unsigned char* gray, int w, int h, Mat& m, Allocator* allocator)
@@ -242,8 +240,6 @@ static void to_gray(const Mat& m, unsigned char* gray)
 
     int size = m.w * m.h;
 
-#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
-
     int remain = size;
 
     for (; remain>0; remain--)
@@ -253,8 +249,6 @@ static void to_gray(const Mat& m, unsigned char* gray)
         gray++;
         ptr++;
     }
-
-#undef SATURATE_CAST_UCHAR
 }
 
 static int from_rgba(const unsigned char* rgba, int w, int h, Mat& m, Allocator* allocator)
@@ -387,8 +381,6 @@ static void to_rgba(const Mat& m, unsigned char* rgba)
 
     int size = m.w * m.h;
 
-#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
-
     int remain = size;
 
     for (; remain>0; remain--)
@@ -404,8 +396,6 @@ static void to_rgba(const Mat& m, unsigned char* rgba)
         ptr2++;
         ptr3++;
     }
-
-#undef SATURATE_CAST_UCHAR
 }
 
 static int from_rgb2bgr(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
@@ -520,8 +510,6 @@ static void to_bgr2rgb(const Mat& m, unsigned char* rgb)
 
     int size = m.w * m.h;
 
-#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
-
     int remain = size;
 
     for (; remain>0; remain--)
@@ -535,8 +523,6 @@ static void to_bgr2rgb(const Mat& m, unsigned char* rgb)
         ptr1++;
         ptr2++;
     }
-
-#undef SATURATE_CAST_UCHAR
 }
 
 static int from_rgb2gray(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
@@ -654,8 +640,6 @@ static void to_rgb2rgba(const Mat& m, unsigned char* rgba)
 
     int size = m.w * m.h;
 
-#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
-
     int remain = size;
 
     for (; remain>0; remain--)
@@ -670,8 +654,6 @@ static void to_rgb2rgba(const Mat& m, unsigned char* rgba)
         ptr1++;
         ptr2++;
     }
-
-#undef SATURATE_CAST_UCHAR
 }
 
 static int from_bgr2gray(const unsigned char* bgr, int w, int h, Mat& m, Allocator* allocator)
@@ -789,8 +771,6 @@ static void to_bgr2rgba(const Mat& m, unsigned char* rgba)
 
     int size = m.w * m.h;
 
-#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
-
     int remain = size;
 
     for (; remain>0; remain--)
@@ -805,8 +785,6 @@ static void to_bgr2rgba(const Mat& m, unsigned char* rgba)
         ptr1++;
         ptr2++;
     }
-
-#undef SATURATE_CAST_UCHAR
 }
 
 static int from_gray2rgb(const unsigned char* gray, int w, int h, Mat& m, Allocator* allocator)
@@ -937,8 +915,6 @@ static void to_gray2rgba(const Mat& m, unsigned char* rgba)
 
     int size = m.w * m.h;
 
-#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
-
     int remain = size;
 
     for (; remain>0; remain--)
@@ -952,8 +928,6 @@ static void to_gray2rgba(const Mat& m, unsigned char* rgba)
         rgba += 4;
         ptr++;
     }
-
-#undef SATURATE_CAST_UCHAR
 }
 
 static int from_rgba2rgb(const unsigned char* rgba, int w, int h, Mat& m, Allocator* allocator)
@@ -1389,7 +1363,6 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
 #endif // __aarch64__
 #endif // __ARM_NEON
 
-#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
         for (; remain>0; remain-=2)
         {
             // R = 1.164 * yy + 1.596 * vv
@@ -1445,8 +1418,6 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
             rgb0 += 6;
             rgb1 += 6;
         }
-#undef SATURATE_CAST_UCHAR
-
         yptr += 2*w;
         rgb += 2*3*w;
     }
@@ -1613,6 +1584,8 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
         resize_bilinear_c4(src, w, h, pixels, target_width, target_height);
     }
 }
+
+#undef SATURATE_CAST_UCHAR
 #endif // NCNN_PIXEL
 
 } // namespace ncnn

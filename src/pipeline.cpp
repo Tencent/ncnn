@@ -137,7 +137,7 @@ void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
     }
     else
     {
-        local_size_z = std::min((uint32_t)128, vkdev->info.max_workgroup_size[2]);
+        local_size_z = (std::min)((uint32_t)128, vkdev->info.max_workgroup_size[2]);
     }
 
     uint32_t max_local_size_xy = vkdev->info.max_workgroup_invocations / local_size_z;
@@ -160,23 +160,23 @@ void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
             float ps = h / (float)w;
             float local_size_xy = sqrt(max_local_size_xy / ps);
             local_size_y = local_size_xy * ps;
-            local_size_x = std::max((uint32_t)local_size_xy, (uint32_t)1);
+            local_size_x = (std::max)((uint32_t)local_size_xy, (uint32_t)1);
         }
         else
         {
             float ps = w / (float)h;
             float local_size_xy = sqrt(max_local_size_xy / ps);
-            local_size_y = std::max((uint32_t)local_size_xy, (uint32_t)1);
+            local_size_y = (std::max)((uint32_t)local_size_xy, (uint32_t)1);
             local_size_x = local_size_xy * ps;
         }
 
-        uint32_t local_size_y_prefer = std::min((uint32_t)128, vkdev->info.max_workgroup_size[1]);
+        uint32_t local_size_y_prefer = (std::min)((uint32_t)128, vkdev->info.max_workgroup_size[1]);
         while (local_size_y < local_size_y_prefer)
         {
             local_size_y_prefer /= 2;
         }
 
-        uint32_t local_size_x_prefer = std::min((uint32_t)128, vkdev->info.max_workgroup_size[0]);
+        uint32_t local_size_x_prefer = (std::min)((uint32_t)128, vkdev->info.max_workgroup_size[0]);
         while (local_size_x < local_size_x_prefer)
         {
             local_size_x_prefer /= 2;
@@ -187,25 +187,25 @@ void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
     }
     else if (h > 0)
     {
-        local_size_y = std::min(max_local_size_xy, vkdev->info.max_workgroup_size[1]);
+        local_size_y = (std::min)(max_local_size_xy, vkdev->info.max_workgroup_size[1]);
         while ((uint32_t)h < local_size_y)
         {
             local_size_y /= 2;
         }
 
         uint32_t max_local_size_x = max_local_size_xy / local_size_y;
-        local_size_x = std::min(max_local_size_x, vkdev->info.max_workgroup_size[0]);
+        local_size_x = (std::min)(max_local_size_x, vkdev->info.max_workgroup_size[0]);
     }
     else if (w > 0)
     {
-        local_size_x = std::min(max_local_size_xy, vkdev->info.max_workgroup_size[0]);
+        local_size_x = (std::min)(max_local_size_xy, vkdev->info.max_workgroup_size[0]);
         while ((uint32_t)w < local_size_x)
         {
             local_size_x /= 2;
         }
 
         uint32_t max_local_size_y = max_local_size_xy / local_size_x;
-        local_size_y = std::min(max_local_size_y, vkdev->info.max_workgroup_size[1]);
+        local_size_y = (std::min)(max_local_size_y, vkdev->info.max_workgroup_size[1]);
     }
 
 //     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);

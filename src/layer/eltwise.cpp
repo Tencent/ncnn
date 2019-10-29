@@ -165,7 +165,7 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
             for (int i=0; i<size; i++)
             {
-                outptr[i] = std::max(ptr[i], ptr1[i]);
+                outptr[i] = (std::max)(ptr[i], ptr1[i]);
             }
         }
 
@@ -180,7 +180,7 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
                 for (int i=0; i<size; i++)
                 {
-                    outptr[i] = std::max(outptr[i], ptr[i]);
+                    outptr[i] = (std::max)(outptr[i], ptr[i]);
                 }
             }
         }

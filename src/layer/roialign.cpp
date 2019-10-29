@@ -89,8 +89,8 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float roi_x2 = roi_ptr[2] * spatial_scale;
     float roi_y2 = roi_ptr[3] * spatial_scale;
 
-    float roi_w = std::max(roi_x2 - roi_x1, 1.f);
-    float roi_h = std::max(roi_y2 - roi_y1, 1.f);
+    float roi_w = (std::max)(roi_x2 - roi_x1, 1.f);
+    float roi_h = (std::max)(roi_y2 - roi_y1, 1.f);
 
     float bin_size_w = roi_w / (float)pooled_width;
     float bin_size_h = roi_h / (float)pooled_height;
@@ -113,10 +113,10 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 float hend = roi_y1 + (ph + 1) * bin_size_h;
                 float wend = roi_x1 + (pw + 1) * bin_size_w;
 
-                hstart = std::min(std::max(hstart, 0.f), (float)h);
-                wstart = std::min(std::max(wstart, 0.f), (float)w);
-                hend = std::min(std::max(hend, 0.f), (float)h);
-                wend = std::min(std::max(wend, 0.f), (float)w);
+                hstart = (std::min)((std::max)(hstart, 0.f), (float)h);
+                wstart = (std::min)((std::max)(wstart, 0.f), (float)w);
+                hend = (std::min)((std::max)(hend, 0.f), (float)h);
+                wend = (std::min)((std::max)(wend, 0.f), (float)w);
 
                 int bin_grid_h = ceil(hend - hstart);
                 int bin_grid_w = ceil(wend - wstart);

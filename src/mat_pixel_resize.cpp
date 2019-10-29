@@ -24,6 +24,8 @@
 namespace ncnn {
 
 #if NCNN_PIXEL
+#define SATURATE_CAST_SHORT(X) (short)(std::min)((std::max)((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
+
 void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
 {
     const int INTER_RESIZE_COEF_BITS=11;
@@ -45,8 +47,6 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
     float fy;
     int sx;
     int sy;
-
-#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
 
     for (int dx = 0; dx < w; dx++)
     {
@@ -99,8 +99,6 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
         ibeta[dy*2    ] = SATURATE_CAST_SHORT(b0);
         ibeta[dy*2 + 1] = SATURATE_CAST_SHORT(b1);
     }
-
-#undef SATURATE_CAST_SHORT
 
     // loop body
     Mat rowsbuf0(w, (size_t)2u);
@@ -301,8 +299,6 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
     int sx;
     int sy;
 
-#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
-
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
@@ -354,8 +350,6 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
         ibeta[dy*2    ] = SATURATE_CAST_SHORT(b0);
         ibeta[dy*2 + 1] = SATURATE_CAST_SHORT(b1);
     }
-
-#undef SATURATE_CAST_SHORT
 
     // loop body
     Mat rowsbuf0(w*2+2, (size_t)2u);
@@ -611,8 +605,6 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
     int sx;
     int sy;
 
-#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
-
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
@@ -664,8 +656,6 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
         ibeta[dy*2    ] = SATURATE_CAST_SHORT(b0);
         ibeta[dy*2 + 1] = SATURATE_CAST_SHORT(b1);
     }
-
-#undef SATURATE_CAST_SHORT
 
     // loop body
     Mat rowsbuf0(w*3+1, (size_t)2u);
@@ -932,8 +922,6 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
     int sx;
     int sy;
 
-#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
-
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
@@ -985,8 +973,6 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
         ibeta[dy*2    ] = SATURATE_CAST_SHORT(b0);
         ibeta[dy*2 + 1] = SATURATE_CAST_SHORT(b1);
     }
-
-#undef SATURATE_CAST_SHORT
 
     // loop body
     Mat rowsbuf0(w*4, (size_t)2u);
@@ -1226,6 +1212,8 @@ void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsi
     unsigned char* dstUV = dst + w * h;
     resize_bilinear_c2(srcUV, srcw / 2, srch / 2, dstUV, w / 2, h / 2);
 }
+
+#undef SATURATE_CAST_SHORT
 #endif // NCNN_PIXEL
 
 } // namespace ncnn

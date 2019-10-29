@@ -345,7 +345,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
             for (; remain>0; remain--)
             {
-                *ptr = std::max(*ptr, 0.f);
+                *ptr = (std::max)(*ptr, 0.f);
 
                 ptr++;
             }

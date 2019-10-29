@@ -69,8 +69,8 @@ static inline float intersection_area(const BBoxRect& a, const BBoxRect& b)
         return 0.f;
     }
 
-    float inter_width = std::min(a.xmax, b.xmax) - std::max(a.xmin, b.xmin);
-    float inter_height = std::min(a.ymax, b.ymax) - std::max(a.ymin, b.ymin);
+    float inter_width = (std::min)(a.xmax, b.xmax) - (std::max)(a.xmin, b.xmin);
+    float inter_height = (std::min)(a.ymax, b.ymax) - (std::max)(a.ymin, b.ymin);
 
     return inter_width * inter_height;
 }

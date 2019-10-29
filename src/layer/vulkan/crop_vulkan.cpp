@@ -143,19 +143,19 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             if (dims == 1) // axis == 1
             {
                 _woffset = start >= 0 ? start : w * elempack + start;
-                _outw = std::min(w * elempack, end > 0 ? end : w * elempack + end) - _woffset;
+                _outw = (std::min)(w * elempack, end > 0 ? end : w * elempack + end) - _woffset;
             }
             if (dims == 2)
             {
                 if (axis == 1)
                 {
                     _hoffset = start >= 0 ? start : h * elempack + start;
-                    _outh = std::min(h * elempack, end > 0 ? end : h * elempack + end) - _woffset;
+                    _outh = (std::min)(h * elempack, end > 0 ? end : h * elempack + end) - _woffset;
                 }
                 if (axis == 2)
                 {
                     _woffset = start >= 0 ? start : w + start;
-                    _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+                    _outw = (std::min)(w, end > 0 ? end : w + end) - _woffset;
                 }
             }
             if (dims == 3)
@@ -163,17 +163,17 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
                 if (axis == 1)
                 {
                     _coffset = start >= 0 ? start : channels * elempack + start;
-                    _outc = std::min(channels * elempack, end > 0 ? end : channels * elempack + end) - _coffset;
+                    _outc = (std::min)(channels * elempack, end > 0 ? end : channels * elempack + end) - _coffset;
                 }
                 if (axis == 2)
                 {
                     _hoffset = start >= 0 ? start : h + start;
-                    _outh = std::min(h, end > 0 ? end : h + end) - _woffset;
+                    _outh = (std::min)(h, end > 0 ? end : h + end) - _woffset;
                 }
                 if (axis == 3)
                 {
                     _woffset = start >= 0 ? start : w + start;
-                    _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
+                    _outw = (std::min)(w, end > 0 ? end : w + end) - _woffset;
                 }
             }
         }
@@ -185,7 +185,7 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             if (outw == -233)
                 _outw = w * elempack - _woffset - _woffset2;
             else
-                _outw = std::min(outw, w * elempack - _woffset - _woffset2);
+                _outw = (std::min)(outw, w * elempack - _woffset - _woffset2);
         }
         if (dims == 2)
         {
@@ -201,19 +201,19 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
                 if (outw == -233)
                     _outh = h * elempack - _hoffset - _hoffset2;
                 else
-                    _outh = std::min(outw, h * elempack - _hoffset - _hoffset2);
+                    _outh = (std::min)(outw, h * elempack - _hoffset - _hoffset2);
             }
             else
             {
                 if (outw == -233)
                     _outw = w - _woffset - _woffset2;
                 else
-                    _outw = std::min(outw, w - _woffset - _woffset2);
+                    _outw = (std::min)(outw, w - _woffset - _woffset2);
 
                 if (outh == -233)
                     _outh = h * elempack - _hoffset - _hoffset2;
                 else
-                    _outh = std::min(outh, h * elempack - _hoffset - _hoffset2);
+                    _outh = (std::min)(outh, h * elempack - _hoffset - _hoffset2);
             }
         }
         if (dims == 3)
@@ -233,7 +233,7 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
                 if (outw == -233)
                     _outc = channels * elempack - _coffset - _coffset2;
                 else
-                    _outc = std::min(outw, channels * elempack - _coffset - _coffset2);
+                    _outc = (std::min)(outw, channels * elempack - _coffset - _coffset2);
             }
             else if (_hoffset == -233)
             {
@@ -247,7 +247,7 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
                 if (outw == -233)
                     _outh = h - _hoffset - _hoffset2;
                 else
-                    _outh = std::min(outw, h - _hoffset - _hoffset2);
+                    _outh = (std::min)(outw, h - _hoffset - _hoffset2);
 
                 _coffset = hoffset;
                 _coffset2 = hoffset2;
@@ -255,24 +255,24 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
                 if (outh == -233)
                     _outc = channels * elempack - _coffset - _coffset2;
                 else
-                    _outc = std::min(outh, channels * elempack - _coffset - _coffset2);
+                    _outc = (std::min)(outh, channels * elempack - _coffset - _coffset2);
             }
             else
             {
                 if (outw == -233)
                     _outw = w - _woffset - _woffset2;
                 else
-                    _outw = std::min(outw, w - _woffset - _woffset2);
+                    _outw = (std::min)(outw, w - _woffset - _woffset2);
 
                 if (outh == -233)
                     _outh = h - _hoffset - _hoffset2;
                 else
-                    _outh = std::min(outh, h - _hoffset - _hoffset2);
+                    _outh = (std::min)(outh, h - _hoffset - _hoffset2);
 
                 if (outc == -233)
                     _outc = channels * elempack - _coffset - _coffset2;
                 else
-                    _outc = std::min(outc, channels * elempack - _coffset - _coffset2);
+                    _outc = (std::min)(outc, channels * elempack - _coffset - _coffset2);
             }
 
         }

@@ -118,7 +118,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     float32x2_t _mm2 = vpmax_f32(_max2, _max2);
                     float max0 = vget_lane_f32(_mm2, 0);
 #endif
-                    max[j] = std::max(max[j], max0);
+                    max[j] = (std::max)(max[j], max0);
                     ptr += 4;
                 }
             }
@@ -237,7 +237,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     float32x2_t _mm2 = vpmax_f32(_max2, _max2);
                     float max0 = vget_lane_f32(_mm2, 0);
 #endif
-                    max[i] = std::max(max[i], max0);
+                    max[i] = (std::max)(max[i], max0);
                     ptr += 4;
                 }
             }
@@ -459,7 +459,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int i=0; i<size; i++)
         {
-            maxptr[i] = std::max(maxptr[i], ptr[i]);
+            maxptr[i] = (std::max)(maxptr[i], ptr[i]);
         }
     }
 

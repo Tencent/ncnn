@@ -125,8 +125,8 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         for (size_t b=0; b<bottom_blobs.size(); b++)
         {
             const VkMat& bottom_blob = bottom_blobs[b];
-            elemsize = std::min(elemsize, bottom_blob.elemsize);
-            elempack = std::min(elempack, bottom_blob.elempack);
+            elemsize = (std::min)(elemsize, bottom_blob.elemsize);
+            elempack = (std::min)(elempack, bottom_blob.elempack);
             top_w += bottom_blob.w * bottom_blob.elempack;
         }
 
@@ -208,8 +208,8 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         for (size_t b=0; b<bottom_blobs.size(); b++)
         {
             const VkMat& bottom_blob = bottom_blobs[b];
-            elemsize = std::min(elemsize, bottom_blob.elemsize);
-            elempack = std::min(elempack, bottom_blob.elempack);
+            elemsize = (std::min)(elemsize, bottom_blob.elemsize);
+            elempack = (std::min)(elempack, bottom_blob.elempack);
             top_h += bottom_blob.h * bottom_blob.elempack;
         }
 
@@ -344,8 +344,8 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         for (size_t b=0; b<bottom_blobs.size(); b++)
         {
             const VkMat& bottom_blob = bottom_blobs[b];
-            elemsize = std::min(elemsize, bottom_blob.elemsize);
-            elempack = std::min(elempack, bottom_blob.elempack);
+            elemsize = (std::min)(elemsize, bottom_blob.elemsize);
+            elempack = (std::min)(elempack, bottom_blob.elempack);
             top_channels += bottom_blob.c * bottom_blob.elempack;
         }
 

@@ -439,10 +439,10 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) co
             float *output_ptr = top_blob.channel(q);
             for (int y = 0; y < oh; ++y)
             {
-                const int in_y = std::min((int) (y / height_scale), (h - 1));
+                const int in_y = (std::min)((int) (y / height_scale), (h - 1));
                 for (int x = 0; x < ow; ++x)
                 {
-                    const int in_x = std::min((int) (x / width_scale), (w - 1));
+                    const int in_x = (std::min)((int) (x / width_scale), (w - 1));
                     output_ptr[ow * y + x] = ptr[in_y * w + in_x];
                 }
             }

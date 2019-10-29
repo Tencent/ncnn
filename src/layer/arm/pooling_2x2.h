@@ -98,10 +98,10 @@ static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
 #endif // __ARM_NEON
             for (; remain>0; remain--)
             {
-                float max0 = std::max(r0[0], r0[1]);
-                float max1 = std::max(r1[0], r1[1]);
+                float max0 = (std::max)(r0[0], r0[1]);
+                float max1 = (std::max)(r1[0], r1[1]);
 
-                *outptr = std::max(max0, max1);
+                *outptr = (std::max)(max0, max1);
 
                 r0 += 2;
                 r1 += 2;

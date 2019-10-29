@@ -83,13 +83,13 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     if (num_input % 4 != 0 && num_output % 4 != 0)
     {
         pipeline_convolution = new Pipeline(vkdev);
-        pipeline_convolution->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolution->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_convolution->create("convolution", opt, specializations, 4, 10);
 
         if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
             pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-            pipeline_convolution_1x1s1d1->set_optimal_local_size_xyz(-1, 1, std::max(1, num_output / 8));
+            pipeline_convolution_1x1s1d1->set_optimal_local_size_xyz(-1, 1, (std::max)(1, num_output / 8));
 
             std::vector<vk_specialization_type> specializations(4);
             specializations[0].i = bias_term;
@@ -105,13 +105,13 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     if (num_input % 4 == 0 && num_output % 4 == 0)
     {
         pipeline_convolution_pack4 = new Pipeline(vkdev);
-        pipeline_convolution_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolution_pack4->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_convolution_pack4->create("convolution_pack4", opt, specializations, 4, 10);
 
         if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
             pipeline_convolution_pack4_1x1s1d1 = new Pipeline(vkdev);
-            pipeline_convolution_pack4_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output / 4));
+            pipeline_convolution_pack4_1x1s1d1->set_local_size_xyz(8, 1, (std::min)(8, num_output / 4));
 
             std::vector<vk_specialization_type> specializations(4);
             specializations[0].i = bias_term;
@@ -192,7 +192,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     if (num_input % 4 != 0 && num_output % 4 == 0)
     {
         pipeline_convolution_pack1to4 = new Pipeline(vkdev);
-        pipeline_convolution_pack1to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolution_pack1to4->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_convolution_pack1to4->create("convolution_pack1to4", opt, specializations, 4, 10);
     }
 
@@ -200,7 +200,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     if (num_input % 4 == 0 && num_output % 4 != 0)
     {
         pipeline_convolution_pack4to1 = new Pipeline(vkdev);
-        pipeline_convolution_pack4to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolution_pack4to1->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_convolution_pack4to1->create("convolution_pack4to1", opt, specializations, 4, 10);
     }
 

@@ -80,30 +80,30 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     if (channels % 4 == 0)
     {
         pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 4));
+        pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(16, 1, (std::max)(1, channels / 4));
         pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create("instancenorm_reduce_sum4_fp16_to_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
 
         pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 4));
+        pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(16, 1, (std::max)(1, channels / 4));
         pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
         pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 4));
+        pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(16, 1, (std::max)(1, channels / 4));
         pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
 
         pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(std::max(1, channels / 4), 1, 1);
+        pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz((std::max)(1, channels / 4), 1, 1);
         pipeline_instancenorm_reduce_mean_pack4->create("instancenorm_reduce_mean_pack4", opt, std::vector<vk_specialization_type>(), 2, 4);
 
         pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, channels / 4));
+        pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(32, 32, (std::max)(1, channels / 4));
         pipeline_instancenorm_sub_mean_square_pack4->create("instancenorm_sub_mean_square_pack4", opt, std::vector<vk_specialization_type>(), 3, 5);
 
         pipeline_instancenorm_coeffs_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_coeffs_pack4->set_optimal_local_size_xyz(std::max(1, channels / 4), 1, 1);
+        pipeline_instancenorm_coeffs_pack4->set_optimal_local_size_xyz((std::max)(1, channels / 4), 1, 1);
         pipeline_instancenorm_coeffs_pack4->create("instancenorm_coeffs_pack4", opt, specializations, 5, 1);
 
         pipeline_instancenorm_norm_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_norm_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, channels / 4));
+        pipeline_instancenorm_norm_pack4->set_optimal_local_size_xyz(32, 32, (std::max)(1, channels / 4));
         pipeline_instancenorm_norm_pack4->create("instancenorm_norm_pack4", opt, std::vector<vk_specialization_type>(), 2, 5);
     }
 

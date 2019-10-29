@@ -430,7 +430,7 @@ VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
         }
     }
 
-    size_t new_block_size = std::max(block_size, aligned_size);
+    size_t new_block_size = (std::max)(block_size, aligned_size);
 
     // create new block
     VkBufferMemory* block = new VkBufferMemory;
@@ -649,7 +649,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
         return ptr;
     }
 
-    size_t new_block_size = std::max(block_size, aligned_size);
+    size_t new_block_size = (std::max)(block_size, aligned_size);
 
     // create new block
     VkBufferMemory* block = new VkBufferMemory;

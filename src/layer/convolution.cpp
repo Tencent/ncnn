@@ -514,7 +514,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                     for (int i = 0; i < outh*outw; i++)
                     {
-                        outptr_fp32[i] = std::max(outptr_fp32[i], 0.f);
+                        outptr_fp32[i] = (std::max)(outptr_fp32[i], 0.f);
                     }
                 }
             }   
@@ -563,7 +563,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                 if (activation_type == 1)
                 {
-                    sum = std::max(sum, 0.f);
+                    sum = (std::max)(sum, 0.f);
                 }
                 else if (activation_type == 2)
                 {

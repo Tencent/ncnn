@@ -87,7 +87,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         if (num_output % 4 == 0)
         {
             pipeline_convolutiondepthwise_pack4 = new Pipeline(vkdev);
-            pipeline_convolutiondepthwise_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 4));
+            pipeline_convolutiondepthwise_pack4->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 4));
             pipeline_convolutiondepthwise_pack4->create("convolutiondepthwise_pack4", opt, specializations, 4, 10);
         }
 
@@ -102,7 +102,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (channels_g % 4 != 0 && num_output_g % 4 != 0)
     {
         pipeline_convolutiondepthwise_group = new Pipeline(vkdev);
-        pipeline_convolutiondepthwise_group->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_convolutiondepthwise_group->create("convolutiondepthwise_group", opt, specializations, 4, 10);
     }
 
@@ -110,7 +110,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (channels_g % 4 == 0 && num_output_g % 4 == 0)
     {
         pipeline_convolutiondepthwise_group_pack4 = new Pipeline(vkdev);
-        pipeline_convolutiondepthwise_group_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack4->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_convolutiondepthwise_group_pack4->create("convolutiondepthwise_group_pack4", opt, specializations, 4, 10);
     }
 
@@ -118,7 +118,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (channels_g % 4 != 0 && num_output_g % 4 == 0)
     {
         pipeline_convolutiondepthwise_group_pack1to4 = new Pipeline(vkdev);
-        pipeline_convolutiondepthwise_group_pack1to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack1to4->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_convolutiondepthwise_group_pack1to4->create("convolutiondepthwise_group_pack1to4", opt, specializations, 4, 10);
     }
 
@@ -126,7 +126,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (channels_g % 4 == 0 && num_output_g % 4 != 0)
     {
         pipeline_convolutiondepthwise_group_pack4to1 = new Pipeline(vkdev);
-        pipeline_convolutiondepthwise_group_pack4to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack4to1->set_optimal_local_size_xyz(32, 32, (std::max)(1, num_output / 8));
         pipeline_convolutiondepthwise_group_pack4to1->create("convolutiondepthwise_group_pack4to1", opt, specializations, 4, 10);
     }
 

@@ -173,11 +173,11 @@ static void pooling3x3s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
 #endif // __ARM_NEON
             for (; remain>0; remain--)
             {
-                float max0 = std::max(std::max(r0[0], r0[1]), r0[2]);
-                float max1 = std::max(std::max(r1[0], r1[1]), r1[2]);
-                float max2 = std::max(std::max(r2[0], r2[1]), r2[2]);
+                float max0 = (std::max)((std::max)(r0[0], r0[1]), r0[2]);
+                float max1 = (std::max)((std::max)(r1[0], r1[1]), r1[2]);
+                float max2 = (std::max)((std::max)(r2[0], r2[1]), r2[2]);
 
-                *outptr = std::max(std::max(max0, max1), max2);
+                *outptr = (std::max)((std::max)(max0, max1), max2);
 
                 r0 += 2;
                 r1 += 2;

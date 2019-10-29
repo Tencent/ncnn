@@ -415,12 +415,12 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 
 template<typename T>
 struct binary_op_max : std::binary_function<T,T,T> {
-    T operator() (const T& x, const T& y) const { return std::max(x, y); }
+    T operator() (const T& x, const T& y) const { return (std::max)(x, y); }
 };
 
 template<typename T>
 struct binary_op_min : std::binary_function<T,T,T> {
-    T operator() (const T& x, const T& y) const { return std::min(x, y); }
+    T operator() (const T& x, const T& y) const { return (std::min)(x, y); }
 };
 
 template<typename T>

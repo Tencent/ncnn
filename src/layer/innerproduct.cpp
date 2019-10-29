@@ -245,7 +245,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
             if (activation_type == 1)
             {
-                out_f32[p] = std::max(out_f32[p], 0.f);
+                out_f32[p] = (std::max)(out_f32[p], 0.f);
             }                
         }
 
@@ -275,7 +275,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
         if (activation_type == 1)
         {
-            sum = std::max(sum, 0.f);
+            sum = (std::max)(sum, 0.f);
         }
         else if (activation_type == 2)
         {

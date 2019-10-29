@@ -792,7 +792,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __ARM_NEON
             for (; remain>0; remain--)
             {
-                *outptr = std::max(*ptr, *ptr1);
+                *outptr = (std::max)(*ptr, *ptr1);
 
                 ptr++;
                 ptr1++;
@@ -865,7 +865,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __ARM_NEON
                 for (; remain>0; remain--)
                 {
-                    *outptr = std::max(*ptr, *outptr);
+                    *outptr = (std::max)(*ptr, *outptr);
 
                     ptr++;
                     outptr++;
