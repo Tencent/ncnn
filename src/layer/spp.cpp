@@ -74,7 +74,7 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         Mat bottom_blob_bordered = bottom_blob;
         if (pad_h > 0 || pad_w > 0)
         {
-            copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+            copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt);
             if (bottom_blob_bordered.empty())
                 return -100;
 
