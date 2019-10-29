@@ -40,6 +40,8 @@ public:
     float step_width;
     float step_height;
     float offset;
+    bool step_mmdetection;
+    bool center_mmdetection;
 };
 
 } // namespace ncnn

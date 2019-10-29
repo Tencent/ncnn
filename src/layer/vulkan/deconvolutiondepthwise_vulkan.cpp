@@ -596,6 +596,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
                 reference_blob.dims = 2;
                 reference_blob.w = top_blob_bordered_adj.w - pad_left - pad_right;
                 reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
+                reference_blob.elempack = 1;
 
                 std::vector<VkMat> crop_bottom_blobs(2);
                 crop_bottom_blobs[0] = top_blob_bordered_adj;
@@ -784,6 +785,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
             reference_blob.dims = 2;
             reference_blob.w = top_blob_bordered_adj.w - pad_left - pad_right;
             reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
+            reference_blob.elempack = 1;
 
             std::vector<VkMat> crop_bottom_blobs(2);
             crop_bottom_blobs[0] = top_blob_bordered_adj;
