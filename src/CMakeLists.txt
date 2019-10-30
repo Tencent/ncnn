@@ -302,7 +302,7 @@ endif()
 
 if(WIN32)
     target_compile_definitions(ncnn
-        PRIVATE NOMINMAX)
+        PUBLIC NOMINMAX)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
