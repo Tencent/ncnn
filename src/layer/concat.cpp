@@ -27,7 +27,7 @@ Concat::Concat()
 
 int Concat::load_param(const ParamDict& pd)
 {
-    axis = pd.get(0, 0);
+    _axis = pd.get(0, 0);
 
     return 0;
 }
@@ -36,6 +36,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 {
     int dims = bottom_blobs[0].dims;
     size_t elemsize = bottom_blobs[0].elemsize;
+    int axis = _axis < 0 ? _axis + dims : _axis;
 
     if (dims == 1) // axis == 0
     {

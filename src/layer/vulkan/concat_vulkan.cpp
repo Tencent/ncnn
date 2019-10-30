@@ -114,6 +114,7 @@ int Concat_vulkan::destroy_pipeline(const Option& opt)
 int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
+    int axis = _axis < 0 ? _axis + dims : _axis;
 
     if (dims == 1) // axis == 0
     {

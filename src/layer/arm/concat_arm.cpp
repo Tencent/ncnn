@@ -74,6 +74,7 @@ int Concat_arm::destroy_pipeline(const Option& opt)
 int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
+    int axis = _axis < 0 ? _axis + dims : _axis;
 
 #if __ARM_NEON
     if (opt.use_packing_layout)
