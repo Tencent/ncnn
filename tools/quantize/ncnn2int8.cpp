@@ -552,7 +552,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             ncnn::Concat* op = (ncnn::Concat*)layer;
             ncnn::Concat* op_default = (ncnn::Concat*)layer_default;
 
-            fprintf_param_value(" 0=%d", _axis)
+            fprintf_param_value(" 0=%d", axis)
         }
         else if (layer->type == "Convolution")
         {

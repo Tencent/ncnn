@@ -27,7 +27,7 @@ Concat::Concat()
 
 int Concat::load_param(const ParamDict& pd)
 {
-    _axis = pd.get(0, 0);
+    axis = pd.get(0, 0);
 
     return 0;
 }
@@ -36,7 +36,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 {
     int dims = bottom_blobs[0].dims;
     size_t elemsize = bottom_blobs[0].elemsize;
-    int axis = _axis < 0 ? _axis + dims : _axis;
+    int positive_axis = axis < 0 ? axis + dims : axis;
 
     if (dims == 1) // axis == 0
     {
@@ -70,7 +70,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         // concat image
         int w = bottom_blobs[0].w;
@@ -104,7 +104,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         // interleave image row
         int h = bottom_blobs[0].h;
@@ -140,7 +140,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         // concat dim
         int w = bottom_blobs[0].w;
@@ -177,7 +177,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         // interleave dim height
         int w = bottom_blobs[0].w;
@@ -217,7 +217,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         // interleave dim width
         int h = bottom_blobs[0].h;

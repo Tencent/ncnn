@@ -74,7 +74,7 @@ int Concat_arm::destroy_pipeline(const Option& opt)
 int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
-    int axis = _axis < 0 ? _axis + dims : _axis;
+    int positive_axis = axis < 0 ? axis + dims : axis;
 
 #if __ARM_NEON
     if (opt.use_packing_layout)
@@ -115,7 +115,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         return 0;
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         // concat image
         int w = bottom_blobs[0].w;
@@ -197,7 +197,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         return 0;
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         // interleave image row
         int h = bottom_blobs[0].h;
@@ -235,7 +235,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         return 0;
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         // concat dim
         int w = bottom_blobs[0].w;
@@ -321,7 +321,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         return 0;
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         // interleave dim height
         int w = bottom_blobs[0].w;
@@ -363,7 +363,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         return 0;
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         // interleave dim width
         int h = bottom_blobs[0].h;
