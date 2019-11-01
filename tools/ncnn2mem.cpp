@@ -94,13 +94,24 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     fprintf(ip, "#define NCNN_INCLUDE_GUARD_%s\n", include_guard_var.c_str());
     fprintf(ip, "namespace %s_id {\n", param_var.c_str());
 
+    int nscan = 0;
     int magic = 0;
-    fscanf(fp, "%d", &magic);
+    nscan = fscanf(fp, "%d", &magic);
+    if (nscan != 1)
+    {
+        fprintf(stderr, "read magic failed %d\n", nscan);
+        return -1;
+    }
     fwrite(&magic, sizeof(int), 1, mp);
 
     int layer_count = 0;
     int blob_count = 0;
-    fscanf(fp, "%d %d", &layer_count, &blob_count);
+    nscan = fscanf(fp, "%d %d", &layer_count, &blob_count);
+    if (nscan != 2)
+    {
+        fprintf(stderr, "read layer_count and blob_count failed %d\n", nscan);
+        return -1;
+    }
     fwrite(&layer_count, sizeof(int), 1, mp);
     fwrite(&blob_count, sizeof(int), 1, mp);
 
@@ -110,8 +121,6 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     int blob_index = 0;
     for (int i=0; i<layer_count; i++)
     {
-        int nscan = 0;
-
         char layer_type[33];
         char layer_name[257];
         int bottom_count = 0;
@@ -119,7 +128,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         nscan = fscanf(fp, "%32s %256s %d %d", layer_type, layer_name, &bottom_count, &top_count);
         if (nscan != 4)
         {
-            continue;
+            fprintf(stderr, "read layer params failed %d\n", nscan);
+            return -1;
         }
 
         sanitize_name(layer_name);
@@ -133,13 +143,14 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         fprintf(ip, "const int LAYER_%s = %d;\n", layer_name, i);
 
 //         layer->bottoms.resize(bottom_count);
-        for (int i=0; i<bottom_count; i++)
+        for (int j=0; j<bottom_count; j++)
         {
             char bottom_name[257];
             nscan = fscanf(fp, "%256s", bottom_name);
             if (nscan != 1)
             {
-                continue;
+                fprintf(stderr, "read bottom_name failed %d\n", nscan);
+                return -1;
             }
 
             sanitize_name(bottom_name);
@@ -150,13 +161,14 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         }
 
 //         layer->tops.resize(top_count);
-        for (int i=0; i<top_count; i++)
+        for (int j=0; j<top_count; j++)
         {
             char blob_name[257];
             nscan = fscanf(fp, "%256s", blob_name);
             if (nscan != 1)
             {
-                continue;
+                fprintf(stderr, "read blob_name failed %d\n", nscan);
+                return -1;
             }
 
             sanitize_name(blob_name);
@@ -182,13 +194,23 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
             if (is_array)
             {
                 int len = 0;
-                fscanf(fp, "%d", &len);
+                nscan = fscanf(fp, "%d", &len);
+                if (nscan != 1)
+                {
+                    fprintf(stderr, "read array length failed %d\n", nscan);
+                    return -1;
+                }
                 fwrite(&len, sizeof(int), 1, mp);
 
                 for (int j = 0; j < len; j++)
                 {
                     char vstr[16];
-                    fscanf(fp, ",%15[^,\n ]", vstr);
+                    nscan = fscanf(fp, ",%15[^,\n ]", vstr);
+                    if (nscan != 1)
+                    {
+                        fprintf(stderr, "read array element failed %d\n", nscan);
+                        return -1;
+                    }
 
                     bool is_float = vstr_is_float(vstr);
 
@@ -209,7 +231,12 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
             else
             {
                 char vstr[16];
-                fscanf(fp, "%15s", vstr);
+                nscan = fscanf(fp, "%15s", vstr);
+                if (nscan != 1)
+                {
+                    fprintf(stderr, "read value failed %d\n", nscan);
+                    return -1;
+                }
 
                 bool is_float = vstr_is_float(vstr);
 

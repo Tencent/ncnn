@@ -70,13 +70,28 @@ void main()
         }
         else
         {
+#if NCNN_fp16_storage
+            float value_fp32 = value;
+            top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(value_fp32);
+#else
             top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(value);
+#endif
         }
     }
     else if (type == 1)
     {
         x = clamp(x, 0, p.w - 1);
         y = clamp(y, 0, p.h - 1);
+
+        int v_offset = gz * p.cstep + y * p.w + x;
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+    }
+    else if (type == 2)
+    {
+        x = abs(x);
+        y = abs(y);
+        x = (p.w - 1) - abs(x - (p.w - 1));
+        y = (p.h - 1) - abs(y - (p.h - 1));
 
         int v_offset = gz * p.cstep + y * p.w + x;
         top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];

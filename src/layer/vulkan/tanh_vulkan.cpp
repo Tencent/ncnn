@@ -35,20 +35,20 @@ int TanH_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_tanh = new Pipeline(vkdev);
         pipeline_tanh->set_optimal_local_size_xyz();
-        pipeline_tanh->create("tanh", specializations, 1, 5);
+        pipeline_tanh->create("tanh", opt, specializations, 1, 5);
     }
 
     // pack4
     {
         pipeline_tanh_pack4 = new Pipeline(vkdev);
         pipeline_tanh_pack4->set_optimal_local_size_xyz();
-        pipeline_tanh_pack4->create("tanh_pack4", specializations, 1, 5);
+        pipeline_tanh_pack4->create("tanh_pack4", opt, specializations, 1, 5);
     }
 
     return 0;
 }
 
-int TanH_vulkan::destroy_pipeline(const Option& opt)
+int TanH_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_tanh;
     pipeline_tanh = 0;
@@ -59,9 +59,9 @@ int TanH_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int TanH_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int TanH_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
@@ -73,7 +73,7 @@ int TanH_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_tanh_pack4 : pipeline_tanh;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_tanh_pack4 : pipeline_tanh;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

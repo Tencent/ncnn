@@ -49,12 +49,12 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    afp v = afp(bottom_top_blob_data[gi]);
+    afp v = sfp2afp(bottom_top_blob_data[gi]);
 
     if (slope == 0)
         v = max(v, afp(0.f));
     else
         v = v < afp(0.f) ? v * afp(slope) : v;
 
-    bottom_top_blob_data[gi] = sfp(v);
+    bottom_top_blob_data[gi] = afp2sfp(v);
 }

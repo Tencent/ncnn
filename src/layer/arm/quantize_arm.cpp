@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2018 SenseNets Technology Ltd. All rights reserved.
+// Copyright (C) 2019 BUG1989. All rights reserved.
 // Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
@@ -25,7 +25,7 @@ static inline signed char float2int8(float v)
 {
     int int32 = round(v);
     if (int32 > 127) return 127;
-    if (int32 < -128) return -128;
+    if (int32 < -127) return -127;
     return (signed char)int32;
 }
 

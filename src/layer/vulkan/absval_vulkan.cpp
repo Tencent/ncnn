@@ -34,20 +34,20 @@ int AbsVal_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_absval = new Pipeline(vkdev);
         pipeline_absval->set_optimal_local_size_xyz();
-        pipeline_absval->create("absval", specializations, 1, 5);
+        pipeline_absval->create("absval", opt, specializations, 1, 5);
     }
 
     // pack4
     {
         pipeline_absval_pack4 = new Pipeline(vkdev);
         pipeline_absval_pack4->set_optimal_local_size_xyz();
-        pipeline_absval_pack4->create("absval_pack4", specializations, 1, 5);
+        pipeline_absval_pack4->create("absval_pack4", opt, specializations, 1, 5);
     }
 
     return 0;
 }
 
-int AbsVal_vulkan::destroy_pipeline(const Option& opt)
+int AbsVal_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_absval;
     pipeline_absval = 0;
@@ -58,9 +58,9 @@ int AbsVal_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
@@ -72,7 +72,7 @@ int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_absval_pack4 : pipeline_absval;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_absval_pack4 : pipeline_absval;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

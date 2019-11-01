@@ -1,0 +1,144 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer bottom_tm_blob { sfpvec4 bottom_tm_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outcstep;
+
+    int block_x;
+    int block_y;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.block_x || gy >= p.block_y || gz >= p.c)
+        return;
+
+    // load 4x4
+    int v_offset_0 = gz * p.cstep + gy * 2 * p.w + gx * 2;
+    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * p.w;
+
+    afpvec4 v00 = sfp2afpvec4(bottom_blob_data[v_offset.r + 0]);
+    afpvec4 v01 = sfp2afpvec4(bottom_blob_data[v_offset.r + 1]);
+    afpvec4 v02 = sfp2afpvec4(bottom_blob_data[v_offset.r + 2]);
+    afpvec4 v03 = sfp2afpvec4(bottom_blob_data[v_offset.r + 3]);
+
+    afpvec4 v10 = sfp2afpvec4(bottom_blob_data[v_offset.g + 0]);
+    afpvec4 v11 = sfp2afpvec4(bottom_blob_data[v_offset.g + 1]);
+    afpvec4 v12 = sfp2afpvec4(bottom_blob_data[v_offset.g + 2]);
+    afpvec4 v13 = sfp2afpvec4(bottom_blob_data[v_offset.g + 3]);
+
+    afpvec4 v20 = sfp2afpvec4(bottom_blob_data[v_offset.b + 0]);
+    afpvec4 v21 = sfp2afpvec4(bottom_blob_data[v_offset.b + 1]);
+    afpvec4 v22 = sfp2afpvec4(bottom_blob_data[v_offset.b + 2]);
+    afpvec4 v23 = sfp2afpvec4(bottom_blob_data[v_offset.b + 3]);
+
+    afpvec4 v30 = sfp2afpvec4(bottom_blob_data[v_offset.a + 0]);
+    afpvec4 v31 = sfp2afpvec4(bottom_blob_data[v_offset.a + 1]);
+    afpvec4 v32 = sfp2afpvec4(bottom_blob_data[v_offset.a + 2]);
+    afpvec4 v33 = sfp2afpvec4(bottom_blob_data[v_offset.a + 3]);
+
+    // const float itm[4][4] = {
+    //     {1.0f,  0.0f, -1.0f,  0.0f},
+    //     {0.0f,  1.0f,  1.0f,  0.0f},
+    //     {0.0f, -1.0f,  1.0f,  0.0f},
+    //     {0.0f, -1.0f,  0.0f,  1.0f}
+    // };
+
+    // implicit transpose
+    afpvec4 m00 = v00 - v02;
+    afpvec4 m01 = v10 - v12;
+    afpvec4 m02 = v20 - v22;
+    afpvec4 m03 = v30 - v32;
+
+    afpvec4 m10 = v02 + v01;
+    afpvec4 m11 = v12 + v11;
+    afpvec4 m12 = v22 + v21;
+    afpvec4 m13 = v32 + v31;
+
+    afpvec4 m20 = v02 - v01;
+    afpvec4 m21 = v12 - v11;
+    afpvec4 m22 = v22 - v21;
+    afpvec4 m23 = v32 - v31;
+
+    afpvec4 m30 = v03 - v01;
+    afpvec4 m31 = v13 - v11;
+    afpvec4 m32 = v23 - v21;
+    afpvec4 m33 = v33 - v31;
+
+    v00 = m00 - m02;
+    v10 = m10 - m12;
+    v20 = m20 - m22;
+    v30 = m30 - m32;
+
+    v01 = m02 + m01;
+    v11 = m12 + m11;
+    v21 = m22 + m21;
+    v31 = m32 + m31;
+
+    v02 = m02 - m01;
+    v12 = m12 - m11;
+    v22 = m22 - m21;
+    v32 = m32 - m31;
+
+    v03 = m03 - m01;
+    v13 = m13 - m11;
+    v23 = m23 - m21;
+    v33 = m33 - m31;
+
+    // store 16
+    int v_tm_offset = gz * p.outcstep + (gy * p.block_x + gx) * 16;
+
+    bottom_tm_blob_data[v_tm_offset + 0] = afp2sfpvec4(v00);
+    bottom_tm_blob_data[v_tm_offset + 1] = afp2sfpvec4(v01);
+    bottom_tm_blob_data[v_tm_offset + 2] = afp2sfpvec4(v02);
+    bottom_tm_blob_data[v_tm_offset + 3] = afp2sfpvec4(v03);
+    bottom_tm_blob_data[v_tm_offset + 4] = afp2sfpvec4(v10);
+    bottom_tm_blob_data[v_tm_offset + 5] = afp2sfpvec4(v11);
+    bottom_tm_blob_data[v_tm_offset + 6] = afp2sfpvec4(v12);
+    bottom_tm_blob_data[v_tm_offset + 7] = afp2sfpvec4(v13);
+    bottom_tm_blob_data[v_tm_offset + 8] = afp2sfpvec4(v20);
+    bottom_tm_blob_data[v_tm_offset + 9] = afp2sfpvec4(v21);
+    bottom_tm_blob_data[v_tm_offset + 10] = afp2sfpvec4(v22);
+    bottom_tm_blob_data[v_tm_offset + 11] = afp2sfpvec4(v23);
+    bottom_tm_blob_data[v_tm_offset + 12] = afp2sfpvec4(v30);
+    bottom_tm_blob_data[v_tm_offset + 13] = afp2sfpvec4(v31);
+    bottom_tm_blob_data[v_tm_offset + 14] = afp2sfpvec4(v32);
+    bottom_tm_blob_data[v_tm_offset + 15] = afp2sfpvec4(v33);
+}

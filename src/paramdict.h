@@ -15,15 +15,14 @@
 #ifndef NCNN_PARAMDICT_H
 #define NCNN_PARAMDICT_H
 
-#include <stdio.h>
 #include "mat.h"
-#include "platform.h"
 
-// at most 20 parameters
-#define NCNN_MAX_PARAM_COUNT 20
+// at most 32 parameters
+#define NCNN_MAX_PARAM_COUNT 32
 
 namespace ncnn {
 
+class DataReader;
 class Net;
 class ParamDict
 {
@@ -50,14 +49,8 @@ protected:
 
     void clear();
 
-#if NCNN_STDIO
-#if NCNN_STRING
-    int load_param(FILE* fp);
-    int load_param_mem(const char*& mem);
-#endif // NCNN_STRING
-    int load_param_bin(FILE* fp);
-#endif // NCNN_STDIO
-    int load_param(const unsigned char*& mem);
+    int load_param(const DataReader& dr);
+    int load_param_bin(const DataReader& dr);
 
 protected:
     struct

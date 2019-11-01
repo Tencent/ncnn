@@ -1,0 +1,12 @@
+set(NCNN_OPENMP @NCNN_OPENMP@)
+set(NCNN_VULKAN @NCNN_VULKAN@)
+
+if(NCNN_OPENMP)
+    find_package(OpenMP)
+endif()
+
+if(NCNN_VULKAN)
+    find_package(Vulkan REQUIRED)
+endif()
+
+include(${CMAKE_CURRENT_LIST_DIR}/ncnn.cmake)

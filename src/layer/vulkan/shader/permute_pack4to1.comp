@@ -109,8 +109,19 @@ void main()
 
     int gi = gz * p.cstep + gy * p.w + gx;
 
+#if NCNN_fp16_packed
+    uvec2 v = bottom_blob_data[gi];
+    vec2 v0 = unpackHalf2x16(v.x);
+    vec2 v1 = unpackHalf2x16(v.y);
+
+    top_blob_data[v_offset.r] = v0.x;
+    top_blob_data[v_offset.g] = v0.y;
+    top_blob_data[v_offset.b] = v1.x;
+    top_blob_data[v_offset.a] = v1.y;
+#else
     top_blob_data[v_offset.r] = bottom_blob_data[gi].r;
     top_blob_data[v_offset.g] = bottom_blob_data[gi].g;
     top_blob_data[v_offset.b] = bottom_blob_data[gi].b;
     top_blob_data[v_offset.a] = bottom_blob_data[gi].a;
+#endif
 }

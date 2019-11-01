@@ -27,8 +27,9 @@ public:
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
-    virtual int upload_model(VkTransfer& cmd);
+    virtual int upload_model(VkTransfer& cmd, const Option& opt);
 
+    using DeconvolutionDepthWise::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
@@ -36,6 +37,8 @@ public:
     VkMat bias_data_gpu;
 
     ncnn::Layer* crop;
+    ncnn::Layer* output_pad;
+    ncnn::Layer* output_crop;
     ncnn::Layer* packing_pack1;
     ncnn::Layer* packing_pack4;
 

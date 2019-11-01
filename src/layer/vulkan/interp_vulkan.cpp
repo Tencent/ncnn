@@ -43,14 +43,14 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_interp = new Pipeline(vkdev);
             pipeline_interp->set_optimal_local_size_xyz();
-            pipeline_interp->create("interp", specializations, 2, 12);
+            pipeline_interp->create("interp", opt, specializations, 2, 12);
         }
 
         // pack4
         {
             pipeline_interp_pack4 = new Pipeline(vkdev);
             pipeline_interp_pack4->set_optimal_local_size_xyz();
-            pipeline_interp_pack4->create("interp_pack4", specializations, 2, 12);
+            pipeline_interp_pack4->create("interp_pack4", opt, specializations, 2, 12);
         }
     }
 
@@ -60,31 +60,31 @@ int Interp_vulkan::create_pipeline(const Option& opt)
 
         pipeline_interp_bicubic_coeffs_x = new Pipeline(vkdev);
         pipeline_interp_bicubic_coeffs_x->set_optimal_local_size_xyz(64, 1, 1);
-        pipeline_interp_bicubic_coeffs_x->create("interp_bicubic_coeffs", specializations, 2, 3);
+        pipeline_interp_bicubic_coeffs_x->create("interp_bicubic_coeffs", opt, specializations, 2, 3);
 
         pipeline_interp_bicubic_coeffs_y = new Pipeline(vkdev);
         pipeline_interp_bicubic_coeffs_y->set_optimal_local_size_xyz(64, 1, 1);
-        pipeline_interp_bicubic_coeffs_y->create("interp_bicubic_coeffs", specializations, 2, 3);
+        pipeline_interp_bicubic_coeffs_y->create("interp_bicubic_coeffs", opt, specializations, 2, 3);
 
         // pack1
         {
             pipeline_interp_bicubic = new Pipeline(vkdev);
             pipeline_interp_bicubic->set_optimal_local_size_xyz();
-            pipeline_interp_bicubic->create("interp_bicubic", specializations, 6, 10);
+            pipeline_interp_bicubic->create("interp_bicubic", opt, specializations, 6, 10);
         }
 
         // pack4
         {
             pipeline_interp_bicubic_pack4 = new Pipeline(vkdev);
             pipeline_interp_bicubic_pack4->set_optimal_local_size_xyz();
-            pipeline_interp_bicubic_pack4->create("interp_bicubic_pack4", specializations, 6, 10);
+            pipeline_interp_bicubic_pack4->create("interp_bicubic_pack4", opt, specializations, 6, 10);
         }
     }
 
     return 0;
 }
 
-int Interp_vulkan::destroy_pipeline(const Option& opt)
+int Interp_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_interp;
     pipeline_interp = 0;
@@ -113,7 +113,7 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     int outw = output_width;
     int outh = output_height;
@@ -129,7 +129,7 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         return 0;
     }
 
-    top_blob.create(outw, outh, channels, elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -153,13 +153,13 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         constants[10].f = w / (float)outw;
         constants[11].f = h / (float)outh;
 
-        const Pipeline* pipeline = packing == 4 ? pipeline_interp_pack4 : pipeline_interp;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_interp_pack4 : pipeline_interp;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
     else if (resize_type == 3) // bicubic
     {
-        VkMat alpha(outw, (size_t)(elemsize / packing * 4), 4, opt.workspace_vkallocator, opt.staging_vkallocator);
+        VkMat alpha(outw, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator, opt.staging_vkallocator);
         if (alpha.empty())
             return -100;
 
@@ -181,7 +181,7 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
             cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, bindings, constants, alpha);
         }
 
-        VkMat beta(outh, (size_t)(elemsize / packing * 4), 4, opt.workspace_vkallocator, opt.staging_vkallocator);
+        VkMat beta(outh, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator, opt.staging_vkallocator);
         if (beta.empty())
             return -100;
 
@@ -223,7 +223,7 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = packing == 4 ? pipeline_interp_bicubic_pack4 : pipeline_interp_bicubic;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_interp_bicubic_pack4 : pipeline_interp_bicubic;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }

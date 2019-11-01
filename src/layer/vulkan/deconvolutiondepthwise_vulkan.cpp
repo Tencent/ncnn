@@ -25,6 +25,8 @@ DeconvolutionDepthWise_vulkan::DeconvolutionDepthWise_vulkan()
     support_vulkan = true;
 
     crop = 0;
+    output_pad = 0;
+    output_crop = 0;
     packing_pack1 = 0;
     packing_pack4 = 0;
 
@@ -44,13 +46,44 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         crop->vkdev = vkdev;
 
         ncnn::ParamDict pd;
-        pd.set(0, pad_w);
-        pd.set(1, pad_h);
+        pd.set(0, pad_left);
+        pd.set(1, pad_top);
         pd.set(2, 0);
 
         crop->load_param(pd);
 
         crop->create_pipeline(opt);
+    }
+
+    {
+        output_pad = ncnn::create_layer(ncnn::LayerType::Padding);
+        output_pad->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 0);
+        pd.set(1, output_pad_bottom);
+        pd.set(2, 0);
+        pd.set(3, output_pad_right);
+        pd.set(4, 0);
+        pd.set(5, 0.f);
+
+        output_pad->load_param(pd);
+
+        output_pad->create_pipeline(opt);
+    }
+
+    {
+        output_crop = ncnn::create_layer(ncnn::LayerType::Crop);
+        output_crop->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, -233);
+        pd.set(1, -233);
+        pd.set(2, -233);
+
+        output_crop->load_param(pd);
+
+        output_crop->create_pipeline(opt);
     }
 
     std::vector<vk_specialization_type> specializations(11);
@@ -77,7 +110,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_deconvolutiondepthwise = new Pipeline(vkdev);
             pipeline_deconvolutiondepthwise->set_optimal_local_size_xyz(32, 32, num_output);
-            pipeline_deconvolutiondepthwise->create("deconvolutiondepthwise", specializations, 4, 10);
+            pipeline_deconvolutiondepthwise->create("deconvolutiondepthwise", opt, specializations, 4, 10);
         }
 
         // pack4
@@ -85,7 +118,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_deconvolutiondepthwise_pack4 = new Pipeline(vkdev);
             pipeline_deconvolutiondepthwise_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 4));
-            pipeline_deconvolutiondepthwise_pack4->create("deconvolutiondepthwise_pack4", specializations, 4, 10);
+            pipeline_deconvolutiondepthwise_pack4->create("deconvolutiondepthwise_pack4", opt, specializations, 4, 10);
         }
 
         return 0;
@@ -100,7 +133,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolutiondepthwise_group = new Pipeline(vkdev);
         pipeline_deconvolutiondepthwise_group->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
-        pipeline_deconvolutiondepthwise_group->create("deconvolutiondepthwise_group", specializations, 4, 10);
+        pipeline_deconvolutiondepthwise_group->create("deconvolutiondepthwise_group", opt, specializations, 4, 10);
     }
 
     // pack4
@@ -108,7 +141,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolutiondepthwise_group_pack4 = new Pipeline(vkdev);
         pipeline_deconvolutiondepthwise_group_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
-        pipeline_deconvolutiondepthwise_group_pack4->create("deconvolutiondepthwise_group_pack4", specializations, 4, 10);
+        pipeline_deconvolutiondepthwise_group_pack4->create("deconvolutiondepthwise_group_pack4", opt, specializations, 4, 10);
     }
 
     // pack1to4
@@ -116,7 +149,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolutiondepthwise_group_pack1to4 = new Pipeline(vkdev);
         pipeline_deconvolutiondepthwise_group_pack1to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
-        pipeline_deconvolutiondepthwise_group_pack1to4->create("deconvolutiondepthwise_group_pack1to4", specializations, 4, 10);
+        pipeline_deconvolutiondepthwise_group_pack1to4->create("deconvolutiondepthwise_group_pack1to4", opt, specializations, 4, 10);
     }
 
     // pack4to1
@@ -124,7 +157,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolutiondepthwise_group_pack4to1 = new Pipeline(vkdev);
         pipeline_deconvolutiondepthwise_group_pack4to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
-        pipeline_deconvolutiondepthwise_group_pack4to1->create("deconvolutiondepthwise_group_pack4to1", specializations, 4, 10);
+        pipeline_deconvolutiondepthwise_group_pack4to1->create("deconvolutiondepthwise_group_pack4to1", opt, specializations, 4, 10);
     }
 
     if (channels % 4 == 0 && channels_g % 4 != 0)
@@ -165,6 +198,20 @@ int DeconvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
         crop = 0;
     }
 
+    if (output_pad)
+    {
+        output_pad->destroy_pipeline(opt);
+        delete output_pad;
+        output_pad = 0;
+    }
+
+    if (output_crop)
+    {
+        output_crop->destroy_pipeline(opt);
+        delete output_crop;
+        output_crop = 0;
+    }
+
     if (packing_pack1)
     {
         packing_pack1->destroy_pipeline(opt);
@@ -200,7 +247,7 @@ int DeconvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
+int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
@@ -228,7 +275,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
         // pack1
         if (num_output % 4 != 0)
         {
-            cmd.record_upload(weight_data_transposed, weight_data_gpu);
+            cmd.record_upload(weight_data_transposed, weight_data_gpu, opt);
         }
 
         // pack4
@@ -241,21 +288,21 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             convert_packing(weight_data_r2, weight_data_pack4, 4);
 
             weight_data_pack4 = weight_data_pack4.reshape(maxk * (group/4));
-            cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
+            cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4, opt);
         }
 
         if (bias_term)
         {
             if (num_output % 4 != 0)
             {
-                cmd.record_upload(bias_data, bias_data_gpu);
+                cmd.record_upload(bias_data, bias_data_gpu, opt);
             }
 
             if (num_output % 4 == 0)
             {
                 Mat bias_data_pack4;
                 convert_packing(bias_data, bias_data_pack4, 4);
-                cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
+                cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4, opt);
             }
         }
 
@@ -269,7 +316,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
     // pack1
     if (channels_g % 4 != 0 && num_output_g % 4 != 0)
     {
-        cmd.record_upload(weight_data_transposed, weight_data_gpu);
+        cmd.record_upload(weight_data_transposed, weight_data_gpu, opt);
     }
 
     // pack4
@@ -281,7 +328,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2_groups = weight_data_transposed.reshape(maxk, channels_g, num_output_g * group);
 
-            weight_data_pack4_groups.create(16*maxk, channels_g/4, num_output_g/4 * group);
+            weight_data_pack4_groups.create(maxk, channels_g/4, num_output_g/4 * group, (size_t)4*16, 16);
 
             for (int g=0; g<group; g++)
             {
@@ -351,8 +398,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4_groups = weight_data_pack4_groups.reshape(16*maxk * (channels_g/4) * (num_output_g/4) * group);
-        cmd.record_upload(weight_data_pack4_groups, weight_data_gpu_pack4);
+        cmd.record_upload(weight_data_pack4_groups, weight_data_gpu_pack4, opt);
     }
 
     // pack1to4
@@ -364,7 +410,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2_groups = weight_data_transposed.reshape(maxk, channels_g, num_output_g * group);
 
-            weight_data_pack1to4_groups.create(4*maxk, channels_g, num_output_g/4 * group);
+            weight_data_pack1to4_groups.create(maxk, channels_g, num_output_g/4 * group, (size_t)4*4, 4);
 
             for (int g=0; g<group; g++)
             {
@@ -404,8 +450,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack1to4_groups = weight_data_pack1to4_groups.reshape(4*maxk * channels_g * (num_output_g/4) * group);
-        cmd.record_upload(weight_data_pack1to4_groups, weight_data_gpu_pack1to4);
+        cmd.record_upload(weight_data_pack1to4_groups, weight_data_gpu_pack1to4, opt);
     }
 
     // pack4to1
@@ -417,7 +462,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2_groups = weight_data_transposed.reshape(maxk, channels_g, num_output_g * group);
 
-            weight_data_pack4to1_groups.create(4*maxk, channels_g/4, num_output_g * group);
+            weight_data_pack4to1_groups.create(maxk, channels_g/4, num_output_g * group, (size_t)4*4, 4);
 
             for (int g=0; g<group; g++)
             {
@@ -453,22 +498,21 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4to1_groups = weight_data_pack4to1_groups.reshape(4*maxk * (channels_g/4) * num_output_g * group);
-        cmd.record_upload(weight_data_pack4to1_groups, weight_data_gpu_pack4to1);
+        cmd.record_upload(weight_data_pack4to1_groups, weight_data_gpu_pack4to1, opt);
     }
 
     if (bias_term)
     {
         if (num_output_g % 4 != 0)
         {
-            cmd.record_upload(bias_data, bias_data_gpu);
+            cmd.record_upload(bias_data, bias_data_gpu, opt);
         }
 
         if (num_output_g % 4 == 0)
         {
             Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
-            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
+            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4, opt);
         }
     }
 
@@ -481,38 +525,42 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
     int outw = (w - 1) * stride_w + kernel_extent_w;
     int outh = (h - 1) * stride_h + kernel_extent_h;
-    int out_packing = num_output % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / packing * out_packing;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
 
     VkMat top_blob_bordered;
-    if (pad_w > 0 || pad_h > 0)
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
-        top_blob_bordered.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.workspace_vkallocator, opt.staging_vkallocator);
-        if (top_blob_bordered.empty())
-            return -100;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else
     {
-        top_blob_bordered.create(outw, outh, num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
-        if (top_blob_bordered.empty())
-            return -100;
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     }
+    if (top_blob_bordered.empty())
+        return -100;
 
     // depth-wise
-    if (channels == group / packing && group / packing == num_output / packing)
+    if (channels == group / elempack && group / elempack == num_output / elempack)
     {
         std::vector<VkMat> bindings(4);
         bindings[0] = bottom_blob;
         bindings[1] = top_blob_bordered;
-        bindings[2] = packing == 4 ? weight_data_gpu_pack4 : weight_data_gpu;
-        bindings[3] = bias_term ? (packing == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : bindings[2];// TODO use dummy buffer
+        bindings[2] = elempack == 4 ? weight_data_gpu_pack4 : weight_data_gpu;
+        bindings[3] = bias_term ? (elempack == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : bindings[2];// TODO use dummy buffer
 
         std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob.dims;
@@ -526,42 +574,119 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         constants[8].i = top_blob_bordered.c;
         constants[9].i = top_blob_bordered.cstep;
 
-        const Pipeline* pipeline = packing == 4 ? pipeline_deconvolutiondepthwise_pack4 : pipeline_deconvolutiondepthwise;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_deconvolutiondepthwise_pack4 : pipeline_deconvolutiondepthwise;
 
         // record
         cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
 
-        if (pad_w > 0 || pad_h > 0)
+        if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
         {
-            VkMat reference_blob;
-            reference_blob.dims = 2;
-            reference_blob.w = top_blob_bordered.w - pad_w - pad_w;
-            reference_blob.h = top_blob_bordered.h - pad_h - pad_h;
+            VkMat top_blob_bordered_adj = top_blob_bordered;
+            if (output_pad_right > 0 || output_pad_bottom > 0)
+            {
+                ncnn::Option opt_pad = opt;
+                opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+                output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
+                if (top_blob_bordered_adj.empty())
+                    return -100;
+            }
 
-            std::vector<VkMat> crop_bottom_blobs(2);
-            crop_bottom_blobs[0] = top_blob_bordered;
-            crop_bottom_blobs[1] = reference_blob;
-            std::vector<VkMat> crop_top_blobs(1);
-            crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
-            top_blob = crop_top_blobs[0];
+            {
+                VkMat reference_blob;
+                reference_blob.dims = 2;
+                reference_blob.w = top_blob_bordered_adj.w - pad_left - pad_right;
+                reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
+                reference_blob.elempack = 1;
+
+                std::vector<VkMat> crop_bottom_blobs(2);
+                crop_bottom_blobs[0] = top_blob_bordered_adj;
+                crop_bottom_blobs[1] = reference_blob;
+                std::vector<VkMat> crop_top_blobs(1);
+                crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
+                top_blob = crop_top_blobs[0];
+            }
+            if (top_blob.empty())
+                return -100;
+
+            outw = top_blob.w;
+            outh = top_blob.h;
+        }
+        else if (output_w > 0 && output_h > 0)
+        {
+            VkMat top_blob_bordered_adj = top_blob_bordered;
+            if (output_pad_right > 0 || output_pad_bottom > 0)
+            {
+                ncnn::Option opt_pad = opt;
+                opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+                output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
+                if (top_blob_bordered_adj.empty())
+                    return -100;
+            }
+
+            int wcut = top_blob_bordered_adj.w - output_w;
+            int hcut = top_blob_bordered_adj.h - output_h;
+
+            VkMat crop_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
+            crop_param_blob.prepare_staging_buffer();
+            int* crop_params = crop_param_blob.mapped();
+
+            if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233)
+            {
+                // onnx padding=SAME_UPPER
+                crop_params[0] = wcut / 2;
+                crop_params[1] = hcut / 2;
+                crop_params[2] = 0;
+                crop_params[3] = top_blob_bordered_adj.w - wcut;
+                crop_params[4] = top_blob_bordered_adj.h - hcut;
+                crop_params[5] = top_blob_bordered_adj.c;
+            }
+            else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
+            {
+                // onnx padding=SAME_LOWER
+                crop_params[0] = wcut - wcut / 2;
+                crop_params[1] = hcut - hcut / 2;
+                crop_params[2] = 0;
+                crop_params[3] = top_blob_bordered_adj.w - wcut;
+                crop_params[4] = top_blob_bordered_adj.h - hcut;
+                crop_params[5] = top_blob_bordered_adj.c;
+            }
+
+            std::vector<VkMat> crop_inputs(2);
+            crop_inputs[0] = top_blob_bordered_adj;
+            crop_inputs[1] = crop_param_blob;
+
+            std::vector<VkMat> crop_outputs(1);
+            output_crop->forward(crop_inputs, crop_outputs, cmd, opt);
+            top_blob = crop_outputs[0];
+            if (top_blob.empty())
+                return -100;
 
             outw = top_blob.w;
             outh = top_blob.h;
         }
         else
         {
-            top_blob = top_blob_bordered;
+            if (output_pad_right > 0 || output_pad_bottom > 0)
+            {
+                output_pad->forward(top_blob_bordered, top_blob, cmd, opt);
+                if (top_blob.empty())
+                    return -100;
+            }
+            else
+            {
+                top_blob = top_blob_bordered;
+            }
         }
 
         return 0;
     }
 
-    const int channels_g = channels * packing / group;
+    const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
     // unpacking
     VkMat bottom_blob_unpacked = bottom_blob;
-    if (packing == 4 && channels_g % 4 != 0)
+    if (elempack == 4 && channels_g % 4 != 0)
     {
         ncnn::Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
@@ -570,9 +695,9 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     }
 
     VkMat top_blob_unpacked = top_blob_bordered;
-    if (num_output_g % 4 != 0 && out_packing == 4)
+    if (num_output_g % 4 != 0 && out_elempack == 4)
     {
-        top_blob_unpacked.create(outw, outh, num_output, elemsize / packing, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
+        top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
@@ -634,7 +759,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked);
 
     // packing
-    if (num_output_g % 4 != 0 && out_packing == 4)
+    if (num_output_g % 4 != 0 && out_elempack == 4)
     {
         packing_pack4->forward(top_blob_unpacked, top_blob_bordered, cmd, opt);
     }
@@ -643,26 +768,103 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         top_blob_bordered = top_blob_unpacked;
     }
 
-    if (pad_w > 0 || pad_h > 0)
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
-        VkMat reference_blob;
-        reference_blob.dims = 2;
-        reference_blob.w = top_blob_bordered.w - pad_w - pad_w;
-        reference_blob.h = top_blob_bordered.h - pad_h - pad_h;
+        VkMat top_blob_bordered_adj = top_blob_bordered;
+        if (output_pad_right > 0 || output_pad_bottom > 0)
+        {
+            ncnn::Option opt_pad = opt;
+            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+            output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
+            if (top_blob_bordered_adj.empty())
+                return -100;
+        }
 
-        std::vector<VkMat> crop_bottom_blobs(2);
-        crop_bottom_blobs[0] = top_blob_bordered;
-        crop_bottom_blobs[1] = reference_blob;
-        std::vector<VkMat> crop_top_blobs(1);
-        crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
-        top_blob = crop_top_blobs[0];
+        {
+            VkMat reference_blob;
+            reference_blob.dims = 2;
+            reference_blob.w = top_blob_bordered_adj.w - pad_left - pad_right;
+            reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
+            reference_blob.elempack = 1;
+
+            std::vector<VkMat> crop_bottom_blobs(2);
+            crop_bottom_blobs[0] = top_blob_bordered_adj;
+            crop_bottom_blobs[1] = reference_blob;
+            std::vector<VkMat> crop_top_blobs(1);
+            crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
+            top_blob = crop_top_blobs[0];
+        }
+        if (top_blob.empty())
+            return -100;
+
+        outw = top_blob.w;
+        outh = top_blob.h;
+    }
+    else if (output_w > 0 && output_h > 0)
+    {
+        VkMat top_blob_bordered_adj = top_blob_bordered;
+        if (output_pad_right > 0 || output_pad_bottom > 0)
+        {
+            ncnn::Option opt_pad = opt;
+            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
+            output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
+            if (top_blob_bordered_adj.empty())
+                return -100;
+        }
+
+        int wcut = top_blob_bordered_adj.w - output_w;
+        int hcut = top_blob_bordered_adj.h - output_h;
+
+        VkMat crop_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
+        crop_param_blob.prepare_staging_buffer();
+        int* crop_params = crop_param_blob.mapped();
+
+        if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233)
+        {
+            // onnx padding=SAME_UPPER
+            crop_params[0] = wcut / 2;
+            crop_params[1] = hcut / 2;
+            crop_params[2] = 0;
+            crop_params[3] = top_blob_bordered_adj.w - wcut;
+            crop_params[4] = top_blob_bordered_adj.h - hcut;
+            crop_params[5] = top_blob_bordered_adj.c;
+        }
+        else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
+        {
+            // onnx padding=SAME_LOWER
+            crop_params[0] = wcut - wcut / 2;
+            crop_params[1] = hcut - hcut / 2;
+            crop_params[2] = 0;
+            crop_params[3] = top_blob_bordered_adj.w - wcut;
+            crop_params[4] = top_blob_bordered_adj.h - hcut;
+            crop_params[5] = top_blob_bordered_adj.c;
+        }
+
+        std::vector<VkMat> crop_inputs(2);
+        crop_inputs[0] = top_blob_bordered_adj;
+        crop_inputs[1] = crop_param_blob;
+
+        std::vector<VkMat> crop_outputs(1);
+        output_crop->forward(crop_inputs, crop_outputs, cmd, opt);
+        top_blob = crop_outputs[0];
+        if (top_blob.empty())
+            return -100;
 
         outw = top_blob.w;
         outh = top_blob.h;
     }
     else
     {
-        top_blob = top_blob_bordered;
+        if (output_pad_right > 0 || output_pad_bottom > 0)
+        {
+            output_pad->forward(top_blob_bordered, top_blob, cmd, opt);
+            if (top_blob.empty())
+                return -100;
+        }
+        else
+        {
+            top_blob = top_blob_bordered;
+        }
     }
 
     return 0;

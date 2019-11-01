@@ -3,7 +3,7 @@
 //
 
 
-// Copyright (c) Facebook Inc. and Microsoft Corporation.
+// Copyright (c) ONNX Project Contributors.
 // Licensed under the MIT license.
 
 syntax = "proto2";
@@ -74,7 +74,17 @@ enum Version {
   //    - Added new message OperatorSetIdProto
   //    - Added opset_import in ModelProto
   // - For vendor extensions, added domain in NodeProto
-  IR_VERSION = 0x0000000000000003;
+  IR_VERSION_2017_11_3 = 0x0000000000000003;
+
+  // IR VERSION 4 published on Jan 22, 2019
+  // - Relax constraint that initializers should be a subset of graph inputs
+  // - Add type BFLOAT16
+  IR_VERSION_2019_1_22 = 0x0000000000000004;
+
+  // IR VERSION 5 published on March 18, 2019
+  // - Add message TensorAnnotation.
+  // - Add quantization annotation in GraphProto to map tensor with its scale and zero point quantization parameters.
+  IR_VERSION = 0x0000000000000005;
 }
 
 // Attributes
@@ -235,6 +245,17 @@ message StringStringEntryProto {
   optional string value= 2;
 };
 
+message TensorAnnotation {
+  optional string tensor_name = 1;
+  // <key, value> pairs to annotate tensor specified by <tensor_name> above.
+  // The keys used in the mapping below must be pre-defined in ONNX spec.
+  // For example, for 8-bit linear quantization case, 'SCALE_TENSOR', 'ZERO_POINT_TENSOR' will be pre-defined as
+  // quantization parameter keys.
+  repeated StringStringEntryProto quant_parameter_tensor_names = 2;
+}
+
+
+
 // Graphs
 //
 // A graph defines the computational logic of a model and is comprised of a parameterized 
@@ -250,7 +271,7 @@ message GraphProto {
 
   // A list of named tensor values, used to specify constant inputs of the graph.
   // Each TensorProto entry must have a distinct name (within the list) that
-  // also appears in the input list.
+  // MAY also appear in the input list.
   repeated TensorProto initializer = 5;
 
   // A human-readable documentation for this graph. Markdown is allowed.
@@ -263,6 +284,12 @@ message GraphProto {
   // Information for the values in the graph. The ValueInfoProto.name's
   // must be distinct. It is optional for a value to appear in value_info list.
   repeated ValueInfoProto value_info = 13;
+
+  // This field carries information to indicate the mapping among a tensor and its
+  // quantization parameter tensors. For example:
+  // For tensor 'a', it may have {'SCALE_TENSOR', 'a_scale'} and {'ZERO_POINT_TENSOR', 'a_zero_point'} annotated,
+  // which means, tensor 'a_scale' and tensor 'a_zero_point' are scale and zero point of tensor 'a' in the model.
+  repeated TensorAnnotation quantization_annotation = 14;
 
   // DO NOT USE the following fields, they were deprecated from earlier versions.
   // repeated string input = 3;
@@ -378,6 +405,28 @@ message TensorProto {
   // variable length storage, and may lead to smaller binary footprint.
   // When this field is present, the data_type field MUST NOT be STRING or UNDEFINED
   optional bytes raw_data = 9;
+
+  // Data can be stored inside the protobuf file using type-specific fields or raw_data.
+  // Alternatively, raw bytes data can be stored in an external file, using the external_data field.
+  // external_data stores key-value pairs describing data location. Recognized keys are:
+  // - "location" (required) - POSIX filesystem path relative to the directory where the ONNX
+  //                           protobuf model was stored
+  // - "offset" (optional) - position of byte at which stored data begins. Integer stored as string.
+  //                         Offset values SHOULD be multiples 4096 (page size) to enable mmap support.
+  // - "length" (optional) - number of bytes containing data. Integer stored as string.
+  // - "checksum" (optional) - SHA1 digest of file specified in under 'location' key.
+  repeated StringStringEntryProto external_data = 13;
+
+  // Location of the data for this tensor. MUST be one of:
+  // - DEFAULT - data stored inside the protobuf message. Data is stored in raw_data (if set) otherwise in type-specified field.
+  // - EXTERNAL - data stored in an external location as described by external_data field.
+  enum DataLocation {
+    DEFAULT = 0;
+    EXTERNAL = 1;
+  }
+
+  // If value not set, data is stored in raw_data (if set) otherwise in type-specified field.
+  optional DataLocation data_location = 14;
 
   // For double
   // Complex128 tensors are encoded as a single array of doubles,

@@ -36,20 +36,20 @@ int Clip_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_clip = new Pipeline(vkdev);
         pipeline_clip->set_optimal_local_size_xyz();
-        pipeline_clip->create("clip", specializations, 1, 5);
+        pipeline_clip->create("clip", opt, specializations, 1, 5);
     }
 
     // pack4
     {
         pipeline_clip_pack4 = new Pipeline(vkdev);
         pipeline_clip_pack4->set_optimal_local_size_xyz();
-        pipeline_clip_pack4->create("clip_pack4", specializations, 1, 5);
+        pipeline_clip_pack4->create("clip_pack4", opt, specializations, 1, 5);
     }
 
     return 0;
 }
 
-int Clip_vulkan::destroy_pipeline(const Option& opt)
+int Clip_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_clip;
     pipeline_clip = 0;
@@ -60,9 +60,9 @@ int Clip_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Clip_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int Clip_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
@@ -74,7 +74,7 @@ int Clip_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_clip_pack4 : pipeline_clip;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_clip_pack4 : pipeline_clip;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

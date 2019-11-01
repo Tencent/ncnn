@@ -14,13 +14,70 @@
 
 #include "innerproduct_arm.h"
 
+#include "layer_type.h"
+
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "neon_mathfun.h"
+#include "neon_activation.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(InnerProduct_arm)
+
+InnerProduct_arm::InnerProduct_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+    use_fp32_packing_inference = false;
+#endif // __ARM_NEON
+
+    flatten = 0;
+}
+
+int InnerProduct_arm::create_pipeline(const Option& opt)
+{
+#if __ARM_NEON
+    bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
+
+    use_fp32_packing_inference = opt.use_packing_layout && weight_data_is_float32 && !use_int8_inference;
+
+    if (use_int8_inference)
+    {
+        support_packing = false;
+    }
+
+    if (use_fp32_packing_inference)
+    {
+
+    {
+        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+
+        ncnn::ParamDict pd;
+
+        flatten->load_param(pd);
+
+        flatten->create_pipeline(opt);
+    }
+
+    } // opt.use_packing_layout
+#endif // __ARM_NEON
+
+    return 0;
+}
+
+int InnerProduct_arm::destroy_pipeline(const Option& opt)
+{
+    if (flatten)
+    {
+        flatten->destroy_pipeline(opt);
+        delete flatten;
+        flatten = 0;
+    }
+
+    return 0;
+}
 
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -34,7 +91,39 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
     int size = w * h;
+
+#if __ARM_NEON
+    if (use_fp32_packing_inference)
+    {
+
+    if (elempack == 4)
+    {
+
+    // flatten
+    Mat bottom_blob_flattened = bottom_blob;
+    if (bottom_blob.dims != 1)
+    {
+        ncnn::Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+    }
+
+    // pack1
+    {
+        bottom_blob_flattened.w *= bottom_blob_flattened.elempack;
+        bottom_blob_flattened.elemsize = 4u;
+        bottom_blob_flattened.elempack = 1;
+    }
+
+    return forward(bottom_blob_flattened, top_blob, opt);
+
+    }
+
+    } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
@@ -281,28 +370,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #endif // __aarch64__
 #endif // __ARM_NEON
 
-        if (activation_type == 1)
-        {
-            sum = std::max(sum, 0.f);
-        }
-        else if (activation_type == 2)
-        {
-            float slope = activation_params[0];
-            sum = sum > 0.f ? sum : sum * slope;
-        }
-        else if (activation_type == 3)
-        {
-            float min = activation_params[0];
-            float max = activation_params[1];
-            if (sum < min)
-                sum = min;
-            if (sum > max)
-                sum = max;
-        }
-        else if (activation_type == 4)
-        {
-            sum = 1.f / (1.f + exp(-sum));
-        }
+        sum = activation_ss(sum, activation_type, activation_params);
 
         top_blob[p] = sum;
     }

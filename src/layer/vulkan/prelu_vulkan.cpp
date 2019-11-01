@@ -36,7 +36,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_prelu = new Pipeline(vkdev);
         pipeline_prelu->set_optimal_local_size_xyz(8, 8, num_slope);
-        pipeline_prelu->create("prelu", specializations, 2, 5);
+        pipeline_prelu->create("prelu", opt, specializations, 2, 5);
     }
 
     // pack4
@@ -44,13 +44,13 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_prelu_pack4 = new Pipeline(vkdev);
         pipeline_prelu_pack4->set_optimal_local_size_xyz(8, 8, num_slope / 4);
-        pipeline_prelu_pack4->create("prelu_pack4", specializations, 2, 5);
+        pipeline_prelu_pack4->create("prelu_pack4", opt, specializations, 2, 5);
     }
 
     return 0;
 }
 
-int PReLU_vulkan::destroy_pipeline(const Option& opt)
+int PReLU_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_prelu;
     pipeline_prelu = 0;
@@ -61,26 +61,26 @@ int PReLU_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int PReLU_vulkan::upload_model(VkTransfer& cmd)
+int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (num_slope == 1)
     {
         // dup4 for pack4
         Mat slope_data4(4);
         slope_data4.fill(slope_data[0]);
-        cmd.record_upload(slope_data4, slope_data_gpu);
+        cmd.record_upload(slope_data4, slope_data_gpu, opt);
     }
     else
     {
-        cmd.record_upload(slope_data, slope_data_gpu);
+        cmd.record_upload(slope_data, slope_data_gpu, opt);
     }
 
     return 0;
 }
 
-int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
-    int packing = bottom_top_blob.packing;
+    int elempack = bottom_top_blob.elempack;
 
     std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
@@ -93,7 +93,7 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = packing == 4 ? pipeline_prelu_pack4 : pipeline_prelu;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_prelu_pack4 : pipeline_prelu;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

@@ -36,16 +36,16 @@ static int detect_yolov3(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Net yolov3;
 
 #if NCNN_VULKAN
-    yolov3.use_vulkan_compute = true;
+    yolov3.opt.use_vulkan_compute = true;
 #endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/eric612/MobileNet-YOLO
-    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov3/mobilenet_yolov3_lite_deploy.prototxt
-    // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov3/mobilenet_yolov3_lite_deploy.caffemodel
-    yolov3.load_param("mobilenet_yolov3.param");
-    yolov3.load_model("mobilenet_yolov3.bin");
+    // param : https://drive.google.com/open?id=1V9oKHP6G6XvXZqhZbzNKL6FI_clRWdC-
+    // bin : https://drive.google.com/open?id=1DBcuFCr-856z3FRQznWL_S5h-Aj3RawA
+    yolov3.load_param("mobilenetv2_yolov3.param");
+    yolov3.load_model("mobilenetv2_yolov3.bin");
 
-    const int target_size = 320;
+    const int target_size = 352;
 
     int img_w = bgr.cols;
     int img_h = bgr.rows;

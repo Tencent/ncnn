@@ -73,7 +73,7 @@ void main()
 
     for (int z = 0; z < p.c; z++)
     {
-        sum += afp(weight_data[w_offset]) * afpvec4(bottom_blob_data[v_offset]);
+        sum += sfp2afp(weight_data[w_offset]) * sfp2afpvec4(bottom_blob_data[v_offset]);
 
         w_offset += 1;
         v_offset += p.cstep_4;
@@ -99,5 +99,5 @@ void main()
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
-    top_blob_data[gz * p.outcstep_4 + gx] = sfpvec4(sum);
+    top_blob_data[gz * p.outcstep_4 + gx] = afp2sfpvec4(sum);
 }

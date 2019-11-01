@@ -36,7 +36,7 @@ public:
     int bottom;
     int left;
     int right;
-    int type;// 0=BORDER_CONSTANT 1=BORDER_REPLICATE
+    int type;// 0=CONSTANT 1=REPLICATE 2=REFLECT
     float value;
 };
 

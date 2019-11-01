@@ -55,7 +55,7 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
 
         pipeline_priorbox = new Pipeline(vkdev);
         pipeline_priorbox->set_optimal_local_size_xyz();
-        pipeline_priorbox->create("priorbox", specializations, 4, 6);
+        pipeline_priorbox->create("priorbox", opt, specializations, 4, 6);
     }
 
     // mxnet style
@@ -74,13 +74,13 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
 
         pipeline_priorbox_mxnet = new Pipeline(vkdev);
         pipeline_priorbox_mxnet->set_optimal_local_size_xyz();
-        pipeline_priorbox_mxnet->create("priorbox_mxnet", specializations, 3, 4);
+        pipeline_priorbox_mxnet->create("priorbox_mxnet", opt, specializations, 3, 4);
     }
 
     return 0;
 }
 
-int PriorBox_vulkan::destroy_pipeline(const Option& opt)
+int PriorBox_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_priorbox;
     pipeline_priorbox = 0;
@@ -91,14 +91,14 @@ int PriorBox_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int PriorBox_vulkan::upload_model(VkTransfer& cmd)
+int PriorBox_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    cmd.record_upload(min_sizes, min_sizes_gpu);
+    cmd.record_upload(min_sizes, min_sizes_gpu, opt);
 
     if (max_sizes.w > 0)
-        cmd.record_upload(max_sizes, max_sizes_gpu);
+        cmd.record_upload(max_sizes, max_sizes_gpu, opt);
 
-    cmd.record_upload(aspect_ratios, aspect_ratios_gpu);
+    cmd.record_upload(aspect_ratios, aspect_ratios_gpu, opt);
 
     return 0;
 }
@@ -107,6 +107,12 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
 {
     int w = bottom_blobs[0].w;
     int h = bottom_blobs[0].h;
+    size_t elemsize = 4u;
+
+    if (opt.use_fp16_storage)
+    {
+        elemsize = 2u;
+    }
 
     if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes.empty())
     {
@@ -124,7 +130,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         int num_prior = num_sizes - 1 + num_ratios;
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(4 * w * h * num_prior, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(4 * w * h * num_prior, elemsize, 1, opt.blob_vkallocator, opt.staging_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -172,7 +178,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         num_prior += num_min_size * num_aspect_ratio;
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(4 * w * h * num_prior, 2, 4u, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(4 * w * h * num_prior, 2, elemsize, 1, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 

@@ -107,7 +107,7 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Net fasterrcnn;
 
 #if NCNN_VULKAN
-    fasterrcnn.use_vulkan_compute = true;
+    fasterrcnn.opt.use_vulkan_compute = true;
 #endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/rbgirshick/py-faster-rcnn

@@ -15,16 +15,15 @@
 #ifndef NCNN_MODELBIN_H
 #define NCNN_MODELBIN_H
 
-#include <stdio.h>
 #include "mat.h"
-#include "platform.h"
 
 namespace ncnn {
 
-class Net;
+class DataReader;
 class ModelBin
 {
 public:
+    virtual ~ModelBin();
     // element type
     // 0 = auto
     // 1 = float32
@@ -38,30 +37,15 @@ public:
     virtual Mat load(int w, int h, int c, int type) const;
 };
 
-#if NCNN_STDIO
-class ModelBinFromStdio : public ModelBin
+class ModelBinFromDataReader : public ModelBin
 {
 public:
-    // construct from file
-    ModelBinFromStdio(FILE* binfp);
+    ModelBinFromDataReader(const DataReader& dr);
 
     virtual Mat load(int w, int type) const;
 
 protected:
-    FILE* binfp;
-};
-#endif // NCNN_STDIO
-
-class ModelBinFromMemory : public ModelBin
-{
-public:
-    // construct from external memory
-    ModelBinFromMemory(const unsigned char*& mem);
-
-    virtual Mat load(int w, int type) const;
-
-protected:
-    const unsigned char*& mem;
+    const DataReader& dr;
 };
 
 class ModelBinFromMatArray : public ModelBin

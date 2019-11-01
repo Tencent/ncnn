@@ -70,13 +70,28 @@ void main()
         }
         else
         {
+#if NCNN_fp16_packed
+            uint v = packHalf2x16(vec2(value));
+            top_blob_data[gz * p.outcstep + gy * p.outw + gx] = uvec2(v, v);
+#else
             top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(value);
+#endif
         }
     }
     else if (type == 1)
     {
         x = clamp(x, 0, p.w - 1);
         y = clamp(y, 0, p.h - 1);
+
+        int v_offset = gz * p.cstep + y * p.w + x;
+        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+    }
+    else if (type == 2)
+    {
+        x = abs(x);
+        y = abs(y);
+        x = (p.w - 1) - abs(x - (p.w - 1));
+        y = (p.h - 1) - abs(y - (p.h - 1));
 
         int v_offset = gz * p.cstep + y * p.w + x;
         top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];

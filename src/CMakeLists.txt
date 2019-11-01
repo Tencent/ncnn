@@ -3,10 +3,6 @@
 
 configure_file(platform.h.in ${CMAKE_CURRENT_BINARY_DIR}/platform.h)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/layer)
-
 if(NCNN_VULKAN)
     find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin NO_CMAKE_FIND_ROOT_PATH)
     message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
@@ -17,6 +13,7 @@ set(ncnn_SRCS
     blob.cpp
     command.cpp
     cpu.cpp
+    datareader.cpp
     gpu.cpp
     layer.cpp
     mat.cpp
@@ -25,10 +22,15 @@ set(ncnn_SRCS
     modelbin.cpp
     net.cpp
     opencv.cpp
+    option.cpp
     paramdict.cpp
     pipeline.cpp
     benchmark.cpp
 )
+
+if (ANDROID)
+    list(APPEND ncnn_SRCS mat_pixel_android.cpp)
+endif()
 
 macro(ncnn_add_layer class)
     string(TOLOWER ${class} name)
@@ -87,8 +89,8 @@ macro(ncnn_add_layer class)
     if(WITH_LAYER_${name}_vulkan)
         set(layer_declaration "${layer_declaration}#include \"layer/vulkan/${name}_vulkan.h\"\n")
         set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_vulkan")
-        set(create_pipeline_content "${create_pipeline_content}        if (opt.vulkan_compute) { int ret = ${class}_vulkan::create_pipeline(opt); if (ret) return ret; }\n")
-        set(destroy_pipeline_content "        if (opt.vulkan_compute) { int ret = ${class}_vulkan::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
+        set(create_pipeline_content "${create_pipeline_content}        if (vkdev) { int ret = ${class}_vulkan::create_pipeline(opt); if (ret) return ret; }\n")
+        set(destroy_pipeline_content "        if (vkdev) { int ret = ${class}_vulkan::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
 
         file(GLOB_RECURSE SHADER_SRCS "layer/vulkan/shader/${name}.comp")
         file(GLOB_RECURSE SHADER_SUBSRCS "layer/vulkan/shader/${name}_*.comp")
@@ -100,7 +102,7 @@ macro(ncnn_add_layer class)
             add_custom_command(
                 OUTPUT ${SHADER_SPV_HEX_FILE}
                 COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-                ARGS -Dsfp=float -Dsfpvec2=vec2 -Dsfpvec4=vec4 -Dsfpmat4=mat4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
+                ARGS -Dsfp=float -Dsfpvec2=vec2 -Dsfpvec4=vec4 -Dsfpmat4=mat4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -Dsfp2afp\(v\)=v -Dafp2sfp\(v\)=v -Dsfp2afpvec2\(v\)=v -Dafp2sfpvec2\(v\)=v -Dsfp2afpvec4\(v\)=v -Dafp2sfpvec4\(v\)=v -Dsfp2afpmat4\(v\)=v -Dafp2sfpmat4\(v\)=v -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
                 DEPENDS ${SHADER_SRC}
                 COMMENT "Building SPIR-V module ${SHADER_SRC_NAME_WE}.spv"
                 VERBATIM
@@ -112,6 +114,25 @@ macro(ncnn_add_layer class)
 
             list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEX_FILE})
 
+            # fp16 packed
+            set(SHADER_fp16p_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_fp16p")
+
+            set(SHADER_fp16p_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_fp16p_SRC_NAME_WE}.spv.hex.h)
+            add_custom_command(
+                OUTPUT ${SHADER_fp16p_SPV_HEX_FILE}
+                COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
+                ARGS -Dsfp=float -Dsfpvec2=uint -Dsfpvec4=uvec2 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -Dsfp2afp\(v\)=v -Dafp2sfp\(v\)=v -Dsfp2afpvec2\(v\)=unpackHalf2x16\(v\) -Dafp2sfpvec2\(v\)=packHalf2x16\(v\) -Dsfp2afpvec4\(v\)=vec4\(unpackHalf2x16\(v.x\),unpackHalf2x16\(v.y\)\) -Dafp2sfpvec4\(v\)=uvec2\(packHalf2x16\(v.rg\),packHalf2x16\(v.ba\)\) -DNCNN_fp16_packed=1 -V -s -e ${SHADER_fp16p_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16p_SPV_HEX_FILE} ${SHADER_SRC}
+                DEPENDS ${SHADER_SRC}
+                COMMENT "Building SPIR-V module ${SHADER_fp16p_SRC_NAME_WE}.spv"
+                VERBATIM
+            )
+            set_source_files_properties(${SHADER_fp16p_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+
+            string(APPEND layer_shader_spv_data "static const uint32_t ${SHADER_fp16p_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16p_SRC_NAME_WE}.spv.hex.h\"\n};\n")
+            string(APPEND layer_shader_registry "{\"${SHADER_fp16p_SRC_NAME_WE}\",${SHADER_fp16p_SRC_NAME_WE}_spv_data,sizeof(${SHADER_fp16p_SRC_NAME_WE}_spv_data)},\n")
+
+            list(APPEND SHADER_SPV_HEX_FILES ${SHADER_fp16p_SPV_HEX_FILE})
+
             # fp16 storage
             set(SHADER_fp16s_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_fp16s")
 
@@ -119,7 +140,7 @@ macro(ncnn_add_layer class)
             add_custom_command(
                 OUTPUT ${SHADER_fp16s_SPV_HEX_FILE}
                 COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-                ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -DNCNN_fp16_storage=1 -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
+                ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -Dsfp2afp\(v\)=float\(v\) -Dafp2sfp\(v\)=float16_t\(v\) -Dsfp2afpvec2\(v\)=vec2\(v\) -Dafp2sfpvec2\(v\)=f16vec2\(v\) -Dsfp2afpvec4\(v\)=vec4\(v\) -Dafp2sfpvec4\(v\)=f16vec4\(v\) -DNCNN_fp16_storage=1 -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
                 DEPENDS ${SHADER_SRC}
                 COMMENT "Building SPIR-V module ${SHADER_fp16s_SRC_NAME_WE}.spv"
                 VERBATIM
@@ -138,7 +159,7 @@ macro(ncnn_add_layer class)
             add_custom_command(
                 OUTPUT ${SHADER_fp16a_SPV_HEX_FILE}
                 COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-                ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dsfpmat4=f16mat4 -Dafp=float16_t -Dafpvec2=f16vec2 -Dafpvec4=f16vec4 -Dafpmat4=f16mat4 -DNCNN_fp16_storage=1 -DNCNN_fp16_arithmetic=1 -V -s -e ${SHADER_fp16a_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16a_SPV_HEX_FILE} ${SHADER_SRC}
+                ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dsfpmat4=f16mat4 -Dafp=float16_t -Dafpvec2=f16vec2 -Dafpvec4=f16vec4 -Dafpmat4=f16mat4 -Dsfp2afp\(v\)=v -Dafp2sfp\(v\)=v -Dsfp2afpvec2\(v\)=v -Dafp2sfpvec2\(v\)=v -Dsfp2afpvec4\(v\)=v -Dafp2sfpvec4\(v\)=v -Dsfp2afpmat4\(v\)=v -Dafp2sfpmat4\(v\)=v -DNCNN_fp16_storage=1 -DNCNN_fp16_arithmetic=1 -V -s -e ${SHADER_fp16a_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16a_SPV_HEX_FILE} ${SHADER_SRC}
                 DEPENDS ${SHADER_SRC}
                 COMMENT "Building SPIR-V module ${SHADER_fp16a_SRC_NAME_WE}.spv"
                 VERBATIM
@@ -243,6 +264,10 @@ ncnn_add_layer(ROIAlign OFF)
 ncnn_add_layer(Packing)
 ncnn_add_layer(Requantize)
 ncnn_add_layer(Cast)
+ncnn_add_layer(HardSigmoid)
+ncnn_add_layer(SELU)
+ncnn_add_layer(HardSwish)
+ncnn_add_layer(Noop)
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 
@@ -255,6 +280,87 @@ configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shad
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
+target_include_directories(ncnn
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include/ncnn>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
+
+if(NCNN_OPENMP)
+    find_package(OpenMP)
+    if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
+        target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
+    endif()
+endif()
+
+if(NCNN_VULKAN)
+    find_package(Vulkan REQUIRED)
+    target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
+endif()
+
+if(WIN32)
+    target_compile_definitions(ncnn
+        PUBLIC NOMINMAX)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
+    OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
+    target_compile_definitions(ncnn
+        PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_DEPRECATE)
+else()
+    target_compile_options(ncnn
+        PRIVATE -Wall -Wextra -Wno-unused-function)
+    if(NOT NCNN_DISABLE_PIC)
+        set_target_properties(ncnn
+            PROPERTIES
+                POSITION_INDEPENDENT_CODE ON
+                INTERFACE_POSITION_INDEPENDENT_CODE ON)
+    endif()
+
+    if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
+        if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+            target_compile_options(ncnn PRIVATE -Ofast)
+        endif()
+
+        target_compile_options(ncnn PRIVATE -ffast-math)
+    endif()
+
+    if(PI3)
+        target_compile_options(ncnn
+            PRIVATE -march=native -mfpu=neon -mfloat-abi=hard)
+        target_compile_definitions(ncnn
+            PRIVATE __ARM_NEON __ANDROID__)
+    endif()
+    # target_compile_options(ncnn PRIVATE -march=native)
+    # set_target_properties(ncnn PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
+    target_compile_options(ncnn PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
+endif()
+
+if(NCNN_DISABLE_RTTI)
+    target_compile_options(ncnn PUBLIC -fno-rtti)
+endif()
+
+if(NCNN_DISABLE_EXCEPTION)
+    target_compile_options(ncnn PUBLIC -fno-exceptions)
+endif()
+
+if(ANDROID OR IOS)
+    # disable shared library on android and xcode ios
+    set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
+elseif(NCNN_AVX2)
+    #set up according to your own system environment
+    #Windows
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
+        OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
+        target_compile_options(ncnn PRIVATE /arch:AVX2 /DAVX2)
+    #Linux
+    else()
+        target_compile_options(ncnn PRIVATE -mfma)
+    endif()
+endif()
+
 add_dependencies(ncnn generate-spirv)
 
 if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
@@ -265,24 +371,33 @@ if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
 endif()
 
 if(NCNN_INSTALL_SDK)
-  install(TARGETS ncnn ARCHIVE DESTINATION lib)
-  install(FILES
-    allocator.h
-    blob.h
-    command.h
-    cpu.h
-    gpu.h
-    layer.h
-    layer_type.h
-    mat.h
-    modelbin.h
-    net.h
-    opencv.h
-    paramdict.h
-    pipeline.h
-    benchmark.h
-    ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
-    ${CMAKE_CURRENT_BINARY_DIR}/platform.h
-    DESTINATION include
-  )
+    install(TARGETS ncnn EXPORT ncnn ARCHIVE DESTINATION lib)
+    install(FILES
+        allocator.h
+        blob.h
+        command.h
+        cpu.h
+        gpu.h
+        layer.h
+        layer_type.h
+        mat.h
+        modelbin.h
+        net.h
+        opencv.h
+        option.h
+        paramdict.h
+        pipeline.h
+        benchmark.h
+        ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
+        ${CMAKE_CURRENT_BINARY_DIR}/platform.h
+        DESTINATION include/ncnn
+    )
+    install(EXPORT ncnn
+        DESTINATION lib/cmake/ncnn)
+    configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in
+        ncnnConfig.cmake
+        @ONLY)
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake
+        DESTINATION lib/cmake/ncnn)
 endif()

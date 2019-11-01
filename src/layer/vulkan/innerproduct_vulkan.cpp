@@ -59,7 +59,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct = new Pipeline(vkdev);
         pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
-        pipeline_innerproduct->create("innerproduct", specializations, 4, 10);
+        pipeline_innerproduct->create("innerproduct", opt, specializations, 4, 10);
     }
 
     // pack4
@@ -67,12 +67,12 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
-        pipeline_innerproduct_pack4->create("innerproduct_pack4", specializations, 4, 10);
+        pipeline_innerproduct_pack4->create("innerproduct_pack4", opt, specializations, 4, 10);
 
         {
             pipeline_innerproduct_pack4_lds_64 = new Pipeline(vkdev);
             pipeline_innerproduct_pack4_lds_64->set_local_size_xyz(64, 1, 1);
-            pipeline_innerproduct_pack4_lds_64->create("innerproduct_pack4_lds_64", specializations, 4, 10);
+            pipeline_innerproduct_pack4_lds_64->create("innerproduct_pack4_lds_64", opt, specializations, 4, 10);
         }
     }
 
@@ -81,7 +81,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack1to4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack1to4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
-        pipeline_innerproduct_pack1to4->create("innerproduct_pack1to4", specializations, 4, 10);
+        pipeline_innerproduct_pack1to4->create("innerproduct_pack1to4", opt, specializations, 4, 10);
     }
 
     // pack4to1
@@ -89,7 +89,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack4to1 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(num_output, 1, 1);
-        pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", specializations, 4, 10);
+        pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", opt, specializations, 4, 10);
     }
 
     return 0;
@@ -122,14 +122,14 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
+int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     int num_input = weight_data_size / num_output;
 
     // pack1
     if (num_input % 4 != 0 && num_output % 4 != 0)
     {
-        cmd.record_upload(weight_data, weight_data_gpu);
+        cmd.record_upload(weight_data, weight_data_gpu, opt);
     }
 
     // pack4
@@ -141,7 +141,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-            weight_data_pack4.create(16, num_input/4, num_output/4);
+            weight_data_pack4.create(num_input/4, num_output/4, (size_t)4*16, 16);
 
             for (int q=0; q+3<num_output; q+=4)
             {
@@ -150,7 +150,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
                 const float* k2 = weight_data_r2.row(q+2);
                 const float* k3 = weight_data_r2.row(q+3);
 
-                float* g00 = weight_data_pack4.channel(q/4);
+                float* g00 = weight_data_pack4.row(q/4);
 
                 for (int p=0; p+3<num_input; p+=4)
                 {
@@ -183,8 +183,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4 = weight_data_pack4.reshape(16 * (num_input/4) * (num_output/4));
-        cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4);
+        cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4, opt);
     }
 
     // pack1to4
@@ -196,7 +195,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-            weight_data_pack1to4.create(4, num_input, num_output/4);
+            weight_data_pack1to4.create(num_input, num_output/4, (size_t)4*4, 4);
 
             for (int q=0; q+3<num_output; q+=4)
             {
@@ -205,7 +204,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
                 const float* k2 = weight_data_r2.row(q+2);
                 const float* k3 = weight_data_r2.row(q+3);
 
-                float* g00 = weight_data_pack1to4.channel(q/4);
+                float* g00 = weight_data_pack1to4.row(q/4);
 
                 for (int p=0; p<num_input; p++)
                 {
@@ -219,8 +218,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack1to4 = weight_data_pack1to4.reshape(4 * num_input * (num_output/4));
-        cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4);
+        cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4, opt);
     }
 
     // pack4to1
@@ -232,13 +230,13 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
         {
             Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-            weight_data_pack4to1.create(4, num_input/4, num_output);
+            weight_data_pack4to1.create(num_input/4, num_output, (size_t)4*4, 4);
 
             for (int q=0; q<num_output; q++)
             {
                 const float* k0 = weight_data_r2.row(q);
 
-                float* g00 = weight_data_pack4to1.channel(q);
+                float* g00 = weight_data_pack4to1.row(q);
 
                 for (int p=0; p+3<num_input; p+=4)
                 {
@@ -253,22 +251,21 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
             }
         }
 
-        weight_data_pack4to1 = weight_data_pack4to1.reshape(4 * (num_input/4) * num_output);
-        cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1);
+        cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1, opt);
     }
 
     if (bias_term)
     {
         if (num_output % 4 != 0)
         {
-            cmd.record_upload(bias_data, bias_data_gpu);
+            cmd.record_upload(bias_data, bias_data_gpu, opt);
         }
 
         if (num_output % 4 == 0)
         {
             Mat bias_data_pack4;
             convert_packing(bias_data, bias_data_pack4, 4);
-            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4);
+            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4, opt);
         }
     }
 
@@ -277,9 +274,8 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd)
 
 int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     // flatten
     VkMat bottom_blob_flattened = bottom_blob;
@@ -290,32 +286,38 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
         flatten->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
     }
 
-    int out_packing = num_output % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / packing * out_packing;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    top_blob.create(num_output / out_packing, out_elemsize, out_packing, opt.blob_vkallocator, opt.staging_vkallocator);
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+
+    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     if (top_blob.empty())
         return -100;
 
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob_flattened;
     bindings[1] = top_blob;
-    if (packing == 1 && out_packing == 1)
+    if (elempack == 1 && out_elempack == 1)
     {
         bindings[2] = weight_data_gpu;
         bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
     }
-    else if (packing == 4 && out_packing == 4)
+    else if (elempack == 4 && out_elempack == 4)
     {
         bindings[2] = weight_data_gpu_pack4;
         bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
     }
-    else if (packing == 1 && out_packing == 4)
+    else if (elempack == 1 && out_elempack == 4)
     {
         bindings[2] = weight_data_gpu_pack1to4;
         bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
     }
-    else if (packing == 4 && out_packing == 1)
+    else if (elempack == 4 && out_elempack == 1)
     {
         bindings[2] = weight_data_gpu_pack4to1;
         bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
@@ -334,21 +336,21 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     constants[9].i = top_blob.cstep;
 
     const Pipeline* pipeline = 0;
-    if (packing == 1 && out_packing == 1)
+    if (elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_innerproduct;
     }
-    else if (packing == 4 && out_packing == 4)
+    else if (elempack == 4 && out_elempack == 4)
     {
         pipeline = pipeline_innerproduct_pack4;
 
         pipeline = pipeline_innerproduct_pack4_lds_64;
     }
-    else if (packing == 1 && out_packing == 4)
+    else if (elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_innerproduct_pack1to4;
     }
-    else if (packing == 4 && out_packing == 1)
+    else if (elempack == 4 && out_elempack == 1)
     {
         pipeline = pipeline_innerproduct_pack4to1;
     }

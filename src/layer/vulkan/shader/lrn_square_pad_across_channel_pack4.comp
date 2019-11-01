@@ -65,7 +65,7 @@ void main()
     if (z >= 0 && z < p.c)
     {
         int v_offset = z * p.cstep + gy * p.w + gx;
-        afpvec4 v4 = afpvec4(bottom_blob_data[v_offset]);
+        afpvec4 v4 = sfp2afpvec4(bottom_blob_data[v_offset]);
 
         int lane = (gz - pad_head) % 4;
 
@@ -83,5 +83,5 @@ void main()
         res = afp(0.f);
     }
 
-    square_workspace_data[gz * p.outcstep + gy * p.outw + gx] = sfp(res);
+    square_workspace_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfp(res);
 }

@@ -66,7 +66,7 @@ void main()
     if (x >= 0 && x < p.w && y >= 0 && y < p.h)
     {
         int v_offset = gz * p.cstep + y * p.w + x;
-        afpvec4 v = afpvec4(bottom_blob_data[v_offset]);
+        afpvec4 v = sfp2afpvec4(bottom_blob_data[v_offset]);
         res = v * v;
     }
     else
@@ -74,5 +74,5 @@ void main()
         res = afpvec4(0.f);
     }
 
-    square_workspace_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(res);
+    square_workspace_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfpvec4(res);
 }

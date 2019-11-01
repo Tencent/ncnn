@@ -20,58 +20,23 @@
 #include <algorithm>
 #include "cpu.h"
 
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Woverloaded-virtual"
+#endif
 #include "layer_declaration.h"
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
 
 namespace ncnn {
-
-Option::Option()
-{
-    lightmode = true;
-    num_threads = get_cpu_count();
-    blob_allocator = 0;
-    workspace_allocator = 0;
-
-    vulkan_compute = false;
-
-#if NCNN_VULKAN
-    blob_vkallocator = 0;
-    workspace_vkallocator = 0;
-    staging_vkallocator = 0;
-#endif // NCNN_VULKAN
-
-    use_winograd_convolution = 1;
-    use_sgemm_convolution = 1;
-    use_int8_inference = 1;
-}
-
-static Option g_default_option;
-
-const Option& get_default_option()
-{
-    return g_default_option;
-}
-
-int set_default_option(const Option& opt)
-{
-    if (opt.num_threads <= 0)
-    {
-        fprintf(stderr, "invalid option num_threads %d\n", opt.num_threads);
-        return -1;
-    }
-
-    g_default_option = opt;
-
-    return 0;
-}
 
 Layer::Layer()
 {
     one_blob_only = false;
     support_inplace = false;
     support_vulkan = false;
+    support_packing = false;
 
 #if NCNN_VULKAN
     vkdev = 0;
@@ -141,7 +106,7 @@ int Layer::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) cons
 }
 
 #if NCNN_VULKAN
-int Layer::upload_model(VkTransfer& /*cmd*/)
+int Layer::upload_model(VkTransfer& /*cmd*/, const Option& /*opt*/)
 {
     return 0;
 }

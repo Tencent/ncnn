@@ -39,4 +39,4 @@ InnerProduct     fc7              1 1 fc6_drop6 fc7 0=4096 1=1 2=16777216
 ReLU             relu7            1 1 fc7 fc7_relu7
 Dropout          drop7            1 1 fc7_relu7 fc7_drop7
 InnerProduct     fc8              1 1 fc7_drop7 fc8 0=1000 1=1 2=4096000
-Softmax          prob             1 1 fc8 prob 0=0
+Softmax          prob             1 1 fc8 output 0=0

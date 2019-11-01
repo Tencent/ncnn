@@ -49,38 +49,24 @@ void main()
 
     if (p.dims == 1)
     {
-        afpvec4 v = afpvec4(bottom_top_blob_data[gx]);
-
-        v = afpvec4(b_data[gx]) * v + afpvec4(a_data[gx]);
-
-        bottom_top_blob_data[gx] = sfpvec4(v);
-
+        afpvec4 v = sfp2afpvec4(b_data[gx]) * sfp2afpvec4(bottom_top_blob_data[gx]) + sfp2afpvec4(a_data[gx]);
+        bottom_top_blob_data[gx] = afp2sfpvec4(v);
         return;
     }
 
     if (p.dims == 2)
     {
         const int gi = gy * p.w + gx;
-
-        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
-
-        v = afpvec4(b_data[gy]) * v + afpvec4(a_data[gy]);
-
-        bottom_top_blob_data[gi] = sfpvec4(v);
-
+        afpvec4 v = sfp2afpvec4(b_data[gy]) * sfp2afpvec4(bottom_top_blob_data[gi]) + sfp2afpvec4(a_data[gy]);
+        bottom_top_blob_data[gi] = afp2sfpvec4(v);
         return;
     }
 
     if (p.dims == 3)
     {
         const int gi = gz * p.cstep + gy * p.w + gx;
-
-        afpvec4 v = afpvec4(bottom_top_blob_data[gi]);
-
-        v = afpvec4(b_data[gz]) * v + afpvec4(a_data[gz]);
-
-        bottom_top_blob_data[gi] = sfpvec4(v);
-
+        afpvec4 v = sfp2afpvec4(b_data[gz]) * sfp2afpvec4(bottom_top_blob_data[gi]) + sfp2afpvec4(a_data[gz]);
+        bottom_top_blob_data[gi] = afp2sfpvec4(v);
         return;
     }
 }

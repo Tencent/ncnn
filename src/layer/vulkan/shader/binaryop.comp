@@ -65,12 +65,13 @@ void main()
 
     const int gi = gz * p.outcstep + gy * p.outw + gx;
 
-    afp v1 = afp(a_blob_data[gi]);
+    afp v1 = sfp2afp(a_blob_data[gi]);
 
     afp res;
 
     if (with_scalar == 1)
     {
+        // type 5 10 15
         afp b = afp(const_b);
 
         if (op_type == 0) res = v1 + b;
@@ -83,14 +84,12 @@ void main()
         if (op_type == 7) res = b - v1;
         if (op_type == 8) res = b / v1;
 
-        a_blob_data[gi] = sfp(res);
-
-        return;
+        a_blob_data[gi] = afp2sfp(res);
     }
-
-    if (p.adims == p.bdims)
+    else
     {
-        afp v2 = afp(b_blob_data[gi]);
+        // type 7 13 19
+        afp v2 = sfp2afp(b_blob_data[gi]);
 
         if (op_type == 0) res = v1 + v2;
         if (op_type == 1) res = v1 - v2;
@@ -102,10 +101,6 @@ void main()
         if (op_type == 7) res = v2 - v1;
         if (op_type == 8) res = v2 / v1;
 
-        top_blob_data[gi] = sfp(res);
-
-        return;
+        top_blob_data[gi] = afp2sfp(res);
     }
-
-    // TODO broadcast
 }

@@ -17,16 +17,22 @@
 
 #include <stdio.h>
 #include <vector>
+#include "platform.h"
 #include "blob.h"
 #include "layer.h"
 #include "mat.h"
-#include "platform.h"
+#include "option.h"
+
+#if __ANDROID_API__ >= 9
+#include <android/asset_manager.h>
+#endif // __ANDROID_API__ >= 9
 
 namespace ncnn {
 
 #if NCNN_VULKAN
 class VkCompute;
 #endif // NCNN_VULKAN
+class DataReader;
 class Extractor;
 class Net
 {
@@ -36,6 +42,20 @@ public:
     // clear and destroy
     ~Net();
 
+public:
+    // option can be changed before loading
+    Option opt;
+
+#if NCNN_VULKAN
+    // set gpu device by index
+    void set_vulkan_device(int device_index);
+
+    // set gpu device by device handle, no owner transfer
+    void set_vulkan_device(const VulkanDevice* vkdev);
+
+    const VulkanDevice* vulkan_device() const;
+#endif // NCNN_VULKAN
+
 #if NCNN_STRING
     // register custom layer by layer type name
     // return 0 if success
@@ -44,6 +64,12 @@ public:
     // register custom layer by layer type
     // return 0 if success
     int register_custom_layer(int index, layer_creator_func creator);
+
+    int load_param(const DataReader& dr);
+
+    int load_param_bin(const DataReader& dr);
+
+    int load_model(const DataReader& dr);
 
 #if NCNN_STDIO
 #if NCNN_STRING
@@ -76,44 +102,31 @@ public:
     // return bytes consumed
     int load_model(const unsigned char* mem);
 
+#if __ANDROID_API__ >= 9
+#if NCNN_STRING
+    // convenient load network structure from android asset plain param file
+    int load_param(AAsset* asset);
+    int load_param(AAssetManager* mgr, const char* assetpath);
+#endif // NCNN_STRING
+    // convenient load network structure from android asset binary param file
+    int load_param_bin(AAsset* asset);
+    int load_param_bin(AAssetManager* mgr, const char* assetpath);
+
+    // convenient load network weight data from android asset model file
+    int load_model(AAsset* asset);
+    int load_model(AAssetManager* mgr, const char* assetpath);
+#endif // __ANDROID_API__ >= 9
+
     // unload network structure and weight data
     void clear();
 
     // construct an Extractor from network
     Extractor create_extractor() const;
 
-public:
-    // enable winograd convolution optimization
-    // improve convolution 3x3 stride1 performace, may consume more memory
-    // changes should be applied before loading network structure and weight
-    // enabled by default
-    int use_winograd_convolution;
-
-    // enable sgemm convolution optimization
-    // improve convolution 1x1 stride1 performace, may consume more memory
-    // changes should be applied before loading network structure and weight
-    // enabled by default
-    int use_sgemm_convolution;
-
-    // enable quantized int8 inference
-    // use low-precision int8 path for quantized model
-    // changes should be applied before loading network structure and weight
-    // enabled by default
-    int use_int8_inference;
-
-    // enable vulkan compute
-    int use_vulkan_compute;
-
-#if NCNN_VULKAN
-
-    void set_vulkan_device(const VulkanDevice* vkdev);
-
-#endif // NCNN_VULKAN
-
 protected:
     // parse the structure of network
     // fuse int8 op dequantize and quantize by requantize
-    void fuse_network();
+    int fuse_network();
 
 #if NCNN_VULKAN
 
@@ -147,7 +160,6 @@ protected:
 
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
-    const VulkanDevice* vkdev_local;
 
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
