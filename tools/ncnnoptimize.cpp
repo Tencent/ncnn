@@ -445,7 +445,7 @@ int NetOptimize::fuse_convolution_batchnorm()
                     conv_weight_outch[j] *= b[i];
                 }
 
-                bias[i] += a[i];
+                bias[i] = bias[i] * b[i] + a[i];
             }
         }
 
@@ -528,7 +528,7 @@ int NetOptimize::fuse_convolutiondepthwise_batchnorm()
                     conv_weight_outch[j] *= b[i];
                 }
 
-                bias[i] += a[i];
+                bias[i] = bias[i] * b[i] + a[i];
             }
         }
 
@@ -611,7 +611,7 @@ int NetOptimize::fuse_deconvolution_batchnorm()
                     conv_weight_outch[j] *= b[i];
                 }
 
-                bias[i] += a[i];
+                bias[i] = bias[i] * b[i] + a[i];
             }
         }
 
@@ -694,7 +694,7 @@ int NetOptimize::fuse_deconvolutiondepthwise_batchnorm()
                     conv_weight_outch[j] *= b[i];
                 }
 
-                bias[i] += a[i];
+                bias[i] = bias[i] * b[i] + a[i];
             }
         }
 
@@ -777,7 +777,7 @@ int NetOptimize::fuse_innerproduct_batchnorm()
                     conv_weight_outch[j] *= b[i];
                 }
 
-                bias[i] += a[i];
+                bias[i] = bias[i] * b[i] + a[i];
             }
         }
 

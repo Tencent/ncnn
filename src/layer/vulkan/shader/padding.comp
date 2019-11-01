@@ -70,7 +70,12 @@ void main()
         }
         else
         {
+#if NCNN_fp16_storage
+            float value_fp32 = value;
+            top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(value_fp32);
+#else
             top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(value);
+#endif
         }
     }
     else if (type == 1)

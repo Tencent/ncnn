@@ -103,6 +103,15 @@ void main()
 #endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
     top_blob_data[var_offset] = variances;
+#elif NCNN_fp16_storage
+    float variances_0_fp32 = variances_0;
+    float variances_1_fp32 = variances_1;
+    float variances_2_fp32 = variances_2;
+    float variances_3_fp32 = variances_3;
+    top_blob_data[var_offset].r = sfp(variances_0_fp32);
+    top_blob_data[var_offset].g = sfp(variances_1_fp32);
+    top_blob_data[var_offset].b = sfp(variances_2_fp32);
+    top_blob_data[var_offset].a = sfp(variances_3_fp32);
 #else
     top_blob_data[var_offset].r = sfp(variances_0);
     top_blob_data[var_offset].g = sfp(variances_1);
@@ -130,6 +139,15 @@ void main()
 #endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
         top_blob_data[var_offset] = variances;
+#elif NCNN_fp16_storage
+        float variances_0_fp32 = variances_0;
+        float variances_1_fp32 = variances_1;
+        float variances_2_fp32 = variances_2;
+        float variances_3_fp32 = variances_3;
+        top_blob_data[var_offset].r = sfp(variances_0_fp32);
+        top_blob_data[var_offset].g = sfp(variances_1_fp32);
+        top_blob_data[var_offset].b = sfp(variances_2_fp32);
+        top_blob_data[var_offset].a = sfp(variances_3_fp32);
 #else
         top_blob_data[var_offset].r = sfp(variances_0);
         top_blob_data[var_offset].g = sfp(variances_1);
@@ -158,6 +176,15 @@ void main()
 #endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
         top_blob_data[var_offset] = variances;
+#elif NCNN_fp16_storage
+        float variances_0_fp32 = variances_0;
+        float variances_1_fp32 = variances_1;
+        float variances_2_fp32 = variances_2;
+        float variances_3_fp32 = variances_3;
+        top_blob_data[var_offset].r = sfp(variances_0_fp32);
+        top_blob_data[var_offset].g = sfp(variances_1_fp32);
+        top_blob_data[var_offset].b = sfp(variances_2_fp32);
+        top_blob_data[var_offset].a = sfp(variances_3_fp32);
 #else
         top_blob_data[var_offset].r = sfp(variances_0);
         top_blob_data[var_offset].g = sfp(variances_1);
@@ -180,6 +207,15 @@ void main()
 #endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
             top_blob_data[var_offset] = variances;
+#elif NCNN_fp16_storage
+            float variances_0_fp32 = variances_0;
+            float variances_1_fp32 = variances_1;
+            float variances_2_fp32 = variances_2;
+            float variances_3_fp32 = variances_3;
+            top_blob_data[var_offset].r = sfp(variances_0_fp32);
+            top_blob_data[var_offset].g = sfp(variances_1_fp32);
+            top_blob_data[var_offset].b = sfp(variances_2_fp32);
+            top_blob_data[var_offset].a = sfp(variances_3_fp32);
 #else
             top_blob_data[var_offset].r = sfp(variances_0);
             top_blob_data[var_offset].g = sfp(variances_1);

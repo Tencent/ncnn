@@ -300,18 +300,24 @@ if(NCNN_VULKAN)
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
 endif()
 
+if(WIN32)
+    target_compile_definitions(ncnn
+        PUBLIC NOMINMAX)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
     OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
     target_compile_definitions(ncnn
-        PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_DEPRECATE
-        PUBLIC NOMINMAX)
+        PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_DEPRECATE)
 else()
     target_compile_options(ncnn
         PRIVATE -Wall -Wextra -Wno-unused-function)
-    set_target_properties(ncnn
-        PROPERTIES
-            POSITION_INDEPENDENT_CODE ON
-            INTERFACE_POSITION_INDEPENDENT_CODE ON)
+    if(NOT NCNN_DISABLE_PIC)
+        set_target_properties(ncnn
+            PROPERTIES
+                POSITION_INDEPENDENT_CODE ON
+                INTERFACE_POSITION_INDEPENDENT_CODE ON)
+    endif()
 
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
         if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
