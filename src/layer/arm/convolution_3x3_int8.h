@@ -1072,7 +1072,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
         { -4,    4,   -4},
         {  1,    2,    4},
         {  1,   -2,    4},
-        {  0,    0,   24}
+        {  0,    0,    6}
     };    
 
     #pragma omp parallel for
