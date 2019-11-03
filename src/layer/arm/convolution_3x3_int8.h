@@ -2112,8 +2112,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     int32x4_t _wt2 = vtrn1q_s32(_t1p2, _w3);
                     int32x4_t _wt3 = vtrn2q_s32(_t1p2, _w3);
                     int64x2_t _dt0 = vtrn1q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
-                    int64x2_t _dt1 = vtrn2q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
-                    int64x2_t _dt2 = vtrn1q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
+                    int64x2_t _dt2 = vtrn2q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
+                    int64x2_t _dt1 = vtrn1q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
                     int64x2_t _dt3 = vtrn2q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
                     _d0 = vreinterpretq_s32_s64(_dt0);
                     _d1 = vreinterpretq_s32_s64(_dt1);
@@ -2130,7 +2130,7 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "vtrn.32    %q[_w02n], %q[_w13n]    \n"
                         : [_w0]"+w"(_w0),
                           [_w1]"+w"(_t1s2),
-                          [_w1]"+w"(_t1p2),
+                          [_w2]"+w"(_t1p2),
                           [_w3]"+w"(_w3),
                           [_w02n]"+w"(_w02n),
                           [_w13n]"+w"(_w13n)
@@ -3137,8 +3137,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                     int32x4_t _wt2 = vtrn1q_s32(_t1p2, _w3);
                     int32x4_t _wt3 = vtrn2q_s32(_t1p2, _w3);
                     int64x2_t _dt0 = vtrn1q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
-                    int64x2_t _dt1 = vtrn2q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
-                    int64x2_t _dt2 = vtrn1q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
+                    int64x2_t _dt2 = vtrn2q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
+                    int64x2_t _dt1 = vtrn1q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
                     int64x2_t _dt3 = vtrn2q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
                     _d0 = vreinterpretq_s32_s64(_dt0);
                     _d1 = vreinterpretq_s32_s64(_dt1);
@@ -3155,7 +3155,7 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                         "vtrn.32    %q[_w02n], %q[_w13n]    \n"
                         : [_w0]"+w"(_w0),
                           [_w1]"+w"(_t1s2),
-                          [_w1]"+w"(_t1p2),
+                          [_w2]"+w"(_t1p2),
                           [_w3]"+w"(_w3),
                           [_w02n]"+w"(_w02n),
                           [_w13n]"+w"(_w13n)
