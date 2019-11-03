@@ -2091,8 +2091,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     _t1p2n = vmla_lane_s32 (_t1p2n, _t3p4n, _tp0, 1);
                     _t1p2n = vmul_s32(_t1p2n, _tp0);
 
-                    _w3  = vaddq_s32(_s5, _t1s2);
-                    _w3n = vadd_s32 (_s5n, _t1s2n);
+                    _w3  = vaddq_s32(_s5x4, _t1s2);
+                    _w3n = vadd_s32 (_s5x4n, _t1s2n);
                     _w3  = vmlaq_lane_s32(_w3, _t3s4, _tp1, 1);
                     _w3n = vmla_lane_s32 (_w3n, _t3s4n, _tp1, 1);
                     _w3n = vmul_s32(_w3n, _tp0);
@@ -2102,27 +2102,48 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     _t1s2n = vmla_lane_s32 (_t1s2n, _t3s4n, _tp1, 0);
                     _t1s2n = vmul_s32(_t1s2n, _tp0);
 
+                    int32x4_t _w02n = vcombine_s32(_w0n, _t1p2n);
+                    int32x4_t _w13n = vcombine_s32(_t1s2n, _w3n);
+
                     // transpose w to w_t
+#if __aarch64__
                     int32x4_t _wt0 = vtrn1q_s32(_w0, _t1s2);
                     int32x4_t _wt1 = vtrn2q_s32(_w0, _t1s2);
                     int32x4_t _wt2 = vtrn1q_s32(_t1p2, _w3);
                     int32x4_t _wt3 = vtrn2q_s32(_t1p2, _w3);
-                    int64x2_t _d0t = vtrn1q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
-                    int64x2_t _d2t = vtrn2q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
-                    int64x2_t _d1t = vtrn1q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
-                    int64x2_t _d3t = vtrn2q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
-                    _d0 = vreinterpretq_s32_s64(_d0t);
-                    _d1 = vreinterpretq_s32_s64(_d1t);
-                    _d2 = vreinterpretq_s32_s64(_d2t);
-                    _d3 = vreinterpretq_s32_s64(_d3t);
-
-                    int32x2_t _wt0n = vtrn1_s32(_w0n, _t1s2n);
-                    int32x2_t _wt1n = vtrn2_s32(_w0n, _t1s2n);
-                    int32x2_t _wt2n = vtrn1_s32(_t1p2n, _w3n);
-                    int32x2_t _wt3n = vtrn2_s32(_t1p2n, _w3n);
-                    _d4 = vcombine_s32(_wt0n, _wt2n);
-                    _d5 = vcombine_s32(_wt1n, _wt3n);
-
+                    int64x2_t _dt0 = vtrn1q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
+                    int64x2_t _dt1 = vtrn2q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
+                    int64x2_t _dt2 = vtrn1q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
+                    int64x2_t _dt3 = vtrn2q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
+                    _d0 = vreinterpretq_s32_s64(_dt0);
+                    _d1 = vreinterpretq_s32_s64(_dt1);
+                    _d2 = vreinterpretq_s32_s64(_dt2);
+                    _d3 = vreinterpretq_s32_s64(_dt3);
+                    _d4 = vtrn1q_s32(_w02n, _w13n);
+                    _d5 = vtrn2q_s32(_w02n, _w13n);
+#else
+                    asm volatile(
+                        "vtrn.32    %q[_w0], %q[_w1]        \n"
+                        "vtrn.32    %q[_w2], %q[_w3]        \n"
+                        "vswp       %f[_w0], %e[_w2]        \n"
+                        "vswp       %f[_w1], %e[_w3]        \n"
+                        "vtrn.32    %q[_w02n], %q[_w13n]    \n"
+                        : [_w0]"+w"(_w0),
+                          [_w1]"+w"(_t1s2),
+                          [_w1]"+w"(_t1p2),
+                          [_w3]"+w"(_w3),
+                          [_w02n]"+w"(_w02n),
+                          [_w13n]"+w"(_w13n)
+                        :
+                        : "cc", "memory"
+                    );
+                    _d0 = _w0;
+                    _d1 = _t1s2;
+                    _d2 = _t1p2;
+                    _d3 = _w3;
+                    _d4 = _w02n;
+                    _d5 = _w13n;
+#endif
                     // Y = A_T * w_t
                     _t1p2  = vaddq_s32(_d1,  _d2);
                     _t3p4  = vaddq_s32(_d3,  _d4);         
@@ -2142,13 +2163,25 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     _t1s2 = vmlaq_lane_s32(_t1s2, _t3s4, _tp1, 0);
 
                     // save to top blob tm
-                    for (int n = 0; n < 4; n++)
-                    {
-                        outRow0[n] = _o0[n]   / 576;
-                        outRow1[n] = _t1s2[n] / 576;
-                        outRow2[n] = _t1p2[n] / 576;
-                        outRow3[n] = _o3[n]   / 576;
-                    }
+                    float32x4_t _ot0 = vcvtq_f32_s32(_o0);
+                    float32x4_t _ot1 = vcvtq_f32_s32(_t1s2);
+                    float32x4_t _ot2 = vcvtq_f32_s32(_t1p2);
+                    float32x4_t _ot3 = vcvtq_f32_s32(_o3);
+
+                    _ot0 = vmulq_n_f32(_ot0, 0.0017361112);
+                    _ot1 = vmulq_n_f32(_ot1, 0.0017361112);
+                    _ot2 = vmulq_n_f32(_ot2, 0.0017361112);
+                    _ot3 = vmulq_n_f32(_ot3, 0.0017361112);
+
+                    _o0 = vcvtq_s32_f32(_ot0);
+                    _o1 = vcvtq_s32_f32(_ot1);
+                    _o2 = vcvtq_s32_f32(_ot2);
+                    _o3 = vcvtq_s32_f32(_ot3);
+
+                    vst1q_s32(outRow0, _o0);
+                    vst1q_s32(outRow1, _o1);
+                    vst1q_s32(outRow2, _o2);
+                    vst1q_s32(outRow3, _o3);
 #else
                     int s0[6],s1[6],s2[6],s3[6],s4[6],s5[6];
                     int w0[6],w1[6],w2[6],w3[6];
