@@ -1072,7 +1072,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
         { -4,    4,   -4},
         {  1,    2,    4},
         {  1,   -2,    4},
-        {  0,    0,   24}
+        {  0,    0,    6}
     };    
 
     #pragma omp parallel for
@@ -2064,76 +2064,124 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     _s5 = vld1q_s32(out_tile+30);
                     _s5n = vld1_s32(out_tile+34);
                     // w = A_T * W
-                    int32x2_t _tp0 = {-1, 2};
-                    int32x2_t _tp1 = {-2, 4};
-                    int32x2_t _tp2 = {8, -8};
+                    int32x2_t _tp0 = {1, 4};
+                    int32x2_t _tp1 = {2, 8};
+                    
+                    // 4*s5[n]
+                    int32x4_t _s5x4  = vshlq_n_s32(_s5, 2);
+                    int32x2_t _s5x4n = vshl_n_s32(_s5n, 2);
+                    
+                    int32x4_t _t1p2  = vaddq_s32(_s1,  _s2);
+                    int32x2_t _t1p2n = vadd_s32 (_s1n, _s2n);
+                    int32x4_t _t3p4  = vaddq_s32(_s3,  _s4);
+                    int32x2_t _t3p4n = vadd_s32 (_s3n, _s4n);          
+                    int32x4_t _t1s2  = vsubq_s32(_s1,  _s2);
+                    int32x2_t _t1s2n = vsub_s32 (_s1n, _s2n);
+                    int32x4_t _t3s4  = vsubq_s32(_s3,  _s4);
+                    int32x2_t _t3s4n = vsub_s32 (_s3n, _s4n);    
 
-                    _w0 = vaddq_s32(_s0, _s1);
-                    _w0n = vadd_s32(_s0n, _s1n);
-                    _w0 = vaddq_s32(_w0, _s2);
-                    _w0n = vadd_s32(_w0n, _s2n);
-                    _w0 = vaddq_s32(_w0, _s3);
-                    _w0n = vadd_s32(_w0n, _s3n);
-                    _w0 = vaddq_s32(_w0, _s4);
-                    _w0n = vadd_s32(_w0n, _s4n);
+                    _w0  = vaddq_s32(_s0, _t1p2);
+                    _w0n = vadd_s32 (_s0n, _t1p2n);
+                    _w0  = vaddq_s32(_w0, _t3p4);
+                    _w0n = vadd_s32 (_w0n, _t3p4n);
+                    _w0n = vmul_s32(_w0n, _tp0);
 
-                    _w1 = vsubq_s32(_s1, _s2);
-                    _w1n = vsub_s32(_s1n, _s2n);
-                    _w1 = vmlaq_lane_s32(_w1, _s3, _tp0, 1);
-                    _w1n = vmla_lane_s32(_w1n, _s3n, _tp0, 1);
-                    _w1 = vmlaq_lane_s32(_w1, _s4, _tp1, 0);
-                    _w1n = vmla_lane_s32(_w1n, _s4n, _tp1, 0);
+                    // _w2,_w2n
+                    _t1p2  = vmlaq_lane_s32(_t1p2, _t3p4, _tp0, 1);
+                    _t1p2n = vmla_lane_s32 (_t1p2n, _t3p4n, _tp0, 1);
+                    _t1p2n = vmul_s32(_t1p2n, _tp0);
 
-                    _w2 = vaddq_s32(_s1, _s2);
-                    _w2n = vadd_s32(_s1n, _s2n);
-                    _w2 = vmlaq_lane_s32(_w2, _s3, _tp1, 1);
-                    _w2n = vmla_lane_s32(_w2n, _s3n, _tp1, 1);
-                    _w2 = vmlaq_lane_s32(_w2, _s4, _tp1, 1);
-                    _w2n = vmla_lane_s32(_w2n, _s4n, _tp1, 1);
+                    _w3  = vaddq_s32(_s5x4, _t1s2);
+                    _w3n = vadd_s32 (_s5x4n, _t1s2n);
+                    _w3  = vmlaq_lane_s32(_w3, _t3s4, _tp1, 1);
+                    _w3n = vmla_lane_s32 (_w3n, _t3s4n, _tp1, 1);
+                    _w3n = vmul_s32(_w3n, _tp0);
 
-                    _w3 = vsubq_s32(_s1, _s2);
-                    _w3n = vsub_s32(_s1n, _s2n);
-                    _w3 = vmlaq_lane_s32(_w3, _s3, _tp2, 0);
-                    _w3n = vmla_lane_s32(_w3n, _s3n, _tp2, 0);
-                    _w3 = vmlaq_lane_s32(_w3, _s4, _tp2, 1);
-                    _w3n = vmla_lane_s32(_w3n, _s4n, _tp2, 1);
-                    _w3 = vaddq_s32(_w3, _s5);
-                    _w3n = vadd_s32(_w3n, _s5n);
+                    // _w1, _w1n
+                    _t1s2  = vmlaq_lane_s32(_t1s2, _t3s4, _tp1, 0);
+                    _t1s2n = vmla_lane_s32 (_t1s2n, _t3s4n, _tp1, 0);
+                    _t1s2n = vmul_s32(_t1s2n, _tp0);
+
+                    int32x4_t _w02n = vcombine_s32(_w0n, _t1p2n);
+                    int32x4_t _w13n = vcombine_s32(_t1s2n, _w3n);
+
                     // transpose w to w_t
-                    {
-                        _d0[0] = _w0[0]; _d0[1] = _w1[0]; _d0[2] = _w2[0]; _d0[3] = _w3[0];
-                        _d1[0] = _w0[1]; _d1[1] = _w1[1]; _d1[2] = _w2[1]; _d1[3] = _w3[1];
-                        _d2[0] = _w0[2]; _d2[1] = _w1[2]; _d2[2] = _w2[2]; _d2[3] = _w3[2];
-                        _d3[0] = _w0[3]; _d3[1] = _w1[3]; _d3[2] = _w2[3]; _d3[3] = _w3[3];
-                        _d4[0] = _w0n[0]; _d4[1] = _w1n[0]; _d4[2] = _w2n[0]; _d4[3] = _w3n[0];
-                        _d5[0] = _w0n[1]; _d5[1] = _w1n[1]; _d5[2] = _w2n[1]; _d5[3] = _w3n[1];
-                    }
+#if __aarch64__
+                    int32x4_t _wt0 = vtrn1q_s32(_w0, _t1s2);
+                    int32x4_t _wt1 = vtrn2q_s32(_w0, _t1s2);
+                    int32x4_t _wt2 = vtrn1q_s32(_t1p2, _w3);
+                    int32x4_t _wt3 = vtrn2q_s32(_t1p2, _w3);
+                    int64x2_t _dt0 = vtrn1q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
+                    int64x2_t _dt2 = vtrn2q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
+                    int64x2_t _dt1 = vtrn1q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
+                    int64x2_t _dt3 = vtrn2q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
+                    _d0 = vreinterpretq_s32_s64(_dt0);
+                    _d1 = vreinterpretq_s32_s64(_dt1);
+                    _d2 = vreinterpretq_s32_s64(_dt2);
+                    _d3 = vreinterpretq_s32_s64(_dt3);
+                    _d4 = vtrn1q_s32(_w02n, _w13n);
+                    _d5 = vtrn2q_s32(_w02n, _w13n);
+#else
+                    asm volatile(
+                        "vtrn.32    %q[_w0], %q[_w1]        \n"
+                        "vtrn.32    %q[_w2], %q[_w3]        \n"
+                        "vswp       %f[_w0], %e[_w2]        \n"
+                        "vswp       %f[_w1], %e[_w3]        \n"
+                        "vtrn.32    %q[_w02n], %q[_w13n]    \n"
+                        : [_w0]"+w"(_w0),
+                          [_w1]"+w"(_t1s2),
+                          [_w2]"+w"(_t1p2),
+                          [_w3]"+w"(_w3),
+                          [_w02n]"+w"(_w02n),
+                          [_w13n]"+w"(_w13n)
+                        :
+                        : "cc", "memory"
+                    );
+                    _d0 = _w0;
+                    _d1 = _t1s2;
+                    _d2 = _t1p2;
+                    _d3 = _w3;
+                    _d4 = _w02n;
+                    _d5 = _w13n;
+#endif
                     // Y = A_T * w_t
-                    _o0 = vaddq_s32(_d0, _d1);
-                    _o0 = vaddq_s32(_o0, _d2);
-                    _o0 = vaddq_s32(_o0, _d3);
-                    _o0 = vaddq_s32(_o0, _d4);
+                    _t1p2  = vaddq_s32(_d1,  _d2);
+                    _t3p4  = vaddq_s32(_d3,  _d4);         
+                    _t1s2  = vsubq_s32(_d1,  _d2);
+                    _t3s4  = vsubq_s32(_d3,  _d4);
 
-                    _o1 = vsubq_s32(_d1, _d2);
-                    _o1 = vmlaq_lane_s32(_o1, _d3, _tp0, 1);
-                    _o1 = vmlaq_lane_s32(_o1, _d4, _tp1, 0);
+                    _o0 = vaddq_s32(_d0, _t1p2);
+                    _o0 = vaddq_s32(_o0, _t3p4);
 
-                    _o2 = vaddq_s32(_d1, _d2);
-                    _o2 = vmlaq_lane_s32(_o2, _d3, _tp1, 1);
-                    _o2 = vmlaq_lane_s32(_o2, _d4, _tp1, 1);
+                    // _o2
+                    _t1p2 = vmlaq_lane_s32(_t1p2, _t3p4, _tp0, 1);
 
-                    _o3 = vsubq_s32(_d1, _d2);
-                    _o3 = vmlaq_lane_s32(_o3, _d3, _tp2, 0);
-                    _o3 = vmlaq_lane_s32(_o3, _d4, _tp2, 1);
-                    _o3 = vaddq_s32(_o3, _d5);
+                    _o3 = vaddq_s32(_d5, _t1s2);
+                    _o3 = vmlaq_lane_s32(_o3, _t3s4, _tp1, 1);
+
+                    // _o1
+                    _t1s2 = vmlaq_lane_s32(_t1s2, _t3s4, _tp1, 0);
+
                     // save to top blob tm
-                    for (int n = 0; n < 4; n++)
-                    {
-                        outRow0[n] = _o0[n] / 576;
-                        outRow1[n] = _o1[n] / 576;
-                        outRow2[n] = _o2[n] / 576;
-                        outRow3[n] = _o3[n] / 576;
-                    }
+                    float32x4_t _ot0 = vcvtq_f32_s32(_o0);
+                    float32x4_t _ot1 = vcvtq_f32_s32(_t1s2);
+                    float32x4_t _ot2 = vcvtq_f32_s32(_t1p2);
+                    float32x4_t _ot3 = vcvtq_f32_s32(_o3);
+
+                    _ot0 = vmulq_n_f32(_ot0, 0.0017361112);
+                    _ot1 = vmulq_n_f32(_ot1, 0.0017361112);
+                    _ot2 = vmulq_n_f32(_ot2, 0.0017361112);
+                    _ot3 = vmulq_n_f32(_ot3, 0.0017361112);
+
+                    _o0 = vcvtq_s32_f32(_ot0);
+                    _o1 = vcvtq_s32_f32(_ot1);
+                    _o2 = vcvtq_s32_f32(_ot2);
+                    _o3 = vcvtq_s32_f32(_ot3);
+
+                    vst1q_s32(outRow0, _o0);
+                    vst1q_s32(outRow1, _o1);
+                    vst1q_s32(outRow2, _o2);
+                    vst1q_s32(outRow3, _o3);
 #else
                     int s0[6],s1[6],s2[6],s3[6],s4[6],s5[6];
                     int w0[6],w1[6],w2[6],w3[6];
@@ -2151,12 +2199,19 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         s5[n] = out_tile[n+30];
                     }
                     // w = A_T * W
-                    for (int n = 0; n < 6; n++)
+                    for (int n = 0; n < 5; n++)
                     {
                         w0[n] = s0[n] + s1[n] + s2[n] +   s3[n] +   s4[n];
                         w1[n] =         s1[n] - s2[n] + 2*s3[n] - 2*s4[n];
                         w2[n] =         s1[n] + s2[n] + 4*s3[n] + 4*s4[n];
-                        w3[n] =         s1[n] - s2[n] + 8*s3[n] - 8*s4[n] + s5[n];
+                        w3[n] =         s1[n] - s2[n] + 8*s3[n] - 8*s4[n] + 4*s5[n];
+                    }
+                    for (int n = 5; n < 6; n++)
+                    {
+                        w0[n] = 4*(s0[n] + s1[n] + s2[n] +   s3[n] +   s4[n]);
+                        w1[n] =         4*(s1[n] - s2[n] + 2*s3[n] - 2*s4[n]);
+                        w2[n] =         4*(s1[n] + s2[n] + 4*s3[n] + 4*s4[n]);
+                        w3[n] =         4*(s1[n] - s2[n] + 8*s3[n] - 8*s4[n] + 4*s5[n]);
                     }
                     // transpose w to w_t
                     {
@@ -3033,72 +3088,104 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                     _s4n = vld1_s32(out_tile+28);
                     _s5 = vld1q_s32(out_tile+30);
                     _s5n = vld1_s32(out_tile+34);
-
                     // w = A_T * W
-                    int32x2_t _tp0 = {-1, 2};
-                    int32x2_t _tp1 = {-2, 4};
-                    int32x2_t _tp2 = {8, -8};
+                    int32x2_t _tp0 = {1, 4};
+                    int32x2_t _tp1 = {2, 8};
+                    
+                    // 4*s5[n]
+                    int32x4_t _s5x4  = vshlq_n_s32(_s5, 2);
+                    int32x2_t _s5x4n = vshl_n_s32(_s5n, 2);
+                    
+                    int32x4_t _t1p2  = vaddq_s32(_s1,  _s2);
+                    int32x2_t _t1p2n = vadd_s32 (_s1n, _s2n);
+                    int32x4_t _t3p4  = vaddq_s32(_s3,  _s4);
+                    int32x2_t _t3p4n = vadd_s32 (_s3n, _s4n);          
+                    int32x4_t _t1s2  = vsubq_s32(_s1,  _s2);
+                    int32x2_t _t1s2n = vsub_s32 (_s1n, _s2n);
+                    int32x4_t _t3s4  = vsubq_s32(_s3,  _s4);
+                    int32x2_t _t3s4n = vsub_s32 (_s3n, _s4n);    
 
-                    _w0 = vaddq_s32(_s0, _s1);
-                    _w0n = vadd_s32(_s0n, _s1n);
-                    _w0 = vaddq_s32(_w0, _s2);
-                    _w0n = vadd_s32(_w0n, _s2n);
-                    _w0 = vaddq_s32(_w0, _s3);
-                    _w0n = vadd_s32(_w0n, _s3n);
-                    _w0 = vaddq_s32(_w0, _s4);
-                    _w0n = vadd_s32(_w0n, _s4n);
+                    _w0  = vaddq_s32(_s0, _t1p2);
+                    _w0n = vadd_s32 (_s0n, _t1p2n);
+                    _w0  = vaddq_s32(_w0, _t3p4);
+                    _w0n = vadd_s32 (_w0n, _t3p4n);
+                    _w0n = vmul_s32(_w0n, _tp0);
 
-                    _w1 = vsubq_s32(_s1, _s2);
-                    _w1n = vsub_s32(_s1n, _s2n);
-                    _w1 = vmlaq_lane_s32(_w1, _s3, _tp0, 1);
-                    _w1n = vmla_lane_s32(_w1n, _s3n, _tp0, 1);
-                    _w1 = vmlaq_lane_s32(_w1, _s4, _tp1, 0);
-                    _w1n = vmla_lane_s32(_w1n, _s4n, _tp1, 0);
+                    // _w2,_w2n
+                    _t1p2  = vmlaq_lane_s32(_t1p2, _t3p4, _tp0, 1);
+                    _t1p2n = vmla_lane_s32 (_t1p2n, _t3p4n, _tp0, 1);
+                    _t1p2n = vmul_s32(_t1p2n, _tp0);
 
-                    _w2 = vaddq_s32(_s1, _s2);
-                    _w2n = vadd_s32(_s1n, _s2n);
-                    _w2 = vmlaq_lane_s32(_w2, _s3, _tp1, 1);
-                    _w2n = vmla_lane_s32(_w2n, _s3n, _tp1, 1);
-                    _w2 = vmlaq_lane_s32(_w2, _s4, _tp1, 1);
-                    _w2n = vmla_lane_s32(_w2n, _s4n, _tp1, 1);
+                    _w3  = vaddq_s32(_s5x4, _t1s2);
+                    _w3n = vadd_s32 (_s5x4n, _t1s2n);
+                    _w3  = vmlaq_lane_s32(_w3, _t3s4, _tp1, 1);
+                    _w3n = vmla_lane_s32 (_w3n, _t3s4n, _tp1, 1);
+                    _w3n = vmul_s32(_w3n, _tp0);
 
-                    _w3 = vsubq_s32(_s1, _s2);
-                    _w3n = vsub_s32(_s1n, _s2n);
-                    _w3 = vmlaq_lane_s32(_w3, _s3, _tp2, 0);
-                    _w3n = vmla_lane_s32(_w3n, _s3n, _tp2, 0);
-                    _w3 = vmlaq_lane_s32(_w3, _s4, _tp2, 1);
-                    _w3n = vmla_lane_s32(_w3n, _s4n, _tp2, 1);
-                    _w3 = vaddq_s32(_w3, _s5);
-                    _w3n = vadd_s32(_w3n, _s5n);
+                    // _w1, _w1n
+                    _t1s2  = vmlaq_lane_s32(_t1s2, _t3s4, _tp1, 0);
+                    _t1s2n = vmla_lane_s32 (_t1s2n, _t3s4n, _tp1, 0);
+                    _t1s2n = vmul_s32(_t1s2n, _tp0);
+
+                    int32x4_t _w02n = vcombine_s32(_w0n, _t1p2n);
+                    int32x4_t _w13n = vcombine_s32(_t1s2n, _w3n);
 
                     // transpose w to w_t
-                    {
-                        _d0[0] = _w0[0]; _d0[1] = _w1[0]; _d0[2] = _w2[0]; _d0[3] = _w3[0];
-                        _d1[0] = _w0[1]; _d1[1] = _w1[1]; _d1[2] = _w2[1]; _d1[3] = _w3[1];
-                        _d2[0] = _w0[2]; _d2[1] = _w1[2]; _d2[2] = _w2[2]; _d2[3] = _w3[2];
-                        _d3[0] = _w0[3]; _d3[1] = _w1[3]; _d3[2] = _w2[3]; _d3[3] = _w3[3];
-                        _d4[0] = _w0n[0]; _d4[1] = _w1n[0]; _d4[2] = _w2n[0]; _d4[3] = _w3n[0];
-                        _d5[0] = _w0n[1]; _d5[1] = _w1n[1]; _d5[2] = _w2n[1]; _d5[3] = _w3n[1];
-                    }                  
-
+#if __aarch64__
+                    int32x4_t _wt0 = vtrn1q_s32(_w0, _t1s2);
+                    int32x4_t _wt1 = vtrn2q_s32(_w0, _t1s2);
+                    int32x4_t _wt2 = vtrn1q_s32(_t1p2, _w3);
+                    int32x4_t _wt3 = vtrn2q_s32(_t1p2, _w3);
+                    int64x2_t _dt0 = vtrn1q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
+                    int64x2_t _dt2 = vtrn2q_s64(vreinterpretq_s64_s32(_wt0), vreinterpretq_s64_s32(_wt2));
+                    int64x2_t _dt1 = vtrn1q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
+                    int64x2_t _dt3 = vtrn2q_s64(vreinterpretq_s64_s32(_wt1), vreinterpretq_s64_s32(_wt3));
+                    _d0 = vreinterpretq_s32_s64(_dt0);
+                    _d1 = vreinterpretq_s32_s64(_dt1);
+                    _d2 = vreinterpretq_s32_s64(_dt2);
+                    _d3 = vreinterpretq_s32_s64(_dt3);
+                    _d4 = vtrn1q_s32(_w02n, _w13n);
+                    _d5 = vtrn2q_s32(_w02n, _w13n);
+#else
+                    asm volatile(
+                        "vtrn.32    %q[_w0], %q[_w1]        \n"
+                        "vtrn.32    %q[_w2], %q[_w3]        \n"
+                        "vswp       %f[_w0], %e[_w2]        \n"
+                        "vswp       %f[_w1], %e[_w3]        \n"
+                        "vtrn.32    %q[_w02n], %q[_w13n]    \n"
+                        : [_w0]"+w"(_w0),
+                          [_w1]"+w"(_t1s2),
+                          [_w2]"+w"(_t1p2),
+                          [_w3]"+w"(_w3),
+                          [_w02n]"+w"(_w02n),
+                          [_w13n]"+w"(_w13n)
+                        :
+                        : "cc", "memory"
+                    );
+                    _d0 = _w0;
+                    _d1 = _t1s2;
+                    _d2 = _t1p2;
+                    _d3 = _w3;
+                    _d4 = _w02n;
+                    _d5 = _w13n;
+#endif
                     // Y = A_T * w_t
-                    _o0 = vaddq_s32(_d0, _d1);
-                    _o0 = vaddq_s32(_o0, _d2);
-                    _o0 = vaddq_s32(_o0, _d3);
-                    _o0 = vaddq_s32(_o0, _d4);
+                    _t1p2  = vaddq_s32(_d1,  _d2);
+                    _t3p4  = vaddq_s32(_d3,  _d4);         
+                    _t1s2  = vsubq_s32(_d1,  _d2);
+                    _t3s4  = vsubq_s32(_d3,  _d4);
 
-                    _o1 = vsubq_s32(_d1, _d2);
-                    _o1 = vmlaq_lane_s32(_o1, _d3, _tp0, 1);
-                    _o1 = vmlaq_lane_s32(_o1, _d4, _tp1, 0);
+                    _o0 = vaddq_s32(_d0, _t1p2);
+                    _o0 = vaddq_s32(_o0, _t3p4);
 
-                    _o2 = vaddq_s32(_d1, _d2);
-                    _o2 = vmlaq_lane_s32(_o2, _d3, _tp1, 1);
-                    _o2 = vmlaq_lane_s32(_o2, _d4, _tp1, 1);
+                    // _o2
+                    _t1p2 = vmlaq_lane_s32(_t1p2, _t3p4, _tp0, 1);
 
-                    _o3 = vsubq_s32(_d1, _d2);
-                    _o3 = vmlaq_lane_s32(_o3, _d3, _tp2, 0);
-                    _o3 = vmlaq_lane_s32(_o3, _d4, _tp2, 1);
-                    _o3 = vaddq_s32(_o3, _d5);                    
+                    _o3 = vaddq_s32(_d5, _t1s2);
+                    _o3 = vmlaq_lane_s32(_o3, _t3s4, _tp1, 1);
+
+                    // _o1
+                    _t1s2 = vmlaq_lane_s32(_t1s2, _t3s4, _tp1, 0);
 
                     // save to top blob tm                     
                     float32x4_t _scale0 = vdupq_n_f32(scale0);
@@ -3108,8 +3195,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                     float32x4_t _out3_f32 = vdupq_n_f32(bias0);
 
                     _out0_f32 = vmlaq_f32(_out0_f32, vcvtq_f32_s32(_o0), _scale0);
-                    _out1_f32 = vmlaq_f32(_out1_f32, vcvtq_f32_s32(_o1), _scale0);
-                    _out2_f32 = vmlaq_f32(_out2_f32, vcvtq_f32_s32(_o2), _scale0);
+                    _out1_f32 = vmlaq_f32(_out1_f32, vcvtq_f32_s32(_t1s2), _scale0);
+                    _out2_f32 = vmlaq_f32(_out2_f32, vcvtq_f32_s32(_t1p2), _scale0);
                     _out3_f32 = vmlaq_f32(_out3_f32, vcvtq_f32_s32(_o3), _scale0); 
                     
                     vst1q_f32(outRow0, _out0_f32);
@@ -3133,12 +3220,19 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                         s5[n] = out_tile[n+30];
                     }
                     // w = A_T * W
-                    for (int n = 0; n < 6; n++)
+                    for (int n = 0; n < 5; n++)
                     {
                         w0[n] = s0[n] + s1[n] + s2[n] +   s3[n] +   s4[n];
                         w1[n] =         s1[n] - s2[n] + 2*s3[n] - 2*s4[n];
                         w2[n] =         s1[n] + s2[n] + 4*s3[n] + 4*s4[n];
-                        w3[n] =         s1[n] - s2[n] + 8*s3[n] - 8*s4[n] + s5[n];
+                        w3[n] =         s1[n] - s2[n] + 8*s3[n] - 8*s4[n] + 4*s5[n];
+                    }
+                    for (int n = 5; n < 6; n++)
+                    {
+                        w0[n] = 4*(s0[n] + s1[n] + s2[n] +   s3[n] +   s4[n]);
+                        w1[n] =         4*(s1[n] - s2[n] + 2*s3[n] - 2*s4[n]);
+                        w2[n] =         4*(s1[n] + s2[n] + 4*s3[n] + 4*s4[n]);
+                        w3[n] =         4*(s1[n] - s2[n] + 8*s3[n] - 8*s4[n] + 4*s5[n]);
                     }
                     // transpose w to w_t
                     {
