@@ -1267,6 +1267,22 @@ int NetOptimize::eliminate_noop()
 
         ncnn::Layer* noop = layers[i];
 
+        if (noop->bottoms.empty())
+        {
+            // Noop
+            fprintf(stderr, "eliminate_noop %s\n", noop->name.c_str());
+
+            int top_blob_count = noop->tops.size();
+            for (int k=0; k<top_blob_count; k++)
+            {
+                int top_blob_index_final = noop->tops[k];
+                blobs[top_blob_index_final].producer = -1;
+            }
+            noop->type = "ncnnfused";
+
+            continue;
+        }
+
         // Any - Noop
         int bottom_blob_index = layers[i]->bottoms[0];
 
@@ -1290,9 +1306,13 @@ int NetOptimize::eliminate_noop()
 
         fprintf(stderr, "eliminate_noop %s %s\n", any->name.c_str(), noop->name.c_str());
 
-        int top_blob_index_final = noop->tops[0];
-        any->tops[0] = top_blob_index_final;
-        blobs[top_blob_index_final].producer = j;
+        int top_blob_count = std::min(noop->tops.size(), any->tops.size());
+        for (int k=0; k<top_blob_count; k++)
+        {
+            int top_blob_index_final = noop->tops[k];
+            any->tops[k] = top_blob_index_final;
+            blobs[top_blob_index_final].producer = j;
+        }
         noop->type = "ncnnfused";
     }
 
