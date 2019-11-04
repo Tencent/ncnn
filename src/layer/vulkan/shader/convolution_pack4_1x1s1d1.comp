@@ -43,23 +43,23 @@ layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 layout (push_constant) uniform parameter
 {
     int dims;
-    int size_4;
+    int size;
     int c;
     int cstep;
 
     int outdims;
-    int outsize_4;
+    int outsize;
     int outc;
     int outcstep;
 } p;
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
+    int gx = int(gl_GlobalInvocationID.x) * 4;
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outsize_4 || gy >= 1 || gz >= p.outc)
+    if (gx >= p.outsize || gy >= 1 || gz >= p.outc)
         return;
 
     afpvec4 sum0;
@@ -84,7 +84,7 @@ void main()
     }
 
     int w_offset = gz * p.c;
-    int v_offset = gx * 4;
+    int v_offset = gx;
 
     for (int z = 0; z < p.c; z++)
     {
@@ -146,10 +146,10 @@ void main()
         sum3 = afp(1.f) / (afp(1.f) + exp(-sum3));
     }
 
-    int gi = gz * p.outcstep + gx * 4;
+    int gi = gz * p.outcstep + gx;
 
     top_blob_data[gi + 0] = afp2sfpvec4(sum0);
-    if (gx * 4 + 1 < p.outcstep) top_blob_data[gi + 1] = afp2sfpvec4(sum1);
-    if (gx * 4 + 2 < p.outcstep) top_blob_data[gi + 2] = afp2sfpvec4(sum2);
-    if (gx * 4 + 3 < p.outcstep) top_blob_data[gi + 3] = afp2sfpvec4(sum3);
+    if (gx + 1 < p.outcstep) top_blob_data[gi + 1] = afp2sfpvec4(sum1);
+    if (gx + 2 < p.outcstep) top_blob_data[gi + 2] = afp2sfpvec4(sum2);
+    if (gx + 3 < p.outcstep) top_blob_data[gi + 3] = afp2sfpvec4(sum3);
 }
