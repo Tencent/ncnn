@@ -121,6 +121,7 @@ int Net::register_custom_layer(int index, layer_creator_func creator)
     return 0;
 }
 
+#if NCNN_STRING
 int Net::load_param(const DataReader& dr)
 {
 #define SCAN_VALUE(fmt, v) \
@@ -270,6 +271,7 @@ int Net::load_param(const DataReader& dr)
 #undef SCAN_VALUE
     return 0;
 }
+#endif // NCNN_STRING
 
 int Net::load_param_bin(const DataReader& dr)
 {
