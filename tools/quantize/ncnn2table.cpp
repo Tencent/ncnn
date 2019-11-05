@@ -535,6 +535,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     g_blob_pool_allocator.clear();
     g_workspace_pool_allocator.clear();
 
+    net.get_input_names();
     net.get_conv_names();
     net.get_conv_bottom_blob_names();
     net.get_conv_weight_blob_scales();
