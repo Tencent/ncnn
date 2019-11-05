@@ -1596,8 +1596,16 @@ int main(int argc, char** argv)
                 }
                 fprintf(pp, ",-233");
             }
-            int dim = slice_param.axis() - 1;
-            fprintf(pp, " 1=%d", dim);
+            int axis = 0;
+            if (slice_param.has_axis())
+            {
+                axis = slice_param.axis() - 1;
+            }
+            else if (slice_param.has_slice_dim())
+            {
+                axis = slice_param.slice_dim() - 1;
+            }
+            fprintf(pp, " 1=%d", axis);
         }
         else if (layer.type() == "Softmax")
         {

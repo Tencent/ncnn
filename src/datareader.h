@@ -30,9 +30,11 @@ class DataReader
 public:
     virtual ~DataReader();
 
+#if NCNN_STRING
     // parse plain param text
     // return 1 if scan success
     virtual int scan(const char* format, void* p) const;
+#endif // NCNN_STRING
 
     // read binary param and model data
     // return bytes read
@@ -45,7 +47,9 @@ class DataReaderFromStdio : public DataReader
 public:
     DataReaderFromStdio(FILE* fp);
 
+#if NCNN_STRING
     virtual int scan(const char* format, void* p) const;
+#endif // NCNN_STRING
     virtual int read(void* buf, int size) const;
 
 protected:
@@ -58,7 +62,9 @@ class DataReaderFromMemory : public DataReader
 public:
     DataReaderFromMemory(const unsigned char*& mem);
 
+#if NCNN_STRING
     virtual int scan(const char* format, void* p) const;
+#endif // NCNN_STRING
     virtual int read(void* buf, int size) const;
 
 protected:
@@ -71,7 +77,9 @@ class DataReaderFromAndroidAsset : public DataReader
 public:
     DataReaderFromAndroidAsset(AAsset* asset);
 
+#if NCNN_STRING
     virtual int scan(const char* format, void* p) const;
+#endif // NCNN_STRING
     virtual int read(void* buf, int size) const;
 
 protected:
