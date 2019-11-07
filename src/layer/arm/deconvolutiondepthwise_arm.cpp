@@ -390,7 +390,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
             const ncnn::Layer* op = group_ops[g];
 
-            ncnn::Option opt_g = opt;
+            Option opt_g = opt;
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
@@ -407,7 +407,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
             const ncnn::Layer* op = group_ops[g];
 
-            ncnn::Option opt_g = opt;
+            Option opt_g = opt;
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
@@ -540,7 +540,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
             const ncnn::Layer* op = group_ops[g];
 
-            ncnn::Option opt_g = opt;
+            Option opt_g = opt;
             opt_g.num_threads = 1;
             opt_g.blob_allocator = top_blob_bordered.allocator;
 
@@ -560,7 +560,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
             const ncnn::Layer* op = group_ops[g];
 
-            ncnn::Option opt_g = opt;
+            Option opt_g = opt;
             opt_g.blob_allocator = top_blob_bordered.allocator;
 
             // forward
