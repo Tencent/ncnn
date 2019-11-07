@@ -1353,6 +1353,7 @@ int main(int argc, char** argv)
         else if (op == "AveragePool" || op == "MaxPool")
         {
             std::string auto_pad = get_node_attr_s(node, "auto_pad");
+            int ceil_mode = get_node_attr_i(node, "ceil_mode", 0);
             std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
             std::vector<int> strides = get_node_attr_ai(node, "strides");
             std::vector<int> pads = get_node_attr_ai(node, "pads");
@@ -1367,6 +1368,11 @@ int main(int argc, char** argv)
             else if (auto_pad == "SAME_LOWER")
             {
                 pad_mode = 3;
+            }
+
+            if (ceil_mode == 1)
+            {
+                pad_mode = 0;
             }
 
             fprintf(pp, " 0=%d", pool);
