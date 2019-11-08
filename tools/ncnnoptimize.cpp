@@ -2230,6 +2230,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", operation)
             fprintf_param_value(" 1=%d", reduce_all)
             fprintf_param_value(" 2=%e", coeff)
+            { if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp); }
+            fprintf_param_value(" 4=%d", keepdims)
         }
         else if (layer->type == "ReLU")
         {
