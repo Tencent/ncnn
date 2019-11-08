@@ -1209,6 +1209,10 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     {
                         ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
                     }
+                    else if (bottom_blob_cpu.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage && vkdev->info.type == 0)
+                    {
+                        ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
+                    }
                     else
                     {
                         bottom_blob_cpu_fp16 = bottom_blob_cpu;
@@ -1319,6 +1323,10 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         // cast to fp16 (discrete gpu)
                         Mat bottom_blob_cpu_fp16;
                         if (opt.use_fp16_storage && vkdev->info.type == 0)
+                        {
+                            ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
+                        }
+                        else if (bottom_blob_cpu.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage && vkdev->info.type == 0)
                         {
                             ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
                         }
@@ -1462,7 +1470,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     }
 
                     VkMat bottom_blob_unpacked_fp16;
-                    if (opt.use_packing_layout)
+                    if (opt.use_packing_layout && layer->support_packing)
                     {
                         bottom_blob_unpacked_fp16 = bottom_blob;
                     }
@@ -1515,6 +1523,10 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     // cast to fp32 (discrete gpu)
                     Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
                     if (opt.use_fp16_storage && vkdev->info.type == 0)
+                    {
+                        ncnn::cast_float16_to_float32(bottom_blob_cpu_fp16, bottom_blob_cpu, opt);
+                    }
+                    else if (bottom_blob_cpu_fp16.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage && vkdev->info.type == 0)
                     {
                         ncnn::cast_float16_to_float32(bottom_blob_cpu_fp16, bottom_blob_cpu, opt);
                     }
@@ -1625,7 +1637,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         }
 
                         VkMat bottom_blob_unpacked_fp16;
-                        if (opt.use_packing_layout)
+                        if (opt.use_packing_layout && layer->support_packing)
                         {
                             bottom_blob_unpacked_fp16 = bottom_blob;
                         }
@@ -1692,6 +1704,10 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     // cast to fp32 (discrete gpu)
                     Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
                     if (opt.use_fp16_storage && vkdev->info.type == 0)
+                    {
+                        ncnn::cast_float16_to_float32(bottom_blob_cpu_fp16, bottom_blob_cpu, opt);
+                    }
+                    else if (bottom_blob_cpu_fp16.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage && vkdev->info.type == 0)
                     {
                         ncnn::cast_float16_to_float32(bottom_blob_cpu_fp16, bottom_blob_cpu, opt);
                     }
@@ -1961,6 +1977,10 @@ int Extractor::extract(int blob_index, Mat& feat)
                 // cast to fp32 (discrete gpu)
                 Mat& feat_cpu = blob_mats[blob_index];
                 if (opt.use_fp16_storage && net->vkdev->info.type == 0)
+                {
+                    ncnn::cast_float16_to_float32(feat_cpu_fp16, feat_cpu, opt);
+                }
+                else if (feat_cpu_fp16.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage && net->vkdev->info.type == 0)
                 {
                     ncnn::cast_float16_to_float32(feat_cpu_fp16, feat_cpu, opt);
                 }
