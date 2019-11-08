@@ -50,7 +50,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     if (opt.use_packing_layout)
     {
 
-    if (elempack == 4)
+    if (elempack % 4 == 0)
     {
         size_t out_elemsize = elemsize;
         if (type_to == 1)
@@ -94,7 +94,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 const float* ptr = bottom_blob.channel(q);
                 unsigned short* outptr = top_blob.channel(q);
 
-                int nn = size;
+                int nn = size / 4;
 
 #if __aarch64__
                 asm volatile(
@@ -141,7 +141,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 const unsigned short* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                int nn = size;
+                int nn = size / 4;
 
 #if __aarch64__
                 asm volatile(

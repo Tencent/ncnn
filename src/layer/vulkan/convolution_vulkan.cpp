@@ -860,7 +860,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // gemm
         VkMat top_tm_blob;
         {
-            top_tm_blob.create(16, block_x * block_y, num_output / out_elempack, elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            top_tm_blob.create(16, block_x * block_y, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
             if (top_tm_blob.empty())
                 return -100;
 
@@ -887,7 +887,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // transform output
         VkMat top_blob_bordered;
         {
-            top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
             if (top_blob_bordered.empty())
                 return -100;
 
