@@ -719,7 +719,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     VkMat bottom_blob_bordered = bottom_blob;
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
-        ncnn::Option opt_pad = opt;
+        Option opt_pad = opt;
         opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
         padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt_pad);
@@ -730,7 +730,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            ncnn::Option opt_pad = opt;
+            Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
             VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
@@ -757,7 +757,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            ncnn::Option opt_pad = opt;
+            Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
             VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
@@ -808,7 +808,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         // pad to 2n+2
         {
-            ncnn::Option opt_pad = opt;
+            Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
             VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);

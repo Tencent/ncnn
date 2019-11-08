@@ -511,7 +511,7 @@ int Convolution_arm::forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv
                 }
             }
 
-            ncnn::Option opt_g = opt;
+            Option opt_g = opt;
             opt_g.blob_allocator = inner_top_blob.allocator;
             conv(inner_bottom_blob, inner_top_blob, weight_data, bias_data, opt_g);
 
@@ -1100,7 +1100,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         // quantize, scale and round to nearest
         {
-            ncnn::Option opt_g = opt;
+            Option opt_g = opt;
             opt_g.blob_allocator = bottom_blob_int8.allocator;
 
             quantize->forward(bottom_blob, bottom_blob_int8, opt_g);
@@ -1190,7 +1190,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p=0; p<num_output; p++)
             {
-                ncnn::Option opt_g = opt;
+                Option opt_g = opt;
                 opt_g.num_threads = 1;
                 opt_g.blob_allocator = top_blob.allocator;
 
@@ -1235,7 +1235,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p=0; p<num_output; p++)
             {
-                ncnn::Option opt_g = opt;
+                Option opt_g = opt;
                 opt_g.num_threads = 1;
                 opt_g.blob_allocator = top_blob.allocator;
 
