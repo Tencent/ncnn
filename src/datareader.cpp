@@ -21,10 +21,12 @@ DataReader::~DataReader()
 {
 }
 
+#if NCNN_STRING
 int DataReader::scan(const char* /*format*/, void* /*p*/) const
 {
     return 0;
 }
+#endif // NCNN_STRING
 
 int DataReader::read(void* /*buf*/, int /*size*/) const
 {
@@ -36,10 +38,12 @@ DataReaderFromStdio::DataReaderFromStdio(FILE* _fp) : fp(_fp)
 {
 }
 
+#if NCNN_STRING
 int DataReaderFromStdio::scan(const char* format, void* p) const
 {
     return fscanf(fp, format, p);
 }
+#endif // NCNN_STRING
 
 int DataReaderFromStdio::read(void* buf, int size) const
 {
@@ -51,6 +55,7 @@ DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem) : mem(_me
 {
 }
 
+#if NCNN_STRING
 int DataReaderFromMemory::scan(const char* format, void* p) const
 {
     int fmtlen = strlen(format);
@@ -66,6 +71,7 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
 
     return nconsumed > 0 ? nscan : 0;
 }
+#endif // NCNN_STRING
 
 int DataReaderFromMemory::read(void* buf, int size) const
 {
@@ -79,6 +85,7 @@ DataReaderFromAndroidAsset::DataReaderFromAndroidAsset(AAsset* _asset) : asset(_
 {
 }
 
+#if NCNN_STRING
 int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
 {
     if (!mem)
@@ -106,6 +113,7 @@ int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
 
     return nscan;
 }
+#endif // NCNN_STRING
 
 int DataReaderFromAndroidAsset::read(void* buf, int size) const
 {

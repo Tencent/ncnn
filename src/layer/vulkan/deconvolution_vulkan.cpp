@@ -470,7 +470,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         VkMat top_blob_bordered_adj = top_blob_bordered;
         if (output_pad_right > 0 || output_pad_bottom > 0)
         {
-            ncnn::Option opt_pad = opt;
+            Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
             output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
             if (top_blob_bordered_adj.empty())
@@ -502,7 +502,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         VkMat top_blob_bordered_adj = top_blob_bordered;
         if (output_pad_right > 0 || output_pad_bottom > 0)
         {
-            ncnn::Option opt_pad = opt;
+            Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
             output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
             if (top_blob_bordered_adj.empty())

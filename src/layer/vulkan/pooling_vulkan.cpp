@@ -169,7 +169,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     VkMat bottom_blob_bordered = bottom_blob;
     {
-        ncnn::Option opt_pad = opt;
+        Option opt_pad = opt;
         opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
         padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt_pad);

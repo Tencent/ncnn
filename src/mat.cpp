@@ -95,7 +95,9 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
         return;
     }
 
-    op->forward_inplace(*this);
+    Option opt;
+    opt.num_threads = 1;// TODO
+    op->forward_inplace(*this, opt);
 
     delete op;
 }

@@ -58,7 +58,7 @@ static int detect_shufflenetv2(const cv::Mat& bgr, std::vector<float>& cls_score
         ncnn::ParamDict pd;
         softmax->load_param(pd);
 
-        softmax->forward_inplace(out);
+        softmax->forward_inplace(out, shufflenetv2.opt);
 
         delete softmax;
     }

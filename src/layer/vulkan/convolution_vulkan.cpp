@@ -179,7 +179,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, 4);
-                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create("convolution_pack4_3x3s1d1_winograd23_gemm", opt, std::vector<vk_specialization_type>(), 3, 6);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create("convolution_pack4_3x3s1d1_winograd23_gemm", opt, std::vector<vk_specialization_type>(), 3, 5);
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
@@ -719,7 +719,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     VkMat bottom_blob_bordered = bottom_blob;
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
-        ncnn::Option opt_pad = opt;
+        Option opt_pad = opt;
         opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
         padding->forward(bottom_blob, bottom_blob_bordered, cmd, opt_pad);
@@ -730,7 +730,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            ncnn::Option opt_pad = opt;
+            Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
             VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
@@ -757,7 +757,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
         if (wpad > 0 || hpad > 0)
         {
-            ncnn::Option opt_pad = opt;
+            Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
             VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
@@ -808,7 +808,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         // pad to 2n+2
         {
-            ncnn::Option opt_pad = opt;
+            Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
             VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
@@ -860,7 +860,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // gemm
         VkMat top_tm_blob;
         {
-            top_tm_blob.create(16, block_x * block_y, num_output / out_elempack, elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            top_tm_blob.create(16, block_x * block_y, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
             if (top_tm_blob.empty())
                 return -100;
 
@@ -869,13 +869,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             bindings[1] = top_tm_blob;
             bindings[2] = weight_data_gpu_pack4_tm;
 
-            std::vector<vk_constant_type> constants(6);
+            std::vector<vk_constant_type> constants(5);
             constants[0].i = bottom_tm_blob.c;
             constants[1].i = bottom_tm_blob.cstep;
-            constants[2].i = (top_tm_blob.h + 3) / 4;
-            constants[3].i = top_tm_blob.h;
-            constants[4].i = top_tm_blob.c;
-            constants[5].i = top_tm_blob.cstep;
+            constants[2].i = top_tm_blob.h;
+            constants[3].i = top_tm_blob.c;
+            constants[4].i = top_tm_blob.cstep;
 
             VkMat dispatcher;
             dispatcher.w = top_tm_blob.w;
@@ -888,7 +887,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // transform output
         VkMat top_blob_bordered;
         {
-            top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
             if (top_blob_bordered.empty())
                 return -100;
 
@@ -991,16 +990,16 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     {
         std::vector<vk_constant_type> constants(8);
         constants[0].i = bottom_blob_bordered.dims;
-        constants[1].i = (bottom_blob_bordered.cstep + 3) / 4;
+        constants[1].i = bottom_blob_bordered.w * bottom_blob_bordered.h;
         constants[2].i = bottom_blob_bordered.c;
         constants[3].i = bottom_blob_bordered.cstep;
         constants[4].i = top_blob.dims;
-        constants[5].i = (top_blob.cstep + 3) / 4;
+        constants[5].i = top_blob.w * top_blob.h;
         constants[6].i = top_blob.c;
         constants[7].i = top_blob.cstep;
 
         VkMat dispatcher;
-        dispatcher.w = (top_blob.cstep + 3) / 4;
+        dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
         dispatcher.h = 1;
         dispatcher.c = top_blob.c;
 
