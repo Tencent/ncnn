@@ -23,7 +23,7 @@ matrix:
   include:
     - name: "webassembly"
       os: linux
-      dist: xenial
+      dist: bionic
       env:
         - NAME=webassembly
         - BEFORE_BUILD="git clone https://github.com/emscripten-core/emsdk.git && pushd emsdk && ./emsdk install latest && ./emsdk activate latest && popd"
