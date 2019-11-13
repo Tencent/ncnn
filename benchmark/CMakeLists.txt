@@ -1,6 +1,2 @@
 add_executable(benchncnn benchncnn.cpp)
-if(ANDROID_NDK)
-    target_link_libraries(benchncnn PRIVATE ncnn android)
-else()
-    target_link_libraries(benchncnn PRIVATE ncnn)
-endif()
+target_link_libraries(benchncnn PRIVATE ncnn)

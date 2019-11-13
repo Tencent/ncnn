@@ -101,6 +101,8 @@ int QuantNet::get_input_names()
             }
         }
     }
+
+    return 0;
 }
 
 int QuantNet::get_conv_names()

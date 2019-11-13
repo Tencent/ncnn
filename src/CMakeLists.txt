@@ -300,6 +300,10 @@ if(NCNN_VULKAN)
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
 endif()
 
+if(ANDROID_NDK)
+    target_link_libraries(ncnn PUBLIC android)
+endif()
+
 if(WIN32)
     target_compile_definitions(ncnn
         PUBLIC NOMINMAX)
