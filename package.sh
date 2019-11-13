@@ -8,9 +8,13 @@ rm -rf $ANDROIDPKGNAME
 mkdir -p $ANDROIDPKGNAME
 mkdir -p $ANDROIDPKGNAME/armeabi-v7a
 mkdir -p $ANDROIDPKGNAME/arm64-v8a
+mkdir -p $ANDROIDPKGNAME/x86
+mkdir -p $ANDROIDPKGNAME/x86_64
 mkdir -p $ANDROIDPKGNAME/include
 cp build-android-armv7/install/lib/lib${NAME}.a $ANDROIDPKGNAME/armeabi-v7a/
 cp build-android-aarch64/install/lib/lib${NAME}.a $ANDROIDPKGNAME/arm64-v8a/
+cp build-android-x86/install/lib/lib${NAME}.a $ANDROIDPKGNAME/x86/
+cp build-android-x86_64/install/lib/lib${NAME}.a $ANDROIDPKGNAME/x86_64/
 cp -r build-android-aarch64/install/include/* $ANDROIDPKGNAME/include/
 rm -f $ANDROIDPKGNAME.zip
 zip -9 -r $ANDROIDPKGNAME.zip $ANDROIDPKGNAME
@@ -40,9 +44,13 @@ rm -rf $ANDROIDPKGNAME
 mkdir -p $ANDROIDPKGNAME
 mkdir -p $ANDROIDPKGNAME/armeabi-v7a
 mkdir -p $ANDROIDPKGNAME/arm64-v8a
+mkdir -p $ANDROIDPKGNAME/x86
+mkdir -p $ANDROIDPKGNAME/x86_64
 mkdir -p $ANDROIDPKGNAME/include
 cp build-android-armv7-vulkan/install/lib/lib${NAME}.a $ANDROIDPKGNAME/armeabi-v7a/
 cp build-android-aarch64-vulkan/install/lib/lib${NAME}.a $ANDROIDPKGNAME/arm64-v8a/
+cp build-android-x86-vulkan/install/lib/lib${NAME}.a $ANDROIDPKGNAME/x86/
+cp build-android-x86_64-vulkan/install/lib/lib${NAME}.a $ANDROIDPKGNAME/x86_64/
 cp -r build-android-aarch64-vulkan/install/include/* $ANDROIDPKGNAME/include/
 rm -f $ANDROIDPKGNAME.zip
 zip -9 -r $ANDROIDPKGNAME.zip $ANDROIDPKGNAME
