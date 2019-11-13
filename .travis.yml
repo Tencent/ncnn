@@ -4,8 +4,6 @@ language: cpp
 
 addons:
   apt:
-    sources:
-      - ubuntu-toolchain-r-test
     packages:
       - cmake
       - libprotobuf-dev
