@@ -4,8 +4,6 @@ language: cpp
 
 addons:
   apt:
-    sources:
-      - ubuntu-toolchain-r-test
     packages:
       - cmake
       - libprotobuf-dev
@@ -23,7 +21,7 @@ matrix:
   include:
     - name: "linux-gcc"
       os: linux
-      dist: xenial
+      dist: bionic
       compiler: gcc
       env:
         - NAME=linux-gcc
@@ -31,7 +29,7 @@ matrix:
 
     - name: "linux-gcc-gpu"
       os: linux
-      dist: xenial
+      dist: bionic
       compiler: gcc
       env:
         - NAME=linux-gcc-gpu
@@ -40,7 +38,7 @@ matrix:
 
     - name: "linux-clang"
       os: linux
-      dist: xenial
+      dist: bionic
       compiler: clang
       env:
         - NAME=linux-clang
@@ -48,7 +46,7 @@ matrix:
 
     - name: "linux-clang-gpu"
       os: linux
-      dist: xenial
+      dist: bionic
       compiler: clang
       env:
         - NAME=linux-clang-gpu
@@ -87,7 +85,7 @@ matrix:
 
     - name: "android-armv7"
       os: linux
-      dist: xenial
+      dist: bionic
       env:
         - NAME=android-armv7
         - BEFORE_BUILD="wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip"
@@ -95,7 +93,7 @@ matrix:
 
     - name: "android-armv7-gpu"
       os: linux
-      dist: xenial
+      dist: bionic
       env:
         - NAME=android-armv7-gpu
         - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz && wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip"
@@ -103,7 +101,7 @@ matrix:
 
     - name: "android-aarch64"
       os: linux
-      dist: xenial
+      dist: bionic
       env:
         - NAME=android-aarch64
         - BEFORE_BUILD="wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip"
@@ -111,7 +109,7 @@ matrix:
 
     - name: "android-aarch64-gpu"
       os: linux
-      dist: xenial
+      dist: bionic
       env:
         - NAME=android-aarch64-gpu
         - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz && wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip"
@@ -119,7 +117,7 @@ matrix:
 
     - name: "android-x86"
       os: linux
-      dist: xenial
+      dist: bionic
       env:
         - NAME=android-x86
         - BEFORE_BUILD="wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip"
@@ -127,7 +125,7 @@ matrix:
 
     - name: "android-x86-gpu"
       os: linux
-      dist: xenial
+      dist: bionic
       env:
         - NAME=android-x86-gpu
         - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz && wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip"
@@ -135,7 +133,7 @@ matrix:
 
     - name: "android-x86_64"
       os: linux
-      dist: xenial
+      dist: bionic
       env:
         - NAME=android-x86_64
         - BEFORE_BUILD="wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip"
@@ -143,7 +141,7 @@ matrix:
 
     - name: "android-x86_64-gpu"
       os: linux
-      dist: xenial
+      dist: bionic
       env:
         - NAME=android-x86_64-gpu
         - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz && wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip"
@@ -170,6 +168,14 @@ matrix:
       env:
         - NAME=ios-iphonesimulator
         - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR .. && make -j2"
+
+    - name: "webassembly"
+      os: linux
+      dist: bionic
+      env:
+        - NAME=webassembly
+        - BEFORE_BUILD="git clone https://github.com/emscripten-core/emsdk.git && pushd emsdk && ./emsdk install latest && ./emsdk activate latest && popd"
+        - BUILD="source emsdk/emsdk_env.sh && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake .. && make -j2"
 
 before_install:
   - eval "${BEFORE_BUILD}"
