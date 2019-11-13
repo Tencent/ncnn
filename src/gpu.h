@@ -29,8 +29,17 @@ int create_gpu_instance();
 void destroy_gpu_instance();
 
 // instance extension capability
+extern int support_VK_KHR_external_memory_capabilities;
 extern int support_VK_KHR_get_physical_device_properties2;
+extern int support_VK_KHR_get_surface_capabilities2;
+extern int support_VK_KHR_surface;
 extern int support_VK_EXT_debug_utils;
+#if __ANDROID_API__ >= 26
+extern int support_VK_KHR_android_surface;
+#endif // __ANDROID_API__ >= 26
+
+// VK_KHR_external_memory_capabilities
+extern PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR vkGetPhysicalDeviceExternalBufferPropertiesKHR;
 
 // VK_KHR_get_physical_device_properties2
 extern PFN_vkGetPhysicalDeviceFeatures2KHR vkGetPhysicalDeviceFeatures2KHR;
@@ -40,6 +49,22 @@ extern PFN_vkGetPhysicalDeviceImageFormatProperties2KHR vkGetPhysicalDeviceImage
 extern PFN_vkGetPhysicalDeviceQueueFamilyProperties2KHR vkGetPhysicalDeviceQueueFamilyProperties2KHR;
 extern PFN_vkGetPhysicalDeviceMemoryProperties2KHR vkGetPhysicalDeviceMemoryProperties2KHR;
 extern PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR vkGetPhysicalDeviceSparseImageFormatProperties2KHR;
+
+// VK_KHR_get_surface_capabilities2
+extern PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR vkGetPhysicalDeviceSurfaceCapabilities2KHR;
+extern PFN_vkGetPhysicalDeviceSurfaceFormats2KHR vkGetPhysicalDeviceSurfaceFormats2KHR;
+
+// VK_KHR_surface
+extern PFN_vkDestroySurfaceKHR vkDestroySurfaceKHR;
+extern PFN_vkGetPhysicalDeviceSurfaceSupportKHR vkGetPhysicalDeviceSurfaceSupportKHR;
+extern PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
+extern PFN_vkGetPhysicalDeviceSurfaceFormatsKHR vkGetPhysicalDeviceSurfaceFormatsKHR;
+extern PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfacePresentModesKHR;
+
+#if __ANDROID_API__ >= 26
+// VK_KHR_android_surface
+extern PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR;
+#endif // __ANDROID_API__ >= 26
 
 // get info
 int get_gpu_count();
@@ -97,11 +122,19 @@ public:
     int support_VK_KHR_bind_memory2;
     int support_VK_KHR_dedicated_allocation;
     int support_VK_KHR_descriptor_update_template;
+    int support_VK_KHR_external_memory;
     int support_VK_KHR_get_memory_requirements2;
+    int support_VK_KHR_maintenance1;
     int support_VK_KHR_push_descriptor;
+    int support_VK_KHR_sampler_ycbcr_conversion;
     int support_VK_KHR_shader_float16_int8;
     int support_VK_KHR_shader_float_controls;
     int support_VK_KHR_storage_buffer_storage_class;
+    int support_VK_KHR_swapchain;
+    int support_VK_EXT_queue_family_foreign;
+#if __ANDROID_API__ >= 26
+    int support_VK_ANDROID_external_memory_android_hardware_buffer;
+#endif // __ANDROID_API__ >= 26
 };
 
 const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());
@@ -141,9 +174,29 @@ public:
     PFN_vkGetBufferMemoryRequirements2KHR vkGetBufferMemoryRequirements2KHR;
     PFN_vkGetImageSparseMemoryRequirements2KHR vkGetImageSparseMemoryRequirements2KHR;
 
+    // VK_KHR_maintenance1
+    PFN_vkTrimCommandPoolKHR vkTrimCommandPoolKHR;
+
     // VK_KHR_push_descriptor
     PFN_vkCmdPushDescriptorSetWithTemplateKHR vkCmdPushDescriptorSetWithTemplateKHR;
     PFN_vkCmdPushDescriptorSetKHR vkCmdPushDescriptorSetKHR;
+
+    // VK_KHR_sampler_ycbcr_conversion
+    PFN_vkCreateSamplerYcbcrConversionKHR vkCreateSamplerYcbcrConversionKHR;
+    PFN_vkDestroySamplerYcbcrConversionKHR vkDestroySamplerYcbcrConversionKHR;
+
+    // VK_KHR_swapchain
+    PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR;
+    PFN_vkDestroySwapchainKHR vkDestroySwapchainKHR;
+    PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR;
+    PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR;
+    PFN_vkQueuePresentKHR vkQueuePresentKHR;
+
+#if __ANDROID_API__ >= 26
+    // VK_ANDROID_external_memory_android_hardware_buffer
+    PFN_vkGetAndroidHardwareBufferPropertiesANDROID vkGetAndroidHardwareBufferPropertiesANDROID;
+    PFN_vkGetMemoryAndroidHardwareBufferANDROID vkGetMemoryAndroidHardwareBufferANDROID;
+#endif // __ANDROID_API__ >= 26
 
 protected:
     // shader management
