@@ -310,6 +310,10 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
             }
             else
             {
+                // skip weight reshape
+                if (weights.find(node->input(1)) == weights.end())
+                    continue;
+
                 shape = get_tensor_proto_reshape_shape(weights[node->input(1)]);
             }
 
@@ -347,6 +351,10 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
             }
             else
             {
+                // skip weight reshape
+                if (weights.find(node3->input(1)) == weights.end())
+                    continue;
+
                 shape3 = get_tensor_proto_reshape_shape(weights[node3->input(1)]);
             }
 
