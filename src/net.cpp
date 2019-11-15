@@ -127,7 +127,7 @@ int Net::load_param(const DataReader& dr)
 #define SCAN_VALUE(fmt, v) \
     if (dr.scan(fmt, &v) != 1) \
     { \
-        fprintf(stderr, "parse" #v "failed\n"); \
+        fprintf(stderr, "parse " #v " failed\n"); \
         return -1; \
     }
 
@@ -278,7 +278,7 @@ int Net::load_param_bin(const DataReader& dr)
 #define READ_VALUE(buf) \
     if (dr.read(&buf, sizeof(buf)) != sizeof(buf)) \
     { \
-        fprintf(stderr, "read" #buf "failed\n"); \
+        fprintf(stderr, "read " #buf " failed\n"); \
         return -1; \
     }
 
