@@ -120,6 +120,7 @@ public:
     int eliminate_dropout();
     int eliminate_pooling1x1();
     int eliminate_noop();
+    int eliminate_orphaned_memorydata();
     int eliminate_flatten_after_global_pooling();
     int eliminate_reshape_after_global_pooling();
     int eliminate_flatten_after_innerproduct();
@@ -1377,6 +1378,49 @@ int NetOptimize::eliminate_noop()
     return 0;
 }
 
+int NetOptimize::eliminate_orphaned_memorydata()
+{
+    const int layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "MemoryData")
+            continue;
+
+        // MemoryData - X
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type == "ncnnfused")
+                continue;
+
+            bool orphaned = true;
+            for (int k=0; k<layers[j]->bottoms.size(); k++)
+            {
+                if (layers[j]->bottoms[k] == top_blob_index)
+                {
+                    orphaned = false;
+                    break;
+                }
+            }
+
+            if (!orphaned)
+                break;
+        }
+
+        if (j < layer_count)
+            continue;
+
+        // assert orphaned == true
+        fprintf(stderr, "eliminate_orphaned_memorydata %s\n", layers[i]->name.c_str());
+
+        layers[i]->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
 int NetOptimize::eliminate_reshape_after_global_pooling()
 {
     const int layer_count = layers.size();
@@ -2520,6 +2564,7 @@ int main(int argc, char** argv)
     optimizer.replace_convolution_with_innerproduct_after_innerproduct();
 
     optimizer.eliminate_flatten_after_innerproduct();
+    optimizer.eliminate_orphaned_memorydata();
 
     optimizer.save(outparam, outbin);
 
