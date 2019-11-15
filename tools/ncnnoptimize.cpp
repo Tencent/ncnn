@@ -2174,6 +2174,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%e", eps)
             fprintf_param_value(" 3=%d", scale_data_size)
             fprintf_param_value(" 4=%d", across_channel)
+            fprintf_param_value(" 9=%d", eps_mode)
 
             fwrite_weight_data(op->scale_data, bp);
         }

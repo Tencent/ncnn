@@ -2156,9 +2156,15 @@ int main(int argc, char** argv)
         else if (op == "Normalize")
         {
             float eps = get_node_attr_f(node, "eps", 0.f);
+            int scale_data_size = 1;
 
+            fprintf(pp, " 1=1");// channel_shared
             fprintf(pp, " 2=%e", eps);
+            fprintf(pp, " 3=%d", scale_data_size);
             fprintf(pp, " 9=1");// TODO hardcode pytorch style
+
+            const float scale_data[1] = { 1.f };
+            fwrite(scale_data, sizeof(float), 1, bp);
         }
         else if (op == "Pad")
         {
