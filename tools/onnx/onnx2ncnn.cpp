@@ -2158,6 +2158,7 @@ int main(int argc, char** argv)
             float eps = get_node_attr_f(node, "eps", 0.f);
 
             fprintf(pp, " 2=%e", eps);
+            fprintf(pp, " 9=1");// TODO hardcode pytorch style
         }
         else if (op == "Pad")
         {
