@@ -14,6 +14,7 @@
 
 #include "normalize.h"
 #include <math.h>
+#include <algorithm>
 
 namespace ncnn {
 
@@ -39,18 +40,9 @@ int Normalize::load_param(const ParamDict& pd)
 
 int Normalize::load_model(const ModelBin& mb)
 {
-    if (scale_data_size)
-    {
-        scale_data = mb.load(scale_data_size, 1);
-        if (scale_data.empty())
-            return -100;
-    }
-    else
-    {
-        // assert channel_shared == 1
-        scale_data = Mat(1);
-        scale_data[0] = 1.f;
-    }
+    scale_data = mb.load(scale_data_size, 1);
+    if (scale_data.empty())
+        return -100;
 
     return 0;
 }

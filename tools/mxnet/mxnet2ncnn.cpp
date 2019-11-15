@@ -2120,6 +2120,7 @@ int main(int argc, char** argv)
             int across_spatial = 0;
             int across_channel = 1;
             int channel_shared = 1;
+            int scale_data_size = 1;
 
             if (mode == "instance")
             {
@@ -2141,6 +2142,10 @@ int main(int argc, char** argv)
             fprintf(pp, " 4=%d", across_channel);
             fprintf(pp, " 1=%d", channel_shared);
             fprintf(pp, " 2=%e", eps);
+            fprintf(pp, " 3=%d", scale_data_size);
+
+            const float scale_data[1] = { 1.f };
+            fwrite(scale_data, sizeof(float), 1, bp);
         }
         else if (n.op == "LeakyReLU")
         {
