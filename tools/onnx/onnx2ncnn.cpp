@@ -310,6 +310,10 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
             }
             else
             {
+                // skip weight reshape
+                if (weights.find(node->input(1)) == weights.end())
+                    continue;
+
                 shape = get_tensor_proto_reshape_shape(weights[node->input(1)]);
             }
 
@@ -347,6 +351,10 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
             }
             else
             {
+                // skip weight reshape
+                if (weights.find(node3->input(1)) == weights.end())
+                    continue;
+
                 shape3 = get_tensor_proto_reshape_shape(weights[node3->input(1)]);
             }
 
@@ -495,9 +503,6 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
             if (node2->op_type() != "Mul")
                 continue;
 
-            if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
-                continue;
-
             if (node2->input(0) != node->input(0) || node2->input(1) != node->output(0))
                 continue;
 
@@ -635,9 +640,6 @@ static void fuse_batchnorm1d_squeeze_unsqueeze(onnx::GraphProto* mutable_graph, 
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
                 continue;
 
-            if (node_reference.find(node3->output(0)) == node_reference.end() || node_reference[node3->output(0)] != 1)
-                continue;
-
             if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0))
                 continue;
 
@@ -655,6 +657,258 @@ static void fuse_batchnorm1d_squeeze_unsqueeze(onnx::GraphProto* mutable_graph, 
 
             reduced_node_count += 2;
             i += 2;
+        }
+    }
+}
+
+static void fuse_unsqueeze_prelu(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, onnx::TensorProto>& binaryop_weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count, std::vector<std::string>& reduced_binaryop_weights)
+{
+    int node_count = mutable_graph->node_size();
+    for (int i=0; i<node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // PReLU <= Unsqueeze - PReLU
+        if (node->op_type() == "Unsqueeze")
+        {
+            // check weight
+            if (weights.find(node->input(0)) == weights.end())
+                continue;
+
+            onnx::TensorProto& B = weights[node->input(0)];
+            if (B.dims_size() != 1)
+                continue;
+
+            if (node_reference.find(node->output(0)) == node_reference.end() || node_reference[node->output(0)] != 1)
+                continue;
+
+            // axes = (1, 2)
+            std::vector<int> axes = get_node_attr_ai(*node, "axes");
+            if (axes.size() != 2)
+                continue;
+            if (axes[0] != 1 || axes[1] != 2)
+                continue;
+
+            if (i+1 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
+
+            if (node2->op_type() != "PRelu")
+                continue;
+
+            if (node2->input(1) != node->output(0))
+                continue;
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+
+            node_reference.erase(node_reference.find(node->output(0)));
+            blob_names.erase(node->output(0));
+
+            node2->set_input(1, node->input(0));
+
+            reduced_node_count += 1;
+            i += 1;
+        }
+    }
+}
+
+static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, onnx::TensorProto>& binaryop_weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count, std::vector<std::string>& reduced_binaryop_weights)
+{
+    int node_count = mutable_graph->node_size();
+    for (int i=0; i<node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // Normalize <= X - ReduceL2 - Clip - Shape - Expand - Div
+        if (node->op_type() == "ReduceL2")
+        {
+            if (node_reference.find(node->output(0)) == node_reference.end() || node_reference[node->output(0)] != 1)
+                continue;
+
+            // axes = (1)
+            std::vector<int> axes = get_node_attr_ai(*node, "axes");
+            if (axes.size() != 1)
+                continue;
+            if (axes[0] != 1)
+                continue;
+
+            if (i+4 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
+            onnx::NodeProto* node4 = mutable_graph->mutable_node(i+3);
+            onnx::NodeProto* node5 = mutable_graph->mutable_node(i+4);
+
+            if (node2->op_type() != "Clip" || node3->op_type() != "Shape" || node4->op_type() != "Expand" || node5->op_type() != "Div")
+                continue;
+
+            if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
+                continue;
+
+            if (node_reference.find(node3->output(0)) == node_reference.end() || node_reference[node3->output(0)] != 1)
+                continue;
+
+            if (node_reference.find(node4->output(0)) == node_reference.end() || node_reference[node4->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->output(0) || node3->input(0) != node->input(0)
+                || node4->input(0) != node2->output(0) || node4->input(1) != node3->output(0)
+                || node5->input(0) != node->input(0) || node5->input(1) != node4->output(0))
+                continue;
+
+            // +eps
+            float clip_min = get_node_attr_f(*node2, "min", 0.f);
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node2->set_op_type("noop_reducedncnn");
+            node3->set_op_type("noop_reducedncnn");
+            node4->set_op_type("noop_reducedncnn");
+
+            node_reference[node->input(0)] -= 2;
+
+            node_reference.erase(node_reference.find(node->output(0)));
+            node_reference.erase(node_reference.find(node2->output(0)));
+            node_reference.erase(node_reference.find(node3->output(0)));
+            node_reference.erase(node_reference.find(node4->output(0)));
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+            blob_names.erase(node3->output(0));
+            blob_names.erase(node4->output(0));
+
+            node5->set_op_type("Normalize");
+            node5->clear_input();
+            node5->add_input(node->input(0));
+
+            onnx::AttributeProto* attr_alpha = node5->add_attribute();
+            attr_alpha->set_name("eps");
+            attr_alpha->set_f(clip_min);
+
+            reduced_node_count += 4;
+            i += 4;
+        }
+    }
+}
+
+static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, onnx::TensorProto>& binaryop_weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count, std::vector<std::string>& reduced_binaryop_weights)
+{
+    int node_count = mutable_graph->node_size();
+    for (int i=0; i<node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // Flatten <= X - Shape - Gather - Constant - Unsqueeze - Unsqueeze - Concat - Reshape
+        if (node->op_type() == "Shape")
+        {
+            if (node_reference.find(node->output(0)) == node_reference.end() || node_reference[node->output(0)] != 1)
+                continue;
+
+            if (i+6 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
+            onnx::NodeProto* node4 = mutable_graph->mutable_node(i+3);
+            onnx::NodeProto* node5 = mutable_graph->mutable_node(i+4);
+            onnx::NodeProto* node6 = mutable_graph->mutable_node(i+5);
+            onnx::NodeProto* node7 = mutable_graph->mutable_node(i+6);
+
+            if (node2->op_type() != "Gather" || node3->op_type() != "Constant" || node4->op_type() != "Unsqueeze" || node5->op_type() != "Unsqueeze"
+                || node6->op_type() != "Concat" || node7->op_type() != "Reshape")
+                continue;
+
+            if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
+                continue;
+
+//             if (node_reference.find(node3->output(0)) == node_reference.end() || node_reference[node3->output(0)] != 1)
+//                 continue;
+
+            if (node_reference.find(node4->output(0)) == node_reference.end() || node_reference[node4->output(0)] != 1)
+                continue;
+
+            if (node_reference.find(node5->output(0)) == node_reference.end() || node_reference[node5->output(0)] != 1)
+                continue;
+
+            if (node_reference.find(node6->output(0)) == node_reference.end() || node_reference[node6->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->output(0) || node4->input(0) != node2->output(0) || node5->input(0) != node3->output(0)
+                || node6->input(0) != node4->output(0) || node6->input(1) != node5->output(0)
+                || node7->input(0) != node->input(0) || node7->input(1) != node6->output(0))
+                continue;
+
+            // axis = 0
+            int gather_axis = get_node_attr_i(*node2, "axis");
+            if (gather_axis != 0)
+                continue;
+
+            // indices = 0
+            if (weights.find(node2->input(1)) == weights.end())
+                continue;
+
+            std::vector<int> gather_indices = get_tensor_proto_reshape_shape(weights[node2->input(1)]);
+            if (gather_indices.size() != 1 || gather_indices[0] != 0)
+                continue;
+
+            // axes = (0)
+            std::vector<int> unsqueeze_axes = get_node_attr_ai(*node4, "axes");
+            if (unsqueeze_axes.size() != 1)
+                continue;
+            if (unsqueeze_axes[0] != 0)
+                continue;
+
+            // axes = (0)
+            std::vector<int> unsqueeze2_axes = get_node_attr_ai(*node5, "axes");
+            if (unsqueeze2_axes.size() != 1)
+                continue;
+            if (unsqueeze2_axes[0] != 0)
+                continue;
+
+            // data = -1
+            if (weights.find(node5->input(0)) == weights.end())
+                continue;
+
+            std::vector<int> unsqueeze2_data = get_tensor_proto_reshape_shape(weights[node5->input(0)]);
+            if (unsqueeze2_data.size() != 1 || unsqueeze2_data[0] != -1)
+                continue;
+
+            // axis = 0
+            int concat_axis = get_node_attr_i(*node6, "axis");
+            if (concat_axis != 0)
+                continue;
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node2->set_op_type("noop_reducedncnn");
+//             node3->set_op_type("noop_reducedncnn");
+            node4->set_op_type("noop_reducedncnn");
+            node5->set_op_type("noop_reducedncnn");
+            node6->set_op_type("noop_reducedncnn");
+
+            node_reference[node->input(0)] -= 1;
+
+            node_reference.erase(node_reference.find(node->output(0)));
+            node_reference.erase(node_reference.find(node2->output(0)));
+//             node_reference.erase(node_reference.find(node3->output(0)));
+            node_reference.erase(node_reference.find(node4->output(0)));
+            node_reference.erase(node_reference.find(node5->output(0)));
+            node_reference.erase(node_reference.find(node6->output(0)));
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+//             blob_names.erase(node3->output(0));
+            blob_names.erase(node4->output(0));
+            blob_names.erase(node5->output(0));
+            blob_names.erase(node6->output(0));
+
+            node7->set_op_type("Flatten");
+            node7->clear_input();
+            node7->add_input(node->input(0));
+
+            reduced_node_count += 5;
+            i += 5;
         }
     }
 }
@@ -852,6 +1106,9 @@ int main(int argc, char** argv)
     fuse_hardsigmoid    (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
     fuse_hardswish      (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
     fuse_batchnorm1d_squeeze_unsqueeze(mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
+    fuse_unsqueeze_prelu(mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
+    fuse_normalize      (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
+    fuse_flatten        (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
 
     // remove node_reference entry with reference equals to one
     int splitncnn_blob_count = 0;
@@ -1185,6 +1442,10 @@ int main(int argc, char** argv)
         else if (op == "Neg")
         {
             fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "Normalize")
+        {
+            fprintf(pp, "%-16s", "Normalize");
         }
         else if (op == "Pad")
         {
@@ -1891,6 +2152,19 @@ int main(int argc, char** argv)
         {
             int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Normalize")
+        {
+            float eps = get_node_attr_f(node, "eps", 0.f);
+            int scale_data_size = 1;
+
+            fprintf(pp, " 1=1");// channel_shared
+            fprintf(pp, " 2=%e", eps);
+            fprintf(pp, " 3=%d", scale_data_size);
+            fprintf(pp, " 9=1");// TODO hardcode pytorch style
+
+            const float scale_data[1] = { 1.f };
+            fwrite(scale_data, sizeof(float), 1, bp);
         }
         else if (op == "Pad")
         {
