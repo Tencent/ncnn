@@ -1303,6 +1303,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
         {
             // load bottom blobs
             std::vector<VkMat> bottom_blobs(layer->bottoms.size());
+            std::vector<VkMat> bottom_blobs_unpacked(layer->bottoms.size());
             for (size_t i=0; i<layer->bottoms.size(); i++)
             {
                 int bottom_blob_index = layer->bottoms[i];
@@ -1336,7 +1337,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         }
 
                         // upload
-                        VkMat bottom_blob_unpacked;
+                        VkMat& bottom_blob_unpacked = bottom_blobs_unpacked[i];
                         bottom_blob_unpacked.create_like(bottom_blob_cpu_fp16, opt.blob_vkallocator, opt.staging_vkallocator);
 
                         bottom_blob_unpacked.prepare_staging_buffer();

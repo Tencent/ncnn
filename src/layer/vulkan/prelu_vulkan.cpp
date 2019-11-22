@@ -69,6 +69,16 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         Mat slope_data4(4);
         slope_data4.fill(slope_data[0]);
         cmd.record_upload(slope_data4, slope_data_gpu, opt);
+
+        Mat slope_data_pack4;
+        convert_packing(slope_data4, slope_data_pack4, 4);
+        cmd.record_upload(slope_data_pack4, slope_data_gpu_pack4, opt);
+    }
+    else if (num_slope % 4 == 0)
+    {
+        Mat slope_data_pack4;
+        convert_packing(slope_data, slope_data_pack4, 4);
+        cmd.record_upload(slope_data_pack4, slope_data_gpu_pack4, opt);
     }
     else
     {
@@ -84,7 +94,7 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
 
     std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
-    bindings[1] = slope_data_gpu;
+    bindings[1] = elempack == 4 ? slope_data_gpu_pack4 : slope_data_gpu;
 
     std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
