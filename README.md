@@ -21,8 +21,10 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 | Windows (VS2017) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=windows-vs2017&label=build)](https://travis-ci.org/Tencent/ncnn) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=windows-vs2017-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
 | MacOS | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=macos-clang&label=build)](https://travis-ci.org/Tencent/ncnn) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=macos-clang-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
 | Android | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-armv7&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-armv7-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-aarch64&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-aarch64-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
+| Android-x86 | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-x86&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-x86-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-x86_64&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=android-x86_64-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
 | iOS | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=ios-iphoneos&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=ios-iphoneos&label=build)](https://travis-ci.org/Tencent/ncnn) | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=ios-iphoneos-gpu&label=build)](https://travis-ci.org/Tencent/ncnn) |
 | iOS Simulator | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=ios-iphonesimulator&label=build)](https://travis-ci.org/Tencent/ncnn) | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=ios-iphonesimulator&label=build)](https://travis-ci.org/Tencent/ncnn) | — | — |
+| WebAssembly | — | [![Build Status](https://badges.herokuapp.com/travis/Tencent/ncnn?env=NAME=webassembly&label=build)](https://travis-ci.org/Tencent/ncnn) | — | — |
 
 ---
 
@@ -141,10 +143,12 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 ### Example project
 
 * https://github.com/nihui/ncnn-android-squeezenet
+* https://github.com/nihui/ncnn-android-styletransfer
 * https://github.com/chehongshu/ncnnforandroid_objectiondetection_Mobilenetssd
 * https://github.com/moli232777144/mtcnn_ncnn
 
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-2.jpg)
+![](https://github.com/nihui/ncnn-assets/raw/master/20181217/4.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-23.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png)
 
