@@ -47,6 +47,7 @@ static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
     //      pose_net.hybridize()
     //      pose_net.export('pose')
     // then mxnet2ncnn
+    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
     posenet.load_param("pose.param");
     posenet.load_model("pose.bin");
 
