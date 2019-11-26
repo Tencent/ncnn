@@ -114,7 +114,8 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     // py-faster-rcnn/models/pascal_voc/ZF/faster_rcnn_alt_opt/faster_rcnn_test.pt
     // https://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0
     // ZF_faster_rcnn_final.caffemodel
-    fasterrcnn.load_param("ZF_faster_rcnn_final.proto");
+    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
+    fasterrcnn.load_param("ZF_faster_rcnn_final.param");
     fasterrcnn.load_model("ZF_faster_rcnn_final.bin");
 
     // hyper parameters taken from

@@ -42,6 +42,7 @@ static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
     // original pretrained model from https://github.com/eric612/MobileNet-YOLO
     // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy.prototxt
     // https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy_iter_80000.caffemodel
+    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
     yolov2.load_param("mobilenet_yolo.param");
     yolov2.load_model("mobilenet_yolo.bin");
 
