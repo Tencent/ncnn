@@ -182,6 +182,11 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
             {
                 pipeline = pipeline_binaryop_broadcast_b1_pack4;
             }
+            else if (bottom_blob.dims == 3 && bottom_blob1.dims == 3 && bottom_blob1.w == bottom_blob.w && bottom_blob1.h == bottom_blob.h && bottom_blob1.c == 1 && bottom_blob1.elempack == 1)
+            {
+                // special type 2
+                pipeline = pipeline_binaryop_broadcast_b1_pack4;
+            }
             else
             {
                 pipeline = pipeline_binaryop_broadcast_pack4;

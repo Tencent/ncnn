@@ -63,9 +63,17 @@ void main()
 
     const int gi = gz * p.outcstep + gy * p.outw + gx;
 
+    int bi = 0;
+
+    if (p.bw == p.aw && p.bh == p.ah && p.bc == 1)
+    {
+        // special type 2
+        bi = gz * p.bcstep + gy * p.bw;
+    }
+
     // type 6 11 16
     afpvec4 v1 = sfp2afpvec4(a_blob_data[gi]);
-    afpvec4 v2 = afpvec4(b_blob_data[0]);
+    afpvec4 v2 = afpvec4(b_blob_data[bi]);
 
     afpvec4 res;
 
