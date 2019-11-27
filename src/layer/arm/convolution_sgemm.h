@@ -1139,7 +1139,8 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
 
                     "add      v16.4s, v16.4s, v18.4s     \n"
                     "add      v17.4s, v17.4s, v19.4s     \n"
-                    "add      v14.4s, v16.4s, v17.4s     \n"
+                    "add      v14.4s, v14.4s, v16.4s     \n"
+                    "add      v14.4s, v14.4s, v17.4s     \n"
 
                     "1:                                  \n"
 

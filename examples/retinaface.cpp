@@ -248,6 +248,7 @@ static int detect_retinaface(const cv::Mat& bgr, std::vector<FaceObject>& faceob
     // model is converted from
     // https://github.com/deepinsight/insightface/tree/master/RetinaFace#retinaface-pretrained-models
     // https://github.com/deepinsight/insightface/issues/669
+    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
 //     retinaface.load_param("retinaface-R50.param");
 //     retinaface.load_model("retinaface-R50.bin");
     retinaface.load_param("mnet.25-opt.param");
