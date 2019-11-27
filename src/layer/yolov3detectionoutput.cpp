@@ -14,6 +14,7 @@
 
 #include "yolov3detectionoutput.h"
 #include <algorithm>
+#include <limits>
 #include <math.h>
 #include "layer_type.h"
 
