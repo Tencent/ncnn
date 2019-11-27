@@ -47,6 +47,7 @@ public:
     int op_type;
     int with_scalar;
     float b;
+    int layout;
 };
 
 } // namespace ncnn
