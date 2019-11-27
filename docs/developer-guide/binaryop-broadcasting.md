@@ -33,3 +33,4 @@ some special broadcasting rule exists for model compatibility
 |special type|A|B|C|
 |---|---|---|---|
 |1|[2,3,4]|[1,1,4]|[2,3,4]|
+|2|[2,3,4]|[2,3,1]|[2,3,4]|
