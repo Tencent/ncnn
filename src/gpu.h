@@ -164,6 +164,10 @@ public:
     VkAllocator* acquire_staging_allocator() const;
     void reclaim_staging_allocator(VkAllocator* allocator) const;
 
+    // VK_KHR_bind_memory2
+    PFN_vkBindBufferMemory2KHR vkBindBufferMemory2KHR;
+    PFN_vkBindImageMemory2KHR vkBindImageMemory2KHR;
+
     // VK_KHR_descriptor_update_template
     PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;
     PFN_vkDestroyDescriptorUpdateTemplateKHR vkDestroyDescriptorUpdateTemplateKHR;
