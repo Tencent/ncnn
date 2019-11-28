@@ -68,7 +68,7 @@ void main()
     if (p.bw == p.aw && p.bh == p.ah && p.bc == 1)
     {
         // special type 2
-        bi = gz * p.bcstep + gy * p.bw;
+        bi = gy * p.bw + gx;
     }
 
     // type 6 11 16

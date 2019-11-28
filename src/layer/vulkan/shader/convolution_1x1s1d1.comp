@@ -30,8 +30,13 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_fp16_packed
+layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#endif
 layout (binding = 2) readonly buffer weight_blob { sfp weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfp bias_data[]; };
 
@@ -73,7 +78,11 @@ void main()
 
     for (int z = 0; z < p.c; z++)
     {
+#if NCNN_fp16_packed
+        sum += sfp2afp(weight_data[w_offset]) * afpvec4(bottom_blob_data[v_offset]);
+#else
         sum += sfp2afp(weight_data[w_offset]) * sfp2afpvec4(bottom_blob_data[v_offset]);
+#endif
 
         w_offset += 1;
         v_offset += p.cstep_4;
@@ -99,5 +108,9 @@ void main()
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
+#if NCNN_fp16_packed
+    top_blob_data[gz * p.outcstep_4 + gx] = vec4(sum);
+#else
     top_blob_data[gz * p.outcstep_4 + gx] = afp2sfpvec4(sum);
+#endif
 }
