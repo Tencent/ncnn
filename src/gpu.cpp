@@ -1272,6 +1272,12 @@ void VulkanDevice::destroy_shader_module()
 
 int VulkanDevice::init_device_extension()
 {
+    if (info.support_VK_KHR_bind_memory2)
+    {
+        vkBindBufferMemory2KHR = (PFN_vkBindBufferMemory2KHR)vkGetDeviceProcAddr(device, "vkBindBufferMemory2KHR");
+        vkBindImageMemory2KHR = (PFN_vkBindImageMemory2KHR)vkGetDeviceProcAddr(device, "vkBindImageMemory2KHR");
+    }
+
     if (info.support_VK_KHR_descriptor_update_template)
     {
         vkCreateDescriptorUpdateTemplateKHR = (PFN_vkCreateDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkCreateDescriptorUpdateTemplateKHR");
