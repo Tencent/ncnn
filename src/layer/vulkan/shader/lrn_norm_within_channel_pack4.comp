@@ -31,7 +31,7 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer square_workspace { sfpvec4 square_workspace_data[]; };
+layout (binding = 0) readonly buffer square_workspace { vec4 square_workspace_data[]; };
 layout (binding = 1) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 
 layout (push_constant) uniform parameter
@@ -68,7 +68,7 @@ void main()
     {
         for (int x = 0; x < local_size; x++)
         {
-            sum += sfp2afpvec4(square_workspace_data[v_offset + x]);
+            sum += afpvec4(square_workspace_data[v_offset + x]);
         }
 
         v_offset += p.w;
