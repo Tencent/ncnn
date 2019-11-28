@@ -136,7 +136,7 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
     int pad = local_size / 2;
     if (pad == 0)
     {
-        square_workspace.create(w, h, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        square_workspace.create(w, h, channels, elempack * 4u, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
     else if (region_type == NormRegion_ACROSS_CHANNELS)
     {
@@ -145,7 +145,7 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
     }
     else if (region_type == NormRegion_WITHIN_CHANNEL)
     {
-        square_workspace.create(w + local_size - 1, h + local_size - 1, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        square_workspace.create(w + local_size - 1, h + local_size - 1, channels, elempack * 4u, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
     }
 
     // square pad
