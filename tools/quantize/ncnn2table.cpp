@@ -542,6 +542,12 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     net.get_conv_bottom_blob_names();
     net.get_conv_weight_blob_scales();
 
+    if (net.input_names.size() <= 0)
+    {
+        fprintf(stderr, "not found [Input] Layer, Check your ncnn.param \n");
+        return -1;
+    }
+    
     FILE *fp=fopen(table_path, "w");
 
     // save quantization scale of weight 
@@ -617,7 +623,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     }
 
     // step 2 histogram_interval
-    printf("    ====> step 2 : generatue the histogram_interval.\n");
+    printf("    ====> step 2 : generate the histogram_interval.\n");
     for (size_t i=0; i<net.conv_names.size(); i++)
     {
         std::string layer_name = net.conv_names[i];
@@ -635,7 +641,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     }    
 
     // step 3 histogram
-    printf("    ====> step 3 : generatue the histogram.\n");
+    printf("    ====> step 3 : generate the histogram.\n");
     for (size_t i=0; i<filenames.size(); i++)
     {
         std::string img_name = filenames[i];
