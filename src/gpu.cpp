@@ -195,7 +195,19 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
         }
     }
 
-    // second try, any queue with compute
+    // second try, any queue with compute and graphics
+    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
+    {
+        const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+        if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
+            && (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+        {
+            return i;
+        }
+    }
+
+    // third try, any queue with compute
     for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
     {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
@@ -207,6 +219,47 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
     }
 
 //     fprintf(stderr, "no compute queue\n");
+    return -1;
+}
+
+static uint32_t find_device_graphics_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties)
+{
+    // first try, graphics only queue
+    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
+    {
+        const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+        if ((queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT))
+        {
+            return i;
+        }
+    }
+
+    // second try, any queue with graphics and compute
+    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
+    {
+        const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+        if ((queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            && (queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT))
+        {
+            return i;
+        }
+    }
+
+    // third try, any queue with graphics
+    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
+    {
+        const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+        if (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            return i;
+        }
+    }
+
+//     fprintf(stderr, "no graphics queue\n");
     return -1;
 }
 
@@ -241,6 +294,13 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
     if (compute_queue_index != (uint32_t)-1)
     {
         return compute_queue_index;
+    }
+
+    // fourth try, use graphics queue
+    uint32_t graphics_queue_index = find_device_graphics_queue(queueFamilyProperties);
+    if (graphics_queue_index != (uint32_t)-1)
+    {
+        return graphics_queue_index;
     }
 
 //     fprintf(stderr, "no transfer queue\n");
@@ -628,9 +688,11 @@ int create_gpu_instance()
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
 
         gpu_info.compute_queue_family_index = find_device_compute_queue(queueFamilyProperties);
+        gpu_info.graphics_queue_family_index = find_device_graphics_queue(queueFamilyProperties);
         gpu_info.transfer_queue_family_index = find_device_transfer_queue(queueFamilyProperties);
 
         gpu_info.compute_queue_count = queueFamilyProperties[gpu_info.compute_queue_family_index].queueCount;
+        gpu_info.graphics_queue_count = queueFamilyProperties[gpu_info.graphics_queue_family_index].queueCount;
         gpu_info.transfer_queue_count = queueFamilyProperties[gpu_info.transfer_queue_family_index].queueCount;
 
         // find memory type index
@@ -749,6 +811,7 @@ int create_gpu_instance()
         gpu_info.support_fp16_arithmetic = false;
         gpu_info.support_int8_storage = false;
         gpu_info.support_int8_arithmetic = false;
+        gpu_info.support_ycbcr_conversion = false;
         if (support_VK_KHR_get_physical_device_properties2)
         {
             void* queryExtensionFeatures = 0;
@@ -783,6 +846,16 @@ int create_gpu_instance()
                 queryExtensionFeatures = &queryFloat16Int8Features;
             }
 
+            // query ycbcr_conversion
+            VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR querySamplerYcbcrConversionFeatures;
+            querySamplerYcbcrConversionFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES_KHR;
+            querySamplerYcbcrConversionFeatures.pNext = 0;
+            if (gpu_info.support_VK_KHR_sampler_ycbcr_conversion)
+            {
+                querySamplerYcbcrConversionFeatures.pNext = queryExtensionFeatures;
+                queryExtensionFeatures = &querySamplerYcbcrConversionFeatures;
+            }
+
             VkPhysicalDeviceFeatures2KHR queryFeatures;
             queryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
             queryFeatures.pNext = queryExtensionFeatures;
@@ -801,6 +874,10 @@ int create_gpu_instance()
             {
                 gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
                 gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
+            }
+            if (gpu_info.support_VK_KHR_sampler_ycbcr_conversion)
+            {
+                gpu_info.support_ycbcr_conversion = querySamplerYcbcrConversionFeatures.samplerYcbcrConversion;
             }
         }
         else
@@ -964,34 +1041,74 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         enabledExtensionFeatures = &enabledFloat16Int8Features;
     }
 
+    // enable ycbcr conversion
+    VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR querySamplerYcbcrConversionFeatures;
+    querySamplerYcbcrConversionFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES_KHR;
+    querySamplerYcbcrConversionFeatures.pNext = 0;
+    querySamplerYcbcrConversionFeatures.samplerYcbcrConversion = info.support_ycbcr_conversion;
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_ycbcr_conversion)
+    {
+        querySamplerYcbcrConversionFeatures.pNext = enabledExtensionFeatures;
+        enabledExtensionFeatures = &querySamplerYcbcrConversionFeatures;
+    }
+
     std::vector<float> compute_queue_priorities(info.compute_queue_count, 1.f);// 0.f ~ 1.f
+    std::vector<float> graphics_queue_priorities(info.transfer_queue_count, 1.f);// 0.f ~ 1.f
     std::vector<float> transfer_queue_priorities(info.transfer_queue_count, 1.f);// 0.f ~ 1.f
 
-    VkDeviceQueueCreateInfo deviceQueueCreateInfos[2];
-    deviceQueueCreateInfos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    deviceQueueCreateInfos[0].pNext = 0;
-    deviceQueueCreateInfos[0].flags = 0;
-    deviceQueueCreateInfos[0].queueFamilyIndex = info.compute_queue_family_index;
-    deviceQueueCreateInfos[0].queueCount = info.compute_queue_count;
-    deviceQueueCreateInfos[0].pQueuePriorities = compute_queue_priorities.data();
-    deviceQueueCreateInfos[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    deviceQueueCreateInfos[1].pNext = 0;
-    deviceQueueCreateInfos[1].flags = 0;
-    deviceQueueCreateInfos[1].queueFamilyIndex = info.transfer_queue_family_index;
-    deviceQueueCreateInfos[1].queueCount = info.transfer_queue_count;
-    deviceQueueCreateInfos[1].pQueuePriorities = transfer_queue_priorities.data();
+    VkDeviceQueueCreateInfo deviceQueueCreateInfos[3];
+
+    VkDeviceQueueCreateInfo deviceComputeQueueCreateInfo;
+    deviceComputeQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    deviceComputeQueueCreateInfo.pNext = 0;
+    deviceComputeQueueCreateInfo.flags = 0;
+    deviceComputeQueueCreateInfo.queueFamilyIndex = info.compute_queue_family_index;
+    deviceComputeQueueCreateInfo.queueCount = info.compute_queue_count;
+    deviceComputeQueueCreateInfo.pQueuePriorities = compute_queue_priorities.data();
+
+    VkDeviceQueueCreateInfo deviceGraphicsQueueCreateInfo;
+    deviceGraphicsQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    deviceGraphicsQueueCreateInfo.pNext = 0;
+    deviceGraphicsQueueCreateInfo.flags = 0;
+    deviceGraphicsQueueCreateInfo.queueFamilyIndex = info.graphics_queue_family_index;
+    deviceGraphicsQueueCreateInfo.queueCount = info.graphics_queue_count;
+    deviceGraphicsQueueCreateInfo.pQueuePriorities = graphics_queue_priorities.data();
+
+    VkDeviceQueueCreateInfo deviceTransferQueueCreateInfo;
+    deviceTransferQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    deviceTransferQueueCreateInfo.pNext = 0;
+    deviceTransferQueueCreateInfo.flags = 0;
+    deviceTransferQueueCreateInfo.queueFamilyIndex = info.transfer_queue_family_index;
+    deviceTransferQueueCreateInfo.queueCount = info.transfer_queue_count;
+    deviceTransferQueueCreateInfo.pQueuePriorities = transfer_queue_priorities.data();
 
     VkDeviceCreateInfo deviceCreateInfo;
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.pNext = enabledExtensionFeatures;
     deviceCreateInfo.flags = 0;
-    if (info.compute_queue_family_index == info.transfer_queue_family_index)
+    if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index == info.transfer_queue_family_index)
     {
+    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
     deviceCreateInfo.queueCreateInfoCount = 1;
     }
-    else
+    else if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index != info.transfer_queue_family_index)
     {
+    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
+    deviceQueueCreateInfos[1] = deviceTransferQueueCreateInfo;
     deviceCreateInfo.queueCreateInfoCount = 2;
+    }
+    else if (info.compute_queue_family_index != info.graphics_queue_family_index && info.graphics_queue_family_index == info.transfer_queue_family_index)
+    {
+    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
+    deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
+    deviceCreateInfo.queueCreateInfoCount = 2;
+    }
+    else // if (info.compute_queue_family_index != info.graphics_queue_family_index && info.graphics_queue_family_index != info.transfer_queue_family_index)
+    {
+    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
+    deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
+    deviceQueueCreateInfos[2] = deviceTransferQueueCreateInfo;
+    deviceCreateInfo.queueCreateInfoCount = 3;
     }
     deviceCreateInfo.pQueueCreateInfos = deviceQueueCreateInfos;
     deviceCreateInfo.enabledLayerCount = 0;
@@ -1019,7 +1136,15 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         blob_allocators[i] = new VkBlobBufferAllocator(this);
         staging_allocators[i] = new VkStagingBufferAllocator(this);
     }
-    if (info.compute_queue_family_index != info.transfer_queue_family_index)
+    if (info.compute_queue_family_index != info.graphics_queue_family_index)
+    {
+        graphics_queues.resize(info.graphics_queue_count);
+        for (uint32_t i = 0; i < info.graphics_queue_count; i++)
+        {
+            vkGetDeviceQueue(device, info.graphics_queue_family_index, i, &graphics_queues[i]);
+        }
+    }
+    if (info.compute_queue_family_index != info.transfer_queue_family_index && info.graphics_queue_family_index != info.transfer_queue_family_index)
     {
         transfer_queues.resize(info.transfer_queue_count);
         for (uint32_t i = 0; i < info.transfer_queue_count; i++)
@@ -1078,7 +1203,9 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
 
 VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 {
-    if (queue_family_index != info.compute_queue_family_index && queue_family_index != info.transfer_queue_family_index)
+    if (queue_family_index != info.compute_queue_family_index
+        && queue_family_index != info.graphics_queue_family_index
+        && queue_family_index != info.transfer_queue_family_index)
     {
         fprintf(stderr, "invalid queue_family_index %u\n", queue_family_index);
         return 0;
@@ -1086,7 +1213,8 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 
     MutexLockGuard lock(queue_lock);
 
-    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues : transfer_queues;
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
+                                 : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
     for (int i=0; i<(int)queues.size(); i++)
     {
         VkQueue queue = queues[i];
@@ -1103,7 +1231,9 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 
 void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) const
 {
-    if (queue_family_index != info.compute_queue_family_index && queue_family_index != info.transfer_queue_family_index)
+    if (queue_family_index != info.compute_queue_family_index
+        && queue_family_index != info.graphics_queue_family_index
+        && queue_family_index != info.transfer_queue_family_index)
     {
         fprintf(stderr, "invalid queue_family_index %u\n", queue_family_index);
         return;
@@ -1111,7 +1241,8 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
 
     MutexLockGuard lock(queue_lock);
 
-    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues : transfer_queues;
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
+                                 : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
     for (int i=0; i<(int)queues.size(); i++)
     {
         if (!queues[i])
