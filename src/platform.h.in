@@ -33,6 +33,10 @@
 #include <pthread.h>
 #endif
 
+#if __ANDROID_API__ >= 26
+#define VK_USE_PLATFORM_ANDROID_KHR
+#endif // __ANDROID_API__ >= 26
+
 namespace ncnn {
 
 #ifdef _WIN32

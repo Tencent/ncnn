@@ -100,9 +100,11 @@ public:
 
     // runtime
     uint32_t compute_queue_family_index;
+    uint32_t graphics_queue_family_index;
     uint32_t transfer_queue_family_index;
 
     uint32_t compute_queue_count;
+    uint32_t graphics_queue_count;
     uint32_t transfer_queue_count;
 
     uint32_t unified_memory_index;
@@ -115,6 +117,9 @@ public:
     bool support_fp16_arithmetic;
     bool support_int8_storage;
     bool support_int8_arithmetic;
+
+    // ycbcr conversion feature
+    bool support_ycbcr_conversion;
 
     // extension capability
     int support_VK_KHR_8bit_storage;
@@ -164,6 +169,10 @@ public:
     VkAllocator* acquire_staging_allocator() const;
     void reclaim_staging_allocator(VkAllocator* allocator) const;
 
+    // VK_KHR_bind_memory2
+    PFN_vkBindBufferMemory2KHR vkBindBufferMemory2KHR;
+    PFN_vkBindImageMemory2KHR vkBindImageMemory2KHR;
+
     // VK_KHR_descriptor_update_template
     PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;
     PFN_vkDestroyDescriptorUpdateTemplateKHR vkDestroyDescriptorUpdateTemplateKHR;
@@ -212,6 +221,7 @@ private:
 
     // hardware queue
     mutable std::vector<VkQueue> compute_queues;
+    mutable std::vector<VkQueue> graphics_queues;
     mutable std::vector<VkQueue> transfer_queues;
     mutable Mutex queue_lock;
 

@@ -62,7 +62,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 3)
         {
-            if (b.w == 1 && b.h == 1)
+            if (w1 == 1 && h1 == 1 && channels1 == channels)
             {
                 // special type 1
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -78,6 +78,30 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                         float32x4_t _outp = op(_p, _b0);
                         vst1q_f32(outptr, _outp);
                         ptr += 4;
+                        outptr += 4;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (w1 == w && h1 == h && channels1 == 1 && b.elempack == 1)
+            {
+                // special type 2
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    const float* ptr1 = b;
+                    float* outptr = c.channel(q);
+                    for (int i = 0; i < size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(ptr);
+                        float32x4_t _p1 = vld1q_dup_f32(ptr1);
+                        float32x4_t _outp = op(_p, _p1);
+                        vst1q_f32(outptr, _outp);
+                        ptr += 4;
+                        ptr1 += 1;
                         outptr += 4;
                     }
                 }
