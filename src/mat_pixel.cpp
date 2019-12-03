@@ -24,522 +24,610 @@
 namespace ncnn {
 
 #if NCNN_PIXEL
-static int from_rgb(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
+static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 3, 4u, allocator);
     if (m.empty())
         return -100;
 
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
 
-    int size = w * h;
-
+    for (int y=0; y<h; y++)
+    {
 #if __ARM_NEON
-    int nn = size >> 3;
-    int remain = size - (nn << 3);
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
 #else
-    int remain = size;
+        int remain = w;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-    for (; nn>0; nn--)
-    {
-        uint8x8x3_t _rgb = vld3_u8(rgb);
-        uint16x8_t _r16 = vmovl_u8(_rgb.val[0]);
-        uint16x8_t _g16 = vmovl_u8(_rgb.val[1]);
-        uint16x8_t _b16 = vmovl_u8(_rgb.val[2]);
+        for (; nn>0; nn--)
+        {
+            uint8x8x3_t _rgb = vld3_u8(rgb);
+            uint16x8_t _r16 = vmovl_u8(_rgb.val[0]);
+            uint16x8_t _g16 = vmovl_u8(_rgb.val[1]);
+            uint16x8_t _b16 = vmovl_u8(_rgb.val[2]);
 
-        float32x4_t _rlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_r16)));
-        float32x4_t _rhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_r16)));
-        float32x4_t _glow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_g16)));
-        float32x4_t _ghigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_g16)));
-        float32x4_t _blow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_b16)));
-        float32x4_t _bhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_b16)));
+            float32x4_t _rlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_r16)));
+            float32x4_t _rhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_r16)));
+            float32x4_t _glow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_g16)));
+            float32x4_t _ghigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_g16)));
+            float32x4_t _blow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_b16)));
+            float32x4_t _bhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_b16)));
 
-        vst1q_f32(ptr0, _rlow);
-        vst1q_f32(ptr0+4, _rhigh);
-        vst1q_f32(ptr1, _glow);
-        vst1q_f32(ptr1+4, _ghigh);
-        vst1q_f32(ptr2, _blow);
-        vst1q_f32(ptr2+4, _bhigh);
+            vst1q_f32(ptr0, _rlow);
+            vst1q_f32(ptr0+4, _rhigh);
+            vst1q_f32(ptr1, _glow);
+            vst1q_f32(ptr1+4, _ghigh);
+            vst1q_f32(ptr2, _blow);
+            vst1q_f32(ptr2+4, _bhigh);
 
-        rgb += 3*8;
-        ptr0 += 8;
-        ptr1 += 8;
-        ptr2 += 8;
-    }
+            rgb += 3*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
 #else
-    if (nn > 0)
-    {
-    asm volatile(
-        "0:                             \n"
-        "pld        [%1, #256]          \n"
-        "vld3.u8    {d0-d2}, [%1]!      \n"
-        "vmovl.u8   q8, d0              \n"
-        "vmovl.u8   q9, d1              \n"
-        "vmovl.u8   q10, d2             \n"
-        "vmovl.u16  q0, d16             \n"
-        "vmovl.u16  q1, d17             \n"
-        "vmovl.u16  q2, d18             \n"
-        "vmovl.u16  q3, d19             \n"
-        "vmovl.u16  q8, d20             \n"
-        "vmovl.u16  q9, d21             \n"
-        "vcvt.f32.u32   q0, q0          \n"
-        "vcvt.f32.u32   q1, q1          \n"
-        "vcvt.f32.u32   q2, q2          \n"
-        "vcvt.f32.u32   q3, q3          \n"
-        "vcvt.f32.u32   q8, q8          \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d0-d3}, [%2 :128]! \n"
-        "vcvt.f32.u32   q9, q9          \n"
-        "vst1.f32   {d4-d7}, [%3 :128]! \n"
-        "vst1.f32   {d16-d19}, [%4 :128]!\n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(rgb),    // %1
-          "=r"(ptr0),   // %2
-          "=r"(ptr1),   // %3
-          "=r"(ptr2)    // %4
-        : "0"(nn),
-          "1"(rgb),
-          "2"(ptr0),
-          "3"(ptr1),
-          "4"(ptr2)
-        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10"
-    );
-    }
+        if (nn > 0)
+        {
+        asm volatile(
+            "0:                             \n"
+            "pld        [%1, #256]          \n"
+            "vld3.u8    {d0-d2}, [%1]!      \n"
+            "vmovl.u8   q8, d0              \n"
+            "vmovl.u8   q9, d1              \n"
+            "vmovl.u8   q10, d2             \n"
+            "vmovl.u16  q0, d16             \n"
+            "vmovl.u16  q1, d17             \n"
+            "vmovl.u16  q2, d18             \n"
+            "vmovl.u16  q3, d19             \n"
+            "vmovl.u16  q8, d20             \n"
+            "vmovl.u16  q9, d21             \n"
+            "vcvt.f32.u32   q0, q0          \n"
+            "vcvt.f32.u32   q1, q1          \n"
+            "vcvt.f32.u32   q2, q2          \n"
+            "vcvt.f32.u32   q3, q3          \n"
+            "vcvt.f32.u32   q8, q8          \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d0-d3}, [%2 :128]! \n"
+            "vcvt.f32.u32   q9, q9          \n"
+            "vst1.f32   {d4-d7}, [%3 :128]! \n"
+            "vst1.f32   {d16-d19}, [%4 :128]!\n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+              "=r"(rgb),    // %1
+              "=r"(ptr0),   // %2
+              "=r"(ptr1),   // %3
+              "=r"(ptr2)    // %4
+            : "0"(nn),
+              "1"(rgb),
+              "2"(ptr0),
+              "3"(ptr1),
+              "4"(ptr2)
+            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10"
+        );
+        }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr0 = rgb[0];
-        *ptr1 = rgb[1];
-        *ptr2 = rgb[2];
+        for (; remain>0; remain--)
+        {
+            *ptr0 = rgb[0];
+            *ptr1 = rgb[1];
+            *ptr2 = rgb[2];
 
-        rgb += 3;
-        ptr0++;
-        ptr1++;
-        ptr2++;
+            rgb += 3;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+
+        rgb += wgap;
     }
 
     return 0;
 }
 
-static void to_rgb(const Mat& m, unsigned char* rgb)
+static void to_rgb(const Mat& m, unsigned char* rgb, int stride)
 {
+    int w = m.w;
+    int h = m.h;
+
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     const float* ptr0 = m.channel(0);
     const float* ptr1 = m.channel(1);
     const float* ptr2 = m.channel(2);
 
-    int size = m.w * m.h;
-
+    for (int y=0; y<h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
-    int remain = size;
+        int remain = w;
 
-    for (; remain>0; remain--)
-    {
-        rgb[0] = SATURATE_CAST_UCHAR(*ptr0);
-        rgb[1] = SATURATE_CAST_UCHAR(*ptr1);
-        rgb[2] = SATURATE_CAST_UCHAR(*ptr2);
+        for (; remain>0; remain--)
+        {
+            rgb[0] = SATURATE_CAST_UCHAR(*ptr0);
+            rgb[1] = SATURATE_CAST_UCHAR(*ptr1);
+            rgb[2] = SATURATE_CAST_UCHAR(*ptr2);
 
-        rgb += 3;
-        ptr0++;
-        ptr1++;
-        ptr2++;
-    }
+            rgb += 3;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
 
 #undef SATURATE_CAST_UCHAR
+        rgb += wgap;
+    }
 }
 
-static int from_gray(const unsigned char* gray, int w, int h, Mat& m, Allocator* allocator)
+static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 1, 4u, allocator);
     if (m.empty())
         return -100;
 
+    const int wgap = stride - w;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     float* ptr = m;
 
-    int size = w * h;
-
+    for (int y=0; y<h; y++)
+    {
 #if __ARM_NEON
-    int nn = size >> 4;
-    int remain = size - (nn << 4);
+        int nn = w >> 4;
+        int remain = w - (nn << 4);
 #else
-    int remain = size;
+        int remain = w;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-    for (; nn>0; nn--)
-    {
-        uint8x16_t _gray = vld1q_u8(gray);
-        uint16x8_t _gray16_0 = vmovl_u8(vget_low_u8(_gray));
-        uint16x8_t _gray16_1 = vmovl_u8(vget_high_u8(_gray));
+        for (; nn>0; nn--)
+        {
+            uint8x16_t _gray = vld1q_u8(gray);
+            uint16x8_t _gray16_0 = vmovl_u8(vget_low_u8(_gray));
+            uint16x8_t _gray16_1 = vmovl_u8(vget_high_u8(_gray));
 
-        float32x4_t _graylow_0 = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_gray16_0)));
-        float32x4_t _grayhigh_0 = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_gray16_0)));
-        float32x4_t _graylow_1 = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_gray16_1)));
-        float32x4_t _grayhigh_1 = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_gray16_1)));
+            float32x4_t _graylow_0 = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_gray16_0)));
+            float32x4_t _grayhigh_0 = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_gray16_0)));
+            float32x4_t _graylow_1 = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_gray16_1)));
+            float32x4_t _grayhigh_1 = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_gray16_1)));
 
-        vst1q_f32(ptr, _graylow_0);
-        vst1q_f32(ptr+4, _grayhigh_0);
-        vst1q_f32(ptr+8, _graylow_1);
-        vst1q_f32(ptr+12, _grayhigh_1);
+            vst1q_f32(ptr, _graylow_0);
+            vst1q_f32(ptr+4, _grayhigh_0);
+            vst1q_f32(ptr+8, _graylow_1);
+            vst1q_f32(ptr+12, _grayhigh_1);
 
-        gray += 16;
-        ptr += 16;
-    }
+            gray += 16;
+            ptr += 16;
+        }
 #else
-    if (nn > 0)
-    {
-    asm volatile(
-        "0:                             \n"
-        "pld        [%1, #128]          \n"
-        "vld1.u8    {d0,d1}, [%1]!      \n"
-        "vmovl.u8   q8, d0              \n"
-        "vmovl.u8   q9, d1              \n"
-        "vmovl.u16  q0, d16             \n"
-        "vmovl.u16  q1, d17             \n"
-        "vmovl.u16  q2, d18             \n"
-        "vmovl.u16  q3, d19             \n"
-        "vcvt.f32.u32   q0, q0          \n"
-        "vcvt.f32.u32   q1, q1          \n"
-        "vcvt.f32.u32   q2, q2          \n"
-        "vcvt.f32.u32   q3, q3          \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d0-d3}, [%2 :128]! \n"
-        "vst1.f32   {d4-d7}, [%2 :128]! \n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(gray),   // %1
-          "=r"(ptr)     // %2
-        : "0"(nn),
-          "1"(gray),
-          "2"(ptr)
-        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9"
-    );
-    }
+        if (nn > 0)
+        {
+        asm volatile(
+            "0:                             \n"
+            "pld        [%1, #128]          \n"
+            "vld1.u8    {d0,d1}, [%1]!      \n"
+            "vmovl.u8   q8, d0              \n"
+            "vmovl.u8   q9, d1              \n"
+            "vmovl.u16  q0, d16             \n"
+            "vmovl.u16  q1, d17             \n"
+            "vmovl.u16  q2, d18             \n"
+            "vmovl.u16  q3, d19             \n"
+            "vcvt.f32.u32   q0, q0          \n"
+            "vcvt.f32.u32   q1, q1          \n"
+            "vcvt.f32.u32   q2, q2          \n"
+            "vcvt.f32.u32   q3, q3          \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d0-d3}, [%2 :128]! \n"
+            "vst1.f32   {d4-d7}, [%2 :128]! \n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+              "=r"(gray),   // %1
+              "=r"(ptr)     // %2
+            : "0"(nn),
+              "1"(gray),
+              "2"(ptr)
+            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9"
+        );
+        }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr = *gray;
+        for (; remain>0; remain--)
+        {
+            *ptr = *gray;
 
-        gray++;
-        ptr++;
+            gray++;
+            ptr++;
+        }
+
+        gray += wgap;
     }
 
     return 0;
 }
 
-static void to_gray(const Mat& m, unsigned char* gray)
+static void to_gray(const Mat& m, unsigned char* gray, int stride)
 {
-    const float* ptr = m;
+    int w = m.w;
+    int h = m.h;
 
-    int size = m.w * m.h;
-
-#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
-
-    int remain = size;
-
-    for (; remain>0; remain--)
+    const int wgap = stride - w;
+    if (wgap == 0)
     {
-        *gray = SATURATE_CAST_UCHAR(*ptr);
-
-        gray++;
-        ptr++;
+        w = w * h;
+        h = 1;
     }
 
+    const float* ptr = m;
+
+    for (int y=0; y<h; y++)
+    {
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+
+        int remain = w;
+
+        for (; remain>0; remain--)
+        {
+            *gray = SATURATE_CAST_UCHAR(*ptr);
+
+            gray++;
+            ptr++;
+        }
+
 #undef SATURATE_CAST_UCHAR
+        gray += wgap;
+    }
 }
 
-static int from_rgba(const unsigned char* rgba, int w, int h, Mat& m, Allocator* allocator)
+static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 4, 4u, allocator);
     if (m.empty())
         return -100;
+
+    const int wgap = stride - w * 4;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
 
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
     float* ptr3 = m.channel(3);
 
-    int size = w * h;
-
+    for (int y=0; y<h; y++)
+    {
 #if __ARM_NEON
-    int nn = size >> 3;
-    int remain = size - (nn << 3);
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
 #else
-    int remain = size;
+        int remain = w;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-    for (; nn>0; nn--)
-    {
-        uint8x8x4_t _rgba = vld4_u8(rgba);
-        int16x8_t _r16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[0]));
-        int16x8_t _g16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[1]));
-        int16x8_t _b16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[2]));
-        int16x8_t _a16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[3]));
+        for (; nn>0; nn--)
+        {
+            uint8x8x4_t _rgba = vld4_u8(rgba);
+            int16x8_t _r16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[0]));
+            int16x8_t _g16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[1]));
+            int16x8_t _b16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[2]));
+            int16x8_t _a16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[3]));
 
-        float32x4_t _rlow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_r16)));
-        float32x4_t _rhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_r16)));
-        float32x4_t _glow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_g16)));
-        float32x4_t _ghigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_g16)));
-        float32x4_t _blow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_b16)));
-        float32x4_t _bhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_b16)));
-        float32x4_t _alow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_a16)));
-        float32x4_t _ahigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_a16)));
+            float32x4_t _rlow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_r16)));
+            float32x4_t _rhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_r16)));
+            float32x4_t _glow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_g16)));
+            float32x4_t _ghigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_g16)));
+            float32x4_t _blow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_b16)));
+            float32x4_t _bhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_b16)));
+            float32x4_t _alow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_a16)));
+            float32x4_t _ahigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_a16)));
 
-        vst1q_f32(ptr0, _rlow);
-        vst1q_f32(ptr0+4, _rhigh);
-        vst1q_f32(ptr1, _glow);
-        vst1q_f32(ptr1+4, _ghigh);
-        vst1q_f32(ptr2, _blow);
-        vst1q_f32(ptr2+4, _bhigh);
-        vst1q_f32(ptr3, _alow);
-        vst1q_f32(ptr3+4, _ahigh);
+            vst1q_f32(ptr0, _rlow);
+            vst1q_f32(ptr0+4, _rhigh);
+            vst1q_f32(ptr1, _glow);
+            vst1q_f32(ptr1+4, _ghigh);
+            vst1q_f32(ptr2, _blow);
+            vst1q_f32(ptr2+4, _bhigh);
+            vst1q_f32(ptr3, _alow);
+            vst1q_f32(ptr3+4, _ahigh);
 
-        rgba += 4*8;
-        ptr0 += 8;
-        ptr1 += 8;
-        ptr2 += 8;
-        ptr3 += 8;
-    }
+            rgba += 4*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+            ptr3 += 8;
+        }
 #else
-    if (nn > 0)
-    {
-    asm volatile(
-        "0:                             \n"
-        "pld        [%1, #256]          \n"
-        "vld4.u8    {d0-d3}, [%1]!      \n"
-        "vmovl.u8   q8, d0              \n"
-        "vmovl.u8   q9, d1              \n"
-        "vmovl.u8   q10, d2             \n"
-        "vmovl.u8   q11, d3             \n"
-        "vmovl.u16  q0, d16             \n"
-        "vmovl.u16  q1, d17             \n"
-        "vmovl.u16  q2, d18             \n"
-        "vmovl.u16  q3, d19             \n"
-        "vmovl.u16  q8, d20             \n"
-        "vmovl.u16  q9, d21             \n"
-        "vmovl.u16  q10, d22            \n"
-        "vmovl.u16  q11, d23            \n"
-        "vcvt.f32.u32   q0, q0          \n"
-        "vcvt.f32.u32   q1, q1          \n"
-        "vcvt.f32.u32   q2, q2          \n"
-        "vcvt.f32.u32   q3, q3          \n"
-        "vcvt.f32.u32   q8, q8          \n"
-        "vcvt.f32.u32   q9, q9          \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d0-d3}, [%2 :128]! \n"
-        "vcvt.f32.u32   q10, q10        \n"
-        "vcvt.f32.u32   q11, q11        \n"
-        "vst1.f32   {d4-d7}, [%3 :128]! \n"
-        "vst1.f32   {d16-d19}, [%4 :128]!\n"
-        "vst1.f32   {d20-d23}, [%5 :128]!\n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(rgba),   // %1
-          "=r"(ptr0),   // %2
-          "=r"(ptr1),   // %3
-          "=r"(ptr2),   // %4
-          "=r"(ptr3)    // %5
-        : "0"(nn),
-          "1"(rgba),
-          "2"(ptr0),
-          "3"(ptr1),
-          "4"(ptr2),
-          "5"(ptr3)
-        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
-    );
-    }
+        if (nn > 0)
+        {
+        asm volatile(
+            "0:                             \n"
+            "pld        [%1, #256]          \n"
+            "vld4.u8    {d0-d3}, [%1]!      \n"
+            "vmovl.u8   q8, d0              \n"
+            "vmovl.u8   q9, d1              \n"
+            "vmovl.u8   q10, d2             \n"
+            "vmovl.u8   q11, d3             \n"
+            "vmovl.u16  q0, d16             \n"
+            "vmovl.u16  q1, d17             \n"
+            "vmovl.u16  q2, d18             \n"
+            "vmovl.u16  q3, d19             \n"
+            "vmovl.u16  q8, d20             \n"
+            "vmovl.u16  q9, d21             \n"
+            "vmovl.u16  q10, d22            \n"
+            "vmovl.u16  q11, d23            \n"
+            "vcvt.f32.u32   q0, q0          \n"
+            "vcvt.f32.u32   q1, q1          \n"
+            "vcvt.f32.u32   q2, q2          \n"
+            "vcvt.f32.u32   q3, q3          \n"
+            "vcvt.f32.u32   q8, q8          \n"
+            "vcvt.f32.u32   q9, q9          \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d0-d3}, [%2 :128]! \n"
+            "vcvt.f32.u32   q10, q10        \n"
+            "vcvt.f32.u32   q11, q11        \n"
+            "vst1.f32   {d4-d7}, [%3 :128]! \n"
+            "vst1.f32   {d16-d19}, [%4 :128]!\n"
+            "vst1.f32   {d20-d23}, [%5 :128]!\n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+              "=r"(rgba),   // %1
+              "=r"(ptr0),   // %2
+              "=r"(ptr1),   // %3
+              "=r"(ptr2),   // %4
+              "=r"(ptr3)    // %5
+            : "0"(nn),
+              "1"(rgba),
+              "2"(ptr0),
+              "3"(ptr1),
+              "4"(ptr2),
+              "5"(ptr3)
+            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
+        );
+        }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr0 = rgba[0];
-        *ptr1 = rgba[1];
-        *ptr2 = rgba[2];
-        *ptr3 = rgba[3];
+        for (; remain>0; remain--)
+        {
+            *ptr0 = rgba[0];
+            *ptr1 = rgba[1];
+            *ptr2 = rgba[2];
+            *ptr3 = rgba[3];
 
-        rgba += 4;
-        ptr0++;
-        ptr1++;
-        ptr2++;
-        ptr3++;
+            rgba += 4;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+            ptr3++;
+        }
+
+        rgba += wgap;
     }
 
     return 0;
 }
 
-static void to_rgba(const Mat& m, unsigned char* rgba)
+static void to_rgba(const Mat& m, unsigned char* rgba, int stride)
 {
+    int w = m.w;
+    int h = m.h;
+
+    const int wgap = stride - w * 4;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     const float* ptr0 = m.channel(0);
     const float* ptr1 = m.channel(1);
     const float* ptr2 = m.channel(2);
     const float* ptr3 = m.channel(3);
 
-    int size = m.w * m.h;
-
+    for (int y=0; y<h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
-    int remain = size;
+        int remain = w;
 
-    for (; remain>0; remain--)
-    {
-        rgba[0] = SATURATE_CAST_UCHAR(*ptr0);
-        rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
-        rgba[2] = SATURATE_CAST_UCHAR(*ptr2);
-        rgba[3] = SATURATE_CAST_UCHAR(*ptr3);
+        for (; remain>0; remain--)
+        {
+            rgba[0] = SATURATE_CAST_UCHAR(*ptr0);
+            rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
+            rgba[2] = SATURATE_CAST_UCHAR(*ptr2);
+            rgba[3] = SATURATE_CAST_UCHAR(*ptr3);
 
-        rgba += 4;
-        ptr0++;
-        ptr1++;
-        ptr2++;
-        ptr3++;
-    }
+            rgba += 4;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+            ptr3++;
+        }
 
 #undef SATURATE_CAST_UCHAR
+        rgba += wgap;
+    }
 }
 
-static int from_rgb2bgr(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
+static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 3, 4u, allocator);
     if (m.empty())
         return -100;
 
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
 
-    int size = w * h;
-
+    for (int y=0; y<h; y++)
+    {
 #if __ARM_NEON
-    int nn = size >> 3;
-    int remain = size - (nn << 3);
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
 #else
-    int remain = size;
+        int remain = w;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-    for (; nn>0; nn--)
-    {
-        uint8x8x3_t _rgb = vld3_u8(rgb);
-        uint16x8_t _r16 = vmovl_u8(_rgb.val[0]);
-        uint16x8_t _g16 = vmovl_u8(_rgb.val[1]);
-        uint16x8_t _b16 = vmovl_u8(_rgb.val[2]);
+        for (; nn>0; nn--)
+        {
+            uint8x8x3_t _rgb = vld3_u8(rgb);
+            uint16x8_t _r16 = vmovl_u8(_rgb.val[0]);
+            uint16x8_t _g16 = vmovl_u8(_rgb.val[1]);
+            uint16x8_t _b16 = vmovl_u8(_rgb.val[2]);
 
-        float32x4_t _rlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_r16)));
-        float32x4_t _rhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_r16)));
-        float32x4_t _glow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_g16)));
-        float32x4_t _ghigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_g16)));
-        float32x4_t _blow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_b16)));
-        float32x4_t _bhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_b16)));
+            float32x4_t _rlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_r16)));
+            float32x4_t _rhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_r16)));
+            float32x4_t _glow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_g16)));
+            float32x4_t _ghigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_g16)));
+            float32x4_t _blow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_b16)));
+            float32x4_t _bhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_b16)));
 
-        vst1q_f32(ptr2, _rlow);
-        vst1q_f32(ptr2+4, _rhigh);
-        vst1q_f32(ptr1, _glow);
-        vst1q_f32(ptr1+4, _ghigh);
-        vst1q_f32(ptr0, _blow);
-        vst1q_f32(ptr0+4, _bhigh);
+            vst1q_f32(ptr2, _rlow);
+            vst1q_f32(ptr2+4, _rhigh);
+            vst1q_f32(ptr1, _glow);
+            vst1q_f32(ptr1+4, _ghigh);
+            vst1q_f32(ptr0, _blow);
+            vst1q_f32(ptr0+4, _bhigh);
 
-        rgb += 3*8;
-        ptr0 += 8;
-        ptr1 += 8;
-        ptr2 += 8;
-    }
+            rgb += 3*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
 #else
-    if (nn > 0)
-    {
-    asm volatile(
-        "0:                             \n"
-        "pld        [%1, #256]          \n"
-        "vld3.u8    {d0-d2}, [%1]!      \n"
-        "vmovl.u8   q8, d0              \n"
-        "vmovl.u8   q9, d1              \n"
-        "vmovl.u8   q10, d2             \n"
-        "vmovl.u16  q0, d16             \n"
-        "vmovl.u16  q1, d17             \n"
-        "vmovl.u16  q2, d18             \n"
-        "vmovl.u16  q3, d19             \n"
-        "vmovl.u16  q8, d20             \n"
-        "vmovl.u16  q9, d21             \n"
-        "vcvt.f32.u32   q0, q0          \n"
-        "vcvt.f32.u32   q1, q1          \n"
-        "vcvt.f32.u32   q2, q2          \n"
-        "vcvt.f32.u32   q3, q3          \n"
-        "vcvt.f32.u32   q8, q8          \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d0-d3}, [%4 :128]! \n"
-        "vcvt.f32.u32   q9, q9          \n"
-        "vst1.f32   {d4-d7}, [%3 :128]! \n"
-        "vst1.f32   {d16-d19}, [%2 :128]!\n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(rgb),    // %1
-          "=r"(ptr0),   // %2
-          "=r"(ptr1),   // %3
-          "=r"(ptr2)    // %4
-        : "0"(nn),
-          "1"(rgb),
-          "2"(ptr0),
-          "3"(ptr1),
-          "4"(ptr2)
-        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10"
-    );
-    }
+        if (nn > 0)
+        {
+        asm volatile(
+            "0:                             \n"
+            "pld        [%1, #256]          \n"
+            "vld3.u8    {d0-d2}, [%1]!      \n"
+            "vmovl.u8   q8, d0              \n"
+            "vmovl.u8   q9, d1              \n"
+            "vmovl.u8   q10, d2             \n"
+            "vmovl.u16  q0, d16             \n"
+            "vmovl.u16  q1, d17             \n"
+            "vmovl.u16  q2, d18             \n"
+            "vmovl.u16  q3, d19             \n"
+            "vmovl.u16  q8, d20             \n"
+            "vmovl.u16  q9, d21             \n"
+            "vcvt.f32.u32   q0, q0          \n"
+            "vcvt.f32.u32   q1, q1          \n"
+            "vcvt.f32.u32   q2, q2          \n"
+            "vcvt.f32.u32   q3, q3          \n"
+            "vcvt.f32.u32   q8, q8          \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d0-d3}, [%4 :128]! \n"
+            "vcvt.f32.u32   q9, q9          \n"
+            "vst1.f32   {d4-d7}, [%3 :128]! \n"
+            "vst1.f32   {d16-d19}, [%2 :128]!\n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+              "=r"(rgb),    // %1
+              "=r"(ptr0),   // %2
+              "=r"(ptr1),   // %3
+              "=r"(ptr2)    // %4
+            : "0"(nn),
+              "1"(rgb),
+              "2"(ptr0),
+              "3"(ptr1),
+              "4"(ptr2)
+            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10"
+        );
+        }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr0 = rgb[2];
-        *ptr1 = rgb[1];
-        *ptr2 = rgb[0];
+        for (; remain>0; remain--)
+        {
+            *ptr0 = rgb[2];
+            *ptr1 = rgb[1];
+            *ptr2 = rgb[0];
 
-        rgb += 3;
-        ptr0++;
-        ptr1++;
-        ptr2++;
+            rgb += 3;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+
+        rgb += wgap;
     }
 
     return 0;
 }
 
-static void to_bgr2rgb(const Mat& m, unsigned char* rgb)
+static void to_bgr2rgb(const Mat& m, unsigned char* rgb, int stride)
 {
+    int w = m.w;
+    int h = m.h;
+
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     const float* ptr0 = m.channel(0);
     const float* ptr1 = m.channel(1);
     const float* ptr2 = m.channel(2);
 
-    int size = m.w * m.h;
-
+    for (int y=0; y<h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
-    int remain = size;
+        int remain = w;
 
-    for (; remain>0; remain--)
-    {
-        rgb[2] = SATURATE_CAST_UCHAR(*ptr0);
-        rgb[1] = SATURATE_CAST_UCHAR(*ptr1);
-        rgb[0] = SATURATE_CAST_UCHAR(*ptr2);
+        for (; remain>0; remain--)
+        {
+            rgb[2] = SATURATE_CAST_UCHAR(*ptr0);
+            rgb[1] = SATURATE_CAST_UCHAR(*ptr1);
+            rgb[0] = SATURATE_CAST_UCHAR(*ptr2);
 
-        rgb += 3;
-        ptr0++;
-        ptr1++;
-        ptr2++;
-    }
+            rgb += 3;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
 
 #undef SATURATE_CAST_UCHAR
+        rgb += wgap;
+    }
 }
 
-static int from_rgb2gray(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
+static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     // coeffs for r g b = 0.299f, 0.587f, 0.114f
     const unsigned char Y_shift = 8;//14
@@ -551,94 +639,104 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, Mat& m, Allocat
     if (m.empty())
         return -100;
 
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     float* ptr = m;
 
-    int size = w * h;
-
+    for (int y=0; y<h; y++)
+    {
 #if __ARM_NEON
-    int nn = size >> 3;
-    int remain = size - (nn << 3);
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
 #else
-    int remain = size;
+        int remain = w;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-    uint8x8_t _R2Y = vdup_n_u8(R2Y);
-    uint8x8_t _G2Y = vdup_n_u8(G2Y);
-    uint8x8_t _B2Y = vdup_n_u8(B2Y);
-    for (; nn>0; nn--)
-    {
-        uint8x8x3_t _rgb = vld3_u8(rgb);
+        uint8x8_t _R2Y = vdup_n_u8(R2Y);
+        uint8x8_t _G2Y = vdup_n_u8(G2Y);
+        uint8x8_t _B2Y = vdup_n_u8(B2Y);
+        for (; nn>0; nn--)
+        {
+            uint8x8x3_t _rgb = vld3_u8(rgb);
 
-        uint16x8_t _y16 = vmull_u8(_rgb.val[0], _R2Y);
-        _y16 = vmlal_u8(_y16, _rgb.val[1], _G2Y);
-        _y16 = vmlal_u8(_y16, _rgb.val[2], _B2Y);
-        _y16 = vshrq_n_u16(_y16, Y_shift);
+            uint16x8_t _y16 = vmull_u8(_rgb.val[0], _R2Y);
+            _y16 = vmlal_u8(_y16, _rgb.val[1], _G2Y);
+            _y16 = vmlal_u8(_y16, _rgb.val[2], _B2Y);
+            _y16 = vshrq_n_u16(_y16, Y_shift);
 
-        float32x4_t _ylow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_y16)));
-        float32x4_t _yhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_y16)));
+            float32x4_t _ylow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_y16)));
+            float32x4_t _yhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_y16)));
 
-        vst1q_f32(ptr, _ylow);
-        vst1q_f32(ptr+4, _yhigh);
+            vst1q_f32(ptr, _ylow);
+            vst1q_f32(ptr+4, _yhigh);
 
-        rgb += 3*8;
-        ptr += 8;
-    }
+            rgb += 3*8;
+            ptr += 8;
+        }
 #else
-    if (nn > 0)
-    {
-    asm volatile(
-        "vdup.u8    d16, %6             \n"
-        "vdup.u8    d17, %7             \n"
-        "vdup.u8    d18, %8             \n"
-        "0:                             \n"
-        "pld        [%1, #256]          \n"
-        "vld3.u8    {d0-d2}, [%1]!      \n"
-        "vmull.u8   q2, d0, d16         \n"
-        "vmlal.u8   q2, d1, d17         \n"
-        "vmlal.u8   q2, d2, d18         \n"
-        "vshr.u16   q2, q2, #8          \n" // Y_shift
-        "vmovl.u16  q0, d4              \n"
-        "vmovl.u16  q1, d5              \n"
-        "vcvt.f32.u32   q0, q0          \n"
-        "vcvt.f32.u32   q1, q1          \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d0-d3}, [%2 :128]! \n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(rgb),    // %1
-          "=r"(ptr)     // %2
-        : "0"(nn),
-          "1"(rgb),
-          "2"(ptr),
-          "r"(R2Y),     // %6
-          "r"(G2Y),     // %7
-          "r"(B2Y)      // %8
-        : "cc", "memory", "q0", "q1", "q2", "q8", "q9"
-    );
-    }
+        if (nn > 0)
+        {
+        asm volatile(
+            "vdup.u8    d16, %6             \n"
+            "vdup.u8    d17, %7             \n"
+            "vdup.u8    d18, %8             \n"
+            "0:                             \n"
+            "pld        [%1, #256]          \n"
+            "vld3.u8    {d0-d2}, [%1]!      \n"
+            "vmull.u8   q2, d0, d16         \n"
+            "vmlal.u8   q2, d1, d17         \n"
+            "vmlal.u8   q2, d2, d18         \n"
+            "vshr.u16   q2, q2, #8          \n" // Y_shift
+            "vmovl.u16  q0, d4              \n"
+            "vmovl.u16  q1, d5              \n"
+            "vcvt.f32.u32   q0, q0          \n"
+            "vcvt.f32.u32   q1, q1          \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d0-d3}, [%2 :128]! \n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+              "=r"(rgb),    // %1
+              "=r"(ptr)     // %2
+            : "0"(nn),
+              "1"(rgb),
+              "2"(ptr),
+              "r"(R2Y),     // %6
+              "r"(G2Y),     // %7
+              "r"(B2Y)      // %8
+            : "cc", "memory", "q0", "q1", "q2", "q8", "q9"
+        );
+        }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr = (rgb[0] * R2Y + rgb[1] * G2Y + rgb[2] * B2Y) >> Y_shift;
+        for (; remain>0; remain--)
+        {
+            *ptr = (rgb[0] * R2Y + rgb[1] * G2Y + rgb[2] * B2Y) >> Y_shift;
 
-        rgb += 3;
-        ptr++;
+            rgb += 3;
+            ptr++;
+        }
+
+        rgb += wgap;
     }
 
     return 0;
 }
 
-static int from_rgb2rgba(const unsigned char* rgb, int w, int h, Mat& m, Allocator* allocator)
+static int from_rgb2rgba(const unsigned char* rgb, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 4, 4u, allocator);
     if (m.empty())
         return -100;
 
     Mat rgb_channels = m.channel_range(0, 3);
-    from_rgb(rgb, w, h, rgb_channels, allocator);
+    from_rgb(rgb, w, h, stride, rgb_channels, allocator);
 
     Mat alpha_channel = m.channel(3);
     alpha_channel.fill(255.f);
@@ -646,35 +744,47 @@ static int from_rgb2rgba(const unsigned char* rgb, int w, int h, Mat& m, Allocat
     return 0;
 }
 
-static void to_rgb2rgba(const Mat& m, unsigned char* rgba)
+static void to_rgb2rgba(const Mat& m, unsigned char* rgba, int stride)
 {
+    int w = m.w;
+    int h = m.h;
+
+    const int wgap = stride - w * 4;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     const float* ptr0 = m.channel(0);
     const float* ptr1 = m.channel(1);
     const float* ptr2 = m.channel(2);
 
-    int size = m.w * m.h;
-
+    for (int y=0; y<h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
-    int remain = size;
+        int remain = w;
 
-    for (; remain>0; remain--)
-    {
-        rgba[0] = SATURATE_CAST_UCHAR(*ptr0);
-        rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
-        rgba[2] = SATURATE_CAST_UCHAR(*ptr2);
-        rgba[3] = 255;
+        for (; remain>0; remain--)
+        {
+            rgba[0] = SATURATE_CAST_UCHAR(*ptr0);
+            rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
+            rgba[2] = SATURATE_CAST_UCHAR(*ptr2);
+            rgba[3] = 255;
 
-        rgba += 4;
-        ptr0++;
-        ptr1++;
-        ptr2++;
-    }
+            rgba += 4;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
 
 #undef SATURATE_CAST_UCHAR
+        rgba += wgap;
+    }
 }
 
-static int from_bgr2gray(const unsigned char* bgr, int w, int h, Mat& m, Allocator* allocator)
+static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     // coeffs for r g b = 0.299f, 0.587f, 0.114f
     const unsigned char Y_shift = 8;//14
@@ -686,94 +796,104 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, Mat& m, Allocat
     if (m.empty())
         return -100;
 
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     float* ptr = m;
 
-    int size = w * h;
-
+    for (int y=0; y<h; y++)
+    {
 #if __ARM_NEON
-    int nn = size >> 3;
-    int remain = size - (nn << 3);
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
 #else
-    int remain = size;
+        int remain = w;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-    uint8x8_t _R2Y = vdup_n_u8(R2Y);
-    uint8x8_t _G2Y = vdup_n_u8(G2Y);
-    uint8x8_t _B2Y = vdup_n_u8(B2Y);
-    for (; nn>0; nn--)
-    {
-        uint8x8x3_t _rgb = vld3_u8(bgr);
+        uint8x8_t _R2Y = vdup_n_u8(R2Y);
+        uint8x8_t _G2Y = vdup_n_u8(G2Y);
+        uint8x8_t _B2Y = vdup_n_u8(B2Y);
+        for (; nn>0; nn--)
+        {
+            uint8x8x3_t _rgb = vld3_u8(bgr);
 
-        uint16x8_t _y16 = vmull_u8(_rgb.val[2], _R2Y);
-        _y16 = vmlal_u8(_y16, _rgb.val[1], _G2Y);
-        _y16 = vmlal_u8(_y16, _rgb.val[0], _B2Y);
-        _y16 = vshrq_n_u16(_y16, Y_shift);
+            uint16x8_t _y16 = vmull_u8(_rgb.val[2], _R2Y);
+            _y16 = vmlal_u8(_y16, _rgb.val[1], _G2Y);
+            _y16 = vmlal_u8(_y16, _rgb.val[0], _B2Y);
+            _y16 = vshrq_n_u16(_y16, Y_shift);
 
-        float32x4_t _ylow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_y16)));
-        float32x4_t _yhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_y16)));
+            float32x4_t _ylow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_y16)));
+            float32x4_t _yhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_y16)));
 
-        vst1q_f32(ptr, _ylow);
-        vst1q_f32(ptr+4, _yhigh);
+            vst1q_f32(ptr, _ylow);
+            vst1q_f32(ptr+4, _yhigh);
 
-        bgr += 3*8;
-        ptr += 8;
-    }
+            bgr += 3*8;
+            ptr += 8;
+        }
 #else
-    if (nn > 0)
-    {
-    asm volatile(
-        "vdup.u8    d16, %6             \n"
-        "vdup.u8    d17, %7             \n"
-        "vdup.u8    d18, %8             \n"
-        "0:                             \n"
-        "pld        [%1, #256]          \n"
-        "vld3.u8    {d0-d2}, [%1]!      \n"
-        "vmull.u8   q2, d2, d16         \n"
-        "vmlal.u8   q2, d1, d17         \n"
-        "vmlal.u8   q2, d0, d18         \n"
-        "vshr.u16   q2, q2, #8          \n" // Y_shift
-        "vmovl.u16  q0, d4              \n"
-        "vmovl.u16  q1, d5              \n"
-        "vcvt.f32.u32   q0, q0          \n"
-        "vcvt.f32.u32   q1, q1          \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d0-d3}, [%2 :128]! \n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(bgr),    // %1
-          "=r"(ptr)     // %2
-        : "0"(nn),
-          "1"(bgr),
-          "2"(ptr),
-          "r"(R2Y),     // %6
-          "r"(G2Y),     // %7
-          "r"(B2Y)      // %8
-        : "cc", "memory", "q0", "q1", "q2", "q8", "q9"
-    );
-    }
+        if (nn > 0)
+        {
+        asm volatile(
+            "vdup.u8    d16, %6             \n"
+            "vdup.u8    d17, %7             \n"
+            "vdup.u8    d18, %8             \n"
+            "0:                             \n"
+            "pld        [%1, #256]          \n"
+            "vld3.u8    {d0-d2}, [%1]!      \n"
+            "vmull.u8   q2, d2, d16         \n"
+            "vmlal.u8   q2, d1, d17         \n"
+            "vmlal.u8   q2, d0, d18         \n"
+            "vshr.u16   q2, q2, #8          \n" // Y_shift
+            "vmovl.u16  q0, d4              \n"
+            "vmovl.u16  q1, d5              \n"
+            "vcvt.f32.u32   q0, q0          \n"
+            "vcvt.f32.u32   q1, q1          \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d0-d3}, [%2 :128]! \n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+              "=r"(bgr),    // %1
+              "=r"(ptr)     // %2
+            : "0"(nn),
+              "1"(bgr),
+              "2"(ptr),
+              "r"(R2Y),     // %6
+              "r"(G2Y),     // %7
+              "r"(B2Y)      // %8
+            : "cc", "memory", "q0", "q1", "q2", "q8", "q9"
+        );
+        }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr = (bgr[2] * R2Y + bgr[1] * G2Y + bgr[0] * B2Y) >> Y_shift;
+        for (; remain>0; remain--)
+        {
+            *ptr = (bgr[2] * R2Y + bgr[1] * G2Y + bgr[0] * B2Y) >> Y_shift;
 
-        bgr += 3;
-        ptr++;
+            bgr += 3;
+            ptr++;
+        }
+
+        bgr += wgap;
     }
 
     return 0;
 }
 
-static int from_bgr2rgba(const unsigned char* bgr, int w, int h, Mat& m, Allocator* allocator)
+static int from_bgr2rgba(const unsigned char* bgr, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 4, 4u, allocator);
     if (m.empty())
         return -100;
 
     Mat rgb_channels = m.channel_range(0, 3);
-    from_rgb2bgr(bgr, w, h, rgb_channels, allocator);
+    from_rgb2bgr(bgr, w, h, stride, rgb_channels, allocator);
 
     Mat alpha_channel = m.channel(3);
     alpha_channel.fill(255.f);
@@ -781,149 +901,171 @@ static int from_bgr2rgba(const unsigned char* bgr, int w, int h, Mat& m, Allocat
     return 0;
 }
 
-static void to_bgr2rgba(const Mat& m, unsigned char* rgba)
+static void to_bgr2rgba(const Mat& m, unsigned char* rgba, int stride)
 {
+    int w = m.w;
+    int h = m.h;
+
+    const int wgap = stride - w * 4;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     const float* ptr0 = m.channel(0);
     const float* ptr1 = m.channel(1);
     const float* ptr2 = m.channel(2);
 
-    int size = m.w * m.h;
-
+    for (int y=0; y<h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
-    int remain = size;
+        int remain = w;
 
-    for (; remain>0; remain--)
-    {
-        rgba[0] = SATURATE_CAST_UCHAR(*ptr2);
-        rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
-        rgba[2] = SATURATE_CAST_UCHAR(*ptr0);
-        rgba[3] = 255;
+        for (; remain>0; remain--)
+        {
+            rgba[0] = SATURATE_CAST_UCHAR(*ptr2);
+            rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
+            rgba[2] = SATURATE_CAST_UCHAR(*ptr0);
+            rgba[3] = 255;
 
-        rgba += 4;
-        ptr0++;
-        ptr1++;
-        ptr2++;
-    }
+            rgba += 4;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
 
 #undef SATURATE_CAST_UCHAR
+        rgba += wgap;
+    }
 }
 
-static int from_gray2rgb(const unsigned char* gray, int w, int h, Mat& m, Allocator* allocator)
+static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 3, 4u, allocator);
     if (m.empty())
         return -100;
 
+    const int wgap = stride - w;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
 
-    int size = w * h;
-
+    for (int y=0; y<h; y++)
+    {
 #if __ARM_NEON
-    int nn = size >> 4;
-    int remain = size - (nn << 4);
+        int nn = w >> 4;
+        int remain = w - (nn << 4);
 #else
-    int remain = size;
+        int remain = w;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-    for (; nn>0; nn--)
-    {
-        uint8x16_t _gray = vld1q_u8(gray);
-        uint16x8_t _gray16_0 = vmovl_u8(vget_low_u8(_gray));
-        uint16x8_t _gray16_1 = vmovl_u8(vget_high_u8(_gray));
+        for (; nn>0; nn--)
+        {
+            uint8x16_t _gray = vld1q_u8(gray);
+            uint16x8_t _gray16_0 = vmovl_u8(vget_low_u8(_gray));
+            uint16x8_t _gray16_1 = vmovl_u8(vget_high_u8(_gray));
 
-        float32x4_t _graylow_0 = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_gray16_0)));
-        float32x4_t _grayhigh_0 = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_gray16_0)));
-        float32x4_t _graylow_1 = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_gray16_1)));
-        float32x4_t _grayhigh_1 = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_gray16_1)));
+            float32x4_t _graylow_0 = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_gray16_0)));
+            float32x4_t _grayhigh_0 = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_gray16_0)));
+            float32x4_t _graylow_1 = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_gray16_1)));
+            float32x4_t _grayhigh_1 = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_gray16_1)));
 
-        vst1q_f32(ptr0, _graylow_0);
-        vst1q_f32(ptr0+4, _grayhigh_0);
-        vst1q_f32(ptr0+8, _graylow_1);
-        vst1q_f32(ptr0+12, _grayhigh_1);
+            vst1q_f32(ptr0, _graylow_0);
+            vst1q_f32(ptr0+4, _grayhigh_0);
+            vst1q_f32(ptr0+8, _graylow_1);
+            vst1q_f32(ptr0+12, _grayhigh_1);
 
-        vst1q_f32(ptr1, _graylow_0);
-        vst1q_f32(ptr1+4, _grayhigh_0);
-        vst1q_f32(ptr1+8, _graylow_1);
-        vst1q_f32(ptr1+12, _grayhigh_1);
+            vst1q_f32(ptr1, _graylow_0);
+            vst1q_f32(ptr1+4, _grayhigh_0);
+            vst1q_f32(ptr1+8, _graylow_1);
+            vst1q_f32(ptr1+12, _grayhigh_1);
 
-        vst1q_f32(ptr2, _graylow_0);
-        vst1q_f32(ptr2+4, _grayhigh_0);
-        vst1q_f32(ptr2+8, _graylow_1);
-        vst1q_f32(ptr2+12, _grayhigh_1);
+            vst1q_f32(ptr2, _graylow_0);
+            vst1q_f32(ptr2+4, _grayhigh_0);
+            vst1q_f32(ptr2+8, _graylow_1);
+            vst1q_f32(ptr2+12, _grayhigh_1);
 
-        gray += 16;
-        ptr0 += 16;
-        ptr1 += 16;
-        ptr2 += 16;
-    }
+            gray += 16;
+            ptr0 += 16;
+            ptr1 += 16;
+            ptr2 += 16;
+        }
 #else
-    if (nn > 0)
-    {
-    asm volatile(
-        "0:                             \n"
-        "pld        [%1, #128]          \n"
-        "vld1.u8    {d0,d1}, [%1]!      \n"
-        "vmovl.u8   q8, d0              \n"
-        "vmovl.u8   q9, d1              \n"
-        "vmovl.u16  q0, d16             \n"
-        "vmovl.u16  q1, d17             \n"
-        "vmovl.u16  q2, d18             \n"
-        "vmovl.u16  q3, d19             \n"
-        "vcvt.f32.u32   q0, q0          \n"
-        "vcvt.f32.u32   q1, q1          \n"
-        "vcvt.f32.u32   q2, q2          \n"
-        "vcvt.f32.u32   q3, q3          \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d0-d3}, [%2 :128]! \n"
-        "vst1.f32   {d4-d7}, [%2 :128]! \n"
-        "vst1.f32   {d0-d3}, [%3 :128]! \n"
-        "vst1.f32   {d4-d7}, [%3 :128]! \n"
-        "vst1.f32   {d0-d3}, [%4 :128]! \n"
-        "vst1.f32   {d4-d7}, [%4 :128]! \n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(gray),   // %1
-          "=r"(ptr0),   // %2
-          "=r"(ptr1),   // %3
-          "=r"(ptr2)    // %4
-        : "0"(nn),
-          "1"(gray),
-          "2"(ptr0),
-          "3"(ptr1),
-          "4"(ptr2)
-        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9"
-    );
-    }
+        if (nn > 0)
+        {
+        asm volatile(
+            "0:                             \n"
+            "pld        [%1, #128]          \n"
+            "vld1.u8    {d0,d1}, [%1]!      \n"
+            "vmovl.u8   q8, d0              \n"
+            "vmovl.u8   q9, d1              \n"
+            "vmovl.u16  q0, d16             \n"
+            "vmovl.u16  q1, d17             \n"
+            "vmovl.u16  q2, d18             \n"
+            "vmovl.u16  q3, d19             \n"
+            "vcvt.f32.u32   q0, q0          \n"
+            "vcvt.f32.u32   q1, q1          \n"
+            "vcvt.f32.u32   q2, q2          \n"
+            "vcvt.f32.u32   q3, q3          \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d0-d3}, [%2 :128]! \n"
+            "vst1.f32   {d4-d7}, [%2 :128]! \n"
+            "vst1.f32   {d0-d3}, [%3 :128]! \n"
+            "vst1.f32   {d4-d7}, [%3 :128]! \n"
+            "vst1.f32   {d0-d3}, [%4 :128]! \n"
+            "vst1.f32   {d4-d7}, [%4 :128]! \n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+              "=r"(gray),   // %1
+              "=r"(ptr0),   // %2
+              "=r"(ptr1),   // %3
+              "=r"(ptr2)    // %4
+            : "0"(nn),
+              "1"(gray),
+              "2"(ptr0),
+              "3"(ptr1),
+              "4"(ptr2)
+            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9"
+        );
+        }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr0 = *gray;
-        *ptr1 = *gray;
-        *ptr2 = *gray;
+        for (; remain>0; remain--)
+        {
+            *ptr0 = *gray;
+            *ptr1 = *gray;
+            *ptr2 = *gray;
 
-        gray++;
-        ptr0++;
-        ptr1++;
-        ptr2++;
+            gray++;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+
+        gray += wgap;
     }
 
     return 0;
 }
 
-static int from_gray2rgba(const unsigned char* gray, int w, int h, Mat& m, Allocator* allocator)
+static int from_gray2rgba(const unsigned char* gray, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 4, 4u, allocator);
     if (m.empty())
         return -100;
 
     Mat rgb_channels = m.channel_range(0, 3);
-    from_gray2rgb(gray, w, h, rgb_channels, allocator);
+    from_gray2rgb(gray, w, h, stride, rgb_channels, allocator);
 
     Mat alpha_channel = m.channel(3);
     alpha_channel.fill(255.f);
@@ -931,240 +1073,272 @@ static int from_gray2rgba(const unsigned char* gray, int w, int h, Mat& m, Alloc
     return 0;
 }
 
-static void to_gray2rgba(const Mat& m, unsigned char* rgba)
+static void to_gray2rgba(const Mat& m, unsigned char* rgba, int stride)
 {
+    int w = m.w;
+    int h = m.h;
+
+    const int wgap = stride - w * 4;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     const float* ptr = m;
 
-    int size = m.w * m.h;
-
+    for (int y=0; y<h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
-    int remain = size;
+        int remain = w;
 
-    for (; remain>0; remain--)
-    {
-        unsigned char gray = SATURATE_CAST_UCHAR(*ptr);
-        rgba[0] = gray;
-        rgba[1] = gray;
-        rgba[2] = gray;
-        rgba[3] = 255;
+        for (; remain>0; remain--)
+        {
+            unsigned char gray = SATURATE_CAST_UCHAR(*ptr);
+            rgba[0] = gray;
+            rgba[1] = gray;
+            rgba[2] = gray;
+            rgba[3] = 255;
 
-        rgba += 4;
-        ptr++;
-    }
+            rgba += 4;
+            ptr++;
+        }
 
 #undef SATURATE_CAST_UCHAR
+        rgba += wgap;
+    }
 }
 
-static int from_rgba2rgb(const unsigned char* rgba, int w, int h, Mat& m, Allocator* allocator)
+static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 3, 4u, allocator);
     if (m.empty())
         return -100;
 
+    const int wgap = stride - w * 4;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
 
-    int size = w * h;
-
+    for (int y=0; y<h; y++)
+    {
 #if __ARM_NEON
-    int nn = size >> 3;
-    int remain = size - (nn << 3);
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
 #else
-    int remain = size;
+        int remain = w;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-    for (; nn>0; nn--)
-    {
-        uint8x8x4_t _rgba = vld4_u8(rgba);
-        int16x8_t _r16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[0]));
-        int16x8_t _g16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[1]));
-        int16x8_t _b16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[2]));
+        for (; nn>0; nn--)
+        {
+            uint8x8x4_t _rgba = vld4_u8(rgba);
+            int16x8_t _r16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[0]));
+            int16x8_t _g16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[1]));
+            int16x8_t _b16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[2]));
 
-        float32x4_t _rlow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_r16)));
-        float32x4_t _rhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_r16)));
-        float32x4_t _glow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_g16)));
-        float32x4_t _ghigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_g16)));
-        float32x4_t _blow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_b16)));
-        float32x4_t _bhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_b16)));
+            float32x4_t _rlow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_r16)));
+            float32x4_t _rhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_r16)));
+            float32x4_t _glow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_g16)));
+            float32x4_t _ghigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_g16)));
+            float32x4_t _blow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_b16)));
+            float32x4_t _bhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_b16)));
 
-        vst1q_f32(ptr0, _rlow);
-        vst1q_f32(ptr0+4, _rhigh);
-        vst1q_f32(ptr1, _glow);
-        vst1q_f32(ptr1+4, _ghigh);
-        vst1q_f32(ptr2, _blow);
-        vst1q_f32(ptr2+4, _bhigh);
+            vst1q_f32(ptr0, _rlow);
+            vst1q_f32(ptr0+4, _rhigh);
+            vst1q_f32(ptr1, _glow);
+            vst1q_f32(ptr1+4, _ghigh);
+            vst1q_f32(ptr2, _blow);
+            vst1q_f32(ptr2+4, _bhigh);
 
-        rgba += 4*8;
-        ptr0 += 8;
-        ptr1 += 8;
-        ptr2 += 8;
-    }
+            rgba += 4*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
 #else
-    if (nn > 0)
-    {
-    asm volatile(
-        "0:                             \n"
-        "pld        [%1, #256]          \n"
-        "vld4.u8    {d0-d3}, [%1]!      \n"
-        "vmovl.u8   q8, d0              \n"
-        "vmovl.u8   q9, d1              \n"
-        "vmovl.u8   q10, d2             \n"
-        "vmovl.u16  q0, d16             \n"
-        "vmovl.u16  q1, d17             \n"
-        "vmovl.u16  q2, d18             \n"
-        "vmovl.u16  q3, d19             \n"
-        "vmovl.u16  q8, d20             \n"
-        "vmovl.u16  q9, d21             \n"
-        "vcvt.f32.u32   q0, q0          \n"
-        "vcvt.f32.u32   q1, q1          \n"
-        "vcvt.f32.u32   q2, q2          \n"
-        "vcvt.f32.u32   q3, q3          \n"
-        "vcvt.f32.u32   q8, q8          \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d0-d3}, [%2 :128]! \n"
-        "vcvt.f32.u32   q9, q9          \n"
-        "vst1.f32   {d4-d7}, [%3 :128]! \n"
-        "vst1.f32   {d16-d19}, [%4 :128]!\n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(rgba),   // %1
-          "=r"(ptr0),   // %2
-          "=r"(ptr1),   // %3
-          "=r"(ptr2)    // %4
-        : "0"(nn),
-          "1"(rgba),
-          "2"(ptr0),
-          "3"(ptr1),
-          "4"(ptr2)
-        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9"
-    );
-    }
+        if (nn > 0)
+        {
+        asm volatile(
+            "0:                             \n"
+            "pld        [%1, #256]          \n"
+            "vld4.u8    {d0-d3}, [%1]!      \n"
+            "vmovl.u8   q8, d0              \n"
+            "vmovl.u8   q9, d1              \n"
+            "vmovl.u8   q10, d2             \n"
+            "vmovl.u16  q0, d16             \n"
+            "vmovl.u16  q1, d17             \n"
+            "vmovl.u16  q2, d18             \n"
+            "vmovl.u16  q3, d19             \n"
+            "vmovl.u16  q8, d20             \n"
+            "vmovl.u16  q9, d21             \n"
+            "vcvt.f32.u32   q0, q0          \n"
+            "vcvt.f32.u32   q1, q1          \n"
+            "vcvt.f32.u32   q2, q2          \n"
+            "vcvt.f32.u32   q3, q3          \n"
+            "vcvt.f32.u32   q8, q8          \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d0-d3}, [%2 :128]! \n"
+            "vcvt.f32.u32   q9, q9          \n"
+            "vst1.f32   {d4-d7}, [%3 :128]! \n"
+            "vst1.f32   {d16-d19}, [%4 :128]!\n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+              "=r"(rgba),   // %1
+              "=r"(ptr0),   // %2
+              "=r"(ptr1),   // %3
+              "=r"(ptr2)    // %4
+            : "0"(nn),
+              "1"(rgba),
+              "2"(ptr0),
+              "3"(ptr1),
+              "4"(ptr2)
+            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9"
+        );
+        }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr0 = rgba[0];
-        *ptr1 = rgba[1];
-        *ptr2 = rgba[2];
+        for (; remain>0; remain--)
+        {
+            *ptr0 = rgba[0];
+            *ptr1 = rgba[1];
+            *ptr2 = rgba[2];
 
-        rgba += 4;
-        ptr0++;
-        ptr1++;
-        ptr2++;
+            rgba += 4;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+
+        rgba += wgap;
     }
 
     return 0;
 }
 
-static int from_rgba2bgr(const unsigned char* rgba, int w, int h, Mat& m, Allocator* allocator)
+static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 3, 4u, allocator);
     if (m.empty())
         return -100;
 
+    const int wgap = stride - w * 4;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     float* ptr0 = m.channel(0);
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
 
-    int size = w * h;
-
+    for (int y=0; y<h; y++)
+    {
 #if __ARM_NEON
-    int nn = size >> 3;
-    int remain = size - (nn << 3);
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
 #else
-    int remain = size;
+        int remain = w;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-    for (; nn>0; nn--)
-    {
-        uint8x8x4_t _rgba = vld4_u8(rgba);
-        int16x8_t _r16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[0]));
-        int16x8_t _g16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[1]));
-        int16x8_t _b16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[2]));
+        for (; nn>0; nn--)
+        {
+            uint8x8x4_t _rgba = vld4_u8(rgba);
+            int16x8_t _r16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[0]));
+            int16x8_t _g16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[1]));
+            int16x8_t _b16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[2]));
 
-        float32x4_t _rlow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_r16)));
-        float32x4_t _rhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_r16)));
-        float32x4_t _glow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_g16)));
-        float32x4_t _ghigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_g16)));
-        float32x4_t _blow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_b16)));
-        float32x4_t _bhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_b16)));
+            float32x4_t _rlow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_r16)));
+            float32x4_t _rhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_r16)));
+            float32x4_t _glow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_g16)));
+            float32x4_t _ghigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_g16)));
+            float32x4_t _blow = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_b16)));
+            float32x4_t _bhigh = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_b16)));
 
-        vst1q_f32(ptr2, _rlow);
-        vst1q_f32(ptr2+4, _rhigh);
-        vst1q_f32(ptr1, _glow);
-        vst1q_f32(ptr1+4, _ghigh);
-        vst1q_f32(ptr0, _blow);
-        vst1q_f32(ptr0+4, _bhigh);
+            vst1q_f32(ptr2, _rlow);
+            vst1q_f32(ptr2+4, _rhigh);
+            vst1q_f32(ptr1, _glow);
+            vst1q_f32(ptr1+4, _ghigh);
+            vst1q_f32(ptr0, _blow);
+            vst1q_f32(ptr0+4, _bhigh);
 
-        rgba += 4*8;
-        ptr0 += 8;
-        ptr1 += 8;
-        ptr2 += 8;
-    }
+            rgba += 4*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
 #else
-    if (nn > 0)
-    {
-    asm volatile(
-        "0:                             \n"
-        "pld        [%1, #256]          \n"
-        "vld4.u8    {d0-d3}, [%1]!      \n"
-        "vmovl.u8   q8, d0              \n"
-        "vmovl.u8   q9, d1              \n"
-        "vmovl.u8   q10, d2             \n"
-        "vmovl.u16  q0, d16             \n"
-        "vmovl.u16  q1, d17             \n"
-        "vmovl.u16  q2, d18             \n"
-        "vmovl.u16  q3, d19             \n"
-        "vmovl.u16  q8, d20             \n"
-        "vmovl.u16  q9, d21             \n"
-        "vcvt.f32.u32   q0, q0          \n"
-        "vcvt.f32.u32   q1, q1          \n"
-        "vcvt.f32.u32   q2, q2          \n"
-        "vcvt.f32.u32   q3, q3          \n"
-        "vcvt.f32.u32   q8, q8          \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d0-d3}, [%4 :128]! \n"
-        "vcvt.f32.u32   q9, q9          \n"
-        "vst1.f32   {d4-d7}, [%3 :128]! \n"
-        "vst1.f32   {d16-d19}, [%2 :128]!\n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(rgba),   // %1
-          "=r"(ptr0),   // %2
-          "=r"(ptr1),   // %3
-          "=r"(ptr2)    // %4
-        : "0"(nn),
-          "1"(rgba),
-          "2"(ptr0),
-          "3"(ptr1),
-          "4"(ptr2)
-        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10"
-    );
-    }
+        if (nn > 0)
+        {
+        asm volatile(
+            "0:                             \n"
+            "pld        [%1, #256]          \n"
+            "vld4.u8    {d0-d3}, [%1]!      \n"
+            "vmovl.u8   q8, d0              \n"
+            "vmovl.u8   q9, d1              \n"
+            "vmovl.u8   q10, d2             \n"
+            "vmovl.u16  q0, d16             \n"
+            "vmovl.u16  q1, d17             \n"
+            "vmovl.u16  q2, d18             \n"
+            "vmovl.u16  q3, d19             \n"
+            "vmovl.u16  q8, d20             \n"
+            "vmovl.u16  q9, d21             \n"
+            "vcvt.f32.u32   q0, q0          \n"
+            "vcvt.f32.u32   q1, q1          \n"
+            "vcvt.f32.u32   q2, q2          \n"
+            "vcvt.f32.u32   q3, q3          \n"
+            "vcvt.f32.u32   q8, q8          \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d0-d3}, [%4 :128]! \n"
+            "vcvt.f32.u32   q9, q9          \n"
+            "vst1.f32   {d4-d7}, [%3 :128]! \n"
+            "vst1.f32   {d16-d19}, [%2 :128]!\n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+              "=r"(rgba),   // %1
+              "=r"(ptr0),   // %2
+              "=r"(ptr1),   // %3
+              "=r"(ptr2)    // %4
+            : "0"(nn),
+              "1"(rgba),
+              "2"(ptr0),
+              "3"(ptr1),
+              "4"(ptr2)
+            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10"
+        );
+        }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr0 = rgba[2];
-        *ptr1 = rgba[1];
-        *ptr2 = rgba[0];
+        for (; remain>0; remain--)
+        {
+            *ptr0 = rgba[2];
+            *ptr1 = rgba[1];
+            *ptr2 = rgba[0];
 
-        rgba += 4;
-        ptr0++;
-        ptr1++;
-        ptr2++;
+            rgba += 4;
+            ptr0++;
+            ptr1++;
+            ptr2++;
+        }
+
+        rgba += wgap;
     }
 
     return 0;
 }
 
-static int from_rgba2gray(const unsigned char* rgba, int w, int h, Mat& m, Allocator* allocator)
+static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     // coeffs for r g b = 0.299f, 0.587f, 0.114f
     const unsigned char Y_shift = 8;//14
@@ -1176,81 +1350,91 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, Mat& m, Alloc
     if (m.empty())
         return -100;
 
+    const int wgap = stride - w * 4;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
     float* ptr = m;
 
-    int size = w * h;
-
+    for (int y=0; y<h; y++)
+    {
 #if __ARM_NEON
-    int nn = size >> 3;
-    int remain = size - (nn << 3);
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
 #else
-    int remain = size;
+        int remain = w;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-    uint8x8_t _R2Y = vdup_n_u8(R2Y);
-    uint8x8_t _G2Y = vdup_n_u8(G2Y);
-    uint8x8_t _B2Y = vdup_n_u8(B2Y);
-    for (; nn>0; nn--)
-    {
-        uint8x8x4_t _rgba = vld4_u8(rgba);
+        uint8x8_t _R2Y = vdup_n_u8(R2Y);
+        uint8x8_t _G2Y = vdup_n_u8(G2Y);
+        uint8x8_t _B2Y = vdup_n_u8(B2Y);
+        for (; nn>0; nn--)
+        {
+            uint8x8x4_t _rgba = vld4_u8(rgba);
 
-        uint16x8_t _y16 = vmull_u8(_rgba.val[0], _R2Y);
-        _y16 = vmlal_u8(_y16, _rgba.val[1], _G2Y);
-        _y16 = vmlal_u8(_y16, _rgba.val[2], _B2Y);
-        _y16 = vshrq_n_u16(_y16, Y_shift);
+            uint16x8_t _y16 = vmull_u8(_rgba.val[0], _R2Y);
+            _y16 = vmlal_u8(_y16, _rgba.val[1], _G2Y);
+            _y16 = vmlal_u8(_y16, _rgba.val[2], _B2Y);
+            _y16 = vshrq_n_u16(_y16, Y_shift);
 
-        float32x4_t _ylow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_y16)));
-        float32x4_t _yhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_y16)));
+            float32x4_t _ylow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_y16)));
+            float32x4_t _yhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_y16)));
 
-        vst1q_f32(ptr, _ylow);
-        vst1q_f32(ptr+4, _yhigh);
+            vst1q_f32(ptr, _ylow);
+            vst1q_f32(ptr+4, _yhigh);
 
-        rgba += 4*8;
-        ptr += 8;
-    }
+            rgba += 4*8;
+            ptr += 8;
+        }
 #else
-    if (nn > 0)
-    {
-    asm volatile(
-        "vdup.u8    d16, %6             \n"
-        "vdup.u8    d17, %7             \n"
-        "vdup.u8    d18, %8             \n"
-        "0:                             \n"
-        "pld        [%1, #256]          \n"
-        "vld4.u8    {d0-d3}, [%1]!      \n"
-        "vmull.u8   q2, d0, d16         \n"
-        "vmlal.u8   q2, d1, d17         \n"
-        "vmlal.u8   q2, d2, d18         \n"
-        "vshr.u16   q2, q2, #8          \n" // Y_shift
-        "vmovl.u16  q0, d4              \n"
-        "vmovl.u16  q1, d5              \n"
-        "vcvt.f32.u32   q0, q0          \n"
-        "vcvt.f32.u32   q1, q1          \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d0-d3}, [%2 :128]! \n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(rgba),   // %1
-          "=r"(ptr)     // %2
-        : "0"(nn),
-          "1"(rgba),
-          "2"(ptr),
-          "r"(R2Y),     // %6
-          "r"(G2Y),     // %7
-          "r"(B2Y)      // %8
-        : "cc", "memory", "q0", "q1", "q2", "q8", "q9"
-    );
-    }
+        if (nn > 0)
+        {
+        asm volatile(
+            "vdup.u8    d16, %6             \n"
+            "vdup.u8    d17, %7             \n"
+            "vdup.u8    d18, %8             \n"
+            "0:                             \n"
+            "pld        [%1, #256]          \n"
+            "vld4.u8    {d0-d3}, [%1]!      \n"
+            "vmull.u8   q2, d0, d16         \n"
+            "vmlal.u8   q2, d1, d17         \n"
+            "vmlal.u8   q2, d2, d18         \n"
+            "vshr.u16   q2, q2, #8          \n" // Y_shift
+            "vmovl.u16  q0, d4              \n"
+            "vmovl.u16  q1, d5              \n"
+            "vcvt.f32.u32   q0, q0          \n"
+            "vcvt.f32.u32   q1, q1          \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d0-d3}, [%2 :128]! \n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+              "=r"(rgba),   // %1
+              "=r"(ptr)     // %2
+            : "0"(nn),
+              "1"(rgba),
+              "2"(ptr),
+              "r"(R2Y),     // %6
+              "r"(G2Y),     // %7
+              "r"(B2Y)      // %8
+            : "cc", "memory", "q0", "q1", "q2", "q8", "q9"
+        );
+        }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
-        *ptr = (rgba[0] * R2Y + rgba[1] * G2Y + rgba[2] * B2Y) >> Y_shift;
+        for (; remain>0; remain--)
+        {
+            *ptr = (rgba[0] * R2Y + rgba[1] * G2Y + rgba[2] * B2Y) >> Y_shift;
 
-        rgba += 4;
-        ptr++;
+            rgba += 4;
+            ptr++;
+        }
+
+        rgba += wgap;
     }
 
     return 0;
@@ -1454,6 +1638,27 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
 
 Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator)
 {
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return Mat::from_pixels(pixels, type, w, h, w * 3, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return Mat::from_pixels(pixels, type, w, h, w * 1, allocator);
+    }
+    else if (type_from == PIXEL_RGBA)
+    {
+        return Mat::from_pixels(pixels, type, w, h, w * 4, allocator);
+    }
+
+    // unknown convert type
+    return Mat();
+}
+
+Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, int stride, Allocator* allocator)
+{
     Mat m;
 
     if (type & PIXEL_CONVERT_MASK)
@@ -1462,35 +1667,35 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Alloca
         {
         case PIXEL_RGB2BGR:
         case PIXEL_BGR2RGB:
-            from_rgb2bgr(pixels, w, h, m, allocator);
+            from_rgb2bgr(pixels, w, h, stride, m, allocator);
             break;
         case PIXEL_RGB2GRAY:
-            from_rgb2gray(pixels, w, h, m, allocator);
+            from_rgb2gray(pixels, w, h, stride, m, allocator);
             break;
         case PIXEL_RGB2RGBA:
-            from_rgb2rgba(pixels, w, h, m, allocator);
+            from_rgb2rgba(pixels, w, h, stride, m, allocator);
             break;
         case PIXEL_BGR2GRAY:
-            from_bgr2gray(pixels, w, h, m, allocator);
+            from_bgr2gray(pixels, w, h, stride, m, allocator);
             break;
         case PIXEL_BGR2RGBA:
-            from_bgr2rgba(pixels, w, h, m, allocator);
+            from_bgr2rgba(pixels, w, h, stride, m, allocator);
             break;
         case PIXEL_GRAY2RGB:
         case PIXEL_GRAY2BGR:
-            from_gray2rgb(pixels, w, h, m, allocator);
+            from_gray2rgb(pixels, w, h, stride, m, allocator);
             break;
         case PIXEL_GRAY2RGBA:
-            from_gray2rgba(pixels, w, h, m, allocator);
+            from_gray2rgba(pixels, w, h, stride, m, allocator);
             break;
         case PIXEL_RGBA2RGB:
-            from_rgba2rgb(pixels, w, h, m, allocator);
+            from_rgba2rgb(pixels, w, h, stride, m, allocator);
             break;
         case PIXEL_RGBA2BGR:
-            from_rgba2bgr(pixels, w, h, m, allocator);
+            from_rgba2bgr(pixels, w, h, stride, m, allocator);
             break;
         case PIXEL_RGBA2GRAY:
-            from_rgba2gray(pixels, w, h, m, allocator);
+            from_rgba2gray(pixels, w, h, stride, m, allocator);
             break;
         default:
             // unimplemented convert type
@@ -1500,13 +1705,13 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Alloca
     else
     {
         if (type == PIXEL_RGB || type == PIXEL_BGR)
-            from_rgb(pixels, w, h, m, allocator);
+            from_rgb(pixels, w, h, stride, m, allocator);
 
         if (type == PIXEL_GRAY)
-            from_gray(pixels, w, h, m, allocator);
+            from_gray(pixels, w, h, stride, m, allocator);
 
         if (type == PIXEL_RGBA)
-            from_rgba(pixels, w, h, m, allocator);
+            from_rgba(pixels, w, h, stride, m, allocator);
     }
 
     return m;
@@ -1514,37 +1719,77 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Alloca
 
 Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height, Allocator* allocator)
 {
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return Mat::from_pixels_resize(pixels, type, w, h, w * 3, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return Mat::from_pixels_resize(pixels, type, w, h, w * 1, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_RGBA)
+    {
+        return Mat::from_pixels_resize(pixels, type, w, h, w * 4, target_width, target_height, allocator);
+    }
+
+    // unknown convert type
+    return Mat();
+}
+
+Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height, Allocator* allocator)
+{
     if (w == target_width && h == target_height)
-        return Mat::from_pixels(pixels, type, w, h, allocator);
+        return Mat::from_pixels(pixels, type, w, h, stride, allocator);
 
     int type_from = type & PIXEL_FORMAT_MASK;
 
     if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
     {
         Mat dst(target_width, target_height, (size_t)3u, 3);
-        resize_bilinear_c3(pixels, w, h, dst, target_width, target_height);
+        resize_bilinear_c3(pixels, w, h, stride, dst, target_width, target_height, target_width * 3);
 
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
     else if (type_from == PIXEL_GRAY)
     {
         Mat dst(target_width, target_height, (size_t)1u, 1);
-        resize_bilinear_c1(pixels, w, h, dst, target_width, target_height);
+        resize_bilinear_c1(pixels, w, h, stride, dst, target_width, target_height, target_width * 1);
 
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
     else if (type_from == PIXEL_RGBA)
     {
         Mat dst(target_width, target_height, (size_t)4u, 4);
-        resize_bilinear_c4(pixels, w, h, dst, target_width, target_height);
+        resize_bilinear_c4(pixels, w, h, stride, dst, target_width, target_height, target_width * 4);
 
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
 
+    // unknown convert type
     return Mat();
 }
 
 void Mat::to_pixels(unsigned char* pixels, int type) const
+{
+    int type_to = (type & PIXEL_CONVERT_MASK) ? (type >> PIXEL_CONVERT_SHIFT) : (type & PIXEL_FORMAT_MASK);
+
+    if (type_to == PIXEL_RGB || type_to == PIXEL_BGR)
+    {
+        to_pixels(pixels, type, w * 3);
+    }
+    else if (type_to == PIXEL_GRAY)
+    {
+        to_pixels(pixels, type, w * 1);
+    }
+    else if (type_to == PIXEL_RGBA)
+    {
+        to_pixels(pixels, type, w * 4);
+    }
+}
+
+void Mat::to_pixels(unsigned char* pixels, int type, int stride) const
 {
     if (type & PIXEL_CONVERT_MASK)
     {
@@ -1552,16 +1797,16 @@ void Mat::to_pixels(unsigned char* pixels, int type) const
         {
         case PIXEL_RGB2BGR:
         case PIXEL_BGR2RGB:
-            to_bgr2rgb(*this, pixels);
+            to_bgr2rgb(*this, pixels, stride);
             break;
         case PIXEL_RGB2RGBA:
-            to_rgb2rgba(*this, pixels);
+            to_rgb2rgba(*this, pixels, stride);
             break;
         case PIXEL_BGR2RGBA:
-            to_bgr2rgba(*this, pixels);
+            to_bgr2rgba(*this, pixels, stride);
             break;
         case PIXEL_GRAY2RGBA:
-            to_gray2rgba(*this, pixels);
+            to_gray2rgba(*this, pixels, stride);
             break;
         default:
             // unimplemented convert type
@@ -1571,17 +1816,35 @@ void Mat::to_pixels(unsigned char* pixels, int type) const
     else
     {
         if (type == PIXEL_RGB || type == PIXEL_BGR)
-            to_rgb(*this, pixels);
+            to_rgb(*this, pixels, stride);
 
         if (type == PIXEL_GRAY)
-            to_gray(*this, pixels);
+            to_gray(*this, pixels, stride);
 
         if (type == PIXEL_RGBA)
-            to_rgba(*this, pixels);
+            to_rgba(*this, pixels, stride);
     }
 }
 
 void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height) const
+{
+    int type_to = (type & PIXEL_CONVERT_MASK) ? (type >> PIXEL_CONVERT_SHIFT) : (type & PIXEL_FORMAT_MASK);
+
+    if (type_to == PIXEL_RGB || type_to == PIXEL_BGR)
+    {
+        to_pixels_resize(pixels, type, target_width, target_height, target_width * 3);
+    }
+    else if (type_to == PIXEL_GRAY)
+    {
+        to_pixels_resize(pixels, type, target_width, target_height, target_width * 1);
+    }
+    else if (type_to == PIXEL_RGBA)
+    {
+        to_pixels_resize(pixels, type, target_width, target_height, target_width * 4);
+    }
+}
+
+void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height, int target_stride) const
 {
     if (w == target_width && h == target_height)
         return to_pixels(pixels, type);
@@ -1594,7 +1857,7 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
 
         to_pixels(src, type);
 
-        resize_bilinear_c3(src, w, h, pixels, target_width, target_height);
+        resize_bilinear_c3(src, w, h, w * 3, pixels, target_width, target_height, target_stride);
     }
     else if (type_to == PIXEL_GRAY)
     {
@@ -1602,7 +1865,7 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
 
         to_pixels(src, type);
 
-        resize_bilinear_c1(src, w, h, pixels, target_width, target_height);
+        resize_bilinear_c1(src, w, h, w * 1, pixels, target_width, target_height, target_stride);
     }
     else if (type_to == PIXEL_RGBA)
     {
@@ -1610,7 +1873,7 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
 
         to_pixels(src, type);
 
-        resize_bilinear_c4(src, w, h, pixels, target_width, target_height);
+        resize_bilinear_c4(src, w, h, w * 4, pixels, target_width, target_height, target_stride);
     }
 }
 #endif // NCNN_PIXEL

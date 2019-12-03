@@ -26,6 +26,26 @@ namespace ncnn {
 #if NCNN_PIXEL
 void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
 {
+    return resize_bilinear_c1(src, srcw, srch, srcw, dst, w, h, w);
+}
+
+void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+    return resize_bilinear_c2(src, srcw, srch, srcw * 2, dst, w, h, w * 2);
+}
+
+void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+    return resize_bilinear_c3(src, srcw, srch, srcw * 3, dst, w, h, w * 3);
+}
+
+void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+    return resize_bilinear_c4(src, srcw, srch, srcw * 4, dst, w, h, w * 4);
+}
+
+void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride)
+{
     const int INTER_RESIZE_COEF_BITS=11;
     const int INTER_RESIZE_COEF_SCALE=1 << INTER_RESIZE_COEF_BITS;
 //     const int ONE=INTER_RESIZE_COEF_SCALE;
@@ -124,7 +144,7 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
             short* rows0_old = rows0;
             rows0 = rows1;
             rows1 = rows0_old;
-            const unsigned char *S1 = src + srcw * (sy+1);
+            const unsigned char *S1 = src + srcstride * (sy+1);
 
             const short* ialphap = ialpha;
             short* rows1p = rows1;
@@ -143,8 +163,8 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
         else
         {
             // hresize two rows
-            const unsigned char *S0 = src + srcw * (sy);
-            const unsigned char *S1 = src + srcw * (sy+1);
+            const unsigned char *S0 = src + srcstride * (sy);
+            const unsigned char *S1 = src + srcstride * (sy+1);
 
             const short* ialphap = ialpha;
             short* rows0p = rows0;
@@ -172,7 +192,7 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
 
         short* rows0p = rows0;
         short* rows1p = rows1;
-        unsigned char* Dp = dst + w * (dy);
+        unsigned char* Dp = dst + stride * (dy);
 
 #if __ARM_NEON
         int nn = w >> 3;
@@ -279,7 +299,7 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
     delete[] buf;
 }
 
-void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride)
 {
     const int INTER_RESIZE_COEF_BITS=11;
     const int INTER_RESIZE_COEF_SCALE=1 << INTER_RESIZE_COEF_BITS;
@@ -346,7 +366,7 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
             fy = 1.f;
         }
 
-        yofs[dy] = sy*2;
+        yofs[dy] = sy;
 
         float b0 = (1.f - fy) * INTER_RESIZE_COEF_SCALE;
         float b1 =        fy  * INTER_RESIZE_COEF_SCALE;
@@ -363,7 +383,7 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -4;
+    int prev_sy1 = -2;
 
     for (int dy = 0; dy < h; dy++ )
     {
@@ -373,13 +393,13 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
         {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 2)
+        else if (sy == prev_sy1 + 1)
         {
             // hresize one row
             short* rows0_old = rows0;
             rows0 = rows1;
             rows1 = rows0_old;
-            const unsigned char *S1 = src + srcw * (sy+2);
+            const unsigned char *S1 = src + srcstride * (sy+1);
 
             const short* ialphap = ialpha;
             short* rows1p = rows1;
@@ -420,8 +440,8 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
         else
         {
             // hresize two rows
-            const unsigned char *S0 = src + srcw * (sy);
-            const unsigned char *S1 = src + srcw * (sy+2);
+            const unsigned char *S0 = src + srcstride * (sy);
+            const unsigned char *S1 = src + srcstride * (sy+1);
 
             const short* ialphap = ialpha;
             short* rows0p = rows0;
@@ -482,7 +502,7 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
 
         short* rows0p = rows0;
         short* rows1p = rows1;
-        unsigned char* Dp = dst + w * 2 * (dy);
+        unsigned char* Dp = dst + stride * (dy);
 
 #if __ARM_NEON
         int nn = (w * 2) >> 3;
@@ -589,7 +609,7 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned c
     delete[] buf;
 }
 
-void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride)
 {
     const int INTER_RESIZE_COEF_BITS=11;
     const int INTER_RESIZE_COEF_SCALE=1 << INTER_RESIZE_COEF_BITS;
@@ -656,7 +676,7 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
             fy = 1.f;
         }
 
-        yofs[dy] = sy*3;
+        yofs[dy] = sy;
 
         float b0 = (1.f - fy) * INTER_RESIZE_COEF_SCALE;
         float b1 =        fy  * INTER_RESIZE_COEF_SCALE;
@@ -673,7 +693,7 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -6;
+    int prev_sy1 = -2;
 
     for (int dy = 0; dy < h; dy++ )
     {
@@ -683,13 +703,13 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
         {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 3)
+        else if (sy == prev_sy1 + 1)
         {
             // hresize one row
             short* rows0_old = rows0;
             rows0 = rows1;
             rows1 = rows0_old;
-            const unsigned char *S1 = src + srcw * (sy+3);
+            const unsigned char *S1 = src + srcstride * (sy+1);
 
             const short* ialphap = ialpha;
             short* rows1p = rows1;
@@ -732,8 +752,8 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
         else
         {
             // hresize two rows
-            const unsigned char *S0 = src + srcw * (sy);
-            const unsigned char *S1 = src + srcw * (sy+3);
+            const unsigned char *S0 = src + srcstride * (sy);
+            const unsigned char *S1 = src + srcstride * (sy+1);
 
             const short* ialphap = ialpha;
             short* rows0p = rows0;
@@ -803,7 +823,7 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
 
         short* rows0p = rows0;
         short* rows1p = rows1;
-        unsigned char* Dp = dst + w * 3 * (dy);
+        unsigned char* Dp = dst + stride * (dy);
 
 #if __ARM_NEON
         int nn = (w * 3) >> 3;
@@ -910,7 +930,7 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned c
     delete[] buf;
 }
 
-void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride)
 {
     const int INTER_RESIZE_COEF_BITS=11;
     const int INTER_RESIZE_COEF_SCALE=1 << INTER_RESIZE_COEF_BITS;
@@ -977,7 +997,7 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
             fy = 1.f;
         }
 
-        yofs[dy] = sy*4;
+        yofs[dy] = sy;
 
         float b0 = (1.f - fy) * INTER_RESIZE_COEF_SCALE;
         float b1 =        fy  * INTER_RESIZE_COEF_SCALE;
@@ -994,7 +1014,7 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
     short* rows0 = (short*)rowsbuf0.data;
     short* rows1 = (short*)rowsbuf1.data;
 
-    int prev_sy1 = -8;
+    int prev_sy1 = -2;
 
     for (int dy = 0; dy < h; dy++ )
     {
@@ -1010,7 +1030,7 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
             short* rows0_old = rows0;
             rows0 = rows1;
             rows1 = rows0_old;
-            const unsigned char *S1 = src + srcw * (sy+4);
+            const unsigned char *S1 = src + srcstride * (sy+1);
 
             const short* ialphap = ialpha;
             short* rows1p = rows1;
@@ -1046,8 +1066,8 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
         else
         {
             // hresize two rows
-            const unsigned char *S0 = src + srcw * (sy);
-            const unsigned char *S1 = src + srcw * (sy+4);
+            const unsigned char *S0 = src + srcstride * (sy);
+            const unsigned char *S1 = src + srcstride * (sy+1);
 
             const short* ialphap = ialpha;
             short* rows0p = rows0;
@@ -1104,7 +1124,7 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned c
 
         short* rows0p = rows0;
         short* rows1p = rows1;
-        unsigned char* Dp = dst + w * 4 * (dy);
+        unsigned char* Dp = dst + stride * (dy);
 
 #if __ARM_NEON
         int nn = (w * 4) >> 3;
