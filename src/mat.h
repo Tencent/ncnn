@@ -394,6 +394,31 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
 // image pixel bilinear resize, convenient wrapper for yuv420sp(nv21)
 void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 #endif // NCNN_PIXEL
+#if NCNN_PIXEL_ROTATE
+// type is the from type, 6 means rotating from 6 to 1
+//
+//     1        2       3      4         5            6           7          8
+//
+//   888888  888888      88  88      8888888888  88                  88  8888888888
+//   88          88      88  88      88  88      88  88          88  88      88  88
+//   8888      8888    8888  8888    88          8888888888  8888888888          88
+//   88          88      88  88
+//   88          88  888888  888888
+//
+// ref http://sylvana.net/jpegcrop/exif_orientation.html
+// image pixel kanna rotate
+void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+// image pixel kanna rotate with stride(bytes-per-row) parameter
+void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+// image pixel kanna rotate, convenient wrapper for yuv420sp(nv21)
+void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+#endif // NCNN_PIXEL_ROTATE
 
 // mat process
 enum
