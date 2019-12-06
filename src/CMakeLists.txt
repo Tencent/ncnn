@@ -382,6 +382,7 @@ if(NCNN_INSTALL_SDK)
         blob.h
         command.h
         cpu.h
+        datareader.h
         gpu.h
         layer.h
         layer_type.h
