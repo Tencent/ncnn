@@ -19,6 +19,7 @@ set(ncnn_SRCS
     mat.cpp
     mat_pixel.cpp
     mat_pixel_resize.cpp
+    mat_pixel_rotate.cpp
     modelbin.cpp
     net.cpp
     opencv.cpp
