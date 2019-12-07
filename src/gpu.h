@@ -76,6 +76,9 @@ public:
     // vulkan physical device
     VkPhysicalDevice physical_device;
 
+    // memory properties
+    VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
+
     // info
     uint32_t api_version;
     uint32_t driver_version;
@@ -106,10 +109,6 @@ public:
     uint32_t compute_queue_count;
     uint32_t graphics_queue_count;
     uint32_t transfer_queue_count;
-
-    uint32_t unified_memory_index;
-    uint32_t device_local_memory_index;
-    uint32_t host_visible_memory_index;
 
     // fp16 and int8 feature
     bool support_fp16_packed;
@@ -158,6 +157,9 @@ public:
     VkShaderModule get_shader_module(const char* name) const;
 
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
+
+    uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
+    bool is_mappable(uint32_t memory_type_index) const;
 
     VkQueue acquire_queue(uint32_t queue_family_index) const;
     void reclaim_queue(uint32_t queue_family_index, VkQueue queue) const;
