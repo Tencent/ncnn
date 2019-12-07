@@ -244,6 +244,7 @@ void UnlockedPoolAllocator::fastFree(void* ptr)
 #if NCNN_VULKAN
 VkAllocator::VkAllocator(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
+    memory_type_index = (uint32_t)-1;
     mappable = false;
 }
 
@@ -270,7 +271,7 @@ VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
     return buffer;
 }
 
-VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_index)
+VkDeviceMemory VkAllocator::allocate_memory(size_t size)
 {
     VkMemoryAllocateInfo memoryAllocateInfo;
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -288,7 +289,7 @@ VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_in
     return memory;
 }
 
-VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkBuffer buffer)
+VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, VkBuffer buffer)
 {
     VkMemoryAllocateInfo memoryAllocateInfo;
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -332,12 +333,13 @@ static inline size_t least_common_multiple(size_t a, size_t b)
 
 VkBlobBufferAllocator::VkBlobBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
-    mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
-
     buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
 
-    if (mappable)
+    if (vkdev->info.type == 1)
     {
+        // on integrated gpu, there may be device local only memory too, eg. AMD APU
+        // assuming larger alignment always keeps us safe :)
+
         // least common multiple for memory_map_alignment and buffer_offset_alignment
         size_t memory_map_alignment = vkdev->info.memory_map_alignment;
         buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, memory_map_alignment);
@@ -349,11 +351,6 @@ VkBlobBufferAllocator::VkBlobBufferAllocator(const VulkanDevice* _vkdev) : VkAll
 VkBlobBufferAllocator::~VkBlobBufferAllocator()
 {
     clear();
-}
-
-void VkBlobBufferAllocator::set_block_size(size_t _block_size)
-{
-    block_size = _block_size;
 }
 
 void VkBlobBufferAllocator::clear()
@@ -443,7 +440,24 @@ VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), block->buffer, &memoryRequirements);
 
-    block->memory = allocate_memory(memoryRequirements.size, vkdev->info.device_local_memory_index);
+    // setup memory type and alignment
+    if (memory_type_index == (uint32_t)-1)
+    {
+        if (vkdev->info.type == 1)
+        {
+            // integrated gpu, prefer unified memory
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0);
+        }
+        else
+        {
+            // discrete gpu, device local
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+        }
+
+        mappable = vkdev->is_mappable(memory_type_index);
+    }
+
+    block->memory = allocate_memory(memoryRequirements.size);
 
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
 
@@ -551,12 +565,13 @@ void VkBlobBufferAllocator::fastFree(VkBufferMemory* ptr)
 
 VkWeightBufferAllocator::VkWeightBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
-    mappable = vkdev->info.device_local_memory_index == vkdev->info.unified_memory_index;
-
     buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
 
-    if (mappable)
+    if (vkdev->info.type == 1)
     {
+        // on integrated gpu, there may be device local only memory too, eg. AMD APU
+        // assuming larger alignment always keeps us safe :)
+
         // least common multiple for memory_map_alignment and buffer_offset_alignment
         size_t memory_map_alignment = vkdev->info.memory_map_alignment;
         buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, memory_map_alignment);
@@ -568,11 +583,6 @@ VkWeightBufferAllocator::VkWeightBufferAllocator(const VulkanDevice* _vkdev) : V
 VkWeightBufferAllocator::~VkWeightBufferAllocator()
 {
     clear();
-}
-
-void VkWeightBufferAllocator::set_block_size(size_t _block_size)
-{
-    block_size = _block_size;
 }
 
 void VkWeightBufferAllocator::clear()
@@ -679,7 +689,24 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
 
         if (dedicatedAllocation)
         {
-            block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, vkdev->info.device_local_memory_index, block->buffer);
+            // setup memory type and alignment
+            if (memory_type_index == (uint32_t)-1)
+            {
+                if (vkdev->info.type == 1)
+                {
+                    // integrated gpu, prefer unified memory
+                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0);
+                }
+                else
+                {
+                    // discrete gpu, device local
+                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                }
+
+                mappable = vkdev->is_mappable(memory_type_index);
+            }
+
+            block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, block->buffer);
 
             vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
 
@@ -708,7 +735,24 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), block->buffer, &memoryRequirements);
 
-    block->memory = allocate_memory(memoryRequirements.size, vkdev->info.device_local_memory_index);
+    // setup memory type and alignment
+    if (memory_type_index == (uint32_t)-1)
+    {
+        if (vkdev->info.type == 1)
+        {
+            // integrated gpu, prefer unified memory
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0);
+        }
+        else
+        {
+            // discrete gpu, device local
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+        }
+
+        mappable = vkdev->is_mappable(memory_type_index);
+    }
+
+    block->memory = allocate_memory(memoryRequirements.size);
 
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
 
@@ -747,11 +791,6 @@ void VkWeightBufferAllocator::fastFree(VkBufferMemory* ptr)
 VkStagingBufferAllocator::VkStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = true;
-
-    memory_type_index = vkdev->info.unified_memory_index;
-
-    if (memory_type_index == (uint32_t)-1)
-        memory_type_index = vkdev->info.host_visible_memory_index;
 
     size_compare_ratio = 192;// 0.75f * 256
 }
@@ -821,7 +860,15 @@ VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
 
-    ptr->memory = allocate_memory(memoryRequirements.size, memory_type_index);
+    // setup memory type
+    if (memory_type_index == (uint32_t)-1)
+    {
+        // integrated gpu, prefer unified memory
+        // discrete gpu, prefer the small pcie mappable memory, or fallback to host visible only anyway otherwise
+        memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    }
+
+    ptr->memory = allocate_memory(memoryRequirements.size);
 
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
 
@@ -847,8 +894,6 @@ void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
 VkWeightStagingBufferAllocator::VkWeightStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = true;
-
-    memory_type_index = vkdev->info.host_visible_memory_index;
 }
 
 VkWeightStagingBufferAllocator::~VkWeightStagingBufferAllocator()
@@ -865,7 +910,13 @@ VkBufferMemory* VkWeightStagingBufferAllocator::fastMalloc(size_t size)
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
 
-    ptr->memory = allocate_memory(memoryRequirements.size, memory_type_index);
+    // setup memory type
+    if (memory_type_index == (uint32_t)-1)
+    {
+        memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    }
+
+    ptr->memory = allocate_memory(memoryRequirements.size);
 
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
 
