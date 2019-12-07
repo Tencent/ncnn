@@ -307,107 +307,6 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
     return -1;
 }
 
-static uint32_t find_unified_memory(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties)
-{
-    // first try, host visible + host coherent + device local
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
-        {
-            return i;
-        }
-    }
-
-    // second try, host visible + device local
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
-        {
-            return i;
-        }
-    }
-
-//     fprintf(stderr, "no unified memory\n");
-    return -1;
-}
-
-static uint32_t find_device_local_memory(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties)
-{
-    // first try, device local only
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if (memoryType.propertyFlags == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-        {
-            return i;
-        }
-    }
-
-    // second try, with device local bit
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-        {
-            return i;
-        }
-    }
-
-//     fprintf(stderr, "no device local memory\n");
-    return -1;
-}
-
-static uint32_t find_host_visible_memory(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties)
-{
-    // first try, host visible + host coherent, without device local bit
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-            && !(memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
-        {
-            return i;
-        }
-    }
-
-    // second try, with host visible bit, without device local bit
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-            && !(memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
-        {
-            return i;
-        }
-    }
-
-    // third try, with host visible bit
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-        {
-            return i;
-        }
-    }
-
-//     fprintf(stderr, "no host visible memory\n");
-    return -1;
-}
-
 static int find_default_vulkan_device_index()
 {
     // first try, discrete gpu
@@ -695,38 +594,8 @@ int create_gpu_instance()
         gpu_info.graphics_queue_count = queueFamilyProperties[gpu_info.graphics_queue_family_index].queueCount;
         gpu_info.transfer_queue_count = queueFamilyProperties[gpu_info.transfer_queue_family_index].queueCount;
 
-        // find memory type index
-        VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
-        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &physicalDeviceMemoryProperties);
-
-//         // print memory info
-//         for (uint32_t j=0; j<physicalDeviceMemoryProperties.memoryTypeCount; j++)
-//         {
-//             const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[j];
-//             fprintf(stderr, "[%u] memoryType %u heapIndex/propertyFlags = %d  %u\n", i, j, memoryType.heapIndex, memoryType.propertyFlags);
-//         }
-//         for (uint32_t j=0; j<physicalDeviceMemoryProperties.memoryHeapCount; j++)
-//         {
-//             const VkMemoryHeap& memoryHeap = physicalDeviceMemoryProperties.memoryHeaps[j];
-//             fprintf(stderr, "[%u] memoryHeap %u size/flags = %lu  %u\n", i, j, memoryHeap.size, memoryHeap.flags);
-//         }
-
-        gpu_info.unified_memory_index = find_unified_memory(physicalDeviceMemoryProperties);
-        gpu_info.device_local_memory_index = find_device_local_memory(physicalDeviceMemoryProperties);
-        gpu_info.host_visible_memory_index = find_host_visible_memory(physicalDeviceMemoryProperties);
-
-        // treat as unified memory architecture if memory heap is the same
-        if (gpu_info.unified_memory_index != (uint32_t)-1)
-        {
-            int unified_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.unified_memory_index].heapIndex;
-            int device_local_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.device_local_memory_index].heapIndex;
-            int host_visible_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.host_visible_memory_index].heapIndex;
-            if (unified_memory_heap_index == device_local_memory_heap_index && unified_memory_heap_index == host_visible_memory_heap_index)
-            {
-                gpu_info.device_local_memory_index = gpu_info.unified_memory_index;
-                gpu_info.host_visible_memory_index = gpu_info.unified_memory_index;
-            }
-        }
+        // cache memory properties
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &gpu_info.physicalDeviceMemoryProperties);
 
         // get device extension
         uint32_t deviceExtensionPropertyCount = 0;
@@ -893,10 +762,9 @@ int create_gpu_instance()
             gpu_info.support_fp16_storage = false;
         }
 
-        fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueT=%u[%u]  memU=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
+        fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueT=%u[%u]\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_family_index, gpu_info.compute_queue_count,
-                gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count,
-                gpu_info.unified_memory_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
+                gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
         fprintf(stderr, "[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
@@ -1053,7 +921,7 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     }
 
     std::vector<float> compute_queue_priorities(info.compute_queue_count, 1.f);// 0.f ~ 1.f
-    std::vector<float> graphics_queue_priorities(info.transfer_queue_count, 1.f);// 0.f ~ 1.f
+    std::vector<float> graphics_queue_priorities(info.graphics_queue_count, 1.f);// 0.f ~ 1.f
     std::vector<float> transfer_queue_priorities(info.transfer_queue_count, 1.f);// 0.f ~ 1.f
 
     VkDeviceQueueCreateInfo deviceQueueCreateInfos[3];
@@ -1199,6 +1067,79 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     }
 
     return shader_module;
+}
+
+uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const
+{
+    // first try, find required and with preferred and without preferred_not
+    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        bool is_required = (1 << i) & memory_type_bits;
+        if (is_required)
+        {
+            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            if ((memoryType.propertyFlags & required) == required
+                && (preferred && (memoryType.propertyFlags & preferred))
+                && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
+            {
+                return i;
+            }
+        }
+    }
+
+    // second try, find required and with preferred
+    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        bool is_required = (1 << i) & memory_type_bits;
+        if (is_required)
+        {
+            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            if ((memoryType.propertyFlags & required) == required
+                && (preferred && (memoryType.propertyFlags & preferred)))
+            {
+                return i;
+            }
+        }
+    }
+
+    // third try, find required and without preferred_not
+    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        bool is_required = (1 << i) & memory_type_bits;
+        if (is_required)
+        {
+            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            if ((memoryType.propertyFlags & required) == required
+                && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
+            {
+                return i;
+            }
+        }
+    }
+
+    // fourth try, find any required
+    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        bool is_required = (1 << i) & memory_type_bits;
+        if (is_required)
+        {
+            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            if ((memoryType.propertyFlags & required) == required)
+            {
+                return i;
+            }
+        }
+    }
+
+    fprintf(stderr, "no such memory type %u %u %u %u\n", memory_type_bits, required, preferred, preferred_not);
+    return -1;
+}
+
+bool VulkanDevice::is_mappable(uint32_t memory_type_index) const
+{
+    const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[memory_type_index];
+
+    return memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 }
 
 VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
