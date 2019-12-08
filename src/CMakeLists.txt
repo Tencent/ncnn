@@ -316,7 +316,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
         PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_DEPRECATE)
 else()
     target_compile_options(ncnn
-        PRIVATE -Wall -Wextra -Wno-unused-function)
+        PRIVATE -Wall -Wextra -Wno-unused-function -Wno-unused-parameter)
     if(NOT NCNN_DISABLE_PIC)
         set_target_properties(ncnn
             PROPERTIES
