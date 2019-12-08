@@ -68,6 +68,44 @@ public:
     uint32_t local_size_y;
     uint32_t local_size_z;
 };
+
+#if __ANDROID_API__ >= 26
+class VkCompute;
+class ImportAndroidHardwareBufferPipeline : private Pipeline
+{
+public:
+    ImportAndroidHardwareBufferPipeline(const VulkanDevice* vkdev);
+    ~ImportAndroidHardwareBufferPipeline();
+
+    int create(AHardwareBuffer* hb, int type_to, int rotate_from, const Option& opt);
+    void destroy();
+
+    int create_image_memory_imageview(AHardwareBuffer* hb, VkImage* image, VkDeviceMemory* memory, VkImageView* imageView);
+
+    friend class VkCompute;
+
+protected:
+    int create_sampler();
+    int create_descriptorset_layout();
+    int create_descriptor_update_template();
+
+public:
+    int w;
+    int h;
+    int outw;
+    int outh;
+    int outc;
+    size_t out_elemsize;
+    int out_elempack;
+    int type_to;
+    int rotate_from;
+    VkAndroidHardwareBufferFormatPropertiesANDROID bufferFormatProperties;
+    VkAndroidHardwareBufferPropertiesANDROID bufferProperties;
+
+    VkSamplerYcbcrConversionKHR samplerYcbcrConversion;
+    VkSampler sampler;
+};
+#endif // __ANDROID_API__ >= 26
 #endif // NCNN_VULKAN
 
 } // namespace ncnn
