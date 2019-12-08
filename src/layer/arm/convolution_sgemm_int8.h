@@ -83,37 +83,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
     const size_t ldc = top_blob.cstep;
 
     int8kernel((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr, opt);
-    //const int nn = (m >> 2) << 2;
-    //
-    //#pragma omp parallel for num_threads(opt.num_threads)
-    //for (int i = 0; i <= nn; i += 4)
-    //{
-    //    int8kernel_m4(pc + i * ldc, pa + i * k, pb, k, n, ldc);
-    //}
-
-    //// proc left rows
-    //pa += nn * k;
-    //pc += nn * ldc;
-    //switch(m-nn)
-    //{
-    //    case 3:
-    //        int8kernel_m2(pc, pa, pb, k, n, ldc);
-    //        pc += 2 * ldc;
-    //        pa += 2 * k;
-    //        int8kernel_m1(pc, pa, pb, k, n, ldc);
-    //        break;
-    //    case 2:
-    //        int8kernel_m2(pc, pa, pb, k, n, ldc);
-    //        break;
-    //    case 1:
-    //        int8kernel_m1(pc, pa, pb, k, n, ldc);
-    //        break;
-    //    case 0:
-    //    default:
-    //        break;
-    //}
 }
-#else // armv7
+#else
 static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_size)
 {
 

@@ -29,7 +29,7 @@ option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
 option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" ON)
 option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
 option(NCNN_VULKAN "vulkan compute support" OFF)
-option(NCNN_REQUANT "auto merge int8 quant and dequant" ON)
+option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
 option(NCNN_AVX2 "optimize x86 platform with avx2" OFF)
 option(NCNN_DISABLE_PIC "disable position-independent code" OFF)
 
@@ -50,7 +50,7 @@ endif()
 ##############################################
 
 # add_subdirectory(examples)
-# add_subdirectory(benchmark)
+add_subdirectory(benchmark)
 add_subdirectory(src)
 if(NCNN_BUILD_TOOLS)
     add_subdirectory(tools)
