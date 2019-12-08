@@ -71,6 +71,10 @@ public:
 
     void record_write_timestamp(uint32_t query);
 
+#if __ANDROID_API__ >= 26
+    void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, VkImage image, VkImageView imageView, const VkMat& m);
+#endif // __ANDROID_API__ >= 26
+
     int submit_and_wait();
 
     int reset();
@@ -98,6 +102,12 @@ protected:
     void record_prepare_transfer_barrier(const VkMat& m);
     void record_prepare_compute_barrier(const VkMat& m);
 
+    void record_initial_image_compute_barrier(VkImage image);
+
+#if __ANDROID_API__ >= 26
+    void record_update_import_android_hardware_buffer_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, VkSampler sampler, VkImageView imageView, const VkMat& m);
+#endif // __ANDROID_API__ >= 26
+
 #if NCNN_BENCHMARK
     void reset_query_pool();
 #endif // NCNN_BENCHMARK
@@ -115,6 +125,10 @@ protected:
     void compute_transfer_barrier(VkBuffer buffer, size_t offset, size_t size);
     void compute_compute_barrier(VkBuffer buffer, size_t offset, size_t size);
     void transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t size);
+    void initial_image_compute_barrier(VkImage image);
+#if __ANDROID_API__ >= 26
+    void update_import_android_hardware_buffer_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const VkDescriptorImageInfo& descriptorImageInfo, const VkDescriptorBufferInfo& descriptorBufferInfo);
+#endif // __ANDROID_API__ >= 26
 #if NCNN_BENCHMARK
     void write_timestamp(uint32_t query);
 #endif // NCNN_BENCHMARK
@@ -137,6 +151,7 @@ protected:
         // 8=compute-compute barrier
         // 9=transfer-transfer barrier
         // 10=write timestamp
+        // 11=initial image compute barrier
         int type;
 
         union
@@ -154,6 +169,7 @@ protected:
 #if NCNN_BENCHMARK
         struct { uint32_t query; } write_timestamp;
 #endif // NCNN_BENCHMARK
+        struct { VkImage image; } initial_image_compute_barrier;
         };
 
         std::vector<VkBufferCopy> regions;
