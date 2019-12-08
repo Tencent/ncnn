@@ -274,7 +274,9 @@ ncnn_add_layer(SELU)
 ncnn_add_layer(HardSwish)
 ncnn_add_layer(Noop)
 
-ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
+if(NCNN_VULKAN)
+    ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
+endif()
 
 add_custom_target(generate-spirv DEPENDS ${SHADER_SPV_HEX_FILES})
 
