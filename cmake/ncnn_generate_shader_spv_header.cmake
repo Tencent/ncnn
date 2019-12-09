@@ -57,25 +57,25 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
     )
     set_source_files_properties(${SHADER_fp16a_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
 
-    set(SHADER_SPV_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.spv.h)
+    set(LOCAL_SHADER_SPV_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.spv.h)
 
-    file(WRITE ${SHADER_SPV_HEADER}
+    file(WRITE ${LOCAL_SHADER_SPV_HEADER}
         "static const uint32_t ${SHADER_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_SRC_NAME_WE}.spv.hex.h\"\n};\n"
         "static const uint32_t ${SHADER_fp16p_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16p_SRC_NAME_WE}.spv.hex.h\"\n};\n"
         "static const uint32_t ${SHADER_fp16s_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16s_SRC_NAME_WE}.spv.hex.h\"\n};\n"
         "static const uint32_t ${SHADER_fp16a_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16a_SRC_NAME_WE}.spv.hex.h\"\n};\n"
     )
 
-    set_source_files_properties(${SHADER_SPV_HEADER} PROPERTIES GENERATED TRUE)
+    set_source_files_properties(${LOCAL_SHADER_SPV_HEADER} PROPERTIES GENERATED TRUE)
 
-    set(SHADER_SPV_HEX_HEADERS
+    set(LOCAL_SHADER_SPV_HEX_HEADERS
         ${SHADER_SPV_HEX_FILE}
         ${SHADER_fp16p_SPV_HEX_FILE}
         ${SHADER_fp16s_SPV_HEX_FILE}
         ${SHADER_fp16a_SPV_HEX_FILE}
     )
 
-    set(SHADER_SPV_HEADER ${SHADER_SPV_HEADER} PARENT_SCOPE)
-    set(SHADER_SPV_HEX_HEADERS ${SHADER_SPV_HEX_HEADERS} PARENT_SCOPE)
+    set(${SHADER_SPV_HEADER} ${LOCAL_SHADER_SPV_HEADER} PARENT_SCOPE)
+    set(${SHADER_SPV_HEX_HEADERS} ${LOCAL_SHADER_SPV_HEX_HEADERS} PARENT_SCOPE)
 
 endfunction()
