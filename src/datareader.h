@@ -38,7 +38,7 @@ public:
 
     // read binary param and model data
     // return bytes read
-    virtual int read(void* buf, int size) const;
+    virtual size_t read(void* buf, size_t size) const;
 };
 
 #if NCNN_STDIO
@@ -50,7 +50,7 @@ public:
 #if NCNN_STRING
     virtual int scan(const char* format, void* p) const;
 #endif // NCNN_STRING
-    virtual int read(void* buf, int size) const;
+    virtual size_t read(void* buf, size_t size) const;
 
 protected:
     FILE* fp;
@@ -65,7 +65,7 @@ public:
 #if NCNN_STRING
     virtual int scan(const char* format, void* p) const;
 #endif // NCNN_STRING
-    virtual int read(void* buf, int size) const;
+    virtual size_t read(void* buf, size_t size) const;
 
 protected:
     const unsigned char*& mem;
@@ -80,7 +80,7 @@ public:
 #if NCNN_STRING
     virtual int scan(const char* format, void* p) const;
 #endif // NCNN_STRING
-    virtual int read(void* buf, int size) const;
+    virtual size_t read(void* buf, size_t size) const;
 
 protected:
     AAsset* asset;
