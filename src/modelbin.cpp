@@ -51,7 +51,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
 {
     if (type == 0)
     {
-        int nread;
+        size_t nread;
 
         union
         {
@@ -66,9 +66,9 @@ Mat ModelBinFromDataReader::load(int w, int type) const
         } flag_struct;
 
         nread = dr.read(&flag_struct, sizeof(flag_struct));
-        if (nread != (int)sizeof(flag_struct))
+        if (nread != sizeof(flag_struct))
         {
-            fprintf(stderr, "ModelBin read flag_struct failed %d\n", nread);
+            fprintf(stderr, "ModelBin read flag_struct failed %zd\n", nread);
             return Mat();
         }
 
@@ -83,7 +83,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             nread = dr.read(float16_weights.data(), align_data_size);
             if (nread != align_data_size)
             {
-                fprintf(stderr, "ModelBin read float16_weights failed %d\n", nread);
+                fprintf(stderr, "ModelBin read float16_weights failed %zd\n", nread);
                 return Mat();
             }
 
@@ -98,7 +98,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             nread = dr.read(int8_weights.data(), align_data_size);
             if (nread != align_data_size)
             {
-                fprintf(stderr, "ModelBin read int8_weights failed %d\n", nread);
+                fprintf(stderr, "ModelBin read int8_weights failed %zd\n", nread);
                 return Mat();
             }
 
@@ -118,9 +118,9 @@ Mat ModelBinFromDataReader::load(int w, int type) const
 
             // raw data with extra scaling
             nread = dr.read(m, w * sizeof(float));
-            if (nread != w * (int)sizeof(float))
+            if (nread != w * sizeof(float))
             {
-                fprintf(stderr, "ModelBin read weight_data failed %d\n", nread);
+                fprintf(stderr, "ModelBin read weight_data failed %zd\n", nread);
                 return Mat();
             }
 
@@ -136,9 +136,9 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             // quantized data
             float quantization_value[256];
             nread = dr.read(quantization_value, 256 * sizeof(float));
-            if (nread != 256 * (int)sizeof(float))
+            if (nread != 256 * sizeof(float))
             {
-                fprintf(stderr, "ModelBin read quantization_value failed %d\n", nread);
+                fprintf(stderr, "ModelBin read quantization_value failed %zd\n", nread);
                 return Mat();
             }
 
@@ -148,7 +148,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             nread = dr.read(index_array.data(), align_weight_data_size);
             if (nread != align_weight_data_size)
             {
-                fprintf(stderr, "ModelBin read index_array failed %d\n", nread);
+                fprintf(stderr, "ModelBin read index_array failed %zd\n", nread);
                 return Mat();
             }
 
@@ -162,9 +162,9 @@ Mat ModelBinFromDataReader::load(int w, int type) const
         {
             // raw data
             nread = dr.read(m, w * sizeof(float));
-            if (nread != w * (int)sizeof(float))
+            if (nread != w * sizeof(float))
             {
-                fprintf(stderr, "ModelBin read weight_data failed %d\n", nread);
+                fprintf(stderr, "ModelBin read weight_data failed %zd\n", nread);
                 return Mat();
             }
         }
@@ -178,10 +178,10 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             return m;
 
         // raw data
-        int nread = dr.read(m, w * sizeof(float));
-        if (nread != w * (int)sizeof(float))
+        size_t nread = dr.read(m, w * sizeof(float));
+        if (nread != w * sizeof(float))
         {
-            fprintf(stderr, "ModelBin read weight_data failed %d\n", nread);
+            fprintf(stderr, "ModelBin read weight_data failed %zd\n", nread);
             return Mat();
         }
 
