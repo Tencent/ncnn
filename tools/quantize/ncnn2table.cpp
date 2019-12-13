@@ -77,12 +77,33 @@ public:
     int get_conv_names();
     int get_conv_bottom_blob_names();
     int get_conv_weight_blob_scales();
+    int get_input_names();
 
 public:
     std::vector<std::string> conv_names;
     std::map<std::string,std::string> conv_bottom_blob_names;
     std::map<std::string,std::vector<float> > weight_scales;
+    std::vector<std::string> input_names;
 };
+
+int QuantNet::get_input_names()
+{
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        ncnn::Layer* layer = layers[i];
+        if (layer->type == "Input")
+        {
+            for (size_t  j=0; j<layer->tops.size(); j++)
+            {
+                int blob_index = layer->tops[j];
+                std::string name = blobs[blob_index].name.c_str();
+                input_names.push_back(name);
+            }
+        }
+    }
+
+    return 0;
+}
 
 int QuantNet::get_conv_names()
 {
@@ -516,10 +537,17 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     g_blob_pool_allocator.clear();
     g_workspace_pool_allocator.clear();
 
+    net.get_input_names();
     net.get_conv_names();
     net.get_conv_bottom_blob_names();
     net.get_conv_weight_blob_scales();
 
+    if (net.input_names.size() <= 0)
+    {
+        fprintf(stderr, "not found [Input] Layer, Check your ncnn.param \n");
+        return -1;
+    }
+    
     FILE *fp=fopen(table_path, "w");
 
     // save quantization scale of weight 
@@ -573,7 +601,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
         in.substract_mean_normalize(mean_vals, norm_vals);
 
         ncnn::Extractor ex = net.create_extractor();
-        ex.input("data", in);
+        ex.input(net.input_names[0].c_str(), in);
 
         for (size_t i=0; i<net.conv_names.size(); i++)
         {
@@ -595,7 +623,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     }
 
     // step 2 histogram_interval
-    printf("    ====> step 2 : generatue the histogram_interval.\n");
+    printf("    ====> step 2 : generate the histogram_interval.\n");
     for (size_t i=0; i<net.conv_names.size(); i++)
     {
         std::string layer_name = net.conv_names[i];
@@ -613,7 +641,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     }    
 
     // step 3 histogram
-    printf("    ====> step 3 : generatue the histogram.\n");
+    printf("    ====> step 3 : generate the histogram.\n");
     for (size_t i=0; i<filenames.size(); i++)
     {
         std::string img_name = filenames[i];
@@ -635,7 +663,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
         in.substract_mean_normalize(mean_vals, norm_vals);
       
         ncnn::Extractor ex = net.create_extractor();
-        ex.input("data", in);
+        ex.input(net.input_names[0].c_str(), in);
 
         for (size_t i=0; i<net.conv_names.size(); i++)
         {

@@ -131,12 +131,12 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
             op->create_pipeline(opt);
 
-            ncnn::Option opt;
-            opt.blob_allocator = int8_weight_data.allocator;
+            Option opt_q = opt;
+            opt_q.blob_allocator = int8_weight_data.allocator;
 
             const Mat weight_data_g = weight_data.range(weight_data_size_g * g, weight_data_size_g);
             Mat int8_weight_data_g = int8_weight_data.range(weight_data_size_g * g, weight_data_size_g);
-            op->forward(weight_data_g, int8_weight_data_g, opt);
+            op->forward(weight_data_g, int8_weight_data_g, opt_q);
 
             delete op;
         }
@@ -303,7 +303,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
-            ncnn::Option opt_g = opt;
+            Option opt_g = opt;
             opt_g.num_threads = 1;
             opt_g.blob_allocator = bottom_blob_int8.allocator;
 
@@ -423,7 +423,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                     // requantize, reverse scale inplace
                     {
-                        ncnn::Option opt_g = opt;
+                        Option opt_g = opt;
                         opt_g.num_threads = 1;
                         opt_g.blob_allocator = top_blob.allocator;
 
@@ -498,7 +498,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g=0; g<group; g++)
                 {
-                    ncnn::Option opt_g = opt;
+                    Option opt_g = opt;
                     opt_g.num_threads = 1;
                     opt_g.blob_allocator = top_blob.allocator;
 
@@ -561,7 +561,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                     // dequantize, reverse scale inplace
                     {
-                        ncnn::Option opt_g = opt;
+                        Option opt_g = opt;
                         opt_g.num_threads = 1;
                         opt_g.blob_allocator = top_blob.allocator;
 
@@ -634,7 +634,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g=0; g<group; g++)
                 {
-                    ncnn::Option opt_g = opt;
+                    Option opt_g = opt;
                     opt_g.num_threads = 1;
                     opt_g.blob_allocator = top_blob.allocator;
 

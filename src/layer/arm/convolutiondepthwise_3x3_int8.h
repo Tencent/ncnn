@@ -1122,25 +1122,25 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                 "vcvt.f32.s32 q8, q8            \n"
                 // top_f32 = top_f32 * scale_int
                 "vmul.f32   q0, q7, q14         \n"
-                "vmul.f32   q1, q8, q14         \n"
+                "vmul.f32   q4, q8, q14         \n"
                 // top_f32 = top_f32 + bias
                 "vadd.f32   q0, q0, q13         \n"
-                "vadd.f32   q1, q1, q13         \n"
+                "vadd.f32   q4, q4, q13         \n"
                 // top_f32 = top_f32 * scale_out
                 "vmul.f32   q0, q0, q15         \n"
-                "vmul.f32   q1, q1, q15         \n"
+                "vmul.f32   q4, q4, q15         \n"
                 // top_f32 -> top_s32
                 "vcvtr.s32.f32 s0, s0           \n"
                 "vcvtr.s32.f32 s1, s1           \n"
                 "vcvtr.s32.f32 s2, s2           \n"
                 "vcvtr.s32.f32 s3, s3           \n"
-                "vcvtr.s32.f32 s4, s4           \n"
-                "vcvtr.s32.f32 s5, s5           \n"
-                "vcvtr.s32.f32 s6, s6           \n"
-                "vcvtr.s32.f32 s7, s7           \n" 
+                "vcvtr.s32.f32 s16, s16           \n"
+                "vcvtr.s32.f32 s17, s17           \n"
+                "vcvtr.s32.f32 s18, s18           \n"
+                "vcvtr.s32.f32 s19, s19           \n" 
                 // top_s32 -> top_s16
                 "vqmovn.s32 d14, q0             \n"
-                "vqmovn.s32 d15, q1             \n"
+                "vqmovn.s32 d15, q4             \n"
                 // top_s16 -> top_s8
                 "vqmovn.s16   d14, q7           \n"
                 // save top_s8
@@ -1151,25 +1151,25 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                 "vcvt.f32.s32 q12, q12          \n"
                 // top_f32 = top_f32 * scale_int
                 "vmul.f32   q0, q11, q14        \n"
-                "vmul.f32   q1, q12, q14        \n"
+                "vmul.f32   q4, q12, q14        \n"
                 // top_f32 = top_f32 + bias
                 "vadd.f32   q0, q0, q13         \n"
-                "vadd.f32   q1, q1, q13         \n"
+                "vadd.f32   q4, q4, q13         \n"
                 // top_f32 = top_f32 * scale_out
                 "vmul.f32   q0, q0, q15         \n"
-                "vmul.f32   q1, q1, q15         \n"
+                "vmul.f32   q4, q4, q15         \n"
                 // top_f32 -> top_s32
                 "vcvtr.s32.f32 s0, s0           \n"
                 "vcvtr.s32.f32 s1, s1           \n"
                 "vcvtr.s32.f32 s2, s2           \n"
                 "vcvtr.s32.f32 s3, s3           \n"
-                "vcvtr.s32.f32 s4, s4           \n"
-                "vcvtr.s32.f32 s5, s5           \n"
-                "vcvtr.s32.f32 s6, s6           \n"
-                "vcvtr.s32.f32 s7, s7           \n"
+                "vcvtr.s32.f32 s16, s16           \n"
+                "vcvtr.s32.f32 s17, s17           \n"
+                "vcvtr.s32.f32 s18, s18           \n"
+                "vcvtr.s32.f32 s19, s19           \n"
                 // top_s32 -> top_s16
                 "vqmovn.s32 d14, q0             \n"
-                "vqmovn.s32 d15, q1             \n"
+                "vqmovn.s32 d15, q4             \n"
                 // top_s16 -> top_s8
                 "vqmovn.s16   d14, q7           \n"
                 // save top_s8
@@ -1197,7 +1197,7 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                   "r"(bias0),    // %17
                   "r"(scale_requant_in), // %18
                   "r"(scale_requant_out) // %19
-                : "cc", "memory", "q0", "q1", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
             );
             }             
 #endif // __aarch64__            
@@ -1441,25 +1441,25 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                 "vcvt.f32.s32 q8, q8            \n"
                 // top_f32 = top_f32 * scale_int
                 "vmul.f32   q0, q7, q14         \n"
-                "vmul.f32   q1, q8, q14         \n"
+                "vmul.f32   q4, q8, q14         \n"
                 // top_f32 = top_f32 + bias
                 "vadd.f32   q0, q0, q13         \n"
-                "vadd.f32   q1, q1, q13         \n"
+                "vadd.f32   q4, q4, q13         \n"
                 // top_f32 = top_f32 * scale_out
                 "vmul.f32   q0, q0, q15         \n"
-                "vmul.f32   q1, q1, q15         \n"
+                "vmul.f32   q4, q4, q15         \n"
                 // top_f32 -> top_s32
                 "vcvtr.s32.f32 s0, s0           \n"
                 "vcvtr.s32.f32 s1, s1           \n"
                 "vcvtr.s32.f32 s2, s2           \n"
                 "vcvtr.s32.f32 s3, s3           \n"
-                "vcvtr.s32.f32 s4, s4           \n"
-                "vcvtr.s32.f32 s5, s5           \n"
-                "vcvtr.s32.f32 s6, s6           \n"
-                "vcvtr.s32.f32 s7, s7           \n"
+                "vcvtr.s32.f32 s16, s16           \n"
+                "vcvtr.s32.f32 s17, s17           \n"
+                "vcvtr.s32.f32 s18, s18           \n"
+                "vcvtr.s32.f32 s19, s19           \n"
                 // top_s32 -> top_s16
                 "vqmovn.s32 d14, q0             \n"
-                "vqmovn.s32 d15, q1             \n"
+                "vqmovn.s32 d15, q4             \n"
                 // top_s16 -> top_s8
                 "vqmovn.s16   d14, q7           \n"
                 // save top_s8
@@ -1483,7 +1483,7 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                   "r"(bias0),     // %13
                   "r"(scale_requant_in), // %14
                   "r"(scale_requant_out) // %15
-                : "cc", "memory", "q0", "q1", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
             );
             }  
 #endif // __aarch64__            
@@ -1741,25 +1741,25 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                 "vcvt.f32.s32 q8, q8             \n"
                 // top_f32 = top_f32 * scale_int
                 "vmul.f32   q0, q7, q12          \n"
-                "vmul.f32   q1, q8, q12          \n"
+                "vmul.f32   q4, q8, q12          \n"
                 // top_f32 = top_f32 + bias
                 "vadd.f32   q0, q0, q11          \n"
-                "vadd.f32   q1, q1, q11          \n"
+                "vadd.f32   q4, q4, q11          \n"
                 // top_f32 = top_f32 * scale_out
                 "vmul.f32   q0, q0, q13          \n"
-                "vmul.f32   q1, q1, q13          \n"
+                "vmul.f32   q4, q4, q13          \n"
                 // top_f32 -> top_s32
                 "vcvtr.s32.f32 s0, s0            \n"
                 "vcvtr.s32.f32 s1, s1            \n"
                 "vcvtr.s32.f32 s2, s2            \n"
                 "vcvtr.s32.f32 s3, s3            \n"
-                "vcvtr.s32.f32 s4, s4            \n"
-                "vcvtr.s32.f32 s5, s5            \n"
-                "vcvtr.s32.f32 s6, s6            \n"
-                "vcvtr.s32.f32 s7, s7            \n"
+                "vcvtr.s32.f32 s16, s16            \n"
+                "vcvtr.s32.f32 s17, s17            \n"
+                "vcvtr.s32.f32 s18, s18            \n"
+                "vcvtr.s32.f32 s19, s19            \n"
                 // top_s32 -> top_s16
                 "vqmovn.s32 d14, q0              \n"
-                "vqmovn.s32 d15, q1              \n"
+                "vqmovn.s32 d15, q4              \n"
                 // top_s16 -> top_s8
                 "vqmovn.s16   d14, q7            \n"
                 // save top_s8
@@ -1783,7 +1783,7 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                   "r"(bias0),            // %13
                   "r"(scale_requant_in), // %14
                   "r"(scale_requant_out) // %15                 
-                : "cc", "memory", "q0", "q1", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
             );
             }
 #endif // __aarch64__             

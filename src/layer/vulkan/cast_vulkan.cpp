@@ -111,6 +111,12 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     {
         // float16
         out_elemsize = 2 * elempack;
+
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
+        {
+            if (elempack == 4) out_elemsize = 4*2u;
+            if (elempack == 1) out_elemsize = 4u;
+        }
     }
     else if (type_to == 3)
     {

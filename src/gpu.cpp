@@ -49,8 +49,17 @@ static GpuInfo g_gpu_infos[NCNN_MAX_GPU_COUNT];
 static Mutex g_default_vkdev_lock;
 static VulkanDevice* g_default_vkdev[NCNN_MAX_GPU_COUNT] = {0};
 
+int support_VK_KHR_external_memory_capabilities = 0;
 int support_VK_KHR_get_physical_device_properties2 = 0;
+int support_VK_KHR_get_surface_capabilities2 = 0;
+int support_VK_KHR_surface = 0;
 int support_VK_EXT_debug_utils = 0;
+#if __ANDROID_API__ >= 26
+int support_VK_KHR_android_surface = 0;
+#endif // __ANDROID_API__ >= 26
+
+// VK_KHR_external_memory_capabilities
+PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR vkGetPhysicalDeviceExternalBufferPropertiesKHR = 0;
 
 // VK_KHR_get_physical_device_properties2
 PFN_vkGetPhysicalDeviceFeatures2KHR vkGetPhysicalDeviceFeatures2KHR = 0;
@@ -60,6 +69,22 @@ PFN_vkGetPhysicalDeviceImageFormatProperties2KHR vkGetPhysicalDeviceImageFormatP
 PFN_vkGetPhysicalDeviceQueueFamilyProperties2KHR vkGetPhysicalDeviceQueueFamilyProperties2KHR = 0;
 PFN_vkGetPhysicalDeviceMemoryProperties2KHR vkGetPhysicalDeviceMemoryProperties2KHR = 0;
 PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR vkGetPhysicalDeviceSparseImageFormatProperties2KHR = 0;
+
+// VK_KHR_get_surface_capabilities2
+PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR vkGetPhysicalDeviceSurfaceCapabilities2KHR = 0;
+PFN_vkGetPhysicalDeviceSurfaceFormats2KHR vkGetPhysicalDeviceSurfaceFormats2KHR = 0;
+
+// VK_KHR_surface
+PFN_vkDestroySurfaceKHR vkDestroySurfaceKHR = 0;
+PFN_vkGetPhysicalDeviceSurfaceSupportKHR vkGetPhysicalDeviceSurfaceSupportKHR = 0;
+PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR vkGetPhysicalDeviceSurfaceCapabilitiesKHR = 0;
+PFN_vkGetPhysicalDeviceSurfaceFormatsKHR vkGetPhysicalDeviceSurfaceFormatsKHR = 0;
+PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfacePresentModesKHR = 0;
+
+#if __ANDROID_API__ >= 26
+// VK_KHR_android_surface
+PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR = 0;
+#endif // __ANDROID_API__ >= 26
 
 // compile with old vulkan sdk
 #if VK_HEADER_VERSION < 80
@@ -84,6 +109,11 @@ typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR {
 
 static int init_instance_extension()
 {
+    if (support_VK_KHR_external_memory_capabilities)
+    {
+        vkGetPhysicalDeviceExternalBufferPropertiesKHR = (PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceExternalBufferPropertiesKHR");
+    }
+
     if (support_VK_KHR_get_physical_device_properties2)
     {
         vkGetPhysicalDeviceFeatures2KHR = (PFN_vkGetPhysicalDeviceFeatures2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceFeatures2KHR");
@@ -94,6 +124,28 @@ static int init_instance_extension()
         vkGetPhysicalDeviceMemoryProperties2KHR = (PFN_vkGetPhysicalDeviceMemoryProperties2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceMemoryProperties2KHR");
         vkGetPhysicalDeviceSparseImageFormatProperties2KHR = (PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSparseImageFormatProperties2KHR");
     }
+
+    if (support_VK_KHR_get_surface_capabilities2)
+    {
+        vkGetPhysicalDeviceSurfaceCapabilities2KHR = (PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceCapabilities2KHR");;
+        vkGetPhysicalDeviceSurfaceFormats2KHR = (PFN_vkGetPhysicalDeviceSurfaceFormats2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceFormats2KHR");;
+    }
+
+    if (support_VK_KHR_surface)
+    {
+        vkDestroySurfaceKHR = (PFN_vkDestroySurfaceKHR)vkGetInstanceProcAddr(g_instance, "vkDestroySurfaceKHR");;
+        vkGetPhysicalDeviceSurfaceSupportKHR = (PFN_vkGetPhysicalDeviceSurfaceSupportKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceSupportKHR");;
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR = (PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");;
+        vkGetPhysicalDeviceSurfaceFormatsKHR = (PFN_vkGetPhysicalDeviceSurfaceFormatsKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceFormatsKHR");;
+        vkGetPhysicalDeviceSurfacePresentModesKHR = (PFN_vkGetPhysicalDeviceSurfacePresentModesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfacePresentModesKHR");;
+    }
+
+#if __ANDROID_API__ >= 26
+    if (support_VK_KHR_android_surface)
+    {
+        vkCreateAndroidSurfaceKHR = (PFN_vkCreateAndroidSurfaceKHR)vkGetInstanceProcAddr(g_instance, "vkCreateAndroidSurfaceKHR");
+    }
+#endif // __ANDROID_API__ >= 26
 
     return 0;
 }
@@ -143,7 +195,19 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
         }
     }
 
-    // second try, any queue with compute
+    // second try, any queue with compute and graphics
+    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
+    {
+        const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+        if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
+            && (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+        {
+            return i;
+        }
+    }
+
+    // third try, any queue with compute
     for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
     {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
@@ -155,6 +219,47 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
     }
 
 //     fprintf(stderr, "no compute queue\n");
+    return -1;
+}
+
+static uint32_t find_device_graphics_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties)
+{
+    // first try, graphics only queue
+    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
+    {
+        const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+        if ((queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT))
+        {
+            return i;
+        }
+    }
+
+    // second try, any queue with graphics and compute
+    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
+    {
+        const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+        if ((queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            && (queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT))
+        {
+            return i;
+        }
+    }
+
+    // third try, any queue with graphics
+    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
+    {
+        const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
+
+        if (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            return i;
+        }
+    }
+
+//     fprintf(stderr, "no graphics queue\n");
     return -1;
 }
 
@@ -191,108 +296,14 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
         return compute_queue_index;
     }
 
+    // fourth try, use graphics queue
+    uint32_t graphics_queue_index = find_device_graphics_queue(queueFamilyProperties);
+    if (graphics_queue_index != (uint32_t)-1)
+    {
+        return graphics_queue_index;
+    }
+
 //     fprintf(stderr, "no transfer queue\n");
-    return -1;
-}
-
-static uint32_t find_unified_memory(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties)
-{
-    // first try, host visible + host coherent + device local
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
-        {
-            return i;
-        }
-    }
-
-    // second try, host visible + device local
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
-        {
-            return i;
-        }
-    }
-
-//     fprintf(stderr, "no unified memory\n");
-    return -1;
-}
-
-static uint32_t find_device_local_memory(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties)
-{
-    // first try, device local only
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if (memoryType.propertyFlags == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-        {
-            return i;
-        }
-    }
-
-    // second try, with device local bit
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-        {
-            return i;
-        }
-    }
-
-//     fprintf(stderr, "no device local memory\n");
-    return -1;
-}
-
-static uint32_t find_host_visible_memory(VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties)
-{
-    // first try, host visible + host coherent, without device local bit
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-            && (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-            && !(memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
-        {
-            return i;
-        }
-    }
-
-    // second try, with host visible bit, without device local bit
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if ((memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-            && !(memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))
-        {
-            return i;
-        }
-    }
-
-    // third try, with host visible bit
-    for (uint32_t i=0; i<physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
-        const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[i];
-
-        if (memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-        {
-            return i;
-        }
-    }
-
-//     fprintf(stderr, "no host visible memory\n");
     return -1;
 }
 
@@ -378,24 +389,49 @@ int create_gpu_instance()
     }
 
     support_VK_KHR_get_physical_device_properties2 = 0;
+    support_VK_KHR_get_surface_capabilities2 = 0;
+    support_VK_KHR_surface = 0;
     support_VK_EXT_debug_utils = 0;
+#if __ANDROID_API__ >= 26
+    support_VK_KHR_android_surface = 0;
+#endif // __ANDROID_API__ >= 26
     for (uint32_t j=0; j<instanceExtensionPropertyCount; j++)
     {
         const VkExtensionProperties& exp = instanceExtensionProperties[j];
 //         fprintf(stderr, "instance extension %s = %u\n", exp.extensionName, exp.specVersion);
 
-        if (strcmp(exp.extensionName, "VK_KHR_get_physical_device_properties2") == 0)
+        if (strcmp(exp.extensionName, "VK_KHR_external_memory_capabilities") == 0)
+            support_VK_KHR_external_memory_capabilities = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_get_physical_device_properties2") == 0)
             support_VK_KHR_get_physical_device_properties2 = exp.specVersion;
-        if (strcmp(exp.extensionName, "VK_EXT_debug_utils") == 0)
+        else if (strcmp(exp.extensionName, "VK_KHR_get_surface_capabilities2") == 0)
+            support_VK_KHR_get_surface_capabilities2 = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_surface") == 0)
+            support_VK_KHR_surface = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_debug_utils") == 0)
             support_VK_EXT_debug_utils = exp.specVersion;
+#if __ANDROID_API__ >= 26
+        else if (strcmp(exp.extensionName, "VK_KHR_android_surface") == 0)
+            support_VK_KHR_android_surface = exp.specVersion;
+#endif // __ANDROID_API__ >= 26
     }
 
+    if (support_VK_KHR_external_memory_capabilities)
+        enabledExtensions.push_back("VK_KHR_external_memory_capabilities");
     if (support_VK_KHR_get_physical_device_properties2)
         enabledExtensions.push_back("VK_KHR_get_physical_device_properties2");
+    if (support_VK_KHR_get_surface_capabilities2)
+        enabledExtensions.push_back("VK_KHR_get_surface_capabilities2");
+    if (support_VK_KHR_surface)
+        enabledExtensions.push_back("VK_KHR_surface");
 #if ENABLE_VALIDATION_LAYER
     if (support_VK_EXT_debug_utils)
         enabledExtensions.push_back("VK_EXT_debug_utils");
 #endif // ENABLE_VALIDATION_LAYER
+#if __ANDROID_API__ >= 26
+    if (support_VK_KHR_android_surface)
+        enabledExtensions.push_back("VK_KHR_android_surface");
+#endif // __ANDROID_API__ >= 26
 
     VkApplicationInfo applicationInfo;
     applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -551,43 +587,15 @@ int create_gpu_instance()
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
 
         gpu_info.compute_queue_family_index = find_device_compute_queue(queueFamilyProperties);
+        gpu_info.graphics_queue_family_index = find_device_graphics_queue(queueFamilyProperties);
         gpu_info.transfer_queue_family_index = find_device_transfer_queue(queueFamilyProperties);
 
         gpu_info.compute_queue_count = queueFamilyProperties[gpu_info.compute_queue_family_index].queueCount;
+        gpu_info.graphics_queue_count = queueFamilyProperties[gpu_info.graphics_queue_family_index].queueCount;
         gpu_info.transfer_queue_count = queueFamilyProperties[gpu_info.transfer_queue_family_index].queueCount;
 
-        // find memory type index
-        VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
-        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &physicalDeviceMemoryProperties);
-
-//         // print memory info
-//         for (uint32_t j=0; j<physicalDeviceMemoryProperties.memoryTypeCount; j++)
-//         {
-//             const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[j];
-//             fprintf(stderr, "[%u] memoryType %u heapIndex/propertyFlags = %d  %u\n", i, j, memoryType.heapIndex, memoryType.propertyFlags);
-//         }
-//         for (uint32_t j=0; j<physicalDeviceMemoryProperties.memoryHeapCount; j++)
-//         {
-//             const VkMemoryHeap& memoryHeap = physicalDeviceMemoryProperties.memoryHeaps[j];
-//             fprintf(stderr, "[%u] memoryHeap %u size/flags = %lu  %u\n", i, j, memoryHeap.size, memoryHeap.flags);
-//         }
-
-        gpu_info.unified_memory_index = find_unified_memory(physicalDeviceMemoryProperties);
-        gpu_info.device_local_memory_index = find_device_local_memory(physicalDeviceMemoryProperties);
-        gpu_info.host_visible_memory_index = find_host_visible_memory(physicalDeviceMemoryProperties);
-
-        // treat as unified memory architecture if memory heap is the same
-        if (gpu_info.unified_memory_index != (uint32_t)-1)
-        {
-            int unified_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.unified_memory_index].heapIndex;
-            int device_local_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.device_local_memory_index].heapIndex;
-            int host_visible_memory_heap_index = physicalDeviceMemoryProperties.memoryTypes[gpu_info.host_visible_memory_index].heapIndex;
-            if (unified_memory_heap_index == device_local_memory_heap_index && unified_memory_heap_index == host_visible_memory_heap_index)
-            {
-                gpu_info.device_local_memory_index = gpu_info.unified_memory_index;
-                gpu_info.host_visible_memory_index = gpu_info.unified_memory_index;
-            }
-        }
+        // cache memory properties
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &gpu_info.physicalDeviceMemoryProperties);
 
         // get device extension
         uint32_t deviceExtensionPropertyCount = 0;
@@ -612,11 +620,19 @@ int create_gpu_instance()
         gpu_info.support_VK_KHR_bind_memory2 = 0;
         gpu_info.support_VK_KHR_dedicated_allocation = 0;
         gpu_info.support_VK_KHR_descriptor_update_template = 0;
+        gpu_info.support_VK_KHR_external_memory = 0;
         gpu_info.support_VK_KHR_get_memory_requirements2 = 0;
+        gpu_info.support_VK_KHR_maintenance1 = 0;
         gpu_info.support_VK_KHR_push_descriptor = 0;
+        gpu_info.support_VK_KHR_sampler_ycbcr_conversion = 0;
         gpu_info.support_VK_KHR_shader_float16_int8 = 0;
         gpu_info.support_VK_KHR_shader_float_controls = 0;
         gpu_info.support_VK_KHR_storage_buffer_storage_class = 0;
+        gpu_info.support_VK_KHR_swapchain = 0;
+        gpu_info.support_VK_EXT_queue_family_foreign = 0;
+#if __ANDROID_API__ >= 26
+        gpu_info.support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
+#endif // __ANDROID_API__ >= 26
         for (uint32_t j=0; j<deviceExtensionPropertyCount; j++)
         {
             const VkExtensionProperties& exp = deviceExtensionProperties[j];
@@ -632,16 +648,30 @@ int create_gpu_instance()
                 gpu_info.support_VK_KHR_dedicated_allocation = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_descriptor_update_template") == 0)
                 gpu_info.support_VK_KHR_descriptor_update_template = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_external_memory") == 0)
+                gpu_info.support_VK_KHR_external_memory = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_get_memory_requirements2") == 0)
                 gpu_info.support_VK_KHR_get_memory_requirements2 = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_maintenance1") == 0)
+                gpu_info.support_VK_KHR_maintenance1 = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_push_descriptor") == 0)
                 gpu_info.support_VK_KHR_push_descriptor = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_sampler_ycbcr_conversion") == 0)
+                gpu_info.support_VK_KHR_sampler_ycbcr_conversion = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_shader_float16_int8") == 0)
                 gpu_info.support_VK_KHR_shader_float16_int8 = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_shader_float_controls") == 0)
                 gpu_info.support_VK_KHR_shader_float_controls = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_storage_buffer_storage_class") == 0)
                 gpu_info.support_VK_KHR_storage_buffer_storage_class = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_swapchain") == 0)
+                gpu_info.support_VK_KHR_swapchain = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_EXT_queue_family_foreign") == 0)
+                gpu_info.support_VK_EXT_queue_family_foreign = exp.specVersion;
+#if __ANDROID_API__ >= 26
+            else if (strcmp(exp.extensionName, "VK_ANDROID_external_memory_android_hardware_buffer") == 0)
+                gpu_info.support_VK_ANDROID_external_memory_android_hardware_buffer = exp.specVersion;
+#endif // __ANDROID_API__ >= 26
         }
 
         // check features
@@ -650,6 +680,7 @@ int create_gpu_instance()
         gpu_info.support_fp16_arithmetic = false;
         gpu_info.support_int8_storage = false;
         gpu_info.support_int8_arithmetic = false;
+        gpu_info.support_ycbcr_conversion = false;
         if (support_VK_KHR_get_physical_device_properties2)
         {
             void* queryExtensionFeatures = 0;
@@ -684,6 +715,16 @@ int create_gpu_instance()
                 queryExtensionFeatures = &queryFloat16Int8Features;
             }
 
+            // query ycbcr_conversion
+            VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR querySamplerYcbcrConversionFeatures;
+            querySamplerYcbcrConversionFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES_KHR;
+            querySamplerYcbcrConversionFeatures.pNext = 0;
+            if (gpu_info.support_VK_KHR_sampler_ycbcr_conversion)
+            {
+                querySamplerYcbcrConversionFeatures.pNext = queryExtensionFeatures;
+                queryExtensionFeatures = &querySamplerYcbcrConversionFeatures;
+            }
+
             VkPhysicalDeviceFeatures2KHR queryFeatures;
             queryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
             queryFeatures.pNext = queryExtensionFeatures;
@@ -703,6 +744,10 @@ int create_gpu_instance()
                 gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
                 gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
             }
+            if (gpu_info.support_VK_KHR_sampler_ycbcr_conversion)
+            {
+                gpu_info.support_ycbcr_conversion = querySamplerYcbcrConversionFeatures.samplerYcbcrConversion;
+            }
         }
         else
         {
@@ -717,10 +762,9 @@ int create_gpu_instance()
             gpu_info.support_fp16_storage = false;
         }
 
-        fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueT=%u[%u]  memU=%u  memDL=%u  memHV=%u\n", i, physicalDeviceProperties.deviceName,
+        fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueT=%u[%u]\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_family_index, gpu_info.compute_queue_count,
-                gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count,
-                gpu_info.unified_memory_index, gpu_info.device_local_memory_index, gpu_info.host_visible_memory_index);
+                gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
         fprintf(stderr, "[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
@@ -799,16 +843,30 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         enabledExtensions.push_back("VK_KHR_dedicated_allocation");
     if (info.support_VK_KHR_descriptor_update_template)
         enabledExtensions.push_back("VK_KHR_descriptor_update_template");
+    if (info.support_VK_KHR_external_memory)
+        enabledExtensions.push_back("VK_KHR_external_memory");
     if (info.support_VK_KHR_get_memory_requirements2)
         enabledExtensions.push_back("VK_KHR_get_memory_requirements2");
+    if (info.support_VK_KHR_maintenance1)
+        enabledExtensions.push_back("VK_KHR_maintenance1");
     if (info.support_VK_KHR_push_descriptor)
         enabledExtensions.push_back("VK_KHR_push_descriptor");
+    if (info.support_VK_KHR_sampler_ycbcr_conversion)
+        enabledExtensions.push_back("VK_KHR_sampler_ycbcr_conversion");
     if (info.support_VK_KHR_shader_float16_int8)
         enabledExtensions.push_back("VK_KHR_shader_float16_int8");
     if (info.support_VK_KHR_shader_float_controls)
         enabledExtensions.push_back("VK_KHR_shader_float_controls");
     if (info.support_VK_KHR_storage_buffer_storage_class)
         enabledExtensions.push_back("VK_KHR_storage_buffer_storage_class");
+    if (info.support_VK_KHR_swapchain)
+        enabledExtensions.push_back("VK_KHR_swapchain");
+    if (info.support_VK_EXT_queue_family_foreign)
+        enabledExtensions.push_back("VK_EXT_queue_family_foreign");
+#if __ANDROID_API__ >= 26
+    if (info.support_VK_ANDROID_external_memory_android_hardware_buffer)
+        enabledExtensions.push_back("VK_ANDROID_external_memory_android_hardware_buffer");
+#endif // __ANDROID_API__ >= 26
 
     void* enabledExtensionFeatures = 0;
 
@@ -851,34 +909,74 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         enabledExtensionFeatures = &enabledFloat16Int8Features;
     }
 
+    // enable ycbcr conversion
+    VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR querySamplerYcbcrConversionFeatures;
+    querySamplerYcbcrConversionFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES_KHR;
+    querySamplerYcbcrConversionFeatures.pNext = 0;
+    querySamplerYcbcrConversionFeatures.samplerYcbcrConversion = info.support_ycbcr_conversion;
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_ycbcr_conversion)
+    {
+        querySamplerYcbcrConversionFeatures.pNext = enabledExtensionFeatures;
+        enabledExtensionFeatures = &querySamplerYcbcrConversionFeatures;
+    }
+
     std::vector<float> compute_queue_priorities(info.compute_queue_count, 1.f);// 0.f ~ 1.f
+    std::vector<float> graphics_queue_priorities(info.graphics_queue_count, 1.f);// 0.f ~ 1.f
     std::vector<float> transfer_queue_priorities(info.transfer_queue_count, 1.f);// 0.f ~ 1.f
 
-    VkDeviceQueueCreateInfo deviceQueueCreateInfos[2];
-    deviceQueueCreateInfos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    deviceQueueCreateInfos[0].pNext = 0;
-    deviceQueueCreateInfos[0].flags = 0;
-    deviceQueueCreateInfos[0].queueFamilyIndex = info.compute_queue_family_index;
-    deviceQueueCreateInfos[0].queueCount = info.compute_queue_count;
-    deviceQueueCreateInfos[0].pQueuePriorities = compute_queue_priorities.data();
-    deviceQueueCreateInfos[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    deviceQueueCreateInfos[1].pNext = 0;
-    deviceQueueCreateInfos[1].flags = 0;
-    deviceQueueCreateInfos[1].queueFamilyIndex = info.transfer_queue_family_index;
-    deviceQueueCreateInfos[1].queueCount = info.transfer_queue_count;
-    deviceQueueCreateInfos[1].pQueuePriorities = transfer_queue_priorities.data();
+    VkDeviceQueueCreateInfo deviceQueueCreateInfos[3];
+
+    VkDeviceQueueCreateInfo deviceComputeQueueCreateInfo;
+    deviceComputeQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    deviceComputeQueueCreateInfo.pNext = 0;
+    deviceComputeQueueCreateInfo.flags = 0;
+    deviceComputeQueueCreateInfo.queueFamilyIndex = info.compute_queue_family_index;
+    deviceComputeQueueCreateInfo.queueCount = info.compute_queue_count;
+    deviceComputeQueueCreateInfo.pQueuePriorities = compute_queue_priorities.data();
+
+    VkDeviceQueueCreateInfo deviceGraphicsQueueCreateInfo;
+    deviceGraphicsQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    deviceGraphicsQueueCreateInfo.pNext = 0;
+    deviceGraphicsQueueCreateInfo.flags = 0;
+    deviceGraphicsQueueCreateInfo.queueFamilyIndex = info.graphics_queue_family_index;
+    deviceGraphicsQueueCreateInfo.queueCount = info.graphics_queue_count;
+    deviceGraphicsQueueCreateInfo.pQueuePriorities = graphics_queue_priorities.data();
+
+    VkDeviceQueueCreateInfo deviceTransferQueueCreateInfo;
+    deviceTransferQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    deviceTransferQueueCreateInfo.pNext = 0;
+    deviceTransferQueueCreateInfo.flags = 0;
+    deviceTransferQueueCreateInfo.queueFamilyIndex = info.transfer_queue_family_index;
+    deviceTransferQueueCreateInfo.queueCount = info.transfer_queue_count;
+    deviceTransferQueueCreateInfo.pQueuePriorities = transfer_queue_priorities.data();
 
     VkDeviceCreateInfo deviceCreateInfo;
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.pNext = enabledExtensionFeatures;
     deviceCreateInfo.flags = 0;
-    if (info.compute_queue_family_index == info.transfer_queue_family_index)
+    if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index == info.transfer_queue_family_index)
     {
+    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
     deviceCreateInfo.queueCreateInfoCount = 1;
     }
-    else
+    else if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index != info.transfer_queue_family_index)
     {
+    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
+    deviceQueueCreateInfos[1] = deviceTransferQueueCreateInfo;
     deviceCreateInfo.queueCreateInfoCount = 2;
+    }
+    else if (info.compute_queue_family_index != info.graphics_queue_family_index && info.graphics_queue_family_index == info.transfer_queue_family_index)
+    {
+    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
+    deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
+    deviceCreateInfo.queueCreateInfoCount = 2;
+    }
+    else // if (info.compute_queue_family_index != info.graphics_queue_family_index && info.graphics_queue_family_index != info.transfer_queue_family_index)
+    {
+    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
+    deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
+    deviceQueueCreateInfos[2] = deviceTransferQueueCreateInfo;
+    deviceCreateInfo.queueCreateInfoCount = 3;
     }
     deviceCreateInfo.pQueueCreateInfos = deviceQueueCreateInfos;
     deviceCreateInfo.enabledLayerCount = 0;
@@ -906,7 +1004,15 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         blob_allocators[i] = new VkBlobBufferAllocator(this);
         staging_allocators[i] = new VkStagingBufferAllocator(this);
     }
-    if (info.compute_queue_family_index != info.transfer_queue_family_index)
+    if (info.compute_queue_family_index != info.graphics_queue_family_index)
+    {
+        graphics_queues.resize(info.graphics_queue_count);
+        for (uint32_t i = 0; i < info.graphics_queue_count; i++)
+        {
+            vkGetDeviceQueue(device, info.graphics_queue_family_index, i, &graphics_queues[i]);
+        }
+    }
+    if (info.compute_queue_family_index != info.transfer_queue_family_index && info.graphics_queue_family_index != info.transfer_queue_family_index)
     {
         transfer_queues.resize(info.transfer_queue_count);
         for (uint32_t i = 0; i < info.transfer_queue_count; i++)
@@ -963,9 +1069,84 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     return shader_module;
 }
 
+uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const
+{
+    // first try, find required and with preferred and without preferred_not
+    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        bool is_required = (1 << i) & memory_type_bits;
+        if (is_required)
+        {
+            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            if ((memoryType.propertyFlags & required) == required
+                && (preferred && (memoryType.propertyFlags & preferred))
+                && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
+            {
+                return i;
+            }
+        }
+    }
+
+    // second try, find required and with preferred
+    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        bool is_required = (1 << i) & memory_type_bits;
+        if (is_required)
+        {
+            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            if ((memoryType.propertyFlags & required) == required
+                && (preferred && (memoryType.propertyFlags & preferred)))
+            {
+                return i;
+            }
+        }
+    }
+
+    // third try, find required and without preferred_not
+    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        bool is_required = (1 << i) & memory_type_bits;
+        if (is_required)
+        {
+            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            if ((memoryType.propertyFlags & required) == required
+                && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
+            {
+                return i;
+            }
+        }
+    }
+
+    // fourth try, find any required
+    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        bool is_required = (1 << i) & memory_type_bits;
+        if (is_required)
+        {
+            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            if ((memoryType.propertyFlags & required) == required)
+            {
+                return i;
+            }
+        }
+    }
+
+    fprintf(stderr, "no such memory type %u %u %u %u\n", memory_type_bits, required, preferred, preferred_not);
+    return -1;
+}
+
+bool VulkanDevice::is_mappable(uint32_t memory_type_index) const
+{
+    const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[memory_type_index];
+
+    return memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+}
+
 VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 {
-    if (queue_family_index != info.compute_queue_family_index && queue_family_index != info.transfer_queue_family_index)
+    if (queue_family_index != info.compute_queue_family_index
+        && queue_family_index != info.graphics_queue_family_index
+        && queue_family_index != info.transfer_queue_family_index)
     {
         fprintf(stderr, "invalid queue_family_index %u\n", queue_family_index);
         return 0;
@@ -973,7 +1154,8 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 
     MutexLockGuard lock(queue_lock);
 
-    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues : transfer_queues;
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
+                                 : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
     for (int i=0; i<(int)queues.size(); i++)
     {
         VkQueue queue = queues[i];
@@ -990,7 +1172,9 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 
 void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) const
 {
-    if (queue_family_index != info.compute_queue_family_index && queue_family_index != info.transfer_queue_family_index)
+    if (queue_family_index != info.compute_queue_family_index
+        && queue_family_index != info.graphics_queue_family_index
+        && queue_family_index != info.transfer_queue_family_index)
     {
         fprintf(stderr, "invalid queue_family_index %u\n", queue_family_index);
         return;
@@ -998,7 +1182,8 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
 
     MutexLockGuard lock(queue_lock);
 
-    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues : transfer_queues;
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
+                                 : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
     for (int i=0; i<(int)queues.size(); i++)
     {
         if (!queues[i])
@@ -1159,6 +1344,12 @@ void VulkanDevice::destroy_shader_module()
 
 int VulkanDevice::init_device_extension()
 {
+    if (info.support_VK_KHR_bind_memory2)
+    {
+        vkBindBufferMemory2KHR = (PFN_vkBindBufferMemory2KHR)vkGetDeviceProcAddr(device, "vkBindBufferMemory2KHR");
+        vkBindImageMemory2KHR = (PFN_vkBindImageMemory2KHR)vkGetDeviceProcAddr(device, "vkBindImageMemory2KHR");
+    }
+
     if (info.support_VK_KHR_descriptor_update_template)
     {
         vkCreateDescriptorUpdateTemplateKHR = (PFN_vkCreateDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkCreateDescriptorUpdateTemplateKHR");
@@ -1173,6 +1364,11 @@ int VulkanDevice::init_device_extension()
         vkGetImageSparseMemoryRequirements2KHR = (PFN_vkGetImageSparseMemoryRequirements2KHR)vkGetDeviceProcAddr(device, "vkGetImageSparseMemoryRequirements2KHR");
     }
 
+    if (info.support_VK_KHR_maintenance1)
+    {
+        vkTrimCommandPoolKHR = (PFN_vkTrimCommandPoolKHR)vkGetDeviceProcAddr(device, "vkTrimCommandPoolKHR");
+    }
+
     if (info.support_VK_KHR_push_descriptor)
     {
         if (info.support_VK_KHR_descriptor_update_template)
@@ -1182,6 +1378,29 @@ int VulkanDevice::init_device_extension()
 
         vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetKHR");
     }
+
+    if (info.support_VK_KHR_sampler_ycbcr_conversion)
+    {
+        vkCreateSamplerYcbcrConversionKHR = (PFN_vkCreateSamplerYcbcrConversionKHR)vkGetDeviceProcAddr(device, "vkCreateSamplerYcbcrConversionKHR");
+        vkDestroySamplerYcbcrConversionKHR = (PFN_vkDestroySamplerYcbcrConversionKHR)vkGetDeviceProcAddr(device, "vkDestroySamplerYcbcrConversionKHR");
+    }
+
+    if (info.support_VK_KHR_swapchain)
+    {
+        vkCreateSwapchainKHR = (PFN_vkCreateSwapchainKHR)vkGetDeviceProcAddr(device, "vkCreateSwapchainKHR");
+        vkDestroySwapchainKHR = (PFN_vkDestroySwapchainKHR)vkGetDeviceProcAddr(device, "vkDestroySwapchainKHR");
+        vkGetSwapchainImagesKHR = (PFN_vkGetSwapchainImagesKHR)vkGetDeviceProcAddr(device, "vkGetSwapchainImagesKHR");
+        vkAcquireNextImageKHR = (PFN_vkAcquireNextImageKHR)vkGetDeviceProcAddr(device, "vkAcquireNextImageKHR");
+        vkQueuePresentKHR = (PFN_vkQueuePresentKHR)vkGetDeviceProcAddr(device, "vkQueuePresentKHR");
+    }
+
+#if __ANDROID_API__ >= 26
+    if (info.support_VK_ANDROID_external_memory_android_hardware_buffer)
+    {
+        vkGetAndroidHardwareBufferPropertiesANDROID = (PFN_vkGetAndroidHardwareBufferPropertiesANDROID)vkGetDeviceProcAddr(device, "vkGetAndroidHardwareBufferPropertiesANDROID");
+        vkGetMemoryAndroidHardwareBufferANDROID = (PFN_vkGetMemoryAndroidHardwareBufferANDROID)vkGetDeviceProcAddr(device, "vkGetMemoryAndroidHardwareBufferANDROID");
+    }
+#endif // __ANDROID_API__ >= 26
 
     return 0;
 }

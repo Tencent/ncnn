@@ -323,6 +323,24 @@ void VkCompute::record_write_timestamp(uint32_t query)
 }
 #endif // NCNN_BENCHMARK
 
+#if __ANDROID_API__ >= 26
+void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, VkImage image, VkImageView imageView, const VkMat& m)
+{
+    record_initial_image_compute_barrier(image);
+
+    record_bind_pipeline(pipeline->pipeline);
+
+    record_update_import_android_hardware_buffer_bindings(pipeline->pipeline_layout, pipeline->descriptorset_layout, pipeline->descriptor_update_template, pipeline->sampler, imageView, m);
+
+    uint32_t group_count_xyz[3];
+    group_count_xyz[0] = (m.w + 7) / 8;
+    group_count_xyz[1] = (m.h + 7) / 8;
+    group_count_xyz[2] = 1;
+
+    record_dispatch(group_count_xyz);
+}
+#endif // __ANDROID_API__ >= 26
+
 void VkCompute::record_bind_pipeline(VkPipeline pipeline)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
@@ -534,6 +552,142 @@ void VkCompute::record_prepare_compute_barrier(const VkMat& m)
     m.data->state = 3;
 }
 
+void VkCompute::record_initial_image_compute_barrier(VkImage image)
+{
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+        return initial_image_compute_barrier(image);
+
+    record_type r;
+    r.type = 11;
+    r.initial_image_compute_barrier.image = image;
+    delayed_records.push_back(r);
+}
+
+#if __ANDROID_API__ >= 26
+void VkCompute::record_update_import_android_hardware_buffer_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, VkSampler sampler, VkImageView imageView, const VkMat& m)
+{
+    VkDescriptorImageInfo descriptorImageInfo;
+    descriptorImageInfo.sampler = sampler;
+    descriptorImageInfo.imageView = imageView;
+    descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    VkDescriptorBufferInfo descriptorBufferInfo;
+    descriptorBufferInfo.buffer = m.buffer();
+    descriptorBufferInfo.offset = m.buffer_offset();
+    descriptorBufferInfo.range = m.total() * m.elemsize;
+
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        return update_import_android_hardware_buffer_bindings(pipeline_layout, descriptor_update_template, descriptorImageInfo, descriptorBufferInfo);
+    }
+
+    // create new descriptor_pool and descriptorset
+    VkDescriptorPool descriptor_pool;
+    {
+        VkDescriptorPoolSize poolSizes[2];
+        poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        poolSizes[0].descriptorCount = 1;
+        poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        poolSizes[1].descriptorCount = 1;
+
+        VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
+        descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        descriptorPoolCreateInfo.pNext = 0;
+        descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        descriptorPoolCreateInfo.maxSets = 1;
+        descriptorPoolCreateInfo.poolSizeCount = 2;
+        descriptorPoolCreateInfo.pPoolSizes = poolSizes;
+
+        VkResult ret = vkCreateDescriptorPool(vkdev->vkdevice(), &descriptorPoolCreateInfo, 0, &descriptor_pool);
+        if (ret != VK_SUCCESS)
+        {
+            fprintf(stderr, "vkCreateDescriptorPool failed %d\n", ret);
+            return;
+        }
+    }
+    descriptor_pools.push_back(descriptor_pool);
+
+    VkDescriptorSet descriptorset;
+    {
+        VkDescriptorSetAllocateInfo descriptorSetAllocateInfo;
+        descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        descriptorSetAllocateInfo.pNext = 0;
+        descriptorSetAllocateInfo.descriptorPool = descriptor_pool;
+        descriptorSetAllocateInfo.descriptorSetCount = 1;
+        descriptorSetAllocateInfo.pSetLayouts = &descriptorset_layout;
+
+        VkResult ret = vkAllocateDescriptorSets(vkdev->vkdevice(), &descriptorSetAllocateInfo, &descriptorset);
+        if (ret != VK_SUCCESS)
+        {
+            fprintf(stderr, "vkAllocateDescriptorSets failed %d\n", ret);
+            return;
+        }
+    }
+    descriptorsets.push_back(descriptorset);
+
+//     fprintf(stderr, "update descriptorset %p\n", descriptorset);
+
+    if (vkdev->info.support_VK_KHR_descriptor_update_template)
+    {
+        struct ImportAndroidHardwareBufferDescriptorInfo
+        {
+            VkDescriptorImageInfo imageInfo;
+            VkDescriptorBufferInfo bufferInfo;
+            VkDescriptorBufferInfo buffer4Info;
+        };
+
+        ImportAndroidHardwareBufferDescriptorInfo info;
+        info.imageInfo = descriptorImageInfo;
+        info.bufferInfo = descriptorBufferInfo;
+        info.buffer4Info = descriptorBufferInfo;
+
+        vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, descriptor_update_template, &info);
+    }
+    else
+    {
+        VkWriteDescriptorSet writeDescriptorSets[3];
+        writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSets[0].pNext = 0;
+        writeDescriptorSets[0].dstSet = descriptorset;
+        writeDescriptorSets[0].dstBinding = 0;
+        writeDescriptorSets[0].dstArrayElement = 0;
+        writeDescriptorSets[0].descriptorCount = 1;
+        writeDescriptorSets[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writeDescriptorSets[0].pImageInfo = &descriptorImageInfo;
+        writeDescriptorSets[0].pBufferInfo = 0;
+        writeDescriptorSets[0].pTexelBufferView = 0;
+        writeDescriptorSets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSets[1].pNext = 0;
+        writeDescriptorSets[1].dstSet = descriptorset;
+        writeDescriptorSets[1].dstBinding = 1;
+        writeDescriptorSets[1].dstArrayElement = 0;
+        writeDescriptorSets[1].descriptorCount = 1;
+        writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        writeDescriptorSets[1].pImageInfo = 0;
+        writeDescriptorSets[1].pBufferInfo = &descriptorBufferInfo;
+        writeDescriptorSets[1].pTexelBufferView = 0;
+        writeDescriptorSets[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeDescriptorSets[2].pNext = 0;
+        writeDescriptorSets[2].dstSet = descriptorset;
+        writeDescriptorSets[2].dstBinding = 2;
+        writeDescriptorSets[2].dstArrayElement = 0;
+        writeDescriptorSets[2].descriptorCount = 1;
+        writeDescriptorSets[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        writeDescriptorSets[2].pImageInfo = 0;
+        writeDescriptorSets[2].pBufferInfo = &descriptorBufferInfo;
+        writeDescriptorSets[2].pTexelBufferView = 0;
+
+        vkUpdateDescriptorSets(vkdev->vkdevice(), 3, writeDescriptorSets, 0, 0);
+    }
+
+    record_type r;
+    r.type = 3;
+    r.bind_descriptorset.pipeline_layout = pipeline_layout;
+    r.bind_descriptorset.descriptorset = descriptorset;
+    delayed_records.push_back(r);
+}
+#endif // __ANDROID_API__ >= 26
+
 int VkCompute::submit_and_wait()
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
@@ -591,6 +745,9 @@ int VkCompute::submit_and_wait()
             write_timestamp(r.write_timestamp.query);
             break;
 #endif // NCNN_BENCHMARK
+        case 11:
+            initial_image_compute_barrier(r.initial_image_compute_barrier.image);
+            break;
         }
     }
 
@@ -816,6 +973,51 @@ void VkCompute::transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t
 
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
+
+void VkCompute::initial_image_compute_barrier(VkImage image)
+{
+//     fprintf(stderr, "cmd initial_image_compute_barrier %p %lu %lu\n", image, oldlayout, newlayout);
+
+    VkImageMemoryBarrier imageBarrier;
+    imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    imageBarrier.pNext = 0;
+    imageBarrier.srcAccessMask = 0;
+    imageBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    imageBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageBarrier.image = image;
+    imageBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageBarrier.subresourceRange.baseMipLevel = 0;
+    imageBarrier.subresourceRange.levelCount = 1;
+    imageBarrier.subresourceRange.baseArrayLayer = 0;
+    imageBarrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 0, 0, 1, &imageBarrier);
+}
+
+#if __ANDROID_API__ >= 26
+void VkCompute::update_import_android_hardware_buffer_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const VkDescriptorImageInfo& descriptorImageInfo, const VkDescriptorBufferInfo& descriptorBufferInfo)
+{
+    struct ImportAndroidHardwareBufferDescriptorInfo
+    {
+        VkDescriptorImageInfo imageInfo;
+        VkDescriptorBufferInfo bufferInfo;
+        VkDescriptorBufferInfo buffer4Info;
+    };
+
+    ImportAndroidHardwareBufferDescriptorInfo info;
+    info.imageInfo = descriptorImageInfo;
+    info.bufferInfo = descriptorBufferInfo;
+    info.buffer4Info = descriptorBufferInfo;
+
+    vkdev->vkCmdPushDescriptorSetWithTemplateKHR(command_buffer, descriptor_update_template, pipeline_layout, 0, &info);
+}
+#endif // __ANDROID_API__ >= 26
 
 #if NCNN_BENCHMARK
 void VkCompute::reset_query_pool()

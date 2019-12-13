@@ -210,12 +210,13 @@ public:
 
 public:
     const VulkanDevice* vkdev;
+    uint32_t memory_type_index;
     bool mappable;
 
 protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
-    VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
-    VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkBuffer buffer);
+    VkDeviceMemory allocate_memory(size_t size);
+    VkDeviceMemory allocate_dedicated_memory(size_t size, VkBuffer buffer);
 };
 
 class VkBlobBufferAllocator : public VkAllocator
@@ -225,9 +226,6 @@ public:
     virtual ~VkBlobBufferAllocator();
 
 public:
-    // buffer block size, default=16M
-    void set_block_size(size_t size);
-
     // release all budgets immediately
     virtual void clear();
 
@@ -248,9 +246,6 @@ public:
     virtual ~VkWeightBufferAllocator();
 
 public:
-    // buffer block size, default=8M
-    void set_block_size(size_t block_size);
-
     // release all blocks immediately
     virtual void clear();
 
@@ -284,7 +279,6 @@ public:
     virtual void fastFree(VkBufferMemory* ptr);
 
 private:
-    uint32_t memory_type_index;
     unsigned int size_compare_ratio;// 0~256
     std::list<VkBufferMemory*> budgets;
 };
@@ -300,7 +294,6 @@ public:
     virtual void fastFree(VkBufferMemory* ptr);
 
 private:
-    uint32_t memory_type_index;
 };
 
 #endif // NCNN_VULKAN

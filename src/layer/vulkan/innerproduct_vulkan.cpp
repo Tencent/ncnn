@@ -274,17 +274,17 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
     // flatten
     VkMat bottom_blob_flattened = bottom_blob;
     {
-        ncnn::Option opt_flatten = opt;
+        Option opt_flatten = opt;
         opt_flatten.blob_vkallocator = opt.workspace_vkallocator;
 
         flatten->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
     }
+
+    size_t elemsize = bottom_blob_flattened.elemsize;
+    int elempack = bottom_blob_flattened.elempack;
 
     int out_elempack = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;

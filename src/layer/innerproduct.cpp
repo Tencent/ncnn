@@ -137,12 +137,12 @@ int InnerProduct::create_pipeline(const Option& opt)
 
             op->create_pipeline(opt);
 
-            ncnn::Option opt;
-            opt.blob_allocator = int8_weight_data.allocator;
+            Option opt_q = opt;
+            opt_q.blob_allocator = int8_weight_data.allocator;
 
             const Mat weight_data_n = weight_data.range(weight_data_size_output * n, weight_data_size_output);
             Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * n, weight_data_size_output);
-            op->forward(weight_data_n, int8_weight_data_n, opt);
+            op->forward(weight_data_n, int8_weight_data_n, opt_q);
 
             delete op;
         }
@@ -196,7 +196,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
             // quantize, scale and round to nearest
             {
-                ncnn::Option opt_g = opt;
+                Option opt_g = opt;
                 opt_g.blob_allocator = bottom_blob_int8.allocator;
 
                 quantize->forward(bottom_blob, bottom_blob_int8, opt_g);

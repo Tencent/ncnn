@@ -174,13 +174,21 @@ public:
     };
     // convenient construct from pixel data
     static Mat from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator = 0);
+    // convenient construct from pixel data with stride(bytes-per-row) parameter
+    static Mat from_pixels(const unsigned char* pixels, int type, int w, int h, int stride, Allocator* allocator = 0);
     // convenient construct from pixel data and resize to specific size
     static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height, Allocator* allocator = 0);
+    // convenient construct from pixel data and resize to specific size with stride(bytes-per-row) parameter
+    static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height, Allocator* allocator = 0);
 
     // convenient export to pixel data
     void to_pixels(unsigned char* pixels, int type) const;
+    // convenient export to pixel data with stride(bytes-per-row) parameter
+    void to_pixels(unsigned char* pixels, int type, int stride) const;
     // convenient export to pixel data and resize to specific size
     void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height) const;
+    // convenient export to pixel data and resize to specific size with stride(bytes-per-row) parameter
+    void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height, int target_stride) const;
 
 #if __ANDROID_API__ >= 9
     // convenient construct from android Bitmap
@@ -378,9 +386,39 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
 void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+// image pixel bilinear resize with stride(bytes-per-row) parameter
+void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
 // image pixel bilinear resize, convenient wrapper for yuv420sp(nv21)
 void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 #endif // NCNN_PIXEL
+#if NCNN_PIXEL_ROTATE
+// type is the from type, 6 means rotating from 6 to 1
+//
+//     1        2       3      4         5            6           7          8
+//
+//   888888  888888      88  88      8888888888  88                  88  8888888888
+//   88          88      88  88      88  88      88  88          88  88      88  88
+//   8888      8888    8888  8888    88          8888888888  8888888888          88
+//   88          88      88  88
+//   88          88  888888  888888
+//
+// ref http://sylvana.net/jpegcrop/exif_orientation.html
+// image pixel kanna rotate
+void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+// image pixel kanna rotate with stride(bytes-per-row) parameter
+void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+// image pixel kanna rotate, convenient wrapper for yuv420sp(nv21)
+void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+#endif // NCNN_PIXEL_ROTATE
 
 // mat process
 enum

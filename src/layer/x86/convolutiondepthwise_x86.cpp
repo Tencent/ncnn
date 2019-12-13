@@ -213,7 +213,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
-            ncnn::Option opt_g = opt;
+            Option opt_g = opt;
             opt_g.num_threads = 1;
             opt_g.blob_allocator = bottom_blob_int8.allocator;
 
@@ -320,7 +320,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                     const ncnn::Layer* op = group_ops[g];
 
-                    ncnn::Option opt_g = opt;
+                    Option opt_g = opt;
                     opt_g.num_threads = 1;
                     opt_g.blob_allocator = top_blob.allocator;
 
@@ -347,7 +347,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                 const ncnn::Layer* op = group_ops[g];
 
-                ncnn::Option opt_g = opt;
+                Option opt_g = opt;
                 opt_g.blob_allocator = top_blob.allocator;
 
                 // forward
@@ -393,7 +393,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                     const ncnn::Layer* op = group_ops[g];
 
-                    ncnn::Option opt_g = opt;
+                    Option opt_g = opt;
                     opt_g.num_threads = 1;
                     opt_g.blob_allocator = top_blob.allocator;
 
@@ -420,7 +420,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                 const ncnn::Layer* op = group_ops[g];
 
-                ncnn::Option opt_g = opt;
+                Option opt_g = opt;
                 opt_g.blob_allocator = top_blob.allocator;
 
                 // forward
@@ -471,7 +471,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
             const ncnn::Layer* op = group_ops[g];
 
-            ncnn::Option opt_g = opt;
+            Option opt_g = opt;
             opt_g.num_threads = 1;
             opt_g.blob_allocator = top_blob.allocator;
 
@@ -497,7 +497,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         const ncnn::Layer* op = group_ops[g];
 
-        ncnn::Option opt_g = opt;
+        Option opt_g = opt;
         opt_g.blob_allocator = top_blob.allocator;
 
         // forward

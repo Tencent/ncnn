@@ -31,7 +31,7 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer square_workspace { sfp square_workspace_data[]; };
+layout (binding = 0) readonly buffer square_workspace { float square_workspace_data[]; };
 layout (binding = 1) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 
 layout (push_constant) uniform parameter
@@ -67,10 +67,10 @@ void main()
 
     for (int z = 0; z < local_size; z++)
     {
-        sum.r += sfp2afp(square_workspace_data[v_offset.r]);
-        sum.g += sfp2afp(square_workspace_data[v_offset.g]);
-        sum.b += sfp2afp(square_workspace_data[v_offset.b]);
-        sum.a += sfp2afp(square_workspace_data[v_offset.a]);
+        sum.r += afp(square_workspace_data[v_offset.r]);
+        sum.g += afp(square_workspace_data[v_offset.g]);
+        sum.b += afp(square_workspace_data[v_offset.b]);
+        sum.a += afp(square_workspace_data[v_offset.a]);
 
         v_offset += p.cstep;
     }
