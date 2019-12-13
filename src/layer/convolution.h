@@ -22,6 +22,15 @@ namespace ncnn {
 class Convolution : public Layer
 {
 public:
+    enum Impl {
+        NONE = 0，
+        IM2COL = 1,
+        WINOGRAD = 2,
+        POINTWISE = 3
+        CONV3x3S2 = 4,
+        DIRECT = 5
+    }
+
     Convolution();
 
     virtual int load_param(const ParamDict& pd);
@@ -79,7 +88,7 @@ public:
     std::vector<float> requantize_scales;    
 
     // implementation type, 0 means do not use auto pack model 
-    int impl_type;
+    Impl impl_type;
 };
 
 } // namespace ncnn

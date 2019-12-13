@@ -120,6 +120,9 @@ public:
     bool empty() const;
     size_t total() const;
 
+    // compare values 
+    int32_t compare_fp32(const Mat& m) const;
+
     // data reference
     Mat channel(int c);
     const Mat channel(int c) const;
@@ -1051,6 +1054,43 @@ inline bool Mat::empty() const
 inline size_t Mat::total() const
 {
     return cstep * c;
+}
+
+bool Mat::compare_fp32(const Mat& m) const
+{
+    if (this == m.this)
+    {
+        return true;
+    }
+
+    if (elemsize != m.elemsize || dims != m.dims)
+    {
+        return false;
+    }
+
+    if (w != m.w || h != m.h || c != m.c)
+    {
+        return false;
+    }
+
+    if (elemsize != 4)
+    {
+        return false;
+    }
+
+    const int step = w * h;
+
+    for (int i = 0; i < c; ++i) {
+        float *ptr1 = static_cast<float*>(data + i * cstep * 4);
+        float *ptr2 = static_cast<float*>(m.data + i * m.cstep * 4);
+
+        for (int j = 0; j < step; ++j) {
+            if (std::abs(ptr1[j] - ptr2[j]) >= 1e-4) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 inline Mat Mat::channel(int _c)

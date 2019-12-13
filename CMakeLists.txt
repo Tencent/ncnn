@@ -35,7 +35,7 @@ option(NCNN_DISABLE_PIC "disable position-independent code" OFF)
 
 if(ANDROID OR IOS)
     option(NCNN_DISABLE_RTTI "disable rtti" ON)
-    option(NCNN_BUILD_TOOLS "build tools" OFF)
+    option(NCNN_BUILD_TOOLS "build tools" ON)
 else()
     option(NCNN_DISABLE_RTTI "disable rtti" OFF)
     option(NCNN_BUILD_TOOLS "build tools" ON)

@@ -76,7 +76,7 @@
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
-#if defined(__aarch64__) && defined(LINUX)
+#if defined(__ARM_NEON)
 #include <locale>
 #include <chrono>
 #include <random>
@@ -88,7 +88,7 @@
 #define TEXT_RED    "\033[31m"
 #define CLR         "\033[0m"
 
-#endif // defined(__aarch64__) && defined(LINUX)
+#endif // defined(__ARM_NEON)
 
 class DataReaderFromEmpty : public ncnn::DataReader
 {
@@ -138,14 +138,14 @@ public:
 
     int save(const char* parampath, const char* binpath);
 
-#if defined(__aarch64__) && defined(LINUX)
+#if defined(__ARM_NEON)
     void gauss_random(ncnn::Mat &m);
     void find_fastest_fp32_conv(const char* name, int w, int h, int c);
     int support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& mat, const int type);
 #endif
 };
 
-#if defined(__aarch64__) && defined(LINUX)
+#if defined(__ARM_NEON)
 void NetOptimize::gauss_random(ncnn::Mat &m)
 {
     std::random_device rd;
@@ -177,6 +177,14 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
         return;
     }
 
+    std::vector<Convolution::Impl> candidates {
+        Convolution::Impl::IM2COL,
+        Convolution::Impl::WINOGRAD,
+        Convolution::Impl::POINTWISE,
+        Convolution::Impl::CONV3x3S2,
+        Convolution::Impl::DIRECT,
+    };
+
     const char* IMPL_NAME[6] = {"baseline", "winograd", "pointwise", "im2col", "direct", "conv3x3s2"};
     for (int i = 0; i < layer_count; ++i)
     {
@@ -187,6 +195,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
 
             ncnn::Mat bottom_blob;
             ncnn::Mat top_blob;
+            ncnn::Mat baseline_blob;
 
             ex.extract(layer->bottoms[0], bottom_blob);
             ex.extract(layer->tops[0], top_blob);
@@ -207,10 +216,9 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
             
             // try every implementation
             double min_cost = std::numeric_limits<double>::max(); 
-            int best_type = 0;
+            Impl best_type = Convolution::Impl::NONE;
 
-            // how much conv implementation type ncnn has ?
-            for (int type = 1; type <= 5; ++type)
+            for (Convolution::Impl type : candidates)
             {
                 int support = support_fp32_conv_type(op, bottom_blob, type);
                 if (support < 1)
@@ -222,7 +230,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
                 op->impl_type = type;
 
                 auto start = std::chrono::high_resolution_clock::now();
-                const int NREPEATS = 20;
+                const int NREPEATS = 3;
                 op->create_pipeline(opt);
                 for (int repeat = 0; repeat < NREPEATS; ++repeat)
                 {
@@ -232,21 +240,33 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
 
                 auto stop = std::chrono::high_resolution_clock::now();
                 double cur_cost = std::chrono::duration<double, std::micro>(stop-start).count() / NREPEATS;
-                fprintf(stdout, TEXT_GREEN "%s cost %0.3lfms \n" CLR, IMPL_NAME[type], cur_cost/1000);
+                fprintf(stdout, TEXT_GREEN "impl_type %d cost %0.3lfms \n" CLR, type, cur_cost/1000);
                 if (cur_cost < min_cost)
                 {
                     min_cost = cur_cost;
                     best_type = type;
                 }
+
+                // check result, support that im2col is baseline
+                if (Convolution::Impl::IM2COL == type) {
+                    baseline_blob = top_blob.clone(); 
+                    continue;
+                }
+                if (!baseline_blob.empty())
+                {
+                    if (!top_blob.compare_fp32(baseline_blob)) {
+                        fprintf(stderr, TEXT_RED "failed on convolution result comparision, name: %s, type: %d. we strongly recommand you submit an issue to ncnn. " CLR, layer->name.c_str(), op->impl_type);
+                    }
+                }
             }
             op->impl_type = best_type;
             
-            fprintf(stdout, TEXT_YELLOW "%d: %s use %s \n\n" CLR, i, layer->name.c_str(), IMPL_NAME[op->impl_type]);
+            fprintf(stdout, TEXT_YELLOW "%d: %s use %d \n\n" CLR, i, layer->name.c_str(), op->impl_type);
         }
     }
 }
 
-int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& bottom, const int type)
+int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& bottom, const ImplType type)
 {
     // not baseline, then k_h == k_w and s_h == s_w
     // no dilation conv shall be allowed
@@ -275,13 +295,13 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
     // if match prequisation
     switch(type)
     {
-        case 1:
+        case Impl::WINOGRAD:
             // winograd
             if (kernel != 3 || stride != 1){
                 return -1;
             }
             break;
-        case 2:
+        case Impl::POINTWISE:
             // pointwise
             // input_h == 1, input_w == 1, dilation == 1, stride == 1
             if (bottom.h != 1 || bottom.w != 1 || stride != 1)
@@ -289,17 +309,17 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
                 return -1;
             }
             break;
-        case 3:
+        case Impl::IM2COL:
             // im2col
             break;
-        case 4:
+        case Impl::DIRECT:
             // direct conv 
             if (support_table[kernel-1][stride-1] == 0)
             {
                 return -1;
             }
             break;
-        case 5:
+        case Impl::CONV3x3S2:
             // conv3x3s2
             // kernel == 3 and stride == 2
             if (kernel != 3 || stride != 2)
@@ -307,14 +327,11 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
                 return -1;
             }
             break;
-        default:
-            fprintf(stderr, TEXT_RED "unrecognize convolution impl type: %d" CLR, type);
-            break;
     }
 
     return 1;
 }
-#endif // defined(__aarch64__) && defined(LINUX)
+#endif // defined(__ARM_NEON)
 
 int NetOptimize::fuse_batchnorm_scale()
 {
@@ -2493,7 +2510,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
 int main(int argc, char** argv)
 {
-#if defined(__aarch64__) && defined(LINUX)
+#if defined(__ARM_NEON)
     if (argc != 10)
     {
         fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag] [dataname] [w] [h] [c]\n", argv[0]);
@@ -2509,7 +2526,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag]\n", argv[0]);
         return -1;
     }
-#endif // defined(__aarch64__) && defined(LINUX)
+#endif // defined(__ARM_NEON)
 
     const char* inparam = argv[1];
     const char* inbin = argv[2];
@@ -2537,9 +2554,9 @@ int main(int argc, char** argv)
     else
         optimizer.load_model(inbin);
 
-#if defined(__aarch64__) && defined(LINUX)
+#if defined(__ARM_NEON)
     optimizer.find_fastest_fp32_conv(dataname, inw, inh, inc);
-#endif // defined(__aarch64__) && defined(LINUX)
+#endif
     optimizer.fuse_batchnorm_scale();
     optimizer.fuse_convolution_batchnorm();
     optimizer.fuse_convolutiondepthwise_batchnorm();

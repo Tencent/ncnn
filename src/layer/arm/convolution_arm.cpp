@@ -347,26 +347,26 @@ int Convolution_arm::create_pipeline(const Option& opt)
         return 0;
     }
 
-    if (impl_type > 0)
+    if (impl_type != Impl::NONE)
     {
         switch(impl_type)
         {
-            case 1:
+            case Impl::WINOGRAD:
                 // winograd
                 conv3x3s1_winograd64_transform_kernel_neon5(weight_data, weight_3x3_winograd64_data, num_input, num_output);
                 break;
-            case 2:
+            case Impl::POINTWISE:
                 // pointwise
                 conv1x1s1_sgemm_transform_kernel_neon(weight_data, weight_1x1_sgemm_data, num_input, num_output);
                 break;
-            case 3:
+            case Impl::IM2COL:
                 // im2col
                 conv_im2col_sgemm_transform_kernel_neon(weight_data, weight_sgemm_data, num_input, num_output, maxk);
                 break;
-            case 4:
+            case Impl::DIRECT:
                 // direct
                 break;
-            case 5:
+            case Impl::CONV3x3S2:
                 // conv3x3s2
                 conv3x3s2_transform_kernel_neon(weight_data, weight_3x3s2_data, num_input, num_output);
                 break;
@@ -1257,24 +1257,24 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (top_blob.empty())
         return -100;
 
-    if (impl_type > 0)
+    if (impl_type != Impl::NONE)
     {
         // engineering is magic.
         switch(impl_type)
         {
-            case 1:
+            case Impl::WINOGRAD:
                 conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
                 break;
-            case 2:
+            case Impl::POINTWISE:
                 conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data, opt);
                 break;
-            case 3:
+            case Impl::IM2COL:
                 conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
                 break;
-            case 4:
+            case Impl::DIRECT:
                 conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
                 break;
-            case 5:
+            case Impl::CONV3x3S2:
                 conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
                 break;
             default:
