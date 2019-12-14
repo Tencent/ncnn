@@ -520,11 +520,12 @@ int create_gpu_instance()
 //         fprintf(stderr, "[%u] deviceName = %s\n", i, physicalDeviceProperties.deviceName);
 //         fprintf(stderr, "[%u] pipelineCacheUUID = %u\n", i, physicalDeviceProperties.pipelineCacheUUID);
 
+        gpu_info.bug_local_size_spec_const = false;
+
         if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
         {
-            // ignore arm mali with old buggy driver
-            fprintf(stderr, "arm mali driver is too old\n");
-            continue;
+            // arm mali with old buggy driver
+            gpu_info.bug_local_size_spec_const = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49))
@@ -762,9 +763,10 @@ int create_gpu_instance()
             gpu_info.support_fp16_storage = false;
         }
 
-        fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueT=%u[%u]\n", i, physicalDeviceProperties.deviceName,
+        fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueT=%u[%u]  buglssc=%d\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_family_index, gpu_info.compute_queue_count,
-                gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
+                gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count,
+                gpu_info.bug_local_size_spec_const);
 
         fprintf(stderr, "[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
@@ -1049,6 +1051,32 @@ VkShaderModule VulkanDevice::get_shader_module(const char* name) const
     return 0;
 }
 
+VkShaderModule VulkanDevice::create_shader_module(const char* name, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
+{
+    const uint32_t* spv_data = 0;
+    size_t spv_data_size = 0;
+
+    for (int i=0; i<layer_shader_registry_entry_count; i++)
+    {
+        const char* shader_name = layer_shader_registry[i].name;
+
+        if (strcmp(shader_name, name) == 0)
+        {
+            spv_data = layer_shader_registry[i].spv_data;
+            spv_data_size = layer_shader_registry[i].spv_data_size;
+            break;
+        }
+    }
+
+    if (!spv_data)
+    {
+        fprintf(stderr, "no such shader module %s\n", name);
+        return 0;
+    }
+
+    return compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
+}
+
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const
 {
     VkShaderModuleCreateInfo shaderModuleCreateInfo;
@@ -1065,6 +1093,116 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
         fprintf(stderr, "vkCreateShaderModule failed %d\n", ret);
         return 0;
     }
+
+    return shader_module;
+}
+
+static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t* dstcode, size_t* dstsize)
+{
+    uint32_t local_size_x_id = -1;
+    uint32_t local_size_y_id = -1;
+    uint32_t local_size_z_id = -1;
+    uint32_t gl_WorkGroupSize_id = -1;
+
+    const uint32_t* p = code;
+    uint32_t* dp = dstcode;
+
+    // skip magic version generator bound schema
+    memcpy(dp, p, 5 * sizeof(uint32_t));
+    p += 5;
+    dp += 5;
+
+    // foreach op
+    while ((const unsigned char*)p < (const unsigned char*)code + size)
+    {
+        uint32_t opcode = p[0];
+
+        uint16_t wordcount = opcode >> 16;
+        uint16_t op = opcode & 0xffff;
+
+        if (op == 16) // OpExecutionMode
+        {
+            uint32_t mode = p[2];
+            if (mode == 17) // LocalSize
+            {
+                memcpy(dp, p, wordcount * sizeof(uint32_t));
+
+                // set local_size_xyz
+                dp[3] = local_size_x;
+                dp[4] = local_size_y;
+                dp[5] = local_size_z;
+
+                p += wordcount;
+                dp += wordcount;
+                continue;
+            }
+        }
+        else if (op == 50) // OpSpecConstant
+        {
+            uint32_t id = p[2];
+            if (id == local_size_x_id || id == local_size_y_id || id == local_size_z_id)
+            {
+                p += wordcount;
+                continue;
+            }
+        }
+        else if (op == 51) // OpSpecConstantComposite
+        {
+            uint32_t id = p[2];
+            if (id == gl_WorkGroupSize_id)
+            {
+                if (wordcount == 6 && (p[3] == local_size_x_id || p[4] == local_size_y_id || p[5] == local_size_z_id))
+                {
+                    p += wordcount;
+                    continue;
+                }
+            }
+        }
+        else if (op == 71) // OpDecorate
+        {
+            uint32_t id = p[1];
+            uint32_t decoration = p[2];
+            if (decoration == 1) // SpecId
+            {
+                uint32_t specid = p[3];
+                if (specid == 233) local_size_x_id = id;
+                if (specid == 234) local_size_y_id = id;
+                if (specid == 235) local_size_z_id = id;
+                if (specid == 233 || specid == 234 || specid == 235)
+                {
+                    p += wordcount;
+                    continue;
+                }
+            }
+            else if (decoration == 11) // BuiltIn
+            {
+                uint32_t builtin = p[3];
+                if (builtin == 25) // WorkgroupSize
+                {
+                    gl_WorkGroupSize_id = id;
+                    p += wordcount;
+                    continue;
+                }
+            }
+        }
+
+        memcpy(dp, p, wordcount * sizeof(uint32_t));
+        p += wordcount;
+        dp += wordcount;
+    }
+
+    *dstsize = (unsigned char*)dp - (unsigned char*)dstcode;
+}
+
+VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
+{
+    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size);
+    size_t spv_data_size_modified = spv_data_size;
+    inject_local_size_xyz(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
+
+    VkShaderModule shader_module = compile_shader_module(spv_data_modified, spv_data_size_modified);
+
+    free(spv_data_modified);
 
     return shader_module;
 }
@@ -1293,6 +1431,12 @@ static inline bool string_ends_with_fp16a(const char* name)
 
 int VulkanDevice::create_shader_module()
 {
+    if (info.bug_local_size_spec_const)
+    {
+        // do not cache shader module
+        return 0;
+    }
+
     shader_modules.resize(layer_shader_registry_entry_count, VK_NULL_HANDLE);
 
     for (int i=0; i<layer_shader_registry_entry_count; i++)
