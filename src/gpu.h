@@ -110,6 +110,9 @@ public:
     uint32_t graphics_queue_count;
     uint32_t transfer_queue_count;
 
+    // bug is not feature
+    bool bug_local_size_spec_const;
+
     // fp16 and int8 feature
     bool support_fp16_packed;
     bool support_fp16_storage;
@@ -156,7 +159,13 @@ public:
 
     VkShaderModule get_shader_module(const char* name) const;
 
+    // with fixed workgroup size
+    VkShaderModule create_shader_module(const char* name, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const;
+
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
+
+    // with fixed workgroup size
+    VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const;
 
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
     bool is_mappable(uint32_t memory_type_index) const;
