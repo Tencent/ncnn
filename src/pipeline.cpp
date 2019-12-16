@@ -567,7 +567,7 @@ void ImportAndroidHardwareBufferPipeline::destroy()
     Pipeline::destroy();
 }
 
-int ImportAndroidHardwareBufferPipeline::create_image_memory_imageview(AHardwareBuffer* hb, VkImage* image, VkDeviceMemory* memory, VkImageView* imageView)
+int ImportAndroidHardwareBufferPipeline::create_image_memory_imageview(AHardwareBuffer* hb, VkImage* image, VkDeviceMemory* memory, VkImageView* imageView) const
 {
     VkExternalFormatANDROID externalFormat;
     externalFormat.sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID;
