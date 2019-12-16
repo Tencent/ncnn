@@ -60,7 +60,7 @@ int BatchNorm::load_model(const ModelBin& mb)
 
     for (int i=0; i<channels; i++)
     {
-        float sqrt_var = sqrt(var_data[i] + eps);
+        float sqrt_var = static_cast<float>(sqrt(var_data[i] + eps));
         a_data[i] = bias_data[i] - slope_data[i] * mean_data[i] / sqrt_var;
         b_data[i] = slope_data[i] / sqrt_var;
     }
