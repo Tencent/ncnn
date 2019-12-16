@@ -298,7 +298,7 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         if (elemsize == 1)
-            copy_make_border_image<signed char>(bottom_blob, top_blob, 0, left, type, value);
+            copy_make_border_image<signed char>(bottom_blob, top_blob, 0, left, type, static_cast<signed char>(value));
         else if (elemsize == 4)
             copy_make_border_image<float>(bottom_blob, top_blob, 0, left, type, value);
 
@@ -314,7 +314,7 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         if (elemsize == 1)
-            copy_make_border_image<signed char>(bottom_blob, top_blob, top, left, type, value);
+            copy_make_border_image<signed char>(bottom_blob, top_blob, top, left, type, static_cast<signed char>(value));
         else if (elemsize == 4)
             copy_make_border_image<float>(bottom_blob, top_blob, top, left, type, value);
 
@@ -334,7 +334,7 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             Mat borderm = top_blob.channel(q);
 
             if (elemsize == 1)
-                copy_make_border_image<signed char>(m, borderm, top, left, type, value);
+                copy_make_border_image<signed char>(m, borderm, top, left, type, static_cast<signed char>(value));
             else if (elemsize == 4)
                 copy_make_border_image<float>(m, borderm, top, left, type, value);
         }
@@ -386,7 +386,7 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
             return -100;
 
         if (elemsize == 1)
-            copy_make_border_image<signed char>(bottom_blob, top_blob, 0, _left, type, value);
+            copy_make_border_image<signed char>(bottom_blob, top_blob, 0, _left, type, static_cast<signed char>(value));
         else if (elemsize == 4)
             copy_make_border_image<float>(bottom_blob, top_blob, 0, _left, type, value);
 
@@ -402,7 +402,7 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
             return -100;
 
         if (elemsize == 1)
-            copy_make_border_image<signed char>(bottom_blob, top_blob, _top, _left, type, value);
+            copy_make_border_image<signed char>(bottom_blob, top_blob, _top, _left, type, static_cast<signed char>(value));
         else if (elemsize == 4)
             copy_make_border_image<float>(bottom_blob, top_blob, _top, _left, type, value);
 
@@ -422,7 +422,7 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
             Mat borderm = top_blob.channel(q);
 
             if (elemsize == 1)
-                copy_make_border_image<signed char>(m, borderm, _top, _left, type, value);
+                copy_make_border_image<signed char>(m, borderm, _top, _left, type, static_cast<signed char>(value));
             else if (elemsize == 4)
                 copy_make_border_image<float>(m, borderm, _top, _left, type, value);
         }
