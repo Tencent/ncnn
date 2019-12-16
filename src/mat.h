@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif
@@ -121,7 +122,7 @@ public:
     size_t total() const;
 
     // compare values 
-    int32_t compare_fp32(const Mat& m) const;
+    bool compare_fp32(const Mat& m) const;
 
     // data reference
     Mat channel(int c);
@@ -1056,9 +1057,9 @@ inline size_t Mat::total() const
     return cstep * c;
 }
 
-bool Mat::compare_fp32(const Mat& m) const
+inline bool Mat::compare_fp32(const Mat& m) const
 {
-    if (this == m.this)
+    if (this == &m)
     {
         return true;
     }
@@ -1081,11 +1082,12 @@ bool Mat::compare_fp32(const Mat& m) const
     const int step = w * h;
 
     for (int i = 0; i < c; ++i) {
-        float *ptr1 = static_cast<float*>(data + i * cstep * 4);
-        float *ptr2 = static_cast<float*>(m.data + i * m.cstep * 4);
+        float *ptr1 = static_cast<float*>(data) + i * cstep * 4;
+        float *ptr2 = static_cast<float*>(m.data) + i * m.cstep * 4;
 
         for (int j = 0; j < step; ++j) {
-            if (std::abs(ptr1[j] - ptr2[j]) >= 1e-4) {
+            const float diff = ptr1[j] - ptr2[j];
+            if (fabs(diff) >= 1e-4f) {
                 return false;
             }
         }

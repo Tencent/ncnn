@@ -141,7 +141,7 @@ public:
 #if defined(__ARM_NEON)
     void gauss_random(ncnn::Mat &m);
     void find_fastest_fp32_conv(const char* name, int w, int h, int c);
-    int support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& mat, const int type);
+    int support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& mat, const ncnn::Convolution::Impl type);
 #endif
 };
 
@@ -177,12 +177,12 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
         return;
     }
 
-    std::vector<Convolution::Impl> candidates {
-        Convolution::Impl::IM2COL,
-        Convolution::Impl::WINOGRAD,
-        Convolution::Impl::POINTWISE,
-        Convolution::Impl::CONV3x3S2,
-        Convolution::Impl::DIRECT,
+    std::vector<ncnn::Convolution::Impl> candidates {
+        ncnn::Convolution::Impl::IM2COL,
+        ncnn::Convolution::Impl::WINOGRAD,
+        ncnn::Convolution::Impl::POINTWISE,
+        ncnn::Convolution::Impl::CONV3x3S2,
+        ncnn::Convolution::Impl::DIRECT,
     };
 
     const char* IMPL_NAME[6] = {"baseline", "winograd", "pointwise", "im2col", "direct", "conv3x3s2"};
@@ -216,9 +216,9 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
             
             // try every implementation
             double min_cost = std::numeric_limits<double>::max(); 
-            Impl best_type = Convolution::Impl::NONE;
+            ncnn::Convolution::Impl best_type = ncnn::Convolution::Impl::NONE;
 
-            for (Convolution::Impl type : candidates)
+            for (ncnn::Convolution::Impl type : candidates)
             {
                 int support = support_fp32_conv_type(op, bottom_blob, type);
                 if (support < 1)
@@ -248,7 +248,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
                 }
 
                 // check result, support that im2col is baseline
-                if (Convolution::Impl::IM2COL == type) {
+                if (ncnn::Convolution::Impl::IM2COL == type) {
                     baseline_blob = top_blob.clone(); 
                     continue;
                 }
@@ -266,7 +266,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
     }
 }
 
-int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& bottom, const ImplType type)
+int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& bottom, const ncnn::Convolution::Impl type)
 {
     // not baseline, then k_h == k_w and s_h == s_w
     // no dilation conv shall be allowed
@@ -295,13 +295,13 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
     // if match prequisation
     switch(type)
     {
-        case Impl::WINOGRAD:
+        case ncnn::Convolution::Impl::WINOGRAD:
             // winograd
             if (kernel != 3 || stride != 1){
                 return -1;
             }
             break;
-        case Impl::POINTWISE:
+        case ncnn::Convolution::Impl::POINTWISE:
             // pointwise
             // input_h == 1, input_w == 1, dilation == 1, stride == 1
             if (bottom.h != 1 || bottom.w != 1 || stride != 1)
@@ -309,23 +309,25 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
                 return -1;
             }
             break;
-        case Impl::IM2COL:
+        case ncnn::Convolution::Impl::IM2COL:
             // im2col
             break;
-        case Impl::DIRECT:
+        case ncnn::Convolution::Impl::DIRECT:
             // direct conv 
             if (support_table[kernel-1][stride-1] == 0)
             {
                 return -1;
             }
             break;
-        case Impl::CONV3x3S2:
+        case ncnn::Convolution::Impl::CONV3x3S2:
             // conv3x3s2
             // kernel == 3 and stride == 2
             if (kernel != 3 || stride != 2)
             {
                 return -1;
             }
+            break;
+        case ncnn::Convolution::Impl::NONE:
             break;
     }
 
