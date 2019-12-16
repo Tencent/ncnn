@@ -255,7 +255,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
                 if (!baseline_blob.empty())
                 {
                     if (!top_blob.compare_fp32(baseline_blob)) {
-                        fprintf(stderr, TEXT_RED "failed on convolution result comparision, name: %s, type: %d. we strongly recommand you submit an issue to ncnn. " CLR, layer->name.c_str(), op->impl_type);
+                        fprintf(stderr, TEXT_RED "failed on convolution result comparision, name: %s, type: %d. we strongly recommand you submit an issue to ncnn.\n" CLR, layer->name.c_str(), op->impl_type);
                     }
                 }
             }

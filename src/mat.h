@@ -1088,6 +1088,7 @@ inline bool Mat::compare_fp32(const Mat& m) const
         for (int j = 0; j < step; ++j) {
             const float diff = ptr1[j] - ptr2[j];
             if (fabs(diff) >= 1e-4f) {
+                fprintf(stderr, "idx: [%d, %d], expect %f, get %f\n", i, j, ptr1[j], ptr2[j]);
                 return false;
             }
         }
