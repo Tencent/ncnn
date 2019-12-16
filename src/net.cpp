@@ -1806,7 +1806,31 @@ Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 #if NCNN_VULKAN
     if (net->opt.use_vulkan_compute)
     {
+        local_blob_vkallocator = 0;
+        local_staging_vkallocator = 0;
+
         blob_mats_gpu.resize(blob_count);
+    }
+#endif // NCNN_VULKAN
+}
+
+Extractor::~Extractor()
+{
+    blob_mats.clear();
+
+#if NCNN_VULKAN
+    if (net->opt.use_vulkan_compute)
+    {
+        blob_mats_gpu.clear();
+
+        if (local_blob_vkallocator)
+        {
+            net->vkdev->reclaim_blob_allocator(local_blob_vkallocator);
+        }
+        if (local_staging_vkallocator)
+        {
+            net->vkdev->reclaim_staging_allocator(local_staging_vkallocator);
+        }
     }
 #endif // NCNN_VULKAN
 }
@@ -1904,14 +1928,11 @@ int Extractor::extract(int blob_index, Mat& feat)
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
         {
-            VkAllocator* local_blob_allocator = 0;
-            VkAllocator* local_staging_allocator = 0;
-
             // use local allocator
             if (!opt.blob_vkallocator)
             {
-                local_blob_allocator = net->vkdev->acquire_blob_allocator();
-                opt.blob_vkallocator = local_blob_allocator;
+                local_blob_vkallocator = net->vkdev->acquire_blob_allocator();
+                opt.blob_vkallocator = local_blob_vkallocator;
             }
             if (!opt.workspace_vkallocator)
             {
@@ -1919,8 +1940,8 @@ int Extractor::extract(int blob_index, Mat& feat)
             }
             if (!opt.staging_vkallocator)
             {
-                local_staging_allocator = net->vkdev->acquire_staging_allocator();
-                opt.staging_vkallocator = local_staging_allocator;
+                local_staging_vkallocator = net->vkdev->acquire_staging_allocator();
+                opt.staging_vkallocator = local_staging_vkallocator;
             }
 
             ncnn::VkCompute cmd(net->vkdev);
@@ -1989,21 +2010,6 @@ int Extractor::extract(int blob_index, Mat& feat)
                 {
                     feat_cpu = feat_cpu_fp16;
                 }
-            }
-
-            if (local_blob_allocator)
-            {
-                net->vkdev->reclaim_blob_allocator(local_blob_allocator);
-                if (opt.workspace_vkallocator == opt.blob_vkallocator)
-                {
-                    opt.workspace_vkallocator = 0;
-                }
-                opt.blob_vkallocator = 0;
-            }
-            if (local_staging_allocator)
-            {
-                net->vkdev->reclaim_staging_allocator(local_staging_allocator);
-                opt.staging_vkallocator = 0;
             }
         }
         else
