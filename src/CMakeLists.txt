@@ -317,11 +317,15 @@ endif()
 
 add_dependencies(ncnn generate-spirv)
 
-if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
+if(NCNN_OPENMP AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
     if(NCNN_CMAKE_VERBOSE)
         message("Building with OpenMP")
     endif()
-    target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
+    else()
+        target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
+    endif()
 endif()
 
 if(NCNN_INSTALL_SDK)
