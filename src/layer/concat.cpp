@@ -164,7 +164,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             const Mat& bottom_blob = bottom_blobs[b];
 
             int channels = bottom_blob.c;
-            int size = bottom_blob.cstep * channels;
+            size_t size = bottom_blob.cstep * channels;
 
             const float* ptr = bottom_blob;
             float* outptr = top_blob.channel(q);
