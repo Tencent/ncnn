@@ -1865,11 +1865,11 @@ static void kanna_rotate_5_c1(const unsigned char* src, int srcw, int srch, int 
 
             "vtrn.u8    d6, d7              \n"// _src67t_r
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q0, q1              \n"// _src02tt_r _src13tt_r
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q2, q3              \n"// _src13tt_r _src46tt_r
 
@@ -2091,11 +2091,11 @@ static void kanna_rotate_5_c2(const unsigned char* src, int srcw, int srch, int 
 
             "vtrn.u8    q10, q11            \n"// _src67t_r
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q0, q2              \n"// _src02tt_r
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q1, q3              \n"// _src13tt_r
 
@@ -2362,12 +2362,12 @@ static void kanna_rotate_5_c3(const unsigned char* src, int srcw, int srch, int 
             "vtrn.u8    q12, q14            \n"// _src67t_r
             "vtrn.u8    d26, d30            \n"
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q0, q4              \n"// _src02tt_r
             "vtrn.u16   d2, d10             \n"
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q2, q6              \n"// _src13tt_r
             "vtrn.u16   d6, d14             \n"
@@ -2674,12 +2674,12 @@ static void kanna_rotate_5_c4(const unsigned char* src, int srcw, int srch, int 
             "vtrn.u8    q12, q14            \n"// _src67t_r
             "vtrn.u8    q13, q15            \n"
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q0, q4              \n"// _src02tt_r
             "vtrn.u16   q1, q5              \n"
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q2, q6              \n"// _src13tt_r
             "vtrn.u16   q3, q7              \n"
@@ -2913,11 +2913,11 @@ static void kanna_rotate_6_c1(const unsigned char* src, int srcw, int srch, int 
 
             "vtrn.u8    d7, d6              \n"// _src67t_r
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q1, q0              \n"// _src02tt_r _src13tt_r
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q3, q2              \n"// _src46tt_r _src57tt_r
 
@@ -3142,11 +3142,11 @@ static void kanna_rotate_6_c2(const unsigned char* src, int srcw, int srch, int 
 
             "vtrn.u8    q11, q10            \n"// _src67t_r
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q2, q0              \n"// _src02tt_r
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q3, q1              \n"// _src13tt_r
 
@@ -3416,12 +3416,12 @@ static void kanna_rotate_6_c3(const unsigned char* src, int srcw, int srch, int 
             "vtrn.u8    q14, q12            \n"// _src67t_r
             "vtrn.u8    d30, d26            \n"
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q4, q0              \n"// _src02tt_r
             "vtrn.u16   d10, d2             \n"
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q6, q2              \n"// _src13tt_r
             "vtrn.u16   d14, d6             \n"
@@ -3731,12 +3731,12 @@ static void kanna_rotate_6_c4(const unsigned char* src, int srcw, int srch, int 
             "vtrn.u8    q14, q12            \n"// _src67t_r
             "vtrn.u8    q15, q13            \n"
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q4, q0              \n"// _src02tt_r
             "vtrn.u16   q5, q1              \n"
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q6, q2              \n"// _src13tt_r
             "vtrn.u16   q7, q3              \n"
@@ -3970,11 +3970,11 @@ static void kanna_rotate_7_c1(const unsigned char* src, int srcw, int srch, int 
 
             "vtrn.u8    d7, d6              \n"// _src67t_r
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q1, q0              \n"// _src02tt_r _src13tt_r
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q3, q2              \n"// _src46tt_r _src57tt_r
 
@@ -4199,11 +4199,11 @@ static void kanna_rotate_7_c2(const unsigned char* src, int srcw, int srch, int 
 
             "vtrn.u8    q11, q10            \n"// _src67t_r
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q2, q0              \n"// _src02tt_r
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q3, q1              \n"// _src13tt_r
 
@@ -4473,12 +4473,12 @@ static void kanna_rotate_7_c3(const unsigned char* src, int srcw, int srch, int 
             "vtrn.u8    q14, q12            \n"// _src67t_r
             "vtrn.u8    d30, d26            \n"
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q4, q0              \n"// _src02tt_r
             "vtrn.u16   d10, d2             \n"
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q6, q2              \n"// _src13tt_r
             "vtrn.u16   d14, d6             \n"
@@ -4788,12 +4788,12 @@ static void kanna_rotate_7_c4(const unsigned char* src, int srcw, int srch, int 
             "vtrn.u8    q14, q12            \n"// _src67t_r
             "vtrn.u8    q15, q13            \n"
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q4, q0              \n"// _src02tt_r
             "vtrn.u16   q5, q1              \n"
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q6, q2              \n"// _src13tt_r
             "vtrn.u16   q7, q3              \n"
@@ -5027,11 +5027,11 @@ static void kanna_rotate_8_c1(const unsigned char* src, int srcw, int srch, int 
 
             "vtrn.u8    d6, d7              \n"// _src67t_r
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q0, q1              \n"// _src02tt_r _src13tt_r
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q2, q3              \n"// _src46tt_r _src57tt_r
 
@@ -5256,11 +5256,11 @@ static void kanna_rotate_8_c2(const unsigned char* src, int srcw, int srch, int 
 
             "vtrn.u8    q10, q11            \n"// _src67t_r
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q0, q2              \n"// _src02tt_r
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q1, q3              \n"// _src13tt_r
 
@@ -5530,12 +5530,12 @@ static void kanna_rotate_8_c3(const unsigned char* src, int srcw, int srch, int 
             "vtrn.u8    q12, q14            \n"// _src67t_r
             "vtrn.u8    d26, d30            \n"
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q0, q4              \n"// _src02tt_r
             "vtrn.u16   d2, d10             \n"
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q2, q6              \n"// _src13tt_r
             "vtrn.u16   d6, d14             \n"
@@ -5845,12 +5845,12 @@ static void kanna_rotate_8_c4(const unsigned char* src, int srcw, int srch, int 
             "vtrn.u8    q12, q14            \n"// _src67t_r
             "vtrn.u8    q13, q15            \n"
 
-            "sub        %1, %10, lsl #2     \n"// restore src0
+            "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
             "vtrn.u16   q0, q4              \n"// _src02tt_r
             "vtrn.u16   q1, q5              \n"
 
-            "sub        %2, %10, lsl #2     \n"// restore src1
+            "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
             "vtrn.u16   q2, q6              \n"// _src13tt_r
             "vtrn.u16   q3, q7              \n"
