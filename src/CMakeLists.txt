@@ -137,7 +137,7 @@ macro(ncnn_add_layer class)
     endif()
 
     # generate layer_type_enum file
-    string(APPEND layer_type_enum "${class} = ${__LAYER_TYPE_ENUM_INDEX},\n")
+    set(layer_type_enum "${layer_type_enum}${class} = ${__LAYER_TYPE_ENUM_INDEX},\n")
     math(EXPR __LAYER_TYPE_ENUM_INDEX "${__LAYER_TYPE_ENUM_INDEX}+1")
 endmacro()
 
@@ -319,11 +319,15 @@ endif()
 
 add_dependencies(ncnn generate-spirv)
 
-if(NCNN_OPENMP AND OpenMP_CXX_FOUND)
+if(NCNN_OPENMP AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
     if(NCNN_CMAKE_VERBOSE)
         message("Building with OpenMP")
     endif()
-    target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
+    else()
+        target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
+    endif()
 endif()
 
 if(NCNN_INSTALL_SDK)
