@@ -519,22 +519,22 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 }
 
 template<typename T>
-struct binary_op_add : std::binary_function<T,T,T> {
+struct binary_op_add {
     T operator() (const T& x, const T& y) const { return vaddq_f32(x, y); }
 };
 
 template<typename T>
-struct binary_op_sub : std::binary_function<T,T,T> {
+struct binary_op_sub {
     T operator() (const T& x, const T& y) const { return vsubq_f32(x, y); }
 };
 
 template<typename T>
-struct binary_op_mul : std::binary_function<T,T,T> {
+struct binary_op_mul {
     T operator() (const T& x, const T& y) const { return vmulq_f32(x, y); }
 };
 
 template<typename T>
-struct binary_op_div : std::binary_function<T,T,T> {
+struct binary_op_div {
     T operator() (const T& x, const T& y) const
 #if __aarch64__
     { return vdivq_f32(x, y); }
@@ -544,27 +544,27 @@ struct binary_op_div : std::binary_function<T,T,T> {
 };
 
 template<typename T>
-struct binary_op_max : std::binary_function<T,T,T> {
+struct binary_op_max {
     T operator() (const T& x, const T& y) const { return vmaxq_f32(x, y); }
 };
 
 template<typename T>
-struct binary_op_min : std::binary_function<T,T,T> {
+struct binary_op_min {
     T operator() (const T& x, const T& y) const { return vminq_f32(x, y); }
 };
 
 template<typename T>
-struct binary_op_pow : std::binary_function<T,T,T> {
+struct binary_op_pow {
     T operator() (const T& x, const T& y) const { return pow_ps(x, y); }
 };
 
 template<typename T>
-struct binary_op_rsub : std::binary_function<T,T,T> {
+struct binary_op_rsub {
     T operator() (const T& x, const T& y) const { return vsubq_f32(y, x); }
 };
 
 template<typename T>
-struct binary_op_rdiv : std::binary_function<T,T,T> {
+struct binary_op_rdiv {
     T operator() (const T& x, const T& y) const
 #if __aarch64__
     { return vdivq_f32(y, x); }

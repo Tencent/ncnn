@@ -50,87 +50,87 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 }
 
 template<typename T>
-struct unary_op_abs : std::unary_function<T,T> {
+struct unary_op_abs {
     T operator() (const T& x) const { return fabs(x); }
 };
 
 template<typename T>
-struct unary_op_neg : std::unary_function<T,T> {
+struct unary_op_neg {
     T operator() (const T& x) const { return -x; }
 };
 
 template<typename T>
-struct unary_op_floor : std::unary_function<T,T> {
+struct unary_op_floor {
     T operator() (const T& x) const { return floor(x); }
 };
 
 template<typename T>
-struct unary_op_ceil : std::unary_function<T,T> {
+struct unary_op_ceil {
     T operator() (const T& x) const { return ceil(x); }
 };
 
 template<typename T>
-struct unary_op_square : std::unary_function<T,T> {
+struct unary_op_square {
     T operator() (const T& x) const { return x * x; }
 };
 
 template<typename T>
-struct unary_op_sqrt : std::unary_function<T,T> {
+struct unary_op_sqrt {
     T operator() (const T& x) const { return sqrt(x); }
 };
 
 template<typename T>
-struct unary_op_rsqrt : std::unary_function<T,T> {
+struct unary_op_rsqrt {
     T operator() (const T& x) const { return 1.f / sqrt(x); }
 };
 
 template<typename T>
-struct unary_op_exp : std::unary_function<T,T> {
+struct unary_op_exp {
     T operator() (const T& x) const { return exp(x); }
 };
 
 template<typename T>
-struct unary_op_log : std::unary_function<T,T> {
+struct unary_op_log {
     T operator() (const T& x) const { return log(x); }
 };
 
 template<typename T>
-struct unary_op_sin : std::unary_function<T,T> {
+struct unary_op_sin {
     T operator() (const T& x) const { return sin(x); }
 };
 
 template<typename T>
-struct unary_op_cos : std::unary_function<T,T> {
+struct unary_op_cos {
     T operator() (const T& x) const { return cos(x); }
 };
 
 template<typename T>
-struct unary_op_tan : std::unary_function<T,T> {
+struct unary_op_tan {
     T operator() (const T& x) const { return tan(x); }
 };
 
 template<typename T>
-struct unary_op_asin : std::unary_function<T,T> {
+struct unary_op_asin {
     T operator() (const T& x) const { return asin(x); }
 };
 
 template<typename T>
-struct unary_op_acos : std::unary_function<T,T> {
+struct unary_op_acos {
     T operator() (const T& x) const { return acos(x); }
 };
 
 template<typename T>
-struct unary_op_atan : std::unary_function<T,T> {
+struct unary_op_atan {
     T operator() (const T& x) const { return atan(x); }
 };
 
 template<typename T>
-struct unary_op_reciprocal : std::unary_function<T,T> {
+struct unary_op_reciprocal {
     T operator() (const T& x) const { return 1.f / x; }
 };
 
 template<typename T>
-struct unary_op_tanh : std::unary_function<T,T> {
+struct unary_op_tanh {
     T operator() (const T& x) const { return tanh(x); }
 };
 

@@ -747,42 +747,42 @@ static int reduction(const Mat& a, Mat& b, float v0, bool reduce_w, bool reduce_
 }
 
 template<typename T>
-struct post_process_identity : std::unary_function<T,T> {
+struct post_process_identity {
     T operator() (const T& x) const { return x; }
 };
 
 template<typename T>
-struct post_process_sqrt : std::unary_function<T,T> {
+struct post_process_sqrt {
     T operator() (const T& x) const { return sqrt(x); }
 };
 
 template<typename T>
-struct post_process_log : std::unary_function<T,T> {
+struct post_process_log {
     T operator() (const T& x) const { return log(x); }
 };
 
 template<typename T>
-struct reduction_op_asum : std::binary_function<T,T,T> {
+struct reduction_op_asum {
     T operator() (const T& x, const T& y) const { return x + fabs(y); }
 };
 
 template<typename T>
-struct reduction_op_sumsq : std::binary_function<T,T,T> {
+struct reduction_op_sumsq {
     T operator() (const T& x, const T& y) const { return x + y * y; }
 };
 
 template<typename T>
-struct reduction_op_sumsexp : std::binary_function<T,T,T> {
+struct reduction_op_sumsexp {
     T operator() (const T& x, const T& y) const { return x + exp(y); }
 };
 
 template<typename T>
-struct reduction_op_max : std::binary_function<T,T,T> {
+struct reduction_op_max {
     T operator() (const T& x, const T& y) const { return std::max(x, y); }
 };
 
 template<typename T>
-struct reduction_op_min : std::binary_function<T,T,T> {
+struct reduction_op_min {
     T operator() (const T& x, const T& y) const { return std::min(x, y); }
 };
 
