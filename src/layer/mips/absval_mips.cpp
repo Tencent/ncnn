@@ -42,20 +42,19 @@ int AbsVal_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __MIPS_MSA
 
 #if __MIPS_MSA
-        v4u32 input;
-        v4f32 abs_val;
-
         for (; nn>0; nn--)
         {
-            input = (v4u32)__builtin_msa_ld_w(ptr, 0);
-            abs_val = (v4f32)__builtin_msa_bclri_w(input, 31);
-            __builtin_msa_st_w((v4i32)abs_val, ptr, 0);
+            v4u32 _p = (v4u32)__msa_ld_w(ptr, 0);
+            v4f32 _outp = (v4f32)__msa_bclri_w(_p, 31);
+            __msa_st_w((v4i32)_outp, ptr, 0);
+
             ptr += 4;
         }
 #endif // __MIPS_MSA
         for (; remain>0; remain--)
         {
             *ptr = *ptr > 0 ? *ptr : -*ptr;
+
             ptr++;
         }
     }
