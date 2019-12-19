@@ -76,7 +76,7 @@
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
-#if defined(__aarch64__) && defined(LINUX)
+#if __ARM_NEON 
 #include <locale>
 #include <chrono>
 #include <random>
@@ -88,7 +88,7 @@
 #define TEXT_RED    "\033[31m"
 #define CLR         "\033[0m"
 
-#endif // defined(__aarch64__) && defined(LINUX)
+#endif
 
 class DataReaderFromEmpty : public ncnn::DataReader
 {
@@ -138,14 +138,14 @@ public:
 
     int save(const char* parampath, const char* binpath);
 
-#if defined(__aarch64__) && defined(LINUX)
+#if __ARM_NEON 
     void gauss_random(ncnn::Mat &m);
     void find_fastest_fp32_conv(const char* name, int w, int h, int c);
     int support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& mat, const int type);
 #endif
 };
 
-#if defined(__aarch64__) && defined(LINUX)
+#if __ARM_NEON 
 void NetOptimize::gauss_random(ncnn::Mat &m)
 {
     std::random_device rd;
@@ -166,6 +166,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
     ncnn::Option opt;
     // embeded system generally use single thread
     opt.num_threads = 1;
+    opt.use_packing_layout = false;
 
     const int layer_count = layers.size();
     ncnn::Extractor ex = create_extractor();
@@ -222,7 +223,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
                 op->impl_type = type;
 
                 auto start = std::chrono::high_resolution_clock::now();
-                const int NREPEATS = 20;
+                const int NREPEATS = 3;
                 op->create_pipeline(opt);
                 for (int repeat = 0; repeat < NREPEATS; ++repeat)
                 {
@@ -314,7 +315,7 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
 
     return 1;
 }
-#endif // defined(__aarch64__) && defined(LINUX)
+#endif 
 
 int NetOptimize::fuse_batchnorm_scale()
 {
@@ -2493,7 +2494,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
 int main(int argc, char** argv)
 {
-#if defined(__aarch64__) && defined(LINUX)
+#if __ARM_NEON 
     if (argc != 10)
     {
         fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag] [dataname] [w] [h] [c]\n", argv[0]);
@@ -2509,7 +2510,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag]\n", argv[0]);
         return -1;
     }
-#endif // defined(__aarch64__) && defined(LINUX)
+#endif
 
     const char* inparam = argv[1];
     const char* inbin = argv[2];
@@ -2537,9 +2538,9 @@ int main(int argc, char** argv)
     else
         optimizer.load_model(inbin);
 
-#if defined(__aarch64__) && defined(LINUX)
+#if __ARM_NEON 
     optimizer.find_fastest_fp32_conv(dataname, inw, inh, inc);
-#endif // defined(__aarch64__) && defined(LINUX)
+#endif
     optimizer.fuse_batchnorm_scale();
     optimizer.fuse_convolution_batchnorm();
     optimizer.fuse_convolutiondepthwise_batchnorm();
