@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "slice_vulkan.h"
-
+#include <algorithm>
 #include "layer_type.h"
 
 namespace ncnn {
