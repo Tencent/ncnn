@@ -24,11 +24,11 @@ class Convolution : public Layer
 public:
     enum Impl {
         NONE = 0,
-        IM2COL = 1,
-        WINOGRAD = 2,
-        POINTWISE = 3,
-        CONV3x3S2 = 4,
-        DIRECT = 5
+        WINOGRAD = 1,
+        POINTWISE = 2,
+        IM2COL = 3,
+        DIRECT = 4,
+        CONV3x3S2 = 5 
     };
 
     Convolution();

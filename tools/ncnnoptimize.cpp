@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <set>
 #include <vector>
+#include <map>
 
 // ncnn public header
 #include "datareader.h"
@@ -178,14 +179,21 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
     }
 
     std::vector<ncnn::Convolution::Impl> candidates {
+        ncnn::Convolution::Impl::DIRECT,
         ncnn::Convolution::Impl::IM2COL,
         ncnn::Convolution::Impl::WINOGRAD,
         ncnn::Convolution::Impl::POINTWISE,
         ncnn::Convolution::Impl::CONV3x3S2,
-        ncnn::Convolution::Impl::DIRECT,
     };
 
-    const char* IMPL_NAME[6] = {"baseline", "winograd", "pointwise", "im2col", "direct", "conv3x3s2"};
+    std::map<ncnn::Convolution::Impl, std::string> impl_names = {
+        std::make_pair(ncnn::Convolution::Impl::IM2COL   , "im2col"),
+        std::make_pair(ncnn::Convolution::Impl::WINOGRAD , "winograd"),
+        std::make_pair(ncnn::Convolution::Impl::POINTWISE, "pointwise"),
+        std::make_pair(ncnn::Convolution::Impl::CONV3x3S2, "conv3x3s2"),
+        std::make_pair(ncnn::Convolution::Impl::DIRECT   , "direct")
+    };
+
     for (int i = 0; i < layer_count; ++i)
     {
         ncnn::Layer* layer = layers[i];
@@ -195,7 +203,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
 
             ncnn::Mat bottom_blob;
             ncnn::Mat top_blob;
-            ncnn::Mat baseline_blob;
+            // ncnn::Mat baseline_blob;
 
             ex.extract(layer->bottoms[0], bottom_blob);
             ex.extract(layer->tops[0], top_blob);
@@ -221,13 +229,14 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
             for (ncnn::Convolution::Impl type : candidates)
             {
                 int support = support_fp32_conv_type(op, bottom_blob, type);
-                if (support < 1)
+                if (support != 0)
                 {
                     // implementation type mismatch convolution configuration, skip
                     continue;
                 }
 
                 op->impl_type = type;
+                std::string name = impl_names.find(type)->second;
 
                 auto start = std::chrono::high_resolution_clock::now();
                 const int NREPEATS = 3;
@@ -240,7 +249,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
 
                 auto stop = std::chrono::high_resolution_clock::now();
                 double cur_cost = std::chrono::duration<double, std::micro>(stop-start).count() / NREPEATS;
-                fprintf(stdout, TEXT_GREEN "impl_type %d cost %0.3lfms \n" CLR, type, cur_cost/1000);
+                fprintf(stdout, TEXT_GREEN "impl_type %s cost %0.3lfms \n" CLR, name.c_str(), cur_cost/1000);
                 if (cur_cost < min_cost)
                 {
                     min_cost = cur_cost;
@@ -248,20 +257,20 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
                 }
 
                 // check result, support that im2col is baseline
-                if (ncnn::Convolution::Impl::IM2COL == type) {
-                    baseline_blob = top_blob.clone(); 
-                    continue;
-                }
-                if (!baseline_blob.empty())
-                {
-                    if (!top_blob.compare_fp32(baseline_blob)) {
-                        fprintf(stderr, TEXT_RED "failed on convolution result comparision, name: %s, type: %d. we strongly recommand you submit an issue to ncnn.\n" CLR, layer->name.c_str(), op->impl_type);
-                    }
-                }
+              //  if (ncnn::Convolution::Impl::DIRECT == type) {
+              //      baseline_blob = top_blob.clone(); 
+              //      continue;
+              //  }
+              //  if (!baseline_blob.empty())
+              //  {
+              //      if (!top_blob.compare_fp32(baseline_blob)) {
+              //          fprintf(stderr, TEXT_RED "failed on convolution result comparision, name: %s, type: %s. we strongly recommand you submit an issue to ncnn.\n" CLR, layer->name.c_str(), name.c_str());
+              //      }
+              //  }
             }
             op->impl_type = best_type;
-            
-            fprintf(stdout, TEXT_YELLOW "%d: %s use %d \n\n" CLR, i, layer->name.c_str(), op->impl_type);
+            std::string name = impl_names.find(best_type)->second;
+            fprintf(stdout, TEXT_YELLOW "%d: %s use %s \n\n" CLR, i, layer->name.c_str(), name.c_str());
         }
     }
 }
@@ -328,10 +337,11 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
             }
             break;
         case ncnn::Convolution::Impl::NONE:
+            return -1;
             break;
     }
 
-    return 1;
+    return 0;
 }
 #endif // defined(__ARM_NEON)
 
