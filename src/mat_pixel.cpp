@@ -717,7 +717,7 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat
 #endif // __ARM_NEON
         for (; remain>0; remain--)
         {
-            *ptr = (rgb[0] * R2Y + rgb[1] * G2Y + rgb[2] * B2Y) >> Y_shift;
+            *ptr = static_cast<float>((rgb[0] * R2Y + rgb[1] * G2Y + rgb[2] * B2Y) >> Y_shift);
 
             rgb += 3;
             ptr++;
@@ -874,7 +874,7 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat
 #endif // __ARM_NEON
         for (; remain>0; remain--)
         {
-            *ptr = (bgr[2] * R2Y + bgr[1] * G2Y + bgr[0] * B2Y) >> Y_shift;
+            *ptr = static_cast<float>((bgr[2] * R2Y + bgr[1] * G2Y + bgr[0] * B2Y) >> Y_shift);
 
             bgr += 3;
             ptr++;
@@ -1428,7 +1428,7 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, M
 #endif // __ARM_NEON
         for (; remain>0; remain--)
         {
-            *ptr = (rgba[0] * R2Y + rgba[1] * G2Y + rgba[2] * B2Y) >> Y_shift;
+            *ptr = static_cast<float>((rgba[0] * R2Y + rgba[1] * G2Y + rgba[2] * B2Y) >> Y_shift);
 
             rgba += 4;
             ptr++;

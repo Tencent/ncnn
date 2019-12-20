@@ -71,7 +71,7 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = floor(fx);
+        sx = static_cast<int>(floor(fx));
         fx -= sx;
 
         if (sx < 0)
@@ -97,7 +97,7 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
     for (int dy = 0; dy < h; dy++)
     {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = floor(fy);
+        sy = static_cast<int>(floor(fy));
         fy -= sy;
 
         if (sy < 0)
@@ -326,7 +326,7 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = floor(fx);
+        sx = static_cast<int>(floor(fx));
         fx -= sx;
 
         if (sx < 0)
@@ -352,7 +352,7 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
     for (int dy = 0; dy < h; dy++)
     {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = floor(fy);
+        sy = static_cast<int>(floor(fy));
         fy -= sy;
 
         if (sy < 0)
@@ -636,7 +636,7 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = floor(fx);
+        sx = static_cast<int>(floor(fx));
         fx -= sx;
 
         if (sx < 0)
@@ -662,7 +662,7 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
     for (int dy = 0; dy < h; dy++)
     {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = floor(fy);
+        sy = static_cast<int>(floor(fy));
         fy -= sy;
 
         if (sy < 0)
@@ -957,7 +957,7 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
     for (int dx = 0; dx < w; dx++)
     {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
-        sx = floor(fx);
+        sx = static_cast<int>(floor(fx));
         fx -= sx;
 
         if (sx < 0)
@@ -983,7 +983,7 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
     for (int dy = 0; dy < h; dy++)
     {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
-        sy = floor(fy);
+        sy = static_cast<int>(floor(fy));
         fy -= sy;
 
         if (sy < 0)

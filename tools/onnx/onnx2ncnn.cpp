@@ -298,6 +298,7 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
         // ShuffleChannel <= Reshape - Transpose - Reshape
+        // ShuffleChannel <= Reshape - Transpose - Constant - Reshape
         if (node->op_type() == "Reshape")
         {
             if (node_reference.find(node->output(0)) == node_reference.end() || node_reference[node->output(0)] != 1)
@@ -329,6 +330,14 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
 
             onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
             onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
+
+            if (node3->op_type() == "Constant")
+            {
+                if (i+3 >= node_count)
+                    continue;
+
+                node3 = mutable_graph->mutable_node(i+3);
+            }
 
             if (node2->op_type() != "Transpose" || node3->op_type() != "Reshape")
                 continue;
