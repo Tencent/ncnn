@@ -164,9 +164,11 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
     ncnn::PoolAllocator allocator;
     allocator.clear();
 
+    double sum = 0.0;
     ncnn::Option opt;
     // embeded system generally use single thread
     opt.num_threads = 1;
+    opt.use_packing_layout = false;
 
     const int layer_count = layers.size();
     ncnn::Extractor ex = create_extractor();
@@ -186,13 +188,12 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
         ncnn::Convolution::Impl::CONV3x3S2,
     };
 
-    std::map<ncnn::Convolution::Impl, std::string> impl_names = {
-        std::make_pair(ncnn::Convolution::Impl::IM2COL   , "im2col"),
-        std::make_pair(ncnn::Convolution::Impl::WINOGRAD , "winograd"),
-        std::make_pair(ncnn::Convolution::Impl::POINTWISE, "pointwise"),
-        std::make_pair(ncnn::Convolution::Impl::CONV3x3S2, "conv3x3s2"),
-        std::make_pair(ncnn::Convolution::Impl::DIRECT   , "direct")
-    };
+    std::map<ncnn::Convolution::Impl, std::string> impl_names;
+    impl_names[ncnn::Convolution::Impl::IM2COL   ] = "im2col";
+    impl_names[ncnn::Convolution::Impl::WINOGRAD ] = "winograd";
+    impl_names[ncnn::Convolution::Impl::POINTWISE] = "pointwise";
+    impl_names[ncnn::Convolution::Impl::CONV3x3S2] = "conv3x3s2";
+    impl_names[ncnn::Convolution::Impl::DIRECT   ] = "direct";
 
     for (int i = 0; i < layer_count; ++i)
     {
@@ -203,7 +204,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
 
             ncnn::Mat bottom_blob;
             ncnn::Mat top_blob;
-            // ncnn::Mat baseline_blob;
+            ncnn::Mat baseline_out;
 
             ex.extract(layer->bottoms[0], bottom_blob);
             ex.extract(layer->tops[0], top_blob);
@@ -212,9 +213,9 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
             {
                 continue;
             }
+            op->Convolution::forward(bottom_blob, baseline_out, opt);
 
-            ncnn::Mat weight_blob(op->kernel_w, op->kernel_h, bottom_blob.c * top_blob.c);
-
+            fprintf(stdout, TEXT_GREEN "process %s\n" CLR, layer->name.c_str());
             fprintf(stdout, TEXT_GREEN "Input  [w h nc]: %d %d %d\n" CLR, bottom_blob.w, bottom_blob.h, bottom_blob.c);
             fprintf(stdout, TEXT_GREEN "Kernel [w h nc]: %d %d %d\n" CLR, op->kernel_w, op->kernel_h, bottom_blob.c * top_blob.c);
             fprintf(stdout, TEXT_GREEN "Output [w h nc]: %d %d %d\n" CLR, top_blob.w, top_blob.h, top_blob.c);
@@ -237,6 +238,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
 
                 op->impl_type = type;
                 std::string name = impl_names.find(type)->second;
+                fprintf(stdout, "running %s ... ", name.c_str());
 
                 auto start = std::chrono::high_resolution_clock::now();
                 const int NREPEATS = 3;
@@ -249,7 +251,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
 
                 auto stop = std::chrono::high_resolution_clock::now();
                 double cur_cost = std::chrono::duration<double, std::micro>(stop-start).count() / NREPEATS;
-                fprintf(stdout, TEXT_GREEN "impl_type %s cost %0.3lfms \n" CLR, name.c_str(), cur_cost/1000);
+                fprintf(stdout, " cost %0.3lfms \n" CLR, cur_cost/1000);
                 if (cur_cost < min_cost)
                 {
                     min_cost = cur_cost;
@@ -257,22 +259,24 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
                 }
 
                 // check result, support that im2col is baseline
-              //  if (ncnn::Convolution::Impl::DIRECT == type) {
-              //      baseline_blob = top_blob.clone(); 
-              //      continue;
-              //  }
-              //  if (!baseline_blob.empty())
-              //  {
-              //      if (!top_blob.compare_fp32(baseline_blob)) {
-              //          fprintf(stderr, TEXT_RED "failed on convolution result comparision, name: %s, type: %s. we strongly recommand you submit an issue to ncnn.\n" CLR, layer->name.c_str(), name.c_str());
-              //      }
-              //  }
+                if (!baseline_out.empty())
+                {
+                   // if (!top_blob.compare_fp32(baseline_out)) {
+                   //     fprintf(stderr, TEXT_RED "failed on result comparision, name: %s, type: %s. we strongly recommand you submit an issue to ncnn.\n" CLR, layer->name.c_str(), name.c_str());
+                   // }
+                }
+
+            }
+
+            if (min_cost != std::numeric_limits<double>::max()) {
+                sum += min_cost;
             }
             op->impl_type = best_type;
             std::string name = impl_names.find(best_type)->second;
             fprintf(stdout, TEXT_YELLOW "%d: %s use %s \n\n" CLR, i, layer->name.c_str(), name.c_str());
         }
     }
+    fprintf(stdout, TEXT_YELLOW "sum cost: %0.3lf ms\n" CLR, sum/1000);
 }
 
 int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& bottom, const ncnn::Convolution::Impl type)
@@ -290,9 +294,11 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
     // (kernel, stride) in {(1, 1), (1, 2), (2, 1), (3, 1), (3, 2), (4, 4), (5, 1), (5, 2), (7, 1), (7, 2)}
     const int support_table[7][4] = 
     {
-        {1, 1, 0, 0},
+        {0, 1, 0, 0},
+        // {1, 1, 0, 0},
         {1, 0, 0, 0},
-        {1, 1, 0, 0},
+        // {1, 1, 0, 0},
+        {0, 0, 0, 0},
         {0, 0, 0, 1},
         {1, 1, 0, 0},
         {0, 0, 0, 0},
