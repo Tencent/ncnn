@@ -559,19 +559,19 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         return false;
     }
 
-    int nread;
+    size_t nread;
     uint64_t header;
     uint64_t reserved;
     nread = fread(&header, sizeof(uint64_t), 1, fp);
     if (nread != 1)
     {
-        fprintf(stderr, "read header failed %d\n", nread);
+        fprintf(stderr, "read header failed %zd\n", nread);
         return false;
     }
     nread = fread(&reserved, sizeof(uint64_t), 1, fp);
     if (nread != 1)
     {
-        fprintf(stderr, "read reserved failed %d\n", nread);
+        fprintf(stderr, "read reserved failed %zd\n", nread);
         return false;
     }
 
@@ -582,7 +582,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
     nread = fread(&data_count, sizeof(uint64_t), 1, fp);
     if (nread != 1)
     {
-        fprintf(stderr, "read data_count failed %d\n", nread);
+        fprintf(stderr, "read data_count failed %zd\n", nread);
         return false;
     }
 
@@ -594,7 +594,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread(&magic, sizeof(uint32_t), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read magic failed %d\n", nread);
+            fprintf(stderr, "read magic failed %zd\n", nread);
             return false;
         }
 
@@ -608,14 +608,14 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             nread = fread(&stype, sizeof(int32_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read stype failed %d\n", nread);
+                fprintf(stderr, "read stype failed %zd\n", nread);
                 return false;
             }
 
             nread = fread(&ndim, sizeof(uint32_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read ndim failed %d\n", nread);
+                fprintf(stderr, "read ndim failed %zd\n", nread);
                 return false;
             }
 
@@ -623,7 +623,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             nread = fread(&shape[0], ndim * sizeof(int64_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read shape failed %d\n", nread);
+                fprintf(stderr, "read shape failed %zd\n", nread);
                 return false;
             }
         }
@@ -632,7 +632,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             nread = fread(&ndim, sizeof(uint32_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read ndim failed %d\n", nread);
+                fprintf(stderr, "read ndim failed %zd\n", nread);
                 return false;
             }
 
@@ -640,7 +640,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             nread = fread(&shape[0], ndim * sizeof(int64_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read shape failed %d\n", nread);
+                fprintf(stderr, "read shape failed %zd\n", nread);
                 return false;
             }
         }
@@ -655,7 +655,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             nread = fread(&shape32[0], ndim * sizeof(uint32_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read shape failed %d\n", nread);
+                fprintf(stderr, "read shape failed %zd\n", nread);
                 return false;
             }
 
@@ -671,13 +671,13 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread(&dev_type, sizeof(int32_t), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read dev_type failed %d\n", nread);
+            fprintf(stderr, "read dev_type failed %zd\n", nread);
             return false;
         }
         nread = fread(&dev_id, sizeof(int32_t), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read dev_id failed %d\n", nread);
+            fprintf(stderr, "read dev_id failed %zd\n", nread);
             return false;
         }
 
@@ -685,7 +685,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread(&type_flag, sizeof(int32_t), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read type_flag failed %d\n", nread);
+            fprintf(stderr, "read type_flag failed %zd\n", nread);
             return false;
         }
 
@@ -702,7 +702,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread(&p.data[0], len * sizeof(float), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read MXNetParam data failed %d\n", nread);
+            fprintf(stderr, "read MXNetParam data failed %zd\n", nread);
             return false;
         }
 
@@ -716,7 +716,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
     nread = fread(&name_count, sizeof(uint64_t), 1, fp);
     if (nread != 1)
     {
-        fprintf(stderr, "read name_count failed %d\n", nread);
+        fprintf(stderr, "read name_count failed %zd\n", nread);
         return false;
     }
 
@@ -728,7 +728,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread(&len, sizeof(uint64_t), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read name length failed %d\n", nread);
+            fprintf(stderr, "read name length failed %zd\n", nread);
             return false;
         }
 
@@ -738,7 +738,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread((char*)p.name.data(), len, 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read MXNetParam name failed %d\n", nread);
+            fprintf(stderr, "read MXNetParam name failed %zd\n", nread);
             return false;
         }
 
@@ -762,8 +762,8 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
 
 static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<int, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
 {
-    int node_count = nodes.size();
-    for (int i=0; i<node_count; i++)
+    size_t node_count = nodes.size();
+    for (size_t i=0; i<node_count; i++)
     {
         const MXNetNode& n = nodes[i];
 
@@ -943,7 +943,7 @@ int main(int argc, char** argv)
     // magic
     fprintf(pp, "7767517\n");
 
-    int node_count = nodes.size();
+    size_t node_count = nodes.size();
 
     // node reference
     std::map<int, int> node_reference;
@@ -1095,7 +1095,7 @@ int main(int argc, char** argv)
 
 //     fprintf(stderr, "%d %d %d %d, %d %d\n", node_count, reduced_node_count, node_reference.size(), weight_nodes.size(), blob_names.size(), splitncnn_blob_count);
 
-    fprintf(pp, "%lu %lu\n", node_count - reduced_node_count + node_reference.size() - weight_nodes.size(), blob_names.size() + splitncnn_blob_count);
+    fprintf(pp, "%zu %zu\n", node_count - reduced_node_count + node_reference.size() - weight_nodes.size(), blob_names.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 
@@ -1469,7 +1469,7 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", n.op.c_str());
         }
 
-        int input_size = n.inputs.size();
+        size_t input_size = n.inputs.size();
         for (int j=0; j<(int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
@@ -1485,7 +1485,7 @@ int main(int argc, char** argv)
             input_size--;
         }
 
-        fprintf(pp, " %-32s %d %d", n.name.c_str(), input_size, n.output_size);
+        fprintf(pp, " %-32s %zd %d", n.name.c_str(), input_size, n.output_size);
 
         for (int j=0; j<(int)n.inputs.size(); j++)
         {
@@ -1749,7 +1749,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "BatchNorm")
         {
-            float eps = 1e-3;
+            float eps = 1e-3f;
             if (n.has_attr("eps")) {
                 eps = n.attr("eps");
             }
@@ -1757,7 +1757,7 @@ int main(int argc, char** argv)
             std::vector<float> slope_data = n.weight(0);
             std::vector<float> bias_data = n.weight(1);
 
-            int channels = slope_data.size();
+            int channels = static_cast<int>(slope_data.size());
 
             std::vector<float> mean_data = n.weight(2, channels);
             std::vector<float> var_data = n.weight(3, channels);
@@ -1961,7 +1961,7 @@ int main(int argc, char** argv)
             {
             // reorder weight from inch-outch to outch-inch
             int num_filter_g = num_filter / num_group;
-            int num_input = weight_data.size() / maxk / num_filter_g / num_group;
+            int num_input = static_cast<int>(weight_data.size() / maxk / num_filter_g / num_group);
             const float* weight_data_ptr = weight_data.data() + g * maxk * num_filter_g * num_input;
             for (int k=0; k<num_filter_g; k++)
             {
@@ -2115,7 +2115,7 @@ int main(int argc, char** argv)
         else if (n.op == "L2Normalization")
         {
             std::string mode = n.attr("mode");
-            float eps = n.has_attr("eps") ? n.attr("eps") : 1e-10;
+            float eps = n.has_attr("eps") ? n.attr("eps") : 1e-10f;
 
             int across_spatial = 0;
             int across_channel = 1;
@@ -2205,7 +2205,7 @@ int main(int argc, char** argv)
             {
                 // if axis set, reduce according to axis
                 fprintf(pp, " 1=%d", 0);
-                fprintf(pp, " -23303=%d", axis.size());
+                fprintf(pp, " -23303=%zd", axis.size());
                 for (int i=0; i< axis.size(); i++)
                 {
                     if (axis[i] == 0 || axis[i] > 3 || axis[i] < -3)
@@ -2391,12 +2391,12 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
-            fprintf(pp, " -23309=%d", begin.size());
+            fprintf(pp, " -23309=%zd", begin.size());
             for (int i=0; i<(int)begin.size(); i++)
             {
                 fprintf(pp, ",%d", begin[i]);
             }
-            fprintf(pp, " -23310=%d", end.size());
+            fprintf(pp, " -23310=%zd", end.size());
             for (int i=0; i<(int)end.size(); i++)
             {
                 fprintf(pp, ",%d", end[i]);
@@ -2466,7 +2466,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(pp, " -23303=%d", axis.size());
+                fprintf(pp, " -23303=%zd", axis.size());
                 for (int i=0; i<(int)axis.size(); i++)
                 {
                     fprintf(pp, ",%d", axis[i]);

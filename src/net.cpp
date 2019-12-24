@@ -535,7 +535,7 @@ int Net::load_param(const unsigned char* _mem)
     const unsigned char* mem = _mem;
     DataReaderFromMemory dr(mem);
     load_param_bin(dr);
-    return mem - _mem;
+    return static_cast<int>(mem - _mem);
 }
 
 int Net::load_model(const unsigned char* _mem)
@@ -543,7 +543,7 @@ int Net::load_model(const unsigned char* _mem)
     const unsigned char* mem = _mem;
     DataReaderFromMemory dr(mem);
     load_model(dr);
-    return mem - _mem;
+    return static_cast<int>(mem - _mem);
 }
 
 #if __ANDROID_API__ >= 9
@@ -947,7 +947,7 @@ int Net::find_blob_index_by_name(const char* name) const
         const Blob& blob = blobs[i];
         if (blob.name == name)
         {
-            return i;
+            return static_cast<int>(i);
         }
     }
 
@@ -962,7 +962,7 @@ int Net::find_layer_index_by_name(const char* name) const
         const Layer* layer = layers[i];
         if (layer->name == name)
         {
-            return i;
+            return static_cast<int>(i);
         }
     }
 
@@ -972,11 +972,11 @@ int Net::find_layer_index_by_name(const char* name) const
 
 int Net::custom_layer_to_index(const char* type)
 {
-    const int custom_layer_registry_entry_count = custom_layer_registry.size();
-    for (int i=0; i<custom_layer_registry_entry_count; i++)
+    const size_t custom_layer_registry_entry_count = custom_layer_registry.size();
+    for (size_t i=0; i<custom_layer_registry_entry_count; i++)
     {
         if (strcmp(type, custom_layer_registry[i].name) == 0)
-            return i;
+            return static_cast<int>(i);
     }
 
     return -1;
@@ -994,7 +994,7 @@ Layer* Net::create_custom_layer(const char* type)
 
 Layer* Net::create_custom_layer(int index)
 {
-    const int custom_layer_registry_entry_count = custom_layer_registry.size();
+    const size_t custom_layer_registry_entry_count = custom_layer_registry.size();
     if (index < 0 || index >= custom_layer_registry_entry_count)
         return 0;
 
@@ -1798,7 +1798,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 }
 #endif // NCNN_VULKAN
 
-Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
+Extractor::Extractor(const Net* _net, size_t blob_count) : net(_net)
 {
     blob_mats.resize(blob_count);
     opt = net->opt;

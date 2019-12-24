@@ -713,7 +713,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     }
                     else if (activation_type == 4)
                     {
-                        sum = 1.f / (1.f + exp(-sum));
+                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
                     }
 
                     outptr[j] = sum;
@@ -788,7 +788,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     }
                     else if (activation_type == 4)
                     {
-                        sum = 1.f / (1.f + exp(-sum));
+                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
                     }
 
                     outptr[j] = sum;
