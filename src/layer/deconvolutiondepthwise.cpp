@@ -197,7 +197,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
 
                 for (int i = 0; i < size; i++)
                 {
-                    outptr[i] = 1.f / (1.f + exp(-outptr[i]));
+                    outptr[i] = static_cast<float>(1.f / (1.f + exp(-outptr[i])));
                 }
             }
         }
@@ -291,7 +291,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int i = 0; i < size; i++)
                     {
-                        outptr[i] = 1.f / (1.f + exp(-outptr[i]));
+                        outptr[i] = static_cast<float>(1.f / (1.f + exp(-outptr[i])));
                     }
                 }
             }
