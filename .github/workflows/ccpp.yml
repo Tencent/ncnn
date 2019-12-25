@@ -1,15 +1,31 @@
 name: C/C++ CI
 
-on: [push, pull request]
+on: [push, pull_request]
 
 jobs:
-  build:
-
+  build-linux:
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@master
-    - name: cmake
-      run: cmake .
-    - name: make
-      run: make
+    - uses: actions/checkout@v1
+    - name: configure
+      run: mkdir build && cd build && cmake ..
+    - name: build
+      run: cmake --build build
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: mkdir build && cd build && cmake ..
+    - name: build
+      run: cmake --build build
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: mkdir build && cd build && cmake ..
+    - name: build
+      run: cmake --build build
