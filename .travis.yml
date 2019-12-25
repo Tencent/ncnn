@@ -53,6 +53,14 @@ matrix:
         - BEFORE_BUILD="wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz"
         - BUILD="export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON .. && make -j2"
 
+    - name: "linux-mips-mti"
+      os: linux
+      dist: bionic
+      env:
+        - NAME=linux-mips-mti
+        - BEFORE_BUILD="wget https://codescape.mips.com/components/toolchain/2019.09-01/Codescape.GNU.Tools.Package.2019.09-01.for.MIPS.MTI.Linux.CentOS-6.x86_64.tar.gz -O mips-mti-linux-gnu.tar.gz && tar -zxf mips-mti-linux-gnu.tar.gz"
+        - BUILD="export PATH=`pwd`/mips-mti-linux-gnu/2019.09-01/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mips-mti-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF .. && make -j2"
+
     - name: "macos-clang"
       os: osx
       osx_image: xcode9.4
