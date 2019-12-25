@@ -1654,7 +1654,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
     DECOMPOSE_N
 
     if (n4 > 0) {
-        fprintf(stdout, "start m4n4 \n");
+//         fprintf(stdout, "start m4n4 \n");
         asm volatile(
         "8:                             \n"
         "   eor v8.8b, v8.8b, v8.8b    \n"
@@ -2033,7 +2033,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
     }
 
     if (n2 > 0) {
-        fprintf(stdout, "start m4n2 \n");
+//         fprintf(stdout, "start m4n2 \n");
         asm volatile(
         "    eor v8.8b, v8.8b, v8.8b    \n"
         "    eor v9.8b, v9.8b, v9.8b    \n"
@@ -2336,7 +2336,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
     }
 
     if (n1 > 0) {
-        fprintf(stdout, "start m4n1 \n");
+//         fprintf(stdout, "start m4n1 \n");
         asm volatile(
         "    eor v8.8b, v8.8b, v8.8b    \n"
         "    eor v9.8b, v9.8b, v9.8b    \n"
