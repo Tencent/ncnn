@@ -1,18 +1,30 @@
-name: C/C++ CI
+name: CI
 
 on: [push]
 
 jobs:
-  build-linux:
+  linux-gcc:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
-      run: cmake --build build
+      run: make -j2
 
-  build-windows:
+  linux-clang:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      env:
+        CC: clang
+        CXX: clang++
+      run: mkdir build && cd build && cmake ..
+    - name: build
+      run: make -j2
+
+  windows-vs2019:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v1
@@ -21,11 +33,20 @@ jobs:
     - name: build
       run: cmake --build build
 
-  build-macos:
+  macos-clang:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v1
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
-      run: cmake --build build
+      run: make -j2
+
+  ios-iphoneos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS ..
+    - name: build
+      run: make -j2
