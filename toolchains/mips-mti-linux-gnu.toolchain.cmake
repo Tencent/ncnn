@@ -1,7 +1,7 @@
 # set cross-compiled system type, it's better not use the type which cmake cannot recognized.
 SET ( CMAKE_SYSTEM_NAME Linux )
 SET ( CMAKE_SYSTEM_PROCESSOR mips )
-# for the reason of mips-mti-linux-gnu need to be installed, make sure mips-mti-linux-gnu-gcc and mips-mti-linux-gnu-g++ can be found in $PATH: 
+# make sure mips-mti-linux-gnu-gcc and mips-mti-linux-gnu-g++ can be found in $PATH:
 SET ( CMAKE_C_COMPILER "mips-mti-linux-gnu-gcc" )
 SET ( CMAKE_CXX_COMPILER "mips-mti-linux-gnu-g++" )
 
