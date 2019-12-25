@@ -10,7 +10,7 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
-      run: make -j2
+      run: cmake --build build
 
   linux-clang:
     runs-on: ubuntu-latest
@@ -22,7 +22,7 @@ jobs:
         CXX: clang++
       run: mkdir build && cd build && cmake ..
     - name: build
-      run: make -j2
+      run: cmake --build build
 
   windows-vs2019:
     runs-on: windows-latest
@@ -40,7 +40,7 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
-      run: make -j2
+      run: cmake --build build
 
   ios-iphoneos:
     runs-on: macos-latest
@@ -49,4 +49,4 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS ..
     - name: build
-      run: make -j2
+      run: cmake --build build
