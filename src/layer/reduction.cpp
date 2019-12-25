@@ -753,17 +753,17 @@ struct post_process_identity {
 
 template<typename T>
 struct post_process_sqrt {
-    T operator() (const T& x) const { return sqrt(x); }
+    T operator() (const T& x) const { return static_cast<T>(sqrt(x)); }
 };
 
 template<typename T>
 struct post_process_log {
-    T operator() (const T& x) const { return log(x); }
+    T operator() (const T& x) const { return static_cast<T>(log(x)); }
 };
 
 template<typename T>
 struct reduction_op_asum {
-    T operator() (const T& x, const T& y) const { return x + fabs(y); }
+    T operator() (const T& x, const T& y) const { return static_cast<T>(x + fabs(y)); }
 };
 
 template<typename T>
@@ -773,7 +773,7 @@ struct reduction_op_sumsq {
 
 template<typename T>
 struct reduction_op_sumsexp {
-    T operator() (const T& x, const T& y) const { return x + exp(y); }
+    T operator() (const T& x, const T& y) const { return static_cast<T>(x + exp(y)); }
 };
 
 template<typename T>
