@@ -1,6 +1,6 @@
 name: C/C++ CI
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   build-linux:
@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: configure
-      run: mkdir build && cd build && cmake ..
+      run: mkdir build; cd build; cmake ..
     - name: build
       run: cmake --build build
 
