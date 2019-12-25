@@ -12,6 +12,17 @@ jobs:
     - name: build
       run: cmake --build build
 
+  linux-gcc-gpu:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: vulkansdk
+      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+    - name: configure
+      run: export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
+    - name: build
+      run: cmake --build build
+
   linux-clang:
     runs-on: ubuntu-latest
     steps:
@@ -24,12 +35,17 @@ jobs:
     - name: build
       run: cmake --build build
 
-  windows-vs2019:
-    runs-on: windows-latest
+  linux-clang-gpu:
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
+    - name: vulkansdk
+      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
-      run: mkdir build; cd build; cmake ..
+      env:
+        CC: clang
+        CXX: clang++
+      run: export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build
 
@@ -42,11 +58,51 @@ jobs:
     - name: build
       run: cmake --build build
 
+  macos-clang-gpu:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: vulkansdk
+      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz && tar -xf vulkansdk-macos-1.1.92.1.tar.gz
+    - name: configure
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
+    - name: build
+      run: cmake --build build
+
+  windows-vs2019:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: mkdir build; cd build; cmake ..
+    - name: build
+      run: cmake --build build
+
   ios-iphoneos:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v1
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS ..
+    - name: build
+      run: cmake --build build
+
+  ios-iphoneos-gpu:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: vulkansdk
+      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz && tar -xf vulkansdk-macos-1.1.92.1.tar.gz
+    - name: configure
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DVulkan_INCLUDE_DIR=`pwd`/vulkansdk-macos-1.1.92.1/MoltenVK/include -DVulkan_LIBRARY=`pwd`/vulkansdk-macos-1.1.92.1/MoltenVK/iOS/dynamic/libMoltenVK.dylib -DNCNN_VULKAN=ON ..
+    - name: build
+      run: cmake --build build
+
+  ios-iphonesimulator:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR ..
     - name: build
       run: cmake --build build
