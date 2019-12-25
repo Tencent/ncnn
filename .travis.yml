@@ -22,7 +22,6 @@ matrix:
     - name: "linux-gcc"
       os: linux
       dist: bionic
-<<<<<<< HEAD
       compiler: gcc
       env:
         - NAME=linux-gcc
@@ -185,12 +184,6 @@ matrix:
         - NAME=webassembly
         - BEFORE_BUILD="git clone https://github.com/emscripten-core/emsdk.git && pushd emsdk && ./emsdk install latest && ./emsdk activate latest && popd"
         - BUILD="source emsdk/emsdk_env.sh && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake .. && make -j2"
-=======
-      env:
-        - NAME=linux-gcc-mips32
-        - BEFORE_BUILD="wget https://codescape.mips.com/components/toolchain/2019.09-01/Codescape.GNU.Tools.Package.2019.09-01.for.MIPS.MTI.Linux.CentOS-6.x86_64.tar.gz -O mips-mti-linux-gnu.tar.gz && tar -zxf mips-mti-linux-gnu.tar.gz"
-        - BUILD="export PATH=`pwd`/mips-mti-linux-gnu/2019.09-01/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mips-mti-linux-gnu.toolchain.cmake .. && make -j2"
->>>>>>> dfe57d3... Use codescape mips toolchain in travis
 
 before_install:
   - eval "${BEFORE_BUILD}"
