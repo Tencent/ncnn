@@ -32,6 +32,8 @@
 #include "gpu.h"
 #endif // NCNN_VULKAN
 
+struct AHardwareBuffer;
+
 namespace ncnn {
 
 // the alignment of all the allocated buffers
@@ -295,6 +297,77 @@ public:
 
 private:
 };
+
+class VkImageMemory
+{
+public:
+    VkImage image;
+    VkImageView imageview;
+
+    VkDeviceMemory memory;
+
+    // buffer state, modified by command functions internally
+    // 0=null
+    // 1=created
+    // 2=transfer
+    // 3=compute
+    // 4=readonly
+    mutable int state;
+
+    // initialize and modified by mat
+    int refcount;
+};
+
+class VkImageAllocator : public VkAllocator
+{
+public:
+    VkImageAllocator(const VulkanDevice* _vkdev);
+    virtual ~VkImageAllocator() { clear(); }
+    virtual void clear() {}
+    virtual VkImageMemory* fastMalloc(int width, int height, VkFormat format) = 0;
+    virtual void fastFree(VkImageMemory* ptr) = 0;
+
+protected:
+    virtual VkBufferMemory* fastMalloc(size_t /*size*/) { return 0; }
+    virtual void fastFree(VkBufferMemory* /*ptr*/) {}
+
+protected:
+    VkImage create_image(int width, int height, VkFormat format, VkImageUsageFlags usage);
+    VkImageView create_imageview(VkImage image, VkFormat format);
+    VkDeviceMemory allocate_dedicated_memory(size_t size, VkImage image);
+};
+
+class VkSimpleImageAllocator : public VkImageAllocator
+{
+public:
+    VkSimpleImageAllocator(const VulkanDevice* vkdev);
+    virtual ~VkSimpleImageAllocator();
+
+public:
+    virtual VkImageMemory* fastMalloc(int width, int height, VkFormat format);
+    virtual void fastFree(VkImageMemory* ptr);
+};
+
+#if __ANDROID_API__ >= 26
+class ImportAndroidHardwareBufferPipeline;
+class VkAndroidHardwareBufferImageAllocator : public VkImageAllocator
+{
+public:
+    VkAndroidHardwareBufferImageAllocator(const VulkanDevice* vkdev, const ImportAndroidHardwareBufferPipeline* p);
+    virtual ~VkAndroidHardwareBufferImageAllocator();
+
+public:
+    virtual VkImageMemory* fastMalloc(AHardwareBuffer* hb);
+    virtual void fastFree(VkImageMemory* ptr);
+
+protected:
+    virtual VkImageMemory* fastMalloc(int /*width*/, int /*height*/, VkFormat /*format*/) { return 0; }
+    virtual VkBufferMemory* fastMalloc(size_t /*size*/) { return 0; }
+
+private:
+    const ImportAndroidHardwareBufferPipeline* const q;
+};
+#endif // __ANDROID_API__ >= 26
 
 #endif // NCNN_VULKAN
 

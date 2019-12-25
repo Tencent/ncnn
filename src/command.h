@@ -72,7 +72,7 @@ public:
     void record_write_timestamp(uint32_t query);
 
 #if __ANDROID_API__ >= 26
-    void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, VkImage image, VkImageView imageView, const VkMat& m);
+    void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& im, const VkMat& m);
 #endif // __ANDROID_API__ >= 26
 
     int submit_and_wait();
@@ -102,10 +102,10 @@ protected:
     void record_prepare_transfer_barrier(const VkMat& m);
     void record_prepare_compute_barrier(const VkMat& m);
 
-    void record_initial_image_compute_barrier(VkImage image);
+    void record_initial_image_compute_barrier(const VkImageMat& im);
 
 #if __ANDROID_API__ >= 26
-    void record_update_import_android_hardware_buffer_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, VkSampler sampler, VkImageView imageView, const VkMat& m);
+    void record_update_import_android_hardware_buffer_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, VkSampler sampler, const VkImageMat& im, const VkMat& m);
 #endif // __ANDROID_API__ >= 26
 
 #if NCNN_BENCHMARK
