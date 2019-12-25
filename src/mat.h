@@ -229,7 +229,7 @@ public:
     // the allocator
     Allocator* allocator;
 
-    // the dimensionality
+    // the dimension rank
     int dims;
 
     int w;
@@ -362,7 +362,7 @@ public:
     VkAllocator* allocator;
     VkAllocator* staging_allocator;
 
-    // the dimensionality
+    // the dimension rank
     int dims;
 
     int w;
@@ -370,6 +370,56 @@ public:
     int c;
 
     size_t cstep;
+};
+
+class VkImageMat
+{
+public:
+    // empty
+    VkImageMat();
+    // image
+    VkImageMat(int width, int height, VkFormat format, VkImageAllocator* allocator);
+    // copy
+    VkImageMat(const VkImageMat& m);
+    // external image
+    VkImageMat(int width, int height, VkImageMemory* data, VkFormat format, VkImageAllocator* allocator);
+    // release
+    ~VkImageMat();
+    // assign
+    VkImageMat& operator=(const VkImageMat& m);
+    // allocate image
+    void create(int width, int height, VkFormat format, VkImageAllocator* allocator);
+
+    // refcount++
+    void addref();
+    // refcount--
+    void release();
+
+    bool empty() const;
+    size_t total() const;
+
+    // low-level reference
+    VkImage image() const;
+    VkImageView imageview() const;
+
+#if __ANDROID_API__ >= 26
+    // convenient construct from android hardware buffer
+    static VkImageMat from_android_hardware_buffer(AHardwareBuffer* hb, VkAndroidHardwareBufferImageAllocator* allocator);
+#endif // __ANDROID_API__ >= 26
+
+    // device image
+    VkImageMemory* data;
+
+    // pointer to the reference counter
+    // when points to user-allocated data, the pointer is NULL
+    int* refcount;
+
+    // the allocator
+    VkImageAllocator* allocator;
+
+    int width;
+    int height;
+    VkFormat format;
 };
 
 // type for vulkan specialization constant and push constant
@@ -1648,6 +1698,123 @@ inline size_t VkMat::staging_buffer_offset() const
 {
     return staging_data->offset;
 }
+
+inline VkImageMat::VkImageMat()
+    : data(0), refcount(0), allocator(0), width(0), height(0), format(VK_FORMAT_UNDEFINED)
+{
+}
+
+inline VkImageMat::VkImageMat(int _width, int _height, VkFormat _format, VkImageAllocator* _allocator)
+    : data(0), refcount(0), allocator(0), width(0), height(0), format(VK_FORMAT_UNDEFINED)
+{
+    create(_width, _height, _format, _allocator);
+}
+
+inline VkImageMat::VkImageMat(const VkImageMat& m)
+    : data(m.data), refcount(m.refcount), allocator(m.allocator), width(m.width), height(m.height), format(m.format)
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+}
+
+inline VkImageMat::VkImageMat(int _width, int _height, VkImageMemory* _data, VkFormat _format, VkImageAllocator* _allocator)
+    : data(_data), refcount(0), allocator(_allocator), width(_width), height(_height), format(_format)
+{
+}
+
+inline VkImageMat::~VkImageMat()
+{
+    release();
+}
+
+inline VkImageMat& VkImageMat::operator=(const VkImageMat& m)
+{
+    if (this == &m)
+        return *this;
+
+    if (m.refcount)
+        NCNN_XADD(m.refcount, 1);
+
+    release();
+
+    data = m.data;
+    refcount = m.refcount;
+    allocator = m.allocator;
+
+    width = m.width;
+    height = m.height;
+    format = m.format;
+
+    return *this;
+}
+
+inline void VkImageMat::create(int _width, int _height, VkFormat _format, VkImageAllocator* _allocator)
+{
+    if (width == _width && height == _height && format == _format && allocator == _allocator)
+        return;
+
+    release();
+
+    allocator = _allocator;
+
+    width = _width;
+    height = _height;
+    format = _format;
+
+    if (total() > 0)
+    {
+        data = allocator->fastMalloc(width, height, format);
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+inline void VkImageMat::addref()
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+}
+
+inline void VkImageMat::release()
+{
+    if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
+        if (allocator && data)
+        {
+            allocator->fastFree(data);
+        }
+    }
+
+    data = 0;
+
+    width = 0;
+    height = 0;
+    format = VK_FORMAT_UNDEFINED;
+
+    refcount = 0;
+}
+
+inline bool VkImageMat::empty() const
+{
+    return data == 0 || total() == 0;
+}
+
+inline size_t VkImageMat::total() const
+{
+    return width * height;
+}
+
+inline VkImage VkImageMat::image() const
+{
+    return data->image;
+}
+
+inline VkImageView VkImageMat::imageview() const
+{
+    return data->imageview;
+}
+
 #endif // NCNN_VULKAN
 
 } // namespace ncnn

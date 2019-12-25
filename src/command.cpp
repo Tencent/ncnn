@@ -324,13 +324,13 @@ void VkCompute::record_write_timestamp(uint32_t query)
 #endif // NCNN_BENCHMARK
 
 #if __ANDROID_API__ >= 26
-void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, VkImage image, VkImageView imageView, const VkMat& m)
+void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& im, const VkMat& m)
 {
-    record_initial_image_compute_barrier(image);
+    record_initial_image_compute_barrier(im);
 
     record_bind_pipeline(pipeline->pipeline);
 
-    record_update_import_android_hardware_buffer_bindings(pipeline->pipeline_layout, pipeline->descriptorset_layout, pipeline->descriptor_update_template, pipeline->sampler, imageView, m);
+    record_update_import_android_hardware_buffer_bindings(pipeline->pipeline_layout, pipeline->descriptorset_layout, pipeline->descriptor_update_template, pipeline->sampler, im, m);
 
     uint32_t group_count_xyz[3];
     group_count_xyz[0] = (m.w + 7) / 8;
@@ -552,23 +552,23 @@ void VkCompute::record_prepare_compute_barrier(const VkMat& m)
     m.data->state = 3;
 }
 
-void VkCompute::record_initial_image_compute_barrier(VkImage image)
+void VkCompute::record_initial_image_compute_barrier(const VkImageMat& im)
 {
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return initial_image_compute_barrier(image);
+        return initial_image_compute_barrier(im.image());
 
     record_type r;
     r.type = 11;
-    r.initial_image_compute_barrier.image = image;
+    r.initial_image_compute_barrier.image = im.image();
     delayed_records.push_back(r);
 }
 
 #if __ANDROID_API__ >= 26
-void VkCompute::record_update_import_android_hardware_buffer_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, VkSampler sampler, VkImageView imageView, const VkMat& m)
+void VkCompute::record_update_import_android_hardware_buffer_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, VkSampler sampler, const VkImageMat& im, const VkMat& m)
 {
     VkDescriptorImageInfo descriptorImageInfo;
     descriptorImageInfo.sampler = sampler;
-    descriptorImageInfo.imageView = imageView;
+    descriptorImageInfo.imageView = im.imageview();
     descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
     VkDescriptorBufferInfo descriptorBufferInfo;
