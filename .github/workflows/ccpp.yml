@@ -117,11 +117,11 @@ jobs:
         Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
-        mkdir build-vs; cd build-vs; cmake -DCMAKE_INSTALL_PREFIX=$HOME/protobuf-3.11.2-install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+        mkdir build-vs; cd build-vs; cmake -DCMAKE_INSTALL_PREFIX=install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release
         cmake --build . --config Release --target install
     - name: configure
-      run: mkdir build; cd build; cmake -DProtobuf_INCLUDE_DIR=$HOME/protobuf-3.11.2-install/include -DProtobuf_LIBRARIES=$HOME/protobuf-3.11.2-install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=$HOME/protobuf-3.11.2-install/bin/protoc.exe ..
+      run: mkdir build; cd build; cmake -DProtobuf_INCLUDE_DIR=../protobuf-3.11.2/build-vs/install/include -DProtobuf_LIBRARIES=../protobuf-3.11.2/build-vs/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=../protobuf-3.11.2/build-vs/install/bin/protoc.exe ..
     - name: build
       run: cmake --build build
 
@@ -134,7 +134,7 @@ jobs:
         Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
-        mkdir build-vs; cd build-vs; cmake -DCMAKE_INSTALL_PREFIX=$HOME/protobuf-3.11.2-install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+        mkdir build-vs; cd build-vs; cmake -DCMAKE_INSTALL_PREFIX=install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release
         cmake --build . --config Release --target install
     - name: cache-vulkansdk
@@ -149,7 +149,7 @@ jobs:
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -OutFile VulkanSDK-1.1.92.1-Installer.exe
         7z x ./VulkanSDK-1.1.92.1-Installer.exe -oVulkanSDK
     - name: configure
-      run: $env:VULKAN_SDK="$(pwd)/VulkanSDK"; mkdir build; cd build; cmake -DProtobuf_INCLUDE_DIR=$HOME/protobuf-3.11.2-install/include -DProtobuf_LIBRARIES=$HOME/protobuf-3.11.2-install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=$HOME/protobuf-3.11.2-install/bin/protoc.exe -DNCNN_VULKAN=ON ..
+      run: $env:VULKAN_SDK="$(pwd)/VulkanSDK"; mkdir build; cd build; cmake -DProtobuf_INCLUDE_DIR=../protobuf-3.11.2/build-vs/install/include -DProtobuf_LIBRARIES=../protobuf-3.11.2/build-vs/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=../protobuf-3.11.2/build-vs/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build
 
