@@ -28,7 +28,9 @@ jobs:
         key: vulkansdk-linux-x86_64-1.1.92.1
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
-      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
       run: export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
@@ -62,7 +64,9 @@ jobs:
         key: vulkansdk-linux-x86_64-1.1.92.1
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
-      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
       env:
         CC: clang
@@ -88,8 +92,17 @@ jobs:
     - uses: actions/checkout@v1
     - name: protobuf
       run: brew install protobuf
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "vulkansdk-macos-1.1.92.1"
+        key: vulkansdk-macos-1.1.92.1
     - name: vulkansdk
-      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz && tar -xf vulkansdk-macos-1.1.92.1.tar.gz
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz
+        tar -xf vulkansdk-macos-1.1.92.1.tar.gz
     - name: configure
       run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
@@ -112,8 +125,17 @@ jobs:
     - uses: actions/checkout@v1
     - name: protobuf
       run: choco install protoc
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "VulkanSDK"
+        key: VulkanSDK-1.1.92.1-Installer
     - name: vulkansdk
-      run: Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -OutFile VulkanSDK-1.1.92.1-Installer.exe; 7z x ./VulkanSDK-1.1.92.1-Installer.exe -oVulkanSDK
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -OutFile VulkanSDK-1.1.92.1-Installer.exe
+        7z x ./VulkanSDK-1.1.92.1-Installer.exe -oVulkanSDK
     - name: configure
       run: $env:VULKAN_SDK="$(pwd)/VulkanSDK"; mkdir build; cd build; cmake -DNCNN_VULKAN=ON ..
     - name: build
@@ -140,7 +162,9 @@ jobs:
         key: vulkansdk-linux-x86_64-1.1.92.1
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
-      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
       run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
@@ -167,7 +191,9 @@ jobs:
         key: vulkansdk-linux-x86_64-1.1.92.1
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
-      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
       run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
@@ -194,7 +220,9 @@ jobs:
         key: vulkansdk-linux-x86_64-1.1.92.1
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
-      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
       run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
@@ -221,7 +249,9 @@ jobs:
         key: vulkansdk-linux-x86_64-1.1.92.1
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
-      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
       run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
@@ -240,8 +270,17 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v1
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "vulkansdk-macos-1.1.92.1"
+        key: vulkansdk-macos-1.1.92.1
     - name: vulkansdk
-      run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz && tar -xf vulkansdk-macos-1.1.92.1.tar.gz
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz
+        tar -xf vulkansdk-macos-1.1.92.1.tar.gz
     - name: configure
       run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.1.92.1/MoltenVK/include -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.1.92.1/MoltenVK/iOS/dynamic/libMoltenVK.dylib -DNCNN_VULKAN=ON ..
     - name: build
