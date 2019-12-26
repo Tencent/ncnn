@@ -1,6 +1,6 @@
 name: CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   linux-gcc:
@@ -166,7 +166,11 @@ jobs:
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -OutFile VulkanSDK-1.1.92.1-Installer.exe
         7z x ./VulkanSDK-1.1.92.1-Installer.exe -oVulkanSDK
     - name: configure
-      run: $env:VULKAN_SDK="$(pwd)/VulkanSDK"; mkdir build; cd build; cmake -DProtobuf_INCLUDE_DIR=../protobuf-3.11.2/build-vs2019/install/include -DProtobuf_LIBRARY_DEBUG=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_LIBRARY=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=../protobuf-3.11.2/build-vs2019/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
+      run: |
+        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        mkdir build
+        cd build
+        cmake -DProtobuf_INCLUDE_DIR=../protobuf-3.11.2/build-vs2019/install/include -DProtobuf_LIBRARY_DEBUG=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_LIBRARY=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=../protobuf-3.11.2/build-vs2019/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build
 
