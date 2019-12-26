@@ -128,7 +128,7 @@ jobs:
         cmake --build . --config Release
         cmake --build . --config Release --target install
     - name: configure
-      run: mkdir build; cd build; cmake -DCMAKE_INSTALL_PREFIX=../protobuf-3.11.2/build-vs2019/install ..
+      run: mkdir build; cd build; cmake -DCMAKE_PREFIX_PATH=../protobuf-3.11.2/build-vs2019/install ..
     - name: build
       run: cmake --build build
 
@@ -163,7 +163,7 @@ jobs:
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -OutFile VulkanSDK-1.1.92.1-Installer.exe
         7z x ./VulkanSDK-1.1.92.1-Installer.exe -oVulkanSDK
     - name: configure
-      run: $env:VULKAN_SDK="$(pwd)/VulkanSDK"; mkdir build; cd build; cmake -DCMAKE_INSTALL_PREFIX=../protobuf-3.11.2/build-vs2019/install -DNCNN_VULKAN=ON ..
+      run: $env:VULKAN_SDK="$(pwd)/VulkanSDK"; mkdir build; cd build; cmake -DCMAKE_PREFIX_PATH=../protobuf-3.11.2/build-vs2019/install -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build
 
