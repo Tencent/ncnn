@@ -12,7 +12,7 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   linux-gcc-gpu:
     runs-on: ubuntu-latest
@@ -34,7 +34,7 @@ jobs:
     - name: configure
       run: export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   linux-clang:
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
         CXX: clang++
       run: mkdir build && cd build && cmake ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   linux-clang-gpu:
     runs-on: ubuntu-latest
@@ -73,7 +73,7 @@ jobs:
         CXX: clang++
       run: export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   linux-mips-mti:
     runs-on: ubuntu-latest
@@ -88,7 +88,7 @@ jobs:
         export PATH=`pwd`/mips-mti-linux-gnu/2019.09-01/bin:$PATH
         mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mips-mti-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   macos-clang:
     runs-on: macos-latest
@@ -99,7 +99,7 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   macos-clang-gpu:
     runs-on: macos-latest
@@ -121,7 +121,7 @@ jobs:
     - name: configure
       run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   windows-vs2019:
     runs-on: windows-latest
@@ -140,7 +140,7 @@ jobs:
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
         mkdir build-vs2019; cd build-vs2019; cmake -DCMAKE_INSTALL_PREFIX=install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release
+        cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: configure
       run: |
@@ -148,7 +148,7 @@ jobs:
         cd build
         cmake -DProtobuf_INCLUDE_DIR=../protobuf-3.11.2/build-vs2019/install/include -DProtobuf_LIBRARY_DEBUG=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_LIBRARY=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=../protobuf-3.11.2/build-vs2019/install/bin/protoc.exe ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   windows-vs2019-gpu:
     runs-on: windows-latest
@@ -167,7 +167,7 @@ jobs:
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
         mkdir build-vs2019; cd build-vs2019; cmake -DCMAKE_INSTALL_PREFIX=install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release
+        cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: cache-vulkansdk
       id: cache-vulkansdk
@@ -187,7 +187,7 @@ jobs:
         cd build
         cmake -DProtobuf_INCLUDE_DIR=../protobuf-3.11.2/build-vs2019/install/include -DProtobuf_LIBRARY_DEBUG=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_LIBRARY=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=../protobuf-3.11.2/build-vs2019/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   android-armv7:
     runs-on: ubuntu-latest
@@ -196,7 +196,7 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   android-armv7-gpu:
     runs-on: ubuntu-latest
@@ -216,7 +216,7 @@ jobs:
     - name: configure
       run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   android-aarch64:
     runs-on: ubuntu-latest
@@ -225,7 +225,7 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   android-aarch64-gpu:
     runs-on: ubuntu-latest
@@ -245,7 +245,7 @@ jobs:
     - name: configure
       run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   android-x86:
     runs-on: ubuntu-latest
@@ -254,7 +254,7 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86"  -DANDROID_PLATFORM=android-14 ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   android-x86-gpu:
     runs-on: ubuntu-latest
@@ -274,7 +274,7 @@ jobs:
     - name: configure
       run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   android-x86_64:
     runs-on: ubuntu-latest
@@ -283,7 +283,7 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   android-x86_64-gpu:
     runs-on: ubuntu-latest
@@ -303,7 +303,7 @@ jobs:
     - name: configure
       run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   ios-iphoneos:
     runs-on: macos-latest
@@ -312,7 +312,7 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   ios-iphoneos-gpu:
     runs-on: macos-latest
@@ -332,7 +332,7 @@ jobs:
     - name: configure
       run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.1.92.1/MoltenVK/include -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.1.92.1/MoltenVK/iOS/dynamic/libMoltenVK.dylib -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   ios-iphonesimulator:
     runs-on: macos-latest
@@ -341,7 +341,7 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
 
   webassembly:
     runs-on: ubuntu-latest
@@ -356,4 +356,4 @@ jobs:
     - name: configure
       run: source emsdk/emsdk_env.sh && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake ..
     - name: build
-      run: cmake --build build
+      run: cmake --build build -j 2
