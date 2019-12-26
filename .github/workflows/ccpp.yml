@@ -131,8 +131,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        dir ../protobuf-3.11.2/build-vs2019/install
-        cmake -DCMAKE_PREFIX_PATH=../protobuf-3.11.2/build-vs2019/install ..
+        cmake -DCMAKE_INCLUDE_PATH=../protobuf-3.11.2/build-vs2019/install/include -DCMAKE_LIBRARY_PATH=../protobuf-3.11.2/build-vs2019/install/lib -DProtobuf_PROTOC_EXECUTABLE=../protobuf-3.11.2/build-vs2019/install/bin/protoc.exe ..
     - name: build
       run: cmake --build build
 
@@ -167,7 +166,7 @@ jobs:
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -OutFile VulkanSDK-1.1.92.1-Installer.exe
         7z x ./VulkanSDK-1.1.92.1-Installer.exe -oVulkanSDK
     - name: configure
-      run: $env:VULKAN_SDK="$(pwd)/VulkanSDK"; mkdir build; cd build; cmake -DCMAKE_PREFIX_PATH=../protobuf-3.11.2/build-vs2019/install -DNCNN_VULKAN=ON ..
+      run: $env:VULKAN_SDK="$(pwd)/VulkanSDK"; mkdir build; cd build; cmake -DCMAKE_INCLUDE_PATH=../protobuf-3.11.2/build-vs2019/install/include -DCMAKE_LIBRARY_PATH=../protobuf-3.11.2/build-vs2019/install/lib -DProtobuf_PROTOC_EXECUTABLE=../protobuf-3.11.2/build-vs2019/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build
 
