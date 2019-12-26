@@ -123,17 +123,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: cache-androidndk
-      id: cache-androidndk
-      uses: actions/cache@v1
-      with:
-        path: "android-ndk-r19c"
-        key: android-ndk-r19c-linux-x86_64
-    - name: androidndk
-      if: steps.cache-androidndk.outputs.cache-hit != 'true'
-      run: wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/../android-ndk-r19c/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/opt/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 ..
     - name: build
       run: cmake --build build
 
@@ -141,15 +132,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: cache-androidndk
-      id: cache-androidndk
-      uses: actions/cache@v1
-      with:
-        path: "android-ndk-r19c"
-        key: android-ndk-r19c-linux-x86_64
-    - name: androidndk
-      if: steps.cache-androidndk.outputs.cache-hit != 'true'
-      run: wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -160,7 +142,7 @@ jobs:
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
-      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/../android-ndk-r19c/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/opt/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build
 
@@ -168,17 +150,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: cache-androidndk
-      id: cache-androidndk
-      uses: actions/cache@v1
-      with:
-        path: "android-ndk-r19c"
-        key: android-ndk-r19c-linux-x86_64
-    - name: androidndk
-      if: steps.cache-androidndk.outputs.cache-hit != 'true'
-      run: wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/../android-ndk-r19c/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/opt/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 ..
     - name: build
       run: cmake --build build
 
@@ -186,15 +159,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: cache-androidndk
-      id: cache-androidndk
-      uses: actions/cache@v1
-      with:
-        path: "android-ndk-r19c"
-        key: android-ndk-r19c-linux-x86_64
-    - name: androidndk
-      if: steps.cache-androidndk.outputs.cache-hit != 'true'
-      run: wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -205,7 +169,7 @@ jobs:
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
-      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/../android-ndk-r19c/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/opt/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build
 
@@ -213,17 +177,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: cache-androidndk
-      id: cache-androidndk
-      uses: actions/cache@v1
-      with:
-        path: "android-ndk-r19c"
-        key: android-ndk-r19c-linux-x86_64
-    - name: androidndk
-      if: steps.cache-androidndk.outputs.cache-hit != 'true'
-      run: wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/../android-ndk-r19c/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86"  -DANDROID_PLATFORM=android-14 ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/opt/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86"  -DANDROID_PLATFORM=android-14 ..
     - name: build
       run: cmake --build build
 
@@ -231,15 +186,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: cache-androidndk
-      id: cache-androidndk
-      uses: actions/cache@v1
-      with:
-        path: "android-ndk-r19c"
-        key: android-ndk-r19c-linux-x86_64
-    - name: androidndk
-      if: steps.cache-androidndk.outputs.cache-hit != 'true'
-      run: wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -250,7 +196,7 @@ jobs:
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
-      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/../android-ndk-r19c/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/opt/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build
 
@@ -258,17 +204,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: cache-androidndk
-      id: cache-androidndk
-      uses: actions/cache@v1
-      with:
-        path: "android-ndk-r19c"
-        key: android-ndk-r19c-linux-x86_64
-    - name: androidndk
-      if: steps.cache-androidndk.outputs.cache-hit != 'true'
-      run: wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/../android-ndk-r19c/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/opt/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 ..
     - name: build
       run: cmake --build build
 
@@ -276,15 +213,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: cache-androidndk
-      id: cache-androidndk
-      uses: actions/cache@v1
-      with:
-        path: "android-ndk-r19c"
-        key: android-ndk-r19c-linux-x86_64
-    - name: androidndk
-      if: steps.cache-androidndk.outputs.cache-hit != 'true'
-      run: wget https://dl.google.com/android/repository/android-ndk-r19c-linux-x86_64.zip && unzip -q android-ndk-r19c-linux-x86_64.zip
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -295,7 +223,7 @@ jobs:
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz && tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
     - name: configure
-      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=`pwd`/../android-ndk-r19c/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=/opt/ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build
 
