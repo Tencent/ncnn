@@ -137,7 +137,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
             sqmean = sqmean / (channels * size);
 
             // normalize variance
-            float norm_var = sqrt(sqmean) + eps;
+            float norm_var = static_cast<float>(sqrt(sqmean) + eps);
             float norm_var_inv = 1.f / norm_var;
 
             // apply normalize_variance
@@ -160,7 +160,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
             {
                 float* outptr = top_blob.channel(q);
                 float sqmean = sqsum[q] / size;
-                float norm_var = sqrt(sqmean) + eps;
+                float norm_var = static_cast<float>(sqrt(sqmean) + eps);
                 float norm_var_inv = 1.f / norm_var;
 
                 for (int i=0; i<size; i++)

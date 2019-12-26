@@ -53,7 +53,7 @@ int Embed::load_model(const ModelBin& mb)
 
 int Embed::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int words = bottom_blob.total();
+    int words = static_cast<int>(bottom_blob.total());
 
     top_blob.create(num_output, words, 4u, opt.blob_allocator);
     if (top_blob.empty())

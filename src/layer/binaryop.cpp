@@ -443,7 +443,7 @@ struct binary_op_min {
 
 template<typename T>
 struct binary_op_pow {
-    T operator() (const T& x, const T& y) const { return pow(x, y); }
+    T operator() (const T& x, const T& y) const { return static_cast<T>(pow(x, y)); }
 };
 
 template<typename T>

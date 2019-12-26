@@ -50,7 +50,7 @@ int Exp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i=0; i<size; i++)
             {
-                ptr[i] = exp(shift + ptr[i] * scale);
+                ptr[i] = static_cast<float>(exp(shift + ptr[i] * scale));
             }
         }
     }
@@ -63,7 +63,7 @@ int Exp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i=0; i<size; i++)
             {
-                ptr[i] = pow(base, (shift + ptr[i] * scale));
+                ptr[i] = static_cast<float>(pow(base, (shift + ptr[i] * scale)));
             }
         }
     }
