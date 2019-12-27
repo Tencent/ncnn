@@ -18,14 +18,13 @@
 
 static int test_relu_0()
 {
-    ncnn::Mat a(6, 7, 8);
-    Randomize(a);
+    ncnn::Mat a = RandomMat(6, 7, 8);
 
     ncnn::ParamDict pd;
     pd.set(0, 0.f);//slope
 
-    ncnn::Mat weights[0];
-    ncnn::ModelBinFromMatArray mb(weights);
+    std::vector<ncnn::Mat> weights(0);
+    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -36,14 +35,13 @@ static int test_relu_0()
 
 static int test_relu_1()
 {
-    ncnn::Mat a(6, 7, 8);
-    Randomize(a);
+    ncnn::Mat a = RandomMat(6, 7, 8);
 
     ncnn::ParamDict pd;
     pd.set(0, 0.1f);//slope
 
-    ncnn::Mat weights[0];
-    ncnn::ModelBinFromMatArray mb(weights);
+    std::vector<ncnn::Mat> weights(0);
+    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;

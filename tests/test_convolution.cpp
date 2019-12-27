@@ -18,8 +18,7 @@
 
 static int test_convolution_0()
 {
-    ncnn::Mat a(6, 7, 15);
-    Randomize(a);
+    ncnn::Mat a = RandomMat(6, 7, 15);
 
     ncnn::ParamDict pd;
     pd.set(0, 15);// num_output
@@ -34,14 +33,10 @@ static int test_convolution_0()
     pd.set(5, 1);// bias_term
     pd.set(6, 15*15*1*1);
 
-    ncnn::Mat weights[2];
-    weights[0] = ncnn::Mat(15*15*1*1);
-    weights[1] = ncnn::Mat(15);
-
-    Randomize(weights[0]);
-    Randomize(weights[1]);
-
-    ncnn::ModelBinFromMatArray mb(weights);
+    std::vector<ncnn::Mat> weights(2);
+    weights[0] = RandomMat(15*15*1*1);
+    weights[1] = RandomMat(15);
+    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;

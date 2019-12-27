@@ -45,6 +45,27 @@ static void Randomize(ncnn::Mat& m)
     }
 }
 
+static ncnn::Mat RandomMat(int w)
+{
+    ncnn::Mat m(w);
+    Randomize(m);
+    return m;
+}
+
+static ncnn::Mat RandomMat(int w, int h)
+{
+    ncnn::Mat m(w, h);
+    Randomize(m);
+    return m;
+}
+
+static ncnn::Mat RandomMat(int w, int h, int c)
+{
+    ncnn::Mat m(w, h, c);
+    Randomize(m);
+    return m;
+}
+
 static bool FloatNearlyEqual(float a, float b, float epsilon)
 {
     if (a == b)
