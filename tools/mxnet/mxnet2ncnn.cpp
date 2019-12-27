@@ -760,7 +760,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
     return true;
 }
 
-static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<int, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<size_t, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
 {
     size_t node_count = nodes.size();
     for (size_t i=0; i<node_count; i++)
@@ -838,10 +838,10 @@ static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNet
     }
 }
 
-static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<int, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<size_t, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
 {
-    int node_count = nodes.size();
-    for (int i=0; i<node_count; i++)
+    size_t node_count = nodes.size();
+    for (size_t i=0; i<node_count; i++)
     {
         const MXNetNode& n = nodes[i];
 
@@ -946,7 +946,7 @@ int main(int argc, char** argv)
     size_t node_count = nodes.size();
 
     // node reference
-    std::map<int, int> node_reference;
+    std::map<size_t, int> node_reference;
 
     // weight node
     std::vector<int> weight_nodes;
@@ -1078,7 +1078,7 @@ int main(int argc, char** argv)
 
     // remove node_reference entry with reference equals to one
     int splitncnn_blob_count = 0;
-    std::map<int, int>::iterator it = node_reference.begin();
+    std::map<size_t, int>::iterator it = node_reference.begin();
     while (it != node_reference.end())
     {
         if (it->second == 1)
