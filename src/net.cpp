@@ -995,7 +995,7 @@ Layer* Net::create_custom_layer(const char* type)
 Layer* Net::create_custom_layer(int index)
 {
     const size_t custom_layer_registry_entry_count = custom_layer_registry.size();
-    if (index < 0 || index >= custom_layer_registry_entry_count)
+    if (index < 0 || static_cast<unsigned int>(index) >= custom_layer_registry_entry_count)
         return 0;
 
     layer_creator_func layer_creator = custom_layer_registry[index].creator;
