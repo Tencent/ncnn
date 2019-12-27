@@ -210,7 +210,9 @@ jobs:
       run: cmake --build build --config Release -j 2
     - name: test
       run: |
-        Copy-Item -Path 'VulkanSDK\RunTimeInstaller\x64\vulkan-1.dll' -Destination 'build'
+        dir VulkanSDK\RunTimeInstaller\x64
+        dir build\tests
+        Copy-Item -Path 'VulkanSDK\RunTimeInstaller\x64\vulkan-1.dll' -Destination 'build\tests'
         cd build; ctest --output-on-failure -j 2
 
   android-armv7:
