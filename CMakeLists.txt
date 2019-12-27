@@ -55,3 +55,6 @@ add_subdirectory(src)
 if(NCNN_BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
+
+enable_testing()
+add_subdirectory(tests)
