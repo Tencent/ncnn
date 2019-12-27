@@ -18,7 +18,7 @@ matrix:
       compiler: gcc
       env:
         - NAME=linux-gcc
-        - BUILD="mkdir build && cd build && cmake .. && make -j2"
+        - BUILD="mkdir build && cd build && cmake .. && make -j2 && ctest --output-on-failure -j 2"
 
     - name: "linux-clang-arm64"
       os: linux
@@ -27,14 +27,14 @@ matrix:
       compiler: clang
       env:
         - NAME=linux-clang
-        - BUILD="mkdir build && cd build && cmake .. && make -j2"
+        - BUILD="mkdir build && cd build && cmake .. && make -j2 && ctest --output-on-failure -j 2"
 
     - name: "windows-vs2017"
       os: windows
       dist: 1803-containers
       env:
         - NAME=windows-vs2017
-        - BUILD="mkdir build && cd build && cmake .. && cmake --build ."
+        - BUILD="mkdir build && cd build && cmake .. && cmake --build . && ctest --output-on-failure -j 2"
 
 before_install:
   - eval "${BEFORE_BUILD}"
