@@ -146,7 +146,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake -DProtobuf_INCLUDE_DIR=../protobuf-3.11.2/build-vs2019/install/include -DProtobuf_LIBRARY_DEBUG=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_LIBRARY=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=../protobuf-3.11.2/build-vs2019/install/bin/protoc.exe ..
+        cmake -DProtobuf_INCLUDE_DIR='..\protobuf-3.11.2\build-vs2019\install\include' -DProtobuf_LIBRARY='..\protobuf-3.11.2\build-vs2019\install\lib\libprotobuf.lib' -DProtobuf_PROTOC_EXECUTABLE='..\protobuf-3.11.2\build-vs2019\install\bin\protoc.exe' ..
     - name: build
       run: cmake --build build -j 2
 
@@ -185,7 +185,7 @@ jobs:
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build
         cd build
-        cmake -DProtobuf_INCLUDE_DIR=../protobuf-3.11.2/build-vs2019/install/include -DProtobuf_LIBRARY_DEBUG=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_LIBRARY=../protobuf-3.11.2/build-vs2019/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=../protobuf-3.11.2/build-vs2019/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
+        cmake -DProtobuf_INCLUDE_DIR='..\protobuf-3.11.2\build-vs2019\install\include' -DProtobuf_LIBRARY='..\protobuf-3.11.2\build-vs2019\install\lib\libprotobuf.lib' -DProtobuf_PROTOC_EXECUTABLE='..\protobuf-3.11.2\build-vs2019\install\bin\protoc.exe' -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
 
