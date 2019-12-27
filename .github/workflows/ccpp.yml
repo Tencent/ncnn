@@ -151,7 +151,7 @@ jobs:
         cd build
         cmake -DProtobuf_INCLUDE_DIR="$Protobuf_INCLUDE_DIR" -DProtobuf_LIBRARIES="$Protobuf_LIBRARIES" -DProtobuf_PROTOC_EXECUTABLE="$Protobuf_PROTOC_EXECUTABLE" ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build --config Release -j 2
 
   windows-vs2019-gpu:
     runs-on: windows-latest
@@ -193,7 +193,7 @@ jobs:
         cd build
         cmake -DProtobuf_INCLUDE_DIR="$Protobuf_INCLUDE_DIR" -DProtobuf_LIBRARIES="$Protobuf_LIBRARIES" -DProtobuf_PROTOC_EXECUTABLE="$Protobuf_PROTOC_EXECUTABLE" -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build --config Release -j 2
 
   android-armv7:
     runs-on: ubuntu-latest
