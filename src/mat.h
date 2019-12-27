@@ -141,8 +141,8 @@ public:
     template<typename T> operator const T*() const;
 
     // convenient access float vec element
-    float& operator[](int i);
-    const float& operator[](int i) const;
+    float& operator[](size_t i);
+    const float& operator[](size_t i) const;
 
 #if NCNN_PIXEL
     enum
@@ -1177,12 +1177,12 @@ inline Mat::operator const T*() const
     return (const T*)data;
 }
 
-inline float& Mat::operator[](int i)
+inline float& Mat::operator[](size_t i)
 {
     return ((float*)data)[i];
 }
 
-inline const float& Mat::operator[](int i) const
+inline const float& Mat::operator[](size_t i) const
 {
     return ((const float*)data)[i];
 }
