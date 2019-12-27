@@ -13,6 +13,8 @@ jobs:
       run: mkdir build && cd build && cmake ..
     - name: build
       run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
 
   linux-gcc-gpu:
     runs-on: ubuntu-latest
@@ -35,6 +37,8 @@ jobs:
       run: export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
 
   linux-clang:
     runs-on: ubuntu-latest
@@ -49,6 +53,8 @@ jobs:
       run: mkdir build && cd build && cmake ..
     - name: build
       run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
 
   linux-clang-gpu:
     runs-on: ubuntu-latest
@@ -74,6 +80,8 @@ jobs:
       run: export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
 
   linux-mips-mti:
     runs-on: ubuntu-latest
@@ -100,6 +108,8 @@ jobs:
       run: mkdir build && cd build && cmake ..
     - name: build
       run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
 
   macos-clang-gpu:
     runs-on: macos-latest
@@ -122,6 +132,8 @@ jobs:
       run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
 
   windows-vs2019:
     runs-on: windows-latest
@@ -152,6 +164,8 @@ jobs:
         cmake -DProtobuf_INCLUDE_DIR="$Protobuf_INCLUDE_DIR" -DProtobuf_LIBRARIES="$Protobuf_LIBRARIES" -DProtobuf_PROTOC_EXECUTABLE="$Protobuf_PROTOC_EXECUTABLE" ..
     - name: build
       run: cmake --build build --config Release -j 2
+    - name: test
+      run: cd build; ctest --output-on-failure -j 2
 
   windows-vs2019-gpu:
     runs-on: windows-latest
@@ -194,6 +208,8 @@ jobs:
         cmake -DProtobuf_INCLUDE_DIR="$Protobuf_INCLUDE_DIR" -DProtobuf_LIBRARIES="$Protobuf_LIBRARIES" -DProtobuf_PROTOC_EXECUTABLE="$Protobuf_PROTOC_EXECUTABLE" -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build --config Release -j 2
+    - name: test
+      run: cd build; ctest --output-on-failure -j 2
 
   android-armv7:
     runs-on: ubuntu-latest
