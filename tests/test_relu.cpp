@@ -28,6 +28,11 @@ static int test_relu_0()
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_int8_storage = false;
+    opt.use_int8_arithmetic = false;
     opt.use_packing_layout = false;
 
     return test_layer<ncnn::ReLU>("ReLU", pd, mb, opt, a);
@@ -45,6 +50,11 @@ static int test_relu_1()
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_int8_storage = false;
+    opt.use_int8_arithmetic = false;
     opt.use_packing_layout = false;
 
     return test_layer<ncnn::ReLU>("ReLU", pd, mb, opt, a);
