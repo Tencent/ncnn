@@ -33,12 +33,41 @@ jobs:
       run: |
         wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
         tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: actions/cache@v1
+      with:
+        path: swiftshader-install
+        key: swiftshader-linux-install
+    - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: google/swiftshader
+        path: swiftshader
+        ref: 59465799210b3f4962af1a9dc44a4ffecb422c10
+    - name: checkout-swiftshader-submodules
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        git submodule update --init --recursive
+    - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DBUILD_EGL=0 -DBUILD_GLESv2=0 -DBUILD_GLES_CM=0 -DBUILD_VULKAN=1 -DBUILD_SAMPLES=0 -DBUILD_TESTS=0 -DWARNINGS_AS_ERRORS=0 ..
+        cmake --build . -j 2
+        mkdir $GITHUB_WORKSPACE/swiftshader-install
+        cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
     - name: configure
       run: export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
-      run: cd build && ctest --output-on-failure -j 2
+      run: |
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        cd build && ctest --output-on-failure -j 2
 
   linux-clang:
     runs-on: ubuntu-latest
@@ -73,6 +102,33 @@ jobs:
       run: |
         wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
         tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: actions/cache@v1
+      with:
+        path: swiftshader-install
+        key: swiftshader-linux-install
+    - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: google/swiftshader
+        path: swiftshader
+        ref: 59465799210b3f4962af1a9dc44a4ffecb422c10
+    - name: checkout-swiftshader-submodules
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        git submodule update --init --recursive
+    - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DBUILD_EGL=0 -DBUILD_GLESv2=0 -DBUILD_GLES_CM=0 -DBUILD_VULKAN=1 -DBUILD_SAMPLES=0 -DBUILD_TESTS=0 -DWARNINGS_AS_ERRORS=0 ..
+        cmake --build . -j 2
+        mkdir $GITHUB_WORKSPACE/swiftshader-install
+        cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
     - name: configure
       env:
         CC: clang
@@ -81,7 +137,9 @@ jobs:
     - name: build
       run: cmake --build build -j 2
     - name: test
-      run: cd build && ctest --output-on-failure -j 2
+      run: |
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        cd build && ctest --output-on-failure -j 2
 
   linux-mips-mti:
     runs-on: ubuntu-latest
@@ -128,12 +186,41 @@ jobs:
       run: |
         wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz
         tar -xf vulkansdk-macos-1.1.92.1.tar.gz
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: actions/cache@v1
+      with:
+        path: swiftshader-install
+        key: swiftshader-macos-install
+    - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: google/swiftshader
+        path: swiftshader
+        ref: 59465799210b3f4962af1a9dc44a4ffecb422c10
+    - name: checkout-swiftshader-submodules
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        git submodule update --init --recursive
+    - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DBUILD_EGL=0 -DBUILD_GLESv2=0 -DBUILD_GLES_CM=0 -DBUILD_VULKAN=1 -DBUILD_SAMPLES=0 -DBUILD_TESTS=0 -DWARNINGS_AS_ERRORS=0 ..
+        cmake --build . -j 2
+        mkdir $GITHUB_WORKSPACE/swiftshader-install
+        cp Darwin/* $GITHUB_WORKSPACE/swiftshader-install
     - name: configure
       run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
-      run: cd build && ctest --output-on-failure -j 2
+      run: |
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        cd build && ctest --output-on-failure -j 2
 
   windows-vs2019:
     runs-on: windows-latest
@@ -144,7 +231,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: "protobuf-install"
-        key: cache-protobuf-windows
+        key: protobuf-windows-install
     - name: protobuf
       if: steps.cache-protobuf.outputs.cache-hit != 'true'
       run: |
@@ -172,7 +259,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: "protobuf-install"
-        key: cache-protobuf-windows
+        key: protobuf-windows-install
     - name: protobuf
       if: steps.cache-protobuf.outputs.cache-hit != 'true'
       run: |
@@ -193,6 +280,33 @@ jobs:
       run: |
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -OutFile VulkanSDK-1.1.92.1-Installer.exe
         7z x ./VulkanSDK-1.1.92.1-Installer.exe -oVulkanSDK
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: actions/cache@v1
+      with:
+        path: swiftshader-install
+        key: swiftshader-windows-install
+    - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: google/swiftshader
+        path: swiftshader
+        ref: 59465799210b3f4962af1a9dc44a4ffecb422c10
+    - name: checkout-swiftshader-submodules
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        git submodule update --init --recursive
+    - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        mkdir build-vs2019; cd build-vs2019
+        cmake -DCMAKE_INSTALL_PREFIX=install -DBUILD_EGL=0 -DBUILD_GLESv2=0 -DBUILD_GLES_CM=0 -DBUILD_VULKAN=1 -DBUILD_SAMPLES=0 -DBUILD_TESTS=0 -DWARNINGS_AS_ERRORS=0 ..
+        cmake --build . --config Release -j 2
+        mkdir "$env:GITHUB_WORKSPACE/swiftshader-install"
+        Copy-Item -Path "Windows\*" -Destination "$env:GITHUB_WORKSPACE\swiftshader-install"
     - name: configure
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
@@ -203,6 +317,7 @@ jobs:
     - name: test
       run: |
         Copy-Item -Path 'VulkanSDK\RunTimeInstaller\x64\vulkan-1.dll' -Destination 'build\tests'
+        $env:VK_ICD_FILENAMES="$env:GITHUB_WORKSPACE\swiftshader-install\vk_swiftshader_icd.json"
         cd build; ctest --output-on-failure -j 2
 
   android-armv7:
