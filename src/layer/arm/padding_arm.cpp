@@ -506,8 +506,10 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 const Mat m = bottom_blob.channel(q);
                 Mat borderm = top_blob.channel(q);
 
+                float pad_value = per_channel_pad_data_size ? per_channel_pad_data[q] : value;
+
                 if (type == 0)
-                    padding_constant_pack4_neon(m, borderm, top, bottom, left, right, value);
+                    padding_constant_pack4_neon(m, borderm, top, bottom, left, right, pad_value);
                 else
                     padding_replicate_pack4_neon(m, borderm, top, bottom, left, right);
             }

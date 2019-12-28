@@ -535,7 +535,7 @@ int Net::load_param(const unsigned char* _mem)
     const unsigned char* mem = _mem;
     DataReaderFromMemory dr(mem);
     load_param_bin(dr);
-    return mem - _mem;
+    return static_cast<int>(mem - _mem);
 }
 
 int Net::load_model(const unsigned char* _mem)
@@ -543,7 +543,7 @@ int Net::load_model(const unsigned char* _mem)
     const unsigned char* mem = _mem;
     DataReaderFromMemory dr(mem);
     load_model(dr);
-    return mem - _mem;
+    return static_cast<int>(mem - _mem);
 }
 
 #if __ANDROID_API__ >= 9
@@ -947,7 +947,7 @@ int Net::find_blob_index_by_name(const char* name) const
         const Blob& blob = blobs[i];
         if (blob.name == name)
         {
-            return i;
+            return static_cast<int>(i);
         }
     }
 
@@ -962,7 +962,7 @@ int Net::find_layer_index_by_name(const char* name) const
         const Layer* layer = layers[i];
         if (layer->name == name)
         {
-            return i;
+            return static_cast<int>(i);
         }
     }
 
@@ -972,11 +972,11 @@ int Net::find_layer_index_by_name(const char* name) const
 
 int Net::custom_layer_to_index(const char* type)
 {
-    const int custom_layer_registry_entry_count = custom_layer_registry.size();
-    for (int i=0; i<custom_layer_registry_entry_count; i++)
+    const size_t custom_layer_registry_entry_count = custom_layer_registry.size();
+    for (size_t i=0; i<custom_layer_registry_entry_count; i++)
     {
         if (strcmp(type, custom_layer_registry[i].name) == 0)
-            return i;
+            return static_cast<int>(i);
     }
 
     return -1;
@@ -994,8 +994,8 @@ Layer* Net::create_custom_layer(const char* type)
 
 Layer* Net::create_custom_layer(int index)
 {
-    const int custom_layer_registry_entry_count = custom_layer_registry.size();
-    if (index < 0 || index >= custom_layer_registry_entry_count)
+    const size_t custom_layer_registry_entry_count = custom_layer_registry.size();
+    if (index < 0 || static_cast<unsigned int>(index) >= custom_layer_registry_entry_count)
         return 0;
 
     layer_creator_func layer_creator = custom_layer_registry[index].creator;
@@ -1798,7 +1798,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 }
 #endif // NCNN_VULKAN
 
-Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
+Extractor::Extractor(const Net* _net, size_t blob_count) : net(_net)
 {
     blob_mats.resize(blob_count);
     opt = net->opt;
@@ -1806,7 +1806,31 @@ Extractor::Extractor(const Net* _net, int blob_count) : net(_net)
 #if NCNN_VULKAN
     if (net->opt.use_vulkan_compute)
     {
+        local_blob_vkallocator = 0;
+        local_staging_vkallocator = 0;
+
         blob_mats_gpu.resize(blob_count);
+    }
+#endif // NCNN_VULKAN
+}
+
+Extractor::~Extractor()
+{
+    blob_mats.clear();
+
+#if NCNN_VULKAN
+    if (net->opt.use_vulkan_compute)
+    {
+        blob_mats_gpu.clear();
+
+        if (local_blob_vkallocator)
+        {
+            net->vkdev->reclaim_blob_allocator(local_blob_vkallocator);
+        }
+        if (local_staging_vkallocator)
+        {
+            net->vkdev->reclaim_staging_allocator(local_staging_vkallocator);
+        }
     }
 #endif // NCNN_VULKAN
 }
@@ -1904,14 +1928,11 @@ int Extractor::extract(int blob_index, Mat& feat)
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
         {
-            VkAllocator* local_blob_allocator = 0;
-            VkAllocator* local_staging_allocator = 0;
-
             // use local allocator
             if (!opt.blob_vkallocator)
             {
-                local_blob_allocator = net->vkdev->acquire_blob_allocator();
-                opt.blob_vkallocator = local_blob_allocator;
+                local_blob_vkallocator = net->vkdev->acquire_blob_allocator();
+                opt.blob_vkallocator = local_blob_vkallocator;
             }
             if (!opt.workspace_vkallocator)
             {
@@ -1919,8 +1940,8 @@ int Extractor::extract(int blob_index, Mat& feat)
             }
             if (!opt.staging_vkallocator)
             {
-                local_staging_allocator = net->vkdev->acquire_staging_allocator();
-                opt.staging_vkallocator = local_staging_allocator;
+                local_staging_vkallocator = net->vkdev->acquire_staging_allocator();
+                opt.staging_vkallocator = local_staging_vkallocator;
             }
 
             ncnn::VkCompute cmd(net->vkdev);
@@ -1989,21 +2010,6 @@ int Extractor::extract(int blob_index, Mat& feat)
                 {
                     feat_cpu = feat_cpu_fp16;
                 }
-            }
-
-            if (local_blob_allocator)
-            {
-                net->vkdev->reclaim_blob_allocator(local_blob_allocator);
-                if (opt.workspace_vkallocator == opt.blob_vkallocator)
-                {
-                    opt.workspace_vkallocator = 0;
-                }
-                opt.blob_vkallocator = 0;
-            }
-            if (local_staging_allocator)
-            {
-                net->vkdev->reclaim_staging_allocator(local_staging_allocator);
-                opt.staging_vkallocator = 0;
             }
         }
         else

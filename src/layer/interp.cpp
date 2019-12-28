@@ -43,7 +43,7 @@ static void linear_coeffs(int w, int outw, int* xofs, float* alpha)
     for (int dx = 0; dx < outw; dx++)
     {
         float fx = (float)((dx + 0.5) * scale - 0.5);
-        int sx = floor(fx);
+        int sx = static_cast<int>(floor(fx));
         fx -= sx;
 
         if (sx < 0)
@@ -172,7 +172,7 @@ static void cubic_coeffs(int w, int outw, int* xofs, float* alpha)
     for (int dx = 0; dx < outw; dx++)
     {
         float fx = (float)((dx + 0.5) * scale - 0.5);
-        int sx = floor(fx);
+        int sx = static_cast<int>(floor(fx));
         fx -= sx;
 
         interpolate_cubic(fx, alpha + dx*4);
@@ -406,8 +406,8 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) co
     }
     if (oh == 0 || ow == 0)
     {
-        oh = h * height_scale;
-        ow = w * width_scale;
+        oh = static_cast<int>(h * height_scale);
+        ow = static_cast<int>(w * width_scale);
     }
     if (oh == h && ow == w)
     {

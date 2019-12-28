@@ -1099,11 +1099,11 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
             }
 
             for (; j<N; j++)
-            {                
+            {
                 float* vb = bottom_tm.channel(j/8 + j%8);
 #if __ARM_NEON && __aarch64__
                 const float* va = kernel_tm.channel(i/8 + (i%8)/4);
-#else                
+#else
                 const float* va = kernel_tm.channel(i/4);
 #endif // __ARM_NEON && __aarch64__
 
@@ -1119,7 +1119,7 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
                     "eor    v16.16b, v16.16b, v16.16b    \n" // sum0
                     "eor    v17.16b, v17.16b, v17.16b    \n" // sum1
                     "eor    v18.16b, v18.16b, v18.16b    \n" // sum2
-                    "eor    v19.16b, v19.16b, v19.16b    \n" // sum3                    
+                    "eor    v19.16b, v19.16b, v19.16b    \n" // sum3
 
                     "0:                                  \n"// for (; k+3<L; k=k+4)
 
@@ -1137,10 +1137,10 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
 
                     "bne    0b                           \n"
 
-                    "add      v16.4s, v16.4s, v18.4s     \n"
-                    "add      v17.4s, v17.4s, v19.4s     \n"
-                    "add      v14.4s, v14.4s, v16.4s     \n"
-                    "add      v14.4s, v14.4s, v17.4s     \n"
+                    "fadd      v16.4s, v16.4s, v18.4s    \n"
+                    "fadd      v17.4s, v17.4s, v19.4s    \n"
+                    "fadd      v14.4s, v14.4s, v16.4s    \n"
+                    "fadd      v14.4s, v14.4s, v17.4s    \n"
 
                     "1:                                  \n"
 
@@ -1167,7 +1167,7 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
                     "st1    {v14.s}[1], [%1]             \n"
                     "st1    {v14.s}[2], [%2]             \n"
                     "st1    {v14.s}[3], [%3]             \n"
-                    
+
                     : "=r"(output0), // %0
                       "=r"(output1), // %1
                       "=r"(output2), // %2
@@ -1180,7 +1180,7 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
                       "3"(output3),
                       "4"(vb),
                       "5"(va),
-                      "r"(L),        // %12 
+                      "r"(L),        // %12
                       "r"(biasptr)   // %13
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19"
                 );
@@ -1197,7 +1197,7 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
                     "veor       q9, q9, q9          \n"
                     "veor       q10, q10, q10       \n"
                     "veor       q11, q11, q11       \n"
-                    
+
                     "0:                             \n"// for(; nn != 0; nn--)
                     "pld        [%5, #512]          \n"
                     "vldm       %5!, {d0-d7}        \n"// kernel
@@ -1216,7 +1216,7 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
                     "vadd.f32   q10, q10, q11       \n"
                     "vadd.f32   q8, q8, q10         \n"
                     "vadd.f32   q12, q12, q8        \n"
-    
+
                     "1:                             \n"
                     // remain loop
                     "and         r4, %12, #3        \n"// r4 = remain = inch & 3
@@ -1252,8 +1252,8 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
                       "3"(output3),
                       "4"(vb),
                       "5"(va),
-                      "r"(L),        // %12 
-                      "r"(biasptr)   // %13 
+                      "r"(L),        // %12
+                      "r"(biasptr)   // %13
                     : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12"
                 );
 #endif // __aarch64__
@@ -1273,7 +1273,7 @@ static void conv_im2col_sgemm_neon(const Mat &bottom_blob, Mat &top_blob, const 
                     va += 4;
                     vb += 1;
                 }
-                
+
                 output0[0] = sum0;
                 output1[0] = sum1;
                 output2[0] = sum2;
