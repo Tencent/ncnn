@@ -220,7 +220,9 @@ jobs:
     - name: test
       run: |
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
-        cd build && ctest --output-on-failure -j 2
+        find "swiftshader-install/"
+        find "vulkansdk-macos-1.1.92.1/"
+#        cd build && ctest --output-on-failure -j 2
 
   windows-vs2019:
     runs-on: windows-latest
