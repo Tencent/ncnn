@@ -16,26 +16,22 @@
 
 #include "layer/convolution.h"
 
-static int test_convolution_0()
+static int test_convolution_0(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias)
 {
-    ncnn::Mat a = RandomMat(6, 7, 15);
+    ncnn::Mat a = RandomMat(w, h, c);
 
     ncnn::ParamDict pd;
-    pd.set(0, 15);// num_output
-    pd.set(1, 1);// kernel_w
-    pd.set(11, 1);// kernel_h
-    pd.set(2, 1);// dilation_w
-    pd.set(12, 1);// dilation_h
-    pd.set(3, 1);// stride_w
-    pd.set(13, 1);// stride_h
-    pd.set(4, 0);// pad_w
-    pd.set(14, 0);// pad_h
-    pd.set(5, 1);// bias_term
-    pd.set(6, 15*15*1*1);
+    pd.set(0, outch);// num_output
+    pd.set(1, kernel);// kernel_w
+    pd.set(2, dilation);// dilation_w
+    pd.set(3, stride);// stride_w
+    pd.set(4, pad);// pad_w
+    pd.set(5, bias);// bias_term
+    pd.set(6, outch*c*kernel*kernel);
 
     std::vector<ncnn::Mat> weights(2);
-    weights[0] = RandomMat(15*15*1*1);
-    weights[1] = RandomMat(15);
+    weights[0] = RandomMat(outch*c*kernel*kernel);
+    weights[1] = RandomMat(outch);
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
@@ -47,7 +43,54 @@ static int test_convolution_0()
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = false;
 
-    return test_layer<ncnn::Convolution>("Convolution", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, mb, opt, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias);
+    }
+
+    return ret;
+}
+
+static int test_convolution_0()
+{
+    static const int kdsp[16][4] = {
+        {1, 1, 1, 0},
+        {1, 1, 2, 0},
+        {2, 1, 1, 1},
+        {2, 1, 2, 1},
+        {3, 1, 1, 1},
+        {3, 1, 2, 1},
+        {4, 1, 1, 2},
+        {4, 1, 2, 2},
+        {5, 1, 1, 2},
+        {5, 1, 2, 2},
+        {6, 1, 1, 3},
+        {6, 1, 2, 3},
+        {6, 1, 3, 3},
+        {7, 1, 1, 3},
+        {7, 1, 2, 3},
+        {7, 1, 3, 3},
+    };
+
+    for (int i=0; i<16; i++)
+    {
+        int ret = 0
+            || test_convolution_0(12, 17, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_convolution_0(12, 17, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_convolution_0(12, 17, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_convolution_0(12, 17, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_convolution_0(12, 17, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_convolution_0(12, 17, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_convolution_0(12, 17, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_convolution_0(12, 17, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            ;
+
+        if (ret != 0)
+            return -1;
+    }
+
+    return 0;
 }
 
 int main()
