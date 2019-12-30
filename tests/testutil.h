@@ -151,7 +151,7 @@ static int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::M
 }
 
 template <typename T>
-int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a)
+int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, float epsilon)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
@@ -301,15 +301,25 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
     delete op;
 
-    return CompareMat(b, c)
+    if (CompareMat(b, c, epsilon) != 0)
+    {
+        fprintf(stderr, "test_layer failed cpu\n");
+        return -1;
+    }
+
 #if NCNN_VULKAN
-        || CompareMat(b, d)
+    if (CompareMat(b, d, epsilon) != 0)
+    {
+        fprintf(stderr, "test_layer failed gpu\n");
+        return -1;
+    }
 #endif // NCNN_VULKAN
-        ;
+
+    return 0;
 }
 
 template <typename T>
-int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& _opt, const ncnn::Mat& a)
+int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& _opt, const ncnn::Mat& a, float epsilon)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
     ncnn::Option opt = _opt;
@@ -356,7 +366,29 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
     ((T*)op)->T::forward(a, b, opt);
 
     ncnn::Mat c;
-    op->forward(a, c, opt);
+    {
+        ncnn::Mat a4;
+        if (opt.use_packing_layout)
+        {
+            ncnn::convert_packing(a, a4, 4);
+        }
+        else
+        {
+            a4 = a;
+        }
+
+        ncnn::Mat c4;
+        op->forward(a4, c4, opt);
+
+        if (opt.use_packing_layout)
+        {
+            ncnn::convert_packing(c4, c, 1);
+        }
+        else
+        {
+            c = c4;
+        }
+    }
 
 #if NCNN_VULKAN
     ncnn::Mat d;
@@ -421,23 +453,33 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
     delete op;
 
-    return CompareMat(b, c)
+    if (CompareMat(b, c, epsilon) != 0)
+    {
+        fprintf(stderr, "test_layer failed cpu\n");
+        return -1;
+    }
+
 #if NCNN_VULKAN
-        || CompareMat(b, d)
+    if (CompareMat(b, d, epsilon) != 0)
+    {
+        fprintf(stderr, "test_layer failed gpu\n");
+        return -1;
+    }
 #endif // NCNN_VULKAN
-        ;
+
+    return 0;
 }
 
 template <typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a, float epsilon = 0.001)
 {
-    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a);
+    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, epsilon);
 }
 
 template <typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const ncnn::Mat& a)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const ncnn::Mat& a, float epsilon = 0.001)
 {
-    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a);
+    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, epsilon);
 }
 
 #endif // TESTUTIL_H
