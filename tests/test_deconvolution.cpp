@@ -46,7 +46,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     int ret = test_layer<ncnn::Deconvolution>("Deconvolution", pd, mb, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias);
+        fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d use_packing_layout=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, use_packing_layout);
     }
 
     return ret;

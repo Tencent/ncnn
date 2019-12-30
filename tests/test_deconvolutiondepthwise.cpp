@@ -47,7 +47,7 @@ static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kerne
     int ret = test_layer<ncnn::DeconvolutionDepthWise>("DeconvolutionDepthWise", pd, mb, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_deconvolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group);
+        fprintf(stderr, "test_deconvolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d use_packing_layout=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, use_packing_layout);
     }
 
     return ret;
