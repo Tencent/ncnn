@@ -16,12 +16,12 @@
 
 #include "layer/relu.h"
 
-static int test_relu_0()
+static int test_relu(float slope, bool use_packing_layout)
 {
     ncnn::Mat a = RandomMat(6, 7, 8);
 
     ncnn::ParamDict pd;
-    pd.set(0, 0.f);//slope
+    pd.set(0, slope);//slope
 
     std::vector<ncnn::Mat> weights(0);
     ncnn::ModelBinFromMatArray mb(weights.data());
@@ -38,31 +38,20 @@ static int test_relu_0()
     return test_layer<ncnn::ReLU>("ReLU", pd, mb, opt, a);
 }
 
-static int test_relu_1()
+static int test_relu_0()
 {
-    ncnn::Mat a = RandomMat(6, 7, 8);
+    return 0
+        || test_relu(0.f, false)
+        || test_relu(0.1f, false)
 
-    ncnn::ParamDict pd;
-    pd.set(0, 0.1f);//slope
-
-    std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
-
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = false;
-
-    return test_layer<ncnn::ReLU>("ReLU", pd, mb, opt, a);
+        || test_relu(0.f, true)
+        || test_relu(0.1f, true)
+        ;
 }
 
 int main()
 {
     SRAND(7767517);
 
-    return test_relu_0() || test_relu_1();
+    return test_relu_0();
 }

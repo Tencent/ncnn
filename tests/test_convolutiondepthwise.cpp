@@ -16,7 +16,7 @@
 
 #include "layer/convolutiondepthwise.h"
 
-static int test_convolutiondepthwise_0(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group)
+static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, bool use_packing_layout)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -42,7 +42,7 @@ static int test_convolutiondepthwise_0(int w, int h, int c, int outch, int kerne
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = false;
+    opt.use_packing_layout = use_packing_layout;
 
     int ret = test_layer<ncnn::ConvolutionDepthWise>("ConvolutionDepthWise", pd, mb, opt, a);
     if (ret != 0)
@@ -85,19 +85,33 @@ static int test_convolutiondepthwise_0()
     for (int i=0; i<24; i++)
     {
         int ret = 0
-            || test_convolutiondepthwise_0(13, 11, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 1)
-            || test_convolutiondepthwise_0(13, 11, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 1)
-            || test_convolutiondepthwise_0(13, 11, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2)
-            || test_convolutiondepthwise_0(13, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 3)
-            || test_convolutiondepthwise_0(13, 11, 4, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2)
-            || test_convolutiondepthwise_0(13, 11, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 4)
-            || test_convolutiondepthwise_0(13, 11, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 7)
-            || test_convolutiondepthwise_0(13, 11, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2)
-            || test_convolutiondepthwise_0(13, 11, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 8)
-            || test_convolutiondepthwise_0(13, 11, 12, 12, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 4)
-            || test_convolutiondepthwise_0(13, 11, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 15)
-            || test_convolutiondepthwise_0(13, 11, 16, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2)
-            || test_convolutiondepthwise_0(13, 11, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 16)
+            || test_convolutiondepthwise(13, 11, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 1, false)
+            || test_convolutiondepthwise(13, 11, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 1, false)
+            || test_convolutiondepthwise(13, 11, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, false)
+            || test_convolutiondepthwise(13, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 3, false)
+            || test_convolutiondepthwise(13, 11, 4, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, false)
+            || test_convolutiondepthwise(13, 11, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 4, false)
+            || test_convolutiondepthwise(13, 11, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 7, false)
+            || test_convolutiondepthwise(13, 11, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, false)
+            || test_convolutiondepthwise(13, 11, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 8, false)
+            || test_convolutiondepthwise(13, 11, 12, 12, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 4, false)
+            || test_convolutiondepthwise(13, 11, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 15, false)
+            || test_convolutiondepthwise(13, 11, 16, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, false)
+            || test_convolutiondepthwise(13, 11, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 16, false)
+
+            || test_convolutiondepthwise(13, 11, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 1, true)
+            || test_convolutiondepthwise(13, 11, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 1, true)
+            || test_convolutiondepthwise(13, 11, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, true)
+            || test_convolutiondepthwise(13, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 3, true)
+            || test_convolutiondepthwise(13, 11, 4, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, true)
+            || test_convolutiondepthwise(13, 11, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 4, true)
+            || test_convolutiondepthwise(13, 11, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 7, true)
+            || test_convolutiondepthwise(13, 11, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, true)
+            || test_convolutiondepthwise(13, 11, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 8, true)
+            || test_convolutiondepthwise(13, 11, 12, 12, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 4, true)
+            || test_convolutiondepthwise(13, 11, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 15, true)
+            || test_convolutiondepthwise(13, 11, 16, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, true)
+            || test_convolutiondepthwise(13, 11, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 16, true)
             ;
 
         if (ret != 0)
