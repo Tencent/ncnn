@@ -190,6 +190,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
     op->load_model(mb);
 
+    op->create_pipeline(opt);
+
 #if NCNN_VULKAN
     {
         ncnn::VkTransfer cmd(vkdev);
@@ -201,8 +203,6 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         cmd.submit_and_wait();
     }
 #endif // NCNN_VULKAN
-
-    op->create_pipeline(opt);
 
     std::vector<ncnn::Mat> b;
     ((T*)op)->T::forward(a, b, opt);
@@ -352,6 +352,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
     op->load_model(mb);
 
+    op->create_pipeline(opt);
+
 #if NCNN_VULKAN
     {
         ncnn::VkTransfer cmd(vkdev);
@@ -363,8 +365,6 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         cmd.submit_and_wait();
     }
 #endif // NCNN_VULKAN
-
-    op->create_pipeline(opt);
 
     ncnn::Mat b;
     ((T*)op)->T::forward(a, b, opt);
