@@ -30,143 +30,112 @@ DeconvolutionDepthWise_arm::DeconvolutionDepthWise_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
-
-    activation = 0;
 }
 
 int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
 {
-    if (activation_type == 1)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 2)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]);// slope
-        activation->load_param(pd);
-    }
-    else if (activation_type == 3)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Clip);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]);// min
-        pd.set(1, activation_params[1]);// max
-        activation->load_param(pd);
-    }
-    else if (activation_type == 4)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-
-    if (activation)
-    {
-        activation->create_pipeline(opt);
-    }
-
     // create Deconvolution op for each group
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
-#if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
-
-    Mat weight_data_transposed(weight_data.w);
-    {
-        float* pt = weight_data_transposed;
-        const float* p = weight_data;
-
-        for (int i=0; i<(channels/group)*(num_output/group)*group; i++)
-        {
-            for (int k=0; k<maxk; k++)
-            {
-                pt[maxk-1 - k] = p[k];
-            }
-
-            p += maxk;
-            pt += maxk;
-        }
-    }
-
     // depth-wise
     if (channels == group && group == num_output)
     {
+        int elempack = (opt.use_packing_layout && channels % 4 == 0) ? 4 : 1;
+
+        Mat weight_data_transposed(weight_data.w);
+        {
+            float* pt = weight_data_transposed;
+            const float* p = weight_data;
+
+            for (int i=0; i<(channels/group)*(num_output/group)*group; i++)
+            {
+                for (int k=0; k<maxk; k++)
+                {
+                    pt[maxk-1 - k] = p[k];
+                }
+
+                p += maxk;
+                pt += maxk;
+            }
+        }
+
+#if __ARM_NEON
         // pack4
-        if (num_output % 4 == 0)
+        if (elempack == 4)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_pack4, 4);
         }
-    }
-
-    } // opt.use_packing_layout
 #endif // __ARM_NEON
 
-    for (int i=0; i<(int)group_ops.size(); i++)
-        delete group_ops[i];
-
-    group_ops.clear();
-
-    const int channels_g = channels / group;
-    const int num_output_g = num_output / group;
-
-    group_ops.resize(group);
-
-    for (int g=0; g<group; g++)
+        // pack1
+        if (elempack == 1)
+        {
+            weight_data_pack1 = weight_data_transposed;
+        }
+    }
+    else
     {
-        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
-        Mat bias_data_g;
-        if (bias_term)
-            bias_data_g = bias_data.range(num_output_g * g, num_output_g);
+        // group deconvolution
+        for (int i=0; i<(int)group_ops.size(); i++)
+            delete group_ops[i];
 
-        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+        group_ops.clear();
 
-        // set param
-        ncnn::ParamDict pd;
-        pd.set(0, num_output_g);// num_output
-        pd.set(1, kernel_w);
-        pd.set(11, kernel_h);
-        pd.set(2, dilation_w);
-        pd.set(12, dilation_h);
-        pd.set(3, stride_w);
-        pd.set(13, stride_h);
-        pd.set(4, 0);// pad_w
-        pd.set(14, 0);// pad_h
-        pd.set(5, bias_term);
-        pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
+        const int channels_g = channels / group;
+        const int num_output_g = num_output / group;
 
-        op->load_param(pd);
+        group_ops.resize(group);
 
-        // set weights
-        if (bias_term)
+        for (int g=0; g<group; g++)
         {
-            ncnn::Mat weights[2];
-            weights[0] = weight_data_g;
-            weights[1] = bias_data_g;
+            Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
+            Mat bias_data_g;
+            if (bias_term)
+                bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-            op->load_model(ModelBinFromMatArray(weights));
+            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+
+            // set param
+            ncnn::ParamDict pd;
+            pd.set(0, num_output_g);// num_output
+            pd.set(1, kernel_w);
+            pd.set(11, kernel_h);
+            pd.set(2, dilation_w);
+            pd.set(12, dilation_h);
+            pd.set(3, stride_w);
+            pd.set(13, stride_h);
+            pd.set(4, 0);// pad_w
+            pd.set(14, 0);// pad_h
+            pd.set(5, bias_term);
+            pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
+            pd.set(9, activation_type);
+            pd.set(10, activation_params);
+
+            op->load_param(pd);
+
+            // set weights
+            if (bias_term)
+            {
+                ncnn::Mat weights[2];
+                weights[0] = weight_data_g;
+                weights[1] = bias_data_g;
+
+                op->load_model(ModelBinFromMatArray(weights));
+            }
+            else
+            {
+                ncnn::Mat weights[1];
+                weights[0] = weight_data_g;
+
+                op->load_model(ModelBinFromMatArray(weights));
+            }
+
+            op->create_pipeline(opt);
+
+            group_ops[g] = op;
         }
-        else
-        {
-            ncnn::Mat weights[1];
-            weights[0] = weight_data_g;
-
-            op->load_model(ModelBinFromMatArray(weights));
-        }
-
-        op->create_pipeline(opt);
-
-        group_ops[g] = op;
     }
 
     return 0;
@@ -174,13 +143,6 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
 int DeconvolutionDepthWise_arm::destroy_pipeline(const Option& opt)
 {
-    if (activation)
-    {
-        activation->destroy_pipeline(opt);
-        delete activation;
-        activation = 0;
-    }
-
     for (int i=0; i<(int)group_ops.size(); i++)
     {
         group_ops[i]->destroy_pipeline(opt);
@@ -207,12 +169,8 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
     int outw = (w - 1) * stride_w + kernel_extent_w;
     int outh = (h - 1) * stride_h + kernel_extent_h;
-    int out_elempack = num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
-
-#if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
 
     Mat top_blob_bordered;
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
@@ -230,341 +188,182 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
     const int maxk = kernel_w * kernel_h;
 
     // depth-wise
-    if (channels == group / elempack && group / elempack == num_output / elempack)
+    if (channels * elempack == group && group == num_output)
     {
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g=0; g<group / elempack; g++)
+#if __ARM_NEON
+        if (elempack == 4)
         {
-            float* outptr = top_blob_bordered.channel(g);
-            const float* kptr = (const float*)weight_data_pack4 + maxk * g * 4;
-            const Mat m = bottom_blob.channel(g);
-
-            for (int i = 0; i < outh; i++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g=0; g<channels; g++)
             {
-                for (int j = 0; j < outw; j++)
+                float* outptr = top_blob_bordered.channel(g);
+                const float* kptr = (const float*)weight_data_pack4 + maxk * g * 4;
+                const Mat m = bottom_blob.channel(g);
+
+                for (int i = 0; i < outh; i++)
                 {
-                    float32x4_t _sum = vdupq_n_f32(0.f);
-
-                    if (bias_term)
+                    for (int j = 0; j < outw; j++)
                     {
-                        _sum = vld1q_f32(((const float*)bias_data) + g * 4);
-                    }
+                        float32x4_t _sum = vdupq_n_f32(0.f);
 
-                    for (int y = 0; y < kernel_h; y++)
-                    {
-                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
-                        if (sys % stride_h != 0)
-                            continue;
-
-                        int sy = sys / stride_h;
-                        if (sy < 0 || sy >= h)
-                            continue;
-
-                        for (int x = 0; x < kernel_w; x++)
+                        if (bias_term)
                         {
-                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
-                            if (sxs % stride_w != 0)
-                                continue;
-
-                            int sx = sxs / stride_w;
-                            if (sx < 0 || sx >= w)
-                                continue;
-
-                            const float* sptr = m.row(sy) + sx * 4;
-
-                            float32x4_t _val = vld1q_f32( sptr );
-
-                            int k = y * kernel_w + x;
-
-                            float32x4_t _w = vld1q_f32( kptr + k * 4 );
-
-                            _sum = vmlaq_f32(_sum, _val, _w);
+                            _sum = vld1q_f32((const float*)bias_data + g * 4);
                         }
+
+                        for (int y = 0; y < kernel_h; y++)
+                        {
+                            int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                            if (sys < 0 || sys % stride_h != 0)
+                                continue;
+
+                            int sy = sys / stride_h;
+                            if (sy >= h)
+                                continue;
+
+                            for (int x = 0; x < kernel_w; x++)
+                            {
+                                int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                                if (sxs < 0 || sxs % stride_w != 0)
+                                    continue;
+
+                                int sx = sxs / stride_w;
+                                if (sx >= w)
+                                    continue;
+
+                                const float* sptr = m.row(sy) + sx * 4;
+
+                                float32x4_t _val = vld1q_f32( sptr );
+
+                                int k = y * kernel_w + x;
+
+                                float32x4_t _w = vld1q_f32( kptr + k * 4 );
+
+                                _sum = vmlaq_f32(_sum, _val, _w);
+                            }
+                        }
+
+                        _sum = activation_ps(_sum, activation_type, activation_params);
+
+                        vst1q_f32(outptr + j * 4, _sum);
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params);
-
-                    vst1q_f32(outptr + j * 4, _sum);
+                    outptr += outw * 4;
                 }
-
-                outptr += outw * 4;
             }
         }
-
-        if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
-        {
-            Mat top_blob_bordered_adj = top_blob_bordered;
-            if (output_pad_right > 0 || output_pad_bottom > 0)
-            {
-                Option opt_b = opt;
-                opt_b.blob_allocator = opt.workspace_allocator;
-                copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
-                if (top_blob_bordered_adj.empty())
-                    return -100;
-            }
-
-            copy_cut_border(top_blob_bordered_adj, top_blob, pad_top, pad_bottom, pad_left, pad_right, opt);
-            if (top_blob.empty())
-                return -100;
-
-            outw = top_blob.w;
-            outh = top_blob.h;
-        }
-        else if (output_w > 0 && output_h > 0)
-        {
-            Mat top_blob_bordered_adj = top_blob_bordered;
-            if (output_pad_right > 0 || output_pad_bottom > 0)
-            {
-                Option opt_b = opt;
-                opt_b.blob_allocator = opt.workspace_allocator;
-                copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
-                if (top_blob_bordered_adj.empty())
-                    return -100;
-            }
-
-            int wcut = top_blob_bordered_adj.w - output_w;
-            int hcut = top_blob_bordered_adj.h - output_h;
-
-            if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233)
-            {
-                // onnx padding=SAME_UPPER
-                copy_cut_border(top_blob_bordered_adj, top_blob, hcut / 2, hcut - hcut / 2, wcut / 2, wcut - wcut / 2, opt);
-            }
-            else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
-            {
-                // onnx padding=SAME_LOWER
-                copy_cut_border(top_blob_bordered_adj, top_blob, hcut - hcut / 2, hcut / 2, wcut - wcut / 2, wcut / 2, opt);
-            }
-            if (top_blob.empty())
-                return -100;
-
-            outw = top_blob.w;
-            outh = top_blob.h;
-        }
-        else
-        {
-            if (output_pad_right > 0 || output_pad_bottom > 0)
-            {
-                copy_make_border(top_blob_bordered, top_blob, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt);
-                if (top_blob.empty())
-                    return -100;
-            }
-            else
-            {
-                top_blob = top_blob_bordered;
-            }
-        }
-
-        return 0;
-    }
-    }
-
-    const int channels_g = channels * elempack / group;
-    const int num_output_g = num_output / group;
-
-    // unpacking
-    Mat bottom_blob_unpacked = bottom_blob;
-    if (elempack == 4 && channels_g % 4 != 0)
-    {
-        Option opt_p = opt;
-        opt_p.blob_allocator = opt.workspace_allocator;
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_p);
-    }
-
-    Mat top_blob_bordered_unpacked = top_blob_bordered;
-    if (num_output_g % 4 != 0 && out_elempack == 4)
-    {
-        top_blob_bordered_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
-        if (top_blob_bordered_unpacked.empty())
-            return -100;
-    }
-
-    if (channels_g % 4 == 0 && num_output_g % 4 == 0)
-    {
-        for (int g=0; g<group; g++)
-        {
-            const Mat bottom_blob_g = bottom_blob_unpacked.channel_range(channels_g * g / 4, channels_g / 4);
-            Mat top_blob_bordered_g = top_blob_bordered_unpacked.channel_range(num_output_g * g / 4, num_output_g / 4);
-
-            const ncnn::Layer* op = group_ops[g];
-
-            Option opt_g = opt;
-            opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
-
-            // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
-        }
-    }
-
-    if (channels_g % 4 != 0 && num_output_g % 4 == 0)
-    {
-        for (int g=0; g<group; g++)
-        {
-            const Mat bottom_blob_g = bottom_blob_unpacked.channel_range(channels_g * g, channels_g);
-            Mat top_blob_bordered_g = top_blob_bordered_unpacked.channel_range(num_output_g * g / 4, num_output_g / 4);
-
-            const ncnn::Layer* op = group_ops[g];
-
-            Option opt_g = opt;
-            opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
-
-            // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
-        }
-    }
-
-    if (channels_g % 4 == 0 && num_output_g % 4 != 0)
-    {
-        for (int g=0; g<group; g++)
-        {
-            const Mat bottom_blob_g = bottom_blob_unpacked.channel_range(channels_g * g / 4, channels_g / 4);
-            Mat top_blob_bordered_g = top_blob_bordered_unpacked.channel_range(num_output_g * g, num_output_g);
-
-            const ncnn::Layer* op = group_ops[g];
-
-            ncnn::Option opt_g = opt;
-            opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
-
-            // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
-        }
-    }
-
-    // packing
-    if (num_output_g % 4 != 0 && out_elempack == 4)
-    {
-        convert_packing(top_blob_bordered_unpacked, top_blob_bordered, 4, opt);
-    }
-    else
-    {
-        top_blob_bordered = top_blob_bordered_unpacked;
-    }
-
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
-    {
-        Mat top_blob_bordered_adj = top_blob_bordered;
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
-            if (top_blob_bordered_adj.empty())
-                return -100;
-        }
-
-        copy_cut_border(top_blob_bordered_adj, top_blob, pad_top, pad_bottom, pad_left, pad_right, opt);
-        if (top_blob.empty())
-            return -100;
-
-        outw = top_blob.w;
-        outh = top_blob.h;
-    }
-    else if (output_w > 0 && output_h > 0)
-    {
-        Mat top_blob_bordered_adj = top_blob_bordered;
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
-            if (top_blob_bordered_adj.empty())
-                return -100;
-        }
-
-        int wcut = top_blob_bordered_adj.w - output_w;
-        int hcut = top_blob_bordered_adj.h - output_h;
-
-        if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233)
-        {
-            // onnx padding=SAME_UPPER
-            copy_cut_border(top_blob_bordered_adj, top_blob, hcut / 2, hcut - hcut / 2, wcut / 2, wcut - wcut / 2, opt);
-        }
-        else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
-        {
-            // onnx padding=SAME_LOWER
-            copy_cut_border(top_blob_bordered_adj, top_blob, hcut - hcut / 2, hcut / 2, wcut - wcut / 2, wcut / 2, opt);
-        }
-        if (top_blob.empty())
-            return -100;
-
-        outw = top_blob.w;
-        outh = top_blob.h;
-    }
-    else
-    {
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            copy_make_border(top_blob_bordered, top_blob, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt);
-            if (top_blob.empty())
-                return -100;
-        }
-        else
-        {
-            top_blob = top_blob_bordered;
-        }
-    }
-
-    if (activation)
-    {
-        activation->forward_inplace(top_blob, opt);
-    }
-
-    return 0;
-
-    } // opt.use_packing_layout
 #endif // __ARM_NEON
 
-    Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
-    {
-        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
-    }
-    else
-    {
-        top_blob_bordered = top_blob;
-        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.blob_allocator);
-    }
-    if (top_blob_bordered.empty())
-        return -100;
-
-    // depth-wise
-    if (channels == group && group == num_output)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g=0; g<group; g++)
+        if (elempack == 1)
         {
-            Mat bottom_blob_g = bottom_blob.channel_range(g, 1);
-            Mat top_blob_bordered_g = top_blob_bordered.channel_range(g, 1);
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g=0; g<channels; g++)
+            {
+                float* outptr = top_blob_bordered.channel(g);
+                const float* kptr = (const float*)weight_data_pack1 + maxk * g;
+                const Mat m = bottom_blob.channel(g);
 
-            const ncnn::Layer* op = group_ops[g];
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float sum = 0.f;
 
-            Option opt_g = opt;
-            opt_g.num_threads = 1;
-            opt_g.blob_allocator = top_blob_bordered.allocator;
+                        if (bias_term)
+                        {
+                            sum = bias_data[g];
+                        }
 
-            // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+                        for (int y = 0; y < kernel_h; y++)
+                        {
+                            int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                            if (sys < 0 || sys % stride_h != 0)
+                                continue;
+
+                            int sy = sys / stride_h;
+                            if (sy >= h)
+                                continue;
+
+                            const float* sptr = m.row(sy);
+
+                            for (int x = 0; x < kernel_w; x++)
+                            {
+                                int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                                if (sxs < 0 || sxs % stride_w != 0)
+                                    continue;
+
+                                int sx = sxs / stride_w;
+                                if (sx >= w)
+                                    continue;
+
+                                float val = sptr[ sx ];
+
+                                int k = y * kernel_w + x;
+
+                                float w = kptr[ k ];
+
+                                sum += val * w;
+                            }
+                        }
+
+                        sum = activation_ss(sum, activation_type, activation_params);
+
+                        outptr[j] = sum;
+                    }
+
+                    outptr += outw;
+                }
+            }
         }
     }
     else
     {
-        const int channels_g = channels / group;
+        // group deconvolution
+        const int channels_g = channels * elempack / group;
         const int num_output_g = num_output / group;
+
+        int g_elempack = (opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
+        int out_g_elempack = (opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
+
+        // unpacking
+        Mat bottom_blob_unpacked = bottom_blob;
+        if (elempack == 4 && g_elempack == 1)
+        {
+            Option opt_p = opt;
+            opt_p.blob_allocator = opt.workspace_allocator;
+            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_p);
+        }
+
+        Mat top_blob_bordered_unpacked = top_blob_bordered;
+        if (out_g_elempack == 1 && out_elempack == 4)
+        {
+            top_blob_bordered_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
+            if (top_blob_bordered_unpacked.empty())
+                return -100;
+        }
 
         for (int g=0; g<group; g++)
         {
-            Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
-            Mat top_blob_bordered_g = top_blob_bordered.channel_range(num_output_g * g, num_output_g);
+            const Mat bottom_blob_g = bottom_blob_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
+            Mat top_blob_bordered_g = top_blob_bordered_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
 
             const ncnn::Layer* op = group_ops[g];
 
             Option opt_g = opt;
-            opt_g.blob_allocator = top_blob_bordered.allocator;
+            opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
             op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+        }
+
+        // packing
+        if (out_g_elempack == 1 && out_elempack == 4)
+        {
+            convert_packing(top_blob_bordered_unpacked, top_blob_bordered, 4, opt);
+        }
+        else
+        {
+            top_blob_bordered = top_blob_bordered_unpacked;
         }
     }
 
@@ -630,11 +429,6 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
         {
             top_blob = top_blob_bordered;
         }
-    }
-
-    if (activation)
-    {
-        activation->forward_inplace(top_blob, opt);
     }
 
     return 0;

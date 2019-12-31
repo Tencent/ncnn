@@ -225,12 +225,19 @@ void VkCompute::record_upload(const VkMat& m)
 void VkCompute::record_download(const VkMat& m)
 {
     if (m.allocator->mappable)
+    {
+        record_prepare_host_barrier(m);
         return;
+    }
 
     record_prepare_transfer_barrier(m);
 
     if (vkdev->info.support_VK_KHR_push_descriptor)
-        return copy_buffer(m.buffer(), m.buffer_offset(), m.staging_buffer(), 0, m.total() * m.elemsize);
+    {
+        copy_buffer(m.buffer(), m.buffer_offset(), m.staging_buffer(), 0, m.total() * m.elemsize);
+        record_prepare_host_barrier(m);
+        return;
+    }
 
     record_type r;
     r.type = 0;
@@ -240,6 +247,8 @@ void VkCompute::record_download(const VkMat& m)
     r.copy.dst_offset = 0;
     r.copy.size = m.total() * m.elemsize;
     delayed_records.push_back(r);
+
+    record_prepare_host_barrier(m);
 }
 
 void VkCompute::record_clone(const VkMat& src, const VkMat& dst)
@@ -530,8 +539,95 @@ void VkCompute::record_transfer_transfer_barrier(const VkMat& m)
     delayed_records.push_back(r);
 }
 
+void VkCompute::record_host_transfer_barrier(const VkMat& m)
+{
+    m.data->state = 2;
+
+    if (!m.allocator->mappable && !m.staging_data)
+        return;
+
+    VkBuffer buffer = m.allocator->mappable ? m.buffer() : m.staging_buffer();
+    size_t buffer_offset = m.allocator->mappable ? m.buffer_offset() : m.staging_buffer_offset();
+
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+        return host_transfer_barrier(buffer, buffer_offset, m.total() * m.elemsize);
+
+    record_type r;
+    r.type = 12;
+    r.host_transfer_barrier.buffer = buffer;
+    r.host_transfer_barrier.offset = buffer_offset;
+    r.host_transfer_barrier.size = m.total() * m.elemsize;
+    delayed_records.push_back(r);
+}
+
+void VkCompute::record_transfer_host_barrier(const VkMat& m)
+{
+    m.data->state = 1;
+
+    if (!m.allocator->mappable && !m.staging_data)
+        return;
+
+    VkBuffer buffer = m.allocator->mappable ? m.buffer() : m.staging_buffer();
+    size_t buffer_offset = m.allocator->mappable ? m.buffer_offset() : m.staging_buffer_offset();
+
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+        return transfer_host_barrier(buffer, buffer_offset, m.total() * m.elemsize);
+
+    record_type r;
+    r.type = 13;
+    r.transfer_host_barrier.buffer = buffer;
+    r.transfer_host_barrier.offset = buffer_offset;
+    r.transfer_host_barrier.size = m.total() * m.elemsize;
+    delayed_records.push_back(r);
+}
+
+void VkCompute::record_host_compute_barrier(const VkMat& m)
+{
+    m.data->state = 3;
+
+    if (!m.allocator->mappable && !m.staging_data)
+        return;
+
+    VkBuffer buffer = m.allocator->mappable ? m.buffer() : m.staging_buffer();
+    size_t buffer_offset = m.allocator->mappable ? m.buffer_offset() : m.staging_buffer_offset();
+
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+        return host_compute_barrier(buffer, buffer_offset, m.total() * m.elemsize);
+
+    record_type r;
+    r.type = 14;
+    r.host_compute_barrier.buffer = buffer;
+    r.host_compute_barrier.offset = buffer_offset;
+    r.host_compute_barrier.size = m.total() * m.elemsize;
+    delayed_records.push_back(r);
+}
+
+void VkCompute::record_compute_host_barrier(const VkMat& m)
+{
+    m.data->state = 1;
+
+    if (!m.allocator->mappable && !m.staging_data)
+        return;
+
+    VkBuffer buffer = m.allocator->mappable ? m.buffer() : m.staging_buffer();
+    size_t buffer_offset = m.allocator->mappable ? m.buffer_offset() : m.staging_buffer_offset();
+
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+        return compute_host_barrier(buffer, buffer_offset, m.total() * m.elemsize);
+
+    record_type r;
+    r.type = 15;
+    r.compute_host_barrier.buffer = buffer;
+    r.compute_host_barrier.offset = buffer_offset;
+    r.compute_host_barrier.size = m.total() * m.elemsize;
+    delayed_records.push_back(r);
+}
+
 void VkCompute::record_prepare_transfer_barrier(const VkMat& m)
 {
+    if (m.data->state == 1)
+        return record_host_transfer_barrier(m);
+
     if (m.data->state == 2)
         return record_transfer_transfer_barrier(m);
 
@@ -543,6 +639,9 @@ void VkCompute::record_prepare_transfer_barrier(const VkMat& m)
 
 void VkCompute::record_prepare_compute_barrier(const VkMat& m)
 {
+    if (m.data->state == 1)
+        return record_host_compute_barrier(m);
+
     if (m.data->state == 2)
         return record_transfer_compute_barrier(m);
 
@@ -550,6 +649,17 @@ void VkCompute::record_prepare_compute_barrier(const VkMat& m)
         return record_compute_compute_barrier(m);
 
     m.data->state = 3;
+}
+
+void VkCompute::record_prepare_host_barrier(const VkMat& m)
+{
+    if (m.data->state == 2)
+        return record_transfer_host_barrier(m);
+
+    if (m.data->state == 3)
+        return record_compute_host_barrier(m);
+
+    m.data->state = 1;
 }
 
 void VkCompute::record_initial_image_compute_barrier(const VkImageMat& im)
@@ -748,6 +858,18 @@ int VkCompute::submit_and_wait()
         case 11:
             initial_image_compute_barrier(r.initial_image_compute_barrier.image);
             break;
+        case 12:
+            host_transfer_barrier(r.host_transfer_barrier.buffer, r.host_transfer_barrier.offset, r.host_transfer_barrier.size);
+            break;
+        case 13:
+            transfer_host_barrier(r.transfer_host_barrier.buffer, r.transfer_host_barrier.offset, r.transfer_host_barrier.size);
+            break;
+        case 14:
+            host_compute_barrier(r.host_compute_barrier.buffer, r.host_compute_barrier.offset, r.host_compute_barrier.size);
+            break;
+        case 15:
+            compute_host_barrier(r.compute_host_barrier.buffer, r.compute_host_barrier.offset, r.compute_host_barrier.size);
+            break;
         }
     }
 
@@ -838,7 +960,7 @@ int VkCompute::get_query_pool_results(uint32_t first_query, uint32_t query_count
 
 void VkCompute::copy_buffer(VkBuffer src, size_t src_offset, VkBuffer dst, size_t dst_offset, size_t size)
 {
-//     fprintf(stderr, "cmd copy %p to %p\n", src, dst);
+//     fprintf(stderr, "cmd copy %p[+%lu] to %p[+%lu] %lu\n", src, src_offset, dst, dst_offset, size);
 
     VkBufferCopy region;
     region.srcOffset = src_offset;
@@ -970,6 +1092,90 @@ void VkCompute::transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t
 
     VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
     VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
+}
+
+void VkCompute::host_transfer_barrier(VkBuffer buffer, size_t offset, size_t size)
+{
+//     fprintf(stderr, "cmd host_transfer_barrier %p[+%lu] %lu\n", buffer, offset, size);
+
+    VkBufferMemoryBarrier bufferBarrier;
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.pNext = 0;
+    bufferBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+    bufferBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.buffer = buffer;
+    bufferBarrier.offset = offset;
+    bufferBarrier.size = size;
+
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
+}
+
+void VkCompute::transfer_host_barrier(VkBuffer buffer, size_t offset, size_t size)
+{
+//     fprintf(stderr, "cmd transfer_host_barrier %p[+%lu] %lu\n", buffer, offset, size);
+
+    VkBufferMemoryBarrier bufferBarrier;
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.pNext = 0;
+    bufferBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    bufferBarrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+    bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.buffer = buffer;
+    bufferBarrier.offset = offset;
+    bufferBarrier.size = size;
+
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_HOST_BIT;
+
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
+}
+
+void VkCompute::host_compute_barrier(VkBuffer buffer, size_t offset, size_t size)
+{
+//     fprintf(stderr, "cmd host_compute_barrier %p[+%lu] %lu\n", buffer, offset, size);
+
+    VkBufferMemoryBarrier bufferBarrier;
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.pNext = 0;
+    bufferBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+    bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.buffer = buffer;
+    bufferBarrier.offset = offset;
+    bufferBarrier.size = size;
+
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_HOST_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
+}
+
+void VkCompute::compute_host_barrier(VkBuffer buffer, size_t offset, size_t size)
+{
+//     fprintf(stderr, "cmd compute_host_barrier %p[+%lu] %lu\n", buffer, offset, size);
+
+    VkBufferMemoryBarrier bufferBarrier;
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.pNext = 0;
+    bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    bufferBarrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+    bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bufferBarrier.buffer = buffer;
+    bufferBarrier.offset = offset;
+    bufferBarrier.size = size;
+
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_HOST_BIT;
 
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
@@ -1125,6 +1331,28 @@ int VkTransfer::submit_and_wait()
 
         staging_buffer_offset += alignSize(r.size, buffer_offset_alignment);
     }
+
+//     // finish TODO queue owner transfer release
+//     std::vector<VkBufferMemoryBarrier> bufferBarriers(transfer_count);
+//     for (int i=0; i<transfer_count; i++)
+//     {
+//         const record_type& r = delayed_records[i];
+//
+//         bufferBarriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+//         bufferBarriers[i].pNext = 0;
+//         bufferBarriers[i].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+//         bufferBarriers[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+//         bufferBarriers[i].srcQueueFamilyIndex = queue_family_index;
+//         bufferBarriers[i].dstQueueFamilyIndex = vkdev->info.compute_queue_family_index;
+//         bufferBarriers[i].buffer = r.vkmat.buffer();
+//         bufferBarriers[i].offset = r.vkmat.buffer_offset();
+//         bufferBarriers[i].size = r.size;
+//     }
+//
+//     VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+//     VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+//
+//     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, transfer_count, bufferBarriers.data(), 0, 0);
 
     end_command_buffer();
 
