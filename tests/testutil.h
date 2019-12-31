@@ -151,7 +151,7 @@ static int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::M
 }
 
 template <typename T>
-int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, float epsilon)
+int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, float epsilon)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
@@ -204,20 +204,48 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
     }
 #endif // NCNN_VULKAN
 
-    std::vector<ncnn::Mat> b;
+    std::vector<ncnn::Mat> b(top_blob_count);
     ((T*)op)->T::forward(a, b, opt);
 
-    std::vector<ncnn::Mat> c;
-    op->forward(a, c, opt);
+    std::vector<ncnn::Mat> c(top_blob_count);
+    {
+        std::vector<ncnn::Mat> a4;
+        if (opt.use_packing_layout)
+        {
+            for (size_t i=0; i<a.size(); i++)
+            {
+                ncnn::convert_packing(a[i], a4[i], 4, opt);
+            }
+        }
+        else
+        {
+            a4 = a;
+        }
+
+        std::vector<ncnn::Mat> c4(top_blob_count);
+        op->forward(a4, c4, opt);
+
+        if (opt.use_packing_layout)
+        {
+            for (size_t i=0; i<c4.size(); i++)
+            {
+                ncnn::convert_packing(c4[i], c[i], 1, opt);
+            }
+        }
+        else
+        {
+            c = c4;
+        }
+    }
 
 #if NCNN_VULKAN
-    std::vector<ncnn::Mat> d;
+    std::vector<ncnn::Mat> d(top_blob_count);
     {
         // pack
         std::vector<ncnn::Mat> a4(a.size());
         for (size_t i=0; i<a.size(); i++)
         {
-            ncnn::convert_packing(a[i], a4[i], 4);
+            ncnn::convert_packing(a[i], a4[i], 4, opt);
         }
 
         // fp16
@@ -251,11 +279,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
             cmd.record_upload(a4_fp16_gpu[i]);
         }
 
-        std::vector<ncnn::VkMat> d4_fp16_gpu(a4_fp16_gpu.size());
-        for (size_t i=0; i<a4_fp16_gpu.size(); i++)
-        {
-            op->forward(a4_fp16_gpu[i], d4_fp16_gpu[i], cmd, opt);
-        }
+        std::vector<ncnn::VkMat> d4_fp16_gpu(top_blob_count);
+        op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
 
         for (size_t i=0; i<d4_fp16_gpu.size(); i++)
         {
@@ -294,7 +319,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         // unpack
         for (size_t i=0; i<d4.size(); i++)
         {
-            ncnn::convert_packing(d4[i], d[i], 1);
+            ncnn::convert_packing(d4[i], d[i], 1, opt);
         }
     }
 #endif // NCNN_VULKAN
@@ -363,6 +388,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         op->upload_model(cmd, opt);
 
         cmd.submit_and_wait();
+
+        g_weight_staging_vkallocator.clear();
     }
 #endif // NCNN_VULKAN
 
@@ -374,7 +401,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         ncnn::Mat a4;
         if (opt.use_packing_layout)
         {
-            ncnn::convert_packing(a, a4, 4);
+            ncnn::convert_packing(a, a4, 4, opt);
         }
         else
         {
@@ -386,7 +413,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
         if (opt.use_packing_layout)
         {
-            ncnn::convert_packing(c4, c, 1);
+            ncnn::convert_packing(c4, c, 1, opt);
         }
         else
         {
@@ -399,7 +426,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
     {
         // pack
         ncnn::Mat a4;
-        ncnn::convert_packing(a, a4, 4);
+        ncnn::convert_packing(a, a4, 4, opt);
 
         // fp16
         ncnn::Mat a4_fp16;
@@ -449,13 +476,17 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         }
 
         // unpack
-        ncnn::convert_packing(d4, d, 1);
+        ncnn::convert_packing(d4, d, 1, opt);
     }
 #endif // NCNN_VULKAN
 
     op->destroy_pipeline(opt);
 
     delete op;
+
+    g_blob_vkallocator.clear();
+    g_staging_vkallocator.clear();
+    g_weight_vkallocator.clear();
 
     if (CompareMat(b, c, epsilon) != 0)
     {
@@ -475,7 +506,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 }
 
 template <typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a, float epsilon = 0.001)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001)
 {
     return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, epsilon);
 }
