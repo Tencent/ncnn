@@ -484,9 +484,11 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
     delete op;
 
+#if NCNN_VULKAN
     g_blob_vkallocator.clear();
     g_staging_vkallocator.clear();
     g_weight_vkallocator.clear();
+#endif // NCNN_VULKAN
 
     if (CompareMat(b, c, epsilon) != 0)
     {
