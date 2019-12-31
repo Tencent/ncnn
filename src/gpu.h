@@ -92,13 +92,14 @@ public:
     // 3 = cpu
     int type;
 
-    // hardware capability
+    // hardware limit
     uint32_t max_shared_memory_size;
     uint32_t max_workgroup_count[3];
     uint32_t max_workgroup_invocations;
     uint32_t max_workgroup_size[3];
     size_t memory_map_alignment;
     size_t buffer_offset_alignment;
+    size_t non_coherent_atom_size;
     float timestamp_period;
 
     // runtime
@@ -169,6 +170,7 @@ public:
 
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
     bool is_mappable(uint32_t memory_type_index) const;
+    bool is_coherent(uint32_t memory_type_index) const;
 
     VkQueue acquire_queue(uint32_t queue_family_index) const;
     void reclaim_queue(uint32_t queue_family_index, VkQueue queue) const;

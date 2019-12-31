@@ -1557,10 +1557,20 @@ inline void VkMat::discard_staging_buffer()
 inline void VkMat::upload(const Mat& m)
 {
     memcpy(mapped_ptr(), m.data, m.total() * m.elemsize);
+
+    if (allocator->mappable)
+    {
+        allocator->flush(data);
+    }
 }
 
 inline void VkMat::download(Mat& m) const
 {
+    if (allocator->mappable)
+    {
+        allocator->invalidate(data);
+    }
+
     memcpy(m.data, mapped_ptr(), total() * elemsize);
 }
 

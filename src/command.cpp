@@ -1332,6 +1332,28 @@ int VkTransfer::submit_and_wait()
         staging_buffer_offset += alignSize(r.size, buffer_offset_alignment);
     }
 
+//     // finish TODO queue owner transfer release
+//     std::vector<VkBufferMemoryBarrier> bufferBarriers(transfer_count);
+//     for (int i=0; i<transfer_count; i++)
+//     {
+//         const record_type& r = delayed_records[i];
+//
+//         bufferBarriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+//         bufferBarriers[i].pNext = 0;
+//         bufferBarriers[i].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+//         bufferBarriers[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+//         bufferBarriers[i].srcQueueFamilyIndex = queue_family_index;
+//         bufferBarriers[i].dstQueueFamilyIndex = vkdev->info.compute_queue_family_index;
+//         bufferBarriers[i].buffer = r.vkmat.buffer();
+//         bufferBarriers[i].offset = r.vkmat.buffer_offset();
+//         bufferBarriers[i].size = r.size;
+//     }
+//
+//     VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+//     VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+//
+//     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, transfer_count, bufferBarriers.data(), 0, 0);
+
     end_command_buffer();
 
     int ret = queue_submit_and_wait_fence();
