@@ -187,11 +187,11 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
     }
 
     std::vector<ncnn::Convolution::Impl> candidates;
-    candidates.emplace_back(ncnn::Convolution::Impl::DIRECT   );
-    candidates.emplace_back(ncnn::Convolution::Impl::IM2COL   );
-    candidates.emplace_back(ncnn::Convolution::Impl::WINOGRAD );
-    candidates.emplace_back(ncnn::Convolution::Impl::POINTWISE);
-    candidates.emplace_back(ncnn::Convolution::Impl::CONV3x3S2);
+    candidates.push_back(ncnn::Convolution::Impl::DIRECT   );
+    candidates.push_back(ncnn::Convolution::Impl::IM2COL   );
+    candidates.push_back(ncnn::Convolution::Impl::WINOGRAD );
+    candidates.push_back(ncnn::Convolution::Impl::POINTWISE);
+    candidates.push_back(ncnn::Convolution::Impl::CONV3x3S2);
 
     std::map<ncnn::Convolution::Impl, std::string> impl_names;
     impl_names[ncnn::Convolution::Impl::IM2COL   ] = "im2col";
