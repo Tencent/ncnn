@@ -332,6 +332,23 @@ void VkCompute::record_write_timestamp(uint32_t query)
 }
 #endif // NCNN_BENCHMARK
 
+void VkCompute::record_queue_transfer_acquire(const VkMat& m, uint32_t src_queue_family_index)
+{
+    if (queue_family_index == src_queue_family_index)
+        return;
+
+    if (vkdev->info.support_VK_KHR_push_descriptor)
+        return queue_transfer_acquire_barrier(m.buffer(), m.buffer_offset(), m.total() * m.elemsize, src_queue_family_index);
+
+    record_type r;
+    r.type = 16;
+    r.queue_transfer_acquire_barrier.buffer = m.buffer();
+    r.queue_transfer_acquire_barrier.offset = m.buffer_offset();
+    r.queue_transfer_acquire_barrier.size = m.total() * m.elemsize;
+    r.queue_transfer_acquire_barrier.src_queue_family_index = src_queue_family_index;
+    delayed_records.push_back(r);
+}
+
 #if __ANDROID_API__ >= 26
 void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& im, const VkMat& m)
 {
@@ -870,6 +887,9 @@ int VkCompute::submit_and_wait()
         case 15:
             compute_host_barrier(r.compute_host_barrier.buffer, r.compute_host_barrier.offset, r.compute_host_barrier.size);
             break;
+        case 16:
+            queue_transfer_acquire_barrier(r.queue_transfer_acquire_barrier.buffer, r.queue_transfer_acquire_barrier.offset, r.queue_transfer_acquire_barrier.size, r.queue_transfer_acquire_barrier.src_queue_family_index);
+            break;
         }
     }
 
@@ -1180,6 +1200,27 @@ void VkCompute::compute_host_barrier(VkBuffer buffer, size_t offset, size_t size
     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
+void VkCompute::queue_transfer_acquire_barrier(VkBuffer buffer, size_t offset, size_t size, uint32_t src_queue_family_index)
+{
+//     fprintf(stderr, "cmd queue_transfer_acquire_barrier %p[+%lu] %lu   %lu -> %lu\n", buffer, offset, size, src_queue_family_index, queue_family_index);
+
+    VkBufferMemoryBarrier bufferBarrier;
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.pNext = 0;
+    bufferBarrier.srcAccessMask = 0;
+    bufferBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    bufferBarrier.srcQueueFamilyIndex = src_queue_family_index;
+    bufferBarrier.dstQueueFamilyIndex = queue_family_index;
+    bufferBarrier.buffer = buffer;
+    bufferBarrier.offset = offset;
+    bufferBarrier.size = size;
+
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
+}
+
 void VkCompute::initial_image_compute_barrier(VkImage image)
 {
 //     fprintf(stderr, "cmd initial_image_compute_barrier %p %lu %lu\n", image, oldlayout, newlayout);
@@ -1275,9 +1316,13 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     // set weight blob as readonly
     dst.data->state = 4;
 
-    if (dst.allocator->mappable)
+    // we can skip queue transfer and staging buffer allocation
+    // only on unified memory architecture and unified compute/transfer queue
+    // which is usually the case on integrated gpu / cpu
+    if (dst.allocator->mappable && queue_family_index == vkdev->info.compute_queue_family_index)
     {
         dst.upload(src_flattened);
+
         return;
     }
 
@@ -1317,6 +1362,8 @@ int VkTransfer::submit_and_wait()
         mapped_ptr_offset += alignSize(r.size, buffer_offset_alignment);
     }
 
+    staging_vkallocator->flush(staging_data);
+
     begin_command_buffer();
 
 //     fprintf(stderr, "cmd transfer %p %lu\n", staging_data->buffer, staging_buffer_size);
@@ -1332,31 +1379,31 @@ int VkTransfer::submit_and_wait()
         staging_buffer_offset += alignSize(r.size, buffer_offset_alignment);
     }
 
-//     // finish TODO queue owner transfer release
-//     std::vector<VkBufferMemoryBarrier> bufferBarriers(transfer_count);
-//     for (int i=0; i<transfer_count; i++)
-//     {
-//         const record_type& r = delayed_records[i];
-//
-//         bufferBarriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-//         bufferBarriers[i].pNext = 0;
-//         bufferBarriers[i].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-//         bufferBarriers[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-//         bufferBarriers[i].srcQueueFamilyIndex = queue_family_index;
-//         bufferBarriers[i].dstQueueFamilyIndex = vkdev->info.compute_queue_family_index;
-//         bufferBarriers[i].buffer = r.vkmat.buffer();
-//         bufferBarriers[i].offset = r.vkmat.buffer_offset();
-//         bufferBarriers[i].size = r.size;
-//     }
-//
-//     VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
-//     VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-//
-//     vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, transfer_count, bufferBarriers.data(), 0, 0);
+    // owner transfer release
+    for (int i=0; i<transfer_count; i++)
+    {
+        const record_type& r = delayed_records[i];
+
+        queue_transfer_release_barrier(r.vkmat.buffer(), r.vkmat.buffer_offset(), r.size, vkdev->info.compute_queue_family_index);
+    }
 
     end_command_buffer();
 
     int ret = queue_submit_and_wait_fence();
+
+    // compute queue owner transfer acquire
+    {
+        VkCompute cmd(vkdev);
+
+        for (int i=0; i<transfer_count; i++)
+        {
+            const record_type& r = delayed_records[i];
+
+            cmd.record_queue_transfer_acquire(r.vkmat, queue_family_index);
+        }
+
+        cmd.submit_and_wait();
+    }
 
     // deallocate staging buffer
     staging_vkallocator->fastFree(staging_data);
@@ -1384,6 +1431,27 @@ void VkTransfer::copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vect
 //     fprintf(stderr, "cmd copy regions %p to %p\n", src, dst);
 
     vkCmdCopyBuffer(command_buffer, src, dst, regions.size(), regions.data());
+}
+
+void VkTransfer::queue_transfer_release_barrier(VkBuffer buffer, size_t offset, size_t size, uint32_t dst_queue_family_index)
+{
+//     fprintf(stderr, "cmd queue_transfer_release_barrier %p[+%lu] %lu   %lu -> %lu\n", buffer, offset, size, queue_family_index, dst_queue_family_index);
+
+    VkBufferMemoryBarrier bufferBarrier;
+    bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    bufferBarrier.pNext = 0;
+    bufferBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    bufferBarrier.dstAccessMask = 0;
+    bufferBarrier.srcQueueFamilyIndex = queue_family_index;
+    bufferBarrier.dstQueueFamilyIndex = dst_queue_family_index;
+    bufferBarrier.buffer = buffer;
+    bufferBarrier.offset = offset;
+    bufferBarrier.size = size;
+
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+    vkCmdPipelineBarrier(command_buffer, srcStageMask, dstStageMask, 0, 0, 0, 1, &bufferBarrier, 0, 0);
 }
 
 } // namespace ncnn
