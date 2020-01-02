@@ -209,11 +209,14 @@ public:
     virtual void clear() {}
     virtual VkBufferMemory* fastMalloc(size_t size) = 0;
     virtual void fastFree(VkBufferMemory* ptr) = 0;
+    virtual int flush(VkBufferMemory* ptr);
+    virtual int invalidate(VkBufferMemory* ptr);
 
 public:
     const VulkanDevice* vkdev;
     uint32_t memory_type_index;
     bool mappable;
+    bool coherent;
 
 protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);

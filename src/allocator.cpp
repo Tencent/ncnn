@@ -251,6 +251,61 @@ VkAllocator::VkAllocator(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
     memory_type_index = (uint32_t)-1;
     mappable = false;
+    coherent = false;
+}
+
+static inline size_t round_up(size_t n, size_t multiple)
+{
+    return (n + n - 1) / multiple * multiple;
+}
+
+static inline size_t round_down(size_t n, size_t multiple)
+{
+    return n / multiple * multiple;
+}
+
+int VkAllocator::flush(VkBufferMemory* ptr)
+{
+    if (coherent)
+        return 0;
+
+    VkMappedMemoryRange mappedMemoryRange;
+    mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    mappedMemoryRange.pNext = 0;
+    mappedMemoryRange.memory = ptr->memory;
+    mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size);
+    mappedMemoryRange.size = round_up(ptr->capacity, vkdev->info.non_coherent_atom_size) - mappedMemoryRange.offset;
+
+    VkResult ret = vkFlushMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkFlushMappedMemoryRanges failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VkAllocator::invalidate(VkBufferMemory* ptr)
+{
+    if (coherent)
+        return 0;
+
+    VkMappedMemoryRange mappedMemoryRange;
+    mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    mappedMemoryRange.pNext = 0;
+    mappedMemoryRange.memory = ptr->memory;
+    mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size);
+    mappedMemoryRange.size = round_up(ptr->capacity, vkdev->info.non_coherent_atom_size) - mappedMemoryRange.offset;
+
+    VkResult ret = vkInvalidateMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkInvalidateMappedMemoryRanges failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
 }
 
 VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
@@ -265,7 +320,7 @@ VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
     bufferCreateInfo.queueFamilyIndexCount = 0;
     bufferCreateInfo.pQueueFamilyIndices = 0;
 
-    VkBuffer buffer;
+    VkBuffer buffer = 0;
     VkResult ret = vkCreateBuffer(vkdev->vkdevice(), &bufferCreateInfo, 0, &buffer);
     if (ret != VK_SUCCESS)
     {
@@ -289,6 +344,7 @@ VkDeviceMemory VkAllocator::allocate_memory(size_t size)
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
+        return 0;
     }
 
     return memory;
@@ -314,6 +370,7 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, VkBuffer buff
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
+        return 0;
     }
 
     return memory;
@@ -345,9 +402,9 @@ VkBlobBufferAllocator::VkBlobBufferAllocator(const VulkanDevice* _vkdev) : VkAll
         // on integrated gpu, there may be device local only memory too, eg. AMD APU
         // assuming larger alignment always keeps us safe :)
 
-        // least common multiple for memory_map_alignment and buffer_offset_alignment
-        size_t memory_map_alignment = vkdev->info.memory_map_alignment;
-        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, memory_map_alignment);
+        // least common multiple for memory_map_alignment and buffer_offset_alignment and non_coherent_atom_size
+        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, vkdev->info.memory_map_alignment);
+        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, vkdev->info.non_coherent_atom_size);
     }
 
     block_size = alignSize(16 * 1024 * 1024, buffer_offset_alignment);// 16M
@@ -460,6 +517,7 @@ VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
         }
 
         mappable = vkdev->is_mappable(memory_type_index);
+        coherent = vkdev->is_coherent(memory_type_index);
     }
 
     block->memory = allocate_memory(memoryRequirements.size);
@@ -577,9 +635,9 @@ VkWeightBufferAllocator::VkWeightBufferAllocator(const VulkanDevice* _vkdev) : V
         // on integrated gpu, there may be device local only memory too, eg. AMD APU
         // assuming larger alignment always keeps us safe :)
 
-        // least common multiple for memory_map_alignment and buffer_offset_alignment
-        size_t memory_map_alignment = vkdev->info.memory_map_alignment;
-        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, memory_map_alignment);
+        // least common multiple for memory_map_alignment and buffer_offset_alignment and non_coherent_atom_size
+        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, vkdev->info.memory_map_alignment);
+        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, vkdev->info.non_coherent_atom_size);
     }
 
     block_size = alignSize(8 * 1024 * 1024, buffer_offset_alignment);// 8M
@@ -709,6 +767,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
                 }
 
                 mappable = vkdev->is_mappable(memory_type_index);
+                coherent = vkdev->is_coherent(memory_type_index);
             }
 
             block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, block->buffer);
@@ -755,6 +814,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
         }
 
         mappable = vkdev->is_mappable(memory_type_index);
+        coherent = vkdev->is_coherent(memory_type_index);
     }
 
     block->memory = allocate_memory(memoryRequirements.size);
@@ -796,6 +856,7 @@ void VkWeightBufferAllocator::fastFree(VkBufferMemory* ptr)
 VkStagingBufferAllocator::VkStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = true;
+    coherent = true;
 
     size_compare_ratio = 192;// 0.75f * 256
 }
@@ -899,6 +960,7 @@ void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
 VkWeightStagingBufferAllocator::VkWeightStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = true;
+    coherent = true;
 }
 
 VkWeightStagingBufferAllocator::~VkWeightStagingBufferAllocator()

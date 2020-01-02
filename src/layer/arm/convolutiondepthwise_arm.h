@@ -27,13 +27,12 @@ public:
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
+    virtual int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
-
-    bool use_fp32_packing_inference;
 
     // packing
     Mat weight_data_pack4;
