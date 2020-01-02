@@ -27,13 +27,18 @@ public:
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
+    virtual int upload_model(VkTransfer& cmd, const Option& opt);
+
     using Padding::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
 public:
+    VkMat per_channel_pad_data_gpu;
     Pipeline* pipeline_padding;
+
+    VkMat per_channel_pad_data_gpu_pack4;
     Pipeline* pipeline_padding_pack4;
 };
 

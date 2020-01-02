@@ -153,15 +153,15 @@ static float float16_to_float32(unsigned short value)
 static signed char float32_to_int8(float value)
 {
     float tmp;
-    if (value >= 0.f) tmp = value + 0.5;
-    else tmp = value - 0.5;
+    if (value >= 0.f) tmp = value + 0.5f;
+    else tmp = value - 0.5f;
 
     if (tmp > 127)
         return 127;
     if (tmp < -128)
         return -128;
 
-    return tmp;
+    return static_cast<signed char>(tmp);
 }
 
 int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const

@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-typedef void (*conv_func)(const Mat&, Mat&, const Mat&, const Mat&, const Option&);
-
 class Convolution_arm : virtual public Convolution
 {
 public:
@@ -29,8 +27,9 @@ public:
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
+    virtual int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-    virtual int forwardDilation(const Mat& bottom_blob, Mat& top_blob, conv_func conv, const Option& opt) const;
+    virtual int forwardDilation(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     Layer* activation;
@@ -46,7 +45,8 @@ public:
     Mat weight_sgemm_data;
     std::vector<Mat> weight_3x3_winograd23_int8_data;
 
-    bool use_fp32_packing_inference;
+    // forwardDilation
+    Layer* convolution_dilation1;
 
     // pack4
     Mat weight_data_pack4;

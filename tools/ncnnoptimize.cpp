@@ -94,7 +94,7 @@ class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
     virtual int scan(const char* format, void* p) const { return 0; }
-    virtual int read(void* /*buf*/, int size) const { return size; }
+    virtual size_t read(void* /*buf*/, size_t size) const { return size; }
 };
 
 class NetOptimize : public ncnn::Net
@@ -168,7 +168,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
     opt.num_threads = 1;
     opt.use_packing_layout = false;
 
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     ncnn::Extractor ex = create_extractor();
     
     ncnn::Mat input(w, h, c);
@@ -319,7 +319,7 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
 
 int NetOptimize::fuse_batchnorm_scale()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "BatchNorm")
@@ -380,7 +380,7 @@ int NetOptimize::fuse_batchnorm_scale()
 
 int NetOptimize::fuse_convolution_batchnorm()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Convolution")
@@ -423,7 +423,7 @@ int NetOptimize::fuse_convolution_batchnorm()
             std::vector<float> b(channels);
             for (int i=0; i<channels; i++)
             {
-                float sqrt_var = sqrt(batchnorm->var_data[i] + eps);
+                float sqrt_var = static_cast<float>(sqrt(batchnorm->var_data[i] + eps));
                 a[i] = batchnorm->bias_data[i] - batchnorm->slope_data[i] * batchnorm->mean_data[i] / sqrt_var;
                 b[i] = batchnorm->slope_data[i] / sqrt_var;
             }
@@ -463,7 +463,7 @@ int NetOptimize::fuse_convolution_batchnorm()
 
 int NetOptimize::fuse_convolutiondepthwise_batchnorm()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "ConvolutionDepthWise")
@@ -506,7 +506,7 @@ int NetOptimize::fuse_convolutiondepthwise_batchnorm()
             std::vector<float> b(channels);
             for (int i=0; i<channels; i++)
             {
-                float sqrt_var = sqrt(batchnorm->var_data[i] + eps);
+                float sqrt_var = static_cast<float>(sqrt(batchnorm->var_data[i] + eps));
                 a[i] = batchnorm->bias_data[i] - batchnorm->slope_data[i] * batchnorm->mean_data[i] / sqrt_var;
                 b[i] = batchnorm->slope_data[i] / sqrt_var;
             }
@@ -546,7 +546,7 @@ int NetOptimize::fuse_convolutiondepthwise_batchnorm()
 
 int NetOptimize::fuse_deconvolution_batchnorm()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Deconvolution")
@@ -589,7 +589,7 @@ int NetOptimize::fuse_deconvolution_batchnorm()
             std::vector<float> b(channels);
             for (int i=0; i<channels; i++)
             {
-                float sqrt_var = sqrt(batchnorm->var_data[i] + eps);
+                float sqrt_var = static_cast<float>(sqrt(batchnorm->var_data[i] + eps));
                 a[i] = batchnorm->bias_data[i] - batchnorm->slope_data[i] * batchnorm->mean_data[i] / sqrt_var;
                 b[i] = batchnorm->slope_data[i] / sqrt_var;
             }
@@ -629,7 +629,7 @@ int NetOptimize::fuse_deconvolution_batchnorm()
 
 int NetOptimize::fuse_deconvolutiondepthwise_batchnorm()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "DeconvolutionDepthWise")
@@ -672,7 +672,7 @@ int NetOptimize::fuse_deconvolutiondepthwise_batchnorm()
             std::vector<float> b(channels);
             for (int i=0; i<channels; i++)
             {
-                float sqrt_var = sqrt(batchnorm->var_data[i] + eps);
+                float sqrt_var = static_cast<float>(sqrt(batchnorm->var_data[i] + eps));
                 a[i] = batchnorm->bias_data[i] - batchnorm->slope_data[i] * batchnorm->mean_data[i] / sqrt_var;
                 b[i] = batchnorm->slope_data[i] / sqrt_var;
             }
@@ -712,7 +712,7 @@ int NetOptimize::fuse_deconvolutiondepthwise_batchnorm()
 
 int NetOptimize::fuse_innerproduct_batchnorm()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "InnerProduct")
@@ -755,7 +755,7 @@ int NetOptimize::fuse_innerproduct_batchnorm()
             std::vector<float> b(channels);
             for (int i=0; i<channels; i++)
             {
-                float sqrt_var = sqrt(batchnorm->var_data[i] + eps);
+                float sqrt_var = static_cast<float>(sqrt(batchnorm->var_data[i] + eps));
                 a[i] = batchnorm->bias_data[i] - batchnorm->slope_data[i] * batchnorm->mean_data[i] / sqrt_var;
                 b[i] = batchnorm->slope_data[i] / sqrt_var;
             }
@@ -795,7 +795,7 @@ int NetOptimize::fuse_innerproduct_batchnorm()
 
 int NetOptimize::fuse_innerproduct_dropout()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "InnerProduct")
@@ -863,7 +863,7 @@ int NetOptimize::fuse_innerproduct_dropout()
 
 int NetOptimize::fuse_convolution_activation()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Convolution")
@@ -934,7 +934,7 @@ int NetOptimize::fuse_convolution_activation()
 
 int NetOptimize::fuse_convolutiondepthwise_activation()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "ConvolutionDepthWise")
@@ -1005,7 +1005,7 @@ int NetOptimize::fuse_convolutiondepthwise_activation()
 
 int NetOptimize::fuse_deconvolution_activation()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Deconvolution")
@@ -1076,7 +1076,7 @@ int NetOptimize::fuse_deconvolution_activation()
 
 int NetOptimize::fuse_deconvolutiondepthwise_activation()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "DeconvolutionDepthWise")
@@ -1147,7 +1147,7 @@ int NetOptimize::fuse_deconvolutiondepthwise_activation()
 
 int NetOptimize::fuse_innerproduct_activation()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "InnerProduct")
@@ -1218,7 +1218,7 @@ int NetOptimize::fuse_innerproduct_activation()
 
 int NetOptimize::eliminate_dropout()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Dropout")
@@ -1262,7 +1262,7 @@ int NetOptimize::eliminate_dropout()
 
 int NetOptimize::eliminate_pooling1x1()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Pooling")
@@ -1319,7 +1319,7 @@ int NetOptimize::eliminate_pooling1x1()
 
 int NetOptimize::eliminate_noop()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Noop")
@@ -1332,7 +1332,7 @@ int NetOptimize::eliminate_noop()
             // Noop
             fprintf(stderr, "eliminate_noop %s\n", noop->name.c_str());
 
-            int top_blob_count = noop->tops.size();
+            size_t top_blob_count = noop->tops.size();
             for (int k=0; k<top_blob_count; k++)
             {
                 int top_blob_index_final = noop->tops[k];
@@ -1366,7 +1366,7 @@ int NetOptimize::eliminate_noop()
 
         fprintf(stderr, "eliminate_noop %s %s\n", any->name.c_str(), noop->name.c_str());
 
-        int top_blob_count = std::min(noop->tops.size(), any->tops.size());
+        size_t top_blob_count = std::min(noop->tops.size(), any->tops.size());
         for (int k=0; k<top_blob_count; k++)
         {
             int top_blob_index_final = noop->tops[k];
@@ -1381,7 +1381,7 @@ int NetOptimize::eliminate_noop()
 
 int NetOptimize::eliminate_orphaned_memorydata()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "MemoryData")
@@ -1424,7 +1424,7 @@ int NetOptimize::eliminate_orphaned_memorydata()
 
 int NetOptimize::eliminate_reshape_after_global_pooling()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Pooling")
@@ -1470,7 +1470,7 @@ int NetOptimize::eliminate_reshape_after_global_pooling()
 
 int NetOptimize::eliminate_flatten_after_global_pooling()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Pooling")
@@ -1514,7 +1514,7 @@ int NetOptimize::eliminate_flatten_after_global_pooling()
 
 int NetOptimize::eliminate_flatten_after_innerproduct()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "InnerProduct")
@@ -1555,7 +1555,7 @@ int NetOptimize::eliminate_flatten_after_innerproduct()
 
 int NetOptimize::eliminate_reshape_before_binaryop()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Reshape")
@@ -1603,7 +1603,7 @@ int NetOptimize::eliminate_reshape_before_binaryop()
 
 int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (int i=0; i<layer_count; i++)
     {
         if (layers[i]->type != "Pooling")
@@ -1665,7 +1665,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
 
 int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
 {
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
     for (;;)
     {
     bool replaced = false;
@@ -1786,7 +1786,7 @@ int NetOptimize::fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp
 
     // padding to 32bit align
     int nwrite = ftell(bp) - p0;
-    int nalign = alignSize(nwrite, 4);
+    size_t nalign = alignSize(nwrite, 4);
     unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
 
@@ -1802,7 +1802,7 @@ int NetOptimize::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
 
     // padding to 32bit align
     int nwrite = ftell(bp) - p0;
-    int nalign = alignSize(nwrite, 4);
+    size_t nalign = alignSize(nwrite, 4);
     unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
 
@@ -1816,7 +1816,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
     fprintf(pp, "7767517\n");
 
-    const int layer_count = layers.size();
+    const size_t layer_count = layers.size();
 
     int layer_count_fused = 0;
     std::set<std::string> blob_names;
@@ -1828,14 +1828,14 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
         layer_count_fused++;
 
-        int bottom_count = layer->bottoms.size();
+        size_t bottom_count = layer->bottoms.size();
         for (int j=0; j<bottom_count; j++)
         {
             int bottom_blob_index = layer->bottoms[j];
             blob_names.insert(blobs[bottom_blob_index].name);
         }
 
-        int top_count = layer->tops.size();
+        size_t top_count = layer->tops.size();
         for (int j=0; j<top_count; j++)
         {
             int top_blob_index = layer->tops[j];
@@ -1843,9 +1843,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
         }
     }
 
-    int blob_count_fused = blob_names.size();
+    size_t blob_count_fused = blob_names.size();
 
-    fprintf(pp, "%d %d\n", layer_count_fused, blob_count_fused);
+    fprintf(pp, "%d %zd\n", layer_count_fused, blob_count_fused);
 
     for (int i=0; i<layer_count; i++)
     {
@@ -1853,10 +1853,10 @@ int NetOptimize::save(const char* parampath, const char* binpath)
         if (layer->type == "ncnnfused")
             continue;
 
-        int bottom_count = layer->bottoms.size();
-        int top_count = layer->tops.size();
+        size_t bottom_count = layer->bottoms.size();
+        size_t top_count = layer->tops.size();
 
-        fprintf(pp, "%-24s %-24s %d %d", layer->type.c_str(), layer->name.c_str(), bottom_count, top_count);
+        fprintf(pp, "%-24s %-24s %zd %zd", layer->type.c_str(), layer->name.c_str(), bottom_count, top_count);
 
         for (int j=0; j<bottom_count; j++)
         {

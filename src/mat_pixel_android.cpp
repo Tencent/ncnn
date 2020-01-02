@@ -15,13 +15,15 @@
 #include "mat.h"
 
 #if NCNN_PIXEL
-#if __ANDROID_API__ >= 9
 
+#if __ANDROID_API__ >= 9
 #include <jni.h>
 #include <android/bitmap.h>
+#endif // __ANDROID_API__ >= 9
 
 namespace ncnn {
 
+#if __ANDROID_API__ >= 9
 Mat Mat::from_android_bitmap(JNIEnv* env, jobject bitmap, int type_to, Allocator* allocator)
 {
     AndroidBitmapInfo info;
@@ -136,8 +138,8 @@ void Mat::to_android_bitmap(JNIEnv* env, jobject bitmap, int type_from) const
 
     AndroidBitmap_unlockPixels(env, bitmap);
 }
+#endif // __ANDROID_API__ >= 9
 
 } // namespace ncnn
 
-#endif // __ANDROID_API__ >= 9
 #endif // NCNN_PIXEL

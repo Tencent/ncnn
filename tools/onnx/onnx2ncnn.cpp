@@ -298,6 +298,7 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
         // ShuffleChannel <= Reshape - Transpose - Reshape
+        // ShuffleChannel <= Reshape - Transpose - Constant - Reshape
         if (node->op_type() == "Reshape")
         {
             if (node_reference.find(node->output(0)) == node_reference.end() || node_reference[node->output(0)] != 1)
@@ -329,6 +330,14 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
 
             onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
             onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
+
+            if (node3->op_type() == "Constant")
+            {
+                if (i+3 >= node_count)
+                    continue;
+
+                node3 = mutable_graph->mutable_node(i+3);
+            }
 
             if (node2->op_type() != "Transpose" || node3->op_type() != "Reshape")
                 continue;
@@ -1210,7 +1219,7 @@ int main(int argc, char** argv)
         int refcount = node_reference[input_name];
         if (refcount <= 1){
             continue;
-        }   
+        }
 
         char splitname[256];
         sprintf(splitname, "splitncnn_%d", internal_split);
@@ -1267,7 +1276,7 @@ int main(int argc, char** argv)
         {
             const std::string& output_name = node.output(j);
             fprintf(stderr, "  output = %s\n", output_name.c_str());
-        } 
+        }
         */
 
         if (op == "Abs")
@@ -2269,12 +2278,12 @@ int main(int argc, char** argv)
 
             std::vector<int> axes = get_node_attr_ai(node, "axes");
             int keepdims = get_node_attr_i(node, "keepdims", 1);
-            
+
             if (axes.size() > 0)
             {
                 // if axes set, reduce according to axes
-                fprintf(pp, " 1=%d", 0); 
-                fprintf(pp, " -23303=%d", axes.size());
+                fprintf(pp, " 1=%d", 0);
+                fprintf(pp, " -23303=%zu", axes.size());
                 for (int i=0; i< axes.size(); i++)
                 {
                     if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
@@ -2346,19 +2355,19 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
-            fprintf(pp, " -23309=%d", starts.size());
+            fprintf(pp, " -23309=%zu", starts.size());
             for (int i=0; i<(int)starts.size(); i++)
             {
                 fprintf(pp, ",%d", starts[i]);
             }
-            fprintf(pp, " -23310=%d", ends.size());
+            fprintf(pp, " -23310=%zu", ends.size());
             for (int i=0; i<(int)ends.size(); i++)
             {
                 fprintf(pp, ",%d", ends[i]);
             }
             if (!axes.empty())
             {
-                fprintf(pp, " -23311=%d", axes.size());
+                fprintf(pp, " -23311=%zu", axes.size());
                 for (int i=0; i<(int)axes.size(); i++)
                 {
                     if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
@@ -2415,7 +2424,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(pp, " -23303=%d", axes.size());
+                fprintf(pp, " -23303=%zu", axes.size());
                 for (int i=0; i<(int)axes.size(); i++)
                 {
                     if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
@@ -2492,7 +2501,7 @@ int main(int argc, char** argv)
             {
                 const onnx::TensorProto& scales_tp = weights[node.input(1)];
                 const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
-                
+
                 int float_data_size = scales_tp.float_data_size();
                 //float data is None, use raw data instead
                 if (float_data_size == 0) {
@@ -2551,7 +2560,7 @@ int main(int argc, char** argv)
         {
             std::vector<int> axes = get_node_attr_ai(node, "axes");
 
-            fprintf(pp, " -23303=%d", axes.size());
+            fprintf(pp, " -23303=%zu", axes.size());
             for (int i=0; i<(int)axes.size(); i++)
             {
                 if (axes[i] == 0 || axes[i] > 4 || axes[i] < -4)

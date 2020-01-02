@@ -48,7 +48,14 @@ Pipeline::~Pipeline()
 
 int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
 {
-    local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
+    if (vkdev->info.bug_local_size_spec_const)
+    {
+        local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
+    }
+    else
+    {
+        local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
+    }
 
 //     fprintf(stderr, "local_shader_module %p %s created\n", local_shader_module, entry_name);
 
@@ -86,6 +93,13 @@ int Pipeline::create(const char* _name, const Option& opt, const std::vector<vk_
     else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed)
     {
         name += "_fp16p";
+    }
+
+    if (vkdev->info.bug_local_size_spec_const)
+    {
+        local_shader_module = vkdev->create_shader_module(name.c_str(), local_size_x, local_size_y, local_size_z);
+
+        return create(local_shader_module, name.c_str(), specializations, binding_count, push_constant_count);
     }
 
     VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
@@ -324,6 +338,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_na
     std::vector<vk_specialization_type> specialization_data = specializations;
 
     // append local_size_xyz specialization
+    if (!vkdev->info.bug_local_size_spec_const)
     {
         VkSpecializationMapEntry* local_size_xyz_entries = specializationMapEntries.data() + specialization_count;
 
@@ -481,19 +496,6 @@ int ImportAndroidHardwareBufferPipeline::create(AHardwareBuffer* hb, int _type_t
         out_elempack = 4;
     }
 
-    bufferFormatProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
-    bufferFormatProperties.pNext = 0;
-
-    bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
-    bufferProperties.pNext = &bufferFormatProperties;
-
-    VkResult ret = vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkGetAndroidHardwareBufferPropertiesANDROID failed %d\n", ret);
-        return -1;
-    }
-
     set_local_size_xyz(8, 8, 1);
 
     std::vector<vk_specialization_type> specializations(4);
@@ -502,7 +504,7 @@ int ImportAndroidHardwareBufferPipeline::create(AHardwareBuffer* hb, int _type_t
     specializations[2].i = type_to;
     specializations[3].i = rotate_from;
 
-    create_sampler();
+    create_sampler(hb);
 
     create_descriptorset_layout();
 
@@ -552,118 +554,25 @@ void ImportAndroidHardwareBufferPipeline::destroy()
     Pipeline::destroy();
 }
 
-int ImportAndroidHardwareBufferPipeline::create_image_memory_imageview(AHardwareBuffer* hb, VkImage* image, VkDeviceMemory* memory, VkImageView* imageView)
+int ImportAndroidHardwareBufferPipeline::create_sampler(AHardwareBuffer* hb)
 {
-    VkExternalFormatANDROID externalFormat;
-    externalFormat.sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID;
-    externalFormat.pNext = 0;
-    externalFormat.externalFormat = bufferFormatProperties.externalFormat;
+    VkResult ret;
 
-    VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo;
-    externalMemoryImageCreateInfo.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
-    externalMemoryImageCreateInfo.pNext = &externalFormat,
-    externalMemoryImageCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID;
+    VkAndroidHardwareBufferFormatPropertiesANDROID bufferFormatProperties;
+    bufferFormatProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
+    bufferFormatProperties.pNext = 0;
 
-    VkImageCreateInfo imageCreateInfo;
-    imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-    imageCreateInfo.pNext = &externalMemoryImageCreateInfo;
-    imageCreateInfo.flags = 0;
-    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageCreateInfo.format = VK_FORMAT_UNDEFINED;
-    imageCreateInfo.extent.width = w;
-    imageCreateInfo.extent.height = h;
-    imageCreateInfo.extent.depth = 1;
-    imageCreateInfo.mipLevels = 1;
-    imageCreateInfo.arrayLayers = 1;
-    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
-    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    imageCreateInfo.queueFamilyIndexCount = 0;
-    imageCreateInfo.pQueueFamilyIndices = 0;
-    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    VkAndroidHardwareBufferPropertiesANDROID bufferProperties;
+    bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
+    bufferProperties.pNext = &bufferFormatProperties;
 
-    *image = 0;
-    VkResult ret = vkCreateImage(vkdev->vkdevice(), &imageCreateInfo, 0, image);
+    ret = vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateImage failed %d\n", ret);
+        fprintf(stderr, "vkGetAndroidHardwareBufferPropertiesANDROID failed %d\n", ret);
         return -1;
     }
 
-    VkImportAndroidHardwareBufferInfoANDROID importAndroidHardwareBufferInfo;
-    importAndroidHardwareBufferInfo.sType = VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID;
-    importAndroidHardwareBufferInfo.pNext = 0;
-    importAndroidHardwareBufferInfo.buffer = hb;
-
-    VkMemoryDedicatedAllocateInfo memoryDedicatedAllocateInfo;
-    memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO;
-    memoryDedicatedAllocateInfo.pNext = &importAndroidHardwareBufferInfo;
-    memoryDedicatedAllocateInfo.image = *image;
-    memoryDedicatedAllocateInfo.buffer = VK_NULL_HANDLE;
-
-    VkMemoryAllocateInfo memoryAllocateInfo;
-    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
-    memoryAllocateInfo.allocationSize = bufferProperties.allocationSize;
-    memoryAllocateInfo.memoryTypeIndex = vkdev->find_memory_index(bufferProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-
-    *memory = 0;
-    ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, memory);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
-        return -1;
-    }
-
-    VkBindImageMemoryInfo bindImageMemoryInfo;
-    bindImageMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO;
-    bindImageMemoryInfo.pNext = 0;
-    bindImageMemoryInfo.image = *image;
-    bindImageMemoryInfo.memory = *memory;
-    bindImageMemoryInfo.memoryOffset = 0;
-    ret = vkdev->vkBindImageMemory2KHR(vkdev->vkdevice(), 1, &bindImageMemoryInfo);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkBindImageMemory2KHR failed %d\n", ret);
-        return -1;
-    }
-
-    VkSamplerYcbcrConversionInfoKHR samplerYcbcrConversionInfo;
-    samplerYcbcrConversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
-    samplerYcbcrConversionInfo.pNext = &externalFormat;
-    samplerYcbcrConversionInfo.conversion = samplerYcbcrConversion;
-
-    VkImageViewCreateInfo imageViewCreateInfo;
-    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    imageViewCreateInfo.pNext = &samplerYcbcrConversionInfo;
-    imageViewCreateInfo.flags = 0;
-    imageViewCreateInfo.image = *image;
-    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    imageViewCreateInfo.format = VK_FORMAT_UNDEFINED;
-    imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-    imageViewCreateInfo.subresourceRange.levelCount = 1;
-    imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-    imageViewCreateInfo.subresourceRange.layerCount = 1;
-
-    *imageView = 0;
-    ret = vkCreateImageView(vkdev->vkdevice(), &imageViewCreateInfo, 0, imageView);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkCreateImageView failed %d\n", ret);
-        return -1;
-    }
-
-    return 0;
-}
-
-int ImportAndroidHardwareBufferPipeline::create_sampler()
-{
     VkExternalFormatANDROID externalFormat;
     externalFormat.sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID;
     externalFormat.pNext = 0;
@@ -681,7 +590,7 @@ int ImportAndroidHardwareBufferPipeline::create_sampler()
     samplerYcbcrConversionCreateInfo.chromaFilter = VK_FILTER_NEAREST;
     samplerYcbcrConversionCreateInfo.forceExplicitReconstruction = VK_FALSE;
 
-    VkResult ret = vkdev->vkCreateSamplerYcbcrConversionKHR(vkdev->vkdevice(), &samplerYcbcrConversionCreateInfo, 0, &samplerYcbcrConversion);
+    ret = vkdev->vkCreateSamplerYcbcrConversionKHR(vkdev->vkdevice(), &samplerYcbcrConversionCreateInfo, 0, &samplerYcbcrConversion);
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkCreateSamplerYcbcrConversionKHR failed %d\n", ret);
