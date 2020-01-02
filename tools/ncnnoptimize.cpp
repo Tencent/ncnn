@@ -247,7 +247,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
                 fprintf(stdout, "running %s ... ", name.c_str());
 
                 auto start = std::chrono::high_resolution_clock::now();
-                const int NREPEATS = 50;
+                const int NREPEATS = 20;
                 op->create_pipeline(opt);
                 for (int repeat = 0; repeat < NREPEATS; ++repeat)
                 {
@@ -301,8 +301,8 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
     const int support_table[7][4] = 
     {
         {1, 1, 0, 0},
+        {1, 0, 0, 0},
         {1, 1, 0, 0},
-        {0, 0, 0, 0},
         {0, 0, 0, 1},
         {1, 1, 0, 0},
         {0, 0, 0, 0},
