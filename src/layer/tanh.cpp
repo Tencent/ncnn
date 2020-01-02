@@ -39,7 +39,7 @@ int TanH::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int i=0; i<size; i++)
         {
-            ptr[i] = tanh(ptr[i]);
+            ptr[i] = static_cast<float>(tanh(ptr[i]));
         }
     }
 

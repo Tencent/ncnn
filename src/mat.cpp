@@ -24,6 +24,10 @@
 #include "layer_type.h"
 #include "layer.h"
 
+#if __ANDROID_API__ >= 26
+#include <android/hardware_buffer.h>
+#endif // __ANDROID_API__ >= 26
+
 namespace ncnn {
 
 void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_vals)
@@ -221,6 +225,29 @@ Mat Mat::from_float16(const unsigned short* data, int size)
 
     return m;
 }
+
+#if __ANDROID_API__ >= 26
+VkImageMat VkImageMat::from_android_hardware_buffer(AHardwareBuffer* hb, VkAndroidHardwareBufferImageAllocator* allocator)
+{
+    AHardwareBuffer_Desc bufferDesc;
+    AHardwareBuffer_describe(hb, &bufferDesc);
+
+    VkImageMat m;
+
+    m.allocator = allocator;
+
+    m.width = bufferDesc.width;
+    m.height = bufferDesc.height;
+    m.format = VK_FORMAT_UNDEFINED;
+
+    m.data = allocator->fastMalloc(hb);
+
+    m.refcount = (int*)((unsigned char*)m.data + offsetof(VkImageMemory, refcount));
+    *m.refcount = 1;
+
+    return m;
+}
+#endif // __ANDROID_API__ >= 26
 
 void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt)
 {

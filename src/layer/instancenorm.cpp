@@ -81,7 +81,7 @@ int InstanceNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float gamma = gamma_data[q];
         float beta = beta_data[q];
 
-        float a = gamma / (sqrt(var + eps));
+        float a = static_cast<float>(gamma / (sqrt(var + eps)));
         float b = - mean * a + beta;
 
         for (int i=0; i<size; i++)

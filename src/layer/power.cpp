@@ -48,7 +48,7 @@ int Power::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int i=0; i<size; i++)
         {
-            ptr[i] = pow((shift + ptr[i] * scale), power);
+            ptr[i] = static_cast<float>(pow((shift + ptr[i] * scale), power));
         }
     }
 
