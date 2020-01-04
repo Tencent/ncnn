@@ -661,25 +661,21 @@ int Net::fuse_network()
                     {
                         ((Convolution*)layer)->use_int8_requantize = true;
                         ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next)->bottom_blob_int8_scale;
-                        ((Convolution*)layer)->create_requantize_op();
                     }
                     else if (layer->type == "ConvolutionDepthWise" && layer_next->type == "Convolution")
                     {
                         ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
                         ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next)->bottom_blob_int8_scale;
-                        ((ConvolutionDepthWise*)layer)->create_requantize_op();
                     }
                     else if (layer->type == "Convolution" && layer_next->type == "ConvolutionDepthWise")
                     {
                         ((Convolution*)layer)->use_int8_requantize = true;
                         ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
-                        ((Convolution*)layer)->create_requantize_op();
                     }
                     else
                     {
                         ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
                         ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
-                        ((ConvolutionDepthWise*)layer)->create_requantize_op();
                     }
                 }                  
                 else if (layer_next->type == "ReLU")
@@ -699,25 +695,21 @@ int Net::fuse_network()
                         {
                             ((Convolution*)layer)->use_int8_requantize = true;
                             ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
-                            ((Convolution*)layer)->create_requantize_op();
                         }
                         else if (layer->type == "ConvolutionDepthWise" && layer_next_2->type == "Convolution")
                         {
                             ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
                             ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
-                            ((ConvolutionDepthWise*)layer)->create_requantize_op();
                         }
                         else if (layer->type == "Convolution" && layer_next_2->type == "ConvolutionDepthWise")
                         {
                             ((Convolution*)layer)->use_int8_requantize = true;
                             ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
-                            ((Convolution*)layer)->create_requantize_op();
                         }
                         else
                         {
                             ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
                             ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
-                            ((ConvolutionDepthWise*)layer)->create_requantize_op();
                         }
                     }
                     else if (layer_next_2->type == "Split")
@@ -749,7 +741,6 @@ int Net::fuse_network()
                             }
 
                             ((Convolution*)layer)->use_int8_requantize = true;
-                            ((Convolution*)layer)->create_requantize_op();    
                             // fprintf(stderr, "\n");
                         }
                     }

@@ -168,7 +168,6 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
     ncnn::VkBlobBufferAllocator g_blob_vkallocator(vkdev);
     ncnn::VkStagingBufferAllocator g_staging_vkallocator(vkdev);
 
-    opt.use_vulkan_compute = true;
     opt.blob_vkallocator = &g_blob_vkallocator;
     opt.workspace_vkallocator = &g_blob_vkallocator;
     opt.staging_vkallocator = &g_staging_vkallocator;
@@ -193,6 +192,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
     op->create_pipeline(opt);
 
 #if NCNN_VULKAN
+    if (opt.use_vulkan_compute)
     {
         ncnn::VkTransfer cmd(vkdev);
         cmd.weight_vkallocator = &g_weight_vkallocator;
@@ -240,6 +240,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
 #if NCNN_VULKAN
     std::vector<ncnn::Mat> d(top_blob_count);
+    if (opt.use_vulkan_compute)
     {
         // pack
         std::vector<ncnn::Mat> a4(a.size());
@@ -335,7 +336,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
     }
 
 #if NCNN_VULKAN
-    if (CompareMat(b, d, epsilon) != 0)
+    if (opt.use_vulkan_compute && CompareMat(b, d, epsilon) != 0)
     {
         fprintf(stderr, "test_layer failed gpu\n");
         return -1;
@@ -362,7 +363,6 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
     ncnn::VkBlobBufferAllocator g_blob_vkallocator(vkdev);
     ncnn::VkStagingBufferAllocator g_staging_vkallocator(vkdev);
 
-    opt.use_vulkan_compute = true;
     opt.blob_vkallocator = &g_blob_vkallocator;
     opt.workspace_vkallocator = &g_blob_vkallocator;
     opt.staging_vkallocator = &g_staging_vkallocator;
@@ -380,6 +380,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
     op->create_pipeline(opt);
 
 #if NCNN_VULKAN
+    if (opt.use_vulkan_compute)
     {
         ncnn::VkTransfer cmd(vkdev);
         cmd.weight_vkallocator = &g_weight_vkallocator;
@@ -423,6 +424,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
 #if NCNN_VULKAN
     ncnn::Mat d;
+    if (opt.use_vulkan_compute)
     {
         // pack
         ncnn::Mat a4;
@@ -497,7 +499,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
     }
 
 #if NCNN_VULKAN
-    if (CompareMat(b, d, epsilon) != 0)
+    if (opt.use_vulkan_compute && CompareMat(b, d, epsilon) != 0)
     {
         fprintf(stderr, "test_layer failed gpu\n");
         return -1;

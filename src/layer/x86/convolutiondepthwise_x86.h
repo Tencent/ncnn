@@ -29,6 +29,9 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+protected:
+    int forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
 public:
     Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
