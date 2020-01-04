@@ -483,6 +483,9 @@ void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt = 
 void convert_packing(const Mat& src, Mat& dst, int elempack, const Option& opt = Option());
 void cast_float32_to_float16(const Mat& src, Mat& dst, const Option& opt = Option());
 void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
+void quantize_float32_to_int8(const Mat& src, Mat& dst, float scale, const Option& opt = Option());
+void dequantize_int32_to_float32(Mat& m, float scale, const float* bias, int bias_data_size, const Option& opt = Option());
+void requantize_int8_to_int8(const Mat& src, Mat& dst, float scale_in, float scale_out, const float* bias, int bias_data_size, int fusion_relu, const Option& opt = Option());
 
 inline Mat::Mat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)

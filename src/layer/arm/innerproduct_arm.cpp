@@ -30,7 +30,6 @@ InnerProduct_arm::InnerProduct_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-    use_fp32_packing_inference = false;
 #endif // __ARM_NEON
 
     flatten = 0;
@@ -39,18 +38,7 @@ InnerProduct_arm::InnerProduct_arm()
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
 #if __ARM_NEON
-    bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
-
-    use_fp32_packing_inference = opt.use_packing_layout && weight_data_is_float32 && !use_int8_inference;
-
-    if (use_int8_inference)
-    {
-        support_packing = false;
-    }
-
-    if (use_fp32_packing_inference)
-    {
-
+    if (opt.use_packing_layout)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
@@ -60,8 +48,6 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
-
-    } // opt.use_packing_layout
 #endif // __ARM_NEON
 
     return 0;
@@ -81,7 +67,7 @@ int InnerProduct_arm::destroy_pipeline(const Option& opt)
 
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (use_int8_inference)
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         // TODO
         return InnerProduct::forward(bottom_blob, top_blob, opt);
@@ -95,34 +81,27 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int size = w * h;
 
 #if __ARM_NEON
-    if (use_fp32_packing_inference)
-    {
-
     if (elempack == 4)
     {
+        // flatten
+        Mat bottom_blob_flattened = bottom_blob;
+        if (bottom_blob.dims != 1)
+        {
+            Option opt_flatten = opt;
+            opt_flatten.blob_allocator = opt.workspace_allocator;
 
-    // flatten
-    Mat bottom_blob_flattened = bottom_blob;
-    if (bottom_blob.dims != 1)
-    {
-        Option opt_flatten = opt;
-        opt_flatten.blob_allocator = opt.workspace_allocator;
+            flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        }
 
-        flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        // pack1
+        {
+            bottom_blob_flattened.w *= bottom_blob_flattened.elempack;
+            bottom_blob_flattened.elemsize = 4u;
+            bottom_blob_flattened.elempack = 1;
+        }
+
+        return forward(bottom_blob_flattened, top_blob, opt);
     }
-
-    // pack1
-    {
-        bottom_blob_flattened.w *= bottom_blob_flattened.elempack;
-        bottom_blob_flattened.elemsize = 4u;
-        bottom_blob_flattened.elempack = 1;
-    }
-
-    return forward(bottom_blob_flattened, top_blob, opt);
-
-    }
-
-    } // opt.use_packing_layout
 #endif // __ARM_NEON
 
     top_blob.create(num_output, elemsize, opt.blob_allocator);
