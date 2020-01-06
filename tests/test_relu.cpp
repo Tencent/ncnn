@@ -28,6 +28,7 @@ static int test_relu(float slope, bool use_packing_layout)
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.use_vulkan_compute = true;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;

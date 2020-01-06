@@ -24,8 +24,6 @@ InnerProduct::InnerProduct()
 {
     one_blob_only = true;
     support_inplace = false;
-
-    quantize = 0;
 }
 
 int InnerProduct::load_param(const ParamDict& pd)
@@ -64,87 +62,23 @@ int InnerProduct::load_model(const ModelBin& mb)
 
 int InnerProduct::create_pipeline(const Option& opt)
 {
-    bool weight_data_is_int8 = (weight_data.elemsize == (size_t)1u);
-    bool weight_data_is_float32 = (weight_data.elemsize == (size_t)4u);
-
-    if (weight_data_is_int8 && !opt.use_int8_inference)
-    {
-        fprintf(stderr, "quantized int8 weight loaded but use_int8_inference disabled\n");
-        return -1;
-    }
-
-    use_int8_inference = opt.use_int8_inference && (weight_data_is_int8 || (weight_data_is_float32 && int8_scale_term));
-
-    // initial the quantize,dequantize op layer
-    if (use_int8_inference)
-    {
-        quantize = ncnn::create_layer(ncnn::LayerType::Quantize);
-        {
-            ncnn::ParamDict pd;
-            pd.set(0, bottom_blob_int8_scale);// scale
-
-            quantize->load_param(pd);
-
-            quantize->create_pipeline(opt);
-        }
-
-        dequantize_ops.resize(num_output);
-        for (int n=0; n<num_output; n++)
-        {
-            dequantize_ops[n] = ncnn::create_layer(ncnn::LayerType::Dequantize);
-
-            float top_rescale = 1.f;
-
-            if (weight_data_int8_scales[n] == 0)
-                top_rescale = 0;
-            else
-                top_rescale = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[n]);
-
-            ncnn::ParamDict pd;
-            pd.set(0, top_rescale);// scale
-            pd.set(1, bias_term);  // bias_term
-            pd.set(2, 1);          // bias_data_size
-
-            dequantize_ops[n]->load_param(pd);
-
-            ncnn::Mat weights[1];
-            weights[0] = bias_data.range(n, 1);
-
-            dequantize_ops[n]->load_model(ModelBinFromMatArray(weights));
-
-            dequantize_ops[n]->create_pipeline(opt);
-        }
-    }
-
     // runtime quantize the weight data
-    if (weight_data_is_float32 && use_int8_inference)
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
-        // quantize weight to int8
         Mat int8_weight_data(weight_data_size, (size_t)1u);
         if (int8_weight_data.empty())
             return -100;
 
         const int weight_data_size_output = weight_data_size / num_output;
 
-        for (int n=0; n<num_output; n++)
+        for (int p=0; p<num_output; p++)
         {
-            Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
-
-            ncnn::ParamDict pd;
-            pd.set(0, weight_data_int8_scales[n]);// scale
-
-            op->load_param(pd);
-
-            op->create_pipeline(opt);
-
             Option opt_q = opt;
             opt_q.blob_allocator = int8_weight_data.allocator;
 
-            const Mat weight_data_n = weight_data.range(weight_data_size_output * n, weight_data_size_output);
-            Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * n, weight_data_size_output);
-            op->forward(weight_data_n, int8_weight_data_n, opt_q);
-
-            delete op;
+            const Mat weight_data_n = weight_data.range(weight_data_size_output * p, weight_data_size_output);
+            Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * p, weight_data_size_output);
+            quantize_float32_to_int8(weight_data_n, int8_weight_data_n, weight_data_int8_scales[p], opt_q);
         }
 
         weight_data = int8_weight_data;
@@ -153,27 +87,13 @@ int InnerProduct::create_pipeline(const Option& opt)
     return 0;
 }
 
-int InnerProduct::destroy_pipeline(const Option& opt)
-{
-    if (quantize)
-    {
-        quantize->destroy_pipeline(opt);
-        delete quantize;
-        quantize = 0;
-    }
-
-    for (int i=0; i<(int)dequantize_ops.size(); i++)
-    {
-        dequantize_ops[i]->destroy_pipeline(opt);
-        delete dequantize_ops[i];
-    }
-    dequantize_ops.clear();
-
-    return 0;
-}
-
 int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
+        return forward_int8(bottom_blob, top_blob, opt);
+    }
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
@@ -183,74 +103,6 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-
-    if (use_int8_inference)
-    {
-        Mat bottom_blob_tm = bottom_blob;
-        if (elemsize != 1)
-        {
-            Mat bottom_blob_int8;
-            bottom_blob_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
-            if (bottom_blob_int8.empty())
-                return -100;
-
-            // quantize, scale and round to nearest
-            {
-                Option opt_g = opt;
-                opt_g.blob_allocator = bottom_blob_int8.allocator;
-
-                quantize->forward(bottom_blob, bottom_blob_int8, opt_g);
-            }
-
-            bottom_blob_tm = bottom_blob_int8;
-        }
-
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output; p++)
-        {
-            int sum = 0;
-            int* out = top_blob;
-
-            // channels
-            for (int q=0; q<channels; q++)
-            {
-                const signed char* w = (const signed char*)weight_data + size * channels * p + size * q;
-                const signed char* m = bottom_blob_tm.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    sum += m[i] * w[i];
-                }
-            }
-
-            out[p] = sum;       
-        }
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output; p++)
-        {
-            int* out_s32 = top_blob;
-            float* out_f32 = top_blob;
-            float top_rescale = 1.f;
-            if (weight_data_int8_scales[p] == 0)
-                top_rescale = 0;
-            else
-                top_rescale = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
-
-            if (bias_term)
-                out_f32[p] = out_s32[p] * top_rescale + bias_data[p];
-            else
-                out_f32[p] = out_s32[p] * top_rescale;
-
-            if (activation_type == 1)
-            {
-                out_f32[p] = std::max(out_f32[p], 0.f);
-            }                
-        }
-
-        return 0;
-    }
 
     // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -297,6 +149,70 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         }
 
         top_blob[p] = sum;
+    }
+
+    return 0;
+}
+
+int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int size = w * h;
+
+    Mat bottom_blob_tm = bottom_blob;
+    if (elemsize != 1)
+    {
+        Option opt_g = opt;
+        opt_g.blob_allocator = opt.workspace_allocator;
+
+        quantize_float32_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scale, opt_g);
+    }
+
+    top_blob.create(num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // num_output
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p=0; p<num_output; p++)
+    {
+        float* outptr = top_blob;
+
+        int sum = 0;
+
+        // channels
+        for (int q=0; q<channels; q++)
+        {
+            const signed char* w = (const signed char*)weight_data + size * channels * p + size * q;
+            const signed char* m = bottom_blob_tm.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                sum += m[i] * w[i];
+            }
+        }
+
+        // dequantize and relu
+        float scale_in;
+        if (weight_data_int8_scales[p] == 0)
+            scale_in = 0;
+        else
+            scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
+
+        float sumfp32 = sum * scale_in;
+
+        if (bias_term)
+            sumfp32 += bias_data[p];
+
+        if (activation_type == 1)
+        {
+            sumfp32 = std::max(sumfp32, 0.f);
+        }
+
+        outptr[p] = sumfp32;
     }
 
     return 0;

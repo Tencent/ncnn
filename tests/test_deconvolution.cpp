@@ -36,6 +36,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.use_vulkan_compute = true;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
     opt.use_fp16_arithmetic = false;

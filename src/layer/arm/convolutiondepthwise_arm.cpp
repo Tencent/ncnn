@@ -84,11 +84,9 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         activation->create_pipeline(opt);
     }
 
-    if (use_int8_inference)
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         support_packing = false;
-
-        return 0;
     }
 
     // create Convolution op for each group
@@ -98,91 +96,127 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
     // depth-wise
     if (channels == group && group == num_output)
     {
-        int elempack = (opt.use_packing_layout && channels % 4 == 0) ? 4 : 1;
+        if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+        {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                return 0;
+            }
+        }
+        else
+        {
+            int elempack = (opt.use_packing_layout && channels % 4 == 0) ? 4 : 1;
 
 #if __ARM_NEON
-        // pack4
-        if (elempack == 4)
-        {
-            Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_pack4, 4);
-        }
+            // pack4
+            if (elempack == 4)
+            {
+                Mat weight_data_r2 = weight_data.reshape(maxk, group);
+                convert_packing(weight_data_r2, weight_data_pack4, 4);
+
+                return 0;
+            }
 #endif // __ARM_NEON
-    }
-    else
-    {
-        // group convolution
-        for (int i=0; i<(int)group_ops.size(); i++)
-            delete group_ops[i];
 
-        group_ops.clear();
-
-        const int channels_g = channels / group;
-        const int num_output_g = num_output / group;
-
-        group_ops.resize(group);
-
-        for (int g=0; g<group; g++)
-        {
-            Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
-            Mat bias_data_g;
-            if (bias_term)
-                bias_data_g = bias_data.range(num_output_g * g, num_output_g);
-
-            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
-
-            // set param
-            ncnn::ParamDict pd;
-            pd.set(0, num_output_g);// num_output
-            pd.set(1, kernel_w);
-            pd.set(11, kernel_h);
-            pd.set(2, dilation_w);
-            pd.set(12, dilation_h);
-            pd.set(3, stride_w);
-            pd.set(13, stride_h);
-            pd.set(4, 0);// pad_w
-            pd.set(14, 0);// pad_h
-            pd.set(5, bias_term);
-            pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
-            pd.set(8, int8_scale_term);
-            pd.set(9, activation_type);
-            pd.set(10, activation_params);
-
-            op->load_param(pd);
-
-            // set weights
-            if (bias_term)
+            if (elempack == 1)
             {
-                ncnn::Mat weights[4];
-                weights[0] = weight_data_g;
-                weights[1] = bias_data_g;
-
-                if (int8_scale_term)
+                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
                 {
-                    weights[2] = weight_data_int8_scales.range(g, 1);
-                    weights[3] = bottom_blob_int8_scales.range(g, 1);
+                    return 0;
                 }
-
-                op->load_model(ModelBinFromMatArray(weights));
-            }
-            else
-            {
-                ncnn::Mat weights[3];
-                weights[0] = weight_data_g;
-
-                if (int8_scale_term)
+                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
                 {
-                    weights[1] = weight_data_int8_scales.range(g, 1);
-                    weights[2] = bottom_blob_int8_scales.range(g, 1);
+                    return 0;
                 }
-
-                op->load_model(ModelBinFromMatArray(weights));
+                if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                {
+                    return 0;
+                }
+                if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+                {
+                    return 0;
+                }
             }
-
-            op->create_pipeline(opt);
-
-            group_ops[g] = op;
         }
+    }
+
+    // group convolution
+    for (int i=0; i<(int)group_ops.size(); i++)
+        delete group_ops[i];
+
+    group_ops.clear();
+
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / group;
+
+    group_ops.resize(group);
+
+    for (int g=0; g<group; g++)
+    {
+        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
+        Mat bias_data_g;
+        if (bias_term)
+            bias_data_g = bias_data.range(num_output_g * g, num_output_g);
+
+        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+
+        // set param
+        ncnn::ParamDict pd;
+        pd.set(0, num_output_g);// num_output
+        pd.set(1, kernel_w);
+        pd.set(11, kernel_h);
+        pd.set(2, dilation_w);
+        pd.set(12, dilation_h);
+        pd.set(3, stride_w);
+        pd.set(13, stride_h);
+        pd.set(4, 0);// pad_w
+        pd.set(14, 0);// pad_h
+        pd.set(5, bias_term);
+        pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
+        pd.set(8, int8_scale_term);
+        pd.set(9, activation_type);
+        pd.set(10, activation_params);
+
+        op->load_param(pd);
+
+        // set weights
+        if (bias_term)
+        {
+            ncnn::Mat weights[4];
+            weights[0] = weight_data_g;
+            weights[1] = bias_data_g;
+
+            if (int8_scale_term)
+            {
+                weights[2] = weight_data_int8_scales.range(g, 1);
+                weights[3] = bottom_blob_int8_scales.range(g, 1);
+            }
+
+            op->load_model(ModelBinFromMatArray(weights));
+        }
+        else
+        {
+            ncnn::Mat weights[3];
+            weights[0] = weight_data_g;
+
+            if (int8_scale_term)
+            {
+                weights[1] = weight_data_int8_scales.range(g, 1);
+                weights[2] = bottom_blob_int8_scales.range(g, 1);
+            }
+
+            op->load_model(ModelBinFromMatArray(weights));
+        }
+
+        op->create_pipeline(opt);
+
+//         op->use_int8_requantize = use_int8_requantize; FIXME
+
+        group_ops[g] = op;
     }
 
     return 0;
@@ -207,264 +241,14 @@ int ConvolutionDepthWise_arm::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int ConvolutionDepthWise_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-//     int elempack = bottom_blob.elempack;
-
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    Mat bottom_blob_unbordered = bottom_blob;
-    if (elemsize != 1)
-    {
-        Mat bottom_blob_int8;
-        bottom_blob_int8.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
-        if (bottom_blob_int8.empty())
-            return -100;
-
-        const int channels_g = channels / group;
-
-        // quantize, scale and round to nearest
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g=0; g<group; g++)
-        {
-            Option opt_g = opt;
-            opt_g.num_threads = 1;
-            opt_g.blob_allocator = bottom_blob_int8.allocator;
-
-            const Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
-            Mat bottom_blob_int8_g = bottom_blob_int8.channel_range(channels_g * g, channels_g);
-            quantize_ops[g]->forward(bottom_blob_g, bottom_blob_int8_g, opt_g);
-        }
-
-        bottom_blob_unbordered = bottom_blob_int8;
-    }
-
-    Mat bottom_blob_bordered = bottom_blob_unbordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
-    {
-        Option opt_b = opt;
-        opt_b.blob_allocator = opt.workspace_allocator;
-        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
-    }
-    else if (pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
-    {
-        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-        }
-    }
-    else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
-    {
-        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-        }
-    }
-    if (bottom_blob_bordered.empty())
-        return -100;
-
-    w = bottom_blob_bordered.w;
-    h = bottom_blob_bordered.h;
-
-    int outw = (w - kernel_extent_w) / stride_w + 1;
-    int outh = (h - kernel_extent_h) / stride_h + 1;
-//     int out_elempack = num_output % 4 == 0 ? 4 : 1;
-//     size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    // int8
-    if (use_int8_requantize)
-    {
-        Mat top_blob_tm;
-        top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
-        if (top_blob_tm.empty())
-            return -100;
-
-        top_blob.create(outw, outh, num_output, (size_t)1u, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
-        // depth-wise
-        if (channels == group && group == num_output)
-        {
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
-            {
-                if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
-                {
-                    if (stride_w == 1 && stride_h == 1)
-                    {
-                        convdw3x3s1_int8_requant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
-                    }
-                    else if (stride_w == 2 && stride_h == 2)
-                    {
-                        convdw3x3s2_int8_requant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
-                    }
-
-                    if (activation)
-                    {
-                        activation->forward_inplace(top_blob, opt);
-                    }
-
-                    return 0;
-                }
-            }
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int g=0; g<group; g++)
-            {
-                const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(g, 1);
-                Mat top_blob_tm_g = top_blob_tm.channel_range(g, 1);
-
-                const ncnn::Layer* op = group_ops[g];
-
-                Option opt_g = opt;
-                opt_g.num_threads = 1;
-                opt_g.blob_allocator = top_blob.allocator;
-
-                // forward
-                op->forward(bottom_blob_bordered_g, top_blob_tm_g, opt_g);
-            }
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-
-            return 0;
-        }
-
-        const int channels_g = channels / group;
-        const int num_output_g = num_output / group;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g=0; g<group; g++)
-        {
-            const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(channels_g * g, channels_g);
-            Mat top_blob_tm_g = top_blob_tm.channel_range(num_output_g * g, num_output_g);
-
-            const ncnn::Layer* op = group_ops[g];
-
-            Option opt_g = opt;
-            opt_g.blob_allocator = top_blob.allocator;
-
-            // forward
-            op->forward(bottom_blob_bordered_g, top_blob_tm_g, opt_g);
-        }
-    }
-    else
-    {
-        top_blob.create(outw, outh, num_output, (size_t)4u, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
-        // depth-wise
-        if (channels == group && group == num_output)
-        {
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1)
-            {
-                if ((stride_w == 1 && stride_h == 1) || (stride_w == 2 && stride_h == 2))
-                {
-                    if (stride_w == 1 && stride_h == 1)
-                    {
-                        convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
-                    }
-                    else if (stride_w == 2 && stride_h == 2)
-                    {
-                        convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
-                    }
-
-                    // dequantize, reverse scale inplace
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int g=0; g<group; g++)
-                    {
-                        Option opt_g = opt;
-                        opt_g.num_threads = 1;
-                        opt_g.blob_allocator = top_blob.allocator;
-
-                        Mat top_blob_g = top_blob.channel(g);
-                        dequantize_ops[g]->forward_inplace(top_blob_g, opt_g);
-                    }
-
-                    if (activation)
-                    {
-                        activation->forward_inplace(top_blob, opt);
-                    }
-
-                    return 0;
-                }
-            }
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int g=0; g<group; g++)
-            {
-                const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(g, 1);
-                Mat top_blob_g = top_blob.channel_range(g, 1);
-
-                const ncnn::Layer* op = group_ops[g];
-
-                Option opt_g = opt;
-                opt_g.num_threads = 1;
-                opt_g.blob_allocator = top_blob.allocator;
-
-                // forward
-                op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
-            }
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-
-            return 0;
-        }
-
-        const int channels_g = channels / group;
-        const int num_output_g = num_output / group;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g=0; g<group; g++)
-        {
-            const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(channels_g * g, channels_g);
-            Mat top_blob_g = top_blob.channel_range(num_output_g * g, num_output_g);
-
-            const ncnn::Layer* op = group_ops[g];
-
-            Option opt_g = opt;
-            opt_g.blob_allocator = top_blob.allocator;
-
-            // forward
-            op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
-        }
-    }
-
-    if (activation)
-    {
-        activation->forward_inplace(top_blob, opt);
-    }
-
-    return 0;
-}
-
 int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // convolv with NxN kernel
     // value = value + bias
 
-    if (use_int8_inference)
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        return forward_int8(bottom_blob, top_blob, opt);
+        return forward_int8_arm(bottom_blob, top_blob, opt);
     }
 
     int w = bottom_blob.w;
@@ -524,31 +308,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
-        const int maxk = kernel_w * kernel_h;
-
-        // kernel offsets
-        std::vector<int> _space_ofs(maxk);
-        int* space_ofs = &_space_ofs[0];
-        {
-            int p1 = 0;
-            int p2 = 0;
-            int gap = w * dilation_h - kernel_w * dilation_w;
-            for (int i = 0; i < kernel_h; i++)
-            {
-                for (int j = 0; j < kernel_w; j++)
-                {
-                    space_ofs[p1] = p2;
-                    p1++;
-                    p2 += dilation_w;
-                }
-                p2 += gap;
-            }
-        }
-
 #if __ARM_NEON
         if (elempack == 4)
         {
-            if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 convdw3x3s1_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
@@ -556,8 +319,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+
+                return 0;
             }
-            else if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 convdw3x3s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
@@ -565,8 +330,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+
+                return 0;
             }
-            else if (kernel_w == 5 && kernel_h == 5 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 convdw5x5s1_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
@@ -574,8 +341,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+
+                return 0;
             }
-            else if (kernel_w == 5 && kernel_h == 5 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 convdw5x5s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
@@ -583,9 +352,32 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+
+                return 0;
             }
             else
             {
+                const int maxk = kernel_w * kernel_h;
+
+                // kernel offsets
+                std::vector<int> _space_ofs(maxk);
+                int* space_ofs = &_space_ofs[0];
+                {
+                    int p1 = 0;
+                    int p2 = 0;
+                    int gap = w * dilation_h - kernel_w * dilation_w;
+                    for (int i = 0; i < kernel_h; i++)
+                    {
+                        for (int j = 0; j < kernel_w; j++)
+                        {
+                            space_ofs[p1] = p2;
+                            p1++;
+                            p2 += dilation_w;
+                        }
+                        p2 += gap;
+                    }
+                }
+
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g=0; g<channels; g++)
                 {
@@ -621,13 +413,15 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                         outptr += outw * 4;
                     }
                 }
+
+                return 0;
             }
         }
 #endif // __ARM_NEON
 
         if (elempack == 1)
         {
-            if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 convdw3x3s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
@@ -635,8 +429,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+
+                return 0;
             }
-            else if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 convdw3x3s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
@@ -644,8 +440,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+
+                return 0;
             }
-            else if (kernel_w == 5 && kernel_h == 5 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 convdw5x5s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
@@ -653,8 +451,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+
+                return 0;
             }
-            else if (kernel_w == 5 && kernel_h == 5 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 convdw5x5s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
@@ -662,96 +462,276 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g=0; g<channels; g++)
-                {
-                    float* outptr = top_blob.channel(g);
-                    const float* kptr = (const float*)weight_data + maxk * g;
-                    const Mat m = bottom_blob_bordered.channel(g);
 
-                    for (int i = 0; i < outh; i++)
-                    {
-                        for (int j = 0; j < outw; j++)
-                        {
-                            float sum = 0.f;
-
-                            if (bias_term)
-                            {
-                                sum = bias_data[g];
-                            }
-
-                            const float* sptr = m.row(i*stride_h) + j*stride_w;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float val = sptr[ space_ofs[k] ];
-                                float w = kptr[ k ];
-                                sum += val * w;
-                            }
-
-                            sum = activation_ss(sum, activation_type, activation_params);
-
-                            outptr[j] = sum;
-                        }
-
-                        outptr += outw;
-                    }
-                }
+                return 0;
             }
         }
     }
+
+    // group convolution
+    const int channels_g = channels * elempack / group;
+    const int num_output_g = num_output / group;
+
+    int g_elempack = (opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
+    int out_g_elempack = (opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
+
+    // unpacking
+    Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
+    if (elempack == 4 && g_elempack == 1)
+    {
+        Option opt_p = opt;
+        opt_p.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt_p);
+    }
+
+    Mat top_blob_unpacked = top_blob;
+    if (out_g_elempack == 1 && out_elempack == 4)
+    {
+        top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
+        if (top_blob_unpacked.empty())
+            return -100;
+    }
+
+    for (int g=0; g<group; g++)
+    {
+        const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
+        Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
+
+        const ncnn::Layer* op = group_ops[g];
+
+        Option opt_g = opt;
+        opt_g.blob_allocator = top_blob_unpacked.allocator;
+
+        // forward
+        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+    }
+
+    // packing
+    if (out_g_elempack == 1 && out_elempack == 4)
+    {
+        convert_packing(top_blob_unpacked, top_blob, 4, opt);
+    }
     else
     {
-        // group convolution
-        const int channels_g = channels * elempack / group;
-        const int num_output_g = num_output / group;
+        top_blob = top_blob_unpacked;
+    }
 
-        int g_elempack = (opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
-        int out_g_elempack = (opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
+    return 0;
+}
 
-        // unpacking
-        Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
-        if (elempack == 4 && g_elempack == 1)
-        {
-            Option opt_p = opt;
-            opt_p.blob_allocator = opt.workspace_allocator;
-            convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt_p);
-        }
+int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
 
-        Mat top_blob_unpacked = top_blob;
-        if (out_g_elempack == 1 && out_elempack == 4)
-        {
-            top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
-            if (top_blob_unpacked.empty())
-                return -100;
-        }
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
+    Mat bottom_blob_unbordered = bottom_blob;
+    if (elemsize != 1)
+    {
+        bottom_blob_unbordered.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
+        if (bottom_blob_unbordered.empty())
+            return -100;
+
+        const int channels_g = channels / group;
+
+        // quantize, scale and round to nearest
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int g=0; g<group; g++)
         {
-            const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
-            Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
-
-            const ncnn::Layer* op = group_ops[g];
-
             Option opt_g = opt;
-            opt_g.blob_allocator = top_blob_unpacked.allocator;
+            opt_g.num_threads = 1;
+            opt_g.blob_allocator = bottom_blob_unbordered.allocator;
 
-            // forward
-            op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+            const Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
+            Mat bottom_blob_int8_g = bottom_blob_unbordered.channel_range(channels_g * g, channels_g);
+            quantize_float32_to_int8(bottom_blob_g, bottom_blob_int8_g, bottom_blob_int8_scales[g], opt_g);
         }
+    }
 
-        // packing
-        if (out_g_elempack == 1 && out_elempack == 4)
+    Mat bottom_blob_bordered = bottom_blob_unbordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
+    {
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
+    }
+    else if (pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
+    {
+        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
         {
-            convert_packing(top_blob_unpacked, top_blob, 4, opt);
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+        }
+    }
+    else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
+    {
+        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+        }
+    }
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    // int8
+    size_t out_elemsize = use_int8_requantize ? 1u : 4u;
+
+    top_blob.create(outw, outh, num_output, out_elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+        if (use_int8_requantize)
+        {
+            std::vector<float> requantize_scales;
+            for (int g=0; g<group; g++)
+            {
+                float scale_in;
+                if (weight_data_int8_scales[g] == 0)
+                    scale_in = 0;
+                else
+                    scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                float scale_out = top_blob_int8_scale;
+
+                requantize_scales.push_back(scale_in);
+                requantize_scales.push_back(scale_out);
+            }
+
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw3x3s1_int8_requant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_int8_requant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
         }
         else
         {
-            top_blob = top_blob_unpacked;
+//             std::vector<float> dequantize_scales;
+//             for (int g=0; g<group; g++)
+//             {
+//                 float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+//
+//                 dequantize_scales.push_back(top_rescale);
+//             }
+
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
+//                 convdw3x3s1_int8_dequant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
+
+                // dequantize, reverse scale inplace
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int g=0; g<group; g++)
+                {
+                    // dequantize and relu
+                    float scale_in;
+                    if (weight_data_int8_scales[g] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                    Option opt_g = opt;
+                    opt_g.num_threads = 1;
+                    opt_g.blob_allocator = top_blob.allocator;
+
+                    Mat top_blob_g = top_blob.channel(g);
+                    dequantize_int32_to_float32(top_blob_g, scale_in, &bias_data[g], bias_term ? 0 : 1, opt_g);
+                }
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
+//                 convdw3x3s2_int8_dequant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
+
+                // dequantize, reverse scale inplace
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int g=0; g<group; g++)
+                {
+                    // dequantize and relu
+                    float scale_in;
+                    if (weight_data_int8_scales[g] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                    Option opt_g = opt;
+                    opt_g.num_threads = 1;
+                    opt_g.blob_allocator = top_blob.allocator;
+
+                    Mat top_blob_g = top_blob.channel(g);
+                    dequantize_int32_to_float32(top_blob_g, scale_in, &bias_data[g], bias_term ? 0 : 1, opt_g);
+                }
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
         }
+    }
+
+    // group convolution
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / group;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int g=0; g<group; g++)
+    {
+        const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(channels_g * g, channels_g);
+        Mat top_blob_g = top_blob.channel_range(num_output_g * g, num_output_g);
+
+        const ncnn::Layer* op = group_ops[g];
+
+        Option opt_g = opt;
+        opt_g.blob_allocator = top_blob.allocator;
+
+        // forward
+        op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
     }
 
     return 0;

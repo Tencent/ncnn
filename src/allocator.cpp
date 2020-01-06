@@ -508,7 +508,7 @@ VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
         if (vkdev->info.type == 1)
         {
             // integrated gpu, prefer unified memory
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0);
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
         }
         else
         {
@@ -758,7 +758,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
                 if (vkdev->info.type == 1)
                 {
                     // integrated gpu, prefer unified memory
-                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0);
+                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
                 }
                 else
                 {
@@ -805,7 +805,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
         if (vkdev->info.type == 1)
         {
             // integrated gpu, prefer unified memory
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0);
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
         }
         else
         {
@@ -929,9 +929,7 @@ VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
     // setup memory type
     if (memory_type_index == (uint32_t)-1)
     {
-        // integrated gpu, prefer unified memory
-        // discrete gpu, prefer the small pcie mappable memory, or fallback to host visible only anyway otherwise
-        memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
     ptr->memory = allocate_memory(memoryRequirements.size);
@@ -1113,7 +1111,7 @@ VkImageMemory* VkSimpleImageAllocator::fastMalloc(int width, int height, VkForma
 {
     VkImageMemory* ptr = new VkImageMemory;
 
-    ptr->image = create_image(width, height, format, VK_IMAGE_USAGE_STORAGE_BIT);
+    ptr->image = create_image(width, height, format, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     VkMemoryRequirements memoryRequirements;
     vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
