@@ -512,7 +512,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 template <typename T>
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001)
 {
-    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, epsilon);
+    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, top_blob_count, epsilon);
 }
 
 template <typename T>
