@@ -209,7 +209,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
     std::vector<ncnn::Mat> c(top_blob_count);
     {
-        std::vector<ncnn::Mat> a4;
+        std::vector<ncnn::Mat> a4(a.size());
         if (opt.use_packing_layout)
         {
             for (size_t i=0; i<a.size(); i++)
