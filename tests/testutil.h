@@ -121,11 +121,16 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
             const float* pb = mb.row(i);
             for (int j=0; j<a.w; j++)
             {
-                if (!FloatNearlyEqual(pa[j], pb[j], epsilon))
+                for (int k=0; k<a.elempack; k++)
                 {
-                    fprintf(stderr, "value not match at %d %d %d    %f %f\n", q, i, j, pa[j], pb[j]);
-                    return -1;
+                    if (!FloatNearlyEqual(pa[k], pb[k], epsilon))
+                    {
+                        fprintf(stderr, "value not match at %d %d %d [%d]    %f %f\n", q, i, j, k, pa[k], pb[k]);
+                        return -1;
+                    }
                 }
+                pa += a.elempack;
+                pb += a.elempack;
             }
         }
     }
@@ -320,7 +325,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         // unpack
         for (size_t i=0; i<d4.size(); i++)
         {
-            ncnn::convert_packing(d4[i], d[i], 1, opt);
+            ncnn::convert_packing(d4[i], d[i], b[i].elempack, opt);
         }
     }
 #endif // NCNN_VULKAN
@@ -478,7 +483,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         }
 
         // unpack
-        ncnn::convert_packing(d4, d, 1, opt);
+        ncnn::convert_packing(d4, d, b.elempack, opt);
     }
 #endif // NCNN_VULKAN
 
