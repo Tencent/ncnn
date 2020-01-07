@@ -98,7 +98,7 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
 #define CHECK_MEMBER(m) \
     if (a.m != b.m) \
     { \
-        fprintf(stderr, #m" not match %d %d\n", (int)a.m, (int)b.m); \
+        fprintf(stderr, #m" not match    expect %d but got %d\n", (int)a.m, (int)b.m); \
         return -1; \
     }
 
@@ -125,7 +125,7 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
                 {
                     if (!FloatNearlyEqual(pa[k], pb[k], epsilon))
                     {
-                        fprintf(stderr, "value not match at %d %d %d [%d]    %f %f\n", q, i, j, k, pa[k], pb[k]);
+                        fprintf(stderr, "value not match at %d %d %d [%d]    expect %f but got %f\n", q, i, j, k, pa[k], pb[k]);
                         return -1;
                     }
                 }
