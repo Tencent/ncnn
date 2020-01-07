@@ -58,7 +58,7 @@ static void print_int32_matrix(char* name, const int32_t *a, int m, int k, int l
 }
 
 static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, const int ldx) {
-    print_int8_matrix("b", b, k, n, ldx);
+    // print_int8_matrix("b", b, k, n, ldx);
 
     int8_t* origin_sb = sb;
     int i = 0;
@@ -306,11 +306,11 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p0 += ldx;
         }
     }
-    print_int8_matrix("sb", origin_sb, k, n, n);
+    // print_int8_matrix("sb", origin_sb, k, n, n);
 }
 
 static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) {
-    print_int8_matrix("a", a, m, k, ldx);
+    // print_int8_matrix("a", a, m, k, ldx);
     int8_t* origin_sa = sa;
     int i = 0;
     for (; i + 3 < m; i += 4) {
@@ -472,7 +472,7 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) 
     if (i < m) {
         memcpy(sa, a, sizeof(int8_t) * ldx);
     }
-    print_int8_matrix("sa", origin_sa, m, k, k);
+    // print_int8_matrix("sa", origin_sa, m, k, k);
 }
 
 void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, float* scales, float* bias) {
@@ -2614,7 +2614,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
 
         // #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i += 4) {
-            int8kernel_m4((void*)(pc + i * n), pa + i * k, pb, m, k, n, ldc, nullptr, nullptr);
+            int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, nullptr, nullptr);
         }
 
         pa += nn * k;
@@ -2624,11 +2624,11 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
         {
             case 3:
                 int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr);
-                print_int32_matrix("out_m2", pc, 2, n, ldc);
-                pc += 2 * n;
+                // print_int32_matrix("out_m2", pc, 2, n, ldc);
+                pc += 2 * ldc;
                 pa += 2 * k;
                 int8kernel_m1((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr);
-                print_int32_matrix("out_m1", pc, 1, n, ldc);
+                // print_int32_matrix("out_m1", pc, 1, n, ldc);
                 break;
             case 2:
                 int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr);
@@ -2645,7 +2645,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i += 4) {
-            int8kernel_m4((void*)(pc + i * n), pa + i * k, pb, m, k, n, ldc, scales + i, (bias==nullptr)? nullptr: bias+i);
+            int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, scales + i, (bias==nullptr)? nullptr: bias+i);
         }
 
         pa += nn * k;
@@ -2658,7 +2658,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
         {
             case 3:
                 int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, scales, bias);
-                pc += 2 * n;
+                pc += 2 * ldc;
                 pa += 2 * k;
                 scales += 2;
                 bias = (bias == nullptr)? nullptr: bias + 2;

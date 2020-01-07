@@ -54,6 +54,8 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
     const size_t ldc = top_blob.cstep;
 
     int8kernel((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr, opt);
+
+    // print_int32_matrix("conv1x1s1", pc, m, n, ldc);
 }
 
 

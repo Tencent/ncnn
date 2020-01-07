@@ -1184,7 +1184,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         }        
 
         // dequantize, reverse scale inplace
-        #pragma omp parallel for num_threads(opt.num_threads)
+        // #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<num_output; p++)
         {
             Option opt_g = opt;

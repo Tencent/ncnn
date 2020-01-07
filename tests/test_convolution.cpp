@@ -192,49 +192,49 @@ static int test_convolution_1()
         {7, 2, 3, 3},
     };
 
-    for (int i=0; i<24; i++)
+    for (int i=0; i<1; i++)
     {
         int ret = 0
 // static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias)
-//        || test_convolution_int8(2, 1, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(2, 1, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(2, 1, 1, 2,  kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(2, 1, 2, 2,  kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(2, 1, 3, 1,  kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(2, 1, 3, 2,  kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//
-//        || test_convolution_int8(1, 1, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(3, 1, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(2, 1, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(2, 1, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(2, 1, 1, 2,  kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(2, 1, 2, 2,  kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(2, 1, 3, 1,  kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(2, 1, 3, 2,  kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+
+        || test_convolution_int8(1, 1, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(3, 1, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
         || test_convolution_int8(2, 1, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
 
-//        || test_convolution_int8(1, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(13, 1, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(13, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//
-//        || test_convolution_int8(13, 11, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(13, 11, 2, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(13, 11, 1, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(13, 11, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(13, 11, 2, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(13, 11, 3, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-//        || test_convolution_int8(13, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(1, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 1, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+
+        || test_convolution_int8(13, 11, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 2, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 1, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 2, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 3, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
 
 
-    //    || test_convolution_int8(13, 11, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
 
-    //    || test_convolution_int8(13, 11, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 3, 12, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 8, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 16, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-    //    || test_convolution_int8(13, 11, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 3, 12, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 8, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 16, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+        || test_convolution_int8(13, 11, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
         ;
 
         if (ret != 0)
@@ -248,5 +248,6 @@ int main()
 {
     SRAND(7767517);
 
-    return test_convolution_0() || test_convolution_1();
+    return test_convolution_1();
+//     return test_convolution_0() || test_convolution_1();
 }
