@@ -98,7 +98,7 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
 #define CHECK_MEMBER(m) \
     if (a.m != b.m) \
     { \
-        fprintf(stderr, #m" not match %d %d\n", (int)a.m, (int)b.m); \
+        fprintf(stderr, #m" not match    expect %d but got %d\n", (int)a.m, (int)b.m); \
         return -1; \
     }
 
@@ -121,11 +121,16 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
             const float* pb = mb.row(i);
             for (int j=0; j<a.w; j++)
             {
-                if (!FloatNearlyEqual(pa[j], pb[j], epsilon))
+                for (int k=0; k<a.elempack; k++)
                 {
-                    fprintf(stderr, "value not match at c: %d, h: %d, w: %d, %f should be %f\n", q, i, j, pa[j], pb[j]);
-                    return -1;
+                    if (!FloatNearlyEqual(pa[k], pb[k], epsilon))
+                    {
+                        fprintf(stderr, "value not match at c: %d, h: %d, w: %d [%d]    expect %f but got %f\n", q, i, j, k, pa[k], pb[k]);
+                        return -1;
+                    }
                 }
+                pa += a.elempack;
+                pb += a.elempack;
             }
         }
     }
@@ -209,7 +214,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
     std::vector<ncnn::Mat> c(top_blob_count);
     {
-        std::vector<ncnn::Mat> a4;
+        std::vector<ncnn::Mat> a4(a.size());
         if (opt.use_packing_layout)
         {
             for (size_t i=0; i<a.size(); i++)
@@ -320,7 +325,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         // unpack
         for (size_t i=0; i<d4.size(); i++)
         {
-            ncnn::convert_packing(d4[i], d[i], 1, opt);
+            ncnn::convert_packing(d4[i], d[i], b[i].elempack, opt);
         }
     }
 #endif // NCNN_VULKAN
@@ -478,7 +483,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         }
 
         // unpack
-        ncnn::convert_packing(d4, d, 1, opt);
+        ncnn::convert_packing(d4, d, b.elempack, opt);
     }
 #endif // NCNN_VULKAN
 
@@ -512,7 +517,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 template <typename T>
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001)
 {
-    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, epsilon);
+    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, top_blob_count, epsilon);
 }
 
 template <typename T>
