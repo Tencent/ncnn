@@ -123,7 +123,7 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
             {
                 if (!FloatNearlyEqual(pa[j], pb[j], epsilon))
                 {
-                    fprintf(stderr, "value not match at %d %d %d    %f should be %f\n", q, i, j, pa[j], pb[j]);
+                    fprintf(stderr, "value not match at c: %d, h: %d, w: %d, %f should be %f\n", q, i, j, pa[j], pb[j]);
                     return -1;
                 }
             }

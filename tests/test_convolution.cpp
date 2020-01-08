@@ -228,4 +228,3 @@ int main()
 
     return test_convolution_0() || test_convolution_1();
 }
-

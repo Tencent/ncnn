@@ -2611,7 +2611,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
 #undef DECOMPOSE_K
 #undef DECOMPOSE_N
 
-void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int n, int ldc, float* scales, float* bias, const ncnn::Option& opt) {
+void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int n, int ldc, float* scales, float* bias, const Option& opt) {
     int8_t* pa = (int8_t*)sa;
     int8_t* pb = (int8_t*)sb;
     const int nn = (m >> 2) << 2;
