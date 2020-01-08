@@ -15,7 +15,6 @@
 #include "convolution.h"
 #include <algorithm>
 #include "layer_type.h"
-#include <cstdlib>
 
 namespace ncnn {
 
@@ -459,12 +458,8 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                         scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
 
                     float sumfp32 = sum * scale_in;
-                    // fprintf(stdout, " sum:%d scale_in:%f sumfp32:%f bias:%f \n", sum, scale_in, sumfp32, bias_data[p]);
-
                     if (bias_term)
                         sumfp32 += bias_data[p];
-
-                    // fprintf(stdout, " result:%f\n", sumfp32);
 
                     if (activation_type == 1)
                     {

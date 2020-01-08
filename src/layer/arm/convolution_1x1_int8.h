@@ -24,7 +24,7 @@ static inline signed char float2int8(float v)
 }
 
 #if __aarch64__
-#if 1// FIXME chgemm produce wrong result
+#if 1 
 #include "gemm_symm_int8.h"
 static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
 {
@@ -54,8 +54,6 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
     const size_t ldc = top_blob.cstep;
 
     int8kernel((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr, opt);
-
-    // print_int32_matrix("conv1x1s1", pc, m, n, ldc);
 }
 
 

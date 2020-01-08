@@ -35,6 +35,7 @@ namespace ncnn {
 #include "convolution_sgemm_int8.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
+#include "gemm_symm_int8.h"
 
 #if __ARM_NEON
 #include "convolution_1x1_pack4.h"
@@ -1184,7 +1185,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         }        
 
         // dequantize, reverse scale inplace
-        // #pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<num_output; p++)
         {
             Option opt_g = opt;
