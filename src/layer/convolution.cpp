@@ -458,7 +458,6 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                         scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
 
                     float sumfp32 = sum * scale_in;
-
                     if (bias_term)
                         sumfp32 += bias_data[p];
 
