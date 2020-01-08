@@ -14,9 +14,8 @@
 
 #if __aarch64__
 
-#if 0// FIXME chgemm produce wrong result
+#if 1 
 #include "gemm_symm_int8.h"
-
 static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_size)
 {
     const int m = outch;
