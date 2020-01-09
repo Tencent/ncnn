@@ -364,6 +364,6 @@ if(NCNN_INSTALL_SDK)
 endif()
 
 # add ncnn and generate-spirv to a virtual project group
-SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
-SET_PROPERTY(TARGET ncnn PROPERTY FOLDER "libncnn")
-SET_PROPERTY(TARGET generate-spirv PROPERTY FOLDER "libncnn")
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+set_property(TARGET ncnn PROPERTY FOLDER "libncnn")
+set_property(TARGET generate-spirv PROPERTY FOLDER "libncnn")

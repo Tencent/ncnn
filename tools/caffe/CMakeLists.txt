@@ -12,7 +12,7 @@ if(PROTOBUF_FOUND)
     target_link_libraries(caffe2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
 
     # add all caffe2ncnn tool to a virtual project group
-    SET_PROPERTY(TARGET caffe2ncnn PROPERTY FOLDER "tools/converter")
+    set_property(TARGET caffe2ncnn PROPERTY FOLDER "tools/converter")
 else()
     message(WARNING "Protobuf not found, caffe model convert tool won't be built")
 endif()

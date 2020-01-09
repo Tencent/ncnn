@@ -7,8 +7,9 @@ macro(ncnn_add_layer_test class)
         add_executable(test_${name} test_${name}.cpp)
         target_link_libraries(test_${name} PRIVATE ncnn)
         add_test(test_${name} test_${name})
+
         # add test to a virtual project group
-        SET_PROPERTY(TARGET test_${name} PROPERTY FOLDER "test")
+        set_property(TARGET test_${name} PROPERTY FOLDER "tests")
     endif()
 endmacro()
 

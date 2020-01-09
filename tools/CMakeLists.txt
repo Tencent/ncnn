@@ -21,5 +21,5 @@ if(NCNN_VULKAN)
 endif()
 
 # add all tools to a virtual project group
-SET_PROPERTY(TARGET ncnn2mem PROPERTY FOLDER "tools")
-SET_PROPERTY(TARGET ncnnoptimize PROPERTY FOLDER "tools")
+set_property(TARGET ncnn2mem PROPERTY FOLDER "tools")
+set_property(TARGET ncnnoptimize PROPERTY FOLDER "tools")

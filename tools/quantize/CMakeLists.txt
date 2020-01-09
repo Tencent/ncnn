@@ -11,5 +11,5 @@ add_executable(ncnn2int8 ncnn2int8.cpp)
 target_link_libraries(ncnn2int8 PRIVATE ncnn)
 
 # add all ncnn2table and ncnn2int8 tool to a virtual project group
-SET_PROPERTY(TARGET ncnn2table PROPERTY FOLDER "tools/optimization")
-SET_PROPERTY(TARGET ncnn2int8 PROPERTY FOLDER "tools/optimization")
+set_property(TARGET ncnn2table PROPERTY FOLDER "tools/optimization")
+set_property(TARGET ncnn2int8 PROPERTY FOLDER "tools/optimization")
