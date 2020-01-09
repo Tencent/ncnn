@@ -19,3 +19,7 @@ target_link_libraries(ncnnoptimize PRIVATE ncnn)
 if(NCNN_VULKAN)
     target_link_libraries(ncnnoptimize PRIVATE ${Vulkan_LIBRARY})
 endif()
+
+# add all tools to a virtual project group
+SET_PROPERTY(TARGET ncnn2mem PROPERTY FOLDER "tools")
+SET_PROPERTY(TARGET ncnnoptimize PROPERTY FOLDER "tools")

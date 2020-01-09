@@ -47,3 +47,18 @@ target_link_libraries(simplepose ${NCNN_EXAMPLE_LINK_LIBRARIES})
 
 add_executable(retinaface retinaface.cpp)
 target_link_libraries(retinaface ${NCNN_EXAMPLE_LINK_LIBRARIES})
+
+
+# add all examples to a virtual project group
+SET_PROPERTY(TARGET squeezenet PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET fasterrcnn PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET rfcn PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET yolov2 PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET yolov3 PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET mobilenetv2ssdlite PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET mobilenetssd PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET squeezenetssd PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET shufflenetv2 PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET peleenetssd_seg PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET simplepose PROPERTY FOLDER "examples")
+SET_PROPERTY(TARGET retinaface PROPERTY FOLDER "examples")

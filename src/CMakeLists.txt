@@ -362,3 +362,8 @@ if(NCNN_INSTALL_SDK)
         ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake
         DESTINATION lib/cmake/ncnn)
 endif()
+
+# add ncnn and generate-spirv to a virtual project group
+SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
+SET_PROPERTY(TARGET ncnn PROPERTY FOLDER "libncnn")
+SET_PROPERTY(TARGET generate-spirv PROPERTY FOLDER "libncnn")
