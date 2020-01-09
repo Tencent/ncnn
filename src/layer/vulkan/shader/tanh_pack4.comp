@@ -47,5 +47,5 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
     afpvec4 v = tanh(sfp2afpvec4(bottom_top_blob_data[gi]));
-    bottom_top_blob_data[gi] = sfpvec4(v);
+    bottom_top_blob_data[gi] = afp2sfpvec4(v);
 }

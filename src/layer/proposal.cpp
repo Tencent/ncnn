@@ -53,8 +53,8 @@ static Mat generate_anchors(int base_size, const Mat& ratios, const Mat& scales)
     {
         float ar = ratios[i];
 
-        int r_w = round(base_size / sqrt(ar));
-        int r_h = round(r_w * ar);//round(base_size * sqrt(ar));
+        int r_w = static_cast<int>(round(base_size / sqrt(ar)));
+        int r_h = static_cast<int>(round(r_w * ar));//round(base_size * sqrt(ar));
 
         for (int j = 0; j < num_scale; j++)
         {
@@ -153,17 +153,17 @@ static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& sco
     if (datas.empty() || scores.empty())
         return;
 
-    qsort_descent_inplace(datas, scores, 0, scores.size() - 1);
+    qsort_descent_inplace(datas, scores, 0, static_cast<int>(scores.size() - 1));
 }
 
-static void nms_sorted_bboxes(const std::vector<Rect>& bboxes, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Rect>& bboxes, std::vector<size_t>& picked, float nms_threshold)
 {
     picked.clear();
 
-    const int n = bboxes.size();
+    const size_t n = bboxes.size();
 
     std::vector<float> areas(n);
-    for (int i = 0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         const Rect& r = bboxes[i];
 
@@ -173,12 +173,12 @@ static void nms_sorted_bboxes(const std::vector<Rect>& bboxes, std::vector<int>&
         areas[i] = width * height;
     }
 
-    for (int i = 0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         const Rect& a = bboxes[i];
 
         int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++)
+        for (size_t j = 0; j < picked.size(); j++)
         {
             const Rect& b = bboxes[picked[j]];
 
@@ -248,8 +248,8 @@ int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 float pb_cx = cx + anchor_w * dx;
                 float pb_cy = cy + anchor_h * dy;
 
-                float pb_w = anchor_w * exp(dw);
-                float pb_h = anchor_h * exp(dh);
+                float pb_w = static_cast<float>(anchor_w * exp(dw));
+                float pb_h = static_cast<float>(anchor_h * exp(dh));
 
                 pb[0] = pb_cx - pb_w * 0.5f;
                 pb[1] = pb_cy - pb_h * 0.5f;
@@ -328,7 +328,7 @@ int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 
     // apply nms with nms_thresh
-    std::vector<int> picked;
+    std::vector<size_t> picked;
     nms_sorted_bboxes(proposal_boxes, picked, nms_thresh);
 
     // take after_nms_topN

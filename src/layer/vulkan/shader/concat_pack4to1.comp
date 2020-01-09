@@ -66,12 +66,12 @@ void main()
     }
     else if (p.dims == 2 && axis == 0)
     {
-        v_offset = (ivec4(gx * 4 + p.offset) + ivec4(0, 1, 2, 3)) * p.outw + gx;
+        v_offset = (ivec4(gy * 4 + p.offset) + ivec4(0, 1, 2, 3)) * p.outw + gx;
         gi = gy * p.w + gx;
     }
     else if (p.dims == 2 && axis == 1)
     {
-        v_offset = (ivec4(gx * 4) + ivec4(0, 1, 2, 3)) * p.outw + gx + p.offset;
+        v_offset = (ivec4(gy * 4) + ivec4(0, 1, 2, 3)) * p.outw + gx + p.offset;
         gi = gy * p.w + gx;
     }
     else if (p.dims == 3 && axis == 0)

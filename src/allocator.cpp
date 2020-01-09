@@ -17,6 +17,11 @@
 #include <stdio.h>
 #include <algorithm>
 #include "gpu.h"
+#include "pipeline.h"
+
+#if __ANDROID_API__ >= 26
+#include <android/hardware_buffer.h>
+#endif // __ANDROID_API__ >= 26
 
 namespace ncnn {
 
@@ -246,6 +251,61 @@ VkAllocator::VkAllocator(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
     memory_type_index = (uint32_t)-1;
     mappable = false;
+    coherent = false;
+}
+
+static inline size_t round_up(size_t n, size_t multiple)
+{
+    return (n + n - 1) / multiple * multiple;
+}
+
+static inline size_t round_down(size_t n, size_t multiple)
+{
+    return n / multiple * multiple;
+}
+
+int VkAllocator::flush(VkBufferMemory* ptr)
+{
+    if (coherent)
+        return 0;
+
+    VkMappedMemoryRange mappedMemoryRange;
+    mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    mappedMemoryRange.pNext = 0;
+    mappedMemoryRange.memory = ptr->memory;
+    mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size);
+    mappedMemoryRange.size = round_up(ptr->capacity, vkdev->info.non_coherent_atom_size) - mappedMemoryRange.offset;
+
+    VkResult ret = vkFlushMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkFlushMappedMemoryRanges failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VkAllocator::invalidate(VkBufferMemory* ptr)
+{
+    if (coherent)
+        return 0;
+
+    VkMappedMemoryRange mappedMemoryRange;
+    mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    mappedMemoryRange.pNext = 0;
+    mappedMemoryRange.memory = ptr->memory;
+    mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size);
+    mappedMemoryRange.size = round_up(ptr->capacity, vkdev->info.non_coherent_atom_size) - mappedMemoryRange.offset;
+
+    VkResult ret = vkInvalidateMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkInvalidateMappedMemoryRanges failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
 }
 
 VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
@@ -260,7 +320,7 @@ VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
     bufferCreateInfo.queueFamilyIndexCount = 0;
     bufferCreateInfo.pQueueFamilyIndices = 0;
 
-    VkBuffer buffer;
+    VkBuffer buffer = 0;
     VkResult ret = vkCreateBuffer(vkdev->vkdevice(), &bufferCreateInfo, 0, &buffer);
     if (ret != VK_SUCCESS)
     {
@@ -284,6 +344,7 @@ VkDeviceMemory VkAllocator::allocate_memory(size_t size)
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
+        return 0;
     }
 
     return memory;
@@ -309,6 +370,7 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, VkBuffer buff
     if (ret != VK_SUCCESS)
     {
         fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
+        return 0;
     }
 
     return memory;
@@ -340,9 +402,9 @@ VkBlobBufferAllocator::VkBlobBufferAllocator(const VulkanDevice* _vkdev) : VkAll
         // on integrated gpu, there may be device local only memory too, eg. AMD APU
         // assuming larger alignment always keeps us safe :)
 
-        // least common multiple for memory_map_alignment and buffer_offset_alignment
-        size_t memory_map_alignment = vkdev->info.memory_map_alignment;
-        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, memory_map_alignment);
+        // least common multiple for memory_map_alignment and buffer_offset_alignment and non_coherent_atom_size
+        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, vkdev->info.memory_map_alignment);
+        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, vkdev->info.non_coherent_atom_size);
     }
 
     block_size = alignSize(16 * 1024 * 1024, buffer_offset_alignment);// 16M
@@ -446,7 +508,7 @@ VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
         if (vkdev->info.type == 1)
         {
             // integrated gpu, prefer unified memory
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0);
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
         }
         else
         {
@@ -455,6 +517,7 @@ VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
         }
 
         mappable = vkdev->is_mappable(memory_type_index);
+        coherent = vkdev->is_coherent(memory_type_index);
     }
 
     block->memory = allocate_memory(memoryRequirements.size);
@@ -572,9 +635,9 @@ VkWeightBufferAllocator::VkWeightBufferAllocator(const VulkanDevice* _vkdev) : V
         // on integrated gpu, there may be device local only memory too, eg. AMD APU
         // assuming larger alignment always keeps us safe :)
 
-        // least common multiple for memory_map_alignment and buffer_offset_alignment
-        size_t memory_map_alignment = vkdev->info.memory_map_alignment;
-        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, memory_map_alignment);
+        // least common multiple for memory_map_alignment and buffer_offset_alignment and non_coherent_atom_size
+        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, vkdev->info.memory_map_alignment);
+        buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, vkdev->info.non_coherent_atom_size);
     }
 
     block_size = alignSize(8 * 1024 * 1024, buffer_offset_alignment);// 8M
@@ -695,7 +758,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
                 if (vkdev->info.type == 1)
                 {
                     // integrated gpu, prefer unified memory
-                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0);
+                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
                 }
                 else
                 {
@@ -704,6 +767,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
                 }
 
                 mappable = vkdev->is_mappable(memory_type_index);
+                coherent = vkdev->is_coherent(memory_type_index);
             }
 
             block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, block->buffer);
@@ -741,7 +805,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
         if (vkdev->info.type == 1)
         {
             // integrated gpu, prefer unified memory
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0);
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
         }
         else
         {
@@ -750,6 +814,7 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
         }
 
         mappable = vkdev->is_mappable(memory_type_index);
+        coherent = vkdev->is_coherent(memory_type_index);
     }
 
     block->memory = allocate_memory(memoryRequirements.size);
@@ -791,6 +856,7 @@ void VkWeightBufferAllocator::fastFree(VkBufferMemory* ptr)
 VkStagingBufferAllocator::VkStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = true;
+    coherent = true;
 
     size_compare_ratio = 192;// 0.75f * 256
 }
@@ -863,9 +929,7 @@ VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
     // setup memory type
     if (memory_type_index == (uint32_t)-1)
     {
-        // integrated gpu, prefer unified memory
-        // discrete gpu, prefer the small pcie mappable memory, or fallback to host visible only anyway otherwise
-        memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
     ptr->memory = allocate_memory(memoryRequirements.size);
@@ -894,6 +958,7 @@ void VkStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
 VkWeightStagingBufferAllocator::VkWeightStagingBufferAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     mappable = true;
+    coherent = true;
 }
 
 VkWeightStagingBufferAllocator::~VkWeightStagingBufferAllocator()
@@ -941,6 +1006,314 @@ void VkWeightStagingBufferAllocator::fastFree(VkBufferMemory* ptr)
 
     delete ptr;
 }
+
+VkImageAllocator::VkImageAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+{
+    memory_type_index = (uint32_t)-1;
+}
+
+VkImage VkImageAllocator::create_image(int width, int height, VkFormat format, VkImageUsageFlags usage)
+{
+    VkImageCreateInfo imageCreateInfo;
+    imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    imageCreateInfo.pNext = 0;
+    imageCreateInfo.flags = 0;
+    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageCreateInfo.format = format;
+    imageCreateInfo.extent.width = width;
+    imageCreateInfo.extent.height = height;
+    imageCreateInfo.extent.depth = 1;
+    imageCreateInfo.mipLevels = 1;
+    imageCreateInfo.arrayLayers = 1;
+    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageCreateInfo.usage = usage;
+    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageCreateInfo.queueFamilyIndexCount = 0;
+    imageCreateInfo.pQueueFamilyIndices = 0;
+    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VkImage image;
+    VkResult ret = vkCreateImage(vkdev->vkdevice(), &imageCreateInfo, 0, &image);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateImage failed %d\n", ret);
+        return 0;
+    }
+
+    return image;
+}
+
+VkImageView VkImageAllocator::create_imageview(VkImage image, VkFormat format)
+{
+    VkImageViewCreateInfo imageViewCreateInfo;
+    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageViewCreateInfo.pNext = 0;
+    imageViewCreateInfo.flags = 0;
+    imageViewCreateInfo.image = image;
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCreateInfo.format = format;
+    imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+    imageViewCreateInfo.subresourceRange.levelCount = 1;
+    imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+    VkImageView imageview;
+    VkResult ret = vkCreateImageView(vkdev->vkdevice(), &imageViewCreateInfo, 0, &imageview);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateImageView failed %d\n", ret);
+        return 0;
+    }
+
+    return imageview;
+}
+
+VkDeviceMemory VkImageAllocator::allocate_dedicated_memory(size_t size, VkImage image)
+{
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = 0;
+    memoryAllocateInfo.allocationSize = size;
+    memoryAllocateInfo.memoryTypeIndex = memory_type_index;
+
+    VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo;
+    memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+    memoryDedicatedAllocateInfo.pNext = 0;
+    memoryDedicatedAllocateInfo.image = image;
+    memoryDedicatedAllocateInfo.buffer = 0;
+    memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
+
+    VkDeviceMemory memory = 0;
+    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
+    }
+
+    return memory;
+}
+
+VkSimpleImageAllocator::VkSimpleImageAllocator(const VulkanDevice* _vkdev) : VkImageAllocator(_vkdev)
+{
+}
+
+VkSimpleImageAllocator::~VkSimpleImageAllocator()
+{
+}
+
+VkImageMemory* VkSimpleImageAllocator::fastMalloc(int width, int height, VkFormat format)
+{
+    VkImageMemory* ptr = new VkImageMemory;
+
+    ptr->image = create_image(width, height, format, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
+
+    // setup memory type
+    if (memory_type_index == (uint32_t)-1)
+    {
+        if (vkdev->info.type == 1)
+        {
+            // integrated gpu, prefer unified memory
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0);
+        }
+        else
+        {
+            // discrete gpu, device local
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+        }
+    }
+
+    ptr->memory = allocate_memory(memoryRequirements.size);
+
+    vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, 0);
+
+    ptr->imageview = create_imageview(ptr->image, format);
+
+    ptr->state = 1;
+
+    return ptr;
+}
+
+void VkSimpleImageAllocator::fastFree(VkImageMemory* ptr)
+{
+    vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+    vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+    vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+    delete ptr;
+}
+
+#if __ANDROID_API__ >= 26
+VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, const ImportAndroidHardwareBufferPipeline* p) : VkImageAllocator(_vkdev), q(p)
+{
+}
+
+VkAndroidHardwareBufferImageAllocator::~VkAndroidHardwareBufferImageAllocator()
+{
+}
+
+VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(AHardwareBuffer* hb)
+{
+    VkResult ret;
+
+    AHardwareBuffer_Desc bufferDesc;
+    AHardwareBuffer_describe(hb, &bufferDesc);
+
+    VkAndroidHardwareBufferFormatPropertiesANDROID bufferFormatProperties;
+    bufferFormatProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
+    bufferFormatProperties.pNext = 0;
+
+    VkAndroidHardwareBufferPropertiesANDROID bufferProperties;
+    bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
+    bufferProperties.pNext = &bufferFormatProperties;
+
+    ret = vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkGetAndroidHardwareBufferPropertiesANDROID failed %d\n", ret);
+        return 0;
+    }
+
+    VkExternalFormatANDROID externalFormat;
+    externalFormat.sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID;
+    externalFormat.pNext = 0;
+    externalFormat.externalFormat = bufferFormatProperties.externalFormat;
+
+    VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo;
+    externalMemoryImageCreateInfo.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+    externalMemoryImageCreateInfo.pNext = &externalFormat,
+    externalMemoryImageCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID;
+
+    VkImageCreateInfo imageCreateInfo;
+    imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    imageCreateInfo.pNext = &externalMemoryImageCreateInfo;
+    imageCreateInfo.flags = 0;
+    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageCreateInfo.format = VK_FORMAT_UNDEFINED;
+    imageCreateInfo.extent.width = bufferDesc.width;
+    imageCreateInfo.extent.height = bufferDesc.height;
+    imageCreateInfo.extent.depth = 1;
+    imageCreateInfo.mipLevels = 1;
+    imageCreateInfo.arrayLayers = 1;
+    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageCreateInfo.queueFamilyIndexCount = 0;
+    imageCreateInfo.pQueueFamilyIndices = 0;
+    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VkImage image = 0;
+    ret = vkCreateImage(vkdev->vkdevice(), &imageCreateInfo, 0, &image);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateImage failed %d\n", ret);
+        return 0;
+    }
+
+    // setup memory type
+    if (memory_type_index == (uint32_t)-1)
+    {
+        memory_type_index = vkdev->find_memory_index(bufferProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    }
+
+    VkImportAndroidHardwareBufferInfoANDROID importAndroidHardwareBufferInfo;
+    importAndroidHardwareBufferInfo.sType = VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID;
+    importAndroidHardwareBufferInfo.pNext = 0;
+    importAndroidHardwareBufferInfo.buffer = hb;
+
+    VkMemoryDedicatedAllocateInfo memoryDedicatedAllocateInfo;
+    memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO;
+    memoryDedicatedAllocateInfo.pNext = &importAndroidHardwareBufferInfo;
+    memoryDedicatedAllocateInfo.image = image;
+    memoryDedicatedAllocateInfo.buffer = VK_NULL_HANDLE;
+
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
+    memoryAllocateInfo.allocationSize = bufferProperties.allocationSize;
+    memoryAllocateInfo.memoryTypeIndex = memory_type_index;
+
+    VkDeviceMemory memory = 0;
+    ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
+        return 0;
+    }
+
+    VkBindImageMemoryInfo bindImageMemoryInfo;
+    bindImageMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO;
+    bindImageMemoryInfo.pNext = 0;
+    bindImageMemoryInfo.image = image;
+    bindImageMemoryInfo.memory = memory;
+    bindImageMemoryInfo.memoryOffset = 0;
+    ret = vkdev->vkBindImageMemory2KHR(vkdev->vkdevice(), 1, &bindImageMemoryInfo);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkBindImageMemory2KHR failed %d\n", ret);
+        vkDestroyImage(vkdev->vkdevice(), image, 0);
+        return 0;
+    }
+
+    VkSamplerYcbcrConversionInfoKHR samplerYcbcrConversionInfo;
+    samplerYcbcrConversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
+    samplerYcbcrConversionInfo.pNext = &externalFormat;
+    samplerYcbcrConversionInfo.conversion = q->samplerYcbcrConversion;
+
+    VkImageViewCreateInfo imageViewCreateInfo;
+    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageViewCreateInfo.pNext = &samplerYcbcrConversionInfo;
+    imageViewCreateInfo.flags = 0;
+    imageViewCreateInfo.image = image;
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCreateInfo.format = VK_FORMAT_UNDEFINED;
+    imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+    imageViewCreateInfo.subresourceRange.levelCount = 1;
+    imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+    VkImageView imageview = 0;
+    ret = vkCreateImageView(vkdev->vkdevice(), &imageViewCreateInfo, 0, &imageview);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateImageView failed %d\n", ret);
+        vkDestroyImage(vkdev->vkdevice(), image, 0);
+        vkFreeMemory(vkdev->vkdevice(), memory, 0);
+        return 0;
+    }
+
+    VkImageMemory* ptr = new VkImageMemory;
+    ptr->image = image;
+    ptr->memory = memory;
+    ptr->imageview = imageview;
+    ptr->state = 1;
+
+    return ptr;
+}
+
+void VkAndroidHardwareBufferImageAllocator::fastFree(VkImageMemory* ptr)
+{
+    vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+    vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+    vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+    delete ptr;
+}
+#endif // __ANDROID_API__ >= 26
 
 #endif // NCNN_VULKAN
 

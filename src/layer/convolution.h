@@ -29,11 +29,11 @@ public:
     virtual int load_model(const ModelBin& mb);
 
     virtual int create_pipeline(const Option& opt);
-    virtual int destroy_pipeline(const Option& opt);
-
-    virtual int create_requantize_op(void);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+protected:
+    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     // param
@@ -65,18 +65,9 @@ public:
 
     Mat weight_data_int8_scales;
     float bottom_blob_int8_scale;
-    float top_blob_int8_scale;
+    float top_blob_int8_scale;// TODO load param
 
-    bool use_int8_inference;
     bool use_int8_requantize;
-
-    ncnn::Layer* quantize;
-    std::vector<ncnn::Layer*> dequantize_ops;
-    std::vector<ncnn::Layer*> requantize_ops;
-
-    // merge de/requantize op into convolution op
-    std::vector<float> dequantize_scales;
-    std::vector<float> requantize_scales;    
 
     // implementation type, 0 means do not use auto pack model 
     int impl_type;

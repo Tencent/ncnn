@@ -93,21 +93,21 @@ void main()
     for (int y = 0; y < kernel_h; y++)
     {
         int sys = (gy + y * dilation_h - (kernel_extent_h - 1));
-        if (sys % stride_h != 0)
+        if (sys < 0 || sys % stride_h != 0)
             continue;
 
         int sy = sys / stride_h;
-        if (sy < 0 || sy >= p.h)
+        if (sy >= p.h)
             continue;
 
         for (int x = 0; x < kernel_w; x++)
         {
             int sxs = (gx + x * dilation_w - (kernel_extent_w - 1));
-            if (sxs % stride_w != 0)
+            if (sxs < 0 || sxs % stride_w != 0)
                 continue;
 
             int sx = sxs / stride_w;
-            if (sx < 0 || sx >= p.w)
+            if (sx >= p.w)
                 continue;
 
             int v_offset = v_offset_0 + sy * p.w + sx;

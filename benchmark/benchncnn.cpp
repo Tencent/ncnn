@@ -221,9 +221,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("squeezenet_int8", ncnn::Mat(227, 227, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("mobilenet", ncnn::Mat(224, 224, 3), opt);
@@ -232,9 +230,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("mobilenet_int8", ncnn::Mat(224, 224, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("mobilenet_v2", ncnn::Mat(224, 224, 3), opt);
@@ -260,9 +256,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("googlenet_int8", ncnn::Mat(224, 224, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("resnet18", ncnn::Mat(224, 224, 3), opt);
@@ -271,9 +265,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("resnet18_int8", ncnn::Mat(224, 224, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("alexnet", ncnn::Mat(227, 227, 3), opt);
@@ -284,9 +276,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("vgg16_int8", ncnn::Mat(224, 224, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("resnet50", ncnn::Mat(224, 224, 3), opt);
@@ -295,9 +285,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("resnet50_int8", ncnn::Mat(224, 224, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("squeezenet_ssd", ncnn::Mat(300, 300, 3), opt);
@@ -306,9 +294,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("squeezenet_ssd_int8", ncnn::Mat(300, 300, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("mobilenet_ssd", ncnn::Mat(300, 300, 3), opt);
@@ -317,9 +303,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("mobilenet_ssd_int8", ncnn::Mat(300, 300, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("mobilenet_yolo", ncnn::Mat(416, 416, 3), opt);

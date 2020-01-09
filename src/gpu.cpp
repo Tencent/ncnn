@@ -570,6 +570,7 @@ int create_gpu_instance()
 
         gpu_info.memory_map_alignment = physicalDeviceProperties.limits.minMemoryMapAlignment;
         gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
+        gpu_info.non_coherent_atom_size = physicalDeviceProperties.limits.nonCoherentAtomSize;
 
         gpu_info.timestamp_period = physicalDeviceProperties.limits.timestampPeriod;
 
@@ -1279,6 +1280,13 @@ bool VulkanDevice::is_mappable(uint32_t memory_type_index) const
     const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[memory_type_index];
 
     return memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+}
+
+bool VulkanDevice::is_coherent(uint32_t memory_type_index) const
+{
+    const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[memory_type_index];
+
+    return memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 }
 
 VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
