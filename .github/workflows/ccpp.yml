@@ -67,7 +67,7 @@ jobs:
     - name: test
       run: |
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
-        cd build && ctest --output-on-failure -j 2
+        cd build && ctest --output-on-failure
 
   linux-clang:
     runs-on: ubuntu-latest
@@ -139,7 +139,7 @@ jobs:
     - name: test
       run: |
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
-        cd build && ctest --output-on-failure -j 2
+        cd build && ctest --output-on-failure
 
   linux-mips-mti:
     runs-on: ubuntu-latest
@@ -324,7 +324,7 @@ jobs:
       run: |
         Copy-Item -Path 'VulkanSDK\RunTimeInstaller\x64\vulkan-1.dll' -Destination 'build\tests'
         $env:VK_ICD_FILENAMES="$env:GITHUB_WORKSPACE\swiftshader-install\vk_swiftshader_icd.json"
-        cd build; ctest --output-on-failure -j 2
+        cd build; ctest --output-on-failure
 
   android-armv7:
     runs-on: ubuntu-latest
