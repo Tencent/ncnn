@@ -10,9 +10,9 @@ if(PROTOBUF_FOUND)
             ${CMAKE_CURRENT_BINARY_DIR})
     target_compile_options(onnx2ncnn PRIVATE -std=c++11)
     target_link_libraries(onnx2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
+
+    # add all onnx2ncnn tool to a virtual project group
+    SET_PROPERTY(TARGET onnx2ncnn PROPERTY FOLDER "tools/converter")
 else()
     message(WARNING "Protobuf not found, onnx model convert tool won't be built")
 endif()
-
-# add all onnx2ncnn tool to a virtual project group
-SET_PROPERTY(TARGET onnx2ncnn PROPERTY FOLDER "tools/converter")
