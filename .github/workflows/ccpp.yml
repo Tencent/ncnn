@@ -34,7 +34,7 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.1.130.0/linux/vulkansdk-linux-x86_64-1.1.130.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         tar -xf vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         rm -rf 1.1.130.0/source 1.1.130.0/samples
-        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs -i rm {}
+        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
@@ -105,7 +105,7 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.1.130.0/linux/vulkansdk-linux-x86_64-1.1.130.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         tar -xf vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         rm -rf 1.1.130.0/source 1.1.130.0/samples
-        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs -i rm {}
+        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
@@ -191,7 +191,7 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.1.130.0/mac/vulkansdk-macos-1.1.130.0.tar.gz?Human=true -O vulkansdk-macos-1.1.130.0.tar.gz
         tar -xf vulkansdk-macos-1.1.130.0.tar.gz
         rm -rf vulkansdk-macos-1.1.130.0/Applications
-        find vulkansdk-macos-1.1.130.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs -i rm {}
+        find vulkansdk-macos-1.1.130.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
@@ -358,7 +358,7 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.1.130.0/linux/vulkansdk-linux-x86_64-1.1.130.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         tar -xf vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         rm -rf 1.1.130.0/source 1.1.130.0/samples
-        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs -i rm {}
+        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: configure
       run: export PATH=`pwd`/1.1.130.0/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
@@ -389,7 +389,7 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.1.130.0/linux/vulkansdk-linux-x86_64-1.1.130.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         tar -xf vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         rm -rf 1.1.130.0/source 1.1.130.0/samples
-        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs -i rm {}
+        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: configure
       run: export PATH=`pwd`/1.1.130.0/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
@@ -420,7 +420,7 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.1.130.0/linux/vulkansdk-linux-x86_64-1.1.130.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         tar -xf vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         rm -rf 1.1.130.0/source 1.1.130.0/samples
-        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs -i rm {}
+        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: configure
       run: export PATH=`pwd`/1.1.130.0/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
@@ -451,7 +451,7 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.1.130.0/linux/vulkansdk-linux-x86_64-1.1.130.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         tar -xf vulkansdk-linux-x86_64-1.1.130.0.tar.gz
         rm -rf 1.1.130.0/source 1.1.130.0/samples
-        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs -i rm {}
+        find 1.1.130.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: configure
       run: export PATH=`pwd`/1.1.130.0/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
@@ -482,7 +482,7 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.1.130.0/mac/vulkansdk-macos-1.1.130.0.tar.gz?Human=true -O vulkansdk-macos-1.1.130.0.tar.gz
         tar -xf vulkansdk-macos-1.1.130.0.tar.gz
         rm -rf vulkansdk-macos-1.1.130.0/Applications
-        find vulkansdk-macos-1.1.130.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs -i rm {}
+        find vulkansdk-macos-1.1.130.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
     - name: configure
       run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.130.0/macOS && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.1.130.0/MoltenVK/include -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.1.130.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib -DNCNN_VULKAN=ON ..
     - name: build
