@@ -60,18 +60,20 @@ static int test_padding_0()
         || test_padding(5, 7, 16, 1, 1, 1, 1, 0, 0.f, 0, false)
         || test_padding(5, 7, 16, 2, 3, 2, 3, 1, 0.f, 0, false)
         || test_padding(5, 7, 16, 4, 3, 4, 3, 2, 0.f, 0, false)
+        || test_padding(5, 7, 16, 4, 3, 4, 3, 0, 0.f, 16, false)
         || test_padding(5, 7, 5, 2, 3, 2, 3, 1, 0.f, 0, false)
         || test_padding(5, 7, 6, 4, 3, 4, 3, 2, 0.f, 0, false)
         || test_padding(5, 7, 7, 0, 1, 0, 1, 0, 233.f, 0, false)
-        || test_padding(5, 7, 3, 2, 1, 2, 1, 0, 0.f, 1, false)
+        || test_padding(5, 7, 3, 2, 1, 2, 1, 0, 0.f, 3, false)
 
         || test_padding(5, 7, 16, 1, 1, 1, 1, 0, 0.f, 0, true)
         || test_padding(5, 7, 16, 2, 3, 2, 3, 1, 0.f, 0, true)
         || test_padding(5, 7, 16, 4, 3, 4, 3, 2, 0.f, 0, true)
+        || test_padding(5, 7, 16, 4, 3, 4, 3, 0, 0.f, 16, true)
         || test_padding(5, 7, 5, 2, 3, 2, 3, 1, 0.f, 0, true)
         || test_padding(5, 7, 6, 4, 3, 4, 3, 2, 0.f, 0, true)
         || test_padding(5, 7, 7, 0, 1, 0, 1, 0, 233.f, 0, true)
-        || test_padding(5, 7, 3, 2, 1, 2, 1, 0, 0.f, 1, true)
+        || test_padding(5, 7, 3, 2, 1, 2, 1, 0, 0.f, 3, true)
         ;
 }
 
