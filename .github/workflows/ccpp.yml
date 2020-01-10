@@ -26,13 +26,15 @@ jobs:
       id: cache-vulkansdk
       uses: actions/cache@v1
       with:
-        path: "1.1.92.1"
-        key: vulkansdk-linux-x86_64-1.1.92.1
+        path: "1.1.114.0"
+        key: vulkansdk-linux-x86_64-1.1.114.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        rm -rf 1.1.114.0/source 1.1.114.0/samples
+        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
@@ -61,7 +63,7 @@ jobs:
         mkdir $GITHUB_WORKSPACE/swiftshader-install
         cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
     - name: configure
-      run: export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
+      run: export VULKAN_SDK=`pwd`/1.1.114.0/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
@@ -95,13 +97,15 @@ jobs:
       id: cache-vulkansdk
       uses: actions/cache@v1
       with:
-        path: "1.1.92.1"
-        key: vulkansdk-linux-x86_64-1.1.92.1
+        path: "1.1.114.0"
+        key: vulkansdk-linux-x86_64-1.1.114.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        rm -rf 1.1.114.0/source 1.1.114.0/samples
+        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
@@ -133,7 +137,7 @@ jobs:
       env:
         CC: clang
         CXX: clang++
-      run: export VULKAN_SDK=`pwd`/1.1.92.1/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
+      run: export VULKAN_SDK=`pwd`/1.1.114.0/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
@@ -179,13 +183,15 @@ jobs:
       id: cache-vulkansdk
       uses: actions/cache@v1
       with:
-        path: "vulkansdk-macos-1.1.92.1"
-        key: vulkansdk-macos-1.1.92.1
+        path: "vulkansdk-macos-1.1.114.0"
+        key: vulkansdk-macos-1.1.114.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz
-        tar -xf vulkansdk-macos-1.1.92.1.tar.gz
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/mac/vulkansdk-macos-1.1.114.0.tar.gz?Human=true -O vulkansdk-macos-1.1.114.0.tar.gz
+        tar -xf vulkansdk-macos-1.1.114.0.tar.gz
+        rm -rf vulkansdk-macos-1.1.114.0/Applications
+        find vulkansdk-macos-1.1.114.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
@@ -214,18 +220,18 @@ jobs:
         mkdir $GITHUB_WORKSPACE/swiftshader-install
         cp Darwin/* $GITHUB_WORKSPACE/swiftshader-install
     - name: configure
-      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.114.0/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
 #    - name: test
 #      run: |
 #        find "swiftshader-install/"
-#        find "vulkansdk-macos-1.1.92.1/"
-#        export DYLD_LIBRARY_PATH="vulkansdk-macos-1.1.92.1/macOS/lib":$DYLD_LIBRARY_PATH
+#        find "vulkansdk-macos-1.1.114.0/"
+#        export DYLD_LIBRARY_PATH="vulkansdk-macos-1.1.114.0/macOS/lib":$DYLD_LIBRARY_PATH
 #        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
-#        ./vulkansdk-macos-1.1.92.1/macOS/bin/vulkaninfo
+#        ./vulkansdk-macos-1.1.114.0/macOS/bin/vulkaninfo
 #        cd build && ctest --output-on-failure -j 2
-#        export VK_ICD_FILENAMES="vulkansdk-macos-1.1.92.1/macOS/etc/vulkan/icd.d/MoltenVK_icd.json"
+#        export VK_ICD_FILENAMES="vulkansdk-macos-1.1.114.0/macOS/etc/vulkan/icd.d/MoltenVK_icd.json"
 #        cd build && ctest --output-on-failure -j 2
 
   windows-vs2019:
@@ -280,12 +286,13 @@ jobs:
       uses: actions/cache@v1
       with:
         path: "VulkanSDK"
-        key: VulkanSDK-1.1.92.1-Installer
+        key: VulkanSDK-1.1.114.0-Installer
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.92.1/windows/VulkanSDK-1.1.92.1-Installer.exe?Human=true -OutFile VulkanSDK-1.1.92.1-Installer.exe
-        7z x ./VulkanSDK-1.1.92.1-Installer.exe -oVulkanSDK
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.114.0/windows/VulkanSDK-1.1.114.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.114.0-Installer.exe
+        7z x -aoa ./VulkanSDK-1.1.114.0-Installer.exe -oVulkanSDK
+        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
@@ -322,7 +329,7 @@ jobs:
       run: cmake --build build --config Release -j 2
     - name: test
       run: |
-        Copy-Item -Path 'VulkanSDK\RunTimeInstaller\x64\vulkan-1.dll' -Destination 'build\tests'
+        Copy-Item -Path '.\VulkanSDK\RunTimeInstaller\x64\vulkan-1.dll' -Destination 'build\tests'
         $env:VK_ICD_FILENAMES="$env:GITHUB_WORKSPACE\swiftshader-install\vk_swiftshader_icd.json"
         cd build; ctest --output-on-failure -j 2
 
@@ -343,15 +350,17 @@ jobs:
       id: cache-vulkansdk
       uses: actions/cache@v1
       with:
-        path: "1.1.92.1"
-        key: vulkansdk-linux-x86_64-1.1.92.1
+        path: "1.1.114.0"
+        key: vulkansdk-linux-x86_64-1.1.114.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        rm -rf 1.1.114.0/source 1.1.114.0/samples
+        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: configure
-      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+      run: export PATH=`pwd`/1.1.114.0/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
 
@@ -372,15 +381,17 @@ jobs:
       id: cache-vulkansdk
       uses: actions/cache@v1
       with:
-        path: "1.1.92.1"
-        key: vulkansdk-linux-x86_64-1.1.92.1
+        path: "1.1.114.0"
+        key: vulkansdk-linux-x86_64-1.1.114.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        rm -rf 1.1.114.0/source 1.1.114.0/samples
+        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: configure
-      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+      run: export PATH=`pwd`/1.1.114.0/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
 
@@ -401,15 +412,17 @@ jobs:
       id: cache-vulkansdk
       uses: actions/cache@v1
       with:
-        path: "1.1.92.1"
-        key: vulkansdk-linux-x86_64-1.1.92.1
+        path: "1.1.114.0"
+        key: vulkansdk-linux-x86_64-1.1.114.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        rm -rf 1.1.114.0/source 1.1.114.0/samples
+        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: configure
-      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+      run: export PATH=`pwd`/1.1.114.0/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
 
@@ -430,15 +443,17 @@ jobs:
       id: cache-vulkansdk
       uses: actions/cache@v1
       with:
-        path: "1.1.92.1"
-        key: vulkansdk-linux-x86_64-1.1.92.1
+        path: "1.1.114.0"
+        key: vulkansdk-linux-x86_64-1.1.114.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        rm -rf 1.1.114.0/source 1.1.114.0/samples
+        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: configure
-      run: export PATH=`pwd`/1.1.92.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+      run: export PATH=`pwd`/1.1.114.0/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
 
@@ -459,15 +474,17 @@ jobs:
       id: cache-vulkansdk
       uses: actions/cache@v1
       with:
-        path: "vulkansdk-macos-1.1.92.1"
-        key: vulkansdk-macos-1.1.92.1
+        path: "vulkansdk-macos-1.1.114.0"
+        key: vulkansdk-macos-1.1.114.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz
-        tar -xf vulkansdk-macos-1.1.92.1.tar.gz
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/mac/vulkansdk-macos-1.1.114.0.tar.gz?Human=true -O vulkansdk-macos-1.1.114.0.tar.gz
+        tar -xf vulkansdk-macos-1.1.114.0.tar.gz
+        rm -rf vulkansdk-macos-1.1.114.0/Applications
+        find vulkansdk-macos-1.1.114.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
     - name: configure
-      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.1.92.1/MoltenVK/include -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.1.92.1/MoltenVK/iOS/dynamic/libMoltenVK.dylib -DNCNN_VULKAN=ON ..
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.114.0/macOS && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.1.114.0/MoltenVK/include -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.1.114.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2
 
