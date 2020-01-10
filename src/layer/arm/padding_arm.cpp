@@ -203,10 +203,10 @@ static void padding_constant_pack4_neon(const Mat& src, Mat& dst, int top, int b
     );
 #else // __aarch64__
     asm volatile(
-        "vmov.f32   q0, %q10            \n"
-        "vmov.f32   q1, %q10            \n"
-        "vmov.f32   q2, %q10            \n"
-        "vmov.f32   q3, %q10            \n"
+        "vmov       q0, %q10            \n"
+        "vmov       q1, %q10            \n"
+        "vmov       q2, %q10            \n"
+        "vmov       q3, %q10            \n"
 
         // fill top
         "lsr        r4, %8, #3          \n"// r4 = nn = top_size >> 3
@@ -358,7 +358,7 @@ static void padding_constant_pack4_neon(const Mat& src, Mat& dst, int top, int b
           "r"(right),       // %7
           "r"(top_size),    // %8
           "r"(bottom_size), // %9
-          "r"(w)            // %10
+          "w"(v)            // %10
         : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
     );
 #endif // __aarch64__
