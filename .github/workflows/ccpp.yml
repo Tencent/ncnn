@@ -291,8 +291,11 @@ jobs:
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.130.0/windows/VulkanSDK-1.1.130.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.130.0-Installer.exe
-        7z x ./VulkanSDK-1.1.130.0-Installer.exe -oVulkanSDK
-        Remove-Item 'VulkanSDK\Demos' 'VulkanSDK\glslang' 'VulkanSDK\Samples' 'VulkanSDK\shaderc' 'VulkanSDK\spirv-tools' 'VulkanSDK\Third-Party' 'VulkanSDK\Tools' 'VulkanSDK\Tools32' -Recurse
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.130.0/windows/VulkanRT-1.1.130.0-Installer.exe?Human=true -OutFile VulkanRT-1.1.130.0-Installer.exe
+        7z x -aoa ./VulkanSDK-1.1.130.0-Installer.exe -oVulkanSDK
+        7z x -aoa ./VulkanRT-1.1.130.0-Installer.exe -oVulkanRT
+        Move-Item -Path '.\VulkanRT\$WINDIR\System32\vulkan-1.dll' -Destination .\VulkanSDK\
+        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
@@ -329,7 +332,7 @@ jobs:
       run: cmake --build build --config Release -j 2
     - name: test
       run: |
-        Copy-Item -Path 'VulkanSDK\RunTimeInstaller\x64\vulkan-1.dll' -Destination 'build\tests'
+        Copy-Item -Path 'VulkanSDK\vulkan-1.dll' -Destination 'build\tests'
         $env:VK_ICD_FILENAMES="$env:GITHUB_WORKSPACE\swiftshader-install\vk_swiftshader_icd.json"
         cd build; ctest --output-on-failure -j 2
 
