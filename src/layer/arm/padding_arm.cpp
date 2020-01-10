@@ -43,10 +43,10 @@ static void padding_constant_pack4_neon(const Mat& src, Mat& dst, int top, int b
 
 #if __aarch64__
     asm volatile(
-        "mov    v0.4s, %10.4s           \n"
-        "mov    v1.4s, %10.4s           \n"
-        "mov    v2.4s, %10.4s           \n"
-        "mov    v3.4s, %10.4s           \n"
+        "mov    v0.16b, %10.16b         \n"
+        "mov    v1.16b, %10.16b         \n"
+        "mov    v2.16b, %10.16b         \n"
+        "mov    v3.16b, %10.16b         \n"
 
         // fill top
         "lsr    w4, %w8, #3             \n"// w4 = nn = top_size >> 3
