@@ -8,7 +8,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
     add_custom_command(
         OUTPUT ${SHADER_SPV_HEX_FILE}
         COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -Dsfp=float -Dsfpvec2=vec2 -Dsfpvec4=vec4 -Dsfpmat4=mat4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -Dsfp2afp\(v\)=v -Dafp2sfp\(v\)=v -Dsfp2afpvec2\(v\)=v -Dafp2sfpvec2\(v\)=v -Dsfp2afpvec4\(v\)=v -Dafp2sfpvec4\(v\)=v -Dsfp2afpmat4\(v\)=v -Dafp2sfpmat4\(v\)=v -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
+        ARGS -Dsfp=float -Dsfpvec2=vec2 -Dsfpvec4=vec4 -Dsfpvec8=mat2x4 -Dsfpmat4=mat4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpvec8=mat2x4 -Dafpmat4=mat4 -Dsfp2afp\(v\)=v -Dafp2sfp\(v\)=v -Dsfp2afpvec2\(v\)=v -Dafp2sfpvec2\(v\)=v -Dsfp2afpvec4\(v\)=v -Dsfp2afpvec8\(v\)=v -Dafp2sfpvec4\(v\)=v -Dafp2sfpvec8\(v\)=v -Dsfp2afpmat4\(v\)=v -Dafp2sfpmat4\(v\)=v -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_SRC_NAME_WE}.spv"
         VERBATIM
@@ -22,7 +22,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
     add_custom_command(
         OUTPUT ${SHADER_fp16p_SPV_HEX_FILE}
         COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -Dsfp=float -Dsfpvec2=uint -Dsfpvec4=uvec2 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -Dsfp2afp\(v\)=v -Dafp2sfp\(v\)=v -Dsfp2afpvec2\(v\)=unpackHalf2x16\(v\) -Dafp2sfpvec2\(v\)=packHalf2x16\(v\) -Dsfp2afpvec4\(v\)=vec4\(unpackHalf2x16\(v.x\),unpackHalf2x16\(v.y\)\) -Dafp2sfpvec4\(v\)=uvec2\(packHalf2x16\(v.rg\),packHalf2x16\(v.ba\)\) -DNCNN_fp16_packed=1 -V -s -e ${SHADER_fp16p_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16p_SPV_HEX_FILE} ${SHADER_SRC}
+        ARGS -Dsfp=float -Dsfpvec2=uint -Dsfpvec4=uvec2 -Dsfpvec8=uvec4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpvec8=mat2x4 -Dafpmat4=mat4 -Dsfp2afp\(v\)=v -Dafp2sfp\(v\)=v -Dsfp2afpvec2\(v\)=unpackHalf2x16\(v\) -Dafp2sfpvec2\(v\)=packHalf2x16\(v\) -Dsfp2afpvec4\(v\)=vec4\(unpackHalf2x16\(v.x\),unpackHalf2x16\(v.y\)\) -Dafp2sfpvec4\(v\)=uvec2\(packHalf2x16\(v.rg\),packHalf2x16\(v.ba\)\) -Dsfp2afpvec8\(v\)=mat2x4\(vec4\(unpackHalf2x16\(v.r\),unpackHalf2x16\(v.g\)\),vec4\(unpackHalf2x16\(v.b\),unpackHalf2x16\(v.a\)\)\) -Dafp2sfpvec8\(v\)=uvec4\(uvec2\(packHalf2x16\(v[0].rg\),packHalf2x16\(v[0].ba\)\),uvec2\(packHalf2x16\(v[1].rg\),packHalf2x16\(v[1].ba\)\)\) -DNCNN_fp16_packed=1 -V -s -e ${SHADER_fp16p_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16p_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_fp16p_SRC_NAME_WE}.spv"
         VERBATIM
@@ -36,7 +36,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
     add_custom_command(
         OUTPUT ${SHADER_fp16s_SPV_HEX_FILE}
         COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpmat4=mat4 -Dsfp2afp\(v\)=float\(v\) -Dafp2sfp\(v\)=float16_t\(v\) -Dsfp2afpvec2\(v\)=vec2\(v\) -Dafp2sfpvec2\(v\)=f16vec2\(v\) -Dsfp2afpvec4\(v\)=vec4\(v\) -Dafp2sfpvec4\(v\)=f16vec4\(v\) -DNCNN_fp16_storage=1 -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
+        ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dsfpvec8=uvec4 -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpvec8=mat2x4 -Dafpmat4=mat4 -Dsfp2afp\(v\)=float\(v\) -Dafp2sfp\(v\)=float16_t\(v\) -Dsfp2afpvec2\(v\)=vec2\(v\) -Dafp2sfpvec2\(v\)=f16vec2\(v\) -Dsfp2afpvec4\(v\)=vec4\(v\) -Dafp2sfpvec4\(v\)=f16vec4\(v\) -Dsfp2afpvec8\(v\)=mat2x4\(vec4\(unpackHalf2x16\(v.r\),unpackHalf2x16\(v.g\)\),vec4\(unpackHalf2x16\(v.b\),unpackHalf2x16\(v.a\)\)\) -Dafp2sfpvec8\(v\)=uvec4\(uvec2\(packHalf2x16\(v[0].rg\),packHalf2x16\(v[0].ba\)\),uvec2\(packHalf2x16\(v[1].rg\),packHalf2x16\(v[1].ba\)\)\) -DNCNN_fp16_storage=1 -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_fp16s_SRC_NAME_WE}.spv"
         VERBATIM
@@ -50,7 +50,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
     add_custom_command(
         OUTPUT ${SHADER_fp16a_SPV_HEX_FILE}
         COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dsfpmat4=f16mat4 -Dafp=float16_t -Dafpvec2=f16vec2 -Dafpvec4=f16vec4 -Dafpmat4=f16mat4 -Dsfp2afp\(v\)=v -Dafp2sfp\(v\)=v -Dsfp2afpvec2\(v\)=v -Dafp2sfpvec2\(v\)=v -Dsfp2afpvec4\(v\)=v -Dafp2sfpvec4\(v\)=v -Dsfp2afpmat4\(v\)=v -Dafp2sfpmat4\(v\)=v -DNCNN_fp16_storage=1 -DNCNN_fp16_arithmetic=1 -V -s -e ${SHADER_fp16a_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16a_SPV_HEX_FILE} ${SHADER_SRC}
+        ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dsfpvec8=f16mat2x4 -Dsfpmat4=f16mat4 -Dafp=float16_t -Dafpvec2=f16vec2 -Dafpvec4=f16vec4 -Dafpvec8=f16mat2x4 -Dafpmat4=f16mat4 -Dsfp2afp\(v\)=v -Dafp2sfp\(v\)=v -Dsfp2afpvec2\(v\)=v -Dafp2sfpvec2\(v\)=v -Dsfp2afpvec4\(v\)=v -Dsfp2afpvec8\(v\)=v -Dafp2sfpvec4\(v\)=v -Dafp2sfpvec8\(v\)=v -Dsfp2afpmat4\(v\)=v -Dafp2sfpmat4\(v\)=v -DNCNN_fp16_storage=1 -DNCNN_fp16_arithmetic=1 -V -s -e ${SHADER_fp16a_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16a_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_fp16a_SRC_NAME_WE}.spv"
         VERBATIM
