@@ -39,7 +39,7 @@ if(ANDROID OR IOS)
     option(NCNN_BUILD_TOOLS "build tools" OFF)
 else()
     option(NCNN_DISABLE_RTTI "disable rtti" OFF)
-    option(NCNN_BUILD_TOOLS "build tools" ON)
+    option(NCNN_BUILD_TOOLS "build tools" OFF)
 endif()
 
 if(ANDROID OR IOS OR LINUX)
