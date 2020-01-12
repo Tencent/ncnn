@@ -49,46 +49,17 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    if (p.dims == 1)
-    {
-        afp v = sfp2afp(bottom_top_blob_data[gx]);
+    const int gi = gz * p.cstep + gy * p.w + gx;
 
-        if (bias_term == 1)
-            v = sfp2afp(scale_blob_data[gx]) * v + sfp2afp(bias_blob_data[gx]);
-        else
-            v = sfp2afp(scale_blob_data[gx]) * v;
+    const ivec3 gxyz = ivec3(gx, gy, gz);
+    const int abi = gxyz[p.dims - 1];
 
-        bottom_top_blob_data[gx] = afp2sfp(v);
-        return;
-    }
+    afp v = buffer_ld1(bottom_top_blob_data, gi);
 
-    if (p.dims == 2)
-    {
-        const int gi = gy * p.w + gx;
+    if (bias_term == 1)
+        v = buffer_ld1(scale_blob_data, abi) * v + buffer_ld1(bias_blob_data, abi);
+    else
+        v = buffer_ld1(scale_blob_data, abi) * v;
 
-        afp v = sfp2afp(bottom_top_blob_data[gi]);
-
-        if (bias_term == 1)
-            v = sfp2afp(scale_blob_data[gy]) * v + sfp2afp(bias_blob_data[gy]);
-        else
-            v = sfp2afp(scale_blob_data[gy]) * v;
-
-        bottom_top_blob_data[gi] = afp2sfp(v);
-        return;
-    }
-
-    if (p.dims == 3)
-    {
-        const int gi = gz * p.cstep + gy * p.w + gx;
-
-        afp v = sfp2afp(bottom_top_blob_data[gi]);
-
-        if (bias_term == 1)
-            v = sfp2afp(scale_blob_data[gz]) * v + sfp2afp(bias_blob_data[gz]);
-        else
-            v = sfp2afp(scale_blob_data[gz]) * v;
-
-        bottom_top_blob_data[gi] = afp2sfp(v);
-        return;
-    }
+    buffer_st1(bottom_top_blob_data, gi, v);
 }

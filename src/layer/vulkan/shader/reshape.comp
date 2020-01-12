@@ -82,5 +82,5 @@ void main()
         gi = gz * p.outcstep + gy * p.outw + gx;
     }
 
-    top_blob_data[gi] = bottom_blob_data[v_offset];
+    buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
 }

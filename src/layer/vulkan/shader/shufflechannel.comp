@@ -54,11 +54,13 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
+    const int gi = gz * p.outcstep + gy * p.outw + gx;
+
     const int channels_g = p.c / group;
 
     int z = (gz % group) * channels_g + (gz / group);
 
     int v_offset = z * p.cstep + gy * p.w + gx;
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+    buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
 }

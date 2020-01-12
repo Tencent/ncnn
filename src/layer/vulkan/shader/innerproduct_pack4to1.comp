@@ -63,7 +63,7 @@ void main()
 
     if (bias_term == 1)
     {
-        sum = sfp2afp(bias_data[gx]);
+        sum = buffer_ld1(bias_data, gx);
     }
     else
     {
@@ -74,9 +74,9 @@ void main()
 
     for (int i = 0; i < p.w; i++)
     {
-        afpvec4 v = sfp2afpvec4(bottom_blob_data[i]);
+        afpvec4 v = buffer_ld4(bottom_blob_data, i);
 
-        afpvec4 k = sfp2afpvec4(weight_data[w_offset + i]);
+        afpvec4 k = buffer_ld4(weight_data, w_offset + i);
 
         sum += dot(v, k);
     }
@@ -101,5 +101,5 @@ void main()
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
-    top_blob_data[gx] = afp2sfp(sum);
+    buffer_st1(top_blob_data, gx, sum);
 }

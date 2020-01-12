@@ -125,8 +125,8 @@ void main()
         }
     }
 
-    afpvec4 v1 = sfp2afpvec4(a_blob_data[ai]);
-    afpvec4 v2 = sfp2afpvec4(b_blob_data[bi]);
+    afpvec4 v1 = buffer_ld4(a_blob_data, ai);
+    afpvec4 v2 = buffer_ld4(b_blob_data, bi);
 
     afpvec4 res;
 
@@ -140,5 +140,5 @@ void main()
     if (op_type == 7) res = v2 - v1;
     if (op_type == 8) res = v2 / v1;
 
-    top_blob_data[gi] = afp2sfpvec4(res);
+    buffer_st4(top_blob_data, gi, res);
 }

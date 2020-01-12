@@ -61,22 +61,22 @@ void main()
     afpvec4 center = afpvec4(center_x, center_y, center_x, center_y);
 
     // ratio = 1, various sizes
-    afp size = sfp2afp(min_sizes_data[gx]);
+    afp size = buffer_ld1(min_sizes_data, gx);
     afp cw = size * afp(p.h) / afp(p.w) / afp(2);
     afp ch = size / afp(2);
 
     afpvec4 box = center + afpvec4(-cw, -ch, cw, ch);
     box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-    top_blob_data[v_offset] = afp2sfpvec4(box);
+    buffer_st4(top_blob_data, v_offset, box);
 
     if (gx == num_sizes - 1)
     {
         // various ratios, size = min_size = size[0]
-        afp size = afp(min_sizes_data[0]);
+        afp size = buffer_ld1(min_sizes_data, 0);
         for (int pi = 1; pi < num_ratios; pi++)
         {
-            afp v = sfp2afp(aspect_ratios_data[pi]);
+            afp v = buffer_ld1(aspect_ratios_data, pi);
             afp ratio = sqrt(v);
             afp cwr = size * afp(p.h) / afp(p.w) * ratio / afp(2);
             afp chr = size / ratio / afp(2);
@@ -84,7 +84,7 @@ void main()
             afpvec4 box = center + afpvec4(-cwr, -chr, cwr, chr);
             box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-            top_blob_data[v_offset + pi] = afp2sfpvec4(box);
+            buffer_st4(top_blob_data, v_offset + pi, box);
         }
     }
 }

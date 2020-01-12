@@ -55,8 +55,8 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    afp v1 = sfp2afp(bottom_blob1_data[gi]);
-    afp v2 = sfp2afp(bottom_blob2_data[gi]);
+    afp v1 = buffer_ld1(bottom_blob1_data, gi);
+    afp v2 = buffer_ld1(bottom_blob2_data, gi);
 
     afp res;
 
@@ -83,5 +83,5 @@ void main()
             res = max(v1 * afp(p.coeff0), v2 * afp(p.coeff1));
     }
 
-    top_blob_data[gi] = afp2sfp(res);
+    buffer_st1(top_blob_data, gi, res);
 }

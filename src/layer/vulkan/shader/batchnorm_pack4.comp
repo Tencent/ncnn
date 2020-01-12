@@ -47,26 +47,16 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    if (p.dims == 1)
-    {
-        afpvec4 v = sfp2afpvec4(b_data[gx]) * sfp2afpvec4(bottom_top_blob_data[gx]) + sfp2afpvec4(a_data[gx]);
-        bottom_top_blob_data[gx] = afp2sfpvec4(v);
-        return;
-    }
+    const int gi = gz * p.cstep + gy * p.w + gx;
 
-    if (p.dims == 2)
-    {
-        const int gi = gy * p.w + gx;
-        afpvec4 v = sfp2afpvec4(b_data[gy]) * sfp2afpvec4(bottom_top_blob_data[gi]) + sfp2afpvec4(a_data[gy]);
-        bottom_top_blob_data[gi] = afp2sfpvec4(v);
-        return;
-    }
+    const ivec3 gxyz = ivec3(gx, gy, gz);
+    const int abi = gxyz[p.dims - 1];
 
-    if (p.dims == 3)
-    {
-        const int gi = gz * p.cstep + gy * p.w + gx;
-        afpvec4 v = sfp2afpvec4(b_data[gz]) * sfp2afpvec4(bottom_top_blob_data[gi]) + sfp2afpvec4(a_data[gz]);
-        bottom_top_blob_data[gi] = afp2sfpvec4(v);
-        return;
-    }
+    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+    afpvec4 b = buffer_ld4(b_data, abi);
+    afpvec4 a = buffer_ld4(a_data, abi);
+
+    v = b * v + a;
+
+    buffer_st4(bottom_top_blob_data, gi, v);
 }

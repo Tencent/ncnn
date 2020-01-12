@@ -50,9 +50,9 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]);
+    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 
     v = v * clamp(v * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
 
-    bottom_top_blob_data[gi] = afp2sfpvec4(v);
+    buffer_st4(bottom_top_blob_data, gi, v);
 }

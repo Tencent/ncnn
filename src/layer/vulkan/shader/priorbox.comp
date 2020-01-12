@@ -81,7 +81,7 @@ void main()
     afp box_w;
     afp box_h;
 
-    afp min_size = sfp2afp(min_sizes_data[gx]);
+    afp min_size = buffer_ld1(min_sizes_data, gx);
 
 #if NCNN_fp16_packed
     vec4 variances = vec4(variances_0, variances_1, variances_2, variances_3);
@@ -99,7 +99,7 @@ void main()
 #if NCNN_fp16_packed
     top_blob_data[v_offset] = vec4(box);
 #else
-    top_blob_data[v_offset] = afp2sfpvec4(box);
+    buffer_st4(top_blob_data, v_offset, box);
 #endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
     top_blob_data[var_offset] = variances;
@@ -124,7 +124,7 @@ void main()
 
     if (num_max_size > 0)
     {
-        afp max_size = sfp2afp(max_sizes_data[gx]);
+        afp max_size = buffer_ld1(max_sizes_data, gx);
 
         // max size box
         box_w = box_h = sqrt(min_size * max_size);
@@ -135,7 +135,7 @@ void main()
 #if NCNN_fp16_packed
         top_blob_data[v_offset] = vec4(box);
 #else
-        top_blob_data[v_offset] = afp2sfpvec4(box);
+        buffer_st4(top_blob_data, v_offset, box);
 #endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
         top_blob_data[var_offset] = variances;
@@ -161,7 +161,7 @@ void main()
     // all aspect_ratios
     for (int pi = 0; pi < num_aspect_ratio; pi++)
     {
-        afp ar = sfp2afp(aspect_ratios_data[pi]);
+        afp ar = buffer_ld1(aspect_ratios_data, pi);
 
         box_w = min_size * sqrt(ar);
         box_h = min_size / sqrt(ar);
@@ -172,7 +172,7 @@ void main()
 #if NCNN_fp16_packed
         top_blob_data[v_offset] = vec4(box);
 #else
-        top_blob_data[v_offset] = afp2sfpvec4(box);
+        buffer_st4(top_blob_data, v_offset, box);
 #endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
         top_blob_data[var_offset] = variances;
@@ -203,7 +203,7 @@ void main()
 #if NCNN_fp16_packed
             top_blob_data[v_offset] = vec4(box);
 #else
-            top_blob_data[v_offset] = afp2sfpvec4(box);
+            buffer_st4(top_blob_data, v_offset, box);
 #endif
 #if NCNN_fp16_packed || !NCNN_fp16_storage
             top_blob_data[var_offset] = variances;

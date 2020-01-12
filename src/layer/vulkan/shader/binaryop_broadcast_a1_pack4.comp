@@ -64,8 +64,8 @@ void main()
     const int gi = gz * p.outcstep + gy * p.outw + gx;
 
     // type 2 3 4
-    afpvec4 v1 = afpvec4(a_blob_data[0]);
-    afpvec4 v2 = sfp2afpvec4(b_blob_data[gi]);
+    afpvec4 v1 = afpvec4(buffer_ld1(a_blob_data, 0));
+    afpvec4 v2 = buffer_ld4(b_blob_data, gi);
 
     afpvec4 res;
 
@@ -79,5 +79,5 @@ void main()
     if (op_type == 7) res = v2 - v1;
     if (op_type == 8) res = v2 / v1;
 
-    top_blob_data[gi] = afp2sfpvec4(res);
+    buffer_st4(top_blob_data, gi, res);
 }

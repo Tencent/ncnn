@@ -47,14 +47,14 @@ void main()
     if (gx >= p.w || gy >= 1 || gz >= 1)
         return;
 
-    afpvec4 mean = sfp2afpvec4(mean_data[gx]);
-    afpvec4 var = sfp2afpvec4(var_data[gx]);
-    afpvec4 gamma = sfp2afpvec4(gamma_data[gx]);
-    afpvec4 beta = sfp2afpvec4(beta_data[gx]);
+    afpvec4 mean = buffer_ld4(mean_data, gx);
+    afpvec4 var = buffer_ld4(var_data, gx);
+    afpvec4 gamma = buffer_ld4(gamma_data, gx);
+    afpvec4 beta = buffer_ld4(beta_data, gx);
 
     afpvec4 a = gamma / (sqrt(var + afp(eps)));
     afpvec4 b = - mean * a + beta;
 
-    coeffs_blob_data[gx*2] = afp2sfpvec4(a);
-    coeffs_blob_data[gx*2 +1] = afp2sfpvec4(b);
+    buffer_st4(coeffs_blob_data, gx*2, a);
+    buffer_st4(coeffs_blob_data, gx*2 +1, b);
 }

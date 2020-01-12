@@ -46,7 +46,10 @@ void main()
         return;
 
     const int gi = gz * p.cstep + gy * p.w + gx;
-    afp v = sfp2afp(bottom_top_blob_data[gi]);
+
+    afp v = buffer_ld1(bottom_top_blob_data, gi);
+
     v = afp(1.f) / (afp(1.f) + exp(-v));
-    bottom_top_blob_data[gi] = afp2sfp(v);
+
+    buffer_st1(bottom_top_blob_data, gi, v);
 }

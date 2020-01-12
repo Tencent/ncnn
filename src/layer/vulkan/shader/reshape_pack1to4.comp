@@ -82,15 +82,5 @@ void main()
         gi = gz * p.outcstep + gy * p.outw + gx;
     }
 
-#if NCNN_fp16_packed
-    vec2 v0 = vec2(bottom_blob_data[v_offset.r], bottom_blob_data[v_offset.g]);
-    vec2 v1 = vec2(bottom_blob_data[v_offset.b], bottom_blob_data[v_offset.a]);
-
-    top_blob_data[gi] = uvec2(packHalf2x16(v0), packHalf2x16(v1));
-#else
-    top_blob_data[gi].r = bottom_blob_data[v_offset.r];
-    top_blob_data[gi].g = bottom_blob_data[v_offset.g];
-    top_blob_data[gi].b = bottom_blob_data[v_offset.b];
-    top_blob_data[gi].a = bottom_blob_data[v_offset.a];
-#endif
+    buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
 }

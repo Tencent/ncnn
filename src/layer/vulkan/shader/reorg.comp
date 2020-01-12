@@ -54,6 +54,8 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
+    const int gi = gz * p.outcstep + gy * p.outw + gx;
+
     int z = gz / (stride * stride);
     int zi = gz % (stride * stride);
     int y = gy * stride + zi / stride;
@@ -61,5 +63,5 @@ void main()
 
     int v_offset = z * p.cstep + y * p.w + x;
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+    buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
 }

@@ -162,8 +162,8 @@ void main()
         }
     }
 
-    afp v1 = sfp2afp(a_blob_data[ai]);
-    afp v2 = sfp2afp(b_blob_data[bi]);
+    afp v1 = buffer_ld1(a_blob_data, ai);
+    afp v2 = buffer_ld1(b_blob_data, bi);
 
     afp res;
 
@@ -177,5 +177,5 @@ void main()
     if (op_type == 7) res = v2 - v1;
     if (op_type == 8) res = v2 / v1;
 
-    top_blob_data[gi] = afp2sfp(res);
+    buffer_st1(top_blob_data, gi, res);
 }

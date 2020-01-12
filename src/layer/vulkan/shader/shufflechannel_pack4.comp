@@ -67,25 +67,12 @@ void main()
     // v = v4[lane]
     int gi = gz * p.outcstep + gy * p.outw + gx;
 
-#if NCNN_fp16_packed
-    vec4 vr = sfp2afpvec4(bottom_blob_data[v_offset.r]);
-    vec4 vg = sfp2afpvec4(bottom_blob_data[v_offset.g]);
-    vec4 vb = sfp2afpvec4(bottom_blob_data[v_offset.b]);
-    vec4 va = sfp2afpvec4(bottom_blob_data[v_offset.a]);
+    afpvec4 vr = buffer_ld4(bottom_blob_data, v_offset.r);
+    afpvec4 vg = buffer_ld4(bottom_blob_data, v_offset.g);
+    afpvec4 vb = buffer_ld4(bottom_blob_data, v_offset.b);
+    afpvec4 va = buffer_ld4(bottom_blob_data, v_offset.a);
 
-    vec2 v0 = vec2(vr[lane4.r], vg[lane4.g]);
-    vec2 v1 = vec2(vb[lane4.b], va[lane4.a]);
+    afpvec4 v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
 
-    top_blob_data[gi] = uvec2(packHalf2x16(v0), packHalf2x16(v1));
-#elif NCNN_fp16_storage && !NCNN_fp16_arithmetic
-    top_blob_data[gi].r = afp2sfp(sfp2afpvec4(bottom_blob_data[v_offset.r])[lane4.r]);
-    top_blob_data[gi].g = afp2sfp(sfp2afpvec4(bottom_blob_data[v_offset.g])[lane4.g]);
-    top_blob_data[gi].b = afp2sfp(sfp2afpvec4(bottom_blob_data[v_offset.b])[lane4.b]);
-    top_blob_data[gi].a = afp2sfp(sfp2afpvec4(bottom_blob_data[v_offset.a])[lane4.a]);
-#else
-    top_blob_data[gi].r = bottom_blob_data[v_offset.r][lane4.r];
-    top_blob_data[gi].g = bottom_blob_data[v_offset.g][lane4.g];
-    top_blob_data[gi].b = bottom_blob_data[v_offset.b][lane4.b];
-    top_blob_data[gi].a = bottom_blob_data[v_offset.a][lane4.a];
-#endif
+    buffer_st4(top_blob_data, gi, v);
 }

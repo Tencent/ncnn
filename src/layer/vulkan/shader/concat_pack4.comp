@@ -56,34 +56,13 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    if (p.dims == 1) // axis == 0
-    {
-        int v_offset = gx + p.offset;
-        top_blob_data[v_offset] = bottom_blob_data[gx];
-    }
-    else if (p.dims == 2 && axis == 0)
-    {
-        int v_offset = (gy + p.offset) * p.outw + gx;
-        top_blob_data[v_offset] = bottom_blob_data[gy * p.w + gx];
-    }
-    else if (p.dims == 2 && axis == 1)
-    {
-        int v_offset = gy * p.outw + gx + p.offset;
-        top_blob_data[v_offset] = bottom_blob_data[gy * p.w + gx];
-    }
-    else if (p.dims == 3 && axis == 0)
-    {
-        int v_offset = (gz + p.offset) * p.outcstep + gy * p.outw + gx;
-        top_blob_data[v_offset] = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
-    }
-    else if (p.dims == 3 && axis == 1)
-    {
-        int v_offset = gz * p.outcstep + (gy + p.offset) * p.outw + gx;
-        top_blob_data[v_offset] = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
-    }
-    else if (p.dims == 3 && axis == 2)
-    {
-        int v_offset = gz * p.outcstep + gy * p.outw + gx + p.offset;
-        top_blob_data[v_offset] = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
-    }
+    const int gi = gz * p.cstep + gy * p.w + gx;
+
+    ivec3 gxyz = ivec3(gx, gy, gz);
+
+    gxyz[p.dims - 1 - axis] += p.offset;
+
+    int v_offset = gxyz.z * p.outcstep + gxyz.y * p.outw + gxyz.x;
+
+    buffer_cp4(top_blob_data, v_offset, bottom_blob_data, gi);
 }

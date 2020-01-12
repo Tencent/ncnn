@@ -66,17 +66,7 @@ void main()
     int lane = z % 4;
     int v_offset = sz * p.cstep + y * p.w + x;
 
-#if NCNN_fp16_packed
-    vec4 v = sfp2afpvec4(bottom_blob_data[v_offset]);
+    afpvec4 v = buffer_ld4(bottom_blob_data, v_offset);
 
-    if (lane == 0) top_blob_data[gi] = v.r;
-    else if (lane == 1) top_blob_data[gi] = v.g;
-    else if (lane == 2) top_blob_data[gi] = v.b;
-    else /*(lane == 3)*/ top_blob_data[gi] = v.a;
-#else
-    if (lane == 0) top_blob_data[gi] = bottom_blob_data[v_offset].r;
-    else if (lane == 1) top_blob_data[gi] = bottom_blob_data[v_offset].g;
-    else if (lane == 2) top_blob_data[gi] = bottom_blob_data[v_offset].b;
-    else /*(lane == 3)*/ top_blob_data[gi] = bottom_blob_data[v_offset].a;
-#endif
+    buffer_st1(top_blob_data, gi, v[lane]);
 }
