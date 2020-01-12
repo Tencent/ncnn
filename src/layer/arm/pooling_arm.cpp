@@ -138,22 +138,12 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt_b);
-            if (bottom_blob_bordered.empty())
-                return -100;
-
-            w = bottom_blob_bordered.w;
-            h = bottom_blob_bordered.h;
         }
         else if (pad_mode == 1) // valid padding
         {
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
-            if (bottom_blob_bordered.empty())
-                return -100;
-
-            w = bottom_blob_bordered.w;
-            h = bottom_blob_bordered.h;
         }
         else if (pad_mode == 2) // tensorflow padding=SAME or onnx padding=SAME_UPPER
         {
@@ -164,12 +154,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 Option opt_b = opt;
                 opt_b.blob_allocator = opt.workspace_allocator;
                 copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-                if (bottom_blob_bordered.empty())
-                    return -100;
             }
-
-            w = bottom_blob_bordered.w;
-            h = bottom_blob_bordered.h;
         }
         else if (pad_mode == 3) // onnx padding=SAME_LOWER
         {
@@ -180,13 +165,13 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 Option opt_b = opt;
                 opt_b.blob_allocator = opt.workspace_allocator;
                 copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-                if (bottom_blob_bordered.empty())
-                    return -100;
             }
-
-            w = bottom_blob_bordered.w;
-            h = bottom_blob_bordered.h;
         }
+        if (bottom_blob_bordered.empty())
+            return -100;
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
 
         int outw = (w - kernel_w) / stride_w + 1;
         int outh = (h - kernel_h) / stride_h + 1;
@@ -261,94 +246,89 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         else if (pooling_type == PoolMethod_AVE)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            if (avgpool_count_include_pad == 0)
             {
-                const Mat m = bottom_blob_bordered.channel(q);
-                float* outptr = top_blob.channel(q);
-
-                float32x4_t _inv_maxk = vdupq_n_f32(1.f / maxk);
-
-                for (int i = 0; i < outh; i++)
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
                 {
-                    for (int j = 0; j < outw; j++)
+                    const Mat m = bottom_blob_bordered.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    for (int i = 0; i < outh; i++)
                     {
-                        const float* sptr = m.row(i*stride_h) + j*stride_w * 4;
+                        int sy0 = i * stride_h;
 
-                        float32x4_t _sum = vdupq_n_f32(0.f);
-
-                        for (int k = 0; k < maxk; k++)
+                        for (int j = 0; j < outw; j++)
                         {
-                            float32x4_t _val = vld1q_f32( sptr + space_ofs[k] * 4 );
-                            _sum = vaddq_f32(_sum, _val);
+                            int sx0 = j * stride_w;
+
+                            float32x4_t _sum = vdupq_n_f32(0.f);
+                            int area = 0;
+
+                            for (int ki = 0; ki < kernel_h; ki++)
+                            {
+                                int sy = sy0 + ki;
+
+                                if (sy < pad_top)
+                                    continue;
+
+                                if (sy >= h - pad_bottom - htailpad)
+                                    break;
+
+                                for (int kj = 0; kj < kernel_w; kj++)
+                                {
+                                    int sx = sx0 + kj;
+
+                                    if (sx < pad_left)
+                                        continue;
+
+                                    if (sx >= w - pad_right - wtailpad)
+                                        break;
+
+                                    float32x4_t _val = vld1q_f32( m.row(sy) + sx * 4 );
+                                    _sum = vaddq_f32(_sum, _val);
+                                    area += 1;
+                                }
+                            }
+
+                            float32x4_t _inv_area = vdupq_n_f32(1.f / area);
+                            float32x4_t _avg = vmulq_f32(_sum, _inv_area);
+                            vst1q_f32(outptr + j * 4, _avg);
                         }
 
-                        float32x4_t _avg = vmulq_f32(_sum, _inv_maxk);
-                        vst1q_f32(outptr + j * 4, _avg);
+                        outptr += outw * 4;
                     }
-
-                    outptr += outw * 4;
                 }
-
-                if (avgpool_count_include_pad == 0)
+            }
+            else // if (avgpool_count_include_pad == 1)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
                 {
-                    // fix pad
-                    if (pad_top != 0)
-                    {
-                        const float scale = (float)kernel_h / (kernel_h - pad_top);
-                        float32x4_t _scale = vdupq_n_f32(scale);
+                    const Mat m = bottom_blob_bordered.channel(q);
+                    float* outptr = top_blob.channel(q);
 
-                        outptr = top_blob.channel(q).row(0);
-                        for (int i = 0; i < outw; i++)
-                        {
-                            float32x4_t _v = vld1q_f32(outptr);
-                            _v = vmulq_f32(_v, _scale);
-                            vst1q_f32(outptr, _v);
-                            outptr += 4;
-                        }
-                    }
-                    if (pad_bottom + htailpad != 0)
-                    {
-                        const float scale = (float)kernel_h / (kernel_h - pad_bottom - htailpad);
-                        float32x4_t _scale = vdupq_n_f32(scale);
+                    float32x4_t _inv_maxk = vdupq_n_f32(1.f / maxk);
 
-                        outptr = top_blob.channel(q).row(outh - 1);
-                        for (int i = 0; i < outw; i++)
-                        {
-                            float32x4_t _v = vld1q_f32(outptr);
-                            _v = vmulq_f32(_v, _scale);
-                            vst1q_f32(outptr, _v);
-                            outptr += 4;
-                        }
-                    }
-                    if (pad_left != 0)
+                    for (int i = 0; i < outh; i++)
                     {
-                        const float scale = (float)kernel_w / (kernel_w - pad_left);
-                        float32x4_t _scale = vdupq_n_f32(scale);
-
-                        outptr = top_blob.channel(q);
-                        for (int i = 0; i < outh; i++)
+                        for (int j = 0; j < outw; j++)
                         {
-                            float32x4_t _v = vld1q_f32(outptr);
-                            _v = vmulq_f32(_v, _scale);
-                            vst1q_f32(outptr, _v);
-                            outptr += outw * 4;
-                        }
-                    }
-                    if (pad_right + wtailpad != 0)
-                    {
-                        const float scale = (float)kernel_w / (kernel_w - pad_right - wtailpad);
-                        float32x4_t _scale = vdupq_n_f32(scale);
+                            const float* sptr = m.row(i*stride_h) + j*stride_w * 4;
 
-                        outptr = top_blob.channel(q);
-                        outptr += (outw - 1) * 4;
-                        for (int i = 0; i < outh; i++)
-                        {
-                            float32x4_t _v = vld1q_f32(outptr);
-                            _v = vmulq_f32(_v, _scale);
-                            vst1q_f32(outptr, _v);
-                            outptr += outw * 4;
+                            float32x4_t _sum = vdupq_n_f32(0.f);
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                float32x4_t _val = vld1q_f32( sptr + space_ofs[k] * 4 );
+                                _sum = vaddq_f32(_sum, _val);
+                            }
+
+                            float32x4_t _avg = vmulq_f32(_sum, _inv_maxk);
+                            vst1q_f32(outptr + j * 4, _avg);
                         }
+
+                        outptr += outw * 4;
                     }
                 }
             }
@@ -406,22 +386,12 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         Option opt_b = opt;
         opt_b.blob_allocator = opt.workspace_allocator;
         copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt_b);
-        if (bottom_blob_bordered.empty())
-            return -100;
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
     }
     else if (pad_mode == 1) // valid padding
     {
         Option opt_b = opt;
         opt_b.blob_allocator = opt.workspace_allocator;
         copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
-        if (bottom_blob_bordered.empty())
-            return -100;
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
     }
     else if (pad_mode == 2) // tensorflow padding=SAME
     {
@@ -432,12 +402,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-            if (bottom_blob_bordered.empty())
-                return -100;
         }
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
     }
     else if (pad_mode == 3) // onnx padding=SAME_LOWER
     {
@@ -448,13 +413,13 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-            if (bottom_blob_bordered.empty())
-                return -100;
         }
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
     }
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
 
     int outw = (w - kernel_w) / stride_w + 1;
     int outh = (h - kernel_h) / stride_h + 1;
