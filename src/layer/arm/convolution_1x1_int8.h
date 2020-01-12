@@ -24,7 +24,7 @@ static inline signed char float2int8(float v)
 }
 
 #if __aarch64__
-#if 1 
+#if 0
 #include "gemm_symm_int8.h"
 static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
 {
