@@ -63,18 +63,18 @@ void main()
 
     for (int z = 0; z < p.c; z++)
     {
-        afpvec4 v0 = sfp2afpvec4(bottom_tm_blob_data[v_offset + 0]);
-        afpvec4 v1 = sfp2afpvec4(bottom_tm_blob_data[v_offset + 16]);
-        afpvec4 v2 = sfp2afpvec4(bottom_tm_blob_data[v_offset + 32]);
-        afpvec4 v3 = sfp2afpvec4(bottom_tm_blob_data[v_offset + 48]);
+        afpvec4 v0 = buffer_ld4(bottom_tm_blob_data, v_offset + 0);
+        afpvec4 v1 = buffer_ld4(bottom_tm_blob_data, v_offset + 16);
+        afpvec4 v2 = buffer_ld4(bottom_tm_blob_data, v_offset + 32);
+        afpvec4 v3 = buffer_ld4(bottom_tm_blob_data, v_offset + 48);
 
 #if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
         // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
         afpmat4 k = afpmat4(
-            sfp2afpvec4(weight_tm_data[w_offset * 4 + 0]),
-            sfp2afpvec4(weight_tm_data[w_offset * 4 + 1]),
-            sfp2afpvec4(weight_tm_data[w_offset * 4 + 2]),
-            sfp2afpvec4(weight_tm_data[w_offset * 4 + 3])
+            buffer_ld4(weight_tm_data, w_offset * 4 + 0),
+            buffer_ld4(weight_tm_data, w_offset * 4 + 1),
+            buffer_ld4(weight_tm_data, w_offset * 4 + 2),
+            buffer_ld4(weight_tm_data, w_offset * 4 + 3)
         );
 #else
         afpmat4 k = sfpmat4(weight_tm_data[w_offset]);
@@ -91,8 +91,8 @@ void main()
 
     int gi = gz * p.outcstep + gy * 16 + gx;
 
-    top_tm_blob_data[gi + 0] = afp2sfpvec4(sum0);
-    if (gy + 1 < p.outh) top_tm_blob_data[gi + 16] = afp2sfpvec4(sum1);
-    if (gy + 2 < p.outh) top_tm_blob_data[gi + 32] = afp2sfpvec4(sum2);
-    if (gy + 3 < p.outh) top_tm_blob_data[gi + 48] = afp2sfpvec4(sum3);
+    buffer_st4(top_tm_blob_data, gi + 0, sum0);
+    if (gy + 1 < p.outh) buffer_st4(top_tm_blob_data, gi + 16, sum1);
+    if (gy + 2 < p.outh) buffer_st4(top_tm_blob_data, gi + 32, sum2);
+    if (gy + 3 < p.outh) buffer_st4(top_tm_blob_data, gi + 48, sum3);
 }

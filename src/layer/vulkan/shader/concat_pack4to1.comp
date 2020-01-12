@@ -56,53 +56,18 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    ivec4 v_offset;
-    int gi;
+    const int gi = gz * p.cstep + gy * p.w + gx;
 
-    if (p.dims == 1) // axis == 0
-    {
-        v_offset = ivec4(gx * 4 + p.offset) + ivec4(0, 1, 2, 3);
-        gi = gx;
-    }
-    else if (p.dims == 2 && axis == 0)
-    {
-        v_offset = (ivec4(gy * 4 + p.offset) + ivec4(0, 1, 2, 3)) * p.outw + gx;
-        gi = gy * p.w + gx;
-    }
-    else if (p.dims == 2 && axis == 1)
-    {
-        v_offset = (ivec4(gy * 4) + ivec4(0, 1, 2, 3)) * p.outw + gx + p.offset;
-        gi = gy * p.w + gx;
-    }
-    else if (p.dims == 3 && axis == 0)
-    {
-        v_offset = (ivec4(gz * 4 + p.offset) + ivec4(0, 1, 2, 3)) * p.outcstep + gy * p.outw + gx;
-        gi = gz * p.cstep + gy * p.w + gx;
-    }
-    else if (p.dims == 3 && axis == 1)
-    {
-        v_offset = (ivec4(gz * 4) + ivec4(0, 1, 2, 3)) * p.outcstep + (gy + p.offset) * p.outw + gx;
-        gi = gz * p.cstep + gy * p.w + gx;
-    }
-    else if (p.dims == 3 && axis == 2)
-    {
-        v_offset = (ivec4(gz * 4) + ivec4(0, 1, 2, 3)) * p.outcstep + gy * p.outw + gx + p.offset;
-        gi = gz * p.cstep + gy * p.w + gx;
-    }
+    ivec3 gxyz = ivec3(gx, gy, gz);
 
-#if NCNN_fp16_packed
-    uvec2 v = bottom_blob_data[gi];
-    vec2 v0 = unpackHalf2x16(v.x);
-    vec2 v1 = unpackHalf2x16(v.y);
+    gxyz[p.dims - 1] *= 4;
+    gxyz[p.dims - 1 - axis] += p.offset;
 
-    top_blob_data[v_offset.r] = v0.x;
-    top_blob_data[v_offset.g] = v0.y;
-    top_blob_data[v_offset.b] = v1.x;
-    top_blob_data[v_offset.a] = v1.y;
-#else
-    top_blob_data[v_offset.r] = bottom_blob_data[gi].r;
-    top_blob_data[v_offset.g] = bottom_blob_data[gi].g;
-    top_blob_data[v_offset.b] = bottom_blob_data[gi].b;
-    top_blob_data[v_offset.a] = bottom_blob_data[gi].a;
-#endif
+    int v_offset_0 = gxyz.z * p.outcstep + gxyz.y * p.outw + gxyz.x;
+
+    ivec3 gxyz4 = ivec3(1, p.outw, p.outcstep);
+
+    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * gxyz4[p.dims - 1 - axis];
+
+    buffer_cp4to1(top_blob_data, v_offset, bottom_blob_data, gi);
 }

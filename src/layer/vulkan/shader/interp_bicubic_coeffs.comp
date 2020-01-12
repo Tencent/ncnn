@@ -97,7 +97,7 @@ void main()
         coeffs.r = afp(0.f);
     }
 
-    alpha_blob_data[gx] = afp2sfpvec4(coeffs);
+    buffer_st4(alpha_blob_data, gx, coeffs);
 
     xofs_blob_data[gx] = sx;
 }

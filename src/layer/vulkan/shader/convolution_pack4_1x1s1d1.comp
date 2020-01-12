@@ -69,7 +69,7 @@ void main()
 
     if (bias_term == 1)
     {
-        afpvec4 b = sfp2afpvec4(bias_data[gz]);
+        afpvec4 b = buffer_ld4(bias_data, gz);
         sum0 = b;
         sum1 = b;
         sum2 = b;
@@ -88,18 +88,18 @@ void main()
 
     for (int z = 0; z < p.c; z++)
     {
-        afpvec4 v0 = sfp2afpvec4(bottom_blob_data[v_offset + 0]);
-        afpvec4 v1 = sfp2afpvec4(bottom_blob_data[v_offset + 1]);
-        afpvec4 v2 = sfp2afpvec4(bottom_blob_data[v_offset + 2]);
-        afpvec4 v3 = sfp2afpvec4(bottom_blob_data[v_offset + 3]);
+        afpvec4 v0 = buffer_ld4(bottom_blob_data, v_offset + 0);
+        afpvec4 v1 = buffer_ld4(bottom_blob_data, v_offset + 1);
+        afpvec4 v2 = buffer_ld4(bottom_blob_data, v_offset + 2);
+        afpvec4 v3 = buffer_ld4(bottom_blob_data, v_offset + 3);
 
 #if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
         // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
         afpmat4 k = afpmat4(
-            sfp2afpvec4(weight_data[w_offset * 4 + 0]),
-            sfp2afpvec4(weight_data[w_offset * 4 + 1]),
-            sfp2afpvec4(weight_data[w_offset * 4 + 2]),
-            sfp2afpvec4(weight_data[w_offset * 4 + 3])
+            buffer_ld4(weight_data, w_offset * 4 + 0),
+            buffer_ld4(weight_data, w_offset * 4 + 1),
+            buffer_ld4(weight_data, w_offset * 4 + 2),
+            buffer_ld4(weight_data, w_offset * 4 + 3)
         );
 #else
         afpmat4 k = sfp2afpmat4(weight_data[w_offset]);
@@ -148,8 +148,8 @@ void main()
 
     int gi = gz * p.outcstep + gx;
 
-    top_blob_data[gi + 0] = afp2sfpvec4(sum0);
-    if (gx + 1 < p.outcstep) top_blob_data[gi + 1] = afp2sfpvec4(sum1);
-    if (gx + 2 < p.outcstep) top_blob_data[gi + 2] = afp2sfpvec4(sum2);
-    if (gx + 3 < p.outcstep) top_blob_data[gi + 3] = afp2sfpvec4(sum3);
+    buffer_st4(top_blob_data, gi + 0, sum0);
+    if (gx + 1 < p.outcstep) buffer_st4(top_blob_data, gi + 1, sum1);
+    if (gx + 2 < p.outcstep) buffer_st4(top_blob_data, gi + 2, sum2);
+    if (gx + 3 < p.outcstep) buffer_st4(top_blob_data, gi + 3, sum3);
 }

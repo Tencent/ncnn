@@ -45,7 +45,7 @@ public:
     // pack4
     VkMat weight_data_gpu_pack4;
     Pipeline* pipeline_innerproduct_pack4;
-    Pipeline* pipeline_innerproduct_pack4_lds_64;
+//     Pipeline* pipeline_innerproduct_pack4_lds_64;
 
     // pack1to4
     VkMat weight_data_gpu_pack1to4;

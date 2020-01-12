@@ -54,25 +54,25 @@ void main()
     int v_offset_0 = gz * p.cstep + gy * 2 * p.w + gx * 2;
     ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * p.w;
 
-    afpvec4 v00 = sfp2afpvec4(bottom_blob_data[v_offset.r + 0]);
-    afpvec4 v01 = sfp2afpvec4(bottom_blob_data[v_offset.r + 1]);
-    afpvec4 v02 = sfp2afpvec4(bottom_blob_data[v_offset.r + 2]);
-    afpvec4 v03 = sfp2afpvec4(bottom_blob_data[v_offset.r + 3]);
+    afpvec4 v00 = buffer_ld4(bottom_blob_data, v_offset.r + 0);
+    afpvec4 v01 = buffer_ld4(bottom_blob_data, v_offset.r + 1);
+    afpvec4 v02 = buffer_ld4(bottom_blob_data, v_offset.r + 2);
+    afpvec4 v03 = buffer_ld4(bottom_blob_data, v_offset.r + 3);
 
-    afpvec4 v10 = sfp2afpvec4(bottom_blob_data[v_offset.g + 0]);
-    afpvec4 v11 = sfp2afpvec4(bottom_blob_data[v_offset.g + 1]);
-    afpvec4 v12 = sfp2afpvec4(bottom_blob_data[v_offset.g + 2]);
-    afpvec4 v13 = sfp2afpvec4(bottom_blob_data[v_offset.g + 3]);
+    afpvec4 v10 = buffer_ld4(bottom_blob_data, v_offset.g + 0);
+    afpvec4 v11 = buffer_ld4(bottom_blob_data, v_offset.g + 1);
+    afpvec4 v12 = buffer_ld4(bottom_blob_data, v_offset.g + 2);
+    afpvec4 v13 = buffer_ld4(bottom_blob_data, v_offset.g + 3);
 
-    afpvec4 v20 = sfp2afpvec4(bottom_blob_data[v_offset.b + 0]);
-    afpvec4 v21 = sfp2afpvec4(bottom_blob_data[v_offset.b + 1]);
-    afpvec4 v22 = sfp2afpvec4(bottom_blob_data[v_offset.b + 2]);
-    afpvec4 v23 = sfp2afpvec4(bottom_blob_data[v_offset.b + 3]);
+    afpvec4 v20 = buffer_ld4(bottom_blob_data, v_offset.b + 0);
+    afpvec4 v21 = buffer_ld4(bottom_blob_data, v_offset.b + 1);
+    afpvec4 v22 = buffer_ld4(bottom_blob_data, v_offset.b + 2);
+    afpvec4 v23 = buffer_ld4(bottom_blob_data, v_offset.b + 3);
 
-    afpvec4 v30 = sfp2afpvec4(bottom_blob_data[v_offset.a + 0]);
-    afpvec4 v31 = sfp2afpvec4(bottom_blob_data[v_offset.a + 1]);
-    afpvec4 v32 = sfp2afpvec4(bottom_blob_data[v_offset.a + 2]);
-    afpvec4 v33 = sfp2afpvec4(bottom_blob_data[v_offset.a + 3]);
+    afpvec4 v30 = buffer_ld4(bottom_blob_data, v_offset.a + 0);
+    afpvec4 v31 = buffer_ld4(bottom_blob_data, v_offset.a + 1);
+    afpvec4 v32 = buffer_ld4(bottom_blob_data, v_offset.a + 2);
+    afpvec4 v33 = buffer_ld4(bottom_blob_data, v_offset.a + 3);
 
     // const float itm[4][4] = {
     //     {1.0f,  0.0f, -1.0f,  0.0f},
@@ -125,20 +125,20 @@ void main()
     // store 16
     int v_tm_offset = gz * p.outcstep + (gy * p.block_x + gx) * 16;
 
-    bottom_tm_blob_data[v_tm_offset + 0] = afp2sfpvec4(v00);
-    bottom_tm_blob_data[v_tm_offset + 1] = afp2sfpvec4(v01);
-    bottom_tm_blob_data[v_tm_offset + 2] = afp2sfpvec4(v02);
-    bottom_tm_blob_data[v_tm_offset + 3] = afp2sfpvec4(v03);
-    bottom_tm_blob_data[v_tm_offset + 4] = afp2sfpvec4(v10);
-    bottom_tm_blob_data[v_tm_offset + 5] = afp2sfpvec4(v11);
-    bottom_tm_blob_data[v_tm_offset + 6] = afp2sfpvec4(v12);
-    bottom_tm_blob_data[v_tm_offset + 7] = afp2sfpvec4(v13);
-    bottom_tm_blob_data[v_tm_offset + 8] = afp2sfpvec4(v20);
-    bottom_tm_blob_data[v_tm_offset + 9] = afp2sfpvec4(v21);
-    bottom_tm_blob_data[v_tm_offset + 10] = afp2sfpvec4(v22);
-    bottom_tm_blob_data[v_tm_offset + 11] = afp2sfpvec4(v23);
-    bottom_tm_blob_data[v_tm_offset + 12] = afp2sfpvec4(v30);
-    bottom_tm_blob_data[v_tm_offset + 13] = afp2sfpvec4(v31);
-    bottom_tm_blob_data[v_tm_offset + 14] = afp2sfpvec4(v32);
-    bottom_tm_blob_data[v_tm_offset + 15] = afp2sfpvec4(v33);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 0, v00);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 1, v01);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 2, v02);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 3, v03);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 4, v10);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 5, v11);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 6, v12);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 7, v13);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 8, v20);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 9, v21);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 10, v22);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 11, v23);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 12, v30);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 13, v31);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 14, v32);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 15, v33);
 }

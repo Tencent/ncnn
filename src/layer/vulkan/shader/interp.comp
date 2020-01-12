@@ -57,6 +57,8 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
+    const int gi = gz * p.outcstep + gy * p.outw + gx;
+
     if (resize_type == 1) // nearest
     {
         afpvec2 gxy = afpvec2(gx, gy);
@@ -68,7 +70,7 @@ void main()
 
         int v_offset = gz * p.cstep + sy * p.w + sx;
 
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+        buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
     }
     else if (resize_type == 2) // bilinear
     {
@@ -95,10 +97,10 @@ void main()
         int v_offset_0 = gz * p.cstep + sy * p.w + sx;
         int v_offset_1 = gz * p.cstep + (sy + 1) * p.w + sx;
 
-        afp a0 = sfp2afp(bottom_blob_data[v_offset_0]);
-        afp a1 = sfp2afp(bottom_blob_data[v_offset_0 + 1]);
-        afp b0 = sfp2afp(bottom_blob_data[v_offset_1]);
-        afp b1 = sfp2afp(bottom_blob_data[v_offset_1 + 1]);
+        afp a0 = buffer_ld1(bottom_blob_data, v_offset_0);
+        afp a1 = buffer_ld1(bottom_blob_data, v_offset_0 + 1);
+        afp b0 = buffer_ld1(bottom_blob_data, v_offset_1);
+        afp b1 = buffer_ld1(bottom_blob_data, v_offset_1 + 1);
 
         afp fx = fxy.r;
         afp fy = fxy.g;
@@ -107,6 +109,6 @@ void main()
 
         afp res = ab.r * (afp(1.f) - fy) + ab.g * fy;
 
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfp(res);
+        buffer_st1(top_blob_data, gi, res);
     }
 }

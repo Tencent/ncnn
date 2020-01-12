@@ -69,7 +69,7 @@ void main()
 
     if (bias_term == 1)
     {
-        sum = sfp2afp(bias_data[gz]);
+        sum = buffer_ld1(bias_data, gz);
     }
     else
     {
@@ -86,7 +86,7 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                sum += sfp2afp(weight_data[w_offset + x]) * sfp2afp(bottom_blob_data[v_offset + x * dilation_w]);
+                sum += buffer_ld1(weight_data, w_offset + x) * buffer_ld1(bottom_blob_data, v_offset + x * dilation_w);
             }
 
             v_offset += dilation_h * p.w;
@@ -114,5 +114,7 @@ void main()
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfp(sum);
+    const int gi = gz * p.outcstep + gy * p.outw + gx;
+
+    buffer_st1(top_blob_data, gi, sum);
 }

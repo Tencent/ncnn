@@ -21,6 +21,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define FLT_MAX 3.402823466e+38
+
 layout (constant_id = 0) const int pooling_type = 0;
 layout (constant_id = 1) const int kernel_w = 1;
 layout (constant_id = 2) const int kernel_h = 1;
@@ -72,7 +74,7 @@ void main()
 
     if (pooling_type == 0)
     {
-        res = afp(-99999999.f);
+        res = afp(-FLT_MAX);
 
         int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
 
@@ -80,7 +82,7 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                afp v = sfp2afp(bottom_blob_data[v_offset + x]);
+                afp v = buffer_ld1(bottom_blob_data, v_offset + x);
                 res = max(res, v);
             }
 
@@ -118,7 +120,7 @@ void main()
                 if (sx + x >= p.w - pad_right - p.wtailpad)
                     break;
 
-                res += sfp2afp(bottom_blob_data[v_offset + x]);
+                res += buffer_ld1(bottom_blob_data, v_offset + x);
                 area += 1;
             }
 
@@ -137,7 +139,7 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res += sfp2afp(bottom_blob_data[v_offset + x]);
+                res += buffer_ld1(bottom_blob_data, v_offset + x);
             }
 
             v_offset += p.w;
@@ -146,5 +148,7 @@ void main()
         res /= afp(kernel_w * kernel_h);
     }
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfp(res);
+    const int gi = gz * p.outcstep + gy * p.outw + gx;
+
+    buffer_st1(top_blob_data, gi, res);
 }

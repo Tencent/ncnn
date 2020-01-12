@@ -68,5 +68,5 @@ void main()
         a = afp(1.f) / sqrt(max(sqsum, afp(eps)));
     }
 
-    coeffs_blob_data[gi] = afp2sfp(a);
+    buffer_st1(coeffs_blob_data, gi, a);
 }

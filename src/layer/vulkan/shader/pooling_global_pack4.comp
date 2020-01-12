@@ -21,6 +21,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define FLT_MAX 3.402823466e+38
+
 layout (constant_id = 0) const int pooling_type = 0;
 
 layout (local_size_x_id = 233) in;
@@ -61,11 +63,11 @@ void main()
 
     if (pooling_type == 0)
     {
-        res = afpvec4(-99999999.f);
+        res = afpvec4(-FLT_MAX);
 
         for (int i = 0; i < size; i++)
         {
-            afpvec4 v = sfp2afpvec4(bottom_blob_data[v_offset + i]);
+            afpvec4 v = buffer_ld4(bottom_blob_data, v_offset + i);
             res = max(res, v);
         }
     }
@@ -75,11 +77,11 @@ void main()
 
         for (int i = 0; i < size; i++)
         {
-            res += sfp2afpvec4(bottom_blob_data[v_offset + i]);
+            res += buffer_ld4(bottom_blob_data, v_offset + i);
         }
 
         res /= afp(size);
     }
 
-    top_blob_data[gx] = afp2sfpvec4(res);
+    buffer_st4(top_blob_data, gx, res);
 }

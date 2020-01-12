@@ -57,5 +57,5 @@ void main()
 
     afpvec4 mean = sum / afp(p.area);
 
-    mean_data[gx] = afp2sfpvec4(mean);
+    buffer_st4(mean_data, gx, mean);
 }

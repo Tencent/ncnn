@@ -58,12 +58,12 @@ void main()
 
     if (sx == p.size - 1)
     {
-        sum_blob_data[gi] = float(bottom_top_blob_data[v_offset]);
+        sum_blob_data[gi] = float(buffer_ld1(bottom_top_blob_data, v_offset));
     }
     else if (sx == p.size - 2)
     {
-        float v0 = sfp2float(bottom_top_blob_data[v_offset]);
-        float v1 = sfp2float(bottom_top_blob_data[v_offset + 1]);
+        float v0 = float(buffer_ld1(bottom_top_blob_data, v_offset));
+        float v1 = float(buffer_ld1(bottom_top_blob_data, v_offset + 1));
 
         float sum = v0 + v1;
 
@@ -71,9 +71,9 @@ void main()
     }
     else if (sx == p.size - 3)
     {
-        float v0 = sfp2float(bottom_top_blob_data[v_offset]);
-        float v1 = sfp2float(bottom_top_blob_data[v_offset + 1]);
-        float v2 = sfp2float(bottom_top_blob_data[v_offset + 2]);
+        float v0 = float(buffer_ld1(bottom_top_blob_data, v_offset));
+        float v1 = float(buffer_ld1(bottom_top_blob_data, v_offset + 1));
+        float v2 = float(buffer_ld1(bottom_top_blob_data, v_offset + 2));
 
         float sum = v0 + v1 + v2;
 
@@ -81,10 +81,10 @@ void main()
     }
     else
     {
-        float v0 = sfp2float(bottom_top_blob_data[v_offset]);
-        float v1 = sfp2float(bottom_top_blob_data[v_offset + 1]);
-        float v2 = sfp2float(bottom_top_blob_data[v_offset + 2]);
-        float v3 = sfp2float(bottom_top_blob_data[v_offset + 3]);
+        float v0 = float(buffer_ld1(bottom_top_blob_data, v_offset));
+        float v1 = float(buffer_ld1(bottom_top_blob_data, v_offset + 1));
+        float v2 = float(buffer_ld1(bottom_top_blob_data, v_offset + 2));
+        float v3 = float(buffer_ld1(bottom_top_blob_data, v_offset + 3));
 
         float sum = v0 + v1 + v2 + v3;
 

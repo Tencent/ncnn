@@ -60,6 +60,8 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
+    const int gi = gz * p.outcstep + gy * p.outw + gx;
+
     int x = gx - p.left;
     int y = gy - p.top;
 
@@ -68,20 +70,16 @@ void main()
         if (x >= 0 && x < p.w && y >= 0 && y < p.h)
         {
             int v_offset = gz * p.cstep + y * p.w + x;
-            top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+            buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
         }
         else if (per_channel_pad == 1)
         {
-            top_blob_data[gz * p.outcstep + gy * p.outw + gx] = per_channel_pad_blob_data[gz];
+            buffer_cp1(top_blob_data, gi, per_channel_pad_blob_data, gz);
         }
         else
         {
-#if NCNN_fp16_storage
-            float value_fp32 = value;
-            top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(value_fp32);
-#else
-            top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(value);
-#endif
+            afp v = afp(value);
+            buffer_st1(top_blob_data, gi, v);
         }
     }
     else if (type == 1)
@@ -90,7 +88,7 @@ void main()
         y = clamp(y, 0, p.h - 1);
 
         int v_offset = gz * p.cstep + y * p.w + x;
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+        buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
     }
     else if (type == 2)
     {
@@ -100,6 +98,6 @@ void main()
         y = (p.h - 1) - abs(y - (p.h - 1));
 
         int v_offset = gz * p.cstep + y * p.w + x;
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+        buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
     }
 }

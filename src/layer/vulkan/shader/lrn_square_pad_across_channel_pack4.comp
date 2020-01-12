@@ -65,16 +65,11 @@ void main()
     if (z >= 0 && z < p.c)
     {
         int v_offset = z * p.cstep + gy * p.w + gx;
-        afpvec4 v4 = sfp2afpvec4(bottom_blob_data[v_offset]);
+        afpvec4 v4 = buffer_ld4(bottom_blob_data, v_offset);
 
         int lane = (gz - pad_head) % 4;
 
-        // v = v4[lane]
-        afp v;
-        if (lane == 0) v = v4.r;
-        else if (lane == 1) v = v4.g;
-        else if (lane == 2) v = v4.b;
-        else /* if (lane == 3) */ v = v4.a;
+        afp v = v4[lane];
 
         res = v * v;
     }
@@ -83,5 +78,7 @@ void main()
         res = afp(0.f);
     }
 
-    square_workspace_data[gz * p.outcstep + gy * p.outw + gx] = float(res);
+    const int gi = gz * p.outcstep + gy * p.outw + gx;
+
+    square_workspace_data[gi] = float(res);
 }

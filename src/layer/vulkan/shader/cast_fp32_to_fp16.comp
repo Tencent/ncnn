@@ -52,5 +52,9 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfp(bottom_blob_data[gz * p.cstep + gy * p.w + gx]);
+    const int gi = gz * p.outcstep + gy * p.outw + gx;
+
+    const int v_offset = gz * p.cstep + gy * p.w + gx;
+
+    buffer_st1(top_blob_data, gi, afp(bottom_blob_data[v_offset]));
 }

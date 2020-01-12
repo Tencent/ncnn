@@ -49,8 +49,8 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    afpvec4 v = sfp2afpvec4(bottom_top_blob_data[gi]);
-    afpvec4 mean = sfp2afpvec4(mean_data[gz]);
+    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+    afpvec4 mean = buffer_ld4(mean_data, gz);
 
     v = v - mean;
     v = v * v;

@@ -82,15 +82,14 @@ void main()
         lane4 = z4 % 4;
     }
 
-    vec4 vr = sfp2afpvec4(bottom_blob_data[v_offset.r]);
-    vec4 vg = sfp2afpvec4(bottom_blob_data[v_offset.g]);
-    vec4 vb = sfp2afpvec4(bottom_blob_data[v_offset.b]);
-    vec4 va = sfp2afpvec4(bottom_blob_data[v_offset.a]);
+    vec4 vr = buffer_ld4(bottom_blob_data, v_offset.r);
+    vec4 vg = buffer_ld4(bottom_blob_data, v_offset.g);
+    vec4 vb = buffer_ld4(bottom_blob_data, v_offset.b);
+    vec4 va = buffer_ld4(bottom_blob_data, v_offset.a);
 
-    vec2 v0 = vec2(vr[lane4.r], vg[lane4.g]);
-    vec2 v1 = vec2(vb[lane4.b], va[lane4.a]);
+    vec4 v = vec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
 
-    top_blob_data[gx] = uvec2(packHalf2x16(v0), packHalf2x16(v1));
+    buffer_st4(top_blob_data, gx, v);
 #else
     ivec4 v_offset;
 
@@ -117,9 +116,6 @@ void main()
         v_offset = ivec4(z * 4 * p.cstep) + si4 * 4 + k4;
     }
 
-    top_blob_data[gx].r = bottom_blob_data[v_offset.r];
-    top_blob_data[gx].g = bottom_blob_data[v_offset.g];
-    top_blob_data[gx].b = bottom_blob_data[v_offset.b];
-    top_blob_data[gx].a = bottom_blob_data[v_offset.a];
+    buffer_cp1to4(top_blob_data, gx, bottom_blob_data, v_offset);
 #endif
 }

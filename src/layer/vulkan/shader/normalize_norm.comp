@@ -54,23 +54,23 @@ void main()
 
     const int gi = gz * p.cstep + gy * p.w + gx;
 
-    afp v = sfp2afp(bottom_top_blob_data[gi]);
+    afp v = buffer_ld1(bottom_top_blob_data, gi);
 
     afp a;
 
     if (across_spatial == 1 && across_channel == 1)
     {
-        a = sfp2afp(coeffs_blob_data[0]);
+        a = buffer_ld1(coeffs_blob_data, 0);
     }
 
     if (across_spatial == 1 && across_channel == 0)
     {
-        a = sfp2afp(coeffs_blob_data[gz]);
+        a = buffer_ld1(coeffs_blob_data, gz);
     }
 
     if (across_spatial == 0 && across_channel == 1)
     {
-        a = sfp2afp(coeffs_blob_data[gy * p.w + gx]);
+        a = buffer_ld1(coeffs_blob_data, gy * p.w + gx);
     }
 
     v = v * a;
@@ -79,13 +79,13 @@ void main()
     {
         if (channel_shared == 1)
         {
-            v = v * sfp2afp(scale_blob_data[0]);
+            v = v * buffer_ld1(scale_blob_data, 0);
         }
         else
         {
-            v = v * sfp2afp(scale_blob_data[gz]);
+            v = v * buffer_ld1(scale_blob_data, gz);
         }
     }
 
-    bottom_top_blob_data[gi] = afp2sfp(v);
+    buffer_st1(bottom_top_blob_data, gi, v);
 }

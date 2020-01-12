@@ -54,50 +54,38 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
+    const int gi = gz * p.cstep + gy * p.w + gx;
+
+    afp v = buffer_ld1(bottom_top_blob_data, gi);
+
+    afp max_value;
+
     if (p.dims == 1) // axis == 0
     {
-        afp v = exp(sfp2afp(bottom_top_blob_data[gx]) - sfp2afp(max_workspace_data[0]));
-        bottom_top_blob_data[gx] = afp2sfp(v);
-        return;
+        max_value = buffer_ld1(max_workspace_data, 0);
+    }
+    else if (p.dims == 2 && axis == 0)
+    {
+        max_value = buffer_ld1(max_workspace_data, gx);
+    }
+    else if (p.dims == 2 && axis == 1)
+    {
+        max_value = buffer_ld1(max_workspace_data, gy);
+    }
+    else if (p.dims == 3 && axis == 0)
+    {
+        max_value = buffer_ld1(max_workspace_data, gy * p.w + gx);
+    }
+    else if (p.dims == 3 && axis == 1)
+    {
+        max_value = buffer_ld1(max_workspace_data, gz * p.w + gx);
+    }
+    else if (p.dims == 3 && axis == 2)
+    {
+        max_value = buffer_ld1(max_workspace_data, gz * p.h + gy);
     }
 
-    if (p.dims == 2 && axis == 0)
-    {
-        int gi = gy * p.w + gx;
-        afp v = exp(sfp2afp(bottom_top_blob_data[gi]) - sfp2afp(max_workspace_data[gx]));
-        bottom_top_blob_data[gi] = afp2sfp(v);
-        return;
-    }
+    v = exp(v - max_value);
 
-    if (p.dims == 2 && axis == 1)
-    {
-        int gi = gy * p.w + gx;
-        afp v = exp(sfp2afp(bottom_top_blob_data[gi]) - sfp2afp(max_workspace_data[gy]));
-        bottom_top_blob_data[gi] = afp2sfp(v);
-        return;
-    }
-
-    if (p.dims == 3 && axis == 0)
-    {
-        int gi = gz * p.cstep + gy * p.w + gx;
-        afp v = exp(sfp2afp(bottom_top_blob_data[gi]) - sfp2afp(max_workspace_data[gy * p.w + gx]));
-        bottom_top_blob_data[gi] = afp2sfp(v);
-        return;
-    }
-
-    if (p.dims == 3 && axis == 1)
-    {
-        int gi = gz * p.cstep + gy * p.w + gx;
-        afp v = exp(sfp2afp(bottom_top_blob_data[gi]) - sfp2afp(max_workspace_data[gz * p.w + gx]));
-        bottom_top_blob_data[gi] = afp2sfp(v);
-        return;
-    }
-
-    if (p.dims == 3 && axis == 2)
-    {
-        int gi = gz * p.cstep + gy * p.w + gx;
-        afp v = exp(sfp2afp(bottom_top_blob_data[gi]) - sfp2afp(max_workspace_data[gz * p.h + gy]));
-        bottom_top_blob_data[gi] = afp2sfp(v);
-        return;
-    }
+    buffer_st1(bottom_top_blob_data, gi, v);
 }

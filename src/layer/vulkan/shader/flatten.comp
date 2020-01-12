@@ -60,5 +60,5 @@ void main()
 
     int v_offset = z * p.cstep + y * p.w + x;
 
-    top_blob_data[gx] = bottom_blob_data[v_offset];
+    buffer_cp1(top_blob_data, gx, bottom_blob_data, v_offset);
 }
