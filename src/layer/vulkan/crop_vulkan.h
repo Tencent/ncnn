@@ -33,6 +33,8 @@ public:
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
 public:
+    ncnn::Layer* packing_pack1;
+
     Pipeline* pipeline_crop;
     Pipeline* pipeline_crop_pack4;
     Pipeline* pipeline_crop_pack1to4;

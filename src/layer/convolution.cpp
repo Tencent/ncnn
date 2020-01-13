@@ -310,6 +310,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
+    fprintf(stdout, "conv forward_int8\n");
 //     fprintf(stderr, "Convolution input %d x %d  ksize=%d %d  stride=%d %d\n", w, h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
@@ -393,7 +394,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         return -100;
 
     // num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
+    // #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=0; p<num_output; p++)
     {
         signed char* outptr = top_blob.channel(p);
@@ -440,6 +441,8 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                     signed char sums8 = float2int8(sumfp32 * scale_out);
 
+                    fprintf(stdout, "scalein %f sum %d scaleout %f  sums8 %d\n", scale_in, (int32_t)(sum), scale_out, (int32_t)(sums8));
+
                     if (activation_type == 1)
                     {
                         sums8 = std::max(sums8, (signed char)0);
@@ -458,7 +461,6 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                         scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
 
                     float sumfp32 = sum * scale_in;
-
                     if (bias_term)
                         sumfp32 += bias_data[p];
 

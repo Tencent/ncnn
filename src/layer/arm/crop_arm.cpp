@@ -346,7 +346,16 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     } // opt.use_packing_layout
 #endif // __ARM_NEON
 
-    return Crop::forward(bottom_blob, top_blob, opt);
+    Mat bottom_blob_unpacked = bottom_blob;
+    if (elempack != 1)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_allocator = opt.workspace_allocator;
+
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt);
+    }
+
+    return Crop::forward(bottom_blob_unpacked, top_blob, opt);
 }
 
 int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -558,7 +567,16 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     } // opt.use_packing_layout
 #endif // __ARM_NEON
 
-    return Crop::forward(bottom_blobs, top_blobs, opt);
+    Mat bottom_blob_unpacked = bottom_blob;
+    if (elempack != 1)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_allocator = opt.workspace_allocator;
+
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt);
+    }
+
+    return Crop::forward(bottom_blob_unpacked, top_blob, opt);
 }
 
 } // namespace ncnn

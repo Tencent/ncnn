@@ -125,14 +125,21 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
     CHECK_MEMBER(elemsize)
     CHECK_MEMBER(elempack)
 
+    const int8_t* ptr = (int8_t*)a.data;
+    const int8_t* ptr1 = (int8_t*)b.data;
+    for (int x = 0; x < 64; ++x) {
+        fprintf(stdout, "%d-%d ", (int32_t)(ptr[x]), (int32_t)(ptr1[x]));
+    }
+    fprintf(stdout, "\n");
+
     for (int q=0; q<a.c; q++)
     {
         const ncnn::Mat ma = a.channel(q);
         const ncnn::Mat mb = b.channel(q);
         for (int i=0; i<a.h; i++)
         {
-            const T* pa = (T*)(ma.row(i));
-            const T* pb = (T*)(mb.row(i));
+            const T* pa = ma.row<T>(i);
+            const T* pb = mb.row<T>(i);
             for (int j=0; j<a.w; j++)
             {
                 for (int k=0; k<a.elempack; k++)
@@ -155,17 +162,19 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
 static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001)
 {
     CHECK_MEMBER(elemsize)
+    fprintf(stdout, "a.elemsize %ld\n", a.elemsize);
 
-    if (4 == a.elemsize)
-    {
-        return Compare<float>(a, b, epsilon);
-    }
-    else if(1 == a.elemsize)
-    {
-        return Compare<int8_t>(a, b, epsilon);
-    }
-    assert(0); 
-    return 0;
+    return Compare<int8_t>(a, b, epsilon);
+    //if (4 == a.elemsize)
+    //{
+    //    return Compare<float>(a, b, epsilon);
+    //}
+    //else if(1 == a.elemsize)
+    //{
+    //    return Compare<int8_t>(a, b, epsilon);
+    //}
+    //assert(0); 
+    //return 0;
 }
 #undef CHECK_MEMBER
 
