@@ -17,10 +17,8 @@
 #include "layer/absval.h"
 
 
-static int test_absval(bool use_packing_layout)
+static int test_absval(const ncnn::Mat& a, bool use_packing_layout)
 {
-    ncnn::Mat a = RandomMat(6, 7, 8);
-
     ncnn::ParamDict pd;
     
     std::vector<ncnn::Mat> weights(0);
@@ -46,12 +44,19 @@ static int test_absval(bool use_packing_layout)
     return ret;
 }
 
+
 int main()
 {
     SRAND(7767517);
 
     return 0 
-        || test_absval(false) 
-        || test_absval(true);
+        || test_absval(RandomMat(6), false) 
+        || test_absval(RandomMat(6, 7), false) 
+        || test_absval(RandomMat(6, 7, 8), false) 
+
+        || test_absval(RandomMat(6), true) 
+        || test_absval(RandomMat(6, 7), true) 
+        || test_absval(RandomMat(6, 7, 8), true) 
+        ;
 
 }
