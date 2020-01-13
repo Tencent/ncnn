@@ -18,7 +18,7 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
 layout (local_size_x_id = 233) in;
@@ -52,10 +52,9 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-#if NCNN_fp16_packed
-    vec4 v = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
-#else
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(bottom_blob_data[gz * p.cstep + gy * p.w + gx]);
-#endif
+    const int gi = gz * p.outcstep + gy * p.outw + gx;
+
+    const int v_offset = gz * p.cstep + gy * p.w + gx;
+
+    buffer_st4(top_blob_data, gi, afpvec4(bottom_blob_data[v_offset]));
 }
