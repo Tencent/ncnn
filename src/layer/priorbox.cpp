@@ -42,6 +42,8 @@ int PriorBox::load_param(const ParamDict& pd)
     step_width = pd.get(11, -233.f);
     step_height = pd.get(12, -233.f);
     offset = pd.get(13, 0.f);
+    step_mmdetection = pd.get(14, 0);
+    center_mmdetection = pd.get(15, 0);
 
     return 0;
 }
@@ -99,7 +101,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 float size = min_sizes[0];
                 for (int p = 1; p < num_ratios; p++)
                 {
-                    float ratio = sqrt(aspect_ratios[p]);
+                    float ratio = static_cast<float>(sqrt(aspect_ratios[p]));
                     float cw = size * h / w * ratio / 2;
                     float ch = size / ratio / 2;
 
@@ -136,9 +138,17 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float step_w = step_width;
     float step_h = step_height;
     if (step_w == -233)
+    {
         step_w = (float)image_w / w;
+        if (step_mmdetection)
+            step_w = static_cast<float>(ceil((float)image_w / w));
+    }
     if (step_h == -233)
+    {
         step_h = (float)image_h / h;
+        if (step_mmdetection)
+            step_h = static_cast<float>(ceil((float)image_h / h));
+    }
 
     int num_min_size = min_sizes.w;
     int num_max_size = max_sizes.w;
@@ -160,6 +170,11 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         float center_x = offset * step_w;
         float center_y = offset * step_h + i * step_h;
+        if (center_mmdetection) 
+        {
+            center_x = offset * (step_w - 1);
+            center_y = offset * (step_h - 1) + i * step_h;
+        }
 
         for (int j = 0; j < w; j++)
         {
@@ -185,7 +200,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     float max_size = max_sizes[k];
 
                     // max size box
-                    box_w = box_h = sqrt(min_size * max_size);
+                    box_w = box_h = static_cast<float>(sqrt(min_size * max_size));
 
                     box[0] = (center_x - box_w * 0.5f) / image_w;
                     box[1] = (center_y - box_h * 0.5f) / image_h;
@@ -200,8 +215,8 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 {
                     float ar = aspect_ratios[p];
 
-                    box_w = min_size * sqrt(ar);
-                    box_h = min_size / sqrt(ar);
+                    box_w = static_cast<float>(min_size * sqrt(ar));
+                    box_h = static_cast<float>(min_size / sqrt(ar));
 
                     box[0] = (center_x - box_w * 0.5f) / image_w;
                     box[1] = (center_y - box_h * 0.5f) / image_h;

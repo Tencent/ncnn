@@ -27,6 +27,8 @@ public:
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
+    using BinaryOp::forward;
+    using BinaryOp::forward_inplace;
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
@@ -34,6 +36,12 @@ public:
 public:
     Pipeline* pipeline_binaryop;
     Pipeline* pipeline_binaryop_pack4;
+
+    // broadcast
+    Pipeline* pipeline_binaryop_broadcast;
+    Pipeline* pipeline_binaryop_broadcast_pack4;
+    Pipeline* pipeline_binaryop_broadcast_a1_pack4;
+    Pipeline* pipeline_binaryop_broadcast_b1_pack4;
 };
 
 } // namespace ncnn

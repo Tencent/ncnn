@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -136,6 +137,16 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
     int c = 0;
     int nconsumed = 0;
     int nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+    if (nscan != 1)
+    {
+        // (None
+        if (strncmp(it->second.c_str() + c, "(None", 5) == 0)
+        {
+            i = -233;
+            nconsumed = 5;
+            nscan = 1;
+        }
+    }
     while (nscan == 1)
     {
         list.push_back(i);
@@ -144,6 +155,16 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
         i = 0;
         c += nconsumed;
         nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+        if (nscan != 1)
+        {
+            // , None
+            if (strncmp(it->second.c_str() + c, ", None", 6) == 0)
+            {
+                i = -233;
+                nconsumed = 6;
+                nscan = 1;
+            }
+        }
     }
 
     return list;
@@ -293,6 +314,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
     }
 
     int internal_unknown = 0;
+    int internal_underscore = 0;
 
     char line[1024];
 
@@ -376,6 +398,16 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                     n.name = unknownname;
 
                     internal_unknown++;
+                }
+                if (n.name[0] == '_')
+                {
+                    // workaround for potential duplicated _plus0
+                    char underscorename[256];
+                    sprintf(underscorename, "underscorencnn_%d%s", internal_underscore, n.name.c_str());
+
+                    n.name = underscorename;
+
+                    internal_underscore++;
                 }
                 nodes.push_back(n);
 
@@ -527,19 +559,19 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         return false;
     }
 
-    int nread;
+    size_t nread;
     uint64_t header;
     uint64_t reserved;
     nread = fread(&header, sizeof(uint64_t), 1, fp);
     if (nread != 1)
     {
-        fprintf(stderr, "read header failed %d\n", nread);
+        fprintf(stderr, "read header failed %zd\n", nread);
         return false;
     }
     nread = fread(&reserved, sizeof(uint64_t), 1, fp);
     if (nread != 1)
     {
-        fprintf(stderr, "read reserved failed %d\n", nread);
+        fprintf(stderr, "read reserved failed %zd\n", nread);
         return false;
     }
 
@@ -550,7 +582,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
     nread = fread(&data_count, sizeof(uint64_t), 1, fp);
     if (nread != 1)
     {
-        fprintf(stderr, "read data_count failed %d\n", nread);
+        fprintf(stderr, "read data_count failed %zd\n", nread);
         return false;
     }
 
@@ -562,7 +594,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread(&magic, sizeof(uint32_t), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read magic failed %d\n", nread);
+            fprintf(stderr, "read magic failed %zd\n", nread);
             return false;
         }
 
@@ -576,14 +608,14 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             nread = fread(&stype, sizeof(int32_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read stype failed %d\n", nread);
+                fprintf(stderr, "read stype failed %zd\n", nread);
                 return false;
             }
 
             nread = fread(&ndim, sizeof(uint32_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read ndim failed %d\n", nread);
+                fprintf(stderr, "read ndim failed %zd\n", nread);
                 return false;
             }
 
@@ -591,7 +623,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             nread = fread(&shape[0], ndim * sizeof(int64_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read shape failed %d\n", nread);
+                fprintf(stderr, "read shape failed %zd\n", nread);
                 return false;
             }
         }
@@ -600,7 +632,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             nread = fread(&ndim, sizeof(uint32_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read ndim failed %d\n", nread);
+                fprintf(stderr, "read ndim failed %zd\n", nread);
                 return false;
             }
 
@@ -608,7 +640,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             nread = fread(&shape[0], ndim * sizeof(int64_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read shape failed %d\n", nread);
+                fprintf(stderr, "read shape failed %zd\n", nread);
                 return false;
             }
         }
@@ -623,7 +655,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             nread = fread(&shape32[0], ndim * sizeof(uint32_t), 1, fp);
             if (nread != 1)
             {
-                fprintf(stderr, "read shape failed %d\n", nread);
+                fprintf(stderr, "read shape failed %zd\n", nread);
                 return false;
             }
 
@@ -639,13 +671,13 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread(&dev_type, sizeof(int32_t), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read dev_type failed %d\n", nread);
+            fprintf(stderr, "read dev_type failed %zd\n", nread);
             return false;
         }
         nread = fread(&dev_id, sizeof(int32_t), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read dev_id failed %d\n", nread);
+            fprintf(stderr, "read dev_id failed %zd\n", nread);
             return false;
         }
 
@@ -653,7 +685,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread(&type_flag, sizeof(int32_t), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read type_flag failed %d\n", nread);
+            fprintf(stderr, "read type_flag failed %zd\n", nread);
             return false;
         }
 
@@ -670,7 +702,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread(&p.data[0], len * sizeof(float), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read MXNetParam data failed %d\n", nread);
+            fprintf(stderr, "read MXNetParam data failed %zd\n", nread);
             return false;
         }
 
@@ -684,7 +716,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
     nread = fread(&name_count, sizeof(uint64_t), 1, fp);
     if (nread != 1)
     {
-        fprintf(stderr, "read name_count failed %d\n", nread);
+        fprintf(stderr, "read name_count failed %zd\n", nread);
         return false;
     }
 
@@ -696,7 +728,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread(&len, sizeof(uint64_t), 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read name length failed %d\n", nread);
+            fprintf(stderr, "read name length failed %zd\n", nread);
             return false;
         }
 
@@ -706,7 +738,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         nread = fread((char*)p.name.data(), len, 1, fp);
         if (nread != 1)
         {
-            fprintf(stderr, "read MXNetParam name failed %d\n", nread);
+            fprintf(stderr, "read MXNetParam name failed %zd\n", nread);
             return false;
         }
 
@@ -728,6 +760,170 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
     return true;
 }
 
+static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<size_t, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+{
+    size_t node_count = nodes.size();
+    for (size_t i=0; i<node_count; i++)
+    {
+        const MXNetNode& n = nodes[i];
+
+        if (n.is_weight())
+            continue;
+
+        // ShuffleChannel <= Reshape - SwapAxis - Reshape
+        if (n.op == "Reshape")
+        {
+            if (node_reference.find(i) == node_reference.end() || node_reference[i] != 1)
+                continue;
+
+            // "shape": "(0, -4, X, -1, -2)"
+            std::vector<int> shape = n.attr("shape");
+            if (shape.size() != 5)
+                continue;
+            if (shape[0] != 0 || shape[1] != -4 || shape[3] != -1 || shape[4] != -2)
+                continue;
+
+            if (i+2 >= node_count)
+                continue;
+
+            const MXNetNode& n2 = nodes[i+1];
+            const MXNetNode& n3 = nodes[i+2];
+
+            if (n2.op != "SwapAxis" || n3.op != "Reshape")
+                continue;
+
+            if (node_reference.find(i+1) == node_reference.end() || node_reference[i+1] != 1)
+                continue;
+
+            // "dim1": "1", "dim2": "2"
+            int dim1 = n2.attr("dim1");
+            int dim2 = n2.attr("dim2");
+            if (dim1 != 1 || dim2 != 2)
+                continue;
+
+            // "shape": "(0, -3, -2)"
+            std::vector<int> shape3 = n3.attr("shape");
+            if (shape3.size() != 3)
+                continue;
+            if (shape3[0] != 0 || shape3[1] != -3 || shape3[2] != -2)
+                continue;
+
+            // reduce
+            nodes[i].op = "noop_reducedncnn";
+            nodes[i+1].op = "noop_reducedncnn";
+
+            node_reference.erase(node_reference.find(i));
+            node_reference.erase(node_reference.find(i+1));
+            blob_names.erase(n.name);
+            blob_names.erase(n2.name);
+
+            MXNetNode new_node;
+            new_node.nodes = &nodes;
+            new_node.params = &params;
+            new_node.op = "ShuffleChannel";
+//             new_node.name = n.name + "_" + n2.name + "_" + n3.name;
+            new_node.name = n3.name;
+            new_node.output_size = n3.output_size;
+            char group[16];
+            sprintf(group, "%d", shape[2]);
+            new_node.attrs["group"] = group;
+            new_node.inputs = n.inputs;
+            new_node.subinputs = n.subinputs;
+
+            nodes[i+2] = new_node;
+
+            reduced_node_count += 2;
+            i += 2;
+        }
+    }
+}
+
+static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<size_t, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+{
+    size_t node_count = nodes.size();
+    for (size_t i=0; i<node_count; i++)
+    {
+        const MXNetNode& n = nodes[i];
+
+        if (n.is_weight())
+            continue;
+
+        if (n.op == "_plus_scalar")
+        {
+            // HardSigmoid <= _plus_scalar(+3) - clip(0,6) - _div_scalar(/6)
+            const MXNetNode& n1 = nodes[i+1];
+            const MXNetNode& n2 = nodes[i+2];
+            const MXNetNode& n3 = nodes[i+3];
+
+            if ((float)n.attr("scalar") != 3.f)
+                continue;
+
+            if (n1.op != "clip" || (float)n1.attr("a_min") != 0.f || (float)n1.attr("a_max") != 6.f)
+                continue;
+
+            if (n2.op != "_div_scalar" || (float)n2.attr("scalar") != 6.f)
+                continue;
+
+            // reduce
+            nodes[i].op = "noop_reducedncnn";
+            nodes[i+1].op = "noop_reducedncnn";
+
+            node_reference.erase(node_reference.find(i));
+            node_reference.erase(node_reference.find(i+1));
+            blob_names.erase(n.name);
+            blob_names.erase(n1.name);
+
+            if (n3.op != "elemwise_mul" || n3.inputs[0] != n.inputs[0])
+            {
+                MXNetNode new_node;
+                new_node.nodes = &nodes;
+                new_node.params = &params;
+                new_node.op = "HardSigmoid";
+                new_node.name = n2.name;
+                new_node.output_size = n2.output_size;
+                char alpha[16], beta[16];
+                sprintf(alpha, "%f", 1.f/6.f);
+                sprintf(beta, "%f", 3.f/6.f);
+                new_node.attrs["alpha"] = alpha;
+                new_node.attrs["beta"] = beta;
+                new_node.inputs = n.inputs;
+                new_node.subinputs = n.subinputs;
+
+                nodes[i+2] = new_node;
+
+                reduced_node_count += 2;
+                i += 2;
+            }
+            else // HardSwish <= HardSigmoid - Mul
+            {
+                nodes[i+2].op = "noop_reducedncnn";
+                node_reference[i-1]--;
+                node_reference.erase(node_reference.find(i+2));
+                blob_names.erase(n2.name);
+
+                MXNetNode new_node;
+                new_node.nodes = &nodes;
+                new_node.params = &params;
+                new_node.op = "HardSwish";
+                new_node.name = n3.name;
+                new_node.output_size = n3.output_size;
+                char alpha[16], beta[16];
+                sprintf(alpha, "%f", 1.f/6.f);
+                sprintf(beta, "%f", 3.f/6.f);
+                new_node.attrs["alpha"] = alpha;
+                new_node.attrs["beta"] = beta;
+                new_node.inputs = n.inputs;
+                new_node.subinputs = n.subinputs;
+
+                nodes[i+3] = new_node;
+
+                reduced_node_count += 3;
+                i += 3;
+            }
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     const char* jsonpath = argv[1];
@@ -747,10 +943,10 @@ int main(int argc, char** argv)
     // magic
     fprintf(pp, "7767517\n");
 
-    int node_count = nodes.size();
+    size_t node_count = nodes.size();
 
     // node reference
-    std::map<int, int> node_reference;
+    std::map<size_t, int> node_reference;
 
     // weight node
     std::vector<int> weight_nodes;
@@ -877,83 +1073,12 @@ int main(int argc, char** argv)
 
     // op chain fusion
     int reduced_node_count = 0;
-    for (int i=0; i<node_count; i++)
-    {
-        const MXNetNode& n = nodes[i];
-
-        if (n.is_weight())
-            continue;
-
-        // ShuffleChannel <= Reshape - SwapAxis - Reshape
-        if (n.op == "Reshape")
-        {
-            if (node_reference[i] != 1)
-                continue;
-
-            // "shape": "(0, -4, X, -1, -2)"
-            std::vector<int> shape = n.attr("shape");
-            if (shape.size() != 5)
-                continue;
-            if (shape[0] != 0 || shape[1] != -4 || shape[3] != -1 || shape[4] != -2)
-                continue;
-
-            if (i+2 >= node_count)
-                continue;
-
-            const MXNetNode& n2 = nodes[i+1];
-            const MXNetNode& n3 = nodes[i+2];
-
-            if (n2.op != "SwapAxis" || n3.op != "Reshape")
-                continue;
-
-            if (node_reference[i+1] != 1)
-                continue;
-
-            // "dim1": "1", "dim2": "2"
-            int dim1 = n2.attr("dim1");
-            int dim2 = n2.attr("dim2");
-            if (dim1 != 1 || dim2 != 2)
-                continue;
-
-            // "shape": "(0, -3, -2)"
-            std::vector<int> shape3 = n3.attr("shape");
-            if (shape3.size() != 3)
-                continue;
-            if (shape3[0] != 0 || shape3[1] != -3 || shape3[2] != -2)
-                continue;
-
-            // reduce
-            nodes[i].op = "noop_reducedncnn";
-            nodes[i+1].op = "noop_reducedncnn";
-
-            node_reference.erase(node_reference.find(i));
-            node_reference.erase(node_reference.find(i+1));
-            blob_names.erase(n.name);
-            blob_names.erase(n2.name);
-
-            MXNetNode new_node;
-            new_node.nodes = &nodes;
-            new_node.params = &params;
-            new_node.op = "ShuffleChannel";
-//             new_node.name = n.name + "_" + n2.name + "_" + n3.name;
-            new_node.name = n3.name;
-            new_node.output_size = n3.output_size;
-            char group[16];
-            sprintf(group, "%d", shape[2]);
-            new_node.attrs["group"] = group;
-            new_node.inputs = n.inputs;
-            new_node.subinputs = n.subinputs;
-
-            nodes[i+2] = new_node;
-
-            reduced_node_count += 2;
-            i += 2;
-        }
-    }
+    fuse_shufflechannel (nodes, params, node_reference, blob_names, reduced_node_count);
+    fuse_hardsigmoid_hardswish(nodes, params, node_reference, blob_names, reduced_node_count);
 
     // remove node_reference entry with reference equals to one
     int splitncnn_blob_count = 0;
-    std::map<int, int>::iterator it = node_reference.begin();
+    std::map<size_t, int>::iterator it = node_reference.begin();
     while (it != node_reference.end())
     {
         if (it->second == 1)
@@ -970,7 +1095,7 @@ int main(int argc, char** argv)
 
 //     fprintf(stderr, "%d %d %d %d, %d %d\n", node_count, reduced_node_count, node_reference.size(), weight_nodes.size(), blob_names.size(), splitncnn_blob_count);
 
-    fprintf(pp, "%lu %lu\n", node_count - reduced_node_count + node_reference.size() - weight_nodes.size(), blob_names.size() + splitncnn_blob_count);
+    fprintf(pp, "%zu %zu\n", node_count - reduced_node_count + node_reference.size() - weight_nodes.size(), blob_names.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 
@@ -992,6 +1117,10 @@ int main(int argc, char** argv)
 
             fprintf(pp, "%-16s", "Input");
         }
+        else if (n.op == "_contrib_BilinearResize2D")
+        {
+            fprintf(pp, "%-16s", "Interp");
+        }
         else if (n.op == "_contrib_MultiBoxDetection")
         {
             fprintf(pp, "%-16s", "DetectionOutput");
@@ -999,6 +1128,10 @@ int main(int argc, char** argv)
         else if (n.op == "_contrib_MultiBoxPrior")
         {
             fprintf(pp, "%-16s", "PriorBox");
+        }
+        else if (n.op == "_copy")
+        {
+            fprintf(pp, "%-16s", "Noop");
         }
         else if (n.op == "_div_scalar")
         {
@@ -1174,6 +1307,14 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InnerProduct");
         }
+        else if (n.op == "HardSigmoid")
+        {
+            fprintf(pp, "%-16s", "HardSigmoid");
+        }
+        else if (n.op == "HardSwish")
+        {
+            fprintf(pp, "%-16s", "HardSwish");
+        }
         else if (n.op == "InstanceNorm")
         {
             fprintf(pp, "%-16s", "InstanceNorm");
@@ -1198,6 +1339,10 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "PReLU");
             }
         }
+        else if (n.op == "LinearRegressionOutput")
+        {
+            fprintf(pp, "%-16s", "Noop");
+        }
         else if (n.op == "log")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -1206,21 +1351,17 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Sigmoid");
         }
-        else if (n.op == "max")
+        else if (n.op == "MAERegressionOutput")
+        {
+            fprintf(pp, "%-16s", "Noop");
+        }
+        else if (n.op == "max" || n.op == "mean" || n.op == "min" || n.op == "prod" || n.op == "sum")
         {
             fprintf(pp, "%-16s", "Reduction");
         }
         else if (n.op == "maximum")
         {
             fprintf(pp, "%-16s", "BinaryOp");
-        }
-        else if (n.op == "mean")
-        {
-            fprintf(pp, "%-16s", "Reduction");
-        }
-        else if (n.op == "min")
-        {
-            fprintf(pp, "%-16s", "Reduction");
         }
         else if (n.op == "minimum")
         {
@@ -1237,10 +1378,6 @@ int main(int argc, char** argv)
         else if (n.op == "Pooling")
         {
             fprintf(pp, "%-16s", "Pooling");
-        }
-        else if (n.op == "prod")
-        {
-            fprintf(pp, "%-16s", "Reduction");
         }
         else if (n.op == "reciprocal")
         {
@@ -1270,6 +1407,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Crop");
         }
+        else if (n.op == "slice_axis")
+        {
+            fprintf(pp, "%-16s", "Crop");
+        }
         else if (n.op == "SliceChannel")
         {
             fprintf(pp, "%-16s", "Slice");
@@ -1294,9 +1435,9 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
-        else if (n.op == "sum")
+        else if (n.op == "squeeze")
         {
-            fprintf(pp, "%-16s", "Reduction");
+            fprintf(pp, "%-16s", "Squeeze");
         }
         else if (n.op == "tan")
         {
@@ -1328,7 +1469,7 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", n.op.c_str());
         }
 
-        int input_size = n.inputs.size();
+        size_t input_size = n.inputs.size();
         for (int j=0; j<(int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
@@ -1344,7 +1485,7 @@ int main(int argc, char** argv)
             input_size--;
         }
 
-        fprintf(pp, " %-32s %d %d", n.name.c_str(), input_size, n.output_size);
+        fprintf(pp, " %-32s %zd %d", n.name.c_str(), input_size, n.output_size);
 
         for (int j=0; j<(int)n.inputs.size(); j++)
         {
@@ -1396,6 +1537,19 @@ int main(int argc, char** argv)
             // dummy input shape
 //             fprintf(pp, " 0 0 0");
         }
+        else if (n.op == "_contrib_BilinearResize2D")
+        {
+            float scale_height = n.has_attr("scale_height") ? n.attr("scale_height") : 1.f;
+            float scale_width = n.has_attr("scale_width") ? n.attr("scale_width") : 1.f;
+            int height = n.has_attr("scale_height") ? 0 : n.attr("height");
+            int width = n.has_attr("scale_width") ? 0 : n.attr("width");
+
+            fprintf(pp, " 0=2");
+            fprintf(pp, " 1=%e", scale_height);
+            fprintf(pp, " 2=%e", scale_width);
+            fprintf(pp, " 3=%d", height);
+            fprintf(pp, " 4=%d", width);
+        }
         else if (n.op == "_contrib_MultiBoxDetection")
         {
             float threshold = n.has_attr("threshold") ? n.attr("threshold") : 0.01f;
@@ -1403,12 +1557,12 @@ int main(int argc, char** argv)
             int nms_topk = n.has_attr("nms_topk") ? n.attr("nms_topk") : 300;
 
             fprintf(pp, " 0=-233");
-            fprintf(pp, " 1=%f", nms_threshold);
+            fprintf(pp, " 1=%e", nms_threshold);
             fprintf(pp, " 2=%d", nms_topk);
 
             int keep_top_k = 100;
             fprintf(pp, " 3=%d", keep_top_k);
-            fprintf(pp, " 4=%f", threshold);
+            fprintf(pp, " 4=%e", threshold);
 
             std::vector<float> variances = n.attr("variances");
             if (variances.empty())
@@ -1420,10 +1574,10 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(pp, " 5=%f", variances[0]);
-                fprintf(pp, " 6=%f", variances[1]);
-                fprintf(pp, " 7=%f", variances[2]);
-                fprintf(pp, " 8=%f", variances[3]);
+                fprintf(pp, " 5=%e", variances[0]);
+                fprintf(pp, " 6=%e", variances[1]);
+                fprintf(pp, " 7=%e", variances[2]);
+                fprintf(pp, " 8=%e", variances[3]);
             }
         }
         else if (n.op == "_contrib_MultiBoxPrior")
@@ -1433,14 +1587,14 @@ int main(int argc, char** argv)
             fprintf(pp, " -23300=%d", (int)sizes.size());
             for (int j=0; j<(int)sizes.size(); j++)
             {
-                fprintf(pp, ",%f", sizes[j]);
+                fprintf(pp, ",%e", sizes[j]);
             }
 
             std::vector<float> aspect_ratios = n.attr("ratios");
             fprintf(pp, " -23302=%d", (int)aspect_ratios.size());
             for (int j=0; j<(int)aspect_ratios.size(); j++)
             {
-                fprintf(pp, ",%f", aspect_ratios[j]);
+                fprintf(pp, ",%e", aspect_ratios[j]);
             }
 
             int flip = 0;
@@ -1462,8 +1616,8 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(pp, " 11=%f", steps[1]);
-                fprintf(pp, " 12=%f", steps[0]);
+                fprintf(pp, " 11=%e", steps[1]);
+                fprintf(pp, " 12=%e", steps[0]);
             }
 
             std::vector<float> offsets = n.attr("offsets");
@@ -1473,8 +1627,11 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(stderr, "Unsupported offsets param! %f %f\n", offsets[0], offsets[1]);
+                fprintf(stderr, "Unsupported offsets param! %g %g\n", offsets[0], offsets[1]);
             }
+        }
+        else if (n.op == "_copy")
+        {
         }
         else if (n.op == "_div_scalar")
         {
@@ -1483,7 +1640,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%e", scalar);
         }
         else if (n.op == "_maximum_scalar")
         {
@@ -1492,7 +1649,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%e", scalar);
         }
         else if (n.op == "_minimum_scalar")
         {
@@ -1501,7 +1658,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%e", scalar);
         }
         else if (n.op == "_minus_scalar")
         {
@@ -1510,7 +1667,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%e", scalar);
         }
         else if (n.op == "_mul_scalar")
         {
@@ -1519,7 +1676,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%e", scalar);
         }
         else if (n.op == "_plus_scalar")
         {
@@ -1528,7 +1685,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%e", scalar);
         }
         else if (n.op == "_power_scalar")
         {
@@ -1537,7 +1694,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%e", scalar);
         }
         else if (n.op == "_rdiv_scalar")
         {
@@ -1546,7 +1703,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%e", scalar);
         }
         else if (n.op == "_rminus_scalar")
         {
@@ -1555,7 +1712,7 @@ int main(int argc, char** argv)
             float scalar = n.attr("scalar");
             fprintf(pp, " 0=%d", op_type);
             fprintf(pp, " 1=%d", with_scalar);
-            fprintf(pp, " 2=%f", scalar);
+            fprintf(pp, " 2=%e", scalar);
         }
         else if (n.op == "abs")
         {
@@ -1567,7 +1724,7 @@ int main(int argc, char** argv)
             std::string type = n.attr("act_type");
             if (type == "relu")
             {
-//                 fprintf(pp, " 0=%f", 0.f);
+//                 fprintf(pp, " 0=%e", 0.f);
             }
         }
         else if (n.op == "add_n" || n.op == "ElementWiseSum")
@@ -1592,7 +1749,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "BatchNorm")
         {
-            float eps = 1e-3;
+            float eps = 1e-3f;
             if (n.has_attr("eps")) {
                 eps = n.attr("eps");
             }
@@ -1600,7 +1757,7 @@ int main(int argc, char** argv)
             std::vector<float> slope_data = n.weight(0);
             std::vector<float> bias_data = n.weight(1);
 
-            int channels = slope_data.size();
+            int channels = static_cast<int>(slope_data.size());
 
             std::vector<float> mean_data = n.weight(2, channels);
             std::vector<float> var_data = n.weight(3, channels);
@@ -1656,8 +1813,8 @@ int main(int argc, char** argv)
         {
             float min = n.attr("a_min");
             float max = n.attr("a_max");
-            fprintf(pp, " 0=%f", min);
-            fprintf(pp, " 1=%f", max);
+            fprintf(pp, " 0=%e", min);
+            fprintf(pp, " 1=%e", max);
         }
         else if (n.op == "Concat")
         {
@@ -1724,6 +1881,8 @@ int main(int argc, char** argv)
             std::vector<int> dilate = n.attr("dilate");
             std::vector<int> stride = n.attr("stride");
             std::vector<int> pad = n.attr("pad");
+            std::vector<int> adj = n.attr("adj");
+            std::vector<int> target_shape = n.attr("target_shape");
             int no_bias = n.attr("no_bias");
             int num_group = n.attr("num_group");
 
@@ -1752,11 +1911,32 @@ int main(int argc, char** argv)
                 fprintf(pp, " 13=%d", stride[0]);
             }
 
-            if (pad.size() == 1) {
-                fprintf(pp, " 4=%d", pad[0]);
-            } else if (pad.size() == 2) {
-                fprintf(pp, " 4=%d", pad[1]);
-                fprintf(pp, " 14=%d", pad[0]);
+            if (target_shape.size() == 0)
+            {
+                if (pad.size() == 1) {
+                    fprintf(pp, " 4=%d", pad[0]);
+                } else if (pad.size() == 2) {
+                    fprintf(pp, " 4=%d", pad[1]);
+                    fprintf(pp, " 14=%d", pad[0]);
+                }
+
+                if (adj.size() == 1) {
+                    fprintf(pp, " 18=%d", adj[0]);
+                } else if (adj.size() == 2) {
+                    fprintf(pp, " 18=%d", adj[1]);
+                    fprintf(pp, " 19=%d", adj[0]);
+                }
+            }
+            else
+            {
+                fprintf(pp, " 4=-233");
+
+                if (target_shape.size() == 1) {
+                    fprintf(pp, " 20=%d", target_shape[0]);
+                } else if (target_shape.size() == 2) {
+                    fprintf(pp, " 20=%d", target_shape[1]);
+                    fprintf(pp, " 21=%d", target_shape[0]);
+                }
             }
 
             fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
@@ -1781,7 +1961,7 @@ int main(int argc, char** argv)
             {
             // reorder weight from inch-outch to outch-inch
             int num_filter_g = num_filter / num_group;
-            int num_input = weight_data.size() / maxk / num_filter_g / num_group;
+            int num_input = static_cast<int>(weight_data.size() / maxk / num_filter_g / num_group);
             const float* weight_data_ptr = weight_data.data() + g * maxk * num_filter_g * num_input;
             for (int k=0; k<num_filter_g; k++)
             {
@@ -1873,20 +2053,7 @@ int main(int argc, char** argv)
         {
             int axis = n.attr("axis");
 
-            int expand_w = 0;
-            int expand_h = 0;
-            int expand_c = 0;
-
-            if (axis == 0)
-                expand_c = 1;
-            if (axis == 1)
-                expand_h = 1;
-            if (axis == 2)
-                expand_w = 1;
-
-            fprintf(pp, " 0=%d", expand_w);
-            fprintf(pp, " 1=%d", expand_h);
-            fprintf(pp, " 2=%d", expand_c);
+            fprintf(pp, " -23303=1,%d", axis);
         }
         else if (n.op == "Flatten")
         {
@@ -1916,6 +2083,22 @@ int main(int argc, char** argv)
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
         }
+        else if (n.op == "HardSigmoid")
+        {
+            float alpha = n.attr("alpha");
+            float beta = n.attr("beta");
+
+            fprintf(pp, " 0=%e", alpha);
+            fprintf(pp, " 1=%e", beta);
+        }
+        else if (n.op == "HardSwish")
+        {
+            float alpha = n.attr("alpha");
+            float beta = n.attr("beta");
+
+            fprintf(pp, " 0=%e", alpha);
+            fprintf(pp, " 1=%e", beta);
+        }
         else if (n.op == "InstanceNorm")
         {
             float eps = n.has_attr("eps") ? n.attr("eps") : 0.001f;
@@ -1924,7 +2107,7 @@ int main(int argc, char** argv)
             std::vector<float> beta_data = n.weight(1);
 
             fprintf(pp, " 0=%d", (int)gamma_data.size());
-            fprintf(pp, " 1=%f", eps);
+            fprintf(pp, " 1=%e", eps);
 
             fwrite(gamma_data.data(), sizeof(float), gamma_data.size(), bp);
             fwrite(beta_data.data(), sizeof(float), beta_data.size(), bp);
@@ -1932,7 +2115,7 @@ int main(int argc, char** argv)
         else if (n.op == "L2Normalization")
         {
             std::string mode = n.attr("mode");
-            float eps = n.has_attr("eps") ? n.attr("eps") : 1e-10;
+            float eps = n.has_attr("eps") ? n.attr("eps") : 1e-10f;
 
             int across_spatial = 0;
             int across_channel = 1;
@@ -1958,7 +2141,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", across_spatial);
             fprintf(pp, " 4=%d", across_channel);
             fprintf(pp, " 1=%d", channel_shared);
-            fprintf(pp, " 2=%f", eps);
+            fprintf(pp, " 2=%e", eps);
             fprintf(pp, " 3=%d", scale_data_size);
 
             const float scale_data[1] = { 1.f };
@@ -1970,12 +2153,12 @@ int main(int argc, char** argv)
             if (type == "elu")
             {
                 float slope = n.has_attr("slope") ? n.attr("slope") : 0.25f;
-                fprintf(pp, " 0=%f", slope);
+                fprintf(pp, " 0=%e", slope);
             }
             else if (type == "leaky" || type.empty())
             {
                 float slope = n.has_attr("slope") ? n.attr("slope") : 0.25f;
-                fprintf(pp, " 0=%f", slope);
+                fprintf(pp, " 0=%e", slope);
             }
             else if (type == "prelu")
             {
@@ -1986,6 +2169,9 @@ int main(int argc, char** argv)
                 fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             }
         }
+        else if (n.op == "LinearRegressionOutput")
+        {
+        }
         else if (n.op == "log")
         {
             int op_type = 8;
@@ -1994,25 +2180,45 @@ int main(int argc, char** argv)
         else if (n.op == "LogisticRegressionOutput")
         {
         }
-        else if (n.op == "max")
+        else if (n.op == "MAERegressionOutput")
         {
-            int operation = 4;
+        }
+        else if (n.op == "max" || n.op == "mean" || n.op == "min" || n.op == "prod" || n.op == "sum")
+        {
+            int operation = -233;
+            if (n.op == "max") operation = 4;
+            if (n.op == "mean") operation = 3;
+            if (n.op == "min") operation = 5;
+            if (n.op == "prod") operation = 6;
+            if (n.op == "sum") operation = 0;
+
+            std::vector<int> axis = n.attr("axis");
+            int keepdims = n.attr("keepdims");
+
             fprintf(pp, " 0=%d", operation);
+            if (axis.empty())
+            {
+                // if axis not set, reduce all axis by default
+                fprintf(pp, " 1=%d", 1);
+            }
+            else
+            {
+                // if axis set, reduce according to axis
+                fprintf(pp, " 1=%d", 0);
+                fprintf(pp, " -23303=%zd", axis.size());
+                for (int i=0; i< axis.size(); i++)
+                {
+                    if (axis[i] == 0 || axis[i] > 3 || axis[i] < -3)
+                        fprintf(stderr, "Unsupported reduction axis !\n");
+                    fprintf(pp, ",%d", axis[i]);
+                }
+            }
+            fprintf(pp, " 4=%d", keepdims);
         }
         else if (n.op == "maximum")
         {
             int op_type = 4;
             fprintf(pp, " 0=%d", op_type);
-        }
-        else if (n.op == "mean")
-        {
-            int operation = 3;
-            fprintf(pp, " 0=%d", operation);
-        }
-        else if (n.op == "min")
-        {
-            int operation = 5;
-            fprintf(pp, " 0=%d", operation);
         }
         else if (n.op == "minimum")
         {
@@ -2041,7 +2247,7 @@ int main(int argc, char** argv)
             }
             else if (mode == "reflect")
             {
-                // FIXME
+                type = 2;
             }
 
             if (pad_width.size() != 8)
@@ -2067,7 +2273,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 2=%d", left);
             fprintf(pp, " 3=%d", right);
             fprintf(pp, " 4=%d", type);
-            fprintf(pp, " 5=%f", constant_value);
+            fprintf(pp, " 5=%e", constant_value);
         }
         else if (n.op == "Pooling")
         {
@@ -2099,19 +2305,36 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, " 0=%d", pool);
-            if (!kernel.empty())
+
+            if (kernel.size() == 1) {
                 fprintf(pp, " 1=%d", kernel[0]);
-            if (!stride.empty())
+            } else if (kernel.size() == 2) {
+                fprintf(pp, " 1=%d", kernel[1]);
+                fprintf(pp, " 11=%d", kernel[0]);
+            }
+
+            if (stride.size() == 1) {
                 fprintf(pp, " 2=%d", stride[0]);
-            if (!pad.empty())
+            } else if (stride.size() == 2) {
+                fprintf(pp, " 2=%d", stride[1]);
+                fprintf(pp, " 12=%d", stride[0]);
+            }
+
+            if (pad.size() == 1) {
                 fprintf(pp, " 3=%d", pad[0]);
+            } else if (pad.size() == 2) {
+                fprintf(pp, " 3=%d", pad[1]);
+                fprintf(pp, " 13=%d", pad[0]);
+            }
+
             fprintf(pp, " 4=%d", global_pool);
             fprintf(pp, " 5=%d", pad_mode);
-        }
-        else if (n.op == "prod")
-        {
-            int operation = 6;
-            fprintf(pp, " 0=%d", operation);
+
+            if (pool_type == "avg")
+            {
+                int avgpool_count_include_pad = n.has_attr("count_include_pad") ? n.attr("count_include_pad") : 0;
+                fprintf(pp, " 6=%d", avgpool_count_include_pad);
+            }
         }
         else if (n.op == "reciprocal")
         {
@@ -2168,41 +2391,26 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
-            int woffset = 0;
-            int hoffset = 0;
-            int coffset = 0;
-            int outw = -233;
-            int outh = -233;
-            int outc = -233;
+            fprintf(pp, " -23309=%zd", begin.size());
+            for (int i=0; i<(int)begin.size(); i++)
+            {
+                fprintf(pp, ",%d", begin[i]);
+            }
+            fprintf(pp, " -23310=%zd", end.size());
+            for (int i=0; i<(int)end.size(); i++)
+            {
+                fprintf(pp, ",%d", end[i]);
+            }
+        }
+        else if (n.op == "slice_axis")
+        {
+            int axis = n.attr("axis");
+            int begin = n.attr("begin");
+            int end = n.has_attr("end") ? n.attr("end") : INT_MAX;
 
-            if (begin.size() == 2)
-            {
-                woffset = begin[1];
-                outw = end[1] == -1 ? -234 : end[1] - begin[1];
-            }
-            else if (begin.size() == 3)
-            {
-                woffset = begin[2];
-                hoffset = begin[1];
-                outw = end[2] == -1 ? -234 : end[2] - begin[2];
-                outh = end[1] == -1 ? -234 : end[1] - begin[1];
-            }
-            else if (begin.size() == 4)
-            {
-                woffset = begin[3];
-                hoffset = begin[2];
-                coffset = begin[1];
-                outw = end[3] == -1 ? -234 : end[3] - begin[3];
-                outh = end[2] == -1 ? -234 : end[2] - begin[2];
-                outc = end[1] == -1 ? -234 : end[1] - begin[1];
-            }
-
-            fprintf(pp, " 0=%d", woffset);
-            fprintf(pp, " 1=%d", hoffset);
-            fprintf(pp, " 2=%d", coffset);
-            fprintf(pp, " 3=%d", outw);
-            fprintf(pp, " 4=%d", outh);
-            fprintf(pp, " 5=%d", outc);
+            fprintf(pp, " -23309=1,%d", begin);
+            fprintf(pp, " -23310=1,%d", end);
+            fprintf(pp, " -23311=1,%d", axis);
         }
         else if (n.op == "SliceChannel")
         {
@@ -2221,6 +2429,11 @@ int main(int argc, char** argv)
         }
         else if (n.op == "SoftmaxActivation")
         {
+            std::string mode = n.attr("mode");
+            if (mode != "channel")
+            {
+                fprintf(stderr, "Unsupported SoftmaxActivation mode !\n");
+            }
             fprintf(pp, " 1=1");
         }
         else if (n.op == "SoftmaxOutput")
@@ -2241,10 +2454,24 @@ int main(int argc, char** argv)
             int op_type = 4;
             fprintf(pp, " 0=%d", op_type);
         }
-        else if (n.op == "sum")
+        else if (n.op == "squeeze")
         {
-            int operation = 0;
-            fprintf(pp, " 0=%d", operation);
+            std::vector<int> axis = n.attr("axis");
+
+            if (axis.empty())
+            {
+                fprintf(pp, " 0=1");
+                fprintf(pp, " 1=1");
+                fprintf(pp, " 2=1");
+            }
+            else
+            {
+                fprintf(pp, " -23303=%zd", axis.size());
+                for (int i=0; i<(int)axis.size(); i++)
+                {
+                    fprintf(pp, ",%d", axis[i]);
+                }
+            }
         }
         else if (n.op == "tan")
         {
@@ -2306,8 +2533,8 @@ int main(int argc, char** argv)
             if (sample_type == "nearest")
             {
                 fprintf(pp, " 0=1");
-                fprintf(pp, " 1=%f", (float)scale);
-                fprintf(pp, " 2=%f", (float)scale);
+                fprintf(pp, " 1=%e", (float)scale);
+                fprintf(pp, " 2=%e", (float)scale);
             }
             else if (sample_type == "bilinear")
             {

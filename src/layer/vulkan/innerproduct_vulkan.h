@@ -29,6 +29,7 @@ public:
 
     virtual int upload_model(VkTransfer& cmd, const Option& opt);
 
+    using InnerProduct::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
@@ -44,7 +45,7 @@ public:
     // pack4
     VkMat weight_data_gpu_pack4;
     Pipeline* pipeline_innerproduct_pack4;
-    Pipeline* pipeline_innerproduct_pack4_lds_64;
+//     Pipeline* pipeline_innerproduct_pack4_lds_64;
 
     // pack1to4
     VkMat weight_data_gpu_pack1to4;

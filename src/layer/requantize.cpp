@@ -29,9 +29,9 @@ Requantize::Requantize()
 
 static inline signed char float2int8(float v)
 {
-    int int32 = round(v);
+    int int32 = static_cast<int>(round(v));
     if (int32 > 127) return 127;
-    if (int32 < -128) return -128;
+    if (int32 < -127) return -127;
     return (signed char)int32;
 }
 

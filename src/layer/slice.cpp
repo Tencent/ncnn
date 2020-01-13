@@ -47,7 +47,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             int slice = slices_ptr[i];
             if (slice == -233)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                slice = static_cast<int>((w - q) / (top_blobs.size() - i));
             }
 
             Mat& top_blob = top_blobs[i];
@@ -76,7 +76,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             int slice = slices_ptr[i];
             if (slice == -233)
             {
-                slice = (h - q) / (top_blobs.size() - i);
+                slice = static_cast<int>((h - q) / (top_blobs.size() - i));
             }
 
             Mat& top_blob = top_blobs[i];
@@ -107,7 +107,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             int slice = slices_ptr[i];
             if (slice == -233)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                slice = static_cast<int>((w - q) / (top_blobs.size() - i));
             }
 
             Mat& top_blob = top_blobs[i];
@@ -141,7 +141,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             int slice = slices_ptr[i];
             if (slice == -233)
             {
-                slice = (channels - q) / (top_blobs.size() - i);
+                slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
             }
 
             Mat& top_blob = top_blobs[i];
@@ -149,7 +149,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             if (top_blob.empty())
                 return -100;
 
-            int size = bottom_blob.cstep * slice;
+            int size = static_cast<int>(bottom_blob.cstep * slice);
 
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob;
@@ -173,7 +173,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             int slice = slices_ptr[i];
             if (slice == -233)
             {
-                slice = (h - q) / (top_blobs.size() - i);
+                slice = static_cast<int>((h - q) / (top_blobs.size() - i));
             }
 
             Mat& top_blob = top_blobs[i];
@@ -209,7 +209,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             int slice = slices_ptr[i];
             if (slice == -233)
             {
-                slice = (w - q) / (top_blobs.size() - i);
+                slice = static_cast<int>((w - q) / (top_blobs.size() - i));
             }
 
             Mat& top_blob = top_blobs[i];

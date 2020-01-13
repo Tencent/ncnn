@@ -69,7 +69,15 @@ public:
 
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& m);
 
+#if NCNN_BENCHMARK
     void record_write_timestamp(uint32_t query);
+#endif // NCNN_BENCHMARK
+
+    void record_queue_transfer_acquire(const VkMat& m, uint32_t src_queue_family_index);
+
+#if __ANDROID_API__ >= 26
+    void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& im, const VkMat& m);
+#endif // __ANDROID_API__ >= 26
 
     int submit_and_wait();
 
@@ -93,10 +101,21 @@ protected:
     void record_compute_transfer_barrier(const VkMat& m);
     void record_compute_compute_barrier(const VkMat& m);
     void record_transfer_transfer_barrier(const VkMat& m);
+    void record_host_transfer_barrier(const VkMat& m);
+    void record_transfer_host_barrier(const VkMat& m);
+    void record_host_compute_barrier(const VkMat& m);
+    void record_compute_host_barrier(const VkMat& m);
 
     // record prepare things
     void record_prepare_transfer_barrier(const VkMat& m);
     void record_prepare_compute_barrier(const VkMat& m);
+    void record_prepare_host_barrier(const VkMat& m);
+
+    void record_initial_image_compute_barrier(const VkImageMat& im);
+
+#if __ANDROID_API__ >= 26
+    void record_update_import_android_hardware_buffer_bindings(VkPipelineLayout pipeline_layout, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, VkSampler sampler, const VkImageMat& im, const VkMat& m);
+#endif // __ANDROID_API__ >= 26
 
 #if NCNN_BENCHMARK
     void reset_query_pool();
@@ -115,6 +134,15 @@ protected:
     void compute_transfer_barrier(VkBuffer buffer, size_t offset, size_t size);
     void compute_compute_barrier(VkBuffer buffer, size_t offset, size_t size);
     void transfer_transfer_barrier(VkBuffer buffer, size_t offset, size_t size);
+    void host_transfer_barrier(VkBuffer buffer, size_t offset, size_t size);
+    void transfer_host_barrier(VkBuffer buffer, size_t offset, size_t size);
+    void host_compute_barrier(VkBuffer buffer, size_t offset, size_t size);
+    void compute_host_barrier(VkBuffer buffer, size_t offset, size_t size);
+    void queue_transfer_acquire_barrier(VkBuffer buffer, size_t offset, size_t size, uint32_t src_queue_family_index);
+    void initial_image_compute_barrier(VkImage image);
+#if __ANDROID_API__ >= 26
+    void update_import_android_hardware_buffer_bindings(VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template, const VkDescriptorImageInfo& descriptorImageInfo, const VkDescriptorBufferInfo& descriptorBufferInfo);
+#endif // __ANDROID_API__ >= 26
 #if NCNN_BENCHMARK
     void write_timestamp(uint32_t query);
 #endif // NCNN_BENCHMARK
@@ -137,6 +165,12 @@ protected:
         // 8=compute-compute barrier
         // 9=transfer-transfer barrier
         // 10=write timestamp
+        // 11=initial image compute barrier
+        // 12=host-transfer barrier
+        // 13=transfer-host barrier
+        // 14=host-compute barrier
+        // 15=compute-host barrier
+        // 16=queue-transfer-acquire barrier
         int type;
 
         union
@@ -154,6 +188,12 @@ protected:
 #if NCNN_BENCHMARK
         struct { uint32_t query; } write_timestamp;
 #endif // NCNN_BENCHMARK
+        struct { VkImage image; } initial_image_compute_barrier;
+        struct { VkBuffer buffer; size_t offset; size_t size; } host_transfer_barrier;
+        struct { VkBuffer buffer; size_t offset; size_t size; } transfer_host_barrier;
+        struct { VkBuffer buffer; size_t offset; size_t size; } host_compute_barrier;
+        struct { VkBuffer buffer; size_t offset; size_t size; } compute_host_barrier;
+        struct { VkBuffer buffer; size_t offset; size_t size; size_t src_queue_family_index; } queue_transfer_acquire_barrier;
         };
 
         std::vector<VkBufferCopy> regions;
@@ -185,6 +225,7 @@ protected:
     // recording issue
     void copy_buffer(VkBuffer src, size_t src_offset, VkBuffer dst, size_t dst_offset, size_t size);
     void copy_buffer_regions(VkBuffer src, VkBuffer dst, const std::vector<VkBufferCopy>& regions);
+    void queue_transfer_release_barrier(VkBuffer buffer, size_t offset, size_t size, uint32_t target_queue_family_index);
 
 protected:
     size_t buffer_offset_alignment;

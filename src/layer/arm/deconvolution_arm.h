@@ -31,6 +31,12 @@ public:
 
 public:
     Layer* activation;
+
+    // pack4
+    Mat weight_data_pack4;
+    Mat weight_data_pack1to4;
+    Mat weight_data_pack4to1;
+    Mat weight_data_pack1;
 };
 
 } // namespace ncnn

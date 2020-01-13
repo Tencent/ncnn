@@ -69,7 +69,7 @@ int Cast_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Cast_vulkan::destroy_pipeline(const Option& opt)
+int Cast_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_cast_fp32_to_fp16;
     pipeline_cast_fp32_to_fp16 = 0;
@@ -99,36 +99,42 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
-    int packing = bottom_blob.packing;
+    int elempack = bottom_blob.elempack;
 
     size_t out_elemsize = elemsize;
     if (type_to == 1)
     {
         // float32
-        out_elemsize = 4 * packing;
+        out_elemsize = 4 * elempack;
     }
     else if (type_to == 2)
     {
         // float16
-        out_elemsize = 2 * packing;
+        out_elemsize = 2 * elempack;
+
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
+        {
+            if (elempack == 4) out_elemsize = 4*2u;
+            if (elempack == 1) out_elemsize = 4u;
+        }
     }
     else if (type_to == 3)
     {
         // int8
-        out_elemsize = packing;
+        out_elemsize = elempack;
     }
 
     if (dims == 1)
     {
-        top_blob.create(w, out_elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, out_elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     }
     else if (dims == 2)
     {
-        top_blob.create(w, h, out_elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, h, out_elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     }
     else if (dims == 3)
     {
-        top_blob.create(w, h, channels, out_elemsize, packing, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
     }
     if (top_blob.empty())
         return -100;
@@ -153,11 +159,11 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     if (type_from == 1 && type_to == 2)
     {
-        pipeline = packing == 4 ? pipeline_cast_fp32_to_fp16_pack4 : pipeline_cast_fp32_to_fp16;
+        pipeline = elempack == 4 ? pipeline_cast_fp32_to_fp16_pack4 : pipeline_cast_fp32_to_fp16;
     }
     if (type_from == 2 && type_to == 1)
     {
-        pipeline = packing == 4 ? pipeline_cast_fp16_to_fp32_pack4 : pipeline_cast_fp16_to_fp32;
+        pipeline = elempack == 4 ? pipeline_cast_fp16_to_fp32_pack4 : pipeline_cast_fp16_to_fp32;
     }
 
     // TODO more cast type

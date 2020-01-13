@@ -92,7 +92,7 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float* ptr = bottom_top_blob.channel(q);
             for (int i=0; i<size; i++)
             {
-                ptr[i] = ptr[i] * pow(bias + alpha_div_size * ssptr[i], -beta);
+                ptr[i] = static_cast<float>(ptr[i] * pow(bias + alpha_div_size * ssptr[i], -beta));
             }
         }
     }
@@ -105,7 +105,9 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int pad = local_size / 2;
         if (pad > 0)
         {
-            copy_make_border(square_blob, square_blob_bordered, pad, local_size - pad - 1, pad, local_size - pad - 1, BORDER_CONSTANT, 0.f, opt.workspace_allocator, opt.num_threads);
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(square_blob, square_blob_bordered, pad, local_size - pad - 1, pad, local_size - pad - 1, BORDER_CONSTANT, 0.f, opt_b);
             if (square_blob_bordered.empty())
                 return -100;
 
@@ -156,7 +158,7 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                         ss += val;
                     }
 
-                    ptr[j] = ptr[j] * pow(bias + alpha_div_size * ss, -beta);
+                    ptr[j] = static_cast<float>(ptr[j] * pow(bias + alpha_div_size * ss, -beta));
                 }
 
                 ptr += outw;

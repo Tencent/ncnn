@@ -36,3 +36,10 @@
 *.exe
 *.out
 *.app
+
+# MACOSX
+.DS_Store
+
+# IDE
+.vs
+.vscode

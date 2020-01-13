@@ -42,7 +42,8 @@ public:
     int pad_top;
     int pad_bottom;
     int global_pooling;
-    int pad_mode;// 0=full 1=valid 2=SAME
+    int pad_mode;// 0=full 1=valid 2=SAME_UPPER 3=SAME_LOWER
+    int avgpool_count_include_pad;
 };
 
 } // namespace ncnn

@@ -1,0 +1,130 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_AMD_gpu_shader_half_float: require
+#endif
+
+layout (constant_id = 0) const int outw = 0;
+layout (constant_id = 1) const int outh = 0;
+layout (constant_id = 2) const int type_to = 0;
+layout (constant_id = 3) const int rotate_from = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+layout (binding = 0) uniform sampler2D android_hardware_buffer_image;
+layout (binding = 1) writeonly buffer vkmat_blob { sfp vkmat_blob_data[]; };
+layout (binding = 2) writeonly buffer vkmat_pack4_blob { sfpvec4 vkmat_pack4_blob_data[]; };
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= outw || gy >= outh || gz >= 1)
+        return;
+
+    vec2 pos;
+
+    if (rotate_from == 1)
+    {
+        pos = vec2(gx, gy);
+    }
+
+    if (rotate_from == 2)
+    {
+        pos = vec2(outw - 1 - gx, gy);
+    }
+
+    if (rotate_from == 3)
+    {
+        pos = vec2(outw - 1 - gx, outh - 1 - gy);
+    }
+
+    if (rotate_from == 4)
+    {
+        pos = vec2(gx, outh - 1 - gy);
+    }
+
+    if (rotate_from == 5)
+    {
+        pos = vec2(gy, gx);
+    }
+
+    if (rotate_from == 6)
+    {
+        pos = vec2(gy, outw - 1 - gx);
+    }
+
+    if (rotate_from == 7)
+    {
+        pos = vec2(outh - 1 - gy, outw - 1 - gx);
+    }
+
+    if (rotate_from == 8)
+    {
+        pos = vec2(outh - 1 - gy, gx);
+    }
+
+    vec3 rgb = texture(android_hardware_buffer_image, pos).rgb * 255.f;
+
+    const int outcstep = outw * outh / 4 * 4;
+
+    if (type_to == 1) // PIXEL_RGB
+    {
+        ivec3 v_offset = (gy * outw + gx) + ivec3(0, 1, 2) * outcstep;
+
+        buffer_st1(vkmat_blob_data, v_offset.r, afp(rgb.r));
+        buffer_st1(vkmat_blob_data, v_offset.g, afp(rgb.g));
+        buffer_st1(vkmat_blob_data, v_offset.b, afp(rgb.b));
+    }
+
+    if (type_to == 2) // PIXEL_BGR
+    {
+        ivec3 v_offset = (gy * outw + gx) + ivec3(0, 1, 2) * outcstep;
+
+        buffer_st1(vkmat_blob_data, v_offset.r, afp(rgb.b));
+        buffer_st1(vkmat_blob_data, v_offset.g, afp(rgb.g));
+        buffer_st1(vkmat_blob_data, v_offset.b, afp(rgb.r));
+    }
+
+    if (type_to == 3) // PIXEL_GRAY
+    {
+        int v_offset = gy * outw + gx;
+
+        // coeffs for r g b = 0.299f, 0.587f, 0.114f
+        float v = clamp(rgb.r * 0.299f + rgb.g * 0.587f + rgb.b * 0.114f, 0.f, 255.f);
+
+        buffer_st1(vkmat_blob_data, v_offset, afp(v));
+    }
+
+    if (type_to == 4) // PIXEL_RGBA
+    {
+        int v_offset = gy * outw + gx;
+
+        vec4 rgba;
+        rgba.rgb = rgb;
+        rgba.a = 255.f;
+
+        buffer_st4(vkmat_pack4_blob_data, v_offset, afpvec4(rgba));
+    }
+}

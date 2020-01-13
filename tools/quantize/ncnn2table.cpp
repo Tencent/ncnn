@@ -77,12 +77,33 @@ public:
     int get_conv_names();
     int get_conv_bottom_blob_names();
     int get_conv_weight_blob_scales();
+    int get_input_names();
 
 public:
     std::vector<std::string> conv_names;
     std::map<std::string,std::string> conv_bottom_blob_names;
     std::map<std::string,std::vector<float> > weight_scales;
+    std::vector<std::string> input_names;
 };
+
+int QuantNet::get_input_names()
+{
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        ncnn::Layer* layer = layers[i];
+        if (layer->type == "Input")
+        {
+            for (size_t  j=0; j<layer->tops.size(); j++)
+            {
+                int blob_index = layer->tops[j];
+                std::string name = blobs[blob_index].name.c_str();
+                input_names.push_back(name);
+            }
+        }
+    }
+
+    return 0;
+}
 
 int QuantNet::get_conv_names()
 {
@@ -487,6 +508,7 @@ struct PreParam
     float norm[3];
     int weith;
     int height;
+    bool swapRB;
 };
 
 static int post_training_quantize(const std::vector<std::string> filenames, const char* param_path, const char* bin_path, const char* table_path, struct PreParam per_param)
@@ -494,6 +516,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     int size = filenames.size();
 
     QuantNet net;
+    net.opt = g_default_option;
 
     net.load_param(param_path);
     net.load_model(bin_path);
@@ -501,6 +524,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     float mean_vals[3], norm_vals[3];
     int weith = per_param.weith;
     int height = per_param.height;
+    bool swapRB = per_param.swapRB;
 
     mean_vals[0] = per_param.mean[0];
     mean_vals[1] = per_param.mean[1];
@@ -513,10 +537,17 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     g_blob_pool_allocator.clear();
     g_workspace_pool_allocator.clear();
 
+    net.get_input_names();
     net.get_conv_names();
     net.get_conv_bottom_blob_names();
     net.get_conv_weight_blob_scales();
 
+    if (net.input_names.size() <= 0)
+    {
+        fprintf(stderr, "not found [Input] Layer, Check your ncnn.param \n");
+        return -1;
+    }
+    
     FILE *fp=fopen(table_path, "w");
 
     // save quantization scale of weight 
@@ -555,18 +586,22 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
         if ((i+1)%100 == 0)
             fprintf(stderr, "          %d/%d\n", (int)(i+1), (int)size);
 
+#if OpenCV_VERSION_MAJOR > 2
+        cv::Mat bgr = cv::imread(img_name, cv::IMREAD_COLOR);
+#else
         cv::Mat bgr = cv::imread(img_name, CV_LOAD_IMAGE_COLOR);
+#endif
         if (bgr.empty())
         {
             fprintf(stderr, "cv::imread %s failed\n", img_name.c_str());
             return -1;
         }
 
-        ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, weith, height);
+        ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, swapRB ? ncnn::Mat::PIXEL_BGR2RGB : ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, weith, height);
         in.substract_mean_normalize(mean_vals, norm_vals);
 
         ncnn::Extractor ex = net.create_extractor();
-        ex.input("data", in);
+        ex.input(net.input_names[0].c_str(), in);
 
         for (size_t i=0; i<net.conv_names.size(); i++)
         {
@@ -588,7 +623,7 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     }
 
     // step 2 histogram_interval
-    printf("    ====> step 2 : generatue the histogram_interval.\n");
+    printf("    ====> step 2 : generate the histogram_interval.\n");
     for (size_t i=0; i<net.conv_names.size(); i++)
     {
         std::string layer_name = net.conv_names[i];
@@ -606,26 +641,29 @@ static int post_training_quantize(const std::vector<std::string> filenames, cons
     }    
 
     // step 3 histogram
-    printf("    ====> step 3 : generatue the histogram.\n");
+    printf("    ====> step 3 : generate the histogram.\n");
     for (size_t i=0; i<filenames.size(); i++)
     {
         std::string img_name = filenames[i];
 
         if ((i+1)%100 == 0)
             fprintf(stderr, "          %d/%d\n", (int)(i+1), (int)size);
-
+#if OpenCV_VERSION_MAJOR > 2
+        cv::Mat bgr = cv::imread(img_name, cv::IMREAD_COLOR);
+#else
         cv::Mat bgr = cv::imread(img_name, CV_LOAD_IMAGE_COLOR);
+#endif
         if (bgr.empty())
         {
             fprintf(stderr, "cv::imread %s failed\n", img_name.c_str());
             return -1;
         }  
 
-        ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, weith, height);
+        ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, swapRB ? ncnn::Mat::PIXEL_BGR2RGB : ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, weith, height);
         in.substract_mean_normalize(mean_vals, norm_vals);
       
         ncnn::Extractor ex = net.create_extractor();
-        ex.input("data", in);
+        ex.input(net.input_names[0].c_str(), in);
 
         for (size_t i=0; i<net.conv_names.size(); i++)
         {
@@ -685,12 +723,14 @@ void showUsage()
     std::cout << " -h, --help       show this help message and exit" << std::endl;
     std::cout << " -p, --param      path to ncnn.param file" << std::endl;
     std::cout << " -b, --bin        path to ncnn.bin file" << std::endl;
+    std::cout << " -i, --images     path to calibration images" << std::endl;
     std::cout << " -o, --output     path to output calibration tbale file" << std::endl;
     std::cout << " -m, --mean       value of mean" << std::endl;
     std::cout << " -n, --norm       value of normalize(scale value,defualt is 1)" << std::endl;
     std::cout << " -s, --size       the size of input image(using the resize the original image,default is w=224,h=224)" << std::endl;
+    std::cout << " -c  --swapRB     flag which indicates that swap first and last channels in 3-channel image is necessary" << std::endl;
     std::cout << " -t, --thread     number of threads(defalut is 1)" << std::endl;    
-    std::cout << "example: ./ncnn2table --param squeezenet-fp32.param --bin squeezenet-fp32.bin --images images/ --output squeezenet.table --mean 104,117,123 --norm 1,1,1 --size 227,227 --thread 2" << std::endl;
+    std::cout << "example: ./ncnn2table --param squeezenet-fp32.param --bin squeezenet-fp32.bin --images images/ --output squeezenet.table --mean 104,117,123 --norm 1,1,1 --size 227,227 --swapRB --thread 2" << std::endl;
 }
 
 // string.split('x')
@@ -726,7 +766,8 @@ int main(int argc, char** argv)
         .mean = {104.f, 117.f, 103.f}, 
         .norm = {1.f, 1.f, 1.f}, 
         .weith = 224, 
-        .height =224
+        .height =224,
+        .swapRB = false
     };
 
     int c;
@@ -743,12 +784,13 @@ int main(int argc, char** argv)
             {"mean",    required_argument, 0,  'm' },
             {"norm",    required_argument, 0,  'n' },
             {"size",    required_argument, 0,  's' },
+            {"swapRB",  no_argument,       0,  'c' },
             {"thread",  required_argument, 0,  't' },
             {"help",    no_argument,       0,  'h' },
             {0,         0,                 0,  0 }
         };
 
-        c = getopt_long(argc, argv, "p:b:i:o:m:n:s:t:h", long_options, &option_index);
+        c = getopt_long(argc, argv, "p:b:i:o:m:n:s:ct:h", long_options, &option_index);
         if (c == -1)
             break;
 
@@ -806,6 +848,12 @@ int main(int argc, char** argv)
         }
             break;                        
 
+        case 'c':
+        {
+            printf("swapRB = '%s'\n", "true");
+            pre_param.swapRB = true;
+        }
+            break;
         case 't':
             printf("thread = '%s'\n", optarg);
             num_threads = atoi(optarg);

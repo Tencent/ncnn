@@ -103,17 +103,17 @@ static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& sco
     if (datas.empty() || scores.empty())
         return;
 
-    qsort_descent_inplace(datas, scores, 0, scores.size() - 1);
+    qsort_descent_inplace(datas, scores, 0, static_cast<int>(scores.size() - 1));
 }
 
-static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<size_t>& picked, float nms_threshold)
 {
     picked.clear();
 
-    const int n = bboxes.size();
+    const size_t n = bboxes.size();
 
     std::vector<float> areas(n);
-    for (int i = 0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         const BBoxRect& r = bboxes[i];
 
@@ -123,7 +123,7 @@ static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<i
         areas[i] = width * height;
     }
 
-    for (int i = 0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         const BBoxRect& a = bboxes[i];
 
@@ -185,8 +185,8 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
         float bbox_cx = var[0] * loc[0] * pb_w + pb_cx;
         float bbox_cy = var[1] * loc[1] * pb_h + pb_cy;
-        float bbox_w = exp(var[2] * loc[2]) * pb_w;
-        float bbox_h = exp(var[3] * loc[3]) * pb_h;
+        float bbox_w = static_cast<float>(exp(var[2] * loc[2]) * pb_w);
+        float bbox_h = static_cast<float>(exp(var[3] * loc[3]) * pb_h);
 
         bbox[0] = bbox_cx - bbox_w * 0.5f;
         bbox[1] = bbox_cy - bbox_h * 0.5f;
@@ -235,13 +235,13 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         }
 
         // apply nms
-        std::vector<int> picked;
+        std::vector<size_t> picked;
         nms_sorted_bboxes(class_bbox_rects, picked, nms_threshold);
 
         // select
-        for (int j = 0; j < (int)picked.size(); j++)
+        for (size_t j = 0; j < picked.size(); j++)
         {
-            int z = picked[j];
+            size_t z = picked[j];
             all_class_bbox_rects[i].push_back(class_bbox_rects[z]);
             all_class_bbox_scores[i].push_back(class_bbox_scores[z]);
         }
@@ -271,7 +271,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     }
 
     // fill result
-    int num_detected = bbox_rects.size();
+    int num_detected = static_cast<int>(bbox_rects.size());
     if (num_detected == 0)
         return 0;
 
@@ -286,7 +286,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         float score = bbox_scores[i];
         float* outptr = top_blob.row(i);
 
-        outptr[0] = r.label;
+        outptr[0] = static_cast<float>(r.label);
         outptr[1] = score;
         outptr[2] = r.xmin;
         outptr[3] = r.ymin;

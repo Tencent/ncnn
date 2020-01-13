@@ -38,7 +38,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 {
     Op op;
 
-    int size = a.total();
+    int size = static_cast<int>(a.total());
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i=0; i<size; i++)
@@ -50,88 +50,88 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 }
 
 template<typename T>
-struct unary_op_abs : std::unary_function<T,T> {
-    T operator() (const T& x) const { return fabs(x); }
+struct unary_op_abs {
+    T operator() (const T& x) const { return static_cast<T>(fabs(x)); }
 };
 
 template<typename T>
-struct unary_op_neg : std::unary_function<T,T> {
+struct unary_op_neg {
     T operator() (const T& x) const { return -x; }
 };
 
 template<typename T>
-struct unary_op_floor : std::unary_function<T,T> {
-    T operator() (const T& x) const { return floor(x); }
+struct unary_op_floor {
+    T operator() (const T& x) const { return static_cast<T>(floor(x)); }
 };
 
 template<typename T>
-struct unary_op_ceil : std::unary_function<T,T> {
-    T operator() (const T& x) const { return ceil(x); }
+struct unary_op_ceil {
+    T operator() (const T& x) const { return static_cast<T>(ceil(x)); }
 };
 
 template<typename T>
-struct unary_op_square : std::unary_function<T,T> {
+struct unary_op_square {
     T operator() (const T& x) const { return x * x; }
 };
 
 template<typename T>
-struct unary_op_sqrt : std::unary_function<T,T> {
-    T operator() (const T& x) const { return sqrt(x); }
+struct unary_op_sqrt {
+    T operator() (const T& x) const { return static_cast<T>(sqrt(x)); }
 };
 
 template<typename T>
-struct unary_op_rsqrt : std::unary_function<T,T> {
-    T operator() (const T& x) const { return 1.f / sqrt(x); }
+struct unary_op_rsqrt {
+    T operator() (const T& x) const { return static_cast<T>(1.f / sqrt(x)); }
 };
 
 template<typename T>
-struct unary_op_exp : std::unary_function<T,T> {
-    T operator() (const T& x) const { return exp(x); }
+struct unary_op_exp {
+    T operator() (const T& x) const { return static_cast<T>(exp(x)); }
 };
 
 template<typename T>
-struct unary_op_log : std::unary_function<T,T> {
-    T operator() (const T& x) const { return log(x); }
+struct unary_op_log {
+    T operator() (const T& x) const { return static_cast<T>(log(x)); }
 };
 
 template<typename T>
-struct unary_op_sin : std::unary_function<T,T> {
-    T operator() (const T& x) const { return sin(x); }
+struct unary_op_sin {
+    T operator() (const T& x) const { return static_cast<T>(sin(x)); }
 };
 
 template<typename T>
-struct unary_op_cos : std::unary_function<T,T> {
-    T operator() (const T& x) const { return cos(x); }
+struct unary_op_cos {
+    T operator() (const T& x) const { return static_cast<T>(cos(x)); }
 };
 
 template<typename T>
-struct unary_op_tan : std::unary_function<T,T> {
-    T operator() (const T& x) const { return tan(x); }
+struct unary_op_tan {
+    T operator() (const T& x) const { return static_cast<T>(tan(x)); }
 };
 
 template<typename T>
-struct unary_op_asin : std::unary_function<T,T> {
-    T operator() (const T& x) const { return asin(x); }
+struct unary_op_asin {
+    T operator() (const T& x) const { return static_cast<T>(asin(x)); }
 };
 
 template<typename T>
-struct unary_op_acos : std::unary_function<T,T> {
-    T operator() (const T& x) const { return acos(x); }
+struct unary_op_acos {
+    T operator() (const T& x) const { return static_cast<T>(acos(x)); }
 };
 
 template<typename T>
-struct unary_op_atan : std::unary_function<T,T> {
-    T operator() (const T& x) const { return atan(x); }
+struct unary_op_atan {
+    T operator() (const T& x) const { return static_cast<T>(atan(x)); }
 };
 
 template<typename T>
-struct unary_op_reciprocal : std::unary_function<T,T> {
+struct unary_op_reciprocal {
     T operator() (const T& x) const { return 1.f / x; }
 };
 
 template<typename T>
-struct unary_op_tanh : std::unary_function<T,T> {
-    T operator() (const T& x) const { return tanh(x); }
+struct unary_op_tanh {
+    T operator() (const T& x) const { return static_cast<T>(tanh(x)); }
 };
 
 int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const

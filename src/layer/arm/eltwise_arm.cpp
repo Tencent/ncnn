@@ -22,6 +22,13 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Eltwise_arm)
 
+Eltwise_arm::Eltwise_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
+}
+
 int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
@@ -29,12 +36,217 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
     int size = w * h;
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(w, h, channels, elemsize, opt.blob_allocator);
+    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
+
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+
+    if (elempack == 4)
+    {
+        if (op_type == Operation_PROD)
+        {
+            // first blob
+            const Mat& bottom_blob1 = bottom_blobs[1];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                const float* ptr1 = bottom_blob1.channel(q);
+                float* outptr = top_blob.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _p1 = vld1q_f32(ptr1);
+                    _p = vmulq_f32(_p, _p1);
+                    vst1q_f32(outptr, _p);
+
+                    ptr += 4;
+                    ptr1 += 4;
+                    outptr += 4;
+                }
+            }
+
+            for (size_t b=2; b<bottom_blobs.size(); b++)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const float* ptr = bottom_blob1.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(outptr);
+                        float32x4_t _p1 = vld1q_f32(ptr);
+                        _p = vmulq_f32(_p, _p1);
+                        vst1q_f32(outptr, _p);
+
+                        ptr += 4;
+                        outptr += 4;
+                    }
+                }
+            }
+        }
+        else if (op_type == Operation_SUM)
+        {
+            if (coeffs.w == 0)
+            {
+                // first blob
+                const Mat& bottom_blob1 = bottom_blobs[1];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const float* ptr = bottom_blob.channel(q);
+                    const float* ptr1 = bottom_blob1.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(ptr);
+                        float32x4_t _p1 = vld1q_f32(ptr1);
+                        _p = vaddq_f32(_p, _p1);
+                        vst1q_f32(outptr, _p);
+
+                        ptr += 4;
+                        ptr1 += 4;
+                        outptr += 4;
+                    }
+                }
+
+                for (size_t b=2; b<bottom_blobs.size(); b++)
+                {
+                    const Mat& bottom_blob1 = bottom_blobs[b];
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q=0; q<channels; q++)
+                    {
+                        const float* ptr = bottom_blob1.channel(q);
+                        float* outptr = top_blob.channel(q);
+
+                        for (int i=0; i<size; i++)
+                        {
+                            float32x4_t _p = vld1q_f32(outptr);
+                            float32x4_t _p1 = vld1q_f32(ptr);
+                            _p = vaddq_f32(_p, _p1);
+                            vst1q_f32(outptr, _p);
+
+                            ptr += 4;
+                            outptr += 4;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // first blob
+                const Mat& bottom_blob1 = bottom_blobs[1];
+                float32x4_t _coeff0 = vdupq_n_f32(coeffs[0]);
+                float32x4_t _coeff1 = vdupq_n_f32(coeffs[1]);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const float* ptr = bottom_blob.channel(q);
+                    const float* ptr1 = bottom_blob1.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(ptr);
+                        float32x4_t _p1 = vld1q_f32(ptr1);
+                        _p = vmulq_f32(_p, _coeff0);
+                        _p = vmlaq_f32(_p, _p1, _coeff1);
+                        vst1q_f32(outptr, _p);
+
+                        ptr += 4;
+                        ptr1 += 4;
+                        outptr += 4;
+                    }
+                }
+
+                for (size_t b=2; b<bottom_blobs.size(); b++)
+                {
+                    const Mat& bottom_blob1 = bottom_blobs[b];
+                    float32x4_t _coeff = vdupq_n_f32(coeffs[b]);
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q=0; q<channels; q++)
+                    {
+                        const float* ptr = bottom_blob1.channel(q);
+                        float* outptr = top_blob.channel(q);
+
+                        for (int i=0; i<size; i++)
+                        {
+                            float32x4_t _p = vld1q_f32(outptr);
+                            float32x4_t _p1 = vld1q_f32(ptr);
+                            _p = vmlaq_f32(_p, _p1, _coeff);
+                            vst1q_f32(outptr, _p);
+
+                            ptr += 4;
+                            outptr += 4;
+                        }
+                    }
+                }
+            }
+        }
+        else if (op_type == Operation_MAX)
+        {
+            // first blob
+            const Mat& bottom_blob1 = bottom_blobs[1];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                const float* ptr1 = bottom_blob1.channel(q);
+                float* outptr = top_blob.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _p1 = vld1q_f32(ptr1);
+                    _p = vmaxq_f32(_p, _p1);
+                    vst1q_f32(outptr, _p);
+
+                    ptr += 4;
+                    ptr1 += 4;
+                    outptr += 4;
+                }
+            }
+
+            for (size_t b=2; b<bottom_blobs.size(); b++)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const float* ptr = bottom_blob1.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(outptr);
+                        float32x4_t _p1 = vld1q_f32(ptr);
+                        _p = vmaxq_f32(_p, _p1);
+                        vst1q_f32(outptr, _p);
+
+                        ptr += 4;
+                        outptr += 4;
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    } // opt.use_packing_layout
+#endif // __ARM_NEON
 
     if (op_type == Operation_PROD)
     {
@@ -344,12 +556,10 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         }
         else
         {
-            const float* coeffs_ptr = coeffs;
-
             // first blob
             const Mat& bottom_blob1 = bottom_blobs[1];
-            float coeff0 = coeffs_ptr[0];
-            float coeff1 = coeffs_ptr[1];
+            float coeff0 = coeffs[0];
+            float coeff1 = coeffs[1];
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
@@ -436,7 +646,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             for (size_t b=2; b<bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
-                float coeff = coeffs_ptr[b];
+                float coeff = coeffs[b];
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q=0; q<channels; q++)
                 {

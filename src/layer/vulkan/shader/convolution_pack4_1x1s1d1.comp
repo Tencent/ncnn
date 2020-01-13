@@ -18,7 +18,7 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
 layout (constant_id = 0) const int bias_term = 0;
@@ -43,23 +43,23 @@ layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 layout (push_constant) uniform parameter
 {
     int dims;
-    int size_4;
+    int size;
     int c;
     int cstep;
 
     int outdims;
-    int outsize_4;
+    int outsize;
     int outc;
     int outcstep;
 } p;
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
+    int gx = int(gl_GlobalInvocationID.x) * 4;
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outsize_4 || gy >= 1 || gz >= p.outc)
+    if (gx >= p.outsize || gy >= 1 || gz >= p.outc)
         return;
 
     afpvec4 sum0;
@@ -69,7 +69,7 @@ void main()
 
     if (bias_term == 1)
     {
-        afpvec4 b = sfp2afpvec4(bias_data[gz]);
+        afpvec4 b = buffer_ld4(bias_data, gz);
         sum0 = b;
         sum1 = b;
         sum2 = b;
@@ -84,22 +84,22 @@ void main()
     }
 
     int w_offset = gz * p.c;
-    int v_offset = gx * 4;
+    int v_offset = gx;
 
     for (int z = 0; z < p.c; z++)
     {
-        afpvec4 v0 = sfp2afpvec4(bottom_blob_data[v_offset + 0]);
-        afpvec4 v1 = sfp2afpvec4(bottom_blob_data[v_offset + 1]);
-        afpvec4 v2 = sfp2afpvec4(bottom_blob_data[v_offset + 2]);
-        afpvec4 v3 = sfp2afpvec4(bottom_blob_data[v_offset + 3]);
+        afpvec4 v0 = buffer_ld4(bottom_blob_data, v_offset + 0);
+        afpvec4 v1 = buffer_ld4(bottom_blob_data, v_offset + 1);
+        afpvec4 v2 = buffer_ld4(bottom_blob_data, v_offset + 2);
+        afpvec4 v3 = buffer_ld4(bottom_blob_data, v_offset + 3);
 
 #if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
         // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
         afpmat4 k = afpmat4(
-            sfp2afpvec4(weight_data[w_offset * 4 + 0]),
-            sfp2afpvec4(weight_data[w_offset * 4 + 1]),
-            sfp2afpvec4(weight_data[w_offset * 4 + 2]),
-            sfp2afpvec4(weight_data[w_offset * 4 + 3])
+            buffer_ld4(weight_data, w_offset * 4 + 0),
+            buffer_ld4(weight_data, w_offset * 4 + 1),
+            buffer_ld4(weight_data, w_offset * 4 + 2),
+            buffer_ld4(weight_data, w_offset * 4 + 3)
         );
 #else
         afpmat4 k = sfp2afpmat4(weight_data[w_offset]);
@@ -146,10 +146,10 @@ void main()
         sum3 = afp(1.f) / (afp(1.f) + exp(-sum3));
     }
 
-    int gi = gz * p.outcstep + gx * 4;
+    int gi = gz * p.outcstep + gx;
 
-    top_blob_data[gi + 0] = afp2sfpvec4(sum0);
-    if (gx * 4 + 1 < p.outcstep) top_blob_data[gi + 1] = afp2sfpvec4(sum1);
-    if (gx * 4 + 2 < p.outcstep) top_blob_data[gi + 2] = afp2sfpvec4(sum2);
-    if (gx * 4 + 3 < p.outcstep) top_blob_data[gi + 3] = afp2sfpvec4(sum3);
+    buffer_st4(top_blob_data, gi + 0, sum0);
+    if (gx + 1 < p.outcstep) buffer_st4(top_blob_data, gi + 1, sum1);
+    if (gx + 2 < p.outcstep) buffer_st4(top_blob_data, gi + 2, sum2);
+    if (gx + 3 < p.outcstep) buffer_st4(top_blob_data, gi + 3, sum3);
 }
