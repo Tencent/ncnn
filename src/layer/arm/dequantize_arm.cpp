@@ -286,3 +286,4 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 }
 
 } // namespace ncnn
+

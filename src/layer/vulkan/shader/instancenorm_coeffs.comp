@@ -18,7 +18,7 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
 layout (constant_id = 0) const float eps = 0;
@@ -47,14 +47,14 @@ void main()
     if (gx >= p.w || gy >= 1 || gz >= 1)
         return;
 
-    afp mean = sfp2afp(mean_data[gx]);
-    afp var = sfp2afp(var_data[gx]);
-    afp gamma = sfp2afp(gamma_data[gx]);
-    afp beta = sfp2afp(beta_data[gx]);
+    afp mean = buffer_ld1(mean_data, gx);
+    afp var = buffer_ld1(var_data, gx);
+    afp gamma = buffer_ld1(gamma_data, gx);
+    afp beta = buffer_ld1(beta_data, gx);
 
     afp a = gamma / (sqrt(var + afp(eps)));
     afp b = - mean * a + beta;
 
-    coeffs_blob_data[gx*2] = afp2sfp(a);
-    coeffs_blob_data[gx*2 +1] = afp2sfp(b);
+    buffer_st1(coeffs_blob_data, gx*2, a);
+    buffer_st1(coeffs_blob_data, gx*2 +1, b);
 }

@@ -14,6 +14,7 @@
 
 #include "crop_vulkan.h"
 #include <algorithm>
+#include "layer_type.h"
 
 namespace ncnn {
 
@@ -23,6 +24,8 @@ Crop_vulkan::Crop_vulkan()
 {
     support_vulkan = true;
 
+    packing_pack1 = 0;
+
     pipeline_crop = 0;
     pipeline_crop_pack4 = 0;
     pipeline_crop_pack1to4 = 0;
@@ -31,6 +34,18 @@ Crop_vulkan::Crop_vulkan()
 
 int Crop_vulkan::create_pipeline(const Option& opt)
 {
+    {
+        packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
+        packing_pack1->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+
+        packing_pack1->load_param(pd);
+
+        packing_pack1->create_pipeline(opt);
+    }
+
     std::vector<vk_specialization_type> specializations;
 
     // pack1
@@ -64,8 +79,15 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Crop_vulkan::destroy_pipeline(const Option& /*opt*/)
+int Crop_vulkan::destroy_pipeline(const Option& opt)
 {
+    if (packing_pack1)
+    {
+        packing_pack1->destroy_pipeline(opt);
+        delete packing_pack1;
+        packing_pack1 = 0;
+    }
+
     delete pipeline_crop;
     pipeline_crop = 0;
 
@@ -282,6 +304,16 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     if (dims == 3)
     {
+        // unpacking
+        VkMat bottom_blob_unpacked = bottom_blob;
+        if (elempack == 4 && _coffset % 4 != 0)
+        {
+            Option opt_pack1 = opt;
+            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+            packing_pack1->forward(bottom_blob, bottom_blob_unpacked, cmd, opt_pack1);
+        }
+
         int out_elempack = _outc % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -296,15 +328,15 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             return -100;
 
         std::vector<VkMat> bindings(2);
-        bindings[0] = bottom_blob;
+        bindings[0] = bottom_blob_unpacked;
         bindings[1] = top_blob;
 
         std::vector<vk_constant_type> constants(13);
-        constants[0].i = bottom_blob.dims;
-        constants[1].i = bottom_blob.w;
-        constants[2].i = bottom_blob.h;
-        constants[3].i = bottom_blob.c;
-        constants[4].i = bottom_blob.cstep;
+        constants[0].i = bottom_blob_unpacked.dims;
+        constants[1].i = bottom_blob_unpacked.w;
+        constants[2].i = bottom_blob_unpacked.h;
+        constants[3].i = bottom_blob_unpacked.c;
+        constants[4].i = bottom_blob_unpacked.cstep;
         constants[5].i = top_blob.dims;
         constants[6].i = top_blob.w;
         constants[7].i = top_blob.h;
@@ -319,19 +351,27 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
         {
             pipeline = pipeline_crop;
         }
-        else if (elempack == 4 && out_elempack == 4)
+        else if (elempack == 4 && _coffset % 4 == 0 && out_elempack == 4)
         {
-            constants[12].i = _coffset / 4;// TODO pack4to1to4
+            constants[12].i = _coffset / 4;
 
             pipeline = pipeline_crop_pack4;
+        }
+        else if (elempack == 4 && _coffset % 4 != 0 && out_elempack == 4)
+        {
+            pipeline = pipeline_crop_pack1to4;
         }
         else if (elempack == 1 && out_elempack == 4)
         {
             pipeline = pipeline_crop_pack1to4;
         }
-        else if (elempack == 4 && out_elempack == 1)
+        else if (elempack == 4 && _coffset % 4 == 0 && out_elempack == 1)
         {
             pipeline = pipeline_crop_pack4to1;
+        }
+        else if (elempack == 4 && _coffset % 4 != 0 && out_elempack == 1)
+        {
+            pipeline = pipeline_crop;
         }
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
@@ -455,6 +495,16 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     if (dims == 3)
     {
+        // unpacking
+        VkMat bottom_blob_unpacked = bottom_blob;
+        if (elempack == 4 && _coffset % 4 != 0)
+        {
+            Option opt_pack1 = opt;
+            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+            packing_pack1->forward(bottom_blob, bottom_blob_unpacked, cmd, opt_pack1);
+        }
+
         int out_elempack = _outc % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -471,15 +521,15 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             return -100;
 
         std::vector<VkMat> bindings(2);
-        bindings[0] = bottom_blob;
+        bindings[0] = bottom_blob_unpacked;
         bindings[1] = top_blob;
 
         std::vector<vk_constant_type> constants(13);
-        constants[0].i = bottom_blob.dims;
-        constants[1].i = bottom_blob.w;
-        constants[2].i = bottom_blob.h;
-        constants[3].i = bottom_blob.c;
-        constants[4].i = bottom_blob.cstep;
+        constants[0].i = bottom_blob_unpacked.dims;
+        constants[1].i = bottom_blob_unpacked.w;
+        constants[2].i = bottom_blob_unpacked.h;
+        constants[3].i = bottom_blob_unpacked.c;
+        constants[4].i = bottom_blob_unpacked.cstep;
         constants[5].i = top_blob.dims;
         constants[6].i = top_blob.w;
         constants[7].i = top_blob.h;
@@ -494,19 +544,27 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         {
             pipeline = pipeline_crop;
         }
-        else if (elempack == 4 && out_elempack == 4)
+        else if (elempack == 4 && _coffset % 4 == 0 && out_elempack == 4)
         {
-            constants[12].i = _coffset / 4;// TODO pack4to1to4
+            constants[12].i = _coffset / 4;
 
             pipeline = pipeline_crop_pack4;
+        }
+        else if (elempack == 4 && _coffset % 4 != 0 && out_elempack == 4)
+        {
+            pipeline = pipeline_crop_pack1to4;
         }
         else if (elempack == 1 && out_elempack == 4)
         {
             pipeline = pipeline_crop_pack1to4;
         }
-        else if (elempack == 4 && out_elempack == 1)
+        else if (elempack == 4 && _coffset % 4 == 0 && out_elempack == 1)
         {
             pipeline = pipeline_crop_pack4to1;
+        }
+        else if (elempack == 4 && _coffset % 4 != 0 && out_elempack == 1)
+        {
+            pipeline = pipeline_crop;
         }
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);

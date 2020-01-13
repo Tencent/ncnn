@@ -18,7 +18,7 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
 layout (local_size_x_id = 233) in;
@@ -97,7 +97,7 @@ void main()
         coeffs.r = afp(0.f);
     }
 
-    alpha_blob_data[gx] = afp2sfpvec4(coeffs);
+    buffer_st4(alpha_blob_data, gx, coeffs);
 
     xofs_blob_data[gx] = sx;
 }
