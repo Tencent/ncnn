@@ -32,6 +32,7 @@
 #include "mips_common.h"
 
 _MIPS_FLOAT_CONST(c_1  , 1.0f);
+_MIPS_FLOAT_CONST(c_n1 , -1.0f);
 _MIPS_FLOAT_CONST(c_0p5, 0.5f);
 
 _MIPS_FLOAT_CONST(c_exp_hi, 88.3762626647949f);
@@ -106,6 +107,72 @@ static inline v4f32 exp_ps(v4f32 x)
     mm = __msa_sll_w(mm, __msa_fill_w(23));
 
     y = __msa_fmul_w(y, (v4f32)mm);
+    return y;
+}
+
+
+_MIPS_FLOAT_CONST(c_cephes_HALFMAXLOGF, 44.014845935754205f);
+_MIPS_FLOAT_CONST(c_cephes_tanh_C1, 0.625f);
+
+_MIPS_FLOAT_CONST(c_cephes_tanh_p0, -5.70498872745E-3);
+_MIPS_FLOAT_CONST(c_cephes_tanh_p1, +2.06390887954E-2);
+_MIPS_FLOAT_CONST(c_cephes_tanh_p2, -5.37397155531E-2);
+_MIPS_FLOAT_CONST(c_cephes_tanh_p3, +1.33314422036E-1);
+_MIPS_FLOAT_CONST(c_cephes_tanh_p4, -3.33332819422E-1);
+
+/* tanh() computed for 4 float at once */
+static inline v4f32 tanh_ps(v4f32 x)
+{
+    v4f32 x2 = (v4f32)__msa_bclri_w((v4u32)x, 31);
+
+    v4i32_w mask_l = __msa_fsle_w((v4f32)__msa_fill_w(c_cephes_tanh_C1.i), x2);
+    v4i32_w mask_l2 = __msa_fslt_w((v4f32)__msa_fill_w(c_cephes_HALFMAXLOGF.i), x2);
+
+    // abs(x) >= 0.625
+    // tanh(x) = (exp(2x) - 1) / (exp(2x) + 1)
+    v4f32 _one = (v4f32)__msa_fill_w(c_1.i);
+    v4f32 exp_x_x = exp_ps(__msa_fadd_w(x, x));
+    v4f32 y0 = __msa_fdiv_w(__msa_fsub_w(exp_x_x, _one), __msa_fadd_w(exp_x_x, _one));
+
+    // abs(x) < 0.625
+    /*
+        z = x2 * x2;
+        z =
+        (((( -5.70498872745E-3 * z
+        + 2.06390887954E-2) * z
+        - 5.37397155531E-2) * z
+        + 1.33314422036E-1) * z
+        - 3.33332819422E-1) * z * x
+        + x;
+    */
+    v4f32 y = (v4f32)__msa_fill_w(c_cephes_tanh_p0.i);
+    v4f32 c1 = (v4f32)__msa_fill_w(c_cephes_tanh_p1.i);
+    v4f32 c2 = (v4f32)__msa_fill_w(c_cephes_tanh_p2.i);
+    v4f32 c3 = (v4f32)__msa_fill_w(c_cephes_tanh_p3.i);
+    v4f32 c4 = (v4f32)__msa_fill_w(c_cephes_tanh_p4.i);
+
+    v4f32 z = __msa_fmul_w(x, x);
+
+    y = __msa_fmul_w(y, z);
+    y = __msa_fadd_w(y, c1);
+    y = __msa_fmul_w(y, z);
+    y = __msa_fadd_w(y, c2);
+    y = __msa_fmul_w(y, z);
+    y = __msa_fadd_w(y, c3);
+    y = __msa_fmul_w(y, z);
+    y = __msa_fadd_w(y, c4);
+
+    y = __msa_fmul_w(y, z);
+    y = __msa_fmul_w(y, x);
+    y = __msa_fadd_w(y, x);
+
+    // abs(x) > HALFMAXLOGF
+    // return 1.0 or -1.0
+    v4i32_w mask_pos = __msa_fslt_w((v4f32)__msa_fill_w(0), x2);
+    v4f32 y1 = (v4f32)__msa_bsel_v((v16u8)mask_pos, (v16u8)__msa_fill_w(c_1.i), (v16u8)__msa_fill_w(c_n1.i));
+
+    y = (v4f32)__msa_bsel_v((v16u8)mask_l, (v16u8)y0, (v16u8)y);
+    y = (v4f32)__msa_bsel_v((v16u8)mask_l2, (v16u8)y1, (v16u8)y);
     return y;
 }
 
