@@ -175,7 +175,6 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
 
 static int test_convolution_1()
 {
-      //ker  dilation  stride pad
     static const int kdsp[24][4] = {
         {1, 1, 1, 0},
         {1, 1, 2, 0},

@@ -1141,6 +1141,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_tm, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
         }
 
+        // requantize, reverse scale inplace
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<num_output; p++)
         {
@@ -1158,7 +1159,6 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                 scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
 
             float scale_out = top_blob_int8_scale;//FIXME load param
-            // fprintf(stdout, "scale_in: %f, scale_out: %f, bias: %f\n", scale_in, scale_out, bias_data[p]);
 
             requantize_int8_to_int8(top_blob_tm_g, top_blob_g, scale_in, scale_out, &bias_data[p], bias_term ? 1 : 0, 0, opt_g);
         }

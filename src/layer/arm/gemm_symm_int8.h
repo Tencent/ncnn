@@ -38,7 +38,7 @@
     int n1 = n;\
     n = ntmp;
 
-#define PRINT_MATRIX 1 
+#define PRINT_MATRIX 0 
 
 #if PRINT_MATRIX
 static void print_int8_matrix(char* name, const int8_t *a, int m, int k, int ldx) {
@@ -69,7 +69,6 @@ static void print_fp32_vec(char* name, const float *a, int len) {
     fprintf(stdout, "\n\n");
 }
 #endif
-#undef PRINT_MATRIX
 
 static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, const int ldx) {
 #if PRINT_MATRIX
@@ -2712,4 +2711,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
     return;
 }
 
+#ifdef PRINT_MATRIX
+#undef PRINT_MATRIX
+#endif
 #endif

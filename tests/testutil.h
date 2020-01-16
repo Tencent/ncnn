@@ -139,7 +139,7 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
                 {
                     if (!NearlyEqual(pa[k], pb[k], epsilon))
                     {
-                        std::cerr << "value not match  at " << q << " " << i << " " << j << " " << k << " expect " << (int32_t)(pa[k]) << " but got " << (int32_t)(pb[k]) << std::endl; 
+                        std::cerr << "value not match  at c:" << q << " h:" << i << " w:" << j << " elempack" << k << " expect " << (pa[k]) << " but got " << (pb[k]) << std::endl; 
                         return -1;
                     }
                 }
