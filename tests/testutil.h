@@ -156,7 +156,7 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
 {
     CHECK_MEMBER(elemsize)
 
-    if (4 == a.elemsize)
+    if (4 == a.elemsize || 16 == a.elemsize)
     {
         return Compare<float>(a, b, epsilon);
     }
@@ -164,7 +164,8 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
     {
         return Compare<int8_t>(a, b, epsilon);
     }
-    return -1;
+
+    return -2;
 }
 #undef CHECK_MEMBER
 

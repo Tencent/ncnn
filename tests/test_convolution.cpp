@@ -114,6 +114,13 @@ static int test_convolution_0()
     return 0;
 }
 
+void set_param(ncnn::Layer* layer)
+{
+    ((ncnn::Convolution*)layer)->use_int8_requantize = true;
+    ((ncnn::Convolution*)layer)->top_blob_int8_scale = 64.f;
+    return;
+}
+
 static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false)
 {
     ncnn::Mat a = RandomMat(w, h, c);
@@ -157,11 +164,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     std::function<void(ncnn::Layer*)> enable_requant = nullptr;
     if (requant)
     {
-        enable_requant = [](ncnn::Layer* layer) {
-            ((ncnn::Convolution*)layer)->use_int8_requantize = true;
-            ((ncnn::Convolution*)layer)->top_blob_int8_scale = 64.f;
-            return;
-        };
+        enable_requant = &set_param;
     }
 
     int ret = test_layer<ncnn::Convolution>("Convolution", pd, mb, opt, a, 0.001f, enable_requant);
