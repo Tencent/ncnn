@@ -62,7 +62,6 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 { 
     int dims = bottom_blob.dims;
 
-    fprintf(stdout, "dims: %d\n", dims);
     if (dims == 1)
     {
         int w = bottom_blob.w;
@@ -166,7 +165,6 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
                 for (int i=0; i<size; i++)
                 {
-                    fprintf(stdout, "baseline requantize: %d %f %f %f\n", (int32_t)(intptr[i]), scale_in, bias, scale_out);
                     ptr[i] = float2int8(((intptr[i] * scale_in) + bias) * scale_out);
                     if (fusion_relu && ptr[i] < 0)
                         ptr[i] = 0;
@@ -183,7 +181,6 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
                 for (int i=0; i<size; i++)
                 {
-                    fprintf(stdout, "baseline requantize: %d %f %f\n", (int32_t)(intptr[i]), scale_in, scale_out);
                     ptr[i] = float2int8(intptr[i] * scale_in * scale_out);
                     if (fusion_relu && ptr[i] < 0)
                         ptr[i] = 0;

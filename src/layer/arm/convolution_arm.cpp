@@ -1095,7 +1095,6 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     // int8
     if (use_int8_requantize == true)
     {
-        fprintf(stdout, "enable use_int8_requantize\n");
         Mat top_blob_tm;
         top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
         if (top_blob_tm.empty())
@@ -1103,7 +1102,6 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         
         if (use_sgemm1x1_int8)
         {
-            fprintf(stdout, "enable use_sgemm1x1_int8\n");
             std::vector<float> requantize_scales;
             for (int p=0; p<num_output; p++)
             {
@@ -1140,18 +1138,10 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         else
         {
             
-            fprintf(stdout, "enable use_im2col_sgemm_int8\n");
             conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_tm, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
         }
 
-        // fprintf(stdout, "top_blob_tm:\n");
-        // for (int i = 0; i < 4; ++i) {
-        //     const int* ptr = top_blob_tm.channel(i);
-        //     fprintf(stdout, "%d ", *ptr);
-        // }
-        // fprintf(stdout, "\n");
-        // requantize, reverse scale inplace
-        // #pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<num_output; p++)
         {
             Option opt_g = opt;
