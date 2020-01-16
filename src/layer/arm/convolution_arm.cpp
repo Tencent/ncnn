@@ -1144,6 +1144,12 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_tm, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
         }
 
+        // fprintf(stdout, "top_blob_tm:\n");
+        // for (int i = 0; i < 4; ++i) {
+        //     const int* ptr = top_blob_tm.channel(i);
+        //     fprintf(stdout, "%d ", *ptr);
+        // }
+        // fprintf(stdout, "\n");
         // requantize, reverse scale inplace
         // #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<num_output; p++)
@@ -1153,8 +1159,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             opt_g.blob_allocator = top_blob.allocator;
 
             Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
-            Mat top_blob_g = top_blob.channel_range(p, 1);
-
+            Mat top_blob_g    = top_blob.channel_range(p, 1);
             // requantize and relu
             float scale_in;
             if (weight_data_int8_scales[p] == 0)
@@ -1163,9 +1168,9 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                 scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
 
             float scale_out = top_blob_int8_scale;//FIXME load param
-            fprintf(stdout, "scale_in: %f, scale_out: %f, bias: %f\n", scale_in, scale_out, bias_data[p]);
+            // fprintf(stdout, "scale_in: %f, scale_out: %f, bias: %f\n", scale_in, scale_out, bias_data[p]);
 
-            requantize_int8_to_int8(top_blob_tm, top_blob, scale_in, scale_out, &bias_data[p], bias_term ? 1 : 0, 0, opt_g);
+            requantize_int8_to_int8(top_blob_tm_g, top_blob_g, scale_in, scale_out, &bias_data[p], bias_term ? 1 : 0, 0, opt_g);
         }
     }
     else

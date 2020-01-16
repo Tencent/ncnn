@@ -72,7 +72,7 @@ static void print_fp32_vec(char* name, const float *a, int len) {
 #undef PRINT_MATRIX
 
 static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, const int ldx) {
-    print_int8_matrix("b", b, k, n, ldx);
+    // print_int8_matrix("b", b, k, n, ldx);
     int8_t *origin = sb;
     int i = 0;
     for (; i+3 < n; i += 4) {
@@ -332,11 +332,11 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p0 += ldx;
         }
     }
-    print_int8_matrix("sb", origin, k, n, n);
+    // print_int8_matrix("sb", origin, k, n, n);
 }
 
 static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) {
-    print_int8_matrix("a", a, m, k, ldx);
+    // print_int8_matrix("a", a, m, k, ldx);
     int8_t *origin = sa;
     int i = 0;
     for (; i + 3 < m; i += 4) {
@@ -498,7 +498,7 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) 
     if (i < m) {
         memcpy(sa, a, sizeof(int8_t) * ldx);
     }
-    print_int8_matrix("sa", origin, m, k, k);
+    // print_int8_matrix("sa", origin, m, k, k);
 }
 
 void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, float* scales, float* bias) {
@@ -2659,7 +2659,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
             default:
                 break;
         }
-        print_int32_matrix("pc", origin, m, n, ldc);
+        // print_int32_matrix("pc", origin, m, n, ldc);
     } else {
         int8_t* pc = (int8_t*)dst;
         int8_t* origin = pc;

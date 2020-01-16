@@ -441,7 +441,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                     signed char sums8 = float2int8(sumfp32 * scale_out);
 
-                    fprintf(stdout, "scalein %f sum %d scaleout %f  sums8 %d\n", scale_in, (int32_t)(sum), scale_out, (int32_t)(sums8));
+                    fprintf(stdout, "baseline scalein %f sum %d bias %f scaleout %f  sums8 %d\n", scale_in, (int32_t)(sum), bias_data[p], scale_out, (int32_t)(sums8));
 
                     if (activation_type == 1)
                     {

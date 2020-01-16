@@ -128,6 +128,7 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         int size = w * h;
 
         double scale_fuse = scale_in * scale_out;
+        // fprintf(stdout, "int requant remain %d channels %d\n", size, channels);
 
         if (bias_term)
         {
@@ -144,7 +145,7 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 {
                     *ptr = float2int8(((*intptr * scale_in) + bias) * scale_out);
 
-                    fprintf(stdout, "in requantize: %d %f %f %f result: %d\n", (int32_t)(*intptr), scale_in, bias, scale_out, (int32_t)(*ptr));
+                    fprintf(stdout, "arm requantize: %d %f %f %f result: %d\n", (int32_t)(*intptr), scale_in, bias, scale_out, (int32_t)(*ptr));
                     intptr++;
                     ptr ++;                     
                 }

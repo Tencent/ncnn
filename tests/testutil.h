@@ -125,12 +125,12 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
     CHECK_MEMBER(elemsize)
     CHECK_MEMBER(elempack)
 
-    const int8_t* ptr = (int8_t*)a.data;
-    const int8_t* ptr1 = (int8_t*)b.data;
-    for (int x = 0; x < 64; ++x) {
-        fprintf(stdout, "%d-%d ", (int32_t)(ptr[x]), (int32_t)(ptr1[x]));
-    }
-    fprintf(stdout, "\n");
+   //  const int8_t* ptr = (int8_t*)a.data;
+   //  const int8_t* ptr1 = (int8_t*)b.data;
+   //  for (int x = 0; x < 64; ++x) {
+   //      fprintf(stdout, "%d-%d ", (int32_t)(ptr[x]), (int32_t)(ptr1[x]));
+   //  }
+   //  fprintf(stdout, "\n");
 
     for (int q=0; q<a.c; q++)
     {
