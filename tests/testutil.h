@@ -19,7 +19,6 @@
 #include <stdio.h>
 
 #include <algorithm>
-#include <functional>
 #include <iostream>
 
 #include "prng.h"
@@ -41,6 +40,7 @@ public:
 GlobalGpuInstance g_global_gpu_instance;
 #endif // NCNN_VULKAN
 
+typedef void (*prehook_func)(ncnn::Layer*);
 static struct prng_rand_t g_prng_rand_state;
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
 #define RAND() prng_rand(&g_prng_rand_state)
@@ -122,7 +122,6 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
     CHECK_MEMBER(w)
     CHECK_MEMBER(h)
     CHECK_MEMBER(c)
-    CHECK_MEMBER(elemsize)
     CHECK_MEMBER(elempack)
 
     for (int q=0; q<a.c; q++)
@@ -156,7 +155,7 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
 {
     CHECK_MEMBER(elemsize)
 
-    if (4 == a.elemsize || 16 == a.elemsize)
+    if (a.elemsize / a.elempack == 4)
     {
         return Compare<float>(a, b, epsilon);
     }
@@ -187,13 +186,13 @@ static int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::M
 }
 
 template <typename T>
-int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, float epsilon, std::function<void(ncnn::Layer*)> prehook = nullptr)
+int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, float epsilon, prehook_func func = nullptr)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
-    if (prehook)
+    if (func)
     {
-        prehook(op);
+        (*func)(op);
     }
 
     ncnn::Option opt = _opt;
@@ -388,14 +387,14 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 }
 
 template <typename T>
-int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& _opt, const ncnn::Mat& a, float epsilon, std::function<void(ncnn::Layer*)> prehook = nullptr)
+int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& _opt, const ncnn::Mat& a, float epsilon, prehook_func func = nullptr)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
     ncnn::Option opt = _opt;
 
-    if (prehook)
+    if (func)
     {
-        prehook(op);
+        (*func)(op);
     }
 
     if (!op->support_packing) opt.use_packing_layout = false;
@@ -556,15 +555,15 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 }
 
 template <typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, std::function<void(ncnn::Layer*)> prehook = nullptr)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, prehook_func func_ptr = nullptr)
 {
-    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, top_blob_count, epsilon, prehook);
+    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, top_blob_count, epsilon, func_ptr);
 }
 
 template <typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const ncnn::Mat& a, float epsilon = 0.001, std::function<void(ncnn::Layer*)> prehook = nullptr)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const ncnn::ModelBin& mb, const ncnn::Option& opt, const ncnn::Mat& a, float epsilon = 0.001, prehook_func func_ptr = nullptr)
 {
-    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, epsilon, prehook);
+    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, mb, opt, a, epsilon, func_ptr);
 }
 
 #endif // TESTUTIL_H

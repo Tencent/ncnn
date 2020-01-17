@@ -1137,7 +1137,6 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         }
         else
         {
-            
             conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_tm, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
         }
 
@@ -1151,6 +1150,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 
             Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
             Mat top_blob_g    = top_blob.channel_range(p, 1);
+
             // requantize and relu
             float scale_in;
             if (weight_data_int8_scales[p] == 0)

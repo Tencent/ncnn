@@ -38,7 +38,7 @@
     int n1 = n;\
     n = ntmp;
 
-#define PRINT_MATRIX 0 
+#define PRINT_MATRIX 0
 
 #if PRINT_MATRIX
 static void print_int8_matrix(char* name, const int8_t *a, int m, int k, int ldx) {
@@ -2670,7 +2670,6 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
 #endif
     } else {
         int8_t* pc = (int8_t*)dst;
-        int8_t* origin = pc;
 
 #if PRINT_MATRIX
         print_fp32_vec("scales", scales, m);
@@ -2706,7 +2705,6 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
             default:
                 break;
         }
-
     }
     return;
 }

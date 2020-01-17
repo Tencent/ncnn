@@ -161,13 +161,13 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = false;
 
-    std::function<void(ncnn::Layer*)> enable_requant = nullptr;
+    prehook_func func_ptr = nullptr;
     if (requant)
     {
-        enable_requant = &set_param;
+        func_ptr = &set_param;
     }
 
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, mb, opt, a, 0.001f, enable_requant);
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, mb, opt, a, 0.001f, func_ptr);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias);
