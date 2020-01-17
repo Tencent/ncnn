@@ -1149,7 +1149,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             opt_g.blob_allocator = top_blob.allocator;
 
             Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
-            Mat top_blob_g    = top_blob.channel_range(p, 1);
+            Mat top_blob_g = top_blob.channel_range(p, 1);
 
             // requantize and relu
             float scale_in;
