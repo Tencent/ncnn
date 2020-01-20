@@ -60,10 +60,21 @@ static void print_int32_matrix(char* name, const int32_t *a, int m, int k, int l
         fprintf(stdout, "\n\n");
     }
 }
+
+static void print_fp32_vec(char* name, const float *a, int len) {
+    fprintf(stdout, "------------- %s \n", name);
+    for (int i = 0; i < len; ++i) {
+        fprintf(stdout, "%f \t", a[i]);
+    }
+    fprintf(stdout, "\n\n");
+}
 #endif
-#undef PRINT_MATRIX
 
 static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, const int ldx) {
+#if PRINT_MATRIX
+    print_int8_matrix("b", b, k, n, ldx);
+    int8_t *origin = sb;
+#endif
     int i = 0;
     for (; i+3 < n; i += 4) {
         const int8_t *p0 = b + i;
@@ -322,9 +333,16 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p0 += ldx;
         }
     }
+#if PRINT_MATRIX
+    print_int8_matrix("sb", origin, k, n, n);
+#endif
 }
 
 static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) {
+#if PRINT_MATRIX
+    print_int8_matrix("a", a, m, k, ldx);
+#endif
+    int8_t *origin = sa;
     int i = 0;
     for (; i + 3 < m; i += 4) {
         int8_t *p0 = a;
@@ -485,6 +503,9 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) 
     if (i < m) {
         memcpy(sa, a, sizeof(int8_t) * ldx);
     }
+#if PRINT_MATRIX
+    print_int8_matrix("sa", origin, m, k, k);
+#endif
 }
 
 void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, float* scales, float* bias) {
@@ -495,7 +516,6 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
     DECOMPOSE_K
     DECOMPOSE_N
 
-    // int8_t* pTmp = (int8_t*)fastMalloc(16);
     if (n4 > 0) {
         asm volatile(
         "9:                               \n"
@@ -2617,6 +2637,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
     const int nn = (m >> 2) << 2;
     if (scales == nullptr) {
         int32_t* pc = (int32_t*)dst;
+        int32_t* origin = pc;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i += 4) {
@@ -2644,9 +2665,15 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
             default:
                 break;
         }
+#if PRINT_MATRIX
+        print_int32_matrix("pc", origin, m, n, ldc);
+#endif
     } else {
         int8_t* pc = (int8_t*)dst;
 
+#if PRINT_MATRIX
+        print_fp32_vec("scales", scales, m);
+#endif
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i += 4) {
             int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, scales + i, (bias==nullptr)? nullptr: bias+i);
@@ -2682,4 +2709,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
     return;
 }
 
+#ifdef PRINT_MATRIX
+#undef PRINT_MATRIX
+#endif
 #endif
