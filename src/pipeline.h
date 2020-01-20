@@ -30,7 +30,7 @@ class Pipeline
 {
 public:
     Pipeline(const VulkanDevice* vkdev);
-    ~Pipeline();
+    virtual ~Pipeline();
 
 public:
     void set_optimal_local_size_xyz(int w = 32, int h = 32, int c = 32);
