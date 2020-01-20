@@ -15,6 +15,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_DEPRECATE
+#endif
+
 #include <cstdio>
 #include <cstring>
 #include <vector>
@@ -542,12 +546,7 @@ static int post_training_quantize(const std::vector<std::string>& image_list, co
         return -1;
     }
 
-#ifdef _WIN32
-    FILE *fp;
-    fopen_s(&fp, table_path.c_str(), "w");
-#else
     FILE *fp = fopen(table_path.c_str(), "w");
-#endif
 
     // save quantization scale of weight 
     printf("====> Quantize the parameters.\n");
