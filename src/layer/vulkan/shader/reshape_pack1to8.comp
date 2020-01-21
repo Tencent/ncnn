@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -16,6 +16,7 @@
 
 #if NCNN_fp16_storage
 #extension GL_EXT_shader_16bit_storage: require
+struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #endif
 #if NCNN_fp16_arithmetic
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
@@ -27,8 +28,8 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -51,44 +52,41 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    ivec3 gxyz = ivec3(gx, gy, gz);
-
-    gxyz[p.dims - 1] *= 4;
-
-    int i4_0 = gxyz.z * p.h * p.w + gxyz.y * p.w + gxyz.x;
-
-    ivec3 gxyz4 = ivec3(1, p.w, p.h * p.w);
-
-    ivec4 i4 = i4_0 + ivec4(0, 1, 2, 3) * gxyz4[p.dims - 1];
-
-    ivec4 v_offset;
+    ivec4 i4;
+    ivec4 ii4;
 
     if (ndim == 1)
     {
-        v_offset = i4;
+        i4 = gx * 8 + ivec4(0, 1, 2, 3);
+        ii4 = i4 + 4;
     }
     if (ndim == 2)
     {
-        ivec4 y4 = i4 / p.outw;
-        ivec4 x4 = i4 % p.outw;
-
-        v_offset = y4 * p.outw + x4;
+        i4 = (gy * 8) * p.outw + gx + ivec4(0, 1, 2, 3) * p.outw;
+        ii4 = i4 + 4 * p.outw;
     }
     if (ndim == 3)
     {
-        int size = p.outw * p.outh;
-
-        ivec4 z4 = i4 / size;
-        ivec4 y4 = i4 % size / p.outw;
-        ivec4 x4 = i4 % size % p.outw;
-
-        v_offset = z4 * p.outcstep + y4 * p.outw + x4;
+        i4 = (gz * 8) * p.outh * p.outw + gy * p.outw + gx + ivec4(0, 1, 2, 3) * p.outh * p.outw;
+        ii4 = i4 + 4 * p.outh * p.outw;
     }
 
-    int gi = gz * p.cstep + gy * p.w + gx;
+    int size = p.w * p.h;
 
-    buffer_cp4to1(top_blob_data, v_offset, bottom_blob_data, gi);
+    ivec4 z4 = i4 / size;
+    ivec4 y4 = i4 % size / p.w;
+    ivec4 x4 = i4 % size % p.w;
+    ivec4 zz4 = ii4 / size;
+    ivec4 yy4 = ii4 % size / p.w;
+    ivec4 xx4 = ii4 % size % p.w;
+
+    ivec4 v_offset = z4 * p.cstep + y4 * p.w + x4;
+    ivec4 vv_offset = zz4 * p.cstep + yy4 * p.w + xx4;
+
+    int gi = gz * p.outcstep + gy * p.outw + gx;
+
+    buffer_cp1to8(top_blob_data, gi, bottom_blob_data, v_offset, vv_offset);
 }

@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -16,6 +16,7 @@
 
 #if NCNN_fp16_storage
 #extension GL_EXT_shader_16bit_storage: require
+struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #endif
 #if NCNN_fp16_arithmetic
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
@@ -78,7 +79,7 @@ void main()
         ivec4 y4 = i4 / p.w;
         ivec4 x4 = i4 % p.w;
 
-        v_offset = ((y4 / 4) * p.w + x4) * 2 + (y4 % 4) / 2;
+        v_offset = ((y4 / 8) * p.w + x4) * 4 + (y4 % 8) / 2;
         lane2 = y4 % 2;
     }
     else // if (p.dims == 3)
@@ -89,7 +90,7 @@ void main()
         ivec4 y4 = i4 % size / p.w;
         ivec4 x4 = i4 % size % p.w;
 
-        v_offset = ((z4 / 4) * p.cstep + y4 * p.w + x4) * 2 + (z4 % 4) / 2;
+        v_offset = ((z4 / 8) * p.cstep + y4 * p.w + x4) * 4 + (z4 % 8) / 2;
         lane2 = z4 % 2;
     }
 
@@ -119,7 +120,7 @@ void main()
         ivec4 y4 = i4 / p.w;
         ivec4 x4 = i4 % p.w;
 
-        v_offset = ((y4 / 4) * p.w + x4) * 4 + y4 % 4;
+        v_offset = ((y4 / 8) * p.w + x4) * 8 + y4 % 8;
     }
     else // if (p.dims == 3)
     {
@@ -129,7 +130,7 @@ void main()
         ivec4 y4 = i4 % size / p.w;
         ivec4 x4 = i4 % size % p.w;
 
-        v_offset = ((z4 / 4) * p.cstep + y4 * p.w + x4) * 4 + z4 % 4;
+        v_offset = ((z4 / 8) * p.cstep + y4 * p.w + x4) * 8 + z4 % 8;
     }
 
     int gi;
