@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -16,6 +16,7 @@
 
 #if NCNN_fp16_storage
 #extension GL_EXT_shader_16bit_storage: require
+struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #endif
 #if NCNN_fp16_arithmetic
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
@@ -28,8 +29,8 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
-layout (binding = 1) writeonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
+layout (binding = 0) readonly buffer square_blob { mat2x4 square_blob_data[]; };
+layout (binding = 1) writeonly buffer sqsum_blob { mat2x4 sqsum_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -65,18 +66,18 @@ void main()
         {
             if (sx == p.size - 1)
             {
-                vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.r));
+                mat2x4 v0 = square_blob_data[v_offset0.r];
 
-                vec4 sqsum = v0 * v0;
+                mat2x4 sqsum = v0;
 
                 sqsum_blob_data[gi] = sqsum;
             }
             else
             {
-                vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.r));
-                vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.g));
+                mat2x4 v0 = square_blob_data[v_offset0.r];
+                mat2x4 v1 = square_blob_data[v_offset0.g];
 
-                vec4 sqsum = v0 * v0 + v1 * v1;
+                mat2x4 sqsum = v0 + v1;
 
                 sqsum_blob_data[gi] = sqsum;
             }
@@ -85,21 +86,21 @@ void main()
         {
             if (sx == p.size - 1)
             {
-                vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.r));
-                vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset1.r));
+                mat2x4 v0 = square_blob_data[v_offset0.r];
+                mat2x4 v2 = square_blob_data[v_offset1.r];
 
-                vec4 sqsum = v0 * v0 + v2 * v2;
+                mat2x4 sqsum = v0 + v2;
 
                 sqsum_blob_data[gi] = sqsum;
             }
             else
             {
-                vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.r));
-                vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.g));
-                vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset1.r));
-                vec4 v3 = vec4(buffer_ld4(bottom_top_blob_data, v_offset1.g));
+                mat2x4 v0 = square_blob_data[v_offset0.r];
+                mat2x4 v1 = square_blob_data[v_offset0.g];
+                mat2x4 v2 = square_blob_data[v_offset1.r];
+                mat2x4 v3 = square_blob_data[v_offset1.g];
 
-                vec4 sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
+                mat2x4 sqsum = v0 + v1 + v2 + v3;
 
                 sqsum_blob_data[gi] = sqsum;
             }
@@ -115,39 +116,39 @@ void main()
 
         if (sx == p.size - 1)
         {
-            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
+            mat2x4 v0 = square_blob_data[v_offset.r];
 
-            vec4 sqsum = v0 * v0;
+            mat2x4 sqsum = v0;
 
             sqsum_blob_data[gi] = sqsum;
         }
         else if (sx == p.size - 2)
         {
-            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
-            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
+            mat2x4 v0 = square_blob_data[v_offset.r];
+            mat2x4 v1 = square_blob_data[v_offset.g];
 
-            vec4 sqsum = v0 * v0 + v1 * v1;
+            mat2x4 sqsum = v0 + v1;
 
             sqsum_blob_data[gi] = sqsum;
         }
         else if (sx == p.size - 3)
         {
-            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
-            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
-            vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.b));
+            mat2x4 v0 = square_blob_data[v_offset.r];
+            mat2x4 v1 = square_blob_data[v_offset.g];
+            mat2x4 v2 = square_blob_data[v_offset.b];
 
-            vec4 sqsum = v0 * v0 + v1 * v1 + v2 * v2;
+            mat2x4 sqsum = v0 + v1 + v2;
 
             sqsum_blob_data[gi] = sqsum;
         }
         else
         {
-            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
-            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
-            vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.b));
-            vec4 v3 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.a));
+            mat2x4 v0 = square_blob_data[v_offset.r];
+            mat2x4 v1 = square_blob_data[v_offset.g];
+            mat2x4 v2 = square_blob_data[v_offset.b];
+            mat2x4 v3 = square_blob_data[v_offset.a];
 
-            vec4 sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
+            mat2x4 sqsum = v0 + v1 + v2 + v3;
 
             sqsum_blob_data[gi] = sqsum;
         }
@@ -162,39 +163,39 @@ void main()
 
         if (sz == p.c - 1)
         {
-            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
+            mat2x4 v0 = square_blob_data[v_offset.r];
 
-            vec4 sqsum = v0 * v0;
+            mat2x4 sqsum = v0;
 
             sqsum_blob_data[gi] = sqsum;
         }
         else if (sz == p.c - 2)
         {
-            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
-            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
+            mat2x4 v0 = square_blob_data[v_offset.r];
+            mat2x4 v1 = square_blob_data[v_offset.g];
 
-            vec4 sqsum = v0 * v0 + v1 * v1;
+            mat2x4 sqsum = v0 + v1;
 
             sqsum_blob_data[gi] = sqsum;
         }
         else if (sz == p.c - 3)
         {
-            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
-            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
-            vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.b));
+            mat2x4 v0 = square_blob_data[v_offset.r];
+            mat2x4 v1 = square_blob_data[v_offset.g];
+            mat2x4 v2 = square_blob_data[v_offset.b];
 
-            vec4 sqsum = v0 * v0 + v1 * v1 + v2 * v2;
+            mat2x4 sqsum = v0 + v1 + v2;
 
             sqsum_blob_data[gi] = sqsum;
         }
         else
         {
-            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
-            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
-            vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.b));
-            vec4 v3 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.a));
+            mat2x4 v0 = square_blob_data[v_offset.r];
+            mat2x4 v1 = square_blob_data[v_offset.g];
+            mat2x4 v2 = square_blob_data[v_offset.b];
+            mat2x4 v3 = square_blob_data[v_offset.a];
 
-            vec4 sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
+            mat2x4 sqsum = v0 + v1 + v2 + v3;
 
             sqsum_blob_data[gi] = sqsum;
         }
