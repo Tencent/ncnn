@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -16,6 +16,7 @@
 
 #if NCNN_fp16_storage
 #extension GL_EXT_shader_16bit_storage: require
+struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #endif
 #if NCNN_fp16_arithmetic
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
@@ -30,7 +31,7 @@ layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; }
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 #endif
-layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -57,18 +58,27 @@ void main()
         return;
 
 #if NCNN_fp16_packed
-    ivec4 i4 = gx * 4 + ivec4(0, 1, 2, 3);
+    ivec4 i4 = gx * 8 + ivec4(0, 1, 2, 3);
+    ivec4 ii4 = i4 + 4;
 
     ivec4 v_offset;
-    ivec4 lane2;
+    ivec4 lane4;
+    ivec4 vv_offset;
+    ivec4 lane8;
 
     if (p.dims == 2)
     {
         ivec4 y4 = i4 / p.w;
         ivec4 x4 = i4 % p.w;
 
-        v_offset = ((y4 / 4) * p.w + x4) * 2 + (y4 % 4) / 2;
-        lane2 = y4 % 2;
+        ivec4 yy4 = ii4 / p.w;
+        ivec4 xx4 = ii4 % p.w;
+
+        v_offset = ((y4 / 8) * p.w + x4) * 2 + (y4 % 8) / 2;
+        lane4 = y4 % 2;
+
+        vv_offset = ((yy4 / 8) * p.w + xx4) * 2 + (yy4 % 8) / 2;
+        lane8 = yy4 % 2;
     }
     else // if (p.dims == 3)
     {
@@ -78,8 +88,15 @@ void main()
         ivec4 y4 = i4 % size / p.w;
         ivec4 x4 = i4 % size % p.w;
 
-        v_offset = ((z4 / 4) * p.cstep + y4 * p.w + x4) * 2 + (z4 % 4) / 2;
-        lane2 = z4 % 2;
+        ivec4 zz4 = ii4 / size;
+        ivec4 yy4 = ii4 % size / p.w;
+        ivec4 xx4 = ii4 % size % p.w;
+
+        v_offset = ((z4 / 8) * p.cstep + y4 * p.w + x4) * 2 + (z4 % 4) / 2;
+        lane4 = z4 % 2;
+
+        vv_offset = ((zz4 / 8) * p.cstep + yy4 * p.w + xx4) * 2 + (zz4 % 4) / 2;
+        lane8 = zz4 % 2;
     }
 
     afpvec2 vr = buffer_ld2(bottom_blob_data, v_offset.r);
@@ -87,35 +104,49 @@ void main()
     afpvec2 vb = buffer_ld2(bottom_blob_data, v_offset.b);
     afpvec2 va = buffer_ld2(bottom_blob_data, v_offset.a);
 
-    afpvec4 v = afpvec4(vr[lane2.r], vg[lane2.g], vb[lane2.b], va[lane2.a]);
+    afpvec2 vvr = buffer_ld2(bottom_blob_data, vv_offset.r);
+    afpvec2 vvg = buffer_ld2(bottom_blob_data, vv_offset.g);
+    afpvec2 vvb = buffer_ld2(bottom_blob_data, vv_offset.b);
+    afpvec2 vva = buffer_ld2(bottom_blob_data, vv_offset.a);
 
-    buffer_st4(top_blob_data, gx, v);
+    afpvec8 v = afpvec8(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a], vvr[lane8.r], vvg[lane8.g], vvb[lane8.b], vva[lane8.a]);
+
+    buffer_st8(top_blob_data, gx, v);
 #else
     ivec4 v_offset;
+    ivec4 vv_offset;
 
     if (p.dims == 2)
     {
         int y = gx / p.w;
-        ivec4 i4 = (gx % p.w) * 4 + ivec4(0, 1, 2, 3);
+        ivec4 i4 = (gx % p.w) * 8 + ivec4(0, 1, 2, 3);
+        ivec4 ii4 = i4 + 4;
 
         ivec4 k4 = i4 / p.w;
         ivec4 si4 = i4 % p.w;
+        ivec4 kk4 = ii4 / p.w;
+        ivec4 sii4 = ii4 % p.w;
 
-        v_offset = ivec4(y * 4 * p.w) + si4 * 4 + k4;
+        v_offset = ivec4(y * 8 * p.w) + si4 * 8 + k4;
+        vv_offset = ivec4(y * 8 * p.w) + sii4 * 8 + kk4;
     }
     else // if (p.dims == 3)
     {
         int size = p.w * p.h;
 
         int z = gx / size;
-        ivec4 i4 = (gx % size) * 4 + ivec4(0, 1, 2, 3);
+        ivec4 i4 = (gx % size) * 8 + ivec4(0, 1, 2, 3);
+        ivec4 ii4 = i4 + 4;
 
         ivec4 k4 = i4 / size;
         ivec4 si4 = i4 % size;
+        ivec4 kk4 = ii4 / size;
+        ivec4 sii4 = ii4 % size;
 
-        v_offset = ivec4(z * 4 * p.cstep) + si4 * 4 + k4;
+        v_offset = ivec4(z * 8 * p.cstep) + si4 * 8 + k4;
+        vv_offset = ivec4(z * 8 * p.cstep) + sii4 * 8 + kk4;
     }
 
-    buffer_cp1to4(top_blob_data, gx, bottom_blob_data, v_offset);
+    buffer_cp1to8(top_blob_data, gx, bottom_blob_data, v_offset, vv_offset);
 #endif
 }

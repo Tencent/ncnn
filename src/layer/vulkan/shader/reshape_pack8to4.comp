@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -16,10 +16,13 @@
 
 #if NCNN_fp16_storage
 #extension GL_EXT_shader_16bit_storage: require
+struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #endif
 #if NCNN_fp16_arithmetic
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
+
+layout (constant_id = 0) const int ndim = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -53,21 +56,30 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= 1 || gz >= 1)
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-#if NCNN_fp16_packed
-    ivec4 i4 = gx * 4 + ivec4(0, 1, 2, 3);
+    ivec4 i4;
 
+    if (ndim == 1) i4 = gx * 4 + ivec4(0, 1, 2, 3);
+    if (ndim == 2) i4 = (gy * 4) * p.outw + gx + ivec4(0, 1, 2, 3) * p.outw;
+    if (ndim == 3) i4 = (gz * 4) * p.outh * p.outw + gy * p.outw + gx + ivec4(0, 1, 2, 3) * p.outh * p.outw;
+
+#if NCNN_fp16_packed
     ivec4 v_offset;
     ivec4 lane2;
 
-    if (p.dims == 2)
+    if (p.dims == 1)
+    {
+        v_offset = i4 / 2;
+        lane2 = i4 % 2;
+    }
+    else if (p.dims == 2)
     {
         ivec4 y4 = i4 / p.w;
         ivec4 x4 = i4 % p.w;
 
-        v_offset = ((y4 / 4) * p.w + x4) * 2 + (y4 % 4) / 2;
+        v_offset = ((y4 / 8) * p.w + x4) * 4 + (y4 % 8) / 2;
         lane2 = y4 % 2;
     }
     else // if (p.dims == 3)
@@ -78,9 +90,15 @@ void main()
         ivec4 y4 = i4 % size / p.w;
         ivec4 x4 = i4 % size % p.w;
 
-        v_offset = ((z4 / 4) * p.cstep + y4 * p.w + x4) * 2 + (z4 % 4) / 2;
+        v_offset = ((z4 / 8) * p.cstep + y4 * p.w + x4) * 4 + (z4 % 8) / 2;
         lane2 = z4 % 2;
     }
+
+    int gi;
+
+    if (ndim == 1) gi = gx;
+    if (ndim == 2) gi = gy * p.outw + gx;
+    if (ndim == 3) gi = gz * p.outcstep + gy * p.outw + gx;
 
     afpvec2 vr = buffer_ld2(bottom_blob_data, v_offset.r);
     afpvec2 vg = buffer_ld2(bottom_blob_data, v_offset.g);
@@ -89,33 +107,38 @@ void main()
 
     afpvec4 v = afpvec4(vr[lane2.r], vg[lane2.g], vb[lane2.b], va[lane2.a]);
 
-    buffer_st4(top_blob_data, gx, v);
+    buffer_st4(top_blob_data, gi, v);
 #else
     ivec4 v_offset;
 
-    if (p.dims == 2)
+    if (p.dims == 1)
     {
-        int y = gx / p.w;
-        ivec4 i4 = (gx % p.w) * 4 + ivec4(0, 1, 2, 3);
+        v_offset = i4;
+    }
+    else if (p.dims == 2)
+    {
+        ivec4 y4 = i4 / p.w;
+        ivec4 x4 = i4 % p.w;
 
-        ivec4 k4 = i4 / p.w;
-        ivec4 si4 = i4 % p.w;
-
-        v_offset = ivec4(y * 4 * p.w) + si4 * 4 + k4;
+        v_offset = ((y4 / 8) * p.w + x4) * 8 + y4 % 8;
     }
     else // if (p.dims == 3)
     {
         int size = p.w * p.h;
 
-        int z = gx / size;
-        ivec4 i4 = (gx % size) * 4 + ivec4(0, 1, 2, 3);
+        ivec4 z4 = i4 / size;
+        ivec4 y4 = i4 % size / p.w;
+        ivec4 x4 = i4 % size % p.w;
 
-        ivec4 k4 = i4 / size;
-        ivec4 si4 = i4 % size;
-
-        v_offset = ivec4(z * 4 * p.cstep) + si4 * 4 + k4;
+        v_offset = ((z4 / 8) * p.cstep + y4 * p.w + x4) * 8 + z4 % 8;
     }
 
-    buffer_cp1to4(top_blob_data, gx, bottom_blob_data, v_offset);
+    int gi;
+
+    if (ndim == 1) gi = gx;
+    if (ndim == 2) gi = gy * p.outw + gx;
+    if (ndim == 3) gi = gz * p.outcstep + gy * p.outw + gx;
+
+    buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif
 }

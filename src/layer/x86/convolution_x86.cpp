@@ -191,6 +191,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
+    if ((dilation_w > 1 || dilation_h > 1) && dilation_w != dilation_h)
+    {
+        return Convolution::forward(bottom_blob, top_blob, opt);
+    }
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;

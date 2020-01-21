@@ -15,6 +15,7 @@ endmacro()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
+ncnn_add_layer_test(AbsVal)
 ncnn_add_layer_test(Concat)
 ncnn_add_layer_test(Convolution)
 ncnn_add_layer_test(ConvolutionDepthWise)
@@ -30,3 +31,4 @@ ncnn_add_layer_test(ReLU)
 ncnn_add_layer_test(Reshape)
 ncnn_add_layer_test(ShuffleChannel)
 ncnn_add_layer_test(Softmax)
+
