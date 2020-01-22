@@ -114,10 +114,10 @@ static int test_convolution_0()
     return 0;
 }
 
-void set_param(ncnn::Layer* layer)
+void set_param(ncnn::Convolution* layer)
 {
-    ((ncnn::Convolution*)layer)->use_int8_requantize = true;
-    ((ncnn::Convolution*)layer)->top_blob_int8_scale = 64.f;
+    layer->use_int8_requantize = true;
+    layer->top_blob_int8_scale = 64.f;
     return;
 }
 
@@ -161,13 +161,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = false;
 
-    prehook_func func_ptr = nullptr;
-    if (requant)
-    {
-        func_ptr = &set_param;
-    }
-
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, mb, opt, a, 0.001f, func_ptr);
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, mb, opt, a, 0.001f, requant ? set_param : 0);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias);
