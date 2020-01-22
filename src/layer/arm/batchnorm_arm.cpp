@@ -32,16 +32,6 @@ BatchNorm_arm::BatchNorm_arm()
 int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
-    if (dims != 3)
-        return BatchNorm::forward_inplace(bottom_top_blob, opt);
-
-    // a = bias - slope * mean / sqrt(var)
-    // b = slope / sqrt(var)
-    // value = b * value + a
-
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
@@ -50,21 +40,71 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     if (elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels/4; q++)
+        if (dims == 1)
         {
-            float32x4_t _a = vld1q_f32((const float*)a_data + q * 4);
-            float32x4_t _b = vld1q_f32((const float*)b_data + q * 4);
+            int w = bottom_top_blob.w;
 
-            float* ptr = bottom_top_blob.channel(q);
-
-            for (int i=0; i<size; i++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i=0; i<w; i++)
             {
+                float* ptr = (float*)bottom_top_blob + i * 4;
+
+                float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
+                float32x4_t _b = vld1q_f32((const float*)b_data + i * 4);
+
                 float32x4_t _p = vld1q_f32(ptr);
                 _p = vmlaq_f32(_a, _p, _b);
                 vst1q_f32(ptr, _p);
+            }
+        }
 
-                ptr += 4;
+        if (dims == 2)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i=0; i<h; i++)
+            {
+                float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
+                float32x4_t _b = vld1q_f32((const float*)b_data + i * 4);
+
+                float* ptr = bottom_top_blob.row(i);
+
+                for (int j=0; j<w; j++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    _p = vmlaq_f32(_a, _p, _b);
+                    vst1q_f32(ptr, _p);
+
+                    ptr += 4;
+                }
+            }
+        }
+
+        if (dims == 3)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+            int c = bottom_top_blob.c;
+            int size = w * h;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<c; q++)
+            {
+                float32x4_t _a = vld1q_f32((const float*)a_data + q * 4);
+                float32x4_t _b = vld1q_f32((const float*)b_data + q * 4);
+
+                float* ptr = bottom_top_blob.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    _p = vmlaq_f32(_a, _p, _b);
+                    vst1q_f32(ptr, _p);
+
+                    ptr += 4;
+                }
             }
         }
 
@@ -73,6 +113,14 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     } // opt.use_packing_layout
 #endif // __ARM_NEON
+
+    if (dims != 3)
+        return BatchNorm::forward_inplace(bottom_top_blob, opt);
+
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int c = bottom_top_blob.c;
+    int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
