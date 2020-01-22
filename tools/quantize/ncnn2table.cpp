@@ -132,24 +132,24 @@ int QuantNet::get_conv_weight_blob_scales()
         if (layer->type == "Convolution")
         {
             std::string name = layer->name;
-            const int weight_data_size_output = dynamic_cast<ncnn::Convolution*>(layer)->weight_data_size / static_cast<ncnn::Convolution*>(layer)->num_output;
+            const int weight_data_size_output = static_cast<ncnn::Convolution*>(layer)->weight_data_size / static_cast<ncnn::Convolution*>(layer)->num_output;
             std::vector<float> scales;
 
             // int8 winograd F43 needs weight data to use 6bit quantization
             bool quant_6bit = false;
-            int kernel_w = dynamic_cast<ncnn::Convolution*>(layer)->kernel_w;
-            int kernel_h = dynamic_cast<ncnn::Convolution*>(layer)->kernel_h;
-            int dilation_w = dynamic_cast<ncnn::Convolution*>(layer)->dilation_w;
-            int dilation_h = dynamic_cast<ncnn::Convolution*>(layer)->dilation_h;
-            int stride_w = dynamic_cast<ncnn::Convolution*>(layer)->stride_w;
-            int stride_h = dynamic_cast<ncnn::Convolution*>(layer)->stride_h;
+            int kernel_w = static_cast<ncnn::Convolution*>(layer)->kernel_w;
+            int kernel_h = static_cast<ncnn::Convolution*>(layer)->kernel_h;
+            int dilation_w = static_cast<ncnn::Convolution*>(layer)->dilation_w;
+            int dilation_h = static_cast<ncnn::Convolution*>(layer)->dilation_h;
+            int stride_w = static_cast<ncnn::Convolution*>(layer)->stride_w;
+            int stride_h = static_cast<ncnn::Convolution*>(layer)->stride_h;
 
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
                 quant_6bit = true;
 
-            for (int n = 0; n < dynamic_cast<ncnn::Convolution*>(layer)->num_output; n++)
+            for (int n = 0; n < static_cast<ncnn::Convolution*>(layer)->num_output; n++)
             {
-                const ncnn::Mat weight_data_n = dynamic_cast<ncnn::Convolution*>(layer)->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::Mat weight_data_n = static_cast<ncnn::Convolution*>(layer)->weight_data.range(weight_data_size_output * n, weight_data_size_output);
                 const float *data_n = weight_data_n;
                 float max_value = std::numeric_limits<float>::min();
 
@@ -174,12 +174,12 @@ int QuantNet::get_conv_weight_blob_scales()
         if (layer->type == "ConvolutionDepthWise")
         {
             std::string name = layer->name;
-            const int weight_data_size_output = dynamic_cast<ncnn::ConvolutionDepthWise*>(layer)->weight_data_size / static_cast<ncnn::ConvolutionDepthWise*>(layer)->group;
+            const int weight_data_size_output = static_cast<ncnn::ConvolutionDepthWise*>(layer)->weight_data_size / static_cast<ncnn::ConvolutionDepthWise*>(layer)->group;
             std::vector<float> scales;
 
-            for (int n = 0; n < dynamic_cast<ncnn::ConvolutionDepthWise*>(layer)->group; n++)
+            for (int n = 0; n < static_cast<ncnn::ConvolutionDepthWise*>(layer)->group; n++)
             {
-                const ncnn::Mat weight_data_n = dynamic_cast<ncnn::ConvolutionDepthWise*>(layer)->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::Mat weight_data_n = static_cast<ncnn::ConvolutionDepthWise*>(layer)->weight_data.range(weight_data_size_output * n, weight_data_size_output);
                 const float *data_n = weight_data_n;
                 float max_value = std::numeric_limits<float>::min();
 
@@ -197,12 +197,12 @@ int QuantNet::get_conv_weight_blob_scales()
         if (layer->type == "InnerProduct")
         {
             std::string name = layer->name;
-            const int weight_data_size_output = dynamic_cast<ncnn::InnerProduct*>(layer)->weight_data_size / static_cast<ncnn::InnerProduct*>(layer)->num_output;
+            const int weight_data_size_output = static_cast<ncnn::InnerProduct*>(layer)->weight_data_size / static_cast<ncnn::InnerProduct*>(layer)->num_output;
             std::vector<float> scales;
 
-            for (int n = 0; n < dynamic_cast<ncnn::InnerProduct*>(layer)->num_output; n++)
+            for (int n = 0; n < static_cast<ncnn::InnerProduct*>(layer)->num_output; n++)
             {
-                const ncnn::Mat weight_data_n = dynamic_cast<ncnn::InnerProduct*>(layer)->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::Mat weight_data_n = static_cast<ncnn::InnerProduct*>(layer)->weight_data.range(weight_data_size_output * n, weight_data_size_output);
                 const float *data_n = weight_data_n;
                 float max_value = std::numeric_limits<float>::min();
 
