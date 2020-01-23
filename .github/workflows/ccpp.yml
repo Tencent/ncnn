@@ -8,7 +8,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: protobuf
-      run: sudo apt-get install libprotobuf-dev protobuf-compiler
+      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
@@ -21,7 +21,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: protobuf
-      run: sudo apt-get install libprotobuf-dev protobuf-compiler
+      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -76,7 +76,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: protobuf
-      run: sudo apt-get install libprotobuf-dev protobuf-compiler
+      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: configure
       env:
         CC: clang
@@ -92,7 +92,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: protobuf
-      run: sudo apt-get install libprotobuf-dev protobuf-compiler
+      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -165,7 +165,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: protobuf
-      run: brew install protobuf
+      run: brew install protobuf opencv3
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
@@ -178,7 +178,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: protobuf
-      run: brew install protobuf
+      run: brew install protobuf opencv3
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
