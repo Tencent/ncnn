@@ -5,8 +5,9 @@ endif()
 
 if(OpenCV_FOUND)
     add_executable(ncnn2table ncnn2table.cpp)
-    target_link_libraries(ncnn2table PRIVATE ncnn ${OpenCV_LIBS})
     target_compile_definitions(ncnn2table PRIVATE -DOpenCV_VERSION_MAJOR=${OpenCV_VERSION_MAJOR})
+    target_compile_options(ncnn2table PRIVATE -std=c++11)
+    target_link_libraries(ncnn2table PRIVATE ncnn ${OpenCV_LIBS})
 
     add_executable(ncnn2int8 ncnn2int8.cpp)
     target_link_libraries(ncnn2int8 PRIVATE ncnn)
