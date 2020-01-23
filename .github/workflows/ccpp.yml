@@ -165,7 +165,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: protobuf
-      run: brew install protobuf opencv2
+      run: brew install protobuf opencv@2
     - name: configure
       run: mkdir build && cd build && cmake ..
     - name: build
@@ -178,7 +178,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: protobuf
-      run: brew install protobuf opencv2
+      run: brew install protobuf opencv@2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
