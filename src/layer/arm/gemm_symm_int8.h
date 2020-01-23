@@ -341,8 +341,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
 static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) {
 #if PRINT_MATRIX
     print_int8_matrix("a", a, m, k, ldx);
-#endif
     int8_t *origin = sa;
+#endif
     int i = 0;
     for (; i + 3 < m; i += 4) {
         int8_t *p0 = a;
@@ -2637,7 +2637,9 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
     const int nn = (m >> 2) << 2;
     if (scales == nullptr) {
         int32_t* pc = (int32_t*)dst;
+#if PRINT_MATRIX
         int32_t* origin = pc;
+#endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i += 4) {
