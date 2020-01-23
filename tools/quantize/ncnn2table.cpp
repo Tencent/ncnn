@@ -53,9 +53,10 @@ int parse_images_dir(const std::string& base_path, std::vector<std::string>& fil
 
     cv::glob(base_path_str, image_list, true);
 
-    for (auto& image_path : image_list)
+    for (size_t i = 0; i < image_list.size(); i++)
     {
-        file_path.emplace_back(image_path);
+        const cv::String& image_path = image_list[i];
+        file_path.push_back(image_path);
     }
 
     return 0;
@@ -78,12 +79,15 @@ public:
 
 int QuantNet::get_input_names()
 {
-    for (auto layer : layers)
+    for (size_t i = 0; i < layers.size(); i++)
     {
+        const ncnn::Layer* layer = layers[i];
+
         if (layer->type == "Input")
         {
-            for (int blob_index : layer->tops)
+            for (size_t j = 0; j < layer->tops.size(); j++)
             {
+                int blob_index = layer->tops[j];
                 std::string name = blobs[blob_index].name;
                 input_names.push_back(name);
             }
@@ -97,7 +101,7 @@ int QuantNet::get_conv_names()
 {
     for (size_t i = 0; i < layers.size(); i++)
     {
-        const auto layer = layers[i];
+        const ncnn::Layer* layer = layers[i];
 
         if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise" || layer->type == "InnerProduct")
         {
@@ -112,12 +116,14 @@ int QuantNet::get_conv_names()
 int QuantNet::get_conv_bottom_blob_names()
 {
     // find conv bottom name or index
-    for (auto layer : layers)
+    for (size_t i = 0; i < layers.size(); i++)
     {
+        const ncnn::Layer* layer = layers[i];
+
         if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise" || layer->type == "InnerProduct")
         {
-            auto name = layer->name;
-            const auto bottom_blob_name = blobs[layer->bottoms[0]].name;
+            const std::string& name = layer->name;
+            const std::string& bottom_blob_name = blobs[layer->bottoms[0]].name;
             conv_bottom_blob_names[name] = bottom_blob_name;
         }
     }
@@ -127,29 +133,33 @@ int QuantNet::get_conv_bottom_blob_names()
 
 int QuantNet::get_conv_weight_blob_scales()
 {
-    for (auto layer : layers)
+    for (size_t i = 0; i < layers.size(); i++)
     {
+        const ncnn::Layer* layer = layers[i];
+
         if (layer->type == "Convolution")
         {
+            const ncnn::Convolution* convolution = static_cast<const ncnn::Convolution*>(layer);
+
             std::string name = layer->name;
-            const int weight_data_size_output = static_cast<ncnn::Convolution*>(layer)->weight_data_size / static_cast<ncnn::Convolution*>(layer)->num_output;
+            const int weight_data_size_output = convolution->weight_data_size / convolution->num_output;
             std::vector<float> scales;
 
             // int8 winograd F43 needs weight data to use 6bit quantization
             bool quant_6bit = false;
-            int kernel_w = static_cast<ncnn::Convolution*>(layer)->kernel_w;
-            int kernel_h = static_cast<ncnn::Convolution*>(layer)->kernel_h;
-            int dilation_w = static_cast<ncnn::Convolution*>(layer)->dilation_w;
-            int dilation_h = static_cast<ncnn::Convolution*>(layer)->dilation_h;
-            int stride_w = static_cast<ncnn::Convolution*>(layer)->stride_w;
-            int stride_h = static_cast<ncnn::Convolution*>(layer)->stride_h;
+            int kernel_w = convolution->kernel_w;
+            int kernel_h = convolution->kernel_h;
+            int dilation_w = convolution->dilation_w;
+            int dilation_h = convolution->dilation_h;
+            int stride_w = convolution->stride_w;
+            int stride_h = convolution->stride_h;
 
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
                 quant_6bit = true;
 
-            for (int n = 0; n < static_cast<ncnn::Convolution*>(layer)->num_output; n++)
+            for (int n = 0; n < convolution->num_output; n++)
             {
-                const ncnn::Mat weight_data_n = static_cast<ncnn::Convolution*>(layer)->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
                 const float *data_n = weight_data_n;
                 float max_value = std::numeric_limits<float>::min();
 
@@ -173,13 +183,15 @@ int QuantNet::get_conv_weight_blob_scales()
 
         if (layer->type == "ConvolutionDepthWise")
         {
+            const ncnn::ConvolutionDepthWise* convolutiondepthwise = static_cast<const ncnn::ConvolutionDepthWise*>(layer);
+
             std::string name = layer->name;
-            const int weight_data_size_output = static_cast<ncnn::ConvolutionDepthWise*>(layer)->weight_data_size / static_cast<ncnn::ConvolutionDepthWise*>(layer)->group;
+            const int weight_data_size_output = convolutiondepthwise->weight_data_size / convolutiondepthwise->group;
             std::vector<float> scales;
 
-            for (int n = 0; n < static_cast<ncnn::ConvolutionDepthWise*>(layer)->group; n++)
+            for (int n = 0; n < convolutiondepthwise->group; n++)
             {
-                const ncnn::Mat weight_data_n = static_cast<ncnn::ConvolutionDepthWise*>(layer)->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
                 const float *data_n = weight_data_n;
                 float max_value = std::numeric_limits<float>::min();
 
@@ -196,13 +208,15 @@ int QuantNet::get_conv_weight_blob_scales()
 
         if (layer->type == "InnerProduct")
         {
+            const ncnn::InnerProduct* innerproduct = static_cast<const ncnn::InnerProduct*>(layer);
+
             std::string name = layer->name;
-            const int weight_data_size_output = static_cast<ncnn::InnerProduct*>(layer)->weight_data_size / static_cast<ncnn::InnerProduct*>(layer)->num_output;
+            const int weight_data_size_output = innerproduct->weight_data_size / innerproduct->num_output;
             std::vector<float> scales;
 
-            for (int n = 0; n < static_cast<ncnn::InnerProduct*>(layer)->num_output; n++)
+            for (int n = 0; n < innerproduct->num_output; n++)
             {
-                const ncnn::Mat weight_data_n = static_cast<ncnn::InnerProduct*>(layer)->weight_data.range(weight_data_size_output * n, weight_data_size_output);
+                const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
                 const float *data_n = weight_data_n;
                 float max_value = std::numeric_limits<float>::min();
 
@@ -288,9 +302,9 @@ int QuantizeData::initial_histogram_interval()
 
 int QuantizeData::initial_histogram_value()
 {
-    for (float& i : histogram)
+    for (size_t i = 0; i < histogram.size(); i++)
     {
-        i = 0.00001f;
+        histogram[i] = 0.00001f;
     }
 
     return 0;
@@ -298,7 +312,7 @@ int QuantizeData::initial_histogram_value()
 
 int QuantizeData::normalize_histogram()
 {
-    const auto length = histogram.size();
+    const size_t length = histogram.size();
     float sum = 0;
 
     for (size_t i = 0; i < length; i++)
@@ -334,7 +348,7 @@ int QuantizeData::update_histogram(ncnn::Mat data)
 
 float QuantizeData::compute_kl_divergence(const std::vector<float> &dist_a, const std::vector<float> &dist_b) const
 {
-    const auto length = dist_a.size();
+    const size_t length = dist_a.size();
     assert(dist_b.size() == length);
     float result = 0;
 
@@ -381,26 +395,26 @@ int QuantizeData::threshold_distribution(const std::vector<float> &distribution,
         // get P
         fill(quantize_distribution.begin(), quantize_distribution.end(), 0.0f);
 
-        const auto num_per_bin = static_cast<float>(threshold) / static_cast<float>(target_bin);
+        const float num_per_bin = static_cast<float>(threshold) / static_cast<float>(target_bin);
 
         for (int i = 0; i < target_bin; i++)
         {
-            const auto start = static_cast<float>(i) * num_per_bin;
-            const auto end = start + num_per_bin;
+            const float start = static_cast<float>(i) * num_per_bin;
+            const float end = start + num_per_bin;
 
-            const auto left_upper = static_cast<int>(ceil(start));
+            const int left_upper = static_cast<int>(ceil(start));
             if (static_cast<float>(left_upper) > start)
             {
-                const auto left_scale = static_cast<float>(left_upper) - start;
+                const float left_scale = static_cast<float>(left_upper) - start;
                 quantize_distribution[i] += left_scale * distribution[left_upper - 1];
             }
 
-            const auto right_lower = static_cast<int>(floor(end));
+            const int right_lower = static_cast<int>(floor(end));
 
             if (static_cast<float>(right_lower) < end)
             {
 
-                const auto right_scale = end - static_cast<float>(right_lower);
+                const float right_scale = end - static_cast<float>(right_lower);
                 quantize_distribution[i] += right_scale * distribution[right_lower];
             }
 
@@ -415,8 +429,8 @@ int QuantizeData::threshold_distribution(const std::vector<float> &distribution,
 
         for (int i = 0; i < target_bin; i++)
         {
-            const auto start = static_cast<float>(i) * num_per_bin;
-            const auto end = start + num_per_bin;
+            const float start = static_cast<float>(i) * num_per_bin;
+            const float end = start + num_per_bin;
 
             float count = 0;
 
@@ -450,7 +464,7 @@ int QuantizeData::threshold_distribution(const std::vector<float> &distribution,
                 }
             }
 
-            const auto expand_value = quantize_distribution[i] / count;
+            const float expand_value = quantize_distribution[i] / count;
 
             if (static_cast<float>(left_upper) > start)
             {
@@ -509,7 +523,7 @@ struct PreParam
 
 static int post_training_quantize(const std::vector<std::string>& image_list, const std::string& param_path, const std::string& bin_path, const std::string& table_path, struct PreParam& per_param)
 {
-    auto size = image_list.size();
+    size_t size = image_list.size();
 
     QuantNet net;
     net.opt = g_default_option;
@@ -557,9 +571,9 @@ static int post_training_quantize(const std::vector<std::string>& image_list, co
         std::vector<float> weight_scale_n = net.weight_scales[layer_name];
 
         fprintf(fp, "%s_param_0 ", layer_name.c_str());
-        for (float j : weight_scale_n)
+        for (size_t j = 0 ; j < weight_scale_n.size(); j++)
         {
-            fprintf(fp, "%f ", j);
+            fprintf(fp, "%f ", weight_scale_n[j]);
         }
         fprintf(fp, "\n");
     }
@@ -613,11 +627,11 @@ static int post_training_quantize(const std::vector<std::string>& image_list, co
             ncnn::Mat out;
             ex.extract(blob_name.c_str(), out);
 
-            for (auto& quantize_data : quantize_datas)
+            for (size_t k = 0; k < quantize_datas.size(); k++)
             {
-                if (quantize_data.name == layer_name)
+                if (quantize_datas[k].name == layer_name)
                 {
-                    quantize_data.initial_blob_max(out);
+                    quantize_datas[k].initial_blob_max(out);
                     break;
                 }
             }
@@ -630,13 +644,13 @@ static int post_training_quantize(const std::vector<std::string>& image_list, co
     {
         std::string layer_name = net.conv_names[i];
 
-        for (auto& quantize_data : quantize_datas)
+        for (size_t k = 0; k < quantize_datas.size(); k++)
         {
-            if (quantize_data.name == layer_name)
+            if (quantize_datas[k].name == layer_name)
             {
-                quantize_data.initial_histogram_interval();
+                quantize_datas[k].initial_histogram_interval();
 
-                fprintf(stderr, "%-20s : max = %-15f interval = %-10f\n", quantize_data.name.c_str(), quantize_data.max_value, quantize_data.histogram_interval);
+                fprintf(stderr, "%-20s : max = %-15f interval = %-10f\n", quantize_datas[k].name.c_str(), quantize_datas[k].max_value, quantize_datas[k].histogram_interval);
                 break;
             }
         }
@@ -667,19 +681,19 @@ static int post_training_quantize(const std::vector<std::string>& image_list, co
         ncnn::Extractor ex = net.create_extractor();
         ex.input(net.input_names[0].c_str(), in);
 
-        for (size_t k = 0; k < net.conv_names.size(); k++)
+        for (size_t j = 0; j < net.conv_names.size(); j++)
         {
-            std::string layer_name = net.conv_names[k];
+            std::string layer_name = net.conv_names[j];
             std::string blob_name = net.conv_bottom_blob_names[layer_name];
 
             ncnn::Mat out;
             ex.extract(blob_name.c_str(), out);
 
-            for (auto& quantize_data : quantize_datas)
+            for (size_t k = 0; k < quantize_datas.size(); k++)
             {
-                if (quantize_data.name == layer_name)
+                if (quantize_datas[k].name == layer_name)
                 {
-                    quantize_data.update_histogram(out);
+                    quantize_datas[k].update_histogram(out);
                     break;
                 }
             }
@@ -694,18 +708,18 @@ static int post_training_quantize(const std::vector<std::string>& image_list, co
         std::string blob_name = net.conv_bottom_blob_names[layer_name];
         fprintf(stderr, "%-20s ", layer_name.c_str());
 
-        for (auto& quantize_data : quantize_datas)
+        for (size_t k = 0; k < quantize_datas.size(); k++)
         {
-            if (quantize_data.name == layer_name)
+            if (quantize_datas[k].name == layer_name)
             {
-                quantize_data.get_data_blob_scale();
+                quantize_datas[k].get_data_blob_scale();
                 fprintf(stderr, "bin : %-8d threshold : %-15f interval : %-10f scale : %-10f\n",
-                    quantize_data.threshold_bin,
-                    quantize_data.threshold,
-                    quantize_data.histogram_interval,
-                    quantize_data.scale);
+                        quantize_datas[k].threshold_bin,
+                        quantize_datas[k].threshold,
+                        quantize_datas[k].histogram_interval,
+                        quantize_datas[k].scale);
 
-                fprintf(fp, "%s %f\n", layer_name.c_str(), quantize_data.scale);
+                fprintf(fp, "%s %f\n", layer_name.c_str(), quantize_datas[k].scale);
 
                 break;
             }
@@ -724,24 +738,84 @@ void showUsage()
     std::cout << "example: ./ncnn2table --param=squeezenet-fp32.param --bin=squeezenet-fp32.bin --images=images/ --output=squeezenet.table --mean=104,117,123 --norm=1,1,1 --size=227,227 --swapRB --thread=2" << std::endl;
 }
 
+static int find_all_value_in_string(const std::string& values_string, std::vector<float>& value)
+{
+    std::vector<int> masks_pos;
+
+    for (size_t i = 0; i < values_string.size(); i++)
+    {
+        if (',' == values_string[i])
+        {
+            masks_pos.push_back(static_cast<int>(i));
+        }
+    }
+
+    // check
+    if (masks_pos.empty())
+    {
+        fprintf(stderr, "ERROR: Cannot find any ',' in string, please check.\n");
+        return -1;
+    }
+
+    if (2 != masks_pos.size())
+    {
+        fprintf(stderr, "ERROR: Char ',' in fist of string, please check.\n");
+        return -1;
+    }
+
+    if (masks_pos.front() == 0)
+    {
+        fprintf(stderr, "ERROR: Char ',' in fist of string, please check.\n");
+        return -1;
+    }
+
+    if (masks_pos.back() == 0)
+    {
+        fprintf(stderr, "ERROR: Char ',' in last of string, please check.\n");
+        return -1;
+    }
+
+    for (size_t i = 0; i < masks_pos.size(); i++)
+    {
+        if (i > 0)
+        {
+            if (!(masks_pos[i] - masks_pos[i - 1] > 1))
+            {
+                fprintf(stderr, "ERROR: Neighbouring char ',' was found.\n");
+                return -1;
+            }
+        }
+    }
+
+    const cv::String ch0_val_str = values_string.substr(0, masks_pos[0]);
+    const cv::String ch1_val_str = values_string.substr(masks_pos[0] + 1, masks_pos[1] - masks_pos[0] - 1);
+    const cv::String ch2_val_str = values_string.substr(masks_pos[1] + 1, values_string.size() - masks_pos[1] - 1);
+
+    value.push_back(static_cast<float>(std::atof(std::string(ch0_val_str).c_str())));
+    value.push_back(static_cast<float>(std::atof(std::string(ch1_val_str).c_str())));
+    value.push_back(static_cast<float>(std::atof(std::string(ch2_val_str).c_str())));
+
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     std::cout << "--- ncnn post training quantization tool --- " << __TIME__ << " " << __DATE__ << std::endl;
 
-    const cv::CommandLineParser parser(argc, argv,
-        {
+    const char* key_map =
+        "{help h usage ? |   | print this message }"
+        "{param p        |   | path to ncnn.param file }"
+        "{bin b          |   | path to ncnn.bin file }"
+        "{images i       |   | path to calibration images }"
+        "{output o       |   | path to output calibration table file }"
+        "{mean m         |   | value of mean }"
+        "{norm n         |   | value of normalize(scale value,default is 1 }"
+        "{size s         |   | the size of input image(using the resize the original image,default is w=224,h=224) }"
+        "{swapRB c       |   | flag which indicates that swap first and last channels in 3-channel image is necessary }"
+        "{thread t       | 4 | count of processing threads }"
+    ;
 
-            "{help h usage ? |   | print this message }"
-            "{param p        |   | path to ncnn.param file }"
-            "{bin b          |   | path to ncnn.bin file }"
-            "{images i       |   | path to calibration images }"
-            "{output o       |   | path to output calibration table file }"
-            "{mean m         |   | value of mean }"
-            "{norm n         |   | value of normalize(scale value,default is 1 }"
-            "{size s         |   | the size of input image(using the resize the original image,default is w=224,h=224) }"
-            "{swapRB c       |   | flag which indicates that swap first and last channels in 3-channel image is necessary }"
-            "{thread t       | 4 | count of processing threads }"
-        });
+    const cv::CommandLineParser parser(argc, argv, key_map);
 
     if (parser.has("help"))
     {
@@ -770,82 +844,25 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    const auto num_threads = parser.get<int>("thread");
+    const int num_threads = parser.get<int>("thread");
 
-    struct PreParam pre_param {
-        {104.f, 117.f, 103.f},
-        { 1.f, 1.f, 1.f },
-            224,
-            224,
-            false
-    };
-
-    const auto find_all_value_in_string = [](const std::string& values_string, std::vector<float>& value)
-    {
-        std::vector<int> masks_pos;
-
-        for (size_t i = 0; i < values_string.size(); i++)
-        {
-            if (',' == values_string[i])
-            {
-                masks_pos.push_back(static_cast<int>(i));
-            }
-        }
-
-        // check
-        if (masks_pos.empty())
-        {
-            fprintf(stderr, "ERROR: Cannot find any ',' in string, please check.\n");
-            return -1;
-        }
-
-        if (2 != masks_pos.size())
-        {
-            fprintf(stderr, "ERROR: Char ',' in fist of string, please check.\n");
-            return -1;
-        }
-
-        if (masks_pos.front() == 0)
-        {
-            fprintf(stderr, "ERROR: Char ',' in fist of string, please check.\n");
-            return -1;
-        }
-
-        if (masks_pos.back() == 0)
-        {
-            fprintf(stderr, "ERROR: Char ',' in last of string, please check.\n");
-            return -1;
-        }
-
-        for (size_t i = 0; i < masks_pos.size(); i++)
-        {
-            if (i > 0)
-            {
-                if (!(masks_pos[i] - masks_pos[i - 1] > 1))
-                {
-                    fprintf(stderr, "ERROR: Neighbouring char ',' was found.\n");
-                    return -1;
-                }
-            }
-        }
-
-        const cv::String ch0_val_str = values_string.substr(0, masks_pos[0]);
-        const cv::String ch1_val_str = values_string.substr(masks_pos[0] + 1, masks_pos[1] - masks_pos[0] - 1);
-        const cv::String ch2_val_str = values_string.substr(masks_pos[1] + 1, values_string.size() - masks_pos[1] - 1);
-
-        value.emplace_back(static_cast<float>(std::atof(std::string(ch0_val_str).c_str())));
-        value.emplace_back(static_cast<float>(std::atof(std::string(ch1_val_str).c_str())));
-        value.emplace_back(static_cast<float>(std::atof(std::string(ch2_val_str).c_str())));
-
-        return 0;
-    };
+    struct PreParam pre_param;
+    pre_param.mean[0] = 104.f;
+    pre_param.mean[1] = 117.f;
+    pre_param.mean[2] = 103.f;
+    pre_param.norm[0] = 1.f;
+    pre_param.norm[1] = 1.f;
+    pre_param.norm[2] = 1.f;
+    pre_param.width = 224;
+    pre_param.height = 224;
+    pre_param.swapRB = false;
 
     if (parser.has("mean"))
     {
         const std::string mean_str = parser.get<std::string>("mean");
 
         std::vector<float> mean_values;
-        const auto ret = find_all_value_in_string(mean_str, mean_values);
+        const int ret = find_all_value_in_string(mean_str, mean_values);
         if (0 != ret && 3 != mean_values.size())
         {
             fprintf(stderr, "ERROR: Searching mean value from --mean was failed.\n");
@@ -863,7 +880,7 @@ int main(int argc, char** argv)
         const std::string norm_str = parser.get<std::string>("norm");
 
         std::vector<float> norm_values;
-        const auto ret = find_all_value_in_string(norm_str, norm_values);
+        const int ret = find_all_value_in_string(norm_str, norm_values);
         if (0 != ret && 3 != norm_values.size())
         {
             fprintf(stderr, "ERROR: Searching mean value from --mean was failed, please check --mean param.\n");
@@ -880,7 +897,7 @@ int main(int argc, char** argv)
     {
         cv::String size_str = parser.get<std::string>("size");
 
-        auto sep_pos = size_str.find_first_of(',');
+        size_t sep_pos = size_str.find_first_of(',');
 
         if (cv::String::npos != sep_pos && sep_pos < size_str.size())
         {
@@ -934,7 +951,7 @@ int main(int argc, char** argv)
     parse_images_dir(image_folder_path, image_file_path_list);
 
     // get the calibration table file, and save it.
-    const auto ret = post_training_quantize(image_file_path_list, ncnn_param_file_path, ncnn_bin_file_path, saved_table_file_path, pre_param);
+    const int ret = post_training_quantize(image_file_path_list, ncnn_param_file_path, ncnn_bin_file_path, saved_table_file_path, pre_param);
     if (!ret)
     {
         fprintf(stderr, "\nNCNN Int8 Calibration table create success, best wish for your INT8 inference has a low accuracy loss...\\(^0^)/...233...\n");

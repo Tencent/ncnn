@@ -3,16 +3,7 @@ add_subdirectory(caffe)
 add_subdirectory(mxnet)
 add_subdirectory(onnx)
 
-find_package(OpenCV QUIET COMPONENTS core highgui imgproc imgcodecs)
-if(NOT OpenCV_FOUND)
-    find_package(OpenCV QUIET COMPONENTS core highgui imgproc)
-endif()
-
-if(OpenCV_FOUND)
-    add_subdirectory(quantize)
-else()
-    message(WARNING "OpenCV not found, quantize tools won't be built")
-endif()
+add_subdirectory(quantize)
 
 add_executable(ncnn2mem ncnn2mem.cpp)
 
