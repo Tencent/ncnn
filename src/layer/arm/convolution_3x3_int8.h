@@ -2046,8 +2046,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
 #if __ARM_NEON
                     int32x4_t _s0, _s1, _s2, _s3, _s4, _s5;
                     int32x2_t _s0n, _s1n, _s2n, _s3n, _s4n, _s5n;
-                    int32x4_t _w0, _w1, _w2, _w3;
-                    int32x2_t _w0n, _w1n, _w2n, _w3n;
+                    int32x4_t _w0, _w3;
+                    int32x2_t _w0n, _w3n;
                     int32x4_t _d0, _d1, _d2, _d3, _d4, _d5;
                     int32x4_t _o0, _o1, _o2, _o3;
                     // load
@@ -3071,10 +3071,10 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
 #if __ARM_NEON
                     int32x4_t _s0, _s1, _s2, _s3, _s4, _s5;
                     int32x2_t _s0n, _s1n, _s2n, _s3n, _s4n, _s5n;
-                    int32x4_t _w0, _w1, _w2, _w3;
-                    int32x2_t _w0n, _w1n, _w2n, _w3n;
+                    int32x4_t _w0, _w3;
+                    int32x2_t _w0n, _w3n;
                     int32x4_t _d0, _d1, _d2, _d3, _d4, _d5;
-                    int32x4_t _o0, _o1, _o2, _o3;
+                    int32x4_t _o0, _o3;
                     // load
                     _s0 = vld1q_s32(out_tile);
                     _s0n = vld1_s32(out_tile+4);
