@@ -119,7 +119,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
-    int c = bottom_top_blob.c;
+    // int c = bottom_top_blob.c;
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
