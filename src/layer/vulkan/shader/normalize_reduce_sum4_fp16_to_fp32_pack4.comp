@@ -21,12 +21,6 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-#if NCNN_fp16_packed
-#define sfp2floatvec4(v) vec4(unpackHalf2x16(v.x), unpackHalf2x16(v.y))
-#else
-#define sfp2floatvec4(v) vec4(v)
-#endif
-
 layout (constant_id = 0) const int across_spatial = 0;
 layout (constant_id = 1) const int across_channel = 0;
 
@@ -71,7 +65,7 @@ void main()
         {
             if (sx == p.size - 1)
             {
-                vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset0.r]);
+                vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.r));
 
                 vec4 sqsum = v0 * v0;
 
@@ -79,8 +73,8 @@ void main()
             }
             else
             {
-                vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset0.r]);
-                vec4 v1 = sfp2floatvec4(bottom_top_blob_data[v_offset0.g]);
+                vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.r));
+                vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.g));
 
                 vec4 sqsum = v0 * v0 + v1 * v1;
 
@@ -91,8 +85,8 @@ void main()
         {
             if (sx == p.size - 1)
             {
-                vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset0.r]);
-                vec4 v2 = sfp2floatvec4(bottom_top_blob_data[v_offset1.r]);
+                vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.r));
+                vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset1.r));
 
                 vec4 sqsum = v0 * v0 + v2 * v2;
 
@@ -100,10 +94,10 @@ void main()
             }
             else
             {
-                vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset0.r]);
-                vec4 v1 = sfp2floatvec4(bottom_top_blob_data[v_offset0.g]);
-                vec4 v2 = sfp2floatvec4(bottom_top_blob_data[v_offset1.r]);
-                vec4 v3 = sfp2floatvec4(bottom_top_blob_data[v_offset1.g]);
+                vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.r));
+                vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset0.g));
+                vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset1.r));
+                vec4 v3 = vec4(buffer_ld4(bottom_top_blob_data, v_offset1.g));
 
                 vec4 sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
 
@@ -121,7 +115,7 @@ void main()
 
         if (sx == p.size - 1)
         {
-            vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset.r]);
+            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
 
             vec4 sqsum = v0 * v0;
 
@@ -129,8 +123,8 @@ void main()
         }
         else if (sx == p.size - 2)
         {
-            vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset.r]);
-            vec4 v1 = sfp2floatvec4(bottom_top_blob_data[v_offset.g]);
+            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
+            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
 
             vec4 sqsum = v0 * v0 + v1 * v1;
 
@@ -138,9 +132,9 @@ void main()
         }
         else if (sx == p.size - 3)
         {
-            vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset.r]);
-            vec4 v1 = sfp2floatvec4(bottom_top_blob_data[v_offset.g]);
-            vec4 v2 = sfp2floatvec4(bottom_top_blob_data[v_offset.b]);
+            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
+            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
+            vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.b));
 
             vec4 sqsum = v0 * v0 + v1 * v1 + v2 * v2;
 
@@ -148,10 +142,10 @@ void main()
         }
         else
         {
-            vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset.r]);
-            vec4 v1 = sfp2floatvec4(bottom_top_blob_data[v_offset.g]);
-            vec4 v2 = sfp2floatvec4(bottom_top_blob_data[v_offset.b]);
-            vec4 v3 = sfp2floatvec4(bottom_top_blob_data[v_offset.a]);
+            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
+            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
+            vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.b));
+            vec4 v3 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.a));
 
             vec4 sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
 
@@ -168,7 +162,7 @@ void main()
 
         if (sz == p.c - 1)
         {
-            vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset.r]);
+            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
 
             vec4 sqsum = v0 * v0;
 
@@ -176,8 +170,8 @@ void main()
         }
         else if (sz == p.c - 2)
         {
-            vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset.r]);
-            vec4 v1 = sfp2floatvec4(bottom_top_blob_data[v_offset.g]);
+            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
+            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
 
             vec4 sqsum = v0 * v0 + v1 * v1;
 
@@ -185,9 +179,9 @@ void main()
         }
         else if (sz == p.c - 3)
         {
-            vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset.r]);
-            vec4 v1 = sfp2floatvec4(bottom_top_blob_data[v_offset.g]);
-            vec4 v2 = sfp2floatvec4(bottom_top_blob_data[v_offset.b]);
+            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
+            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
+            vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.b));
 
             vec4 sqsum = v0 * v0 + v1 * v1 + v2 * v2;
 
@@ -195,10 +189,10 @@ void main()
         }
         else
         {
-            vec4 v0 = sfp2floatvec4(bottom_top_blob_data[v_offset.r]);
-            vec4 v1 = sfp2floatvec4(bottom_top_blob_data[v_offset.g]);
-            vec4 v2 = sfp2floatvec4(bottom_top_blob_data[v_offset.b]);
-            vec4 v3 = sfp2floatvec4(bottom_top_blob_data[v_offset.a]);
+            vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
+            vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
+            vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.b));
+            vec4 v3 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.a));
 
             vec4 sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
 

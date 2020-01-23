@@ -54,11 +54,15 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-    ivec4 i4;
+    ivec3 gxyz = ivec3(gx, gy, gz);
 
-    if (p.dims == 1) i4 = gx * 4 + ivec4(0, 1, 2, 3);
-    if (p.dims == 2) i4 = (gy * 4) * p.w + gx + ivec4(0, 1, 2, 3) * p.w;
-    if (p.dims == 3) i4 = (gz * 4) * p.h * p.w + gy * p.w + gx + ivec4(0, 1, 2, 3) * p.h * p.w;
+    gxyz[p.dims - 1] *= 4;
+
+    int i4_0 = gxyz.z * p.h * p.w + gxyz.y * p.w + gxyz.x;
+
+    ivec3 gxyz4 = ivec3(1, p.w, p.h * p.w);
+
+    ivec4 i4 = i4_0 + ivec4(0, 1, 2, 3) * gxyz4[p.dims - 1];
 
     ivec4 v_offset;
 
@@ -66,14 +70,14 @@ void main()
     {
         v_offset = i4;
     }
-    else if (ndim == 2)
+    if (ndim == 2)
     {
         ivec4 y4 = i4 / p.outw;
         ivec4 x4 = i4 % p.outw;
 
         v_offset = y4 * p.outw + x4;
     }
-    else // if (ndim == 3)
+    if (ndim == 3)
     {
         int size = p.outw * p.outh;
 
