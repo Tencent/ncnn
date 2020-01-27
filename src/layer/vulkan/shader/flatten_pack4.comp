@@ -56,9 +56,9 @@ void main()
     if (gx >= p.outw || gy >= 1 || gz >= 1)
         return;
 
-#if NCNN_fp16_packed
     ivec4 i4 = gx * 4 + ivec4(0, 1, 2, 3);
 
+#if NCNN_fp16_packed
     ivec4 v_offset;
     ivec4 lane2;
 
@@ -95,25 +95,20 @@ void main()
 
     if (p.dims == 2)
     {
-        int y = gx / p.w;
-        ivec4 i4 = (gx % p.w) * 4 + ivec4(0, 1, 2, 3);
+        ivec4 y4 = i4 / p.w;
+        ivec4 x4 = i4 % p.w;
 
-        ivec4 k4 = i4 / p.w;
-        ivec4 si4 = i4 % p.w;
-
-        v_offset = ivec4(y * 4 * p.w) + si4 * 4 + k4;
+        v_offset = ((y4 / 4) * p.w + x4) * 4 + y4 % 4;
     }
     else // if (p.dims == 3)
     {
         int size = p.w * p.h;
 
-        int z = gx / size;
-        ivec4 i4 = (gx % size) * 4 + ivec4(0, 1, 2, 3);
+        ivec4 z4 = i4 / size;
+        ivec4 y4 = i4 % size / p.w;
+        ivec4 x4 = i4 % size % p.w;
 
-        ivec4 k4 = i4 / size;
-        ivec4 si4 = i4 % size;
-
-        v_offset = ivec4(z * 4 * p.cstep) + si4 * 4 + k4;
+        v_offset = ((z4 / 4) * p.cstep + y4 * p.w + x4) * 4 + z4 % 4;
     }
 
     buffer_cp1to4(top_blob_data, gx, bottom_blob_data, v_offset);

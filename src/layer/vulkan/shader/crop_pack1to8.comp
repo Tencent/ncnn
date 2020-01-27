@@ -61,9 +61,9 @@ void main()
 
     int x = gx + p.woffset;
     int y = gy + p.hoffset;
-    ivec4 z4 = gz * 8 + ivec4(0, 1, 2, 3) + p.coffset;
-    ivec4 v_offset = z4 * p.cstep + y * p.w + x;
-    ivec4 vv_offset = (z4 + 4) * p.cstep + y * p.w + x;
+    int z = gz * 8 + p.coffset;
+    ivec4 v_offset = z * p.cstep + y * p.w + x + ivec4(0, 1, 2, 3) * p.cstep;
+    ivec4 vv_offset = v_offset + 4 * p.cstep;
 
     buffer_cp1to8(top_blob_data, gi, bottom_blob_data, v_offset, vv_offset);
 }
