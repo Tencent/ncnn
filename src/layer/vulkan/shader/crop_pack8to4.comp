@@ -61,20 +61,14 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
+    int gi = gz * p.outcstep + gy * p.outw + gx;
+
     int x = gx + p.woffset;
     int y = gy + p.hoffset;
-    int z = gz * 4 + p.coffset;
-
-    ivec4 i4 = z * p.outh * p.outw + y * p.outw + x + ivec4(0, 1, 2, 3) * p.outh * p.outw;
-
-    int size = p.w * p.h;
-
-    ivec4 z4 = i4 / size;
-    ivec4 y4 = i4 % size / p.w;
-    ivec4 x4 = i4 % size % p.w;
+    ivec4 z4 = gz * 4 + p.coffset + ivec4(0, 1, 2, 3);
 
 #if NCNN_fp16_packed
-    ivec4 v_offset = ((z4 / 8) * p.cstep + y4 * p.w + x4) * 4 + (z4 % 8) / 2;
+    ivec4 v_offset = ((z4 / 8) * p.cstep + y * p.w + x) * 4 + (z4 % 8) / 2;
     ivec4 lane2 = z4 % 2;
 
     afpvec2 vr = buffer_ld2(bottom_blob_data, v_offset.r);
@@ -84,13 +78,9 @@ void main()
 
     afpvec4 v = afpvec4(vr[lane2.r], vg[lane2.g], vb[lane2.b], va[lane2.a]);
 
-    int gi = gz * p.outcstep + gy * p.outw + gx;
-
     buffer_st4(top_blob_data, gi, v);
 #else
-    ivec4 v_offset = ((z4 / 8) * p.cstep + y4 * p.w + x4) * 8 + z4 % 8;
-
-    int gi = gz * p.outcstep + gy * p.outw + gx;
+    ivec4 v_offset = ((z4 / 8) * p.cstep + y * p.w + x) * 8 + z4 % 8;
 
     buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif
