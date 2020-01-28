@@ -34,6 +34,11 @@ Softmax_vulkan::Softmax_vulkan()
     pipeline_softmax_exp_sub_max_pack4 = 0;
     pipeline_softmax_reduce_sum_pack4 = 0;
     pipeline_softmax_div_sum_pack4 = 0;
+
+    pipeline_softmax_reduce_max_pack8 = 0;
+    pipeline_softmax_exp_sub_max_pack8 = 0;
+    pipeline_softmax_reduce_sum_pack8 = 0;
+    pipeline_softmax_div_sum_pack8 = 0;
 }
 
 int Softmax_vulkan::create_pipeline(const Option& opt)
@@ -77,6 +82,24 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
         pipeline_softmax_div_sum_pack4->create("softmax_div_sum_pack4", opt, specializations, 2, 10);
     }
 
+    // pack8
+    {
+        pipeline_softmax_reduce_max_pack8 = new Pipeline(vkdev);
+        pipeline_softmax_exp_sub_max_pack8 = new Pipeline(vkdev);
+        pipeline_softmax_reduce_sum_pack8 = new Pipeline(vkdev);
+        pipeline_softmax_div_sum_pack8 = new Pipeline(vkdev);
+
+        pipeline_softmax_reduce_max_pack8->set_optimal_local_size_xyz();
+        pipeline_softmax_exp_sub_max_pack8->set_optimal_local_size_xyz();
+        pipeline_softmax_reduce_sum_pack8->set_optimal_local_size_xyz();
+        pipeline_softmax_div_sum_pack8->set_optimal_local_size_xyz();
+
+        pipeline_softmax_reduce_max_pack8->create("softmax_reduce_max_pack8", opt, specializations, 2, 10);
+        pipeline_softmax_exp_sub_max_pack8->create("softmax_exp_sub_max_pack8", opt, specializations, 2, 10);
+        pipeline_softmax_reduce_sum_pack8->create("softmax_reduce_sum_pack8", opt, specializations, 2, 10);
+        pipeline_softmax_div_sum_pack8->create("softmax_div_sum_pack8", opt, specializations, 2, 10);
+    }
+
     return 0;
 }
 
@@ -105,6 +128,18 @@ int Softmax_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_softmax_div_sum_pack4;
     pipeline_softmax_div_sum_pack4 = 0;
+
+    delete pipeline_softmax_reduce_max_pack8;
+    pipeline_softmax_reduce_max_pack8 = 0;
+
+    delete pipeline_softmax_exp_sub_max_pack8;
+    pipeline_softmax_exp_sub_max_pack8 = 0;
+
+    delete pipeline_softmax_reduce_sum_pack8;
+    pipeline_softmax_reduce_sum_pack8 = 0;
+
+    delete pipeline_softmax_div_sum_pack8;
+    pipeline_softmax_div_sum_pack8 = 0;
 
     return 0;
 }
@@ -170,7 +205,9 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     constants[8].i = max_workspace.c;
     constants[9].i = max_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_softmax_reduce_max_pack4 : pipeline_softmax_reduce_max;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_max_pack8
+                             : elempack == 4 ? pipeline_softmax_reduce_max_pack4
+                             : pipeline_softmax_reduce_max;
 
     cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
     }
@@ -193,7 +230,9 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     constants[8].i = max_workspace.c;
     constants[9].i = max_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_softmax_exp_sub_max_pack4 : pipeline_softmax_exp_sub_max;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_exp_sub_max_pack8
+                             : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
+                             : pipeline_softmax_exp_sub_max;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
@@ -216,7 +255,9 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     constants[8].i = sum_workspace.c;
     constants[9].i = sum_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_softmax_reduce_sum_pack4 : pipeline_softmax_reduce_sum;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_sum_pack8
+                             : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
+                             : pipeline_softmax_reduce_sum;
 
     cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
     }
@@ -239,7 +280,9 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     constants[8].i = sum_workspace.c;
     constants[9].i = sum_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_softmax_div_sum_pack4 : pipeline_softmax_div_sum;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
+                             : elempack == 4 ? pipeline_softmax_div_sum_pack4
+                             : pipeline_softmax_div_sum;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }

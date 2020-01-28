@@ -37,9 +37,8 @@ public:
 public:
     VkMat per_channel_pad_data_gpu;
     Pipeline* pipeline_padding;
-
-    VkMat per_channel_pad_data_gpu_pack4;
     Pipeline* pipeline_padding_pack4;
+    Pipeline* pipeline_padding_pack8;
 };
 
 } // namespace ncnn

@@ -29,6 +29,10 @@ LRN_vulkan::LRN_vulkan()
     pipeline_lrn_norm_across_channel_pack4 = 0;
     pipeline_lrn_square_pad_within_channel_pack4 = 0;
     pipeline_lrn_norm_within_channel_pack4 = 0;
+    pipeline_lrn_square_pad_across_channel_pack8 = 0;
+    pipeline_lrn_norm_across_channel_pack8 = 0;
+    pipeline_lrn_square_pad_within_channel_pack8 = 0;
+    pipeline_lrn_norm_within_channel_pack8 = 0;
 }
 
 int LRN_vulkan::create_pipeline(const Option& opt)
@@ -67,6 +71,20 @@ int LRN_vulkan::create_pipeline(const Option& opt)
             pipeline_lrn_square_pad_within_channel_pack4->set_optimal_local_size_xyz();
             pipeline_lrn_square_pad_within_channel_pack4->create("lrn_square_pad_within_channel_pack4", opt, specializations, 2, 10);
         }
+
+        // pack8
+        if (region_type == 0)
+        {
+            pipeline_lrn_square_pad_across_channel_pack8 = new Pipeline(vkdev);
+            pipeline_lrn_square_pad_across_channel_pack8->set_optimal_local_size_xyz();
+            pipeline_lrn_square_pad_across_channel_pack8->create("lrn_square_pad_across_channel_pack8", opt, specializations, 2, 10);
+        }
+        if (region_type == 1)
+        {
+            pipeline_lrn_square_pad_within_channel_pack8 = new Pipeline(vkdev);
+            pipeline_lrn_square_pad_within_channel_pack8->set_optimal_local_size_xyz();
+            pipeline_lrn_square_pad_within_channel_pack8->create("lrn_square_pad_within_channel_pack8", opt, specializations, 2, 10);
+        }
     }
 
     {
@@ -95,6 +113,20 @@ int LRN_vulkan::create_pipeline(const Option& opt)
             pipeline_lrn_norm_within_channel_pack4->set_optimal_local_size_xyz();
             pipeline_lrn_norm_within_channel_pack4->create("lrn_norm_within_channel_pack4", opt, specializations, 2, 10);
         }
+
+        // pack8
+        if (region_type == 0)
+        {
+            pipeline_lrn_norm_across_channel_pack8 = new Pipeline(vkdev);
+            pipeline_lrn_norm_across_channel_pack8->set_optimal_local_size_xyz();
+            pipeline_lrn_norm_across_channel_pack8->create("lrn_norm_across_channel_pack8", opt, specializations, 2, 10);
+        }
+        if (region_type == 1)
+        {
+            pipeline_lrn_norm_within_channel_pack8 = new Pipeline(vkdev);
+            pipeline_lrn_norm_within_channel_pack8->set_optimal_local_size_xyz();
+            pipeline_lrn_norm_within_channel_pack8->create("lrn_norm_within_channel_pack8", opt, specializations, 2, 10);
+        }
     }
 
     return 0;
@@ -119,6 +151,18 @@ int LRN_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_lrn_norm_within_channel_pack4;
     pipeline_lrn_norm_within_channel_pack4 = 0;
+
+    delete pipeline_lrn_square_pad_across_channel_pack8;
+    pipeline_lrn_square_pad_across_channel_pack8 = 0;
+
+    delete pipeline_lrn_norm_across_channel_pack8;
+    pipeline_lrn_norm_across_channel_pack8 = 0;
+
+    delete pipeline_lrn_square_pad_within_channel_pack8;
+    pipeline_lrn_square_pad_within_channel_pack8 = 0;
+
+    delete pipeline_lrn_norm_within_channel_pack8;
+    pipeline_lrn_norm_within_channel_pack8 = 0;
 
     return 0;
 }
@@ -167,7 +211,12 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
     constants[9].i = square_workspace.cstep;
 
     const Pipeline* pipeline = 0;
-    if (elempack == 4)
+    if (elempack == 8)
+    {
+        if (region_type == 0) pipeline = pipeline_lrn_square_pad_across_channel_pack8;
+        if (region_type == 1) pipeline = pipeline_lrn_square_pad_within_channel_pack8;
+    }
+    else if (elempack == 4)
     {
         if (region_type == 0) pipeline = pipeline_lrn_square_pad_across_channel_pack4;
         if (region_type == 1) pipeline = pipeline_lrn_square_pad_within_channel_pack4;
@@ -199,7 +248,12 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
     constants[9].i = bottom_top_blob.cstep;
 
     const Pipeline* pipeline = 0;
-    if (elempack == 4)
+    if (elempack == 8)
+    {
+        if (region_type == 0) pipeline = pipeline_lrn_norm_across_channel_pack8;
+        if (region_type == 1) pipeline = pipeline_lrn_norm_within_channel_pack8;
+    }
+    else if (elempack == 4)
     {
         if (region_type == 0) pipeline = pipeline_lrn_norm_across_channel_pack4;
         if (region_type == 1) pipeline = pipeline_lrn_norm_within_channel_pack4;

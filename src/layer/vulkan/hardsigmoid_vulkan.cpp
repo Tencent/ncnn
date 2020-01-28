@@ -24,6 +24,7 @@ HardSigmoid_vulkan::HardSigmoid_vulkan()
 
     pipeline_hardsigmoid = 0;
     pipeline_hardsigmoid_pack4 = 0;
+    pipeline_hardsigmoid_pack8 = 0;
 }
 
 int HardSigmoid_vulkan::create_pipeline(const Option& opt)
@@ -46,6 +47,13 @@ int HardSigmoid_vulkan::create_pipeline(const Option& opt)
         pipeline_hardsigmoid_pack4->create("hardsigmoid_pack4", opt, specializations, 1, 5);
     }
 
+    // pack8
+    {
+        pipeline_hardsigmoid_pack8 = new Pipeline(vkdev);
+        pipeline_hardsigmoid_pack8->set_optimal_local_size_xyz();
+        pipeline_hardsigmoid_pack8->create("hardsigmoid_pack8", opt, specializations, 1, 5);
+    }
+
     return 0;
 }
 
@@ -56,6 +64,9 @@ int HardSigmoid_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_hardsigmoid_pack4;
     pipeline_hardsigmoid_pack4 = 0;
+
+    delete pipeline_hardsigmoid_pack8;
+    pipeline_hardsigmoid_pack8 = 0;
 
     return 0;
 }
@@ -74,7 +85,9 @@ int HardSigmoid_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, 
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_hardsigmoid_pack4 : pipeline_hardsigmoid;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_hardsigmoid_pack8
+                             : elempack == 4 ? pipeline_hardsigmoid_pack4
+                             : pipeline_hardsigmoid;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

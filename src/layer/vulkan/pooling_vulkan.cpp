@@ -27,9 +27,11 @@ Pooling_vulkan::Pooling_vulkan()
 
     padding = 0;
     pipeline_pooling = 0;
-    pipeline_pooling_global = 0;
     pipeline_pooling_pack4 = 0;
+    pipeline_pooling_pack8 = 0;
+    pipeline_pooling_global = 0;
     pipeline_pooling_global_pack4 = 0;
+    pipeline_pooling_global_pack8 = 0;
 }
 
 int Pooling_vulkan::create_pipeline(const Option& opt)
@@ -59,34 +61,6 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         padding->create_pipeline(opt);
     }
 
-    std::vector<vk_specialization_type> specializations(12);
-    specializations[0].i = pooling_type;
-    specializations[1].i = kernel_w;
-    specializations[2].i = kernel_h;
-    specializations[3].i = stride_w;
-    specializations[4].i = stride_h;
-    specializations[5].i = pad_left;
-    specializations[6].i = pad_right;
-    specializations[7].i = pad_top;
-    specializations[8].i = pad_bottom;
-    specializations[9].i = global_pooling;
-    specializations[10].i = pad_mode;
-    specializations[11].i = avgpool_count_include_pad;
-
-    // pack1
-    {
-        pipeline_pooling = new Pipeline(vkdev);
-        pipeline_pooling->set_optimal_local_size_xyz();
-        pipeline_pooling->create("pooling", opt, specializations, 2, 12);
-    }
-
-    // pack4
-    {
-        pipeline_pooling_pack4 = new Pipeline(vkdev);
-        pipeline_pooling_pack4->set_optimal_local_size_xyz();
-        pipeline_pooling_pack4->create("pooling_pack4", opt, specializations, 2, 12);
-    }
-
     if (global_pooling)
     {
         std::vector<vk_specialization_type> specializations(1);
@@ -104,6 +78,50 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
             pipeline_pooling_global_pack4 = new Pipeline(vkdev);
             pipeline_pooling_global_pack4->set_optimal_local_size_xyz(256, 1, 1);
             pipeline_pooling_global_pack4->create("pooling_global_pack4", opt, specializations, 2, 12);
+        }
+
+        // pack8
+        {
+            pipeline_pooling_global_pack8 = new Pipeline(vkdev);
+            pipeline_pooling_global_pack8->set_optimal_local_size_xyz(256, 1, 1);
+            pipeline_pooling_global_pack8->create("pooling_global_pack8", opt, specializations, 2, 12);
+        }
+    }
+    else
+    {
+        std::vector<vk_specialization_type> specializations(12);
+        specializations[0].i = pooling_type;
+        specializations[1].i = kernel_w;
+        specializations[2].i = kernel_h;
+        specializations[3].i = stride_w;
+        specializations[4].i = stride_h;
+        specializations[5].i = pad_left;
+        specializations[6].i = pad_right;
+        specializations[7].i = pad_top;
+        specializations[8].i = pad_bottom;
+        specializations[9].i = global_pooling;
+        specializations[10].i = pad_mode;
+        specializations[11].i = avgpool_count_include_pad;
+
+        // pack1
+        {
+            pipeline_pooling = new Pipeline(vkdev);
+            pipeline_pooling->set_optimal_local_size_xyz();
+            pipeline_pooling->create("pooling", opt, specializations, 2, 12);
+        }
+
+        // pack4
+        {
+            pipeline_pooling_pack4 = new Pipeline(vkdev);
+            pipeline_pooling_pack4->set_optimal_local_size_xyz();
+            pipeline_pooling_pack4->create("pooling_pack4", opt, specializations, 2, 12);
+        }
+
+        // pack8
+        {
+            pipeline_pooling_pack8 = new Pipeline(vkdev);
+            pipeline_pooling_pack8->set_optimal_local_size_xyz();
+            pipeline_pooling_pack8->create("pooling_pack8", opt, specializations, 2, 12);
         }
     }
 
@@ -125,11 +143,17 @@ int Pooling_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_pooling_pack4;
     pipeline_pooling_pack4 = 0;
 
+    delete pipeline_pooling_pack8;
+    pipeline_pooling_pack8 = 0;
+
     delete pipeline_pooling_global;
     pipeline_pooling_global = 0;
 
     delete pipeline_pooling_global_pack4;
     pipeline_pooling_global_pack4 = 0;
+
+    delete pipeline_pooling_global_pack8;
+    pipeline_pooling_global_pack8 = 0;
 
     return 0;
 }
@@ -166,7 +190,9 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         constants[10].i = 0;
         constants[11].i = 0;
 
-        const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_global_pack4 : pipeline_pooling_global;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_pack8
+                                 : elempack == 4 ? pipeline_pooling_global_pack4
+                                 : pipeline_pooling_global;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -298,7 +324,9 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[10].i = wtailpad;
     constants[11].i = htailpad;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_pack4 : pipeline_pooling;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_pack8
+                             : elempack == 4 ? pipeline_pooling_pack4
+                             : pipeline_pooling;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
