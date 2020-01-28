@@ -20,7 +20,7 @@ DEFINE_LAYER_CREATOR(Packing_vulkan)
 
 Packing_vulkan::Packing_vulkan()
 {
-    support_vulkan = false;
+    support_vulkan = true;
 
     pipeline_packing_1to4 = 0;
     pipeline_packing_4to1 = 0;

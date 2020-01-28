@@ -416,7 +416,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
 
                 float scale_out = top_blob_int8_scale;//FIXME load param
 
-                requantize_int8_to_int8(top_blob_tm, top_blob, scale_in, scale_out, &bias_data[p], bias_term ? 1 : 0, 0, opt_g);
+                requantize_int8_to_int8(top_blob_tm_g, top_blob_g, scale_in, scale_out, &bias_data[p], bias_term ? 1 : 0, 0, opt_g);
             }
         }
         else

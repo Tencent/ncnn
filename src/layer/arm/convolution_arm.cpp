@@ -1028,7 +1028,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
+    // int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
 //     fprintf(stderr, "Convolution_arm input %d x %d  ksize=%d %d  stride=%d %d\n", w, h, kernel_w, kernel_h, stride_w, stride_h);

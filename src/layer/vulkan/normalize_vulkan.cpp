@@ -162,9 +162,9 @@ int Normalize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int size = w * h;
+    // int w = bottom_top_blob.w;
+    // int h = bottom_top_blob.h;
+    // int size = w * h;
     size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
 
