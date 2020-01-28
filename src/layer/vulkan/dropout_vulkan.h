@@ -33,6 +33,7 @@ public:
 public:
     Pipeline* pipeline_dropout;
     Pipeline* pipeline_dropout_pack4;
+    Pipeline* pipeline_dropout_pack8;
 };
 
 } // namespace ncnn

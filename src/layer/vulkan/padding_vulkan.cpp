@@ -24,6 +24,7 @@ Padding_vulkan::Padding_vulkan()
 
     pipeline_padding = 0;
     pipeline_padding_pack4 = 0;
+    pipeline_padding_pack8 = 0;
 }
 
 int Padding_vulkan::create_pipeline(const Option& opt)
@@ -47,6 +48,13 @@ int Padding_vulkan::create_pipeline(const Option& opt)
         pipeline_padding_pack4->create("padding_pack4", opt, specializations, 3, 12);
     }
 
+    // pack8
+    {
+        pipeline_padding_pack8 = new Pipeline(vkdev);
+        pipeline_padding_pack8->set_optimal_local_size_xyz();
+        pipeline_padding_pack8->create("padding_pack8", opt, specializations, 3, 12);
+    }
+
     return 0;
 }
 
@@ -58,6 +66,9 @@ int Padding_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_padding_pack4;
     pipeline_padding_pack4 = 0;
 
+    delete pipeline_padding_pack8;
+    pipeline_padding_pack8 = 0;
+
     return 0;
 }
 
@@ -66,19 +77,7 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (per_channel_pad_data_size == 0)
         return 0;
 
-    // pack1
-    if (per_channel_pad_data_size % 4 != 0)
-    {
-        cmd.record_upload(per_channel_pad_data, per_channel_pad_data_gpu, opt);
-    }
-
-    // pack4
-    if (per_channel_pad_data_size % 4 == 0)
-    {
-        Mat per_channel_pad_data_pack4;
-        convert_packing(per_channel_pad_data, per_channel_pad_data_pack4, 4);
-        cmd.record_upload(per_channel_pad_data_pack4, per_channel_pad_data_gpu_pack4, opt);
-    }
+    cmd.record_upload(per_channel_pad_data, per_channel_pad_data_gpu, opt);
 
     return 0;
 }
@@ -109,7 +108,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_size ? (elempack == 4 ? per_channel_pad_data_gpu_pack4 : per_channel_pad_data_gpu) : top_blob;// TODO use dummy buffer
+    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_gpu : top_blob;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
@@ -125,7 +124,9 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[10].i = left;
     constants[11].i = top;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_padding_pack4 : pipeline_padding;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_padding_pack8
+                             : elempack == 4 ? pipeline_padding_pack4
+                             : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -176,7 +177,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_size ? (elempack == 4 ? per_channel_pad_data_gpu_pack4 : per_channel_pad_data_gpu) : top_blob;// TODO use dummy buffer
+    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_gpu : top_blob;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
@@ -192,7 +193,9 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     constants[10].i = _left;
     constants[11].i = _top;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_padding_pack4 : pipeline_padding;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_padding_pack8
+                             : elempack == 4 ? pipeline_padding_pack4
+                             : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

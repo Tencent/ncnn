@@ -34,9 +34,11 @@ public:
     ncnn::Layer* padding;
 
     Pipeline* pipeline_pooling;
-    Pipeline* pipeline_pooling_global;
     Pipeline* pipeline_pooling_pack4;
+    Pipeline* pipeline_pooling_pack8;
+    Pipeline* pipeline_pooling_global;
     Pipeline* pipeline_pooling_global_pack4;
+    Pipeline* pipeline_pooling_global_pack8;
 };
 
 } // namespace ncnn
