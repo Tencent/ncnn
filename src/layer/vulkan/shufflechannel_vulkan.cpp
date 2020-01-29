@@ -24,6 +24,7 @@ ShuffleChannel_vulkan::ShuffleChannel_vulkan()
 
     pipeline_shufflechannel = 0;
     pipeline_shufflechannel_pack4 = 0;
+    pipeline_shufflechannel_pack8 = 0;
 }
 
 int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
@@ -45,6 +46,13 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
         pipeline_shufflechannel_pack4->create("shufflechannel_pack4", opt, specializations, 2, 10);
     }
 
+    // pack8
+    {
+        pipeline_shufflechannel_pack8 = new Pipeline(vkdev);
+        pipeline_shufflechannel_pack8->set_optimal_local_size_xyz();
+        pipeline_shufflechannel_pack8->create("shufflechannel_pack8", opt, specializations, 2, 10);
+    }
+
     return 0;
 }
 
@@ -55,6 +63,9 @@ int ShuffleChannel_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_shufflechannel_pack4;
     pipeline_shufflechannel_pack4 = 0;
+
+    delete pipeline_shufflechannel_pack8;
+    pipeline_shufflechannel_pack8 = 0;
 
     return 0;
 }
@@ -87,7 +98,9 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_shufflechannel_pack4 : pipeline_shufflechannel;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_shufflechannel_pack8
+                             : elempack == 4 ? pipeline_shufflechannel_pack4
+                             : pipeline_shufflechannel;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

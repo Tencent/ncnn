@@ -27,14 +27,21 @@ ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
     padding = 0;
     packing_pack1 = 0;
     packing_pack4 = 0;
+    packing_pack8 = 0;
 
     pipeline_convolutiondepthwise = 0;
     pipeline_convolutiondepthwise_pack4 = 0;
+    pipeline_convolutiondepthwise_pack8 = 0;
 
     pipeline_convolutiondepthwise_group = 0;
     pipeline_convolutiondepthwise_group_pack4 = 0;
     pipeline_convolutiondepthwise_group_pack1to4 = 0;
     pipeline_convolutiondepthwise_group_pack4to1 = 0;
+    pipeline_convolutiondepthwise_group_pack8 = 0;
+    pipeline_convolutiondepthwise_group_pack1to8 = 0;
+    pipeline_convolutiondepthwise_group_pack4to8 = 0;
+    pipeline_convolutiondepthwise_group_pack8to4 = 0;
+    pipeline_convolutiondepthwise_group_pack8to1 = 0;
 }
 
 int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
@@ -72,11 +79,14 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+
     // depth-wise
     if (channels == group && group == num_output)
     {
         // pack1
-        if (num_output % 4 != 0)
+        if (elempack == 1)
         {
             pipeline_convolutiondepthwise = new Pipeline(vkdev);
             pipeline_convolutiondepthwise->set_optimal_local_size_xyz(32, 32, num_output);
@@ -84,11 +94,19 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack4
-        if (num_output % 4 == 0)
+        if (elempack == 4)
         {
             pipeline_convolutiondepthwise_pack4 = new Pipeline(vkdev);
             pipeline_convolutiondepthwise_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 4));
             pipeline_convolutiondepthwise_pack4->create("convolutiondepthwise_pack4", opt, specializations, 4, 10);
+        }
+
+        // pack8
+        if (elempack == 8)
+        {
+            pipeline_convolutiondepthwise_pack8 = new Pipeline(vkdev);
+            pipeline_convolutiondepthwise_pack8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+            pipeline_convolutiondepthwise_pack8->create("convolutiondepthwise_pack8", opt, specializations, 4, 10);
         }
 
         return 0;
@@ -98,8 +116,11 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
 
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+
     // pack1
-    if (channels_g % 4 != 0 && num_output_g % 4 != 0)
+    if (elempack_g == 1 && out_elempack_g == 1)
     {
         pipeline_convolutiondepthwise_group = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
@@ -107,7 +128,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4
-    if (channels_g % 4 == 0 && num_output_g % 4 == 0)
+    if (elempack_g == 4 && out_elempack_g == 4)
     {
         pipeline_convolutiondepthwise_group_pack4 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
@@ -115,7 +136,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack1to4
-    if (channels_g % 4 != 0 && num_output_g % 4 == 0)
+    if (elempack_g == 1 && out_elempack_g == 4)
     {
         pipeline_convolutiondepthwise_group_pack1to4 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack1to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
@@ -123,14 +144,54 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4to1
-    if (channels_g % 4 == 0 && num_output_g % 4 != 0)
+    if (elempack_g == 4 && out_elempack_g == 1)
     {
         pipeline_convolutiondepthwise_group_pack4to1 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack4to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
         pipeline_convolutiondepthwise_group_pack4to1->create("convolutiondepthwise_group_pack4to1", opt, specializations, 4, 10);
     }
 
-    if (channels % 4 == 0 && channels_g % 4 != 0)
+    // pack8
+    if (elempack_g == 8 && out_elempack_g == 8)
+    {
+        pipeline_convolutiondepthwise_group_pack8 = new Pipeline(vkdev);
+        pipeline_convolutiondepthwise_group_pack8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack8->create("convolutiondepthwise_group_pack8", opt, specializations, 4, 10);
+    }
+
+    // pack1to8
+    if (elempack_g == 1 && out_elempack_g == 8)
+    {
+        pipeline_convolutiondepthwise_group_pack1to8 = new Pipeline(vkdev);
+        pipeline_convolutiondepthwise_group_pack1to8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack1to8->create("convolutiondepthwise_group_pack1to8", opt, specializations, 4, 10);
+    }
+
+    // pack4to8
+    if (elempack_g == 4 && out_elempack_g == 8)
+    {
+        pipeline_convolutiondepthwise_group_pack4to8 = new Pipeline(vkdev);
+        pipeline_convolutiondepthwise_group_pack4to8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack4to8->create("convolutiondepthwise_group_pack4to8", opt, specializations, 4, 10);
+    }
+
+    // pack8to4
+    if (elempack_g == 8 && out_elempack_g == 4)
+    {
+        pipeline_convolutiondepthwise_group_pack8to4 = new Pipeline(vkdev);
+        pipeline_convolutiondepthwise_group_pack8to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack8to4->create("convolutiondepthwise_group_pack8to4", opt, specializations, 4, 10);
+    }
+
+    // pack8to1
+    if (elempack_g == 8 && out_elempack_g == 1)
+    {
+        pipeline_convolutiondepthwise_group_pack8to1 = new Pipeline(vkdev);
+        pipeline_convolutiondepthwise_group_pack8to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_convolutiondepthwise_group_pack8to1->create("convolutiondepthwise_group_pack8to1", opt, specializations, 4, 10);
+    }
+
+    if (elempack > elempack_g && elempack_g == 1)
     {
         packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
         packing_pack1->vkdev = vkdev;
@@ -143,7 +204,8 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         packing_pack1->create_pipeline(opt);
     }
 
-    if (num_output_g % 4 != 0 && num_output % 4 == 0)
+    if ((elempack > elempack_g && elempack_g == 4)
+        || (out_elempack_g < out_elempack && out_elempack == 4))
     {
         packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
         packing_pack4->vkdev = vkdev;
@@ -154,6 +216,19 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         packing_pack4->load_param(pd);
 
         packing_pack4->create_pipeline(opt);
+    }
+
+    if (out_elempack_g < out_elempack && out_elempack == 8)
+    {
+        packing_pack8 = ncnn::create_layer(ncnn::LayerType::Packing);
+        packing_pack8->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 8);
+
+        packing_pack8->load_param(pd);
+
+        packing_pack8->create_pipeline(opt);
     }
 
     return 0;
@@ -182,11 +257,21 @@ int ConvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
         packing_pack4 = 0;
     }
 
+    if (packing_pack8)
+    {
+        packing_pack8->destroy_pipeline(opt);
+        delete packing_pack8;
+        packing_pack8 = 0;
+    }
+
     delete pipeline_convolutiondepthwise;
     pipeline_convolutiondepthwise = 0;
 
     delete pipeline_convolutiondepthwise_pack4;
     pipeline_convolutiondepthwise_pack4 = 0;
+
+    delete pipeline_convolutiondepthwise_pack8;
+    pipeline_convolutiondepthwise_pack8 = 0;
 
     delete pipeline_convolutiondepthwise_group;
     pipeline_convolutiondepthwise_group = 0;
@@ -200,6 +285,21 @@ int ConvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_convolutiondepthwise_group_pack4to1;
     pipeline_convolutiondepthwise_group_pack4to1 = 0;
 
+    delete pipeline_convolutiondepthwise_group_pack8;
+    pipeline_convolutiondepthwise_group_pack8 = 0;
+
+    delete pipeline_convolutiondepthwise_group_pack1to8;
+    pipeline_convolutiondepthwise_group_pack1to8 = 0;
+
+    delete pipeline_convolutiondepthwise_group_pack4to8;
+    pipeline_convolutiondepthwise_group_pack4to8 = 0;
+
+    delete pipeline_convolutiondepthwise_group_pack8to4;
+    pipeline_convolutiondepthwise_group_pack8to4 = 0;
+
+    delete pipeline_convolutiondepthwise_group_pack8to1;
+    pipeline_convolutiondepthwise_group_pack8to1 = 0;
+
     return 0;
 }
 
@@ -208,38 +308,21 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+//     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+
     // depth-wise
     if (channels == group && group == num_output)
     {
-        // pack1
-        if (num_output % 4 != 0)
-        {
-            cmd.record_upload(weight_data, weight_data_gpu, opt);
-        }
+        Mat weight_data_packed;
+        Mat weight_data_r2 = weight_data.reshape(maxk, group);
+        convert_packing(weight_data_r2, weight_data_packed, elempack);
 
-        // pack4
-        if (num_output % 4 == 0)
-        {
-            Mat weight_data_pack4;
-            Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_pack4, 4);
-
-            cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4, opt);
-        }
+        cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
         if (bias_term)
         {
-            if (num_output % 4 != 0)
-            {
-                cmd.record_upload(bias_data, bias_data_gpu, opt);
-            }
-
-            if (num_output % 4 == 0)
-            {
-                Mat bias_data_pack4;
-                convert_packing(bias_data, bias_data_pack4, 4);
-                cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4, opt);
-            }
+            cmd.record_upload(bias_data, bias_data_gpu, opt);
         }
 
         return 0;
@@ -249,207 +332,59 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
 
-    // pack1
-    if (channels_g % 4 != 0 && num_output_g % 4 != 0)
-    {
-        cmd.record_upload(weight_data, weight_data_gpu, opt);
-    }
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
 
-    // pack4
-    if (channels_g % 4 == 0 && num_output_g % 4 == 0)
+    // src = kw-kh-inch-outch
+    // dst = pa-pb-kw-kh-inch/pa-outch/pb
+    Mat weight_data_packed_groups;
     {
-        // src = kw-kh-inch-outch
-        // dst = 4a-4b-kw-kh-inch/4a-outch/4b
-        Mat weight_data_pack4_groups;
+        Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
+
+        weight_data_packed_groups.create(maxk, channels_g/elempack_g, num_output_g/out_elempack_g * group, (size_t)4*elempack_g*out_elempack_g, elempack_g*out_elempack_g);
+
+        for (int g=0; g<group; g++)
         {
-            Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
+            const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
 
-            weight_data_pack4_groups.create(maxk, channels_g/4, num_output_g/4 * group, (size_t)4*16, 16);
+            Mat weight_data_packed = weight_data_packed_groups.channel_range(num_output_g/out_elempack_g * g, num_output_g/out_elempack_g);
 
-            for (int g=0; g<group; g++)
+            for (int q=0; q+(out_elempack_g-1)<num_output_g; q+=out_elempack_g)
             {
-                const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
+                Mat g0 = weight_data_packed.channel(q/out_elempack_g);
 
-                Mat weight_data_pack4 = weight_data_pack4_groups.channel_range(num_output_g/4 * g, num_output_g/4);
-
-                for (int q=0; q+3<num_output_g; q+=4)
+                for (int p=0; p+(elempack_g-1)<channels_g; p+=elempack_g)
                 {
-                    const Mat k0 = weight_data_r2.channel(q);
-                    const Mat k1 = weight_data_r2.channel(q+1);
-                    const Mat k2 = weight_data_r2.channel(q+2);
-                    const Mat k3 = weight_data_r2.channel(q+3);
+                    float* g00 = g0.row(p/elempack_g);
 
-                    Mat g0 = weight_data_pack4.channel(q/4);
-
-                    for (int p=0; p+3<channels_g; p+=4)
+                    for (int k=0; k<maxk; k++)
                     {
-                        const float* k00 = k0.row(p);
-                        const float* k01 = k0.row(p+1);
-                        const float* k02 = k0.row(p+2);
-                        const float* k03 = k0.row(p+3);
 
-                        const float* k10 = k1.row(p);
-                        const float* k11 = k1.row(p+1);
-                        const float* k12 = k1.row(p+2);
-                        const float* k13 = k1.row(p+3);
-
-                        const float* k20 = k2.row(p);
-                        const float* k21 = k2.row(p+1);
-                        const float* k22 = k2.row(p+2);
-                        const float* k23 = k2.row(p+3);
-
-                        const float* k30 = k3.row(p);
-                        const float* k31 = k3.row(p+1);
-                        const float* k32 = k3.row(p+2);
-                        const float* k33 = k3.row(p+3);
-
-                        float* g00 = g0.row(p/4);
-
-                        for (int k=0; k<maxk; k++)
+                        for (int i=0; i<out_elempack_g; i++)
                         {
-                            g00[0] = k00[k];
-                            g00[1] = k01[k];
-                            g00[2] = k02[k];
-                            g00[3] = k03[k];
+                            const Mat k0 = weight_data_r2.channel(q+i);
 
-                            g00[4] = k10[k];
-                            g00[5] = k11[k];
-                            g00[6] = k12[k];
-                            g00[7] = k13[k];
+                            for (int j=0; j<elempack_g; j++)
+                            {
+                                const float* k00 = k0.row(p+j);
 
-                            g00[8] = k20[k];
-                            g00[9] = k21[k];
-                            g00[10] = k22[k];
-                            g00[11] = k23[k];
+                                g00[0] = k00[k];
 
-                            g00[12] = k30[k];
-                            g00[13] = k31[k];
-                            g00[14] = k32[k];
-                            g00[15] = k33[k];
-
-                            g00 += 16;
+                                g00++;
+                            }
                         }
+
                     }
                 }
             }
         }
-
-        cmd.record_upload(weight_data_pack4_groups, weight_data_gpu_pack4, opt);
     }
 
-    // pack1to4
-    if (channels_g % 4 != 0 && num_output_g % 4 == 0)
-    {
-        // src = kw-kh-inch-outch
-        // dst = 4b-kw-kh-inch-outch/4b
-        Mat weight_data_pack1to4_groups;
-        {
-            Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
-
-            weight_data_pack1to4_groups.create(maxk, channels_g, num_output_g/4 * group, (size_t)4*4, 4);
-
-            for (int g=0; g<group; g++)
-            {
-                const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
-
-                Mat weight_data_pack1to4 = weight_data_pack1to4_groups.channel_range(num_output_g/4 * g, num_output_g/4);
-
-                for (int q=0; q+3<num_output_g; q+=4)
-                {
-                    const Mat k0 = weight_data_r2.channel(q);
-                    const Mat k1 = weight_data_r2.channel(q+1);
-                    const Mat k2 = weight_data_r2.channel(q+2);
-                    const Mat k3 = weight_data_r2.channel(q+3);
-
-                    Mat g0 = weight_data_pack1to4.channel(q/4);
-
-                    for (int p=0; p<channels_g; p++)
-                    {
-                        const float* k00 = k0.row(p);
-                        const float* k10 = k1.row(p);
-                        const float* k20 = k2.row(p);
-                        const float* k30 = k3.row(p);
-
-                        float* g00 = g0.row(p);
-
-                        for (int k=0; k<maxk; k++)
-                        {
-                            g00[0] = k00[k];
-                            g00[1] = k10[k];
-                            g00[2] = k20[k];
-                            g00[3] = k30[k];
-
-                            g00 += 4;
-                        }
-                    }
-                }
-            }
-        }
-
-        cmd.record_upload(weight_data_pack1to4_groups, weight_data_gpu_pack1to4, opt);
-    }
-
-    // pack4to1
-    if (channels_g % 4 == 0 && num_output_g % 4 != 0)
-    {
-        // src = kw-kh-inch-outch
-        // dst = 4a-kw-kh-inch/4a-outch
-        Mat weight_data_pack4to1_groups;
-        {
-            Mat weight_data_r2_groups = weight_data.reshape(maxk, channels_g, num_output_g * group);
-
-            weight_data_pack4to1_groups.create(maxk, channels_g/4, num_output_g * group, (size_t)4*4, 4);
-
-            for (int g=0; g<group; g++)
-            {
-                const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
-
-                Mat weight_data_pack4to1 = weight_data_pack4to1_groups.channel_range(num_output_g * g, num_output_g);
-
-                for (int q=0; q<num_output_g; q++)
-                {
-                    const Mat k0 = weight_data_r2.channel(q);
-                    Mat g0 = weight_data_pack4to1.channel(q);
-
-                    for (int p=0; p+3<channels_g; p+=4)
-                    {
-                        const float* k00 = k0.row(p);
-                        const float* k01 = k0.row(p+1);
-                        const float* k02 = k0.row(p+2);
-                        const float* k03 = k0.row(p+3);
-
-                        float* g00 = g0.row(p/4);
-
-                        for (int k=0; k<maxk; k++)
-                        {
-                            g00[0] = k00[k];
-                            g00[1] = k01[k];
-                            g00[2] = k02[k];
-                            g00[3] = k03[k];
-
-                            g00 += 4;
-                        }
-                    }
-                }
-            }
-        }
-
-        cmd.record_upload(weight_data_pack4to1_groups, weight_data_gpu_pack4to1, opt);
-    }
+    cmd.record_upload(weight_data_packed_groups, weight_data_gpu, opt);
 
     if (bias_term)
     {
-        if (num_output_g % 4 != 0)
-        {
-            cmd.record_upload(bias_data, bias_data_gpu, opt);
-        }
-
-        if (num_output_g % 4 == 0)
-        {
-            Mat bias_data_pack4;
-            convert_packing(bias_data, bias_data_pack4, 4);
-            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4, opt);
-        }
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
     }
 
     return 0;
@@ -534,11 +469,12 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
+        if (out_elempack == 8) out_elemsize = 8*2u;
         if (out_elempack == 4) out_elemsize = 4*2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
@@ -553,8 +489,8 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
         std::vector<VkMat> bindings(4);
         bindings[0] = bottom_blob_bordered;
         bindings[1] = top_blob;
-        bindings[2] = elempack == 4 ? weight_data_gpu_pack4 : weight_data_gpu;
-        bindings[3] = bias_term ? (elempack == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : bindings[2];// TODO use dummy buffer
+        bindings[2] = weight_data_gpu;
+        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
 
         std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob_bordered.dims;
@@ -568,7 +504,9 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 4 ? pipeline_convolutiondepthwise_pack4 : pipeline_convolutiondepthwise;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_convolutiondepthwise_pack8
+                                 : elempack == 4 ? pipeline_convolutiondepthwise_pack4
+                                 : pipeline_convolutiondepthwise;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -578,20 +516,24 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+
     // unpacking
     VkMat bottom_blob_bordered_unpacked = bottom_blob_bordered;
-    if (elempack == 4 && channels_g % 4 != 0)
+    if (elempack > elempack_g)
     {
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
-        packing_pack1->forward(bottom_blob_bordered, bottom_blob_bordered_unpacked, cmd, opt_pack1);
+        const Layer* packing = elempack_g == 4 ? packing_pack4 : packing_pack1;
+        packing->forward(bottom_blob_bordered, bottom_blob_bordered_unpacked, cmd, opt_pack1);
     }
 
     VkMat top_blob_unpacked = top_blob;
-    if (num_output_g % 4 != 0 && out_elempack == 4)
+    if (out_elempack_g < out_elempack)
     {
-        top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
+        top_blob_unpacked.create(outw, outh, num_output / out_elempack_g, out_elemsize / out_elempack * out_elempack_g, out_elempack_g, opt.workspace_vkallocator, opt.staging_vkallocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
@@ -599,26 +541,8 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob_bordered_unpacked;
     bindings[1] = top_blob_unpacked;
-    if (channels_g % 4 != 0 && num_output_g % 4 != 0)
-    {
-        bindings[2] = weight_data_gpu;
-        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
-    }
-    else if (channels_g % 4 == 0 && num_output_g % 4 == 0)
-    {
-        bindings[2] = weight_data_gpu_pack4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
-    }
-    else if (channels_g % 4 != 0 && num_output_g % 4 == 0)
-    {
-        bindings[2] = weight_data_gpu_pack1to4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
-    }
-    else if (channels_g % 4 == 0 && num_output_g % 4 != 0)
-    {
-        bindings[2] = weight_data_gpu_pack4to1;
-        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
-    }
+    bindings[2] = weight_data_gpu;
+    bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered_unpacked.dims;
@@ -633,29 +557,50 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     constants[9].i = top_blob_unpacked.cstep;
 
     const Pipeline* pipeline = 0;
-    if (channels_g % 4 != 0 && num_output_g % 4 != 0)
+    if (elempack_g == 1 && out_elempack_g == 1)
     {
         pipeline = pipeline_convolutiondepthwise_group;
     }
-    else if (channels_g % 4 == 0 && num_output_g % 4 == 0)
+    else if (elempack_g == 4 && out_elempack_g == 4)
     {
         pipeline = pipeline_convolutiondepthwise_group_pack4;
     }
-    else if (channels_g % 4 != 0 && num_output_g % 4 == 0)
+    else if (elempack_g == 1 && out_elempack_g == 4)
     {
         pipeline = pipeline_convolutiondepthwise_group_pack1to4;
     }
-    else if (channels_g % 4 == 0 && num_output_g % 4 != 0)
+    else if (elempack_g == 4 && out_elempack_g == 1)
     {
         pipeline = pipeline_convolutiondepthwise_group_pack4to1;
+    }
+    else if (elempack_g == 8 && out_elempack_g == 8)
+    {
+        pipeline = pipeline_convolutiondepthwise_group_pack8;
+    }
+    else if (elempack_g == 1 && out_elempack_g == 8)
+    {
+        pipeline = pipeline_convolutiondepthwise_group_pack1to8;
+    }
+    else if (elempack_g == 4 && out_elempack_g == 8)
+    {
+        pipeline = pipeline_convolutiondepthwise_group_pack4to8;
+    }
+    else if (elempack_g == 8 && out_elempack_g == 4)
+    {
+        pipeline = pipeline_convolutiondepthwise_group_pack8to4;
+    }
+    else if (elempack_g == 8 && out_elempack_g == 1)
+    {
+        pipeline = pipeline_convolutiondepthwise_group_pack8to1;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked);
 
     // packing
-    if (num_output_g % 4 != 0 && out_elempack == 4)
+    if (out_elempack_g < out_elempack)
     {
-        packing_pack4->forward(top_blob_unpacked, top_blob, cmd, opt);
+        const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
+        packing->forward(top_blob_unpacked, top_blob, cmd, opt);
     }
     else
     {

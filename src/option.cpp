@@ -43,6 +43,8 @@ Option::Option()
 
     use_packing_layout = false;
 
+    use_shader_pack8 = false;
+
     // sanitize
     if (num_threads <= 0)
         num_threads = 1;

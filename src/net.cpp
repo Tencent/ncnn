@@ -51,6 +51,7 @@ Net::Net()
     cast_float16_to_float32 = 0;
     packing_pack1 = 0;
     packing_pack4 = 0;
+    packing_pack8 = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -63,6 +64,7 @@ Net::~Net()
     delete cast_float16_to_float32;
     delete packing_pack1;
     delete packing_pack4;
+    delete packing_pack8;
 #endif // NCNN_VULKAN
 }
 
@@ -905,9 +907,19 @@ int Net::create_pipeline()
     packing_pack4->load_param(pd);
     }
 
-    packing_pack1->create_pipeline(opt);
+    {
+    packing_pack8 = ncnn::create_layer(ncnn::LayerType::Packing);
+    packing_pack8->vkdev = vkdev;
 
+    ncnn::ParamDict pd;
+    pd.set(0, 8);
+
+    packing_pack8->load_param(pd);
+    }
+
+    packing_pack1->create_pipeline(opt);
     packing_pack4->create_pipeline(opt);
+    packing_pack8->create_pipeline(opt);
 
     return 0;
 }
@@ -925,6 +937,9 @@ int Net::destroy_pipeline()
 
     if (packing_pack4)
         packing_pack4->destroy_pipeline(opt);
+
+    if (packing_pack8)
+        packing_pack8->destroy_pipeline(opt);
 
     return 0;
 }
@@ -1231,7 +1246,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     // packing
                     VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
-                    packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+                    if (opt.use_shader_pack8)
+                    {
+                        packing_pack8->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+                        if (bottom_blob.elempack != 8)
+                            packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+                    }
+                    else
+                        packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
 
 //                     fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
                 }
@@ -1349,7 +1371,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                         // packing
                         VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
-                        packing_pack4->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+                        if (opt.use_shader_pack8)
+                        {
+                            packing_pack8->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+                            if (bottom_blob.elempack != 8)
+                                packing_pack4->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+                        }
+                        else
+                            packing_pack4->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
 
 //                         fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
                     }
@@ -1464,7 +1493,8 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     VkMat bottom_blob_unpacked_fp16;
                     if (opt.use_packing_layout && layer->support_packing)
                     {
-                        bottom_blob_unpacked_fp16 = bottom_blob;
+//                         bottom_blob_unpacked_fp16 = bottom_blob;
+                        packing_pack4->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
                     }
                     else
                     {
@@ -1631,7 +1661,8 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         VkMat bottom_blob_unpacked_fp16;
                         if (opt.use_packing_layout && layer->support_packing)
                         {
-                            bottom_blob_unpacked_fp16 = bottom_blob;
+//                             bottom_blob_unpacked_fp16 = bottom_blob;
+                            packing_pack4->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
                         }
                         else
                         {

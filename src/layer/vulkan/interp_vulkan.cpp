@@ -25,11 +25,13 @@ Interp_vulkan::Interp_vulkan()
 
     pipeline_interp = 0;
     pipeline_interp_pack4 = 0;
+    pipeline_interp_pack8 = 0;
 
     pipeline_interp_bicubic_coeffs_x = 0;
     pipeline_interp_bicubic_coeffs_y = 0;
     pipeline_interp_bicubic = 0;
     pipeline_interp_bicubic_pack4 = 0;
+    pipeline_interp_bicubic_pack8 = 0;
 }
 
 int Interp_vulkan::create_pipeline(const Option& opt)
@@ -51,6 +53,13 @@ int Interp_vulkan::create_pipeline(const Option& opt)
             pipeline_interp_pack4 = new Pipeline(vkdev);
             pipeline_interp_pack4->set_optimal_local_size_xyz();
             pipeline_interp_pack4->create("interp_pack4", opt, specializations, 2, 12);
+        }
+
+        // pack8
+        {
+            pipeline_interp_pack8 = new Pipeline(vkdev);
+            pipeline_interp_pack8->set_optimal_local_size_xyz();
+            pipeline_interp_pack8->create("interp_pack8", opt, specializations, 2, 12);
         }
     }
 
@@ -79,6 +88,13 @@ int Interp_vulkan::create_pipeline(const Option& opt)
             pipeline_interp_bicubic_pack4->set_optimal_local_size_xyz();
             pipeline_interp_bicubic_pack4->create("interp_bicubic_pack4", opt, specializations, 6, 10);
         }
+
+        // pack8
+        {
+            pipeline_interp_bicubic_pack8 = new Pipeline(vkdev);
+            pipeline_interp_bicubic_pack8->set_optimal_local_size_xyz();
+            pipeline_interp_bicubic_pack8->create("interp_bicubic_pack8", opt, specializations, 6, 10);
+        }
     }
 
     return 0;
@@ -92,6 +108,9 @@ int Interp_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_interp_pack4;
     pipeline_interp_pack4 = 0;
 
+    delete pipeline_interp_pack8;
+    pipeline_interp_pack8 = 0;
+
     delete pipeline_interp_bicubic_coeffs_x;
     pipeline_interp_bicubic_coeffs_x = 0;
 
@@ -103,6 +122,9 @@ int Interp_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_interp_bicubic_pack4;
     pipeline_interp_bicubic_pack4 = 0;
+
+    delete pipeline_interp_bicubic_pack8;
+    pipeline_interp_bicubic_pack8 = 0;
 
     return 0;
 }
@@ -153,7 +175,9 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         constants[10].f = w / (float)outw;
         constants[11].f = h / (float)outh;
 
-        const Pipeline* pipeline = elempack == 4 ? pipeline_interp_pack4 : pipeline_interp;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
+                                 : elempack == 4 ? pipeline_interp_pack4
+                                 : pipeline_interp;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -223,7 +247,9 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 4 ? pipeline_interp_bicubic_pack4 : pipeline_interp_bicubic;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
+                                 : elempack == 4 ? pipeline_interp_bicubic_pack4
+                                 : pipeline_interp_bicubic;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }

@@ -24,6 +24,7 @@ Permute_vulkan::Permute_vulkan()
 
     pipeline_permute = 0;
     pipeline_permute_pack4to1 = 0;
+    pipeline_permute_pack8to1 = 0;
 }
 
 int Permute_vulkan::create_pipeline(const Option& opt)
@@ -45,6 +46,13 @@ int Permute_vulkan::create_pipeline(const Option& opt)
         pipeline_permute_pack4to1->create("permute_pack4to1", opt, specializations, 2, 10);
     }
 
+    // pack8
+    {
+        pipeline_permute_pack8to1 = new Pipeline(vkdev);
+        pipeline_permute_pack8to1->set_optimal_local_size_xyz();
+        pipeline_permute_pack8to1->create("permute_pack8to1", opt, specializations, 2, 10);
+    }
+
     return 0;
 }
 
@@ -55,6 +63,9 @@ int Permute_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_permute_pack4to1;
     pipeline_permute_pack4to1 = 0;
+
+    delete pipeline_permute_pack8to1;
+    pipeline_permute_pack8to1 = 0;
 
     return 0;
 }
@@ -74,6 +85,7 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
+        if (out_elempack == 8) out_elemsize = 8*2u;
         if (out_elempack == 4) out_elemsize = 4*2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
@@ -173,6 +185,11 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     if (elempack == 4)
     {
         cmd.record_pipeline(pipeline_permute_pack4to1, bindings, constants, bottom_blob);
+    }
+
+    if (elempack == 8)
+    {
+        cmd.record_pipeline(pipeline_permute_pack8to1, bindings, constants, bottom_blob);
     }
 
     return 0;

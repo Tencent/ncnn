@@ -28,9 +28,13 @@ InnerProduct_vulkan::InnerProduct_vulkan()
 
     pipeline_innerproduct = 0;
     pipeline_innerproduct_pack4 = 0;
-//     pipeline_innerproduct_pack4_lds_64 = 0;
     pipeline_innerproduct_pack1to4 = 0;
     pipeline_innerproduct_pack4to1 = 0;
+    pipeline_innerproduct_pack8 = 0;
+    pipeline_innerproduct_pack1to8 = 0;
+    pipeline_innerproduct_pack4to8 = 0;
+    pipeline_innerproduct_pack8to4 = 0;
+    pipeline_innerproduct_pack8to1 = 0;
 }
 
 int InnerProduct_vulkan::create_pipeline(const Option& opt)
@@ -48,6 +52,9 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
 
     int num_input = weight_data_size / num_output;
 
+    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+
     std::vector<vk_specialization_type> specializations(4);
     specializations[0].i = bias_term;
     specializations[1].i = activation_type;
@@ -55,7 +62,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
 
     // pack1
-    if (num_input % 4 != 0 && num_output % 4 != 0)
+    if (elempack == 1 && out_elempack == 1)
     {
         pipeline_innerproduct = new Pipeline(vkdev);
         pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
@@ -63,21 +70,15 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4
-    if (num_input % 4 == 0 && num_output % 4 == 0)
+    if (elempack == 4 && out_elempack == 4)
     {
         pipeline_innerproduct_pack4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
         pipeline_innerproduct_pack4->create("innerproduct_pack4", opt, specializations, 4, 10);
-
-//         {
-//             pipeline_innerproduct_pack4_lds_64 = new Pipeline(vkdev);
-//             pipeline_innerproduct_pack4_lds_64->set_local_size_xyz(64, 1, 1);
-//             pipeline_innerproduct_pack4_lds_64->create("innerproduct_pack4_lds_64", opt, specializations, 4, 10);
-//         }
     }
 
     // pack1to4
-    if (num_input % 4 != 0 && num_output % 4 == 0)
+    if (elempack == 1 && out_elempack == 4)
     {
         pipeline_innerproduct_pack1to4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack1to4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
@@ -85,11 +86,51 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4to1
-    if (num_input % 4 == 0 && num_output % 4 != 0)
+    if (elempack == 4 && out_elempack == 1)
     {
         pipeline_innerproduct_pack4to1 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(num_output, 1, 1);
         pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", opt, specializations, 4, 10);
+    }
+
+    // pack8
+    if (elempack == 8 && out_elempack == 8)
+    {
+        pipeline_innerproduct_pack8 = new Pipeline(vkdev);
+        pipeline_innerproduct_pack8->set_optimal_local_size_xyz(num_output / 8, 1, 1);
+        pipeline_innerproduct_pack8->create("innerproduct_pack8", opt, specializations, 4, 10);
+    }
+
+    // pack1to8
+    if (elempack == 1 && out_elempack == 8)
+    {
+        pipeline_innerproduct_pack1to8 = new Pipeline(vkdev);
+        pipeline_innerproduct_pack1to8->set_optimal_local_size_xyz(num_output / 8, 1, 1);
+        pipeline_innerproduct_pack1to8->create("innerproduct_pack1to8", opt, specializations, 4, 10);
+    }
+
+    // pack4to8
+    if (elempack == 4 && out_elempack == 8)
+    {
+        pipeline_innerproduct_pack4to8 = new Pipeline(vkdev);
+        pipeline_innerproduct_pack4to8->set_optimal_local_size_xyz(num_output / 8, 1, 1);
+        pipeline_innerproduct_pack4to8->create("innerproduct_pack4to8", opt, specializations, 4, 10);
+    }
+
+    // pack8to4
+    if (elempack == 8 && out_elempack == 4)
+    {
+        pipeline_innerproduct_pack8to4 = new Pipeline(vkdev);
+        pipeline_innerproduct_pack8to4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
+        pipeline_innerproduct_pack8to4->create("innerproduct_pack8to4", opt, specializations, 4, 10);
+    }
+
+    // pack8to1
+    if (elempack == 8 && out_elempack == 1)
+    {
+        pipeline_innerproduct_pack8to1 = new Pipeline(vkdev);
+        pipeline_innerproduct_pack8to1->set_optimal_local_size_xyz(num_output, 1, 1);
+        pipeline_innerproduct_pack8to1->create("innerproduct_pack8to1", opt, specializations, 4, 10);
     }
 
     return 0;
@@ -110,14 +151,26 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_innerproduct_pack4;
     pipeline_innerproduct_pack4 = 0;
 
-//     delete pipeline_innerproduct_pack4_lds_64;
-//     pipeline_innerproduct_pack4_lds_64 = 0;
-
     delete pipeline_innerproduct_pack1to4;
     pipeline_innerproduct_pack1to4 = 0;
 
     delete pipeline_innerproduct_pack4to1;
     pipeline_innerproduct_pack4to1 = 0;
+
+    delete pipeline_innerproduct_pack8;
+    pipeline_innerproduct_pack8 = 0;
+
+    delete pipeline_innerproduct_pack1to8;
+    pipeline_innerproduct_pack1to8 = 0;
+
+    delete pipeline_innerproduct_pack4to8;
+    pipeline_innerproduct_pack4to8 = 0;
+
+    delete pipeline_innerproduct_pack8to4;
+    pipeline_innerproduct_pack8to4 = 0;
+
+    delete pipeline_innerproduct_pack8to1;
+    pipeline_innerproduct_pack8to1 = 0;
 
     return 0;
 }
@@ -126,147 +179,44 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     int num_input = weight_data_size / num_output;
 
-    // pack1
-    if (num_input % 4 != 0 && num_output % 4 != 0)
-    {
-        cmd.record_upload(weight_data, weight_data_gpu, opt);
-    }
+    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
-    // pack4
-    if (num_input % 4 == 0 && num_output % 4 == 0)
+    // src = inch-outch
+    // dst = pa-pb-inch/pa-outch/pb
+    Mat weight_data_packed;
     {
-        // src = inch-outch
-        // dst = 4a-4b-inch/4a-outch/4b
-        Mat weight_data_pack4;
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+        weight_data_packed.create(num_input/elempack, num_output/out_elempack, (size_t)4*elempack*out_elempack, elempack*out_elempack);
+
+        for (int q=0; q+(out_elempack-1)<num_output; q+=out_elempack)
         {
-            Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+            float* g00 = weight_data_packed.row(q/out_elempack);
 
-            weight_data_pack4.create(num_input/4, num_output/4, (size_t)4*16, 16);
-
-            for (int q=0; q+3<num_output; q+=4)
+            for (int p=0; p+(elempack-1)<num_input; p+=elempack)
             {
-                const float* k0 = weight_data_r2.row(q);
-                const float* k1 = weight_data_r2.row(q+1);
-                const float* k2 = weight_data_r2.row(q+2);
-                const float* k3 = weight_data_r2.row(q+3);
-
-                float* g00 = weight_data_pack4.row(q/4);
-
-                for (int p=0; p+3<num_input; p+=4)
+                for (int i=0; i<out_elempack; i++)
                 {
-                    g00[0] = k0[0];
-                    g00[1] = k0[1];
-                    g00[2] = k0[2];
-                    g00[3] = k0[3];
+                    const float* k0 = weight_data_r2.row(q+i);
+                    k0 += p;
 
-                    g00[4] = k1[0];
-                    g00[5] = k1[1];
-                    g00[6] = k1[2];
-                    g00[7] = k1[3];
+                    for (int j=0; j<elempack; j++)
+                    {
+                        g00[0] = k0[j];
 
-                    g00[8] = k2[0];
-                    g00[9] = k2[1];
-                    g00[10] = k2[2];
-                    g00[11] = k2[3];
-
-                    g00[12] = k3[0];
-                    g00[13] = k3[1];
-                    g00[14] = k3[2];
-                    g00[15] = k3[3];
-
-                    k0 += 4;
-                    k1 += 4;
-                    k2 += 4;
-                    k3 += 4;
-                    g00 += 16;
+                        g00++;
+                    }
                 }
             }
         }
-
-        cmd.record_upload(weight_data_pack4, weight_data_gpu_pack4, opt);
     }
 
-    // pack1to4
-    if (num_input % 4 != 0 && num_output % 4 == 0)
-    {
-        // src = inch-outch
-        // dst = 4b-inch-outch/4b
-        Mat weight_data_pack1to4;
-        {
-            Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
-
-            weight_data_pack1to4.create(num_input, num_output/4, (size_t)4*4, 4);
-
-            for (int q=0; q+3<num_output; q+=4)
-            {
-                const float* k0 = weight_data_r2.row(q);
-                const float* k1 = weight_data_r2.row(q+1);
-                const float* k2 = weight_data_r2.row(q+2);
-                const float* k3 = weight_data_r2.row(q+3);
-
-                float* g00 = weight_data_pack1to4.row(q/4);
-
-                for (int p=0; p<num_input; p++)
-                {
-                    g00[0] = k0[p];
-                    g00[1] = k1[p];
-                    g00[2] = k2[p];
-                    g00[3] = k3[p];
-
-                    g00 += 4;
-                }
-            }
-        }
-
-        cmd.record_upload(weight_data_pack1to4, weight_data_gpu_pack1to4, opt);
-    }
-
-    // pack4to1
-    if (num_input % 4 == 0 && num_output % 4 != 0)
-    {
-        // src = inch-outch
-        // dst = 4a-inch/4a-outch
-        Mat weight_data_pack4to1;
-        {
-            Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
-
-            weight_data_pack4to1.create(num_input/4, num_output, (size_t)4*4, 4);
-
-            for (int q=0; q<num_output; q++)
-            {
-                const float* k0 = weight_data_r2.row(q);
-
-                float* g00 = weight_data_pack4to1.row(q);
-
-                for (int p=0; p+3<num_input; p+=4)
-                {
-                    g00[0] = k0[0];
-                    g00[1] = k0[1];
-                    g00[2] = k0[2];
-                    g00[3] = k0[3];
-
-                    k0 += 4;
-                    g00 += 4;
-                }
-            }
-        }
-
-        cmd.record_upload(weight_data_pack4to1, weight_data_gpu_pack4to1, opt);
-    }
+    cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
     if (bias_term)
     {
-        if (num_output % 4 != 0)
-        {
-            cmd.record_upload(bias_data, bias_data_gpu, opt);
-        }
-
-        if (num_output % 4 == 0)
-        {
-            Mat bias_data_pack4;
-            convert_packing(bias_data, bias_data_pack4, 4);
-            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4, opt);
-        }
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
     }
 
     return 0;
@@ -286,11 +236,12 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     size_t elemsize = bottom_blob_flattened.elemsize;
     int elempack = bottom_blob_flattened.elempack;
 
-    int out_elempack = num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
+        if (out_elempack == 8) out_elemsize = 8*2u;
         if (out_elempack == 4) out_elemsize = 4*2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
@@ -302,26 +253,8 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob_flattened;
     bindings[1] = top_blob;
-    if (elempack == 1 && out_elempack == 1)
-    {
-        bindings[2] = weight_data_gpu;
-        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
-    }
-    else if (elempack == 4 && out_elempack == 4)
-    {
-        bindings[2] = weight_data_gpu_pack4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
-    }
-    else if (elempack == 1 && out_elempack == 4)
-    {
-        bindings[2] = weight_data_gpu_pack1to4;
-        bindings[3] = bias_term ? bias_data_gpu_pack4 : bindings[2];// TODO use dummy buffer
-    }
-    else if (elempack == 4 && out_elempack == 1)
-    {
-        bindings[2] = weight_data_gpu_pack4to1;
-        bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
-    }
+    bindings[2] = weight_data_gpu;
+    bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_flattened.dims;
@@ -343,8 +276,6 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     else if (elempack == 4 && out_elempack == 4)
     {
         pipeline = pipeline_innerproduct_pack4;
-
-//         pipeline = pipeline_innerproduct_pack4_lds_64;
     }
     else if (elempack == 1 && out_elempack == 4)
     {
@@ -353,6 +284,26 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     else if (elempack == 4 && out_elempack == 1)
     {
         pipeline = pipeline_innerproduct_pack4to1;
+    }
+    else if (elempack == 8 && out_elempack == 8)
+    {
+        pipeline = pipeline_innerproduct_pack8;
+    }
+    else if (elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_innerproduct_pack1to8;
+    }
+    else if (elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_innerproduct_pack4to8;
+    }
+    else if (elempack == 8 && out_elempack == 4)
+    {
+        pipeline = pipeline_innerproduct_pack8to4;
+    }
+    else if (elempack == 8 && out_elempack == 1)
+    {
+        pipeline = pipeline_innerproduct_pack8to1;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);

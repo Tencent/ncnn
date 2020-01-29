@@ -26,6 +26,11 @@ Reshape_vulkan::Reshape_vulkan()
     pipeline_reshape_pack4 = 0;
     pipeline_reshape_pack1to4 = 0;
     pipeline_reshape_pack4to1 = 0;
+    pipeline_reshape_pack8 = 0;
+    pipeline_reshape_pack1to8 = 0;
+    pipeline_reshape_pack4to8 = 0;
+    pipeline_reshape_pack8to4 = 0;
+    pipeline_reshape_pack8to1 = 0;
 }
 
 int Reshape_vulkan::create_pipeline(const Option& opt)
@@ -61,6 +66,41 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
         pipeline_reshape_pack4to1->create("reshape_pack4to1", opt, specializations, 2, 10);
     }
 
+    // pack8
+    {
+        pipeline_reshape_pack8 = new Pipeline(vkdev);
+        pipeline_reshape_pack8->set_optimal_local_size_xyz();
+        pipeline_reshape_pack8->create("reshape_pack8", opt, specializations, 2, 10);
+    }
+
+    // pack1to8
+    {
+        pipeline_reshape_pack1to8 = new Pipeline(vkdev);
+        pipeline_reshape_pack1to8->set_optimal_local_size_xyz();
+        pipeline_reshape_pack1to8->create("reshape_pack1to8", opt, specializations, 2, 10);
+    }
+
+    // pack4to8
+    {
+        pipeline_reshape_pack4to8 = new Pipeline(vkdev);
+        pipeline_reshape_pack4to8->set_optimal_local_size_xyz();
+        pipeline_reshape_pack4to8->create("reshape_pack4to8", opt, specializations, 2, 10);
+    }
+
+    // pack8to4
+    {
+        pipeline_reshape_pack8to4 = new Pipeline(vkdev);
+        pipeline_reshape_pack8to4->set_optimal_local_size_xyz();
+        pipeline_reshape_pack8to4->create("reshape_pack8to4", opt, specializations, 2, 10);
+    }
+
+    // pack8to1
+    {
+        pipeline_reshape_pack8to1 = new Pipeline(vkdev);
+        pipeline_reshape_pack8to1->set_optimal_local_size_xyz();
+        pipeline_reshape_pack8to1->create("reshape_pack8to1", opt, specializations, 2, 10);
+    }
+
     return 0;
 }
 
@@ -77,6 +117,21 @@ int Reshape_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_reshape_pack4to1;
     pipeline_reshape_pack4to1 = 0;
+
+    delete pipeline_reshape_pack8;
+    pipeline_reshape_pack8 = 0;
+
+    delete pipeline_reshape_pack1to8;
+    pipeline_reshape_pack1to8 = 0;
+
+    delete pipeline_reshape_pack4to8;
+    pipeline_reshape_pack4to8 = 0;
+
+    delete pipeline_reshape_pack8to4;
+    pipeline_reshape_pack8to4 = 0;
+
+    delete pipeline_reshape_pack8to1;
+    pipeline_reshape_pack8to1 = 0;
 
     return 0;
 }
@@ -102,11 +157,12 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         // TODO permute support
 
-        out_elempack = _w % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _w % 8 == 0 ? 8 : _w % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
+            if (out_elempack == 8) out_elemsize = 8*2u;
             if (out_elempack == 4) out_elemsize = 4*2u;
             if (out_elempack == 1) out_elemsize = 4u;
         }
@@ -134,11 +190,12 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         if (_h == -1)
             _h = total / _w;
 
-        out_elempack = _h % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _h % 8 == 0 ? 8 : _h % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
+            if (out_elempack == 8) out_elemsize = 8*2u;
             if (out_elempack == 4) out_elemsize = 4*2u;
             if (out_elempack == 1) out_elemsize = 4u;
         }
@@ -171,11 +228,12 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         if (_c == -1)
             _c = total / _h / _w;
 
-        out_elempack = _c % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _c % 8 == 0 ? 8 : _c % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
+            if (out_elempack == 8) out_elemsize = 8*2u;
             if (out_elempack == 4) out_elemsize = 4*2u;
             if (out_elempack == 1) out_elemsize = 4u;
         }
@@ -210,31 +268,41 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    const Pipeline* pipeline = 0;
     if (elempack == 1 && out_elempack == 1)
     {
-        pipeline = pipeline_reshape;
+        cmd.record_pipeline(pipeline_reshape, bindings, constants, top_blob);
     }
     else if (elempack == 4 && out_elempack == 4)
     {
-        pipeline = pipeline_reshape_pack4;
+        cmd.record_pipeline(pipeline_reshape_pack4, bindings, constants, top_blob);
     }
     else if (elempack == 1 && out_elempack == 4)
     {
-        pipeline = pipeline_reshape_pack1to4;
+        cmd.record_pipeline(pipeline_reshape_pack1to4, bindings, constants, top_blob);
     }
     else if (elempack == 4 && out_elempack == 1)
     {
-        pipeline = pipeline_reshape_pack4to1;
+        cmd.record_pipeline(pipeline_reshape_pack4to1, bindings, constants, bottom_blob);
     }
-
-    if (elempack == 4 && out_elempack == 1)
+    else if (elempack == 8 && out_elempack == 8)
     {
-        cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
+        cmd.record_pipeline(pipeline_reshape_pack8, bindings, constants, top_blob);
     }
-    else
+    else if (elempack == 1 && out_elempack == 8)
     {
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_reshape_pack1to8, bindings, constants, top_blob);
+    }
+    else if (elempack == 4 && out_elempack == 8)
+    {
+        cmd.record_pipeline(pipeline_reshape_pack4to8, bindings, constants, top_blob);
+    }
+    else if (elempack == 8 && out_elempack == 4)
+    {
+        cmd.record_pipeline(pipeline_reshape_pack8to4, bindings, constants, top_blob);
+    }
+    else if (elempack == 8 && out_elempack == 1)
+    {
+        cmd.record_pipeline(pipeline_reshape_pack8to1, bindings, constants, bottom_blob);
     }
 
     return 0;

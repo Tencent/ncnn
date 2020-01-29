@@ -33,6 +33,10 @@ public:
 public:
     Pipeline* pipeline_packing_1to4;
     Pipeline* pipeline_packing_4to1;
+    Pipeline* pipeline_packing_1to8;
+    Pipeline* pipeline_packing_4to8;
+    Pipeline* pipeline_packing_8to4;
+    Pipeline* pipeline_packing_8to1;
 };
 
 } // namespace ncnn
