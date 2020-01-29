@@ -33,6 +33,7 @@ public:
 public:
     Pipeline* pipeline_absval;
     Pipeline* pipeline_absval_pack4;
+    Pipeline* pipeline_absval_pack8;
 };
 
 } // namespace ncnn

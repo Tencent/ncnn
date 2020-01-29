@@ -33,6 +33,7 @@ public:
 public:
     Pipeline* pipeline_hardswish;
     Pipeline* pipeline_hardswish_pack4;
+    Pipeline* pipeline_hardswish_pack8;
 };
 
 } // namespace ncnn

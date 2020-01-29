@@ -27,6 +27,8 @@ Eltwise_vulkan::Eltwise_vulkan()
     pipeline_eltwise[1] = 0;
     pipeline_eltwise_pack4[0] = 0;
     pipeline_eltwise_pack4[1] = 0;
+    pipeline_eltwise_pack8[0] = 0;
+    pipeline_eltwise_pack8[1] = 0;
 }
 
 int Eltwise_vulkan::create_pipeline(const Option& opt)
@@ -55,6 +57,16 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
         pipeline_eltwise_pack4[1]->create("eltwise_pack4", opt, specializations, 3, 5+2);
     }
 
+    // pack8
+    {
+        pipeline_eltwise_pack8[0] = new Pipeline(vkdev);
+        pipeline_eltwise_pack8[0]->set_optimal_local_size_xyz();
+        pipeline_eltwise_pack8[0]->create("eltwise_pack8", opt, specializations, 3, 5+2);
+        pipeline_eltwise_pack8[1] = new Pipeline(vkdev);
+        pipeline_eltwise_pack8[1]->set_optimal_local_size_xyz();
+        pipeline_eltwise_pack8[1]->create("eltwise_pack8", opt, specializations, 3, 5+2);
+    }
+
     return 0;
 }
 
@@ -69,6 +81,11 @@ int Eltwise_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_eltwise_pack4[1];
     pipeline_eltwise_pack4[0] = 0;
     pipeline_eltwise_pack4[1] = 0;
+
+    delete pipeline_eltwise_pack8[0];
+    delete pipeline_eltwise_pack8[1];
+    pipeline_eltwise_pack8[0] = 0;
+    pipeline_eltwise_pack8[1] = 0;
 
     return 0;
 }
@@ -103,7 +120,9 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_eltwise_pack4[1] : pipeline_eltwise[1];
+    const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[1]
+                             : elempack == 4 ? pipeline_eltwise_pack4[1]
+                             : pipeline_eltwise[1];
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -123,7 +142,9 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         constants[5].f = 1.f;
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
 
-        const Pipeline* pipeline = elempack == 4 ? pipeline_eltwise_pack4[b%2] : pipeline_eltwise[b%2];
+        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b%2]
+                                 : elempack == 4 ? pipeline_eltwise_pack4[b%2]
+                                 : pipeline_eltwise[b%2];
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }

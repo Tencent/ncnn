@@ -25,6 +25,7 @@ Dropout_vulkan::Dropout_vulkan()
 
     pipeline_dropout = 0;
     pipeline_dropout_pack4 = 0;
+    pipeline_dropout_pack8 = 0;
 }
 
 int Dropout_vulkan::create_pipeline(const Option& opt)
@@ -46,6 +47,13 @@ int Dropout_vulkan::create_pipeline(const Option& opt)
         pipeline_dropout_pack4->create("dropout_pack4", opt, specializations, 1, 5);
     }
 
+    // pack8
+    {
+        pipeline_dropout_pack8 = new Pipeline(vkdev);
+        pipeline_dropout_pack8->set_optimal_local_size_xyz();
+        pipeline_dropout_pack8->create("dropout_pack8", opt, specializations, 1, 5);
+    }
+
     return 0;
 }
 
@@ -56,6 +64,9 @@ int Dropout_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_dropout_pack4;
     pipeline_dropout_pack4 = 0;
+
+    delete pipeline_dropout_pack8;
+    pipeline_dropout_pack8 = 0;
 
     return 0;
 }
@@ -79,7 +90,9 @@ int Dropout_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_dropout_pack4 : pipeline_dropout;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_dropout_pack8
+                             : elempack == 4 ? pipeline_dropout_pack4
+                             : pipeline_dropout;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
