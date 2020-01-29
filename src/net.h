@@ -170,6 +170,7 @@ protected:
     ncnn::Layer* cast_float16_to_float32;
     ncnn::Layer* packing_pack1;
     ncnn::Layer* packing_pack4;
+    ncnn::Layer* packing_pack8;
 #endif // NCNN_VULKAN
 };
 

@@ -34,11 +34,17 @@ public:
 
 public:
     ncnn::Layer* packing_pack1;
+    ncnn::Layer* packing_pack4;
 
     Pipeline* pipeline_crop;
     Pipeline* pipeline_crop_pack4;
     Pipeline* pipeline_crop_pack1to4;
     Pipeline* pipeline_crop_pack4to1;
+    Pipeline* pipeline_crop_pack8;
+    Pipeline* pipeline_crop_pack1to8;
+    Pipeline* pipeline_crop_pack4to8;
+    Pipeline* pipeline_crop_pack8to4;
+    Pipeline* pipeline_crop_pack8to1;
 };
 
 } // namespace ncnn

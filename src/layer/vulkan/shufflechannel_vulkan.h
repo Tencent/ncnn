@@ -33,6 +33,7 @@ public:
 public:
     Pipeline* pipeline_shufflechannel;
     Pipeline* pipeline_shufflechannel_pack4;
+    Pipeline* pipeline_shufflechannel_pack8;
 };
 
 } // namespace ncnn

@@ -37,10 +37,8 @@ public:
     VkMat scale_data_gpu;
     VkMat bias_data_gpu;
     Pipeline* pipeline_scale;
-
-    VkMat scale_data_gpu_pack4;
-    VkMat bias_data_gpu_pack4;
     Pipeline* pipeline_scale_pack4;
+    Pipeline* pipeline_scale_pack8;
 };
 
 } // namespace ncnn
