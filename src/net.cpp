@@ -26,10 +26,6 @@
 #include <string.h>
 #include <stdint.h>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif // _OPENMP
-
 #if NCNN_BENCHMARK
 #include "benchmark.h"
 #endif // NCNN_BENCHMARK
@@ -260,6 +256,51 @@ int Net::load_param(const DataReader& dr)
             continue;
         }
 
+        // pull out top shape hints
+        Mat shape_hints = pd.get(30, Mat());
+        if (!shape_hints.empty())
+        {
+            const int* psh = shape_hints;
+            for (int j=0; j<top_count; j++)
+            {
+                Blob& blob = blobs[layer->tops[j]];
+
+                int dims = psh[0];
+                blob.shape.dims = dims;
+
+                if (dims == 1)
+                {
+                    blob.shape.w = psh[1];
+                }
+                if (dims == 2)
+                {
+                    blob.shape.w = psh[1];
+                    blob.shape.h = psh[2];
+                }
+                if (dims == 3)
+                {
+                    blob.shape.w = psh[1];
+                    blob.shape.h = psh[2];
+                    blob.shape.c = psh[3];
+                }
+
+                psh += dims;
+            }
+        }
+
+        // set bottom and top shape hints
+        layer->bottom_shapes.resize(bottom_count);
+        for (int j=0; j<bottom_count; j++)
+        {
+            layer->bottom_shapes[j] = blobs[layer->bottoms[j]].shape;
+        }
+
+        layer->top_shapes.resize(top_count);
+        for (int j=0; j<top_count; j++)
+        {
+            layer->top_shapes[j] = blobs[layer->tops[j]].shape;
+        }
+
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -390,6 +431,51 @@ int Net::load_param_bin(const DataReader& dr)
         {
             fprintf(stderr, "ParamDict load_param failed\n");
             continue;
+        }
+
+        // pull out top blob shape hints
+        Mat shape_hints = pd.get(30, Mat());
+        if (!shape_hints.empty())
+        {
+            const int* psh = shape_hints;
+            for (int j=0; j<top_count; j++)
+            {
+                Blob& blob = blobs[layer->tops[j]];
+
+                int dims = psh[0];
+                blob.shape.dims = dims;
+
+                if (dims == 1)
+                {
+                    blob.shape.w = psh[1];
+                }
+                if (dims == 2)
+                {
+                    blob.shape.w = psh[1];
+                    blob.shape.h = psh[2];
+                }
+                if (dims == 3)
+                {
+                    blob.shape.w = psh[1];
+                    blob.shape.h = psh[2];
+                    blob.shape.c = psh[3];
+                }
+
+                psh += dims;
+            }
+        }
+
+        // set bottom and top shape hints
+        layer->bottom_shapes.resize(bottom_count);
+        for (int j=0; j<bottom_count; j++)
+        {
+            layer->bottom_shapes[j] = blobs[layer->bottoms[j]].shape;
+        }
+
+        layer->top_shapes.resize(top_count);
+        for (int j=0; j<top_count; j++)
+        {
+            layer->top_shapes[j] = blobs[layer->tops[j]].shape;
         }
 
         int lr = layer->load_param(pd);
