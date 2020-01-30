@@ -39,21 +39,14 @@ public:
     VkMat bias_data_gpu;
 
     Pipeline* pipeline_innerproduct;
-
-    VkMat bias_data_gpu_pack4;
-
-    // pack4
-    VkMat weight_data_gpu_pack4;
     Pipeline* pipeline_innerproduct_pack4;
-//     Pipeline* pipeline_innerproduct_pack4_lds_64;
-
-    // pack1to4
-    VkMat weight_data_gpu_pack1to4;
     Pipeline* pipeline_innerproduct_pack1to4;
-
-    // pack4to1
-    VkMat weight_data_gpu_pack4to1;
     Pipeline* pipeline_innerproduct_pack4to1;
+    Pipeline* pipeline_innerproduct_pack8;
+    Pipeline* pipeline_innerproduct_pack1to8;
+    Pipeline* pipeline_innerproduct_pack4to8;
+    Pipeline* pipeline_innerproduct_pack8to4;
+    Pipeline* pipeline_innerproduct_pack8to1;
 };
 
 } // namespace ncnn

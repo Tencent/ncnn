@@ -26,10 +26,6 @@
 #include <string.h>
 #include <stdint.h>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif // _OPENMP
-
 #if NCNN_BENCHMARK
 #include "benchmark.h"
 #endif // NCNN_BENCHMARK
@@ -51,6 +47,7 @@ Net::Net()
     cast_float16_to_float32 = 0;
     packing_pack1 = 0;
     packing_pack4 = 0;
+    packing_pack8 = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -63,6 +60,7 @@ Net::~Net()
     delete cast_float16_to_float32;
     delete packing_pack1;
     delete packing_pack4;
+    delete packing_pack8;
 #endif // NCNN_VULKAN
 }
 
@@ -258,6 +256,51 @@ int Net::load_param(const DataReader& dr)
             continue;
         }
 
+        // pull out top shape hints
+        Mat shape_hints = pd.get(30, Mat());
+        if (!shape_hints.empty())
+        {
+            const int* psh = shape_hints;
+            for (int j=0; j<top_count; j++)
+            {
+                Blob& blob = blobs[layer->tops[j]];
+
+                int dims = psh[0];
+                blob.shape.dims = dims;
+
+                if (dims == 1)
+                {
+                    blob.shape.w = psh[1];
+                }
+                if (dims == 2)
+                {
+                    blob.shape.w = psh[1];
+                    blob.shape.h = psh[2];
+                }
+                if (dims == 3)
+                {
+                    blob.shape.w = psh[1];
+                    blob.shape.h = psh[2];
+                    blob.shape.c = psh[3];
+                }
+
+                psh += dims;
+            }
+        }
+
+        // set bottom and top shape hints
+        layer->bottom_shapes.resize(bottom_count);
+        for (int j=0; j<bottom_count; j++)
+        {
+            layer->bottom_shapes[j] = blobs[layer->bottoms[j]].shape;
+        }
+
+        layer->top_shapes.resize(top_count);
+        for (int j=0; j<top_count; j++)
+        {
+            layer->top_shapes[j] = blobs[layer->tops[j]].shape;
+        }
+
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -388,6 +431,51 @@ int Net::load_param_bin(const DataReader& dr)
         {
             fprintf(stderr, "ParamDict load_param failed\n");
             continue;
+        }
+
+        // pull out top blob shape hints
+        Mat shape_hints = pd.get(30, Mat());
+        if (!shape_hints.empty())
+        {
+            const int* psh = shape_hints;
+            for (int j=0; j<top_count; j++)
+            {
+                Blob& blob = blobs[layer->tops[j]];
+
+                int dims = psh[0];
+                blob.shape.dims = dims;
+
+                if (dims == 1)
+                {
+                    blob.shape.w = psh[1];
+                }
+                if (dims == 2)
+                {
+                    blob.shape.w = psh[1];
+                    blob.shape.h = psh[2];
+                }
+                if (dims == 3)
+                {
+                    blob.shape.w = psh[1];
+                    blob.shape.h = psh[2];
+                    blob.shape.c = psh[3];
+                }
+
+                psh += dims;
+            }
+        }
+
+        // set bottom and top shape hints
+        layer->bottom_shapes.resize(bottom_count);
+        for (int j=0; j<bottom_count; j++)
+        {
+            layer->bottom_shapes[j] = blobs[layer->bottoms[j]].shape;
+        }
+
+        layer->top_shapes.resize(top_count);
+        for (int j=0; j<top_count; j++)
+        {
+            layer->top_shapes[j] = blobs[layer->tops[j]].shape;
         }
 
         int lr = layer->load_param(pd);
@@ -905,9 +993,19 @@ int Net::create_pipeline()
     packing_pack4->load_param(pd);
     }
 
-    packing_pack1->create_pipeline(opt);
+    {
+    packing_pack8 = ncnn::create_layer(ncnn::LayerType::Packing);
+    packing_pack8->vkdev = vkdev;
 
+    ncnn::ParamDict pd;
+    pd.set(0, 8);
+
+    packing_pack8->load_param(pd);
+    }
+
+    packing_pack1->create_pipeline(opt);
     packing_pack4->create_pipeline(opt);
+    packing_pack8->create_pipeline(opt);
 
     return 0;
 }
@@ -925,6 +1023,9 @@ int Net::destroy_pipeline()
 
     if (packing_pack4)
         packing_pack4->destroy_pipeline(opt);
+
+    if (packing_pack8)
+        packing_pack8->destroy_pipeline(opt);
 
     return 0;
 }
@@ -1231,7 +1332,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     // packing
                     VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
-                    packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+                    if (opt.use_shader_pack8)
+                    {
+                        packing_pack8->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+                        if (bottom_blob.elempack != 8)
+                            packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+                    }
+                    else
+                        packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
 
 //                     fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
                 }
@@ -1349,7 +1457,14 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                         // packing
                         VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
-                        packing_pack4->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+                        if (opt.use_shader_pack8)
+                        {
+                            packing_pack8->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+                            if (bottom_blob.elempack != 8)
+                                packing_pack4->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+                        }
+                        else
+                            packing_pack4->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
 
 //                         fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
                     }
@@ -1464,7 +1579,8 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     VkMat bottom_blob_unpacked_fp16;
                     if (opt.use_packing_layout && layer->support_packing)
                     {
-                        bottom_blob_unpacked_fp16 = bottom_blob;
+//                         bottom_blob_unpacked_fp16 = bottom_blob;
+                        packing_pack4->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
                     }
                     else
                     {
@@ -1631,7 +1747,8 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         VkMat bottom_blob_unpacked_fp16;
                         if (opt.use_packing_layout && layer->support_packing)
                         {
-                            bottom_blob_unpacked_fp16 = bottom_blob;
+//                             bottom_blob_unpacked_fp16 = bottom_blob;
+                            packing_pack4->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
                         }
                         else
                         {

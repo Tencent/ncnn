@@ -285,14 +285,21 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         std::vector<ncnn::Mat> a4(a.size());
         for (size_t i=0; i<a.size(); i++)
         {
-            ncnn::convert_packing(a[i], a4[i], 4, opt);
+            if (opt.use_shader_pack8)
+            {
+                ncnn::convert_packing(a[i], a4[i], 8, opt);
+                if (a4[i].elempack == 1)
+                    ncnn::convert_packing(a[i], a4[i], 4, opt);
+            }
+            else
+                ncnn::convert_packing(a[i], a4[i], 4, opt);
         }
 
         // fp16
         std::vector<ncnn::Mat> a4_fp16(a4.size());
         for (size_t i=0; i<a4.size(); i++)
         {
-            if (opt.use_fp16_storage || (a4[i].elempack == 4 && opt.use_fp16_packed))
+            if (opt.use_fp16_storage || ((a4[i].elempack == 4 || a4[i].elempack == 8) && opt.use_fp16_packed))
             {
                 ncnn::cast_float32_to_float16(a4[i], a4_fp16[i], opt);
             }
@@ -472,11 +479,18 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
     {
         // pack
         ncnn::Mat a4;
-        ncnn::convert_packing(a, a4, 4, opt);
+        if (opt.use_shader_pack8)
+        {
+            ncnn::convert_packing(a, a4, 8, opt);
+            if (a4.elempack != 8)
+                ncnn::convert_packing(a, a4, 4, opt);
+        }
+        else
+            ncnn::convert_packing(a, a4, 4, opt);
 
         // fp16
         ncnn::Mat a4_fp16;
-        if (opt.use_fp16_storage || (a4.elempack == 4 && opt.use_fp16_packed))
+        if (opt.use_fp16_storage || ((a4.elempack == 4 || a4.elempack == 8) && opt.use_fp16_packed))
         {
             ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
         }

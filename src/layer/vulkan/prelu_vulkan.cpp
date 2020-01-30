@@ -24,15 +24,18 @@ PReLU_vulkan::PReLU_vulkan()
 
     pipeline_prelu = 0;
     pipeline_prelu_pack4 = 0;
+    pipeline_prelu_pack8 = 0;
 }
 
 int PReLU_vulkan::create_pipeline(const Option& opt)
 {
+    int elempack = opt.use_shader_pack8 && num_slope % 8 == 0 ? 8 : num_slope % 4 == 0 ? 4 : 1;
+
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = num_slope;
 
     // pack1
-    if (num_slope == 1 || num_slope % 4 != 0)
+    if (num_slope == 1 || elempack == 1)
     {
         pipeline_prelu = new Pipeline(vkdev);
         pipeline_prelu->set_optimal_local_size_xyz(8, 8, num_slope);
@@ -40,11 +43,19 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4
-    if (num_slope == 1 || num_slope % 4 == 0)
+    if (num_slope == 1 || elempack == 4)
     {
         pipeline_prelu_pack4 = new Pipeline(vkdev);
         pipeline_prelu_pack4->set_optimal_local_size_xyz(8, 8, num_slope / 4);
         pipeline_prelu_pack4->create("prelu_pack4", opt, specializations, 2, 5);
+    }
+
+    // pack8
+    if (num_slope == 1 || elempack == 8)
+    {
+        pipeline_prelu_pack8 = new Pipeline(vkdev);
+        pipeline_prelu_pack8->set_optimal_local_size_xyz(8, 8, num_slope / 8);
+        pipeline_prelu_pack8->create("prelu_pack8", opt, specializations, 2, 5);
     }
 
     return 0;
@@ -58,6 +69,9 @@ int PReLU_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_prelu_pack4;
     pipeline_prelu_pack4 = 0;
 
+    delete pipeline_prelu_pack8;
+    pipeline_prelu_pack8 = 0;
+
     return 0;
 }
 
@@ -69,16 +83,6 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         Mat slope_data4(4);
         slope_data4.fill(slope_data[0]);
         cmd.record_upload(slope_data4, slope_data_gpu, opt);
-
-        Mat slope_data_pack4;
-        convert_packing(slope_data4, slope_data_pack4, 4);
-        cmd.record_upload(slope_data_pack4, slope_data_gpu_pack4, opt);
-    }
-    else if (num_slope % 4 == 0)
-    {
-        Mat slope_data_pack4;
-        convert_packing(slope_data, slope_data_pack4, 4);
-        cmd.record_upload(slope_data_pack4, slope_data_gpu_pack4, opt);
     }
     else
     {
@@ -94,7 +98,7 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
 
     std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
-    bindings[1] = elempack == 4 ? slope_data_gpu_pack4 : slope_data_gpu;
+    bindings[1] = slope_data_gpu;
 
     std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
@@ -103,7 +107,9 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_prelu_pack4 : pipeline_prelu;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_prelu_pack8
+                             : elempack == 4 ? pipeline_prelu_pack4
+                             : pipeline_prelu;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

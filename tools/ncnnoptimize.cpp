@@ -129,6 +129,8 @@ public:
     int replace_convolution_with_innerproduct_after_global_pooling();
     int replace_convolution_with_innerproduct_after_innerproduct();
 
+    int shape_inference();
+
 public:
     int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
     int fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp);
@@ -1731,6 +1733,119 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
     return 0;
 }
 
+int NetOptimize::shape_inference()
+{
+    const size_t layer_count = layers.size();
+    const size_t blob_count = blobs.size();
+
+    ncnn::Extractor ex = create_extractor();
+
+    // prepare Input blobs
+    for (size_t i=0; i<layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[i];
+        if (layer->type == "ncnnfused")
+            continue;
+
+        if (layer->type != "Input")
+            continue;
+
+        ncnn::Input* input = (ncnn::Input*)layer;
+
+        int w = input->w;
+        int h = input->h;
+        int c = input->c;
+
+        int dims = 0;
+        if (w == 0 && h == 0 && c == 0) dims = 0;
+        if (w != 0 && h == 0 && c == 0) dims = 1;
+        if (w != 0 && h != 0 && c == 0) dims = 2;
+        if (w != 0 && h != 0 && c != 0) dims = 3;
+
+        if (dims == 0)
+        {
+            fprintf(stderr, "Input layer %s without shape info, shape_inference aborted\n", layer->name.c_str());
+            return -1;
+        }
+
+        ncnn::Mat m;
+        if (dims == 1) m.create(w);
+        if (dims == 2) m.create(w, h);
+        if (dims == 3) m.create(w, h, c);
+
+        ex.input(layer->tops[0], m);
+    }
+
+    // prepare blobs with predefined shape
+    for (size_t i=0; i<blob_count; i++)
+    {
+        const ncnn::Blob blob = blobs[i];
+
+        int dims = blob.shape.dims;
+        int w = blob.shape.w;
+        int h = blob.shape.h;
+        int c = blob.shape.c;
+
+        if (dims == 0)
+            continue;
+
+        ncnn::Mat m;
+        if (dims == 1) m.create(w);
+        if (dims == 2) m.create(w, h);
+        if (dims == 3) m.create(w, h, c);
+
+        ex.input(i, m);
+    }
+
+    fprintf(stderr, "shape_inference\n");
+
+    // resolve all layer output blob shape
+    for (size_t i=0; i<layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[i];
+        if (layer->type == "ncnnfused")
+            continue;
+
+        for (size_t j=0; j<layer->tops.size(); j++)
+        {
+            int top_blob_index = layer->tops[j];
+
+            ncnn::Mat m;
+            ex.extract(top_blob_index, m);
+
+            blobs[top_blob_index].shape = m.shape();
+        }
+    }
+
+    // assign all layer blob shape
+    for (size_t i=0; i<layer_count; i++)
+    {
+        ncnn::Layer* layer = layers[i];
+        if (layer->type == "ncnnfused")
+            continue;
+
+        layer->bottom_shapes.resize(layer->bottoms.size());
+        for (size_t j=0; j<layer->bottoms.size(); j++)
+        {
+            int bottom_blob_index = layer->bottoms[j];
+
+            layer->bottom_shapes[j] = blobs[bottom_blob_index].shape;
+        }
+
+        layer->top_shapes.resize(layer->tops.size());
+        for (size_t j=0; j<layer->tops.size(); j++)
+        {
+            int top_blob_index = layer->tops[j];
+
+            layer->top_shapes[j] = blobs[top_blob_index].shape;
+
+//             fprintf(stderr, "%d %4d %4d %4d | %2d %s\n", blobs[top_blob_index].shape.dims, blobs[top_blob_index].shape.w, blobs[top_blob_index].shape.h, blobs[top_blob_index].shape.c, top_blob_index, blobs[top_blob_index].name.c_str());
+        }
+    }
+
+    return 0;
+}
+
 int NetOptimize::fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp)
 {
     const int count = m.w;
@@ -1866,6 +1981,47 @@ int NetOptimize::save(const char* parampath, const char* binpath)
         {
             int top_blob_index = layer->tops[j];
             fprintf(pp, " %s", blobs[top_blob_index].name.c_str());
+        }
+
+        // write shape hints
+        int shape_hint_array_size = 0;
+        for (int j=0; j<top_count; j++)
+        {
+            int top_blob_index = layer->tops[j];
+            int dims = blobs[top_blob_index].shape.dims;
+            if (dims == 0)
+            {
+                shape_hint_array_size = 0;
+                break;
+            }
+
+            shape_hint_array_size += dims + 1;
+        }
+        if (shape_hint_array_size)
+        {
+            fprintf(pp, " -23330=%d", shape_hint_array_size);
+            for (int j=0; j<top_count; j++)
+            {
+                int top_blob_index = layer->tops[j];
+                int dims = blobs[top_blob_index].shape.dims;
+                int w = blobs[top_blob_index].shape.w;
+                int h = blobs[top_blob_index].shape.h;
+                int c = blobs[top_blob_index].shape.c;
+                fprintf(pp, ",%d", dims);
+
+                if (dims == 1)
+                {
+                    fprintf(pp, ",%d", w);
+                }
+                if (dims == 2)
+                {
+                    fprintf(pp, ",%d,%d", w, h);
+                }
+                if (dims == 3)
+                {
+                    fprintf(pp, ",%d,%d,%d", w, h, c);
+                }
+            }
         }
 
         ncnn::Layer* layer_default = ncnn::create_layer(layer->typeindex);
@@ -2565,6 +2721,8 @@ int main(int argc, char** argv)
 
     optimizer.eliminate_flatten_after_innerproduct();
     optimizer.eliminate_orphaned_memorydata();
+
+    optimizer.shape_inference();
 
     optimizer.save(outparam, outbin);
 

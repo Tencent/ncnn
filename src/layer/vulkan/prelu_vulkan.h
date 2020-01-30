@@ -35,9 +35,8 @@ public:
 public:
     VkMat slope_data_gpu;
     Pipeline* pipeline_prelu;
-
-    VkMat slope_data_gpu_pack4;
     Pipeline* pipeline_prelu_pack4;
+    Pipeline* pipeline_prelu_pack8;
 };
 
 } // namespace ncnn

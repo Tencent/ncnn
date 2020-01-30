@@ -27,11 +27,15 @@ BinaryOp_vulkan::BinaryOp_vulkan()
 
     pipeline_binaryop = 0;
     pipeline_binaryop_pack4 = 0;
+    pipeline_binaryop_pack8 = 0;
 
     pipeline_binaryop_broadcast = 0;
     pipeline_binaryop_broadcast_pack4 = 0;
     pipeline_binaryop_broadcast_a1_pack4 = 0;
     pipeline_binaryop_broadcast_b1_pack4 = 0;
+    pipeline_binaryop_broadcast_pack8 = 0;
+    pipeline_binaryop_broadcast_a1_pack8 = 0;
+    pipeline_binaryop_broadcast_b1_pack8 = 0;
 }
 
 int BinaryOp_vulkan::create_pipeline(const Option& opt)
@@ -55,6 +59,13 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
             pipeline_binaryop_pack4 = new Pipeline(vkdev);
             pipeline_binaryop_pack4->set_optimal_local_size_xyz();
             pipeline_binaryop_pack4->create("binaryop_pack4", opt, specializations, 3, 15);
+        }
+
+        // pack8
+        {
+            pipeline_binaryop_pack8 = new Pipeline(vkdev);
+            pipeline_binaryop_pack8->set_optimal_local_size_xyz();
+            pipeline_binaryop_pack8->create("binaryop_pack8", opt, specializations, 3, 15);
         }
     }
 
@@ -84,6 +95,21 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
             pipeline_binaryop_broadcast_b1_pack4->set_optimal_local_size_xyz();
             pipeline_binaryop_broadcast_b1_pack4->create("binaryop_broadcast_b1_pack4", opt, specializations, 3, 15);
         }
+
+        // pack8
+        {
+            pipeline_binaryop_broadcast_pack8 = new Pipeline(vkdev);
+            pipeline_binaryop_broadcast_pack8->set_optimal_local_size_xyz();
+            pipeline_binaryop_broadcast_pack8->create("binaryop_broadcast_pack8", opt, specializations, 3, 15);
+
+            pipeline_binaryop_broadcast_a1_pack8 = new Pipeline(vkdev);
+            pipeline_binaryop_broadcast_a1_pack8->set_optimal_local_size_xyz();
+            pipeline_binaryop_broadcast_a1_pack8->create("binaryop_broadcast_a1_pack8", opt, specializations, 3, 15);
+
+            pipeline_binaryop_broadcast_b1_pack8 = new Pipeline(vkdev);
+            pipeline_binaryop_broadcast_b1_pack8->set_optimal_local_size_xyz();
+            pipeline_binaryop_broadcast_b1_pack8->create("binaryop_broadcast_b1_pack8", opt, specializations, 3, 15);
+        }
     }
 
     return 0;
@@ -97,6 +123,9 @@ int BinaryOp_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_binaryop_pack4;
     pipeline_binaryop_pack4 = 0;
 
+    delete pipeline_binaryop_pack8;
+    pipeline_binaryop_pack8 = 0;
+
     delete pipeline_binaryop_broadcast;
     pipeline_binaryop_broadcast = 0;
 
@@ -108,6 +137,15 @@ int BinaryOp_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_binaryop_broadcast_b1_pack4;
     pipeline_binaryop_broadcast_b1_pack4 = 0;
+
+    delete pipeline_binaryop_broadcast_pack8;
+    pipeline_binaryop_broadcast_pack8 = 0;
+
+    delete pipeline_binaryop_broadcast_a1_pack8;
+    pipeline_binaryop_broadcast_a1_pack8 = 0;
+
+    delete pipeline_binaryop_broadcast_b1_pack8;
+    pipeline_binaryop_broadcast_b1_pack8 = 0;
 
     return 0;
 }
@@ -176,26 +214,28 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         {
             if (bottom_blob.dims == 1 && bottom_blob.w == 1 && bottom_blob.elempack == 1)
             {
-                pipeline = pipeline_binaryop_broadcast_a1_pack4;
+                pipeline = elempack == 8 ? pipeline_binaryop_broadcast_a1_pack8 : pipeline_binaryop_broadcast_a1_pack4;
             }
             else if (bottom_blob1.dims == 1 && bottom_blob1.w == 1 && bottom_blob1.elempack == 1)
             {
-                pipeline = pipeline_binaryop_broadcast_b1_pack4;
+                pipeline = elempack == 8 ? pipeline_binaryop_broadcast_b1_pack8 : pipeline_binaryop_broadcast_b1_pack4;
             }
             else if (bottom_blob.dims == 3 && bottom_blob1.dims == 3 && bottom_blob1.w == bottom_blob.w && bottom_blob1.h == bottom_blob.h && bottom_blob1.c == 1 && bottom_blob1.elempack == 1)
             {
                 // special type 2
-                pipeline = pipeline_binaryop_broadcast_b1_pack4;
+                pipeline = elempack == 8 ? pipeline_binaryop_broadcast_b1_pack8 : pipeline_binaryop_broadcast_b1_pack4;
             }
             else
             {
-                pipeline = pipeline_binaryop_broadcast_pack4;
+                pipeline = elempack == 8 ? pipeline_binaryop_broadcast_pack8 : pipeline_binaryop_broadcast_pack4;
             }
         }
     }
     else
     {
-        pipeline = elempack == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
+        pipeline = elempack == 8 ? pipeline_binaryop_pack8
+                 : elempack == 4 ? pipeline_binaryop_pack4
+                 : pipeline_binaryop;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
@@ -219,7 +259,9 @@ int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, con
     constants[13].i = bottom_top_blob.c;
     constants[14].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_binaryop_pack8
+                             : elempack == 4 ? pipeline_binaryop_pack4
+                             : pipeline_binaryop;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

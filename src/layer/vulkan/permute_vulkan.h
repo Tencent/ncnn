@@ -33,6 +33,7 @@ public:
 public:
     Pipeline* pipeline_permute;
     Pipeline* pipeline_permute_pack4to1;
+    Pipeline* pipeline_permute_pack8to1;
 };
 
 } // namespace ncnn
