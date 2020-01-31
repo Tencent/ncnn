@@ -198,7 +198,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
@@ -321,7 +320,6 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
