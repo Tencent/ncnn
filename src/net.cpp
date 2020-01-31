@@ -265,26 +265,12 @@ int Net::load_param(const DataReader& dr)
             {
                 Blob& blob = blobs[layer->tops[j]];
 
-                int dims = psh[0];
-                blob.shape.dims = dims;
+                blob.shape.dims = psh[0];
+                blob.shape.w = psh[1];
+                blob.shape.h = psh[2];
+                blob.shape.c = psh[3];
 
-                if (dims == 1)
-                {
-                    blob.shape.w = psh[1];
-                }
-                if (dims == 2)
-                {
-                    blob.shape.w = psh[1];
-                    blob.shape.h = psh[2];
-                }
-                if (dims == 3)
-                {
-                    blob.shape.w = psh[1];
-                    blob.shape.h = psh[2];
-                    blob.shape.c = psh[3];
-                }
-
-                psh += dims;
+                psh += 4;
             }
         }
 
@@ -442,26 +428,12 @@ int Net::load_param_bin(const DataReader& dr)
             {
                 Blob& blob = blobs[layer->tops[j]];
 
-                int dims = psh[0];
-                blob.shape.dims = dims;
+                blob.shape.dims = psh[0];
+                blob.shape.w = psh[1];
+                blob.shape.h = psh[2];
+                blob.shape.c = psh[3];
 
-                if (dims == 1)
-                {
-                    blob.shape.w = psh[1];
-                }
-                if (dims == 2)
-                {
-                    blob.shape.w = psh[1];
-                    blob.shape.h = psh[2];
-                }
-                if (dims == 3)
-                {
-                    blob.shape.w = psh[1];
-                    blob.shape.h = psh[2];
-                    blob.shape.c = psh[3];
-                }
-
-                psh += dims;
+                psh += 4;
             }
         }
 
