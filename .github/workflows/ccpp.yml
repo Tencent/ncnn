@@ -8,7 +8,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: update
-      run: sudo apt-get update && sudo apt-get upgrade
+      run: sudo apt-get update
     - name: protobuf
       run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: configure
@@ -23,7 +23,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: update
-      run: sudo apt-get update && sudo apt-get upgrade
+      run: sudo apt-get update
     - name: protobuf
       run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: cache-vulkansdk
@@ -80,7 +80,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: update
-      run: sudo apt-get update && sudo apt-get upgrade
+      run: sudo apt-get update
     - name: protobuf
       run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: configure
@@ -98,7 +98,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: update
-      run: sudo apt-get update && sudo apt-get upgrade
+      run: sudo apt-get update
     - name: protobuf
       run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: cache-vulkansdk
