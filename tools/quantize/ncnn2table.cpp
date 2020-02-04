@@ -735,7 +735,7 @@ static int post_training_quantize(const std::vector<std::string>& image_list, co
 // usage
 void showUsage()
 {
-    std::cout << "example: ./ncnn2table --param=squeezenet-fp32.param --bin=squeezenet-fp32.bin --images=images/ --output=squeezenet.table --mean=104,117,123 --norm=1,1,1 --size=227,227 --swapRB --thread=2" << std::endl;
+    std::cout << "example: ./ncnn2table --param=squeezenet-fp32.param --bin=squeezenet-fp32.bin --images=images/ --output=squeezenet.table --mean=104.0,117.0,123.0 --norm=1.0,1.0,1.0 --size=224,224 --swapRB --thread=2" << std::endl;
 }
 
 static int find_all_value_in_string(const std::string& values_string, std::vector<float>& value)
@@ -806,10 +806,10 @@ int main(int argc, char** argv)
         "{help h usage ? |   | print this message }"
         "{param p        |   | path to ncnn.param file }"
         "{bin b          |   | path to ncnn.bin file }"
-        "{images i       |   | path to calibration images }"
+        "{images i       |   | path to calibration images folder }"
         "{output o       |   | path to output calibration table file }"
-        "{mean m         |   | value of mean }"
-        "{norm n         |   | value of normalize(scale value,default is 1 }"
+        "{mean m         |   | value of mean (mean value, default is 104.0,117.0,123.0) }"
+        "{norm n         |   | value of normalize (scale value, default is 1.0,1.0,1.0) }"
         "{size s         |   | the size of input image(using the resize the original image,default is w=224,h=224) }"
         "{swapRB c       |   | flag which indicates that swap first and last channels in 3-channel image is necessary }"
         "{thread t       | 4 | count of processing threads }"
