@@ -229,6 +229,14 @@ void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
 //     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
 }
 
+void Pipeline::set_optimal_local_size_xyz(const Mat& local_size_xyz)
+{
+    if (local_size_xyz.empty())
+        return set_optimal_local_size_xyz();
+
+    set_optimal_local_size_xyz(local_size_xyz.w, local_size_xyz.h, local_size_xyz.c);
+}
+
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
     local_size_x = w;

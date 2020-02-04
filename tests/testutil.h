@@ -224,6 +224,9 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
         return -1;
     }
 
+    op->bottom_shapes.resize(a.size());
+    op->top_shapes.resize(top_blob_count);
+
     op->load_param(pd);
 
     op->load_model(mb);
@@ -423,6 +426,9 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const ncnn::ModelBin& m
 
     op->vkdev = vkdev;
 #endif // NCNN_VULKAN
+
+    op->bottom_shapes.resize(1);
+    op->top_shapes.resize(1);
 
     op->load_param(pd);
 

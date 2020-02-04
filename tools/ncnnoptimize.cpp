@@ -1813,7 +1813,7 @@ int NetOptimize::shape_inference()
             ncnn::Mat m;
             ex.extract(top_blob_index, m);
 
-            blobs[top_blob_index].shape = m.shape();
+            blobs[top_blob_index].shape = m;
         }
     }
 

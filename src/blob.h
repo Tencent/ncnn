@@ -38,7 +38,7 @@ public:
     // layer index which need this blob as input
     std::vector<int> consumers;
     // shape hint
-    Shape shape;
+    Mat shape;
 };
 
 } // namespace ncnn

@@ -265,10 +265,19 @@ int Net::load_param(const DataReader& dr)
             {
                 Blob& blob = blobs[layer->tops[j]];
 
-                blob.shape.dims = psh[0];
-                blob.shape.w = psh[1];
-                blob.shape.h = psh[2];
-                blob.shape.c = psh[3];
+                int dims = psh[0];
+                if (dims == 1)
+                {
+                    blob.shape = Mat(psh[1], (void*)0, 4u, 1);
+                }
+                if (dims == 2)
+                {
+                    blob.shape = Mat(psh[1], psh[2], (void*)0, 4u, 1);
+                }
+                if (dims == 3)
+                {
+                    blob.shape = Mat(psh[1], psh[2], psh[3], (void*)0, 4u, 1);
+                }
 
                 psh += 4;
             }
@@ -428,10 +437,19 @@ int Net::load_param_bin(const DataReader& dr)
             {
                 Blob& blob = blobs[layer->tops[j]];
 
-                blob.shape.dims = psh[0];
-                blob.shape.w = psh[1];
-                blob.shape.h = psh[2];
-                blob.shape.c = psh[3];
+                int dims = psh[0];
+                if (dims == 1)
+                {
+                    blob.shape = Mat(psh[1], (void*)0, 4u, 1);
+                }
+                if (dims == 2)
+                {
+                    blob.shape = Mat(psh[1], psh[2], (void*)0, 4u, 1);
+                }
+                if (dims == 3)
+                {
+                    blob.shape = Mat(psh[1], psh[2], psh[3], (void*)0, 4u, 1);
+                }
 
                 psh += 4;
             }
