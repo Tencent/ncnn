@@ -1141,19 +1141,19 @@ int main(int argc, char** argv)
             const caffe::BlobShape& bs = input_param.shape(0);
             if (bs.dim_size() == 4)
             {
-                fprintf(pp, " 0=%lld", bs.dim(3));
-                fprintf(pp, " 1=%lld", bs.dim(2));
-                fprintf(pp, " 2=%lld", bs.dim(1));
+                fprintf(pp, " 0=%zd", size_t(bs.dim(3)));
+                fprintf(pp, " 1=%zd", size_t(bs.dim(2)));
+                fprintf(pp, " 2=%zd", size_t(bs.dim(1)));
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " 0=%lld", bs.dim(2));
-                fprintf(pp, " 1=%lld", bs.dim(1));
+                fprintf(pp, " 0=%zd", size_t(bs.dim(2)));
+                fprintf(pp, " 1=%zd", size_t(bs.dim(1)));
                 fprintf(pp, " 2=-233");
             }
             else if (bs.dim_size() == 2)
             {
-                fprintf(pp, " 0=%lld", bs.dim(1));
+                fprintf(pp, " 0=%zd", size_t(bs.dim(1)));
                 fprintf(pp, " 1=-233");
                 fprintf(pp, " 2=-233");
             }
@@ -1516,19 +1516,19 @@ int main(int argc, char** argv)
             const caffe::BlobShape& bs = reshape_param.shape();
             if (bs.dim_size() == 1)
             {
-                fprintf(pp, " 0=%lld 1=-233 2=-233", bs.dim(0));
+                fprintf(pp, " 0=%zd 1=-233 2=-233", size_t(bs.dim(0)));
             }
             else if (bs.dim_size() == 2)
             {
-                fprintf(pp, " 0=%lld 1=-233 2=-233", bs.dim(1));
+                fprintf(pp, " 0=%zd 1=-233 2=-233", size_t(bs.dim(1)));
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " 0=%lld 1=%lld 2=-233", bs.dim(2), bs.dim(1));
+                fprintf(pp, " 0=%zd 1=%zd 2=-233", size_t(bs.dim(2)), bs.dim(1));
             }
             else // bs.dim_size() == 4
             {
-                fprintf(pp, " 0=%lld 1=%lld 2=%lld", bs.dim(3), bs.dim(2), bs.dim(1));
+                fprintf(pp, " 0=%zd 1=%zd 2=%zd", size_t(bs.dim(3)), size_t(bs.dim(2)), size_t(bs.dim(1)));
             }
             fprintf(pp, " 3=0");// permute
         }
