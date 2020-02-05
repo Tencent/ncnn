@@ -1480,7 +1480,7 @@ int main(int argc, char** argv)
 //                 float scale;
                 int pre_nms_topN = 6000;
                 int after_nms_topN = 300;
-                float nms_thresh = 0.7;
+                float nms_thresh = 0.7f;
                 int min_size = 16;
                 fprintf(pp, " 0=%d", feat_stride);
                 fprintf(pp, " 1=%d", base_size);
