@@ -268,11 +268,11 @@ static bool quantize_weight(float *data, size_t data_length, int quantize_level,
     // 3. Align data to the quantized value
     for (size_t i = 0; i < data_length; ++i)
     {
-		int table_index = int((data[i] - min_value) / strides);
+        int table_index = int((data[i] - min_value) / strides);
         table_index = std::min(table_index, quantize_level - 1);
 
         float low_value = quantize_table[table_index];
-		float high_value = low_value + strides;
+        float high_value = low_value + strides;
 
         // find a nearest value between low and high value.
         const float targetValue = data[i] - low_value < high_value - data[i] ? low_value : high_value;
