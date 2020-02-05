@@ -219,7 +219,7 @@ static int quantize_weight(float *data, size_t data_length, std::vector<float> s
 {
     int8_weights.resize(data_length);
 
-    const auto length_per_group = static_cast<int>(data_length / scales.size());
+    const int length_per_group = static_cast<int>(data_length / scales.size());
 
     for (size_t i = 0; i < data_length; i++)
     {
@@ -268,14 +268,14 @@ static bool quantize_weight(float *data, size_t data_length, int quantize_level,
     // 3. Align data to the quantized value
     for (size_t i = 0; i < data_length; ++i)
     {
-        auto table_index = int((data[i] - min_value) / strides);
+		int table_index = int((data[i] - min_value) / strides);
         table_index = std::min(table_index, quantize_level - 1);
 
-        auto low_value = quantize_table[table_index];
-        auto high_value = low_value + strides;
+        float low_value = quantize_table[table_index];
+		float high_value = low_value + strides;
 
         // find a nearest value between low and high value.
-        const auto targetValue = data[i] - low_value < high_value - data[i] ? low_value : high_value;
+        const float targetValue = data[i] - low_value < high_value - data[i] ? low_value : high_value;
 
         table_index = int((targetValue - min_value) / strides);
         table_index = std::min(table_index, quantize_level - 1);
