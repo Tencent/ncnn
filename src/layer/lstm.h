@@ -36,8 +36,8 @@ public:
     int weight_data_size;
 
     // model
-    Mat weight_hc_data;
-    Mat weight_xc_data;
+    Mat weight_i_data;
+    Mat weight_h_data;
     Mat bias_c_data;
 };
 
