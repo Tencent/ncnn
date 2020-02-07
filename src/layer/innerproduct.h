@@ -37,7 +37,7 @@ public:
     // param
     int num_output;
     int bias_term;
-
+    int axis;
     int weight_data_size;
 
     int int8_scale_term;
