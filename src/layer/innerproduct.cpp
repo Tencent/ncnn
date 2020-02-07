@@ -31,6 +31,7 @@ int InnerProduct::load_param(const ParamDict& pd)
     num_output = pd.get(0, 0);
     bias_term = pd.get(1, 0);
     weight_data_size = pd.get(2, 0);
+    axis=pd.get(3,1);
     int8_scale_term = pd.get(8, 0);
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
@@ -99,58 +100,90 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
-
-    top_blob.create(num_output, elemsize, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    // num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<num_output; p++)
+    if(axis==1)
     {
-        float sum = 0.f;
+        top_blob.create(num_output, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-        if (bias_term)
-            sum = bias_data[p];
-
-        // channels
-        for (int q=0; q<channels; q++)
+        // num_output
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p=0; p<num_output; p++)
         {
-            const float* w = (const float*)weight_data + size * channels * p + size * q;
-            const float* m = bottom_blob.channel(q);
+            float sum = 0.f;
 
-            for (int i = 0; i < size; i++)
+            if (bias_term)
+                sum = bias_data[p];
+
+            // channels
+            for (int q=0; q<channels; q++)
             {
-                sum += m[i] * w[i];
+                const float* w = (const float*)weight_data + size * channels * p + size * q;
+                const float* m = bottom_blob.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    sum += m[i] * w[i];
+                }
+            }
+
+            if (activation_type == 1)
+            {
+                sum = std::max(sum, 0.f);
+            }
+            else if (activation_type == 2)
+            {
+                float slope = activation_params[0];
+                sum = sum > 0.f ? sum : sum * slope;
+            }
+            else if (activation_type == 3)
+            {
+                float min = activation_params[0];
+                float max = activation_params[1];
+                if (sum < min)
+                    sum = min;
+                if (sum > max)
+                    sum = max;
+            }
+            else if (activation_type == 4)
+            {
+                sum = static_cast<float>(1.f / (1.f + exp(-sum)));
+            }
+
+            top_blob[p] = sum;
+        }
+    }
+    else if(axis==2)
+    {	
+        top_blob.create(num_output,h,channels,elemsize,opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const float* weight_data_ptr = weight_data;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for(int q=0;q<channels;q++)
+        {
+            const float* m = bottom_blob.channel(q);
+            for(int p =0;p<num_output;p++)
+            {
+                float sum=0.f;
+                const float* w0 =weight_data_ptr +(weight_data_size/num_output)*p;
+                if(bias_term)
+                {
+                    sum = bias_data[p];
+                }		
+                for(int i=0 ;i<size;i++)
+                {
+                    sum +=m[i] * w0[i];
+                }
+                top_blob.channel(q)[p]=sum;
             }
         }
-
-        if (activation_type == 1)
-        {
-            sum = std::max(sum, 0.f);
-        }
-        else if (activation_type == 2)
-        {
-            float slope = activation_params[0];
-            sum = sum > 0.f ? sum : sum * slope;
-        }
-        else if (activation_type == 3)
-        {
-            float min = activation_params[0];
-            float max = activation_params[1];
-            if (sum < min)
-                sum = min;
-            if (sum > max)
-                sum = max;
-        }
-        else if (activation_type == 4)
-        {
-            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-        }
-
-        top_blob[p] = sum;
-    }
-
+    }//axis2
+	else
+	{
+		return -1;
+	}
     return 0;
 }
 
