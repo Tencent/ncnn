@@ -416,6 +416,8 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+  optional LSTMParameter lstm_param = 161;
+  optional ReverseParameter reverse_param = 160;
 }
 
 // Message that stores parameters used to apply transformation
@@ -440,7 +442,28 @@ message TransformationParameter {
   // Force the decoded image to have 1 color channels.
   optional bool force_gray = 7 [default = false];
 }
+message LSTMParameter {
+  optional uint32 num_output = 1; // The number of outputs for the layer
+  optional float clipping_threshold = 2 [default = 0.0];
+  optional FillerParameter weight_filler = 3; // The filler for weight
+  optional FillerParameter bias_filler = 4; // The filler for the bias
+  optional uint32 batch_size = 5 [default = 1];
+}
 
+message ReverseParameter {
+  // axis controls the data axis which shall be inverted.
+  // The layout of the content will not be inverted
+  //
+  // The default axis is 0 that means:
+  //   data_previous[n] == data_afterwards[N - n -1]
+  // where N is the shape of axis(n)
+  //
+  // Usually this layer will be used with recurrent layers to invert the
+  // time axis which is axis 0
+  // This layer will therefore swap the order in time but not the
+  // order of the actual data.
+  optional int32 axis = 1 [default = 0];
+}
 // Message that stores parameters used by data transformer for resize policy
 message ResizeParameter {
   //Probability of using this resize policy
