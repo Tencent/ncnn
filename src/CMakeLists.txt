@@ -216,7 +216,7 @@ ncnn_add_layer(HardSigmoid)
 ncnn_add_layer(SELU)
 ncnn_add_layer(HardSwish)
 ncnn_add_layer(Noop)
-
+ncnn_add_layer(Reverse)
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
 endif()
