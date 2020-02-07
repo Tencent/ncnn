@@ -1015,7 +1015,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", inner_product_param.num_output());
             fprintf(pp, " 1=%d", inner_product_param.bias_term());
             fprintf(pp, " 2=%d", weight_blob.data_size());
-
+            fprintf(pp, " 3=%d", inner_product_param.axis());
             bool int8_scale_term = false;
             std::vector<float> weight_int8scale;
             std::vector<float> blob_int8scale;
@@ -1527,6 +1527,12 @@ int main(int argc, char** argv)
                 fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(3), bs.dim(2), bs.dim(1));
             }
             fprintf(pp, " 3=0");// permute
+        }
+		else if(layer.type() == "Reverse")
+        {
+            const caffe::ReverseParameter& reverse_param = layer.reverse_param();
+            int axis = reverse_param.axis();
+            fprintf(pp, " 0=%d", axis);
         }
         else if (layer.type() == "ROIAlign")
         {
