@@ -30,6 +30,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D buffer_cp8to4(buf,i2,sbuf,si)={mat2x4 _v=sbuf[si]; buf[i2.r]=_v[0];buf[i2.g]=_v[1];}"
              "-D sfp2afpmat4(v)=v"
              "-D afp2sfpmat4(v)=v"
+             "-D psc(x)=(x==0?p.x:x)"
              -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_SRC_NAME_WE}.spv"
@@ -64,6 +65,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D buffer_cp8(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
              "-D buffer_cp8to1(buf,i4,ii4,sbuf,si)={uvec4 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.r);vec2 _v1=unpackHalf2x16(_v.g);vec2 _v2=unpackHalf2x16(_v.b);vec2 _v3=unpackHalf2x16(_v.a); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g; buf[ii4.r]=_v2.r;buf[ii4.g]=_v2.g;buf[ii4.b]=_v3.r;buf[ii4.a]=_v3.g;}"
              "-D buffer_cp8to4(buf,i2,sbuf,si)={uvec4 _v=sbuf[si]; buf[i2.r]=_v.rg;buf[i2.g]=_v.ba;}"
+             "-D psc(x)=(x==0?p.x:x)"
              -DNCNN_fp16_packed=1
              -V -s -e ${SHADER_fp16p_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16p_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
@@ -99,6 +101,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D buffer_cp8(buf,i,sbuf,si)={buf[i].abcd=sbuf[si].abcd;buf[i].efgh=sbuf[si].efgh;}"
              "-D buffer_cp8to1(buf,i4,ii4,sbuf,si)={buf[i4.r]=sbuf[si].abcd.r;buf[i4.g]=sbuf[si].abcd.g;buf[i4.b]=sbuf[si].abcd.b;buf[i4.a]=sbuf[si].abcd.a; buf[ii4.r]=sbuf[si].efgh.r;buf[ii4.g]=sbuf[si].efgh.g;buf[ii4.b]=sbuf[si].efgh.b;buf[ii4.a]=sbuf[si].efgh.a;}"
              "-D buffer_cp8to4(buf,i2,sbuf,si)={buf[i2.r]=sbuf[si].abcd;buf[i2.g]=sbuf[si].efgh;}"
+             "-D psc(x)=(x==0?p.x:x)"
              -DNCNN_fp16_storage=1
              -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
@@ -136,6 +139,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D buffer_cp8to4(buf,i2,sbuf,si)={f16mat2x4 _v=sbuf[si]; buf[i2.r]=_v[0];buf[i2.g]=_v[1];}"
              "-D sfp2afpmat4(v)=v"
              "-D afp2sfpmat4(v)=v"
+             "-D psc(x)=(x==0?p.x:x)"
              -DNCNN_fp16_arithmetic=1
              -V -s -e ${SHADER_fp16a_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16a_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}

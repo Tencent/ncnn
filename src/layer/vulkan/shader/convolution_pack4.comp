@@ -32,6 +32,19 @@ layout (constant_id = 7) const int activation_type = 0;
 layout (constant_id = 8) const float activation_param_0 = 0;
 layout (constant_id = 9) const float activation_param_1 = 0;
 
+#define shape_constant_id_offset 10
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -67,7 +80,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
     afpvec4 sum;
@@ -81,11 +94,11 @@ void main()
         sum = afpvec4(0.f);
     }
 
-    int w_offset = gz * p.c * kernel_w * kernel_h;
+    int w_offset = gz * psc(c) * kernel_w * kernel_h;
 
-    for (int z = 0; z < p.c; z++)
+    for (int z = 0; z < psc(c); z++)
     {
-        int v_offset = z * p.cstep + gy * stride_h * p.w + gx * stride_w;
+        int v_offset = z * psc(cstep) + gy * stride_h * psc(w) + gx * stride_w;
 
         for (int y = 0; y < kernel_h; y++)
         {
@@ -108,7 +121,7 @@ void main()
                 sum += v * k;
             }
 
-            v_offset += dilation_h * p.w;
+            v_offset += dilation_h * psc(w);
             w_offset += kernel_w;
         }
     }
@@ -133,7 +146,7 @@ void main()
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
-    const int gi = gz * p.outcstep + gy * p.outw + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st4(top_blob_data, gi, sum);
 }

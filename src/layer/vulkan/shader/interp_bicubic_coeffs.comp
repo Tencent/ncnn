@@ -21,6 +21,10 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -41,7 +45,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= 1 || gz >= 1)
+    if (gx >= psc(outw) || gy >= 1 || gz >= 1)
         return;
 
     afp fx = (afp(gx) + afp(0.5f)) * afp(p.scale) - afp(0.5f);
@@ -80,17 +84,17 @@ void main()
         coeffs.b = coeffs.a;
         coeffs.a = afp(0.f);
     }
-    if (sx == p.w - 2)
+    if (sx == psc(w) - 2)
     {
-        sx = p.w - 3;
+        sx = psc(w) - 3;
         coeffs.a = coeffs.b + coeffs.a;
         coeffs.b = coeffs.g;
         coeffs.g = coeffs.r;
         coeffs.r = afp(0.f);
     }
-    if (sx >= p.w - 1)
+    if (sx >= psc(w) - 1)
     {
-        sx = p.w - 3;
+        sx = psc(w) - 3;
         coeffs.a = afp(1.f) - coeffs.r;
         coeffs.b = coeffs.r;
         coeffs.g = afp(0.f);

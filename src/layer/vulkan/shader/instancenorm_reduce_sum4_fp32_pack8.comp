@@ -22,6 +22,15 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int size = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 3) const int outsize = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -46,14 +55,14 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outsize || gy >= 1 || gz >= p.outc)
+    if (gx >= p.outsize || gy >= 1 || gz >= psc(outc))
         return;
 
-    int gi = gz * p.outcstep + gx;
+    int gi = gz * psc(outcstep) + gx;
 
     int sx = gx * 4;
 
-    int v_offset = gz * p.cstep + sx;
+    int v_offset = gz * psc(cstep) + sx;
 
     if (sx == p.size - 1)
     {

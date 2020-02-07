@@ -24,6 +24,9 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 
 layout (constant_id = 0) const float eps = 0;
 
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -45,7 +48,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= 1 || gz >= 1)
+    if (gx >= psc(w) || gy >= 1 || gz >= 1)
         return;
 
     afpvec8 mean = buffer_ld8(mean_data, gx);

@@ -24,6 +24,19 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 
 layout (constant_id = 0) const int group = 1;
 
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -52,10 +65,10 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int channels_g = p.c * 8 / group;
+    const int channels_g = psc(c) * 8 / group;
 
     ivec4 gz4 = ivec4(gz * 8) + ivec4(0, 1, 2, 3);
     ivec4 gzz4 = gz4 + 4;
@@ -63,8 +76,8 @@ void main()
     ivec4 z4 = (gz4 % group) * channels_g + (gz4 / group);
     ivec4 zz4 = (gzz4 % group) * channels_g + (gzz4 / group);
 
-    ivec4 v_offset = (z4 / 8) * p.cstep + gy * p.w + gx;
-    ivec4 vv_offset = (zz4 / 8) * p.cstep + gy * p.w + gx;
+    ivec4 v_offset = (z4 / 8) * psc(cstep) + gy * psc(w) + gx;
+    ivec4 vv_offset = (zz4 / 8) * psc(cstep) + gy * psc(w) + gx;
 
     ivec4 sz4 = (z4 % 8) / 4;
     ivec4 szz4 = (zz4 % 8) / 4;
@@ -73,7 +86,7 @@ void main()
     ivec4 lane8 = zz4 % 4;
 
     // v = v4[lane]
-    int gi = gz * p.outcstep + gy * p.outw + gx;
+    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     afpvec8 vr = buffer_ld8(bottom_blob_data, v_offset.r);
     afpvec8 vg = buffer_ld8(bottom_blob_data, v_offset.g);
