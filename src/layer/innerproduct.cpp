@@ -180,10 +180,10 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             }
         }
     }//axis2
-	else
-	{
-		return -1;
-	}
+    else
+    {
+        return -1;
+    }
     return 0;
 }
 
