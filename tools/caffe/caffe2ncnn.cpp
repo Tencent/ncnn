@@ -12,6 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_DEPRECATE
+#endif
+
 #include <stdio.h>
 #include <limits.h>
 #include <math.h>
@@ -32,7 +36,7 @@
 
 static inline size_t alignSize(size_t sz, int n)
 {
-    return (sz + n-1) & -n;
+    return (sz + n - 1) & -n;
 }
 
 // convert float to half precision floating point
@@ -52,9 +56,9 @@ static unsigned short float2half(float value)
     unsigned short exponent = (tmp.u & 0x7F800000) >> 23;
     unsigned int significand = tmp.u & 0x7FFFFF;
 
-//     fprintf(stderr, "%d %d %d\n", sign, exponent, significand);
+    //     fprintf(stderr, "%d %d %d\n", sign, exponent, significand);
 
-    // 1 : 5 : 10
+        // 1 : 5 : 10
     unsigned short fp16;
     if (exponent == 0)
     {
@@ -69,7 +73,7 @@ static unsigned short float2half(float value)
     else
     {
         // normalized
-        short newexp = exponent + (- 127 + 15);
+        short newexp = exponent + (-127 + 15);
         if (newexp >= 31)
         {
             // overflow, return infinity
@@ -103,15 +107,15 @@ static unsigned short float2half(float value)
 static signed char float2int8(float value)
 {
     float tmp;
-    if (value >= 0.f) tmp = value + 0.5;
-    else tmp = value - 0.5;
+    if (value >= 0.f) tmp = value + 0.5f;
+    else tmp = value - 0.5f;
 
     if (tmp > 127)
         return 127;
     if (tmp < -127)
         return -127;
 
-    return tmp;
+    return static_cast<signed char>(tmp);
 }
 
 static bool read_int8scale_table(const char* filepath, std::map<std::string, std::vector<float> >& blob_int8scale_table, std::map<std::string, std::vector<float> >& weight_int8scale_table)
@@ -154,11 +158,11 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
                 // XYZ_param_N pattern
                 if (strstr(keystr.c_str(), "_param_"))
                 {
-                    weight_int8scale_table[ keystr ] = scales;
+                    weight_int8scale_table[keystr] = scales;
                 }
                 else
                 {
-                    blob_int8scale_table[ keystr ] = scales;
+                    blob_int8scale_table[keystr] = scales;
                 }
 
                 keystr.clear();
@@ -181,11 +185,11 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
         // XYZ_param_N pattern
         if (strstr(keystr.c_str(), "_param_"))
         {
-            weight_int8scale_table[ keystr ] = scales;
+            weight_int8scale_table[keystr] = scales;
         }
         else
         {
-            blob_int8scale_table[ keystr ] = scales;
+            blob_int8scale_table[keystr] = scales;
         }
     }
 
@@ -215,13 +219,13 @@ static int quantize_weight(float *data, size_t data_length, std::vector<float> s
 {
     int8_weights.resize(data_length);
 
-    int length_per_group = data_length / scales.size();
+    const int length_per_group = static_cast<int>(data_length / scales.size());
 
     for (size_t i = 0; i < data_length; i++)
     {
         float f = data[i];
 
-        signed char int8 = float2int8(f * scales[ i / length_per_group ]);
+        signed char int8 = float2int8(f * scales[i / length_per_group]);
 
         int8_weights[i] = int8;
     }
@@ -264,17 +268,17 @@ static bool quantize_weight(float *data, size_t data_length, int quantize_level,
     // 3. Align data to the quantized value
     for (size_t i = 0; i < data_length; ++i)
     {
-        size_t table_index = int((data[i] - min_value) / strides);
-        table_index = std::min<float>(table_index, quantize_level - 1);
+        int table_index = int((data[i] - min_value) / strides);
+        table_index = std::min(table_index, quantize_level - 1);
 
-        float low_value  = quantize_table[table_index];
+        float low_value = quantize_table[table_index];
         float high_value = low_value + strides;
 
         // find a nearest value between low and high value.
-        float targetValue = data[i] - low_value < high_value - data[i] ? low_value : high_value;
+        const float targetValue = data[i] - low_value < high_value - data[i] ? low_value : high_value;
 
         table_index = int((targetValue - min_value) / strides);
-        table_index = std::min<float>(table_index, quantize_level - 1);
+        table_index = std::min(table_index, quantize_level - 1);
         quantize_index.push_back(table_index);
     }
 
@@ -386,11 +390,11 @@ int main(int argc, char** argv)
     // [layer count] [blob count]
     int layer_count = proto.layer_size();
     std::set<std::string> blob_names;
-    for (int i=0; i<layer_count; i++)
+    for (int i = 0; i < layer_count; i++)
     {
         const caffe::LayerParameter& layer = proto.layer(i);
 
-        for (int j=0; j<layer.bottom_size(); j++)
+        for (int j = 0; j < layer.bottom_size(); j++)
         {
             std::string blob_name = layer.bottom(j);
             if (blob_name_decorated.find(blob_name) != blob_name_decorated.end())
@@ -418,7 +422,7 @@ int main(int argc, char** argv)
         }
         else
         {
-            for (int j=0; j<layer.top_size(); j++)
+            for (int j = 0; j < layer.top_size(); j++)
             {
                 std::string blob_name = layer.top(j);
                 blob_names.insert(blob_name);
@@ -437,16 +441,16 @@ int main(int argc, char** argv)
         else
         {
             splitncnn_blob_count += it->second;
-//             fprintf(stderr, "%s %d\n", it->first.c_str(), it->second);
+            //             fprintf(stderr, "%s %d\n", it->first.c_str(), it->second);
             ++it;
         }
     }
-    fprintf(pp, "%lu %lu\n", layer_count + bottom_reference.size(), blob_names.size() + splitncnn_blob_count);
+    fprintf(pp, "%d %d\n", int(layer_count + bottom_reference.size()), int(blob_names.size() + splitncnn_blob_count));
 
     // populate
     blob_name_decorated.clear();
     int internal_split = 0;
-    for (int i=0; i<layer_count; i++)
+    for (int i = 0; i < layer_count; i++)
     {
         const caffe::LayerParameter& layer = proto.layer(i);
 
@@ -503,7 +507,7 @@ int main(int argc, char** argv)
         }
         fprintf(pp, " %-16s %d %d", layer.name().c_str(), layer.bottom_size(), layer.top_size());
 
-        for (int j=0; j<layer.bottom_size(); j++)
+        for (int j = 0; j < layer.bottom_size(); j++)
         {
             std::string blob_name = layer.bottom(j);
             if (blob_name_decorated.find(layer.bottom(j)) != blob_name_decorated.end())
@@ -534,7 +538,7 @@ int main(int argc, char** argv)
         }
         else
         {
-            for (int j=0; j<layer.top_size(); j++)
+            for (int j = 0; j < layer.top_size(); j++)
             {
                 std::string blob_name = layer.top(j);
                 fprintf(pp, " %s", blob_name.c_str());
@@ -543,7 +547,7 @@ int main(int argc, char** argv)
 
         // find blob binary by layer name
         int netidx;
-        for (netidx=0; netidx<net.layer_size(); netidx++)
+        for (netidx = 0; netidx < net.layer_size(); netidx++)
         {
             if (net.layer(netidx).name() == layer.name())
             {
@@ -570,7 +574,7 @@ int main(int argc, char** argv)
             {
                 fwrite(mean_blob.data().data(), sizeof(float), mean_blob.data_size(), bp);
                 float tmp;
-                for (int j=0; j<var_blob.data_size(); j++)
+                for (int j = 0; j < var_blob.data_size(); j++)
                 {
                     tmp = var_blob.data().data()[j] + eps;
                     fwrite(&tmp, sizeof(float), 1, bp);
@@ -581,12 +585,12 @@ int main(int argc, char** argv)
                 float scale_factor = binlayer.blobs(2).data().data()[0] == 0 ? 0 : 1 / binlayer.blobs(2).data().data()[0];
                 // premultiply scale_factor to mean and variance
                 float tmp;
-                for (int j=0; j<mean_blob.data_size(); j++)
+                for (int j = 0; j < mean_blob.data_size(); j++)
                 {
                     tmp = mean_blob.data().data()[j] * scale_factor;
                     fwrite(&tmp, sizeof(float), 1, bp);
                 }
-                for (int j=0; j<var_blob.data_size(); j++)
+                for (int j = 0; j < var_blob.data_size(); j++)
                 {
                     tmp = var_blob.data().data()[j] * scale_factor + eps;
                     fwrite(&tmp, sizeof(float), 1, bp);
@@ -765,8 +769,8 @@ int main(int argc, char** argv)
 
                         // padding to 32bit align
                         int nwrite = ftell(bp) - p0;
-                        int nalign = alignSize(nwrite, 4);
-                        unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
+                        int nalign = int(alignSize(nwrite, 4));
+                        unsigned char padding[4] = { 0x00, 0x00, 0x00, 0x00 };
                         fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                     }
                     else
@@ -886,22 +890,22 @@ int main(int argc, char** argv)
             {
                 maxk = convolution_param.kernel_size(0) * convolution_param.kernel_size(0);
             }
-            for (int g=0; g<group; g++)
+            for (int g = 0; g < group; g++)
             {
-            // reorder weight from inch-outch to outch-inch
-            int num_output = convolution_param.num_output() / group;
-            int num_input = weight_blob.data_size() / maxk / num_output / group;
-            const float* weight_data_ptr = weight_blob.data().data() + g * maxk * num_output * num_input;
-            for (int k=0; k<num_output; k++)
-            {
-                for (int j=0; j<num_input; j++)
+                // reorder weight from inch-outch to outch-inch
+                int num_output = convolution_param.num_output() / group;
+                int num_input = weight_blob.data_size() / maxk / num_output / group;
+                const float* weight_data_ptr = weight_blob.data().data() + g * maxk * num_output * num_input;
+                for (int k = 0; k < num_output; k++)
                 {
-                    fwrite(weight_data_ptr + (j*num_output + k) * maxk, sizeof(float), maxk, bp);
+                    for (int j = 0; j < num_input; j++)
+                    {
+                        fwrite(weight_data_ptr + (j*num_output + k) * maxk, sizeof(float), maxk, bp);
+                    }
                 }
             }
-            }
 
-            for (int j=1; j<binlayer.blobs_size(); j++)
+            for (int j = 1; j < binlayer.blobs_size(); j++)
             {
                 const caffe::BlobProto& blob = binlayer.blobs(j);
                 fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
@@ -932,7 +936,7 @@ int main(int argc, char** argv)
             int coeff_size = eltwise_param.coeff_size();
             fprintf(pp, " 0=%d", (int)eltwise_param.operation());
             fprintf(pp, " -23301=%d", coeff_size);
-            for (int j=0; j<coeff_size; j++)
+            for (int j = 0; j < coeff_size; j++)
             {
                 fprintf(pp, ",%e", eltwise_param.coeff(j));
             }
@@ -953,7 +957,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 2=%d", embed_param.bias_term());
             fprintf(pp, " 3=%d", weight_blob.data_size());
 
-            for (int j=0; j<binlayer.blobs_size(); j++)
+            for (int j = 0; j < binlayer.blobs_size(); j++)
             {
                 int quantize_tag = 0;
                 const caffe::BlobProto& blob = binlayer.blobs(j);
@@ -995,8 +999,8 @@ int main(int argc, char** argv)
                     }
                     // padding to 32bit align
                     int nwrite = ftell(bp) - p0;
-                    int nalign = alignSize(nwrite, 4);
-                    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
+                    int nalign = int(alignSize(nwrite, 4));
+                    unsigned char padding[4] = { 0x00, 0x00, 0x00, 0x00 };
                     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                 }
                 else
@@ -1042,7 +1046,7 @@ int main(int argc, char** argv)
                 }
             }
 
-            for (int j=0; j<binlayer.blobs_size(); j++)
+            for (int j = 0; j < binlayer.blobs_size(); j++)
             {
                 int quantize_tag = 0;
                 const caffe::BlobProto& blob = binlayer.blobs(j);
@@ -1107,8 +1111,8 @@ int main(int argc, char** argv)
 
                         // padding to 32bit align
                         int nwrite = ftell(bp) - p0;
-                        int nalign = alignSize(nwrite, 4);
-                        unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
+                        int nalign = int(alignSize(nwrite, 4));
+                        unsigned char padding[4] = { 0x00, 0x00, 0x00, 0x00 };
                         fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                     }
                     else
@@ -1137,19 +1141,19 @@ int main(int argc, char** argv)
             const caffe::BlobShape& bs = input_param.shape(0);
             if (bs.dim_size() == 4)
             {
-                fprintf(pp, " 0=%ld", bs.dim(3));
-                fprintf(pp, " 1=%ld", bs.dim(2));
-                fprintf(pp, " 2=%ld", bs.dim(1));
+                fprintf(pp, " 0=%zd", size_t(bs.dim(3)));
+                fprintf(pp, " 1=%zd", size_t(bs.dim(2)));
+                fprintf(pp, " 2=%zd", size_t(bs.dim(1)));
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " 0=%ld", bs.dim(2));
-                fprintf(pp, " 1=%ld", bs.dim(1));
+                fprintf(pp, " 0=%zd", size_t(bs.dim(2)));
+                fprintf(pp, " 1=%zd", size_t(bs.dim(1)));
                 fprintf(pp, " 2=-233");
             }
             else if (bs.dim_size() == 2)
             {
-                fprintf(pp, " 0=%ld", bs.dim(1));
+                fprintf(pp, " 0=%zd", size_t(bs.dim(1)));
                 fprintf(pp, " 1=-233");
                 fprintf(pp, " 2=-233");
             }
@@ -1180,7 +1184,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", recurrent_param.num_output());
             fprintf(pp, " 1=%d", weight_blob.data_size());
 
-            for (int j=0; j<binlayer.blobs_size(); j++)
+            for (int j = 0; j < binlayer.blobs_size(); j++)
             {
                 int quantize_tag = 0;
                 const caffe::BlobProto& blob = binlayer.blobs(j);
@@ -1220,8 +1224,8 @@ int main(int argc, char** argv)
                     }
                     // padding to 32bit align
                     int nwrite = ftell(bp) - p0;
-                    int nalign = alignSize(nwrite, 4);
-                    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
+                    int nalign = int(alignSize(nwrite, 4));
+                    unsigned char padding[4] = { 0x00, 0x00, 0x00, 0x00 };
                     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                 }
                 else
@@ -1371,7 +1375,7 @@ int main(int argc, char** argv)
             const caffe::PriorBoxParameter& prior_box_param = layer.prior_box_param();
 
             int num_aspect_ratio = prior_box_param.aspect_ratio_size();
-            for (int j=0; j<prior_box_param.aspect_ratio_size(); j++)
+            for (int j = 0; j < prior_box_param.aspect_ratio_size(); j++)
             {
                 float ar = prior_box_param.aspect_ratio(j);
                 if (fabs(ar - 1.) < 1e-6) {
@@ -1379,7 +1383,7 @@ int main(int argc, char** argv)
                 }
             }
 
-            float variances[4] = {0.1f, 0.1f, 0.1f, 0.1f};
+            float variances[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
             if (prior_box_param.variance_size() == 4)
             {
                 variances[0] = prior_box_param.variance(0);
@@ -1424,17 +1428,17 @@ int main(int argc, char** argv)
             }
 
             fprintf(pp, " -23300=%d", prior_box_param.min_size_size());
-            for (int j=0; j<prior_box_param.min_size_size(); j++)
+            for (int j = 0; j < prior_box_param.min_size_size(); j++)
             {
                 fprintf(pp, ",%e", prior_box_param.min_size(j));
             }
             fprintf(pp, " -23301=%d", prior_box_param.max_size_size());
-            for (int j=0; j<prior_box_param.max_size_size(); j++)
+            for (int j = 0; j < prior_box_param.max_size_size(); j++)
             {
                 fprintf(pp, ",%e", prior_box_param.max_size(j));
             }
             fprintf(pp, " -23302=%d", num_aspect_ratio);
-            for (int j=0; j<prior_box_param.aspect_ratio_size(); j++)
+            for (int j = 0; j < prior_box_param.aspect_ratio_size(); j++)
             {
                 float ar = prior_box_param.aspect_ratio(j);
                 if (fabs(ar - 1.) < 1e-6) {
@@ -1472,11 +1476,11 @@ int main(int argc, char** argv)
                 sscanf(python_param.param_str().c_str(), "'feat_stride': %d", &feat_stride);
 
                 int base_size = 16;
-//                 float ratio;
-//                 float scale;
+                //                 float ratio;
+                //                 float scale;
                 int pre_nms_topN = 6000;
                 int after_nms_topN = 300;
-                float nms_thresh = 0.7;
+                float nms_thresh = 0.7f;
                 int min_size = 16;
                 fprintf(pp, " 0=%d", feat_stride);
                 fprintf(pp, " 1=%d", base_size);
@@ -1512,19 +1516,19 @@ int main(int argc, char** argv)
             const caffe::BlobShape& bs = reshape_param.shape();
             if (bs.dim_size() == 1)
             {
-                fprintf(pp, " 0=%ld 1=-233 2=-233", bs.dim(0));
+                fprintf(pp, " 0=%zd 1=-233 2=-233", size_t(bs.dim(0)));
             }
             else if (bs.dim_size() == 2)
             {
-                fprintf(pp, " 0=%ld 1=-233 2=-233", bs.dim(1));
+                fprintf(pp, " 0=%zd 1=-233 2=-233", size_t(bs.dim(1)));
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " 0=%ld 1=%ld 2=-233", bs.dim(2), bs.dim(1));
+                fprintf(pp, " 0=%zd 1=%zd 2=-233", size_t(bs.dim(2)), bs.dim(1));
             }
             else // bs.dim_size() == 4
             {
-                fprintf(pp, " 0=%ld 1=%ld 2=%ld", bs.dim(3), bs.dim(2), bs.dim(1));
+                fprintf(pp, " 0=%zd 1=%zd 2=%zd", size_t(bs.dim(3)), size_t(bs.dim(2)), size_t(bs.dim(1)));
             }
             fprintf(pp, " 3=0");// permute
         }
@@ -1551,7 +1555,7 @@ int main(int argc, char** argv)
             if (scale_weight)
             {
                 const caffe::BlobProto& weight_blob = binlayer.blobs(0);
-                fprintf(pp, " 0=%d", (int)weight_blob.data_size());
+                fprintf(pp, " 0=%d", int(weight_blob.data_size()));
             }
             else
             {
@@ -1560,7 +1564,7 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 1=%d", scale_param.bias_term());
 
-            for (int j=0; j<binlayer.blobs_size(); j++)
+            for (int j = 0; j < binlayer.blobs_size(); j++)
             {
                 const caffe::BlobProto& blob = binlayer.blobs(j);
                 fwrite(blob.data().data(), sizeof(float), blob.data_size(), bp);
@@ -1578,7 +1582,7 @@ int main(int argc, char** argv)
             {
                 int num_slice = layer.top_size();
                 fprintf(pp, " -23300=%d", num_slice);
-                for (int j=0; j<num_slice; j++)
+                for (int j = 0; j < num_slice; j++)
                 {
                     fprintf(pp, ",-233");
                 }
@@ -1588,7 +1592,7 @@ int main(int argc, char** argv)
                 int num_slice = slice_param.slice_point_size() + 1;
                 fprintf(pp, " -23300=%d", num_slice);
                 int prev_offset = 0;
-                for (int j=0; j<slice_param.slice_point_size(); j++)
+                for (int j = 0; j < slice_param.slice_point_size(); j++)
                 {
                     int offset = slice_param.slice_point(j);
                     fprintf(pp, ",%d", offset - prev_offset);
@@ -1630,40 +1634,40 @@ int main(int argc, char** argv)
 
             int num_bias = yolo_detection_output_param.biases_size();
             fprintf(pp, " -23304=%d", num_bias);
-            for (int j=0; j<num_bias; j++)
+            for (int j = 0; j < num_bias; j++)
             {
                 fprintf(pp, ",%e", yolo_detection_output_param.biases(j));
             }
         }
-		else if (layer.type() == "Yolov3DetectionOutput")
-		{
-			const caffe::Yolov3DetectionOutputParameter& yolov3_detection_output_param = layer.yolov3_detection_output_param();
+        else if (layer.type() == "Yolov3DetectionOutput")
+        {
+            const caffe::Yolov3DetectionOutputParameter& yolov3_detection_output_param = layer.yolov3_detection_output_param();
 
-			fprintf(pp, " 0=%d", yolov3_detection_output_param.num_classes());
-			fprintf(pp, " 1=%d", yolov3_detection_output_param.num_box());
-			fprintf(pp, " 2=%e", yolov3_detection_output_param.confidence_threshold());
-			fprintf(pp, " 3=%e", yolov3_detection_output_param.nms_threshold());
+            fprintf(pp, " 0=%d", yolov3_detection_output_param.num_classes());
+            fprintf(pp, " 1=%d", yolov3_detection_output_param.num_box());
+            fprintf(pp, " 2=%e", yolov3_detection_output_param.confidence_threshold());
+            fprintf(pp, " 3=%e", yolov3_detection_output_param.nms_threshold());
 
-			int num_bias = yolov3_detection_output_param.biases_size();
-			fprintf(pp, " -23304=%d", num_bias);
-			for (int j = 0; j<num_bias; j++)
-			{
-				fprintf(pp, ",%e", yolov3_detection_output_param.biases(j));
-			}
-			int num_mask = yolov3_detection_output_param.mask_size();
-			fprintf(pp, " -23305=%d", num_mask);
-			for (int j = 0; j<num_mask; j++)
-			{
-				fprintf(pp, ",%e", (float)yolov3_detection_output_param.mask(j));
-			}
-			int num_anchors = yolov3_detection_output_param.anchors_scale_size();
-			fprintf(pp, " -23306=%d", num_anchors);
-			for (int j = 0; j<num_anchors; j++)
-			{
-				fprintf(pp, ",%e", (float)yolov3_detection_output_param.anchors_scale(j));
-			}
-			fprintf(pp, " 7=%d", yolov3_detection_output_param.mask_group_num());
-		}
+            int num_bias = yolov3_detection_output_param.biases_size();
+            fprintf(pp, " -23304=%d", num_bias);
+            for (int j = 0; j < num_bias; j++)
+            {
+                fprintf(pp, ",%e", yolov3_detection_output_param.biases(j));
+            }
+            int num_mask = yolov3_detection_output_param.mask_size();
+            fprintf(pp, " -23305=%d", num_mask);
+            for (int j = 0; j < num_mask; j++)
+            {
+                fprintf(pp, ",%e", (float)yolov3_detection_output_param.mask(j));
+            }
+            int num_anchors = yolov3_detection_output_param.anchors_scale_size();
+            fprintf(pp, " -23306=%d", num_anchors);
+            for (int j = 0; j < num_anchors; j++)
+            {
+                fprintf(pp, ",%e", (float)yolov3_detection_output_param.anchors_scale(j));
+            }
+            fprintf(pp, " 7=%d", yolov3_detection_output_param.mask_group_num());
+        }
         fprintf(pp, "\n");
 
         // add split layer if top reference larger than one
@@ -1680,7 +1684,7 @@ int main(int argc, char** argv)
                     fprintf(pp, "%-16s %-16s %d %d", "Split", splitname, 1, refcount);
                     fprintf(pp, " %s", blob_name.c_str());
 
-                    for (int j=0; j<refcount; j++)
+                    for (int j = 0; j < refcount; j++)
                     {
                         fprintf(pp, " %s_splitncnn_%d", blob_name.c_str(), j);
                     }
@@ -1692,7 +1696,7 @@ int main(int argc, char** argv)
         }
         else
         {
-            for (int j=0; j<layer.top_size(); j++)
+            for (int j = 0; j < layer.top_size(); j++)
             {
                 std::string blob_name = layer.top(j);
                 if (bottom_reference.find(blob_name) != bottom_reference.end())
@@ -1705,7 +1709,7 @@ int main(int argc, char** argv)
                         fprintf(pp, "%-16s %-16s %d %d", "Split", splitname, 1, refcount);
                         fprintf(pp, " %s", blob_name.c_str());
 
-                        for (int j=0; j<refcount; j++)
+                        for (int j = 0; j < refcount; j++)
                         {
                             fprintf(pp, " %s_splitncnn_%d", blob_name.c_str(), j);
                         }
