@@ -12,6 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_DEPRECATE
+#endif
+
 #include <algorithm>
 #include <set>
 #include <vector>
@@ -1794,7 +1798,7 @@ int NetOptimize::shape_inference()
         if (dims == 2) m.create(w, h);
         if (dims == 3) m.create(w, h, c);
 
-        ex.input(i, m);
+        ex.input(int(i), m);
     }
 
     fprintf(stderr, "shape_inference\n");
@@ -1998,7 +2002,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
         }
         if (shape_ready)
         {
-            fprintf(pp, " -23330=%d", top_count*4);
+            fprintf(pp, " -23330=%zd", top_count * 4);
             for (int j=0; j<top_count; j++)
             {
                 int top_blob_index = layer->tops[j];
