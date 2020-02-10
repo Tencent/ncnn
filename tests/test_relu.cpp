@@ -24,7 +24,6 @@ static int test_relu(float slope, bool use_packing_layout)
     pd.set(0, slope);//slope
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -36,7 +35,7 @@ static int test_relu(float slope, bool use_packing_layout)
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::ReLU>("ReLU", pd, mb, opt, a);
+    int ret = test_layer<ncnn::ReLU>("ReLU", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_relu failed slope=%f use_packing_layout=%d\n", slope, use_packing_layout);

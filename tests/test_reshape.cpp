@@ -24,7 +24,6 @@ static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outc, bool u
     pd.set(2, outc);// c
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -37,7 +36,7 @@ static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outc, bool u
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Reshape>("Reshape", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Reshape>("Reshape", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_reshape failed a.dims=%d a=(%d %d %d) outw=%d outh=%d outc=%d use_packing_layout=%d\n", a.dims, a.w, a.h, a.c, outw, outh, outc, use_packing_layout);

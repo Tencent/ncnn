@@ -33,7 +33,6 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     weights[0] = RandomMat(outch*c*kernel*kernel);
     if (bias)
         weights[1] = RandomMat(outch);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -46,7 +45,7 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d use_packing_layout=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, use_packing_layout);
@@ -148,7 +147,6 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         weights[1] = RandomMat(outch);
         weights[2] = RandomMat(1);
     }
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -161,7 +159,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = false;
 
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, mb, opt, a, 0.001f, requant ? set_param : 0);
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, opt, a, 0.001f, requant ? set_param : 0);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant);

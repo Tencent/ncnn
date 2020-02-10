@@ -31,15 +31,27 @@ BatchNorm_vulkan::BatchNorm_vulkan()
 
 int BatchNorm_vulkan::create_pipeline(const Option& opt)
 {
+    const Mat& shape = top_shapes[0];
+
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
-    std::vector<vk_specialization_type> specializations(0);
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    std::vector<vk_specialization_type> specializations(0 + 5);
+    specializations[0 + 0].i = shape_packed.dims;
+    specializations[0 + 1].i = shape_packed.w;
+    specializations[0 + 2].i = shape_packed.h;
+    specializations[0 + 3].i = shape_packed.c;
+    specializations[0 + 4].i = shape_packed.cstep;
+
+    Mat local_size_xyz = shape_packed.dims ? shape_packed : Mat(32, 32, channels / elempack, (void*)0);
 
     // pack1
     if (elempack == 1)
     {
         pipeline_batchnorm = new Pipeline(vkdev);
-        pipeline_batchnorm->set_optimal_local_size_xyz(32, 32, channels);
+        pipeline_batchnorm->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_batchnorm->create("batchnorm", opt, specializations, 3, 5);
     }
 
@@ -47,7 +59,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     if (elempack == 4)
     {
         pipeline_batchnorm_pack4 = new Pipeline(vkdev);
-        pipeline_batchnorm_pack4->set_optimal_local_size_xyz(32, 32, channels / 4);
+        pipeline_batchnorm_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_batchnorm_pack4->create("batchnorm_pack4", opt, specializations, 3, 5);
     }
 
@@ -55,7 +67,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     if (elempack == 8)
     {
         pipeline_batchnorm_pack8 = new Pipeline(vkdev);
-        pipeline_batchnorm_pack8->set_optimal_local_size_xyz(32, 32, channels / 8);
+        pipeline_batchnorm_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_batchnorm_pack8->create("batchnorm_pack8", opt, specializations, 3, 5);
     }
 

@@ -32,7 +32,6 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(outch*c*kernel*kernel);
     weights[1] = RandomMat(outch);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -44,7 +43,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Deconvolution>("Deconvolution", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Deconvolution>("Deconvolution", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d use_packing_layout=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, use_packing_layout);

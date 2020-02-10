@@ -22,7 +22,6 @@ static int test_concat(const std::vector<ncnn::Mat>& a, int axis, bool use_packi
     pd.set(0, axis);//axis
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -34,7 +33,7 @@ static int test_concat(const std::vector<ncnn::Mat>& a, int axis, bool use_packi
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Concat>("Concat", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Concat>("Concat", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_concat failed a[0].dims=%d a[0]=(%d %d %d) axis=%d use_packing_layout=%d\n", a[0].dims, a[0].w, a[0].h, a[0].c, axis, use_packing_layout);

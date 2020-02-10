@@ -29,7 +29,6 @@ static int test_innerproduct(int w, int h, int c, int outch, int bias, bool use_
     weights[0] = RandomMat(outch*w*h*c);
     if (bias)
         weights[1] = RandomMat(outch);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -42,7 +41,7 @@ static int test_innerproduct(int w, int h, int c, int outch, int bias, bool use_
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, mb, opt, a);
+    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct failed w=%d h=%d c=%d outch=%d bias=%d use_packing_layout=%d\n", w, h, c, outch, bias, use_packing_layout);
@@ -98,7 +97,6 @@ static int test_innerproduct_int8(int w, int h, int c, int outch, int bias)
         weights[1] = RandomMat(outch);
         weights[2] = RandomMat(1);
     }
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -111,7 +109,7 @@ static int test_innerproduct_int8(int w, int h, int c, int outch, int bias)
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = false;
 
-    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, mb, opt, a);
+    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct_int8 failed w=%d h=%d c=%d outch=%d bias=%d\n", w, h, c, outch, bias);

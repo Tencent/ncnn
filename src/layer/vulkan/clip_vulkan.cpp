@@ -29,28 +29,46 @@ Clip_vulkan::Clip_vulkan()
 
 int Clip_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations(2);
+    const Mat& shape = top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    std::vector<vk_specialization_type> specializations(2 + 5);
     specializations[0].f = min;
     specializations[1].f = max;
+    specializations[2 + 0].i = shape_packed.dims;
+    specializations[2 + 1].i = shape_packed.w;
+    specializations[2 + 2].i = shape_packed.h;
+    specializations[2 + 3].i = shape_packed.c;
+    specializations[2 + 4].i = shape_packed.cstep;
 
     // pack1
+    if (shape.dims == 0 || elempack == 1)
     {
         pipeline_clip = new Pipeline(vkdev);
-        pipeline_clip->set_optimal_local_size_xyz();
+        pipeline_clip->set_optimal_local_size_xyz(shape_packed);
         pipeline_clip->create("clip", opt, specializations, 1, 5);
     }
 
     // pack4
+    if (shape.dims == 0 || elempack == 4)
     {
         pipeline_clip_pack4 = new Pipeline(vkdev);
-        pipeline_clip_pack4->set_optimal_local_size_xyz();
+        pipeline_clip_pack4->set_optimal_local_size_xyz(shape_packed);
         pipeline_clip_pack4->create("clip_pack4", opt, specializations, 1, 5);
     }
 
     // pack8
+    if (shape.dims == 0 || elempack == 8)
     {
         pipeline_clip_pack8 = new Pipeline(vkdev);
-        pipeline_clip_pack8->set_optimal_local_size_xyz();
+        pipeline_clip_pack8->set_optimal_local_size_xyz(shape_packed);
         pipeline_clip_pack8->create("clip_pack8", opt, specializations, 1, 5);
     }
 

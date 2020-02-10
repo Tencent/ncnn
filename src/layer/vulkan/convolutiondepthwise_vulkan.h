@@ -37,9 +37,8 @@ public:
     VkMat bias_data_gpu;
 
     ncnn::Layer* padding;
-    ncnn::Layer* packing_pack1;
-    ncnn::Layer* packing_pack4;
-    ncnn::Layer* packing_pack8;
+    ncnn::Layer* packing_unpack;
+    ncnn::Layer* packing_pack;
 
     Pipeline* pipeline_convolutiondepthwise;
     Pipeline* pipeline_convolutiondepthwise_pack4;

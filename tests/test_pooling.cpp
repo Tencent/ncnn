@@ -30,7 +30,6 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
     pd.set(6, avgpool_count_include_pad);// avgpool_count_include_pad
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -42,7 +41,7 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Pooling>("Pooling", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Pooling>("Pooling", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_pooling failed w=%d h=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d use_packing_layout=%d\n", w, h, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad, use_packing_layout);

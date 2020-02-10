@@ -32,7 +32,6 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
     std::vector<ncnn::Mat> weights(per_channel_pad_data_size ? 1 : 0);
     if (per_channel_pad_data_size)
         weights[0] = RandomMat(per_channel_pad_data_size);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -45,7 +44,7 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Padding>("Padding", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Padding>("Padding", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_padding failed w=%d h=%d c=%d top=%d bottom=%d left=%d right=%d type=%d value=%f per_channel_pad_data_size=%d use_packing_layout=%d\n", w, h, c, top, bottom, left, right, type, value, per_channel_pad_data_size, use_packing_layout);

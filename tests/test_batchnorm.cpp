@@ -36,7 +36,6 @@ static int test_batchnorm(const ncnn::Mat& a, int channels, float eps, bool use_
         }
     }
     weights[3] = RandomMat(channels);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -49,7 +48,7 @@ static int test_batchnorm(const ncnn::Mat& a, int channels, float eps, bool use_
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::BatchNorm>("BatchNorm", pd, mb, opt, a);
+    int ret = test_layer<ncnn::BatchNorm>("BatchNorm", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_batchnorm failed a.dims=%d a=(%d %d %d) channels=%d eps=%f use_packing_layout=%d\n", a.dims, a.w, a.h, a.c, channels, eps, use_packing_layout);

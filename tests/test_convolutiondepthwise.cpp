@@ -33,7 +33,6 @@ static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel,
     std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(outch/group*c/group*kernel*kernel*group);
     weights[1] = RandomMat(outch);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -46,7 +45,7 @@ static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel,
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::ConvolutionDepthWise>("ConvolutionDepthWise", pd, mb, opt, a);
+    int ret = test_layer<ncnn::ConvolutionDepthWise>("ConvolutionDepthWise", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d use_packing_layout=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, use_packing_layout);

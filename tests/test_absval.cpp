@@ -22,7 +22,6 @@ static int test_absval(const ncnn::Mat& a, bool use_packing_layout)
     ncnn::ParamDict pd;
     
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -34,7 +33,7 @@ static int test_absval(const ncnn::Mat& a, bool use_packing_layout)
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::AbsVal>("AbsVal", pd, mb, opt, a);
+    int ret = test_layer<ncnn::AbsVal>("AbsVal", pd, weights, opt, a);
 
     if (ret != 0)
     {
