@@ -31,7 +31,7 @@ BatchNorm_vulkan::BatchNorm_vulkan()
 
 int BatchNorm_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& shape = top_shapes[0];
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 

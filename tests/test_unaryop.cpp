@@ -63,13 +63,9 @@ static int test_unaryop_0()
     {
         int ret = 0
             || test_unaryop(RandomMat(6, 7, 16), op_type, false)
-            || test_unaryop(RandomMat(6, 7, 16), op_type, false)
-            || test_unaryop(RandomMat(3, 5, 13), op_type, false)
             || test_unaryop(RandomMat(3, 5, 13), op_type, false)
 
             || test_unaryop(RandomMat(6, 7, 16), op_type, true)
-            || test_unaryop(RandomMat(6, 7, 16), op_type, true)
-            || test_unaryop(RandomMat(3, 5, 13), op_type, true)
             || test_unaryop(RandomMat(3, 5, 13), op_type, true)
             ;
 
@@ -86,13 +82,9 @@ static int test_unaryop_1()
     {
         int ret = 0
             || test_unaryop(RandomMat(6, 16), op_type, false)
-            || test_unaryop(RandomMat(6, 16), op_type, false)
-            || test_unaryop(RandomMat(7, 15), op_type, false)
             || test_unaryop(RandomMat(7, 15), op_type, false)
 
             || test_unaryop(RandomMat(6, 16), op_type, true)
-            || test_unaryop(RandomMat(6, 16), op_type, true)
-            || test_unaryop(RandomMat(7, 15), op_type, true)
             || test_unaryop(RandomMat(7, 15), op_type, true)
             ;
 
@@ -109,13 +101,9 @@ static int test_unaryop_2()
     {
         int ret = 0
             || test_unaryop(RandomMat(128), op_type, false)
-            || test_unaryop(RandomMat(128), op_type, false)
-            || test_unaryop(RandomMat(127), op_type, false)
             || test_unaryop(RandomMat(127), op_type, false)
 
             || test_unaryop(RandomMat(128), op_type, true)
-            || test_unaryop(RandomMat(128), op_type, true)
-            || test_unaryop(RandomMat(127), op_type, true)
             || test_unaryop(RandomMat(127), op_type, true)
             ;
 

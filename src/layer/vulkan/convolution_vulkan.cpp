@@ -55,8 +55,8 @@ Convolution_vulkan::Convolution_vulkan()
 
 int Convolution_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& shape = bottom_shapes[0];
-    const Mat& out_shape = top_shapes[0];
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;

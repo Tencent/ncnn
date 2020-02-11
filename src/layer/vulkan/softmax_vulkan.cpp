@@ -43,6 +43,45 @@ Softmax_vulkan::Softmax_vulkan()
 
 int Softmax_vulkan::create_pipeline(const Option& opt)
 {
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    Mat workspace_shape_packed;
+
+    if (shape.dims == 1) // axis == 0
+    {
+        workspace_shape_packed = Mat(1, (void*)0);
+    }
+    else if (shape.dims == 2 && axis == 0)
+    {
+        workspace_shape_packed = Mat(shape.w, (void*)0);
+    }
+    else if (shape.dims == 2 && axis == 1)
+    {
+        workspace_shape_packed = Mat(shape.h, (void*)0);
+    }
+    else if (shape.dims == 3 && axis == 0)
+    {
+        workspace_shape_packed = Mat(shape.w, shape.h, (void*)0);
+    }
+    else if (shape.dims == 3 && axis == 1)
+    {
+        workspace_shape_packed = Mat(shape.w, shape.c, (void*)0);
+    }
+    else if (shape.dims == 3 && axis == 2)
+    {
+        workspace_shape_packed = Mat(shape.h, shape.c, (void*)0);
+    }
+
+    workspace_shape_packed.elempack = elempack;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = axis;
 

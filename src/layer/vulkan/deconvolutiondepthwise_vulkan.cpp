@@ -47,8 +47,8 @@ DeconvolutionDepthWise_vulkan::DeconvolutionDepthWise_vulkan()
 
 int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& shape = bottom_shapes[0];
-    const Mat& out_shape = top_shapes[0];
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     // the shape before unpadding
     Mat out_shape_bordered;

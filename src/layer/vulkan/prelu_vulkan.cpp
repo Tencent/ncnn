@@ -29,7 +29,7 @@ PReLU_vulkan::PReLU_vulkan()
 
 int PReLU_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& shape = top_shapes[0];
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
     if (shape.dims == 0) elempack = opt.use_shader_pack8 && num_slope % 8 == 0 ? 8 : num_slope % 4 == 0 ? 4 : 1;

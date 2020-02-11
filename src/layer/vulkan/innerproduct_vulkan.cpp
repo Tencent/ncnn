@@ -39,8 +39,8 @@ InnerProduct_vulkan::InnerProduct_vulkan()
 
 int InnerProduct_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& shape = bottom_shapes[0];
-    const Mat& out_shape = top_shapes[0];
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     Mat shape_flatten;
     if (shape.dims != 0)

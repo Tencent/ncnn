@@ -29,8 +29,8 @@ Padding_vulkan::Padding_vulkan()
 
 int Padding_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& shape = bottom_shapes[0];
-    const Mat& out_shape = top_shapes[0];
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
     if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;

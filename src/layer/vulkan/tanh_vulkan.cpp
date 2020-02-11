@@ -30,7 +30,7 @@ TanH_vulkan::TanH_vulkan()
 
 int TanH_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& shape = top_shapes[0];
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
     if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;

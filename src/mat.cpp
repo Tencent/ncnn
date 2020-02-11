@@ -400,6 +400,25 @@ void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt)
     delete cast;
 }
 
+void cast_int8_to_float32(const Mat& src, Mat& dst, const Option& opt)
+{
+    Layer* cast = create_layer(LayerType::Cast);
+
+    ParamDict pd;
+    pd.set(0, 3);
+    pd.set(1, 1);
+
+    cast->load_param(pd);
+
+    cast->create_pipeline(opt);
+
+    cast->forward(src, dst, opt);
+
+    cast->destroy_pipeline(opt);
+
+    delete cast;
+}
+
 void quantize_float32_to_int8(const Mat& src, Mat& dst, float scale, const Option& opt)
 {
     Layer* quantize = create_layer(LayerType::Quantize);
