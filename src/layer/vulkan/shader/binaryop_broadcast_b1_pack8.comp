@@ -85,10 +85,10 @@ void main()
 
     int bi = 0;
 
-    if (p.bw == p.aw && p.bh == p.ah && p.bc == 1)
+    if (psc(bw) == psc(aw) && psc(bh) == psc(ah) && psc(bc) == 1)
     {
         // special type 2
-        bi = gy * p.bw + gx;
+        bi = gy * psc(bw) + gx;
     }
 
     // type 6 11 16

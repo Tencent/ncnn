@@ -44,7 +44,7 @@ static struct prng_rand_t g_prng_rand_state;
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
 #define RAND() prng_rand(&g_prng_rand_state)
 
-static float RandomFloat(float a = -2, float b = 2)
+static float RandomFloat(float a = -2.f, float b = 2.f)
 {
     float random = ((float) RAND()) / (float) uint64_t(-1);//RAND_MAX;
     float diff = b - a;
@@ -52,11 +52,11 @@ static float RandomFloat(float a = -2, float b = 2)
     return a + r;
 }
 
-static void Randomize(ncnn::Mat& m)
+static void Randomize(ncnn::Mat& m, float a = -2.f, float b = 2.f)
 {
     for (size_t i=0; i<m.total(); i++)
     {
-        m[i] = RandomFloat();
+        m[i] = RandomFloat(a, b);
     }
 }
 
@@ -254,7 +254,19 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #endif // NCNN_VULKAN
 
     std::vector<ncnn::Mat> b(top_blob_count);
-    ((T*)op)->T::forward(a, b, opt);
+    if (op->support_inplace)
+    {
+        for (size_t i=0; i<a.size(); i++)
+        {
+            b[i] = a[i].clone();
+        }
+
+        ((T*)op)->T::forward_inplace(b, opt);
+    }
+    else
+    {
+        ((T*)op)->T::forward(a, b, opt);
+    }
 
     std::vector<ncnn::Mat> c(top_blob_count);
     {
@@ -272,7 +284,19 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         }
 
         std::vector<ncnn::Mat> c4(top_blob_count);
-        op->forward(a4, c4, opt);
+        if (op->support_inplace)
+        {
+            for (size_t i=0; i<a4.size(); i++)
+            {
+                c4[i] = a4[i].clone();
+            }
+
+            op->forward_inplace(c4, opt);
+        }
+        else
+        {
+            op->forward(a4, c4, opt);
+        }
 
         if (opt.use_packing_layout)
         {
@@ -337,7 +361,20 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         }
 
         std::vector<ncnn::VkMat> d4_fp16_gpu(top_blob_count);
-        op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
+        if (op->support_inplace)
+        {
+            for (size_t i=0; i<a4_fp16_gpu.size(); i++)
+            {
+                d4_fp16_gpu[i].create_like(a4_fp16_gpu[i], a4_fp16_gpu[i].allocator, a4_fp16_gpu[i].staging_allocator);
+                cmd.record_clone(a4_fp16_gpu[i], d4_fp16_gpu[i]);
+            }
+
+            op->forward_inplace(d4_fp16_gpu, cmd, opt);
+        }
+        else
+        {
+            op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
+        }
 
         for (size_t i=0; i<d4_fp16_gpu.size(); i++)
         {
@@ -469,7 +506,15 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #endif // NCNN_VULKAN
 
     ncnn::Mat b;
-    ((T*)op)->T::forward(a, b, opt);
+    if (op->support_inplace)
+    {
+        b = a.clone();
+        ((T*)op)->T::forward_inplace(b, opt);
+    }
+    else
+    {
+        ((T*)op)->T::forward(a, b, opt);
+    }
 
     ncnn::Mat c;
     {
@@ -484,7 +529,15 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         }
 
         ncnn::Mat c4;
-        op->forward(a4, c4, opt);
+        if (op->support_inplace)
+        {
+            c4 = a4.clone();
+            op->forward_inplace(c4, opt);
+        }
+        else
+        {
+            op->forward(a4, c4, opt);
+        }
 
         if (opt.use_packing_layout)
         {
@@ -534,7 +587,16 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         cmd.record_upload(a4_fp16_gpu);
 
         ncnn::VkMat d4_fp16_gpu;
-        op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
+        if (op->support_inplace)
+        {
+            d4_fp16_gpu.create_like(a4_fp16_gpu, a4_fp16_gpu.allocator, a4_fp16_gpu.staging_allocator);
+            cmd.record_clone(a4_fp16_gpu, d4_fp16_gpu);
+            op->forward_inplace(d4_fp16_gpu, cmd, opt);
+        }
+        else
+        {
+            op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
+        }
 
         d4_fp16_gpu.prepare_staging_buffer();
 

@@ -48,11 +48,13 @@ int Clip_vulkan::create_pipeline(const Option& opt)
     specializations[2 + 3].i = shape_packed.c;
     specializations[2 + 4].i = shape_packed.cstep;
 
+    Mat local_size_xyz = shape_packed.dims ? shape_packed : Mat();
+
     // pack1
     if (shape.dims == 0 || elempack == 1)
     {
         pipeline_clip = new Pipeline(vkdev);
-        pipeline_clip->set_optimal_local_size_xyz(shape_packed);
+        pipeline_clip->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_clip->create("clip", opt, specializations, 1, 5);
     }
 
@@ -60,7 +62,7 @@ int Clip_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || elempack == 4)
     {
         pipeline_clip_pack4 = new Pipeline(vkdev);
-        pipeline_clip_pack4->set_optimal_local_size_xyz(shape_packed);
+        pipeline_clip_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_clip_pack4->create("clip_pack4", opt, specializations, 1, 5);
     }
 
@@ -68,7 +70,7 @@ int Clip_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || elempack == 8)
     {
         pipeline_clip_pack8 = new Pipeline(vkdev);
-        pipeline_clip_pack8->set_optimal_local_size_xyz(shape_packed);
+        pipeline_clip_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_clip_pack8->create("clip_pack8", opt, specializations, 1, 5);
     }
 

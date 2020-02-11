@@ -26,16 +26,10 @@ static int test_batchnorm(const ncnn::Mat& a, int channels, float eps, bool use_
     weights[0] = RandomMat(channels);
     weights[1] = RandomMat(channels);
     weights[2] = RandomMat(channels);
-    {
-        // var must be positive
-        for (int i=0; i<channels; i++)
-        {
-            float w = weights[2][i];
-            if (w == 0.f) weights[2][i] = 0.001;
-            if (w < 0.f) weights[2][i] = -w;
-        }
-    }
     weights[3] = RandomMat(channels);
+
+    // var must be positive
+    Randomize(weights[2], 0.001f, 2.f);
 
     ncnn::Option opt;
     opt.num_threads = 1;
