@@ -174,7 +174,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     specializations[10 + 8].i = out_shape_packed.c;
     specializations[10 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz = out_shape_packed.dims ? out_shape_packed : Mat(32, 32, std::max(1, num_output / 8), (void*)0);
+    Mat local_size_xyz = out_shape_packed.dims ? out_shape_packed : Mat(8, 8, std::min(4, num_output / out_elempack), (void*)0);
 
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
@@ -184,10 +184,8 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         if (is_conv1x1s1d1)
         {
-            Mat local_size_xyz = out_shape_packed.dims ? Mat(out_shape_packed.cstep / 4, 1, out_shape_packed.c, (void*)0) : Mat(-1, 1, std::max(1, num_output / 8), (void*)0);
-
             pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-            pipeline_convolution_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_convolution_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output));
 
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;
@@ -343,7 +341,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 specializations[0 + 4].i = shape_winograd_gemm_packed.cstep;
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
-                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, 4);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, std::min(4, num_output / 4));
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create("convolution_pack4_3x3s1d1_winograd23_gemm", opt, specializations, 3, 5);
             }
 
@@ -396,7 +394,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         if (is_conv1x1s1d1)
         {
             pipeline_convolution_pack8_1x1s1d1 = new Pipeline(vkdev);
-            pipeline_convolution_pack8_1x1s1d1->set_local_size_xyz(4, 1, std::min(8, num_output / 8));
+            pipeline_convolution_pack8_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output / 8));
 
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;
@@ -520,7 +518,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 specializations[0 + 4].i = shape_winograd_gemm_packed.cstep;
 
                 pipeline_convolution_pack8_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
-                pipeline_convolution_pack8_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, 4);
+                pipeline_convolution_pack8_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, std::min(4, num_output / 8));
                 pipeline_convolution_pack8_3x3s1d1_winograd23_gemm->create("convolution_pack8_3x3s1d1_winograd23_gemm", opt, specializations, 3, 5);
             }
 

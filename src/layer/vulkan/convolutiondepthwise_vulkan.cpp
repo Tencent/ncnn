@@ -136,7 +136,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         specializations[11 + 8].i = out_shape_packed.c;
         specializations[11 + 9].i = out_shape_packed.cstep;
 
-        Mat local_size_xyz = out_shape_packed.dims ? out_shape_packed : Mat(32, 32, std::max(1, num_output / elempack), (void*)0);
+        Mat local_size_xyz = out_shape_packed.dims ? out_shape_packed : Mat(8, 8, std::min(4, num_output / out_elempack), (void*)0);
 
         // pack1
         if (elempack == 1)
@@ -225,7 +225,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     specializations[11 + 8].i = out_shape_g_packed.c;
     specializations[11 + 9].i = out_shape_g_packed.cstep;
 
-    Mat local_size_xyz = out_shape_g_packed.dims ? out_shape_g_packed : Mat(32, 32, std::max(1, num_output / out_elempack_g), (void*)0);
+    Mat local_size_xyz = out_shape_g_packed.dims ? out_shape_g_packed : Mat(8, 8, std::min(4, num_output / out_elempack_g), (void*)0);
 
     // pack1
     if (elempack_g == 1 && out_elempack_g == 1)

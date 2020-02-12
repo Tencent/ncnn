@@ -33,7 +33,7 @@ public:
     virtual ~Pipeline();
 
 public:
-    void set_optimal_local_size_xyz(int w = 32, int h = 32, int c = 32);
+    void set_optimal_local_size_xyz(int w = 4, int h = 4, int c = 4);
     void set_optimal_local_size_xyz(const Mat& local_size_xyz);
     void set_local_size_xyz(int w, int h, int c);
 

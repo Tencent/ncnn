@@ -45,7 +45,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     specializations[0 + 3].i = shape_packed.c;
     specializations[0 + 4].i = shape_packed.cstep;
 
-    Mat local_size_xyz = shape_packed.dims ? shape_packed : Mat(32, 32, channels / elempack, (void*)0);
+    Mat local_size_xyz = shape_packed.dims ? shape_packed : Mat(4, 4, std::min(4, channels / elempack), (void*)0);
 
     // pack1
     if (elempack == 1)

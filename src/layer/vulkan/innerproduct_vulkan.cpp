@@ -91,7 +91,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     specializations[4 + 8].i = out_shape_packed.c;
     specializations[4 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz = out_shape_packed.dims ? out_shape_packed : Mat(num_output / out_elempack, 1, 1, (void*)0);
+    Mat local_size_xyz = out_shape_packed.dims ? out_shape_packed : Mat(std::min(64, num_output / out_elempack), 1, 1, (void*)0);
 
     // pack1
     if (elempack == 1 && out_elempack == 1)

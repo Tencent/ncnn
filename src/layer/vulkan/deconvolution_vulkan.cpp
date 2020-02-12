@@ -155,7 +155,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     specializations[10 + 8].i = out_shape_bordered_packed.c;
     specializations[10 + 9].i = out_shape_bordered_packed.cstep;
 
-    Mat local_size_xyz = out_shape_bordered_packed.dims ? out_shape_bordered_packed : Mat(32, 32, std::max(1, num_output / 8), (void*)0);
+    Mat local_size_xyz = out_shape_bordered_packed.dims ? out_shape_bordered_packed : Mat(8, 8, std::min(4, num_output / out_elempack), (void*)0);
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
