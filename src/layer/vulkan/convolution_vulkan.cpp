@@ -218,10 +218,8 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         if (is_conv1x1s1d1)
         {
-            Mat local_size_xyz = out_shape_packed.dims ? Mat(shape_bordered_packed.w * shape_bordered_packed.h, 1, out_shape_packed.c, (void*)0) : Mat(8, 1, std::min(8, num_output / 4), (void*)0);
-
             pipeline_convolution_pack4_1x1s1d1 = new Pipeline(vkdev);
-            pipeline_convolution_pack4_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_convolution_pack4_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output / 4));
 
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;
@@ -397,10 +395,8 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         if (is_conv1x1s1d1)
         {
-            Mat local_size_xyz = out_shape_packed.dims ? Mat(shape_bordered_packed.w * shape_bordered_packed.h, 1, out_shape_packed.c, (void*)0) : Mat(4, 1, std::min(8, num_output / 8), (void*)0);
-
             pipeline_convolution_pack8_1x1s1d1 = new Pipeline(vkdev);
-            pipeline_convolution_pack8_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_convolution_pack8_1x1s1d1->set_local_size_xyz(4, 1, std::min(8, num_output / 8));
 
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;

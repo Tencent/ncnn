@@ -115,9 +115,6 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
     Mat out_shape_packed;
     convert_shape_packing(out_shape, out_shape_packed, out_elempack);
 
-    fprintf(stderr, "shape_bordered_packed = %d %d %d @ %d\n", shape_bordered_packed.w, shape_bordered_packed.h, shape_bordered_packed.c, shape_bordered_packed.elempack);
-    fprintf(stderr, "out_shape_packed = %d %d %d @ %d\n", out_shape_packed.w, out_shape_packed.h, out_shape_packed.c, out_shape_packed.elempack);
-
     if (global_pooling)
     {
         std::vector<vk_specialization_type> specializations(1 + 10);
