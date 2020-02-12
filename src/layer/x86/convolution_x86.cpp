@@ -414,7 +414,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
 
                 float scale_out = top_blob_int8_scale;//FIXME load param
 
-                requantize_int8_to_int8(top_blob_tm_g, top_blob_g, scale_in, scale_out, &bias_data[p], bias_term ? 1 : 0, 0, opt_g);
+                requantize_int8_to_int8(top_blob_tm_g, top_blob_g, scale_in, scale_out, bias_term ? (const float*)bias_data + p : 0, bias_term ? 1 : 0, 0, opt_g);
             }
         }
         else
@@ -461,7 +461,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 else
                     scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
 
-                dequantize_int32_to_float32(top_blob_g, scale_in, &bias_data[p], bias_term ? 1 : 0, opt_g);
+                dequantize_int32_to_float32(top_blob_g, scale_in, bias_term ? (const float*)bias_data + p : 0, bias_term ? 1 : 0, opt_g);
             }
         }
         else
