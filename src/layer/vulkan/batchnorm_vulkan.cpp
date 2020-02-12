@@ -14,7 +14,7 @@
 
 #include "batchnorm_vulkan.h"
 #include "pipeline.h"
-#include <math.h>
+#include <algorithm>
 
 namespace ncnn {
 

@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "prelu_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -48,7 +49,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     specializations[1 + 3].i = shape_packed.c;
     specializations[1 + 4].i = shape_packed.cstep;
 
-    Mat local_size_xyz = shape_packed.dims ? shape_packed : Mat(8, 8, num_slope / elempack, (void*)0);
+    Mat local_size_xyz = shape_packed.dims ? shape_packed : Mat(4, 4, std::min(4, num_slope / elempack), (void*)0);
 
     // pack1
     if (num_slope == 1 || elempack == 1)

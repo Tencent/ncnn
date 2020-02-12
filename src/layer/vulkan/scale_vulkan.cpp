@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "scale_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -88,7 +89,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     specializations[1 + 3].i = shape_packed.c;
     specializations[1 + 4].i = shape_packed.cstep;
 
-    Mat local_size_xyz = shape_packed.dims ? shape_packed : Mat(8, 8, scale_data_size / elempack);
+    Mat local_size_xyz = shape_packed.dims ? shape_packed : Mat(4, 4, std::min(4, scale_data_size / elempack), (void*)0);
 
     // pack1
     if (elempack == 1)
