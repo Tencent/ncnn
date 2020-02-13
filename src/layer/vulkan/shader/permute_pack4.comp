@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -40,8 +40,12 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_fp16_packed
+layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+#endif
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -67,7 +71,7 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    int v_offset;
+    ivec4 i4;
 
     if (psc(dims) == 2)
     {
@@ -77,11 +81,11 @@ void main()
 
         if (order_type == 0)
         {
-            v_offset = gy * psc(w) + gx;
+            i4 = ivec4((gy * 4) * psc(w) + gx) + ivec4(0, 1, 2, 3) * psc(w);
         }
         if (order_type == 1)
         {
-            v_offset = gx * psc(w) + gy;
+            i4 = ivec4(gx * psc(w) + gy * 4) + ivec4(0, 1, 2, 3);
         }
     }
     else // if (psc(dims) == 3)
@@ -96,31 +100,87 @@ void main()
 
         if (order_type == 0)
         {
-            v_offset = gz * psc(cstep) + gy * psc(w) + gx;
+            i4 = ivec4((gz * 4) * psc(cstep) + gy * psc(w) + gx) + ivec4(0, 1, 2, 3) * psc(cstep);
         }
         if (order_type == 1)
         {
-            v_offset = gz * psc(cstep) + gx * psc(w) + gy;
+            i4 = ivec4((gz * 4) * psc(cstep) + gx * psc(w) + gy) + ivec4(0, 1, 2, 3) * psc(cstep);
         }
         if (order_type == 2)
         {
-            v_offset = gy * psc(cstep) + gz * psc(w) + gx;
+            i4 = ivec4(gy * psc(cstep) + (gz * 4) * psc(w) + gx) + ivec4(0, 1, 2, 3) * psc(w);
         }
         if (order_type == 3)
         {
-            v_offset = gx * psc(cstep) + gz * psc(w) + gy;
+            i4 = ivec4(gx * psc(cstep) + (gz * 4) * psc(w) + gy) + ivec4(0, 1, 2, 3) * psc(w);
         }
         if (order_type == 4)
         {
-            v_offset = gy * psc(cstep) + gx * psc(w) + gz;
+            i4 = ivec4(gy * psc(cstep) + gx * psc(w) + gz * 4) + ivec4(0, 1, 2, 3);
         }
         if (order_type == 5)
         {
-            v_offset = gx * psc(cstep) + gy * psc(w) + gz;
+            i4 = ivec4(gx * psc(cstep) + gy * psc(w) + gz * 4) + ivec4(0, 1, 2, 3);
         }
     }
 
-    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+#if NCNN_fp16_packed
+    ivec4 v_offset;
+    ivec4 lane2;
 
-    buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+    if (psc(dims) == 2)
+    {
+        ivec4 y4 = i4 / psc(w);
+        ivec4 x4 = i4 % psc(w);
+
+        v_offset = ((y4 / 4) * psc(w) + x4) * 2 + (y4 % 4) / 2;
+        lane2 = y4 % 2;
+    }
+    else // if (psc(dims) == 3)
+    {
+        int size = psc(w) * psc(h);
+
+        ivec4 z4 = i4 / size;
+        ivec4 y4 = i4 % size / psc(w);
+        ivec4 x4 = i4 % size % psc(w);
+
+        v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 2 + (z4 % 4) / 2;
+        lane2 = z4 % 2;
+    }
+
+    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+    afpvec2 vr = buffer_ld2(bottom_blob_data, v_offset.r);
+    afpvec2 vg = buffer_ld2(bottom_blob_data, v_offset.g);
+    afpvec2 vb = buffer_ld2(bottom_blob_data, v_offset.b);
+    afpvec2 va = buffer_ld2(bottom_blob_data, v_offset.a);
+
+    afpvec4 v = afpvec4(vr[lane2.r], vg[lane2.g], vb[lane2.b], va[lane2.a]);
+
+    buffer_st4(top_blob_data, gi, v);
+#else
+    ivec4 v_offset;
+
+    if (psc(dims) == 2)
+    {
+        ivec4 y4 = i4 / psc(w);
+        ivec4 x4 = i4 % psc(w);
+
+        v_offset = ((y4 / 4) * psc(w) + x4) * 4 + y4 % 4;
+    }
+    else // if (psc(dims) == 3)
+    {
+        int size = psc(w) * psc(h);
+
+        ivec4 z4 = i4 / size;
+        ivec4 y4 = i4 % size / psc(w);
+        ivec4 x4 = i4 % size % psc(w);
+
+        v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 4 + z4 % 4;
+    }
+
+    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+    buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
 }

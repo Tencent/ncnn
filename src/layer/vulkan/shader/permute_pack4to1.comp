@@ -84,7 +84,7 @@ void main()
             v_offset = ivec4(gx * psc(outw) + gy * 4) + ivec4(0, 1, 2, 3);
         }
     }
-    else if (psc(dims) == 3)
+    else // if (psc(dims) == 3)
     {
         // order_type
         // 0 = w h c

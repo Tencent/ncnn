@@ -88,7 +88,7 @@ void main()
             vv_offset = v_offset + 4;
         }
     }
-    else if (psc(dims) == 3)
+    else // if (psc(dims) == 3)
     {
         // order_type
         // 0 = w h c
