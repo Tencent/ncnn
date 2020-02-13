@@ -76,7 +76,7 @@ static int test_slice(const ncnn::Mat& a, const ncnn::Mat& slices, int axis, boo
     std::vector<ncnn::Mat> a0(1);
     a0[0] = a;
 
-    int ret = test_layer<ncnn::Slice>("Slice", pd, weights, opt, a0);
+    int ret = test_layer<ncnn::Slice>("Slice", pd, weights, opt, a0, slices.w);
     if (ret != 0)
     {
         fprintf(stderr, "test_slice failed a.dims=%d a=(%d %d %d)", a.dims, a.w, a.h, a.c);

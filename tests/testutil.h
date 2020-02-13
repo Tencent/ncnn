@@ -189,7 +189,10 @@ static int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::M
     for (size_t i=0; i<a.size(); i++)
     {
         if (CompareMat(a[i], b[i], epsilon))
+        {
+            fprintf(stderr, "output blob %zu not match\n", i);
             return -1;
+        }
     }
 
     return 0;

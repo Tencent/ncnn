@@ -320,7 +320,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
-            woffset += top_blob.w * top_blob.elempack / elempack;
+            woffset += top_blob.w * top_blob.elempack / out_elempack;
         }
 
         return 0;
@@ -413,7 +413,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
-            hoffset += top_blob.w * top_blob.elempack / elempack;
+            hoffset += top_blob.h * top_blob.elempack / out_elempack;
         }
 
         return 0;
@@ -564,7 +564,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
-            coffset += top_blob.c * top_blob.elempack / elempack;
+            coffset += top_blob.c * top_blob.elempack / out_elempack;
         }
 
         return 0;

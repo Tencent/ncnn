@@ -78,7 +78,7 @@ void main()
 
     int v_offset_0 = gxyz.z * psc(cstep) + gxyz.y * psc(w) + gxyz.x;
 
-    ivec3 gxyz4 = ivec3(1, psc(outw), psc(outcstep));
+    ivec3 gxyz4 = ivec3(1, psc(w), psc(cstep));
 
     ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * gxyz4[psc(dims) - 1 - axis];
 
