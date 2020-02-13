@@ -76,7 +76,7 @@ void main()
 
     gxyz[psc(dims) - 1 - axis] += p.offset;
 
-    int v_offset = gxyz.z * psc(outcstep) + gxyz.y * psc(outw) + gxyz.x;
+    int v_offset = gxyz.z * psc(cstep) + gxyz.y * psc(w) + gxyz.x;
 
     buffer_cp8(top_blob_data, gi, bottom_blob_data, v_offset);
 }

@@ -70,14 +70,14 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     ivec3 gxyz = ivec3(gx, gy, gz);
 
     gxyz[psc(dims) - 1] *= 8;
     gxyz[psc(dims) - 1 - axis] += p.offset;
 
-    int v_offset_0 = gxyz.z * psc(outcstep) + gxyz.y * psc(outw) + gxyz.x;
+    int v_offset_0 = gxyz.z * psc(cstep) + gxyz.y * psc(w) + gxyz.x;
 
     ivec3 gxyz4 = ivec3(1, psc(outw), psc(outcstep));
 
