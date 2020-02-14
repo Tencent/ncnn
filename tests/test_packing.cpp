@@ -31,7 +31,6 @@ static int test_packing(const ncnn::Mat& a, int out_elempack)
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = false;
 
     int ret = test_layer<ncnn::Packing>("Packing", pd, weights, opt, a);
     if (ret != 0)

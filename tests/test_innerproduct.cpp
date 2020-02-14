@@ -16,7 +16,7 @@
 
 #include "layer/innerproduct.h"
 
-static int test_innerproduct(int w, int h, int c, int outch, int bias, bool use_packing_layout)
+static int test_innerproduct(int w, int h, int c, int outch, int bias)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -39,12 +39,11 @@ static int test_innerproduct(int w, int h, int c, int outch, int bias, bool use_
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
     int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_innerproduct failed w=%d h=%d c=%d outch=%d bias=%d use_packing_layout=%d\n", w, h, c, outch, bias, use_packing_layout);
+        fprintf(stderr, "test_innerproduct failed w=%d h=%d c=%d outch=%d bias=%d\n", w, h, c, outch, bias);
     }
 
     return ret;
@@ -53,24 +52,14 @@ static int test_innerproduct(int w, int h, int c, int outch, int bias, bool use_
 static int test_innerproduct_0()
 {
     return 0
-        || test_innerproduct(7, 3, 1, 1, 1, false)
-        || test_innerproduct(7, 3, 2, 2, 1, false)
-        || test_innerproduct(7, 3, 3, 3, 1, false)
-        || test_innerproduct(7, 3, 4, 4, 1, false)
-        || test_innerproduct(7, 3, 7, 7, 1, false)
-        || test_innerproduct(7, 3, 8, 8, 1, false)
-        || test_innerproduct(7, 3, 15, 15, 1, false)
-        || test_innerproduct(7, 3, 16, 16, 1, false)
-
-        || test_innerproduct(7, 3, 1, 1, 1, true)
-        || test_innerproduct(7, 3, 2, 2, 1, true)
-        || test_innerproduct(7, 3, 3, 3, 1, true)
-        || test_innerproduct(7, 3, 3, 12, 1, true)
-        || test_innerproduct(7, 3, 4, 4, 1, true)
-        || test_innerproduct(7, 3, 8, 3, 1, true)
-        || test_innerproduct(7, 3, 8, 8, 1, true)
-        || test_innerproduct(7, 3, 16, 4, 1, true)
-        || test_innerproduct(7, 3, 16, 16, 1, true)
+        || test_innerproduct(7, 3, 1, 1, 1)
+        || test_innerproduct(7, 3, 2, 2, 1)
+        || test_innerproduct(7, 3, 3, 3, 1)
+        || test_innerproduct(7, 3, 4, 4, 1)
+        || test_innerproduct(7, 3, 7, 7, 1)
+        || test_innerproduct(7, 3, 8, 8, 1)
+        || test_innerproduct(7, 3, 15, 15, 1)
+        || test_innerproduct(7, 3, 16, 16, 1)
         ;
 }
 
@@ -107,7 +96,6 @@ static int test_innerproduct_int8(int w, int h, int c, int outch, int bias)
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = false;
 
     int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, opt, a);
     if (ret != 0)
@@ -124,19 +112,12 @@ static int test_innerproduct_1()
         || test_innerproduct_int8(7, 3, 1, 1, 1)
         || test_innerproduct_int8(7, 3, 2, 2, 1)
         || test_innerproduct_int8(7, 3, 3, 3, 1)
-        || test_innerproduct_int8(7, 3, 4, 4, 1)
-        || test_innerproduct_int8(7, 3, 7, 7, 1)
-        || test_innerproduct_int8(7, 3, 8, 8, 1)
-        || test_innerproduct_int8(7, 3, 15, 15, 1)
-        || test_innerproduct_int8(7, 3, 16, 16, 1)
-
-        || test_innerproduct_int8(7, 3, 1, 1, 1)
-        || test_innerproduct_int8(7, 3, 2, 2, 1)
-        || test_innerproduct_int8(7, 3, 3, 3, 1)
         || test_innerproduct_int8(7, 3, 3, 12, 1)
         || test_innerproduct_int8(7, 3, 4, 4, 1)
+        || test_innerproduct_int8(7, 3, 7, 7, 1)
         || test_innerproduct_int8(7, 3, 8, 3, 1)
         || test_innerproduct_int8(7, 3, 8, 8, 1)
+        || test_innerproduct_int8(7, 3, 15, 15, 1)
         || test_innerproduct_int8(7, 3, 16, 4, 1)
         || test_innerproduct_int8(7, 3, 16, 16, 1)
         ;

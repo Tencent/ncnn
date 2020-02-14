@@ -18,7 +18,7 @@
 
 #define OP_TYPE_MAX 17
 
-static int test_unaryop(const ncnn::Mat& _a, int op_type, bool use_packing_layout)
+static int test_unaryop(const ncnn::Mat& _a, int op_type)
 {
     ncnn::Mat a = _a;
     if (op_type == 5 || op_type == 6 || op_type == 8)
@@ -46,12 +46,11 @@ static int test_unaryop(const ncnn::Mat& _a, int op_type, bool use_packing_layou
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
     int ret = test_layer<ncnn::UnaryOp>("UnaryOp", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d) op_type=%d use_packing_layout=%d\n", a.dims, a.w, a.h, a.c, op_type, use_packing_layout);
+        fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.c, op_type);
     }
 
     return ret;
@@ -62,11 +61,8 @@ static int test_unaryop_0()
     for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
     {
         int ret = 0
-            || test_unaryop(RandomMat(6, 7, 16), op_type, false)
-            || test_unaryop(RandomMat(3, 5, 13), op_type, false)
-
-            || test_unaryop(RandomMat(6, 7, 16), op_type, true)
-            || test_unaryop(RandomMat(3, 5, 13), op_type, true)
+            || test_unaryop(RandomMat(6, 7, 16), op_type)
+            || test_unaryop(RandomMat(3, 5, 13), op_type)
             ;
 
         if (ret != 0)
@@ -81,11 +77,8 @@ static int test_unaryop_1()
     for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
     {
         int ret = 0
-            || test_unaryop(RandomMat(6, 16), op_type, false)
-            || test_unaryop(RandomMat(7, 15), op_type, false)
-
-            || test_unaryop(RandomMat(6, 16), op_type, true)
-            || test_unaryop(RandomMat(7, 15), op_type, true)
+            || test_unaryop(RandomMat(6, 16), op_type)
+            || test_unaryop(RandomMat(7, 15), op_type)
             ;
 
         if (ret != 0)
@@ -100,11 +93,8 @@ static int test_unaryop_2()
     for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
     {
         int ret = 0
-            || test_unaryop(RandomMat(128), op_type, false)
-            || test_unaryop(RandomMat(127), op_type, false)
-
-            || test_unaryop(RandomMat(128), op_type, true)
-            || test_unaryop(RandomMat(127), op_type, true)
+            || test_unaryop(RandomMat(128), op_type)
+            || test_unaryop(RandomMat(127), op_type)
             ;
 
         if (ret != 0)

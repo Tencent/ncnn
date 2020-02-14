@@ -73,7 +73,7 @@ void main()
 
     afp res;
 
-    int z = (gz - pad_head) / 4;
+    int z = int(floor(afp(gz - pad_head) / 4.f));
 
     if (z >= 0 && z < psc(c))
     {

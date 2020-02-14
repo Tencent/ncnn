@@ -16,7 +16,7 @@
 
 #include "layer/cast.h"
 
-static int test_cast(const ncnn::Mat& a, int type_from, int type_to, bool use_packing_layout)
+static int test_cast(const ncnn::Mat& a, int type_from, int type_to)
 {
     ncnn::ParamDict pd;
     pd.set(0, type_from);
@@ -33,12 +33,11 @@ static int test_cast(const ncnn::Mat& a, int type_from, int type_to, bool use_pa
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
     int ret = test_layer<ncnn::Cast>("Cast", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_cast failed a.dims=%d a=(%d %d %d) type_from=%d type_to=%d use_packing_layout=%d\n", a.dims, a.w, a.h, a.c, type_from, type_to, use_packing_layout);
+        fprintf(stderr, "test_cast failed a.dims=%d a=(%d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.c, type_from, type_to);
     }
 
     return ret;
@@ -47,33 +46,24 @@ static int test_cast(const ncnn::Mat& a, int type_from, int type_to, bool use_pa
 static int test_cast_0()
 {
     return 0
-        || test_cast(RandomMat(6, 7, 16), 1, 2, false)
-        || test_cast(RandomMat(3, 5, 13), 1, 2, false)
-
-        || test_cast(RandomMat(6, 7, 16), 1, 2, true)
-        || test_cast(RandomMat(3, 5, 13), 1, 2, true)
+        || test_cast(RandomMat(6, 7, 16), 1, 2)
+        || test_cast(RandomMat(3, 5, 13), 1, 2)
         ;
 }
 
 static int test_cast_1()
 {
     return 0
-        || test_cast(RandomMat(6, 16), 1, 2, false)
-        || test_cast(RandomMat(7, 15), 1, 2, false)
-
-        || test_cast(RandomMat(6, 16), 1, 2, true)
-        || test_cast(RandomMat(7, 15), 1, 2, true)
+        || test_cast(RandomMat(6, 16), 1, 2)
+        || test_cast(RandomMat(7, 15), 1, 2)
         ;
 }
 
 static int test_cast_2()
 {
     return 0
-        || test_cast(RandomMat(128), 1, 2, false)
-        || test_cast(RandomMat(127), 1, 2, false)
-
-        || test_cast(RandomMat(128), 1, 2, true)
-        || test_cast(RandomMat(127), 1, 2, true)
+        || test_cast(RandomMat(128), 1, 2)
+        || test_cast(RandomMat(127), 1, 2)
         ;
 }
 

@@ -609,17 +609,53 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 }
 
 template <typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, void (*func)(T*) = 0)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, void (*func)(T*) = 0)
 {
-    std::vector<ncnn::Mat> top_shapes;
-    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights, opt, a, top_blob_count, top_shapes, epsilon, func);
+    ncnn::Option opts[2];
+    opts[0] = _opt;
+    opts[0].use_packing_layout = false;
+    opts[1] = _opt;
+    opts[1].use_packing_layout = true;
+
+    for (int i = 0; i < 2; i++)
+    {
+        const ncnn::Option& opt = opts[i];
+
+        std::vector<ncnn::Mat> top_shapes;
+        int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights, opt, a, top_blob_count, top_shapes, epsilon, func);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_layer %s failed use_packing_layout=%d\n", layer_type, opt.use_packing_layout);
+            return ret;
+        }
+    }
+
+    return 0;
 }
 
 template <typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& opt, const ncnn::Mat& a, float epsilon = 0.001, void (*func)(T*) = 0)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, float epsilon = 0.001, void (*func)(T*) = 0)
 {
-    ncnn::Mat top_shape;
-    return test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights, opt, a, top_shape, epsilon, func);
+    ncnn::Option opts[2];
+    opts[0] = _opt;
+    opts[0].use_packing_layout = false;
+    opts[1] = _opt;
+    opts[1].use_packing_layout = true;
+
+    for (int i = 0; i < 2; i++)
+    {
+        const ncnn::Option& opt = opts[i];
+
+        ncnn::Mat top_shape;
+        int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights, opt, a, top_shape, epsilon, func);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_layer %s failed use_packing_layout=%d\n", layer_type, opt.use_packing_layout);
+            return ret;
+        }
+    }
+
+    return 0;
 }
 
 #endif // TESTUTIL_H

@@ -16,7 +16,7 @@
 
 #include "layer/permute.h"
 
-static int test_permute(const ncnn::Mat& a, int order_type, bool use_packing_layout)
+static int test_permute(const ncnn::Mat& a, int order_type)
 {
     ncnn::ParamDict pd;
     pd.set(0, order_type);
@@ -32,12 +32,11 @@ static int test_permute(const ncnn::Mat& a, int order_type, bool use_packing_lay
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
     int ret = test_layer<ncnn::Permute>("Permute", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_permute failed a.dims=%d a=(%d %d %d) order_type=%d use_packing_layout=%d\n", a.dims, a.w, a.h, a.c, order_type, use_packing_layout);
+        fprintf(stderr, "test_permute failed a.dims=%d a=(%d %d %d) order_type=%d\n", a.dims, a.w, a.h, a.c, order_type);
     }
 
     return ret;
@@ -49,11 +48,8 @@ static int test_permute_0()
     ncnn::Mat b = RandomMat(127);
 
     return 0
-        || test_permute(a, 0, false)
-        || test_permute(b, 0, false)
-
-        || test_permute(a, 0, true)
-        || test_permute(b, 0, true)
+        || test_permute(a, 0)
+        || test_permute(b, 0)
         ;
 }
 
@@ -67,15 +63,10 @@ static int test_permute_1()
     for (int order_type=0; order_type<2; order_type++)
     {
         int ret = 0
-            || test_permute(a, order_type, false)
-            || test_permute(b, order_type, false)
-            || test_permute(c, order_type, false)
-            || test_permute(d, order_type, false)
-
-            || test_permute(a, order_type, true)
-            || test_permute(b, order_type, true)
-            || test_permute(c, order_type, true)
-            || test_permute(d, order_type, true)
+            || test_permute(a, order_type)
+            || test_permute(b, order_type)
+            || test_permute(c, order_type)
+            || test_permute(d, order_type)
             ;
 
         if (ret != 0)
@@ -97,19 +88,12 @@ static int test_permute_2()
     for (int order_type=0; order_type<6; order_type++)
     {
         int ret = 0
-            || test_permute(a, order_type, false)
-            || test_permute(b, order_type, false)
-            || test_permute(c, order_type, false)
-            || test_permute(d, order_type, false)
-            || test_permute(e, order_type, false)
-            || test_permute(f, order_type, false)
-
-            || test_permute(a, order_type, true)
-            || test_permute(b, order_type, true)
-            || test_permute(c, order_type, true)
-            || test_permute(d, order_type, true)
-            || test_permute(e, order_type, true)
-            || test_permute(f, order_type, true)
+            || test_permute(a, order_type)
+            || test_permute(b, order_type)
+            || test_permute(c, order_type)
+            || test_permute(d, order_type)
+            || test_permute(e, order_type)
+            || test_permute(f, order_type)
             ;
 
         if (ret != 0)

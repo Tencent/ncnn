@@ -16,7 +16,7 @@
 
 #include "layer/sigmoid.h"
 
-static int test_sigmoid(const ncnn::Mat& a, bool use_packing_layout)
+static int test_sigmoid(const ncnn::Mat& a)
 {
     ncnn::ParamDict pd;
 
@@ -31,12 +31,11 @@ static int test_sigmoid(const ncnn::Mat& a, bool use_packing_layout)
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
     int ret = test_layer<ncnn::Sigmoid>("Sigmoid", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_sigmoid failed a.dims=%d a=(%d %d %d) use_packing_layout=%d\n", a.dims, a.w, a.h, a.c, use_packing_layout);
+        fprintf(stderr, "test_sigmoid failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
     }
 
     return ret;
@@ -45,45 +44,30 @@ static int test_sigmoid(const ncnn::Mat& a, bool use_packing_layout)
 static int test_sigmoid_0()
 {
     return 0
-        || test_sigmoid(RandomMat(6, 7, 16), false)
-        || test_sigmoid(RandomMat(6, 7, 16), false)
-        || test_sigmoid(RandomMat(3, 5, 13), false)
-        || test_sigmoid(RandomMat(3, 5, 13), false)
-
-        || test_sigmoid(RandomMat(6, 7, 16), true)
-        || test_sigmoid(RandomMat(6, 7, 16), true)
-        || test_sigmoid(RandomMat(3, 5, 13), true)
-        || test_sigmoid(RandomMat(3, 5, 13), true)
+        || test_sigmoid(RandomMat(6, 7, 16))
+        || test_sigmoid(RandomMat(6, 7, 16))
+        || test_sigmoid(RandomMat(3, 5, 13))
+        || test_sigmoid(RandomMat(3, 5, 13))
         ;
 }
 
 static int test_sigmoid_1()
 {
     return 0
-        || test_sigmoid(RandomMat(6, 16), false)
-        || test_sigmoid(RandomMat(6, 16), false)
-        || test_sigmoid(RandomMat(7, 15), false)
-        || test_sigmoid(RandomMat(7, 15), false)
-
-        || test_sigmoid(RandomMat(6, 16), true)
-        || test_sigmoid(RandomMat(6, 16), true)
-        || test_sigmoid(RandomMat(7, 15), true)
-        || test_sigmoid(RandomMat(7, 15), true)
+        || test_sigmoid(RandomMat(6, 16))
+        || test_sigmoid(RandomMat(6, 16))
+        || test_sigmoid(RandomMat(7, 15))
+        || test_sigmoid(RandomMat(7, 15))
         ;
 }
 
 static int test_sigmoid_2()
 {
     return 0
-        || test_sigmoid(RandomMat(128), false)
-        || test_sigmoid(RandomMat(128), false)
-        || test_sigmoid(RandomMat(127), false)
-        || test_sigmoid(RandomMat(127), false)
-
-        || test_sigmoid(RandomMat(128), true)
-        || test_sigmoid(RandomMat(128), true)
-        || test_sigmoid(RandomMat(127), true)
-        || test_sigmoid(RandomMat(127), true)
+        || test_sigmoid(RandomMat(128))
+        || test_sigmoid(RandomMat(128))
+        || test_sigmoid(RandomMat(127))
+        || test_sigmoid(RandomMat(127))
         ;
 }
 
