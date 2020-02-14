@@ -33,11 +33,27 @@ Eltwise_vulkan::Eltwise_vulkan()
 
 int Eltwise_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations(2);
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    Mat shape_unpacked;
+    convert_shape_packing(shape, shape_unpacked, elempack);
+
+    std::vector<vk_specialization_type> specializations(2 + 5);
     specializations[0].i = op_type;
     specializations[1].i = coeffs.w == 0 ? 0 : 1;
+    specializations[2 + 0].i = shape_unpacked.dims;
+    specializations[2 + 1].i = shape_unpacked.w;
+    specializations[2 + 2].i = shape_unpacked.h;
+    specializations[2 + 3].i = shape_unpacked.c;
+    specializations[2 + 4].i = shape_unpacked.cstep;
 
     // pack1
+    if (shape.dims == 0 || elempack == 1)
     {
         pipeline_eltwise[0] = new Pipeline(vkdev);
         pipeline_eltwise[0]->set_optimal_local_size_xyz();
@@ -48,6 +64,7 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4
+    if (shape.dims == 0 || elempack == 4)
     {
         pipeline_eltwise_pack4[0] = new Pipeline(vkdev);
         pipeline_eltwise_pack4[0]->set_optimal_local_size_xyz();
@@ -58,6 +75,7 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8
+    if (shape.dims == 0 || elempack == 8)
     {
         pipeline_eltwise_pack8[0] = new Pipeline(vkdev);
         pipeline_eltwise_pack8[0]->set_optimal_local_size_xyz();

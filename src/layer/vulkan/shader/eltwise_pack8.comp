@@ -32,9 +32,6 @@ layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const float coeff0 = 0;
-layout (constant_id = shape_constant_id_offset + 6) const float coeff1 = 0;
-
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -95,20 +92,20 @@ void main()
     {
         if (op_type == 0)
         {
-            res[0] = v1[0] * afp(psc(coeff0)) * v2[0] * afp(psc(coeff1));
-            res[1] = v1[1] * afp(psc(coeff0)) * v2[1] * afp(psc(coeff1));
+            res[0] = v1[0] * v2[0];
+            res[1] = v1[1] * v2[1];
         }
 
         if (op_type == 1)
         {
-            res[0] = v1[0] * afp(psc(coeff0)) + v2[0] * afp(psc(coeff1));
-            res[1] = v1[1] * afp(psc(coeff0)) + v2[1] * afp(psc(coeff1));
+            res[0] = v1[0] * afp(p.coeff0) + v2[0] * afp(p.coeff1);
+            res[1] = v1[1] * afp(p.coeff0) + v2[1] * afp(p.coeff1);
         }
 
         if (op_type == 2)
         {
-            res[0] = max(v1[0] * afp(psc(coeff0)), v2[0] * afp(psc(coeff1)));
-            res[1] = max(v1[1] * afp(psc(coeff0)), v2[1] * afp(psc(coeff1)));
+            res[0] = max(v1[0], v2[0]);
+            res[1] = max(v1[1], v2[1]);
         }
     }
 
