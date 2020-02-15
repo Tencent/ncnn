@@ -32,10 +32,40 @@ Reorg_vulkan::Reorg_vulkan()
 
 int Reorg_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations(1);
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    int out_elempack = 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    Mat out_shape_packed;
+    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+
+    std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = stride;
+    specializations[1 + 0].i = shape_packed.dims;
+    specializations[1 + 1].i = shape_packed.w;
+    specializations[1 + 2].i = shape_packed.h;
+    specializations[1 + 3].i = shape_packed.c;
+    specializations[1 + 4].i = shape_packed.cstep;
+    specializations[1 + 5].i = out_shape_packed.dims;
+    specializations[1 + 6].i = out_shape_packed.w;
+    specializations[1 + 7].i = out_shape_packed.h;
+    specializations[1 + 8].i = out_shape_packed.c;
+    specializations[1 + 9].i = out_shape_packed.cstep;
 
     // pack1
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 1))
     {
         pipeline_reorg = new Pipeline(vkdev);
         pipeline_reorg->set_optimal_local_size_xyz();
@@ -43,6 +73,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 4))
     {
         pipeline_reorg_pack4 = new Pipeline(vkdev);
         pipeline_reorg_pack4->set_optimal_local_size_xyz();
@@ -50,6 +81,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack1to4
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 4))
     {
         pipeline_reorg_pack1to4 = new Pipeline(vkdev);
         pipeline_reorg_pack1to4->set_optimal_local_size_xyz();
@@ -57,6 +89,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8
+    if (shape.dims == 0 || (elempack == 8 && out_elempack == 8))
     {
         pipeline_reorg_pack8 = new Pipeline(vkdev);
         pipeline_reorg_pack8->set_optimal_local_size_xyz();
@@ -64,6 +97,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack1to8
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 8))
     {
         pipeline_reorg_pack1to8 = new Pipeline(vkdev);
         pipeline_reorg_pack1to8->set_optimal_local_size_xyz();
@@ -71,6 +105,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4to8
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 8))
     {
         pipeline_reorg_pack4to8 = new Pipeline(vkdev);
         pipeline_reorg_pack4to8->set_optimal_local_size_xyz();
