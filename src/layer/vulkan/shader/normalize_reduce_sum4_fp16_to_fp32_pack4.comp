@@ -24,15 +24,6 @@
 layout (constant_id = 0) const int across_spatial = 0;
 layout (constant_id = 1) const int across_channel = 0;
 
-#define shape_constant_id_offset 2
-layout (constant_id = shape_constant_id_offset + 0) const int size = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
-
-layout (constant_id = shape_constant_id_offset + 3) const int outsize = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
-
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -57,20 +48,20 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outsize || gy >= 1 || gz >= psc(outc))
+    if (gx >= p.outsize || gy >= 1 || gz >= p.outc)
         return;
 
-    int gi = gz * psc(outcstep) + gx;
+    int gi = gz * p.outcstep + gx;
 
     if (across_spatial == 1 && across_channel == 1)
     {
         int sz = gz * 2;
         int sx = gx * 2;
 
-        ivec2 v_offset0 = sz * psc(cstep) + sx + ivec2(0, 1);
-        ivec2 v_offset1 = v_offset0 + psc(cstep);
+        ivec2 v_offset0 = sz * p.cstep + sx + ivec2(0, 1);
+        ivec2 v_offset1 = v_offset0 + p.cstep;
 
-        if (sz == psc(c) - 1)
+        if (sz == p.c - 1)
         {
             if (sx == p.size - 1)
             {
@@ -120,7 +111,7 @@ void main()
         int sz = gz;
         int sx = gx * 4;
 
-        ivec4 v_offset = sz * psc(cstep) + sx + ivec4(0, 1, 2, 3);
+        ivec4 v_offset = sz * p.cstep + sx + ivec4(0, 1, 2, 3);
 
         if (sx == p.size - 1)
         {
@@ -167,9 +158,9 @@ void main()
         int sz = gz * 4;
         int sx = gx;
 
-        ivec4 v_offset = (sz + ivec4(0, 1, 2, 3)) * psc(cstep) + sx;
+        ivec4 v_offset = (sz + ivec4(0, 1, 2, 3)) * p.cstep + sx;
 
-        if (sz == psc(c) - 1)
+        if (sz == p.c - 1)
         {
             vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
 
@@ -177,7 +168,7 @@ void main()
 
             sqsum_blob_data[gi] = sqsum;
         }
-        else if (sz == psc(c) - 2)
+        else if (sz == p.c - 2)
         {
             vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
             vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
@@ -186,7 +177,7 @@ void main()
 
             sqsum_blob_data[gi] = sqsum;
         }
-        else if (sz == psc(c) - 3)
+        else if (sz == p.c - 3)
         {
             vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.r));
             vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset.g));
