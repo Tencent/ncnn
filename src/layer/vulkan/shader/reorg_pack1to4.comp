@@ -54,7 +54,7 @@ void main()
     if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    ivec4 gz4 = ivec4(gz * 4) + ivec4(0, 1, 2, 3);
+    ivec4 gz4 = gz * 4 + ivec4(0, 1, 2, 3);
 
     ivec4 z4 = gz4 / (stride * stride);
     ivec4 zi4 = gz4 % (stride * stride);

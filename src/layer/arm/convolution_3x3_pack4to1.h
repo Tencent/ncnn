@@ -2228,7 +2228,7 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
             Mat out0 = top_blob_bordered.channel(p);
 
             const float bias0 = bias ? bias[p] : 0.f;
-            float32x2_t _bias0 = vdup_n_f32(bias0);
+            // float32x2_t _bias0 = vdup_n_f32(bias0);
 
             float tmp[6][8];
 

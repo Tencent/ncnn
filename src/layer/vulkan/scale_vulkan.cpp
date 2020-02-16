@@ -24,6 +24,7 @@ Scale_vulkan::Scale_vulkan()
 
     pipeline_scale = 0;
     pipeline_scale_pack4 = 0;
+    pipeline_scale_pack8 = 0;
 }
 
 int Scale_vulkan::create_pipeline(const Option& opt)
@@ -33,9 +34,12 @@ int Scale_vulkan::create_pipeline(const Option& opt)
         std::vector<vk_specialization_type> specializations(1);
         specializations[0].i = 0;
 
-        pipeline_scale = new Pipeline(vkdev);
-        pipeline_scale->set_optimal_local_size_xyz();
-        pipeline_scale->create("scale", opt, specializations, 3, 5);
+        // pack1
+        {
+            pipeline_scale = new Pipeline(vkdev);
+            pipeline_scale->set_optimal_local_size_xyz();
+            pipeline_scale->create("scale", opt, specializations, 3, 5);
+        }
 
         // pack4
         {
@@ -47,11 +51,13 @@ int Scale_vulkan::create_pipeline(const Option& opt)
         return 0;
     }
 
+    int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
+
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = bias_term;
 
     // pack1
-    if (scale_data_size % 4 != 0)
+    if (elempack == 1)
     {
         pipeline_scale = new Pipeline(vkdev);
         pipeline_scale->set_optimal_local_size_xyz(8, 8, scale_data_size);
@@ -59,11 +65,19 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4
-    if (scale_data_size % 4 == 0)
+    if (elempack == 4)
     {
         pipeline_scale_pack4 = new Pipeline(vkdev);
         pipeline_scale_pack4->set_optimal_local_size_xyz(8, 8, scale_data_size / 4);
         pipeline_scale_pack4->create("scale_pack4", opt, specializations, 3, 5);
+    }
+
+    // pack8
+    if (elempack == 8)
+    {
+        pipeline_scale_pack8 = new Pipeline(vkdev);
+        pipeline_scale_pack8->set_optimal_local_size_xyz(8, 8, scale_data_size / 8);
+        pipeline_scale_pack8->create("scale_pack8", opt, specializations, 3, 5);
     }
 
     return 0;
@@ -77,6 +91,9 @@ int Scale_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_scale_pack4;
     pipeline_scale_pack4 = 0;
 
+    delete pipeline_scale_pack8;
+    pipeline_scale_pack8 = 0;
+
     return 0;
 }
 
@@ -85,35 +102,11 @@ int Scale_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (scale_data_size == -233)
         return 0;
 
-    // pack1
-    if (scale_data_size % 4 != 0)
-    {
-        cmd.record_upload(scale_data, scale_data_gpu, opt);
-    }
-
-    // pack4
-    if (scale_data_size % 4 == 0)
-    {
-        Mat scale_data_pack4;
-        convert_packing(scale_data, scale_data_pack4, 4);
-        cmd.record_upload(scale_data_pack4, scale_data_gpu_pack4, opt);
-    }
+    cmd.record_upload(scale_data, scale_data_gpu, opt);
 
     if (bias_term)
     {
-        // pack1
-        if (scale_data_size % 4 != 0)
-        {
-            cmd.record_upload(bias_data, bias_data_gpu, opt);
-        }
-
-        // pack4
-        if (scale_data_size % 4 == 0)
-        {
-            Mat bias_data_pack4;
-            convert_packing(bias_data, bias_data_pack4, 4);
-            cmd.record_upload(bias_data_pack4, bias_data_gpu_pack4, opt);
-        }
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
     }
 
     return 0;
@@ -129,7 +122,7 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_top_blob;
     bindings[1] = scale_blob;
-    bindings[2] = bias_term ? (elempack == 4 ? bias_data_gpu_pack4 : bias_data_gpu) : scale_blob;// TODO use dummy buffer
+    bindings[2] = bias_term ? bias_data_gpu : scale_blob;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
@@ -138,7 +131,9 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_scale_pack4 : pipeline_scale;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_scale_pack8
+                             : elempack == 4 ? pipeline_scale_pack4
+                             : pipeline_scale;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
@@ -147,11 +142,9 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
 
 int Scale_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int elempack = bottom_top_blob.elempack;
-
     std::vector<VkMat> bottom_top_blobs(2);
     bottom_top_blobs[0] = bottom_top_blob;
-    bottom_top_blobs[1] = elempack == 4 ? scale_data_gpu_pack4 : scale_data_gpu;
+    bottom_top_blobs[1] = scale_data_gpu;
 
     return forward_inplace(bottom_top_blobs, cmd, opt);
 }

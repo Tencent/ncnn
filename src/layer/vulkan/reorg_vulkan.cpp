@@ -25,6 +25,9 @@ Reorg_vulkan::Reorg_vulkan()
     pipeline_reorg = 0;
     pipeline_reorg_pack4 = 0;
     pipeline_reorg_pack1to4 = 0;
+    pipeline_reorg_pack8 = 0;
+    pipeline_reorg_pack1to8 = 0;
+    pipeline_reorg_pack4to8 = 0;
 }
 
 int Reorg_vulkan::create_pipeline(const Option& opt)
@@ -53,6 +56,27 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
         pipeline_reorg_pack1to4->create("reorg_pack1to4", opt, specializations, 2, 10);
     }
 
+    // pack8
+    {
+        pipeline_reorg_pack8 = new Pipeline(vkdev);
+        pipeline_reorg_pack8->set_optimal_local_size_xyz();
+        pipeline_reorg_pack8->create("reorg_pack8", opt, specializations, 2, 10);
+    }
+
+    // pack1to8
+    {
+        pipeline_reorg_pack1to8 = new Pipeline(vkdev);
+        pipeline_reorg_pack1to8->set_optimal_local_size_xyz();
+        pipeline_reorg_pack1to8->create("reorg_pack1to8", opt, specializations, 2, 10);
+    }
+
+    // pack4to8
+    {
+        pipeline_reorg_pack4to8 = new Pipeline(vkdev);
+        pipeline_reorg_pack4to8->set_optimal_local_size_xyz();
+        pipeline_reorg_pack4to8->create("reorg_pack4to8", opt, specializations, 2, 10);
+    }
+
     return 0;
 }
 
@@ -66,6 +90,15 @@ int Reorg_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_reorg_pack1to4;
     pipeline_reorg_pack1to4 = 0;
+
+    delete pipeline_reorg_pack8;
+    pipeline_reorg_pack8 = 0;
+
+    delete pipeline_reorg_pack1to8;
+    pipeline_reorg_pack1to8 = 0;
+
+    delete pipeline_reorg_pack4to8;
+    pipeline_reorg_pack4to8 = 0;
 
     return 0;
 }
@@ -82,11 +115,12 @@ int Reorg_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     int outh = h / stride;
     int outc = channels * elempack * stride * stride;
 
-    int out_elempack = outc % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
+        if (out_elempack == 8) out_elemsize = 8*2u;
         if (out_elempack == 4) out_elemsize = 4*2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
@@ -116,13 +150,25 @@ int Reorg_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
     {
         pipeline = pipeline_reorg;
     }
-    else if (elempack == 4) // assert out_elempack == 4
+    else if (elempack == 4 && out_elempack == 4)
     {
         pipeline = pipeline_reorg_pack4;
     }
     else if (elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_reorg_pack1to4;
+    }
+    else if (elempack == 8) // assert out_elempack == 8
+    {
+        pipeline = pipeline_reorg_pack8;
+    }
+    else if (elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_reorg_pack1to8;
+    }
+    else if (elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_reorg_pack4to8;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);

@@ -95,10 +95,10 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
     std::vector<float> scales;
 
     std::vector<char>line(102400);
-    char *pch = nullptr;
+    char *pch = NULL;
     size_t len = 0;
 
-    while (nullptr != std::fgets(line.data(), static_cast<int>(line.size()), fp))
+    while (NULL != std::fgets(line.data(), static_cast<int>(line.size()), fp))
     {
         float scale = 1.f;
         char key[256];
@@ -106,10 +106,10 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
 
         pch = strtok(line.data(), " ");
 
-        if (pch == nullptr) break;
+        if (pch == NULL) break;
 
         bool is_key = true;
-        while (pch != nullptr)
+        while (pch != NULL)
         {
             if (is_key)
             {
@@ -125,7 +125,7 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
                 scales.push_back(scale);
             }
 
-            pch = strtok(nullptr, " ");
+            pch = strtok(NULL, " ");
         }
 
         // XYZ_param_N pattern
@@ -179,14 +179,14 @@ int NetQuantize::quantize_convolution()
             continue;
 
         // find convolution layer
-        auto iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
         if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-        auto iter = weight_int8scale_table.find(key);
+        std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
         {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
@@ -194,7 +194,7 @@ int NetQuantize::quantize_convolution()
         }
 
         // Convolution - quantize weight from fp32 to int8
-        auto convolution = (ncnn::Convolution*)layers[i];
+        ncnn::Convolution* convolution = (ncnn::Convolution*)layers[i];
 
         std::vector<float> weight_data_int8_scales = iter->second;
 
@@ -246,14 +246,14 @@ int NetQuantize::quantize_convolutiondepthwise()
             continue;
 
         // find convolutiondepthwise layer
-        auto iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
         if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-        auto iter = weight_int8scale_table.find(key);
+        std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
         {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
@@ -261,7 +261,7 @@ int NetQuantize::quantize_convolutiondepthwise()
         }
 
         // Convolution - quantize weight from fp32 to int8
-        auto convdw = (ncnn::ConvolutionDepthWise*)layers[i];
+        ncnn::ConvolutionDepthWise* convdw = (ncnn::ConvolutionDepthWise*)layers[i];
 
         std::vector<float> weight_data_int8_scales = iter->second;
 
@@ -313,14 +313,14 @@ int NetQuantize::quantize_innerproduct()
             continue;
 
         // find InnerProduct layer
-        auto iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
         if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-        auto iter = weight_int8scale_table.find(key);
+        std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
         {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
@@ -328,7 +328,7 @@ int NetQuantize::quantize_innerproduct()
         }
 
         // InnerProduct - quantize weight from fp32 to int8
-        auto fc = (ncnn::InnerProduct*)layers[i];
+        ncnn::InnerProduct* fc = (ncnn::InnerProduct*)layers[i];
 
         std::vector<float> weight_data_int8_scales = iter->second;
 

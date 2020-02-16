@@ -32,10 +32,13 @@ public:
 
 public:
     ncnn::Layer* packing_pack1;
+    ncnn::Layer* packing_pack4;
 
     Pipeline* pipeline_slice[2];
     Pipeline* pipeline_slice_pack4[2];
     Pipeline* pipeline_slice_pack1to4[2];
+    Pipeline* pipeline_slice_pack8[2];
+    Pipeline* pipeline_slice_pack1to8[2];
 };
 
 } // namespace ncnn

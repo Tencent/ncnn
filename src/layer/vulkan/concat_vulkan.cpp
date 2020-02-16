@@ -25,6 +25,7 @@ Concat_vulkan::Concat_vulkan()
     support_vulkan = true;
 
     packing_pack4 = 0;
+    packing_pack8 = 0;
 
     pipeline_concat[0] = 0;
     pipeline_concat[1] = 0;
@@ -32,6 +33,12 @@ Concat_vulkan::Concat_vulkan()
     pipeline_concat_pack4[1] = 0;
     pipeline_concat_pack4to1[0] = 0;
     pipeline_concat_pack4to1[1] = 0;
+    pipeline_concat_pack8[0] = 0;
+    pipeline_concat_pack8[1] = 0;
+    pipeline_concat_pack8to4[0] = 0;
+    pipeline_concat_pack8to4[1] = 0;
+    pipeline_concat_pack8to1[0] = 0;
+    pipeline_concat_pack8to1[1] = 0;
 }
 
 int Concat_vulkan::create_pipeline(const Option& opt)
@@ -69,6 +76,36 @@ int Concat_vulkan::create_pipeline(const Option& opt)
         pipeline_concat_pack4to1[1]->create("concat_pack4to1", opt, specializations, 2, 11);
     }
 
+    // pack8
+    {
+        pipeline_concat_pack8[0] = new Pipeline(vkdev);
+        pipeline_concat_pack8[0]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8[0]->create("concat_pack8", opt, specializations, 2, 11);
+        pipeline_concat_pack8[1] = new Pipeline(vkdev);
+        pipeline_concat_pack8[1]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8[1]->create("concat_pack8", opt, specializations, 2, 11);
+    }
+
+    // pack8to4
+    {
+        pipeline_concat_pack8to4[0] = new Pipeline(vkdev);
+        pipeline_concat_pack8to4[0]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8to4[0]->create("concat_pack8to4", opt, specializations, 2, 11);
+        pipeline_concat_pack8to4[1] = new Pipeline(vkdev);
+        pipeline_concat_pack8to4[1]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8to4[1]->create("concat_pack8to4", opt, specializations, 2, 11);
+    }
+
+    // pack8to1
+    {
+        pipeline_concat_pack8to1[0] = new Pipeline(vkdev);
+        pipeline_concat_pack8to1[0]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8to1[0]->create("concat_pack8to1", opt, specializations, 2, 11);
+        pipeline_concat_pack8to1[1] = new Pipeline(vkdev);
+        pipeline_concat_pack8to1[1]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8to1[1]->create("concat_pack8to1", opt, specializations, 2, 11);
+    }
+
     {
         packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
         packing_pack4->vkdev = vkdev;
@@ -81,6 +118,18 @@ int Concat_vulkan::create_pipeline(const Option& opt)
         packing_pack4->create_pipeline(opt);
     }
 
+    {
+        packing_pack8 = ncnn::create_layer(ncnn::LayerType::Packing);
+        packing_pack8->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 8);
+
+        packing_pack8->load_param(pd);
+
+        packing_pack8->create_pipeline(opt);
+    }
+
     return 0;
 }
 
@@ -91,6 +140,13 @@ int Concat_vulkan::destroy_pipeline(const Option& opt)
         packing_pack4->destroy_pipeline(opt);
         delete packing_pack4;
         packing_pack4 = 0;
+    }
+
+    if (packing_pack8)
+    {
+        packing_pack8->destroy_pipeline(opt);
+        delete packing_pack8;
+        packing_pack8 = 0;
     }
 
     delete pipeline_concat[0];
@@ -107,6 +163,21 @@ int Concat_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_concat_pack4to1[1];
     pipeline_concat_pack4to1[0] = 0;
     pipeline_concat_pack4to1[1] = 0;
+
+    delete pipeline_concat_pack8[0];
+    delete pipeline_concat_pack8[1];
+    pipeline_concat_pack8[0] = 0;
+    pipeline_concat_pack8[1] = 0;
+
+    delete pipeline_concat_pack8to4[0];
+    delete pipeline_concat_pack8to4[1];
+    pipeline_concat_pack8to4[0] = 0;
+    pipeline_concat_pack8to4[1] = 0;
+
+    delete pipeline_concat_pack8to1[0];
+    delete pipeline_concat_pack8to1[1];
+    pipeline_concat_pack8to1[0] = 0;
+    pipeline_concat_pack8to1[1] = 0;
 
     return 0;
 }
@@ -130,7 +201,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             top_w += bottom_blob.w * bottom_blob.elempack;
         }
 
-        int out_elempack = top_w % 4 == 0 ? 4 : 1;
+        int out_elempack = opt.use_shader_pack8 && top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         VkMat& top_blob = top_blobs[0];
@@ -139,7 +210,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             return -100;
 
         VkMat top_blob_unpacked = top_blob;
-        if (elempack == 1 && out_elempack == 4)
+        if (elempack < out_elempack)
         {
             top_blob_unpacked.create(top_w / elempack, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
             if (top_blob_unpacked.empty())
@@ -181,6 +252,18 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             {
                 pipeline = pipeline_concat_pack4to1[b%2];
             }
+            else if (bottom_blob.elempack == 8 && elempack == 8)
+            {
+                pipeline = pipeline_concat_pack8[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 4)
+            {
+                pipeline = pipeline_concat_pack8to4[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 1)
+            {
+                pipeline = pipeline_concat_pack8to1[b%2];
+            }
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
@@ -188,9 +271,10 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         // packing
-        if (elempack == 1 && out_elempack == 4)
+        if (elempack < out_elempack)
         {
-            packing_pack4->forward(top_blob_unpacked, top_blob, cmd, opt);
+            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
+            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
         }
 
         return 0;
@@ -213,7 +297,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             top_h += bottom_blob.h * bottom_blob.elempack;
         }
 
-        int out_elempack = top_h % 4 == 0 ? 4 : 1;
+        int out_elempack = opt.use_shader_pack8 && top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         VkMat& top_blob = top_blobs[0];
@@ -222,7 +306,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             return -100;
 
         VkMat top_blob_unpacked = top_blob;
-        if (elempack == 1 && out_elempack == 4)
+        if (elempack < out_elempack)
         {
             top_blob_unpacked.create(w, top_h / elempack, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
             if (top_blob_unpacked.empty())
@@ -264,6 +348,18 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             {
                 pipeline = pipeline_concat_pack4to1[b%2];
             }
+            else if (bottom_blob.elempack == 8 && elempack == 8)
+            {
+                pipeline = pipeline_concat_pack8[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 4)
+            {
+                pipeline = pipeline_concat_pack8to4[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 1)
+            {
+                pipeline = pipeline_concat_pack8to1[b%2];
+            }
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
@@ -271,9 +367,10 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         // packing
-        if (elempack == 1 && out_elempack == 4)
+        if (elempack < out_elempack)
         {
-            packing_pack4->forward(top_blob_unpacked, top_blob, cmd, opt);
+            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
+            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
         }
 
         return 0;
@@ -321,7 +418,9 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[9].i = top_blob.cstep;
             constants[10].i = woffset;
 
-            const Pipeline* pipeline = elempack == 4 ? pipeline_concat_pack4[b%2] : pipeline_concat[b%2];
+            const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
+                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                     : pipeline_concat[b%2];
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
@@ -349,7 +448,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             top_channels += bottom_blob.c * bottom_blob.elempack;
         }
 
-        int out_elempack = top_channels % 4 == 0 ? 4 : 1;
+        int out_elempack = opt.use_shader_pack8 && top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         VkMat& top_blob = top_blobs[0];
@@ -358,7 +457,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             return -100;
 
         VkMat top_blob_unpacked = top_blob;
-        if (elempack == 1 && out_elempack == 4)
+        if (elempack < out_elempack)
         {
             top_blob_unpacked.create(w, h, top_channels / elempack, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
             if (top_blob_unpacked.empty())
@@ -400,6 +499,18 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             {
                 pipeline = pipeline_concat_pack4to1[b%2];
             }
+            else if (bottom_blob.elempack == 8 && elempack == 8)
+            {
+                pipeline = pipeline_concat_pack8[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 4)
+            {
+                pipeline = pipeline_concat_pack8to4[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 1)
+            {
+                pipeline = pipeline_concat_pack8to1[b%2];
+            }
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
@@ -407,9 +518,10 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         // packing
-        if (elempack == 1 && out_elempack == 4)
+        if (elempack < out_elempack)
         {
-            packing_pack4->forward(top_blob_unpacked, top_blob, cmd, opt);
+            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
+            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
         }
 
         return 0;
@@ -458,7 +570,9 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[9].i = top_blob.cstep;
             constants[10].i = hoffset;
 
-            const Pipeline* pipeline = elempack == 4 ? pipeline_concat_pack4[b%2] : pipeline_concat[b%2];
+            const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
+                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                     : pipeline_concat[b%2];
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
@@ -511,7 +625,9 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[9].i = top_blob.cstep;
             constants[10].i = woffset;
 
-            const Pipeline* pipeline = elempack == 4 ? pipeline_concat_pack4[b%2] : pipeline_concat[b%2];
+            const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
+                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                     : pipeline_concat[b%2];
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 

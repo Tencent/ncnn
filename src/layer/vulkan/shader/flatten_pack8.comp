@@ -57,10 +57,10 @@ void main()
     if (gx >= p.outw || gy >= 1 || gz >= 1)
         return;
 
-#if NCNN_fp16_packed
     ivec4 i4 = gx * 8 + ivec4(0, 1, 2, 3);
     ivec4 ii4 = i4 + 4;
 
+#if NCNN_fp16_packed
     ivec4 v_offset;
     ivec4 lane4;
     ivec4 vv_offset;
@@ -70,13 +70,11 @@ void main()
     {
         ivec4 y4 = i4 / p.w;
         ivec4 x4 = i4 % p.w;
-
         ivec4 yy4 = ii4 / p.w;
         ivec4 xx4 = ii4 % p.w;
 
         v_offset = ((y4 / 8) * p.w + x4) * 2 + (y4 % 8) / 2;
         lane4 = y4 % 2;
-
         vv_offset = ((yy4 / 8) * p.w + xx4) * 2 + (yy4 % 8) / 2;
         lane8 = yy4 % 2;
     }
@@ -87,14 +85,12 @@ void main()
         ivec4 z4 = i4 / size;
         ivec4 y4 = i4 % size / p.w;
         ivec4 x4 = i4 % size % p.w;
-
         ivec4 zz4 = ii4 / size;
         ivec4 yy4 = ii4 % size / p.w;
         ivec4 xx4 = ii4 % size % p.w;
 
         v_offset = ((z4 / 8) * p.cstep + y4 * p.w + x4) * 2 + (z4 % 4) / 2;
         lane4 = z4 % 2;
-
         vv_offset = ((zz4 / 8) * p.cstep + yy4 * p.w + xx4) * 2 + (zz4 % 4) / 2;
         lane8 = zz4 % 2;
     }
@@ -118,33 +114,27 @@ void main()
 
     if (p.dims == 2)
     {
-        int y = gx / p.w;
-        ivec4 i4 = (gx % p.w) * 8 + ivec4(0, 1, 2, 3);
-        ivec4 ii4 = i4 + 4;
+        ivec4 y4 = i4 / p.w;
+        ivec4 x4 = i4 % p.w;
+        ivec4 yy4 = ii4 / p.w;
+        ivec4 xx4 = ii4 % p.w;
 
-        ivec4 k4 = i4 / p.w;
-        ivec4 si4 = i4 % p.w;
-        ivec4 kk4 = ii4 / p.w;
-        ivec4 sii4 = ii4 % p.w;
-
-        v_offset = ivec4(y * 8 * p.w) + si4 * 8 + k4;
-        vv_offset = ivec4(y * 8 * p.w) + sii4 * 8 + kk4;
+        v_offset = ((y4 / 8) * p.w + x4) * 8 + y4 % 8;
+        vv_offset = ((yy4 / 8) * p.w + xx4) * 8 + yy4 % 8;
     }
     else // if (p.dims == 3)
     {
         int size = p.w * p.h;
 
-        int z = gx / size;
-        ivec4 i4 = (gx % size) * 8 + ivec4(0, 1, 2, 3);
-        ivec4 ii4 = i4 + 4;
+        ivec4 z4 = i4 / size;
+        ivec4 y4 = i4 % size / p.w;
+        ivec4 x4 = i4 % size % p.w;
+        ivec4 zz4 = ii4 / size;
+        ivec4 yy4 = ii4 % size / p.w;
+        ivec4 xx4 = ii4 % size % p.w;
 
-        ivec4 k4 = i4 / size;
-        ivec4 si4 = i4 % size;
-        ivec4 kk4 = ii4 / size;
-        ivec4 sii4 = ii4 % size;
-
-        v_offset = ivec4(z * 8 * p.cstep) + si4 * 8 + k4;
-        vv_offset = ivec4(z * 8 * p.cstep) + sii4 * 8 + kk4;
+        v_offset = ((z4 / 8) * p.cstep + y4 * p.w + x4) * 8 + z4 % 8;
+        vv_offset = ((zz4 / 8) * p.cstep + yy4 * p.w + xx4) * 8 + zz4 % 8;
     }
 
     buffer_cp1to8(top_blob_data, gx, bottom_blob_data, v_offset, vv_offset);

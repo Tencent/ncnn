@@ -25,6 +25,7 @@ TanH_vulkan::TanH_vulkan()
 
     pipeline_tanh = 0;
     pipeline_tanh_pack4 = 0;
+    pipeline_tanh_pack8 = 0;
 }
 
 int TanH_vulkan::create_pipeline(const Option& opt)
@@ -45,6 +46,13 @@ int TanH_vulkan::create_pipeline(const Option& opt)
         pipeline_tanh_pack4->create("tanh_pack4", opt, specializations, 1, 5);
     }
 
+    // pack8
+    {
+        pipeline_tanh_pack8 = new Pipeline(vkdev);
+        pipeline_tanh_pack8->set_optimal_local_size_xyz();
+        pipeline_tanh_pack8->create("tanh_pack8", opt, specializations, 1, 5);
+    }
+
     return 0;
 }
 
@@ -55,6 +63,9 @@ int TanH_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_tanh_pack4;
     pipeline_tanh_pack4 = 0;
+
+    delete pipeline_tanh_pack8;
+    pipeline_tanh_pack8 = 0;
 
     return 0;
 }
@@ -73,7 +84,9 @@ int TanH_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_tanh_pack4 : pipeline_tanh;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_tanh_pack8
+                             : elempack == 4 ? pipeline_tanh_pack4
+                             : pipeline_tanh;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
