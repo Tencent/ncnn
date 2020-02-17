@@ -16,10 +16,8 @@
 
 #include "layer/relu.h"
 
-static int test_relu(float slope)
+static int test_relu(const ncnn::Mat& a, float slope)
 {
-    ncnn::Mat a = RandomMat(6, 7, 8);
-
     ncnn::ParamDict pd;
     pd.set(0, slope);//slope
 
@@ -46,8 +44,30 @@ static int test_relu(float slope)
 static int test_relu_0()
 {
     return 0
-        || test_relu(0.f)
-        || test_relu(0.1f)
+        || test_relu(RandomMat(6, 7, 16), 0.f)
+        || test_relu(RandomMat(6, 7, 16), 0.1f)
+        || test_relu(RandomMat(3, 5, 13), 0.f)
+        || test_relu(RandomMat(3, 5, 13), 0.1f)
+        ;
+}
+
+static int test_relu_1()
+{
+    return 0
+        || test_relu(RandomMat(6, 16), 0.f)
+        || test_relu(RandomMat(6, 16), 0.1f)
+        || test_relu(RandomMat(7, 15), 0.f)
+        || test_relu(RandomMat(7, 15), 0.1f)
+        ;
+}
+
+static int test_relu_2()
+{
+    return 0
+        || test_relu(RandomMat(128), 0.f)
+        || test_relu(RandomMat(128), 0.1f)
+        || test_relu(RandomMat(127), 0.f)
+        || test_relu(RandomMat(127), 0.1f)
         ;
 }
 
@@ -55,5 +75,9 @@ int main()
 {
     SRAND(7767517);
 
-    return test_relu_0();
+    return 0
+        || test_relu_0()
+        || test_relu_1()
+        || test_relu_2()
+        ;
 }
