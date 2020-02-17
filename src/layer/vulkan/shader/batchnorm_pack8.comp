@@ -22,6 +22,13 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -45,13 +52,13 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-    const int gi = gz * p.cstep + gy * p.w + gx;
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     const ivec3 gxyz = ivec3(gx, gy, gz);
-    const int abi = gxyz[p.dims - 1];
+    const int abi = gxyz[psc(dims) - 1];
 
     afpvec8 v = buffer_ld8(bottom_top_blob_data, gi);
     afpvec8 b = buffer_ld8(b_data, abi);

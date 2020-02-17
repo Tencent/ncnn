@@ -22,6 +22,17 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int block_x = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int block_y = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -48,12 +59,12 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.block_x || gy >= p.block_y || gz >= p.c)
+    if (gx >= p.block_x || gy >= p.block_y || gz >= psc(c))
         return;
 
     // load 4x4
-    int v_offset_0 = gz * p.cstep + gy * 2 * p.w + gx * 2;
-    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * p.w;
+    int v_offset_0 = gz * psc(cstep) + gy * 2 * psc(w) + gx * 2;
+    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * psc(w);
 
     afpvec8 v00 = buffer_ld8(bottom_blob_data, v_offset.r + 0);
     afpvec8 v01 = buffer_ld8(bottom_blob_data, v_offset.r + 1);
@@ -124,7 +135,7 @@ void main()
     v33 = m33 - m31;
 
     // store 16
-    int v_tm_offset = gz * p.outcstep + (gy * p.block_x + gx) * 16;
+    int v_tm_offset = gz * psc(outcstep) + (gy * p.block_x + gx) * 16;
 
     buffer_st8(bottom_tm_blob_data, v_tm_offset + 0, v00);
     buffer_st8(bottom_tm_blob_data, v_tm_offset + 1, v01);

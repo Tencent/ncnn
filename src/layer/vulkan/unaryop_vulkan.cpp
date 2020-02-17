@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "unaryop_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -29,27 +30,65 @@ UnaryOp_vulkan::UnaryOp_vulkan()
 
 int UnaryOp_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations(1);
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    std::vector<vk_specialization_type> specializations(1 + 5);
     specializations[0].i = op_type;
+    specializations[1 + 0].i = shape_packed.dims;
+    specializations[1 + 1].i = shape_packed.w;
+    specializations[1 + 2].i = shape_packed.h;
+    specializations[1 + 3].i = shape_packed.c;
+    specializations[1 + 4].i = shape_packed.cstep;
+
+    Mat local_size_xyz;
+    if (shape_packed.dims == 1)
+    {
+        local_size_xyz.w = std::min(64, shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 2)
+    {
+        local_size_xyz.w = std::min(8, shape_packed.w);
+        local_size_xyz.h = std::min(8, shape_packed.h);
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 3)
+    {
+        local_size_xyz.w = std::min(4, shape_packed.w);
+        local_size_xyz.h = std::min(4, shape_packed.h);
+        local_size_xyz.c = std::min(4, shape_packed.c);
+    }
 
     // pack1
+    if (shape.dims == 0 || elempack == 1)
     {
         pipeline_unaryop = new Pipeline(vkdev);
-        pipeline_unaryop->set_optimal_local_size_xyz();
+        pipeline_unaryop->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_unaryop->create("unaryop", opt, specializations, 1, 5);
     }
 
     // pack4
+    if (shape.dims == 0 || elempack == 4)
     {
         pipeline_unaryop_pack4 = new Pipeline(vkdev);
-        pipeline_unaryop_pack4->set_optimal_local_size_xyz();
+        pipeline_unaryop_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_unaryop_pack4->create("unaryop_pack4", opt, specializations, 1, 5);
     }
 
     // pack8
+    if (shape.dims == 0 || elempack == 8)
     {
         pipeline_unaryop_pack8 = new Pipeline(vkdev);
-        pipeline_unaryop_pack8->set_optimal_local_size_xyz();
+        pipeline_unaryop_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_unaryop_pack8->create("unaryop_pack8", opt, specializations, 1, 5);
     }
 

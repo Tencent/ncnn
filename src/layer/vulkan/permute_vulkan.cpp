@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "permute_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -23,33 +24,147 @@ Permute_vulkan::Permute_vulkan()
     support_vulkan = true;
 
     pipeline_permute = 0;
+    pipeline_permute_pack4 = 0;
+    pipeline_permute_pack1to4 = 0;
     pipeline_permute_pack4to1 = 0;
+    pipeline_permute_pack8 = 0;
+    pipeline_permute_pack1to8 = 0;
+    pipeline_permute_pack4to8 = 0;
+    pipeline_permute_pack8to4 = 0;
     pipeline_permute_pack8to1 = 0;
 }
 
 int Permute_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations(1);
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    int out_elempack = 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    Mat out_shape_packed;
+    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+
+    std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = order_type;
+    specializations[1 + 0].i = shape_packed.dims;
+    specializations[1 + 1].i = shape_packed.w;
+    specializations[1 + 2].i = shape_packed.h;
+    specializations[1 + 3].i = shape_packed.c;
+    specializations[1 + 4].i = shape_packed.cstep;
+    specializations[1 + 5].i = out_shape_packed.dims;
+    specializations[1 + 6].i = out_shape_packed.w;
+    specializations[1 + 7].i = out_shape_packed.h;
+    specializations[1 + 8].i = out_shape_packed.c;
+    specializations[1 + 9].i = out_shape_packed.cstep;
+
+    Mat local_size_xyz_bottom;// pack4to1 and pack8to1
+    if (shape_packed.dims == 2)
+    {
+        local_size_xyz_bottom.w = std::min(8, shape_packed.w);
+        local_size_xyz_bottom.h = std::min(8, shape_packed.h);
+        local_size_xyz_bottom.c = 1;
+    }
+    if (shape_packed.dims == 3)
+    {
+        local_size_xyz_bottom.w = std::min(4, shape_packed.w);
+        local_size_xyz_bottom.h = std::min(4, shape_packed.h);
+        local_size_xyz_bottom.c = std::min(4, shape_packed.c);
+    }
+
+    Mat local_size_xyz;
+    if (out_shape_packed.dims == 2)
+    {
+        local_size_xyz.w = std::min(8, out_shape_packed.w);
+        local_size_xyz.h = std::min(8, out_shape_packed.h);
+        local_size_xyz.c = 1;
+    }
+    if (out_shape_packed.dims == 3)
+    {
+        local_size_xyz.w = std::min(4, out_shape_packed.w);
+        local_size_xyz.h = std::min(4, out_shape_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_packed.c);
+    }
 
     // pack1
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 1))
     {
         pipeline_permute = new Pipeline(vkdev);
-        pipeline_permute->set_optimal_local_size_xyz();
+        pipeline_permute->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_permute->create("permute", opt, specializations, 2, 10);
     }
 
     // pack4
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 4))
+    {
+        pipeline_permute_pack4 = new Pipeline(vkdev);
+        pipeline_permute_pack4->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_permute_pack4->create("permute_pack4", opt, specializations, 2, 10);
+    }
+
+    // pack1to4
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 4))
+    {
+        pipeline_permute_pack1to4 = new Pipeline(vkdev);
+        pipeline_permute_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_permute_pack1to4->create("permute_pack1to4", opt, specializations, 2, 10);
+    }
+
+    // pack4to1
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 1))
     {
         pipeline_permute_pack4to1 = new Pipeline(vkdev);
-        pipeline_permute_pack4to1->set_optimal_local_size_xyz();
+        pipeline_permute_pack4to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
         pipeline_permute_pack4to1->create("permute_pack4to1", opt, specializations, 2, 10);
     }
 
     // pack8
+    if (shape.dims == 0 || (elempack == 8 && out_elempack == 8))
+    {
+        pipeline_permute_pack8 = new Pipeline(vkdev);
+        pipeline_permute_pack8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_permute_pack8->create("permute_pack8", opt, specializations, 2, 10);
+    }
+
+    // pack1to8
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 8))
+    {
+        pipeline_permute_pack1to8 = new Pipeline(vkdev);
+        pipeline_permute_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_permute_pack1to8->create("permute_pack1to8", opt, specializations, 2, 10);
+    }
+
+    // pack4to8
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 8))
+    {
+        pipeline_permute_pack4to8 = new Pipeline(vkdev);
+        pipeline_permute_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_permute_pack4to8->create("permute_pack4to8", opt, specializations, 2, 10);
+    }
+
+    // pack8to4
+    if (shape.dims == 0 || (elempack == 8 && out_elempack == 4))
+    {
+        pipeline_permute_pack8to4 = new Pipeline(vkdev);
+        pipeline_permute_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_permute_pack8to4->create("permute_pack8to4", opt, specializations, 2, 10);
+    }
+
+    // pack8to1
+    if (shape.dims == 0 || (elempack == 8 && out_elempack == 1))
     {
         pipeline_permute_pack8to1 = new Pipeline(vkdev);
-        pipeline_permute_pack8to1->set_optimal_local_size_xyz();
+        pipeline_permute_pack8to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
         pipeline_permute_pack8to1->create("permute_pack8to1", opt, specializations, 2, 10);
     }
 
@@ -61,8 +176,26 @@ int Permute_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_permute;
     pipeline_permute = 0;
 
+    delete pipeline_permute_pack4;
+    pipeline_permute_pack4 = 0;
+
+    delete pipeline_permute_pack1to4;
+    pipeline_permute_pack1to4 = 0;
+
     delete pipeline_permute_pack4to1;
     pipeline_permute_pack4to1 = 0;
+
+    delete pipeline_permute_pack8;
+    pipeline_permute_pack8 = 0;
+
+    delete pipeline_permute_pack1to8;
+    pipeline_permute_pack1to8 = 0;
+
+    delete pipeline_permute_pack4to8;
+    pipeline_permute_pack4to8 = 0;
+
+    delete pipeline_permute_pack8to4;
+    pipeline_permute_pack8to4 = 0;
 
     delete pipeline_permute_pack8to1;
     pipeline_permute_pack8to1 = 0;
@@ -80,15 +213,14 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     int dims = bottom_blob.dims;
 
-    int out_elempack = 1;
-    size_t out_elemsize = elemsize / elempack;
-
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    if (dims == 1 || order_type == 0)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
-        if (out_elempack == 1) out_elemsize = 4u;
+        top_blob = bottom_blob;
+        return 0;
     }
+
+    int out_elempack;
+    size_t out_elemsize;
 
     if (dims == 2)
     {
@@ -96,22 +228,30 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         // 0 = w h
         // 1 = h w
 
-        h = h * elempack;
+        int outw;
+        int outh;
 
-        if (order_type == 0)
+        // if (order_type == 1)
         {
-            top_blob.create(w, h, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
-            if (top_blob.empty())
-                return -100;
+            outw = h * elempack;
+            outh = w;
         }
-        else if (order_type == 1)
+
+        out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+        out_elemsize = elemsize / elempack * out_elempack;
+
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
-            top_blob.create(h, w, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
-            if (top_blob.empty())
-                return -100;
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
         }
+
+        top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        if (top_blob.empty())
+            return -100;
     }
-    else if (dims == 3)
+    else // if (dims == 3)
     {
         // order_type
         // 0 = w h c
@@ -121,44 +261,54 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         // 4 = h c w
         // 5 = c h w
 
-        channels = channels * elempack;
+        int outw;
+        int outh;
+        int outc;
 
-        if (order_type == 0)
+        if (order_type == 1)
         {
-            top_blob.create(w, h, channels, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
-            if (top_blob.empty())
-                return -100;
-        }
-        else if (order_type == 1)
-        {
-            top_blob.create(h, w, channels, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
-            if (top_blob.empty())
-                return -100;
+            outw = h;
+            outh = w;
+            outc = channels * elempack;
         }
         else if (order_type == 2)
         {
-            top_blob.create(w, channels, h, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
-            if (top_blob.empty())
-                return -100;
+            outw = w;
+            outh = channels * elempack;
+            outc = h;
         }
         else if (order_type == 3)
         {
-            top_blob.create(channels, w, h, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
-            if (top_blob.empty())
-                return -100;
+            outw = channels * elempack;
+            outh = w;
+            outc = h;
         }
         else if (order_type == 4)
         {
-            top_blob.create(h, channels, w, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
-            if (top_blob.empty())
-                return -100;
+            outw = h;
+            outh = channels * elempack;
+            outc = w;
         }
-        else if (order_type == 5)
+        else // if (order_type == 5)
         {
-            top_blob.create(channels, h, w, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
-            if (top_blob.empty())
-                return -100;
+            outw = channels * elempack;
+            outh = h;
+            outc = w;
         }
+
+        out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+        out_elemsize = elemsize / elempack * out_elempack;
+
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
+
+        top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        if (top_blob.empty())
+            return -100;
     }
 
     std::vector<VkMat> bindings(2);
@@ -177,17 +327,39 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    if (elempack == 1)
+    if (elempack == 1 && out_elempack == 1)
     {
         cmd.record_pipeline(pipeline_permute, bindings, constants, top_blob);
     }
-
-    if (elempack == 4)
+    else if (elempack == 4 && out_elempack == 4)
+    {
+        cmd.record_pipeline(pipeline_permute_pack4, bindings, constants, top_blob);
+    }
+    else if (elempack == 1 && out_elempack == 4)
+    {
+        cmd.record_pipeline(pipeline_permute_pack1to4, bindings, constants, top_blob);
+    }
+    else if (elempack == 4 && out_elempack == 1)
     {
         cmd.record_pipeline(pipeline_permute_pack4to1, bindings, constants, bottom_blob);
     }
-
-    if (elempack == 8)
+    else if (elempack == 8 && out_elempack == 8)
+    {
+        cmd.record_pipeline(pipeline_permute_pack8, bindings, constants, top_blob);
+    }
+    else if (elempack == 1 && out_elempack == 8)
+    {
+        cmd.record_pipeline(pipeline_permute_pack1to8, bindings, constants, top_blob);
+    }
+    else if (elempack == 4 && out_elempack == 8)
+    {
+        cmd.record_pipeline(pipeline_permute_pack4to8, bindings, constants, top_blob);
+    }
+    else if (elempack == 8 && out_elempack == 4)
+    {
+        cmd.record_pipeline(pipeline_permute_pack8to4, bindings, constants, top_blob);
+    }
+    else if (elempack == 8 && out_elempack == 1)
     {
         cmd.record_pipeline(pipeline_permute_pack8to1, bindings, constants, bottom_blob);
     }

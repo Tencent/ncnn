@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "scale_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -29,38 +30,108 @@ Scale_vulkan::Scale_vulkan()
 
 int Scale_vulkan::create_pipeline(const Option& opt)
 {
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
     if (scale_data_size == -233)
     {
-        std::vector<vk_specialization_type> specializations(1);
+        std::vector<vk_specialization_type> specializations(1 + 5);
         specializations[0].i = 0;
+        specializations[1 + 0].i = shape_packed.dims;
+        specializations[1 + 1].i = shape_packed.w;
+        specializations[1 + 2].i = shape_packed.h;
+        specializations[1 + 3].i = shape_packed.c;
+        specializations[1 + 4].i = shape_packed.cstep;
+
+        Mat local_size_xyz;
+        if (shape_packed.dims == 1)
+        {
+            local_size_xyz.w = std::min(64, shape_packed.w);
+            local_size_xyz.h = 1;
+            local_size_xyz.c = 1;
+        }
+        if (shape_packed.dims == 2)
+        {
+            local_size_xyz.w = std::min(8, shape_packed.w);
+            local_size_xyz.h = std::min(8, shape_packed.h);
+            local_size_xyz.c = 1;
+        }
+        if (shape_packed.dims == 3)
+        {
+            local_size_xyz.w = std::min(4, shape_packed.w);
+            local_size_xyz.h = std::min(4, shape_packed.h);
+            local_size_xyz.c = std::min(4, shape_packed.c);
+        }
 
         // pack1
+        if (shape.dims == 0 || elempack == 1)
         {
             pipeline_scale = new Pipeline(vkdev);
-            pipeline_scale->set_optimal_local_size_xyz();
+            pipeline_scale->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_scale->create("scale", opt, specializations, 3, 5);
         }
 
         // pack4
+        if (shape.dims == 0 || elempack == 4)
         {
             pipeline_scale_pack4 = new Pipeline(vkdev);
-            pipeline_scale_pack4->set_optimal_local_size_xyz();
+            pipeline_scale_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_scale_pack4->create("scale_pack4", opt, specializations, 3, 5);
+        }
+
+        // pack8
+        if (shape.dims == 0 || elempack == 8)
+        {
+            pipeline_scale_pack4 = new Pipeline(vkdev);
+            pipeline_scale_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_scale_pack4->create("scale_pack8", opt, specializations, 3, 5);
         }
 
         return 0;
     }
 
-    int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
+    if (shape.dims == 0) elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
 
-    std::vector<vk_specialization_type> specializations(1);
+    std::vector<vk_specialization_type> specializations(1 + 5);
     specializations[0].i = bias_term;
+    specializations[1 + 0].i = shape_packed.dims;
+    specializations[1 + 1].i = shape_packed.w;
+    specializations[1 + 2].i = shape_packed.h;
+    specializations[1 + 3].i = shape_packed.c;
+    specializations[1 + 4].i = shape_packed.cstep;
+
+    Mat local_size_xyz(4, 4, std::min(4, scale_data_size / elempack), (void*)0);
+    if (shape_packed.dims == 1)
+    {
+        local_size_xyz.w = std::min(64, shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 2)
+    {
+        local_size_xyz.w = std::min(8, shape_packed.w);
+        local_size_xyz.h = std::min(8, shape_packed.h);
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 3)
+    {
+        local_size_xyz.w = std::min(4, shape_packed.w);
+        local_size_xyz.h = std::min(4, shape_packed.h);
+        local_size_xyz.c = std::min(4, shape_packed.c);
+    }
 
     // pack1
     if (elempack == 1)
     {
         pipeline_scale = new Pipeline(vkdev);
-        pipeline_scale->set_optimal_local_size_xyz(8, 8, scale_data_size);
+        pipeline_scale->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_scale->create("scale", opt, specializations, 3, 5);
     }
 
@@ -68,7 +139,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     if (elempack == 4)
     {
         pipeline_scale_pack4 = new Pipeline(vkdev);
-        pipeline_scale_pack4->set_optimal_local_size_xyz(8, 8, scale_data_size / 4);
+        pipeline_scale_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_scale_pack4->create("scale_pack4", opt, specializations, 3, 5);
     }
 
@@ -76,7 +147,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     if (elempack == 8)
     {
         pipeline_scale_pack8 = new Pipeline(vkdev);
-        pipeline_scale_pack8->set_optimal_local_size_xyz(8, 8, scale_data_size / 8);
+        pipeline_scale_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_scale_pack8->create("scale_pack8", opt, specializations, 3, 5);
     }
 

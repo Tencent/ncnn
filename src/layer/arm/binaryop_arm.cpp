@@ -53,6 +53,8 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
     int h1 = b.h;
     int channels1 = b.c;
     int size1 = w1 * h1;
+    size_t elemsize1 = b.elemsize;
+    int elempack1 = b.elempack;
 
     if (a.dims == 3)
     {
@@ -85,7 +87,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 return 0;
             }
 
-            if (w1 == w && h1 == h && channels1 == 1 && b.elempack == 1)
+            if (w1 == w && h1 == h && channels1 == 1 && elempack1 == 1)
             {
                 // special type 2
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -163,7 +165,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 1)
         {
-            if (b.w == 1)
+            if (b.w == 1 && elempack1 == 1)
             {
                 // type 16
                 float32x4_t _b0 = vdupq_n_f32(b[0]);
@@ -272,7 +274,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (c.empty())
                 return -100;
 
-            if (b.w == 1)
+            if (b.w == 1 && elempack1 == 1)
             {
                 // type 11
                 float32x4_t _b0 = vdupq_n_f32(b[0]);
@@ -315,12 +317,12 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
     }
     else if (a.dims == 1)
     {
-        if (a.w == 1)
+        if (a.w == 1 && elempack == 1)
         {
             if (b.dims == 3)
             {
                 // type 4
-                c.create(w1, h1, channels1, elemsize, elempack, opt.blob_allocator);
+                c.create(w1, h1, channels1, elemsize1, elempack1, opt.blob_allocator);
                 if (c.empty())
                     return -100;
 
@@ -347,7 +349,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (b.dims == 2)
             {
                 // type 3
-                c.create(w1, h1, elemsize, elempack, opt.blob_allocator);
+                c.create(w1, h1, elemsize1, elempack1, opt.blob_allocator);
                 if (c.empty())
                     return -100;
 
@@ -369,7 +371,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (b.dims == 1)
             {
                 // type 2
-                c.create(w1, elemsize, elempack, opt.blob_allocator);
+                c.create(w1, elemsize1, elempack1, opt.blob_allocator);
                 if (c.empty())
                     return -100;
 
@@ -451,7 +453,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (c.empty())
                 return -100;
 
-            if (b.w == 1)
+            if (b.w == 1 && elempack1 == 1)
             {
                 // type 6
                 float32x4_t _b0 = vdupq_n_f32(b[0]);

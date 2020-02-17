@@ -16,13 +16,11 @@
 
 #include "layer/absval.h"
 
-
-static int test_absval(const ncnn::Mat& a, bool use_packing_layout)
+static int test_absval(const ncnn::Mat& a)
 {
     ncnn::ParamDict pd;
     
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -32,13 +30,11 @@ static int test_absval(const ncnn::Mat& a, bool use_packing_layout)
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::AbsVal>("AbsVal", pd, mb, opt, a);
-
+    int ret = test_layer<ncnn::AbsVal>("AbsVal", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_absval failed use_packing_layout=%d\n", use_packing_layout);
+        fprintf(stderr, "test_absval failed\n");
     }
 
     return ret;
@@ -50,13 +46,8 @@ int main()
     SRAND(7767517);
 
     return 0 
-        || test_absval(RandomMat(6), false) 
-        || test_absval(RandomMat(6, 7), false) 
-        || test_absval(RandomMat(6, 7, 8), false) 
-
-        || test_absval(RandomMat(6), true) 
-        || test_absval(RandomMat(6, 7), true) 
-        || test_absval(RandomMat(6, 7, 8), true) 
+        || test_absval(RandomMat(6))
+        || test_absval(RandomMat(6, 7))
+        || test_absval(RandomMat(6, 7, 8))
         ;
-
 }

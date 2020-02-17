@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "padding_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -29,29 +30,69 @@ Padding_vulkan::Padding_vulkan()
 
 int Padding_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations(3);
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    int out_elempack = 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    Mat out_shape_packed;
+    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+
+    std::vector<vk_specialization_type> specializations(3 + 10);
     specializations[0].i = type;
     specializations[1].f = value;
     specializations[2].i = per_channel_pad_data_size ? 1 : 0;
+    specializations[3 + 0].i = shape_packed.dims;
+    specializations[3 + 1].i = shape_packed.w;
+    specializations[3 + 2].i = shape_packed.h;
+    specializations[3 + 3].i = shape_packed.c;
+    specializations[3 + 4].i = shape_packed.cstep;
+    specializations[3 + 5].i = out_shape_packed.dims;
+    specializations[3 + 6].i = out_shape_packed.w;
+    specializations[3 + 7].i = out_shape_packed.h;
+    specializations[3 + 8].i = out_shape_packed.c;
+    specializations[3 + 9].i = out_shape_packed.cstep;
+
+    Mat local_size_xyz;
+    if (out_shape_packed.dims != 0)
+    {
+        local_size_xyz.w = std::min(4, out_shape_packed.w);
+        local_size_xyz.h = std::min(4, out_shape_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_packed.c);
+    }
 
     // pack1
+    if (shape.dims == 0 || elempack == 1)
     {
         pipeline_padding = new Pipeline(vkdev);
-        pipeline_padding->set_optimal_local_size_xyz();
+        pipeline_padding->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding->create("padding", opt, specializations, 3, 12);
     }
 
     // pack4
+    if (shape.dims == 0 || elempack == 4)
     {
         pipeline_padding_pack4 = new Pipeline(vkdev);
-        pipeline_padding_pack4->set_optimal_local_size_xyz();
+        pipeline_padding_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_pack4->create("padding_pack4", opt, specializations, 3, 12);
     }
 
     // pack8
+    if (shape.dims == 0 || elempack == 8)
     {
         pipeline_padding_pack8 = new Pipeline(vkdev);
-        pipeline_padding_pack8->set_optimal_local_size_xyz();
+        pipeline_padding_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_pack8->create("padding_pack8", opt, specializations, 3, 12);
     }
 

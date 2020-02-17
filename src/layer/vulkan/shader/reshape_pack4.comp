@@ -23,6 +23,19 @@
 
 layout (constant_id = 0) const int ndim = 0;
 
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -55,49 +68,49 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
     ivec4 i4;
 
     if (ndim == 1) i4 = gx * 4 + ivec4(0, 1, 2, 3);
-    if (ndim == 2) i4 = (gy * 4) * p.outw + gx + ivec4(0, 1, 2, 3) * p.outw;
-    if (ndim == 3) i4 = (gz * 4) * p.outh * p.outw + gy * p.outw + gx + ivec4(0, 1, 2, 3) * p.outh * p.outw;
+    if (ndim == 2) i4 = (gy * 4) * psc(outw) + gx + ivec4(0, 1, 2, 3) * psc(outw);
+    if (ndim == 3) i4 = (gz * 4) * psc(outh) * psc(outw) + gy * psc(outw) + gx + ivec4(0, 1, 2, 3) * psc(outh) * psc(outw);
 
 #if NCNN_fp16_packed
     ivec4 v_offset;
     ivec4 lane2;
 
-    if (p.dims == 1)
+    if (psc(dims) == 1)
     {
         v_offset = i4 / 2;
         lane2 = i4 % 2;
     }
-    else if (p.dims == 2)
+    else if (psc(dims) == 2)
     {
-        ivec4 y4 = i4 / p.w;
-        ivec4 x4 = i4 % p.w;
+        ivec4 y4 = i4 / psc(w);
+        ivec4 x4 = i4 % psc(w);
 
-        v_offset = ((y4 / 4) * p.w + x4) * 2 + (y4 % 4) / 2;
+        v_offset = ((y4 / 4) * psc(w) + x4) * 2 + (y4 % 4) / 2;
         lane2 = y4 % 2;
     }
-    else // if (p.dims == 3)
+    else // if (psc(dims) == 3)
     {
-        int size = p.w * p.h;
+        int size = psc(w) * psc(h);
 
         ivec4 z4 = i4 / size;
-        ivec4 y4 = i4 % size / p.w;
-        ivec4 x4 = i4 % size % p.w;
+        ivec4 y4 = i4 % size / psc(w);
+        ivec4 x4 = i4 % size % psc(w);
 
-        v_offset = ((z4 / 4) * p.cstep + y4 * p.w + x4) * 2 + (z4 % 4) / 2;
+        v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 2 + (z4 % 4) / 2;
         lane2 = z4 % 2;
     }
 
     int gi;
 
     if (ndim == 1) gi = gx;
-    if (ndim == 2) gi = gy * p.outw + gx;
-    if (ndim == 3) gi = gz * p.outcstep + gy * p.outw + gx;
+    if (ndim == 2) gi = gy * psc(outw) + gx;
+    if (ndim == 3) gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     afpvec2 vr = buffer_ld2(bottom_blob_data, v_offset.r);
     afpvec2 vg = buffer_ld2(bottom_blob_data, v_offset.g);
@@ -110,33 +123,33 @@ void main()
 #else
     ivec4 v_offset;
 
-    if (p.dims == 1)
+    if (psc(dims) == 1)
     {
         v_offset = i4;
     }
-    else if (p.dims == 2)
+    else if (psc(dims) == 2)
     {
-        ivec4 y4 = i4 / p.w;
-        ivec4 x4 = i4 % p.w;
+        ivec4 y4 = i4 / psc(w);
+        ivec4 x4 = i4 % psc(w);
 
-        v_offset = ((y4 / 4) * p.w + x4) * 4 + y4 % 4;
+        v_offset = ((y4 / 4) * psc(w) + x4) * 4 + y4 % 4;
     }
-    else // if (p.dims == 3)
+    else // if (psc(dims) == 3)
     {
-        int size = p.w * p.h;
+        int size = psc(w) * psc(h);
 
         ivec4 z4 = i4 / size;
-        ivec4 y4 = i4 % size / p.w;
-        ivec4 x4 = i4 % size % p.w;
+        ivec4 y4 = i4 % size / psc(w);
+        ivec4 x4 = i4 % size % psc(w);
 
-        v_offset = ((z4 / 4) * p.cstep + y4 * p.w + x4) * 4 + z4 % 4;
+        v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 4 + z4 % 4;
     }
 
     int gi;
 
     if (ndim == 1) gi = gx;
-    if (ndim == 2) gi = gy * p.outw + gx;
-    if (ndim == 3) gi = gz * p.outcstep + gy * p.outw + gx;
+    if (ndim == 2) gi = gy * psc(outw) + gx;
+    if (ndim == 3) gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif

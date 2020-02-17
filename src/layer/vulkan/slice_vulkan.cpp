@@ -41,62 +41,138 @@ Slice_vulkan::Slice_vulkan()
 
 int Slice_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations(1);
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    int out_elempack = 1;
+    if (axis == 0)
+    {
+        if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+        if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
+        if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+
+        for (size_t b=1; b<top_shapes.size(); b++)
+        {
+            const Mat& shape1 = top_shapes[b];
+
+            int out_elempack1 = 1;
+            if (shape1.dims == 1) out_elempack1 = opt.use_shader_pack8 && shape1.w % 8 == 0 ? 8 : shape1.w % 4 == 0 ? 4 : 1;
+            if (shape1.dims == 2) out_elempack1 = opt.use_shader_pack8 && shape1.h % 8 == 0 ? 8 : shape1.h % 4 == 0 ? 4 : 1;
+            if (shape1.dims == 3) out_elempack1 = opt.use_shader_pack8 && shape1.c % 8 == 0 ? 8 : shape1.c % 4 == 0 ? 4 : 1;
+
+            out_elempack = std::min(out_elempack, out_elempack1);
+        }
+    }
+    else
+    {
+        out_elempack = elempack;
+    }
+
+    Mat shape_unpacked;
+    convert_shape_packing(shape, shape_unpacked, out_elempack);
+
+    std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = axis;
+    specializations[1 + 0].i = shape_unpacked.dims;
+    specializations[1 + 1].i = shape_unpacked.w;
+    specializations[1 + 2].i = shape_unpacked.h;
+    specializations[1 + 3].i = shape_unpacked.c;
+    specializations[1 + 4].i = shape_unpacked.cstep;
+    specializations[1 + 5].i = 0;// TODO handle out_shape_packed for slice2
+    specializations[1 + 6].i = 0;
+    specializations[1 + 7].i = 0;
+    specializations[1 + 8].i = 0;
+    specializations[1 + 9].i = 0;
+
+    Mat local_size_xyz;// TODO more precise group size guessed from shape_unpacked
+    if (shape_unpacked.dims == 1)
+    {
+        local_size_xyz.w = 64;
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (shape_unpacked.dims == 2)
+    {
+        local_size_xyz.w = 8;
+        local_size_xyz.h = 8;
+        local_size_xyz.c = 1;
+    }
+    if (shape_unpacked.dims == 3)
+    {
+        local_size_xyz.w = 4;
+        local_size_xyz.h = 4;
+        local_size_xyz.c = 4;
+    }
 
     // pack1
+    if (shape.dims == 0 || out_elempack == 1)
     {
         pipeline_slice[0] = new Pipeline(vkdev);
-        pipeline_slice[0]->set_optimal_local_size_xyz();
+        pipeline_slice[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice[0]->create("slice", opt, specializations, 2, 11);
         pipeline_slice[1] = new Pipeline(vkdev);
-        pipeline_slice[1]->set_optimal_local_size_xyz();
+        pipeline_slice[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice[1]->create("slice", opt, specializations, 2, 11);
     }
 
     // pack4
+    if (shape.dims == 0 || out_elempack == 4)
     {
         pipeline_slice_pack4[0] = new Pipeline(vkdev);
-        pipeline_slice_pack4[0]->set_optimal_local_size_xyz();
+        pipeline_slice_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack4[0]->create("slice_pack4", opt, specializations, 2, 11);
         pipeline_slice_pack4[1] = new Pipeline(vkdev);
-        pipeline_slice_pack4[1]->set_optimal_local_size_xyz();
+        pipeline_slice_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack4[1]->create("slice_pack4", opt, specializations, 2, 11);
     }
 
-    // pack4to1
+    // pack1to4
+    if ((axis == 0 && shape.dims == 0) || out_elempack == 1)
     {
         pipeline_slice_pack1to4[0] = new Pipeline(vkdev);
-        pipeline_slice_pack1to4[0]->set_optimal_local_size_xyz();
+        pipeline_slice_pack1to4[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack1to4[0]->create("slice_pack1to4", opt, specializations, 2, 11);
         pipeline_slice_pack1to4[1] = new Pipeline(vkdev);
-        pipeline_slice_pack1to4[1]->set_optimal_local_size_xyz();
+        pipeline_slice_pack1to4[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack1to4[1]->create("slice_pack1to4", opt, specializations, 2, 11);
     }
 
     // pack8
+    if (shape.dims == 0 || out_elempack == 8)
     {
         pipeline_slice_pack8[0] = new Pipeline(vkdev);
-        pipeline_slice_pack8[0]->set_optimal_local_size_xyz();
+        pipeline_slice_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack8[0]->create("slice_pack8", opt, specializations, 2, 11);
         pipeline_slice_pack8[1] = new Pipeline(vkdev);
-        pipeline_slice_pack8[1]->set_optimal_local_size_xyz();
+        pipeline_slice_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack8[1]->create("slice_pack8", opt, specializations, 2, 11);
     }
 
-    // pack8to1
+    // pack1to8
+    if ((axis == 0 && shape.dims == 0) || out_elempack == 1)
     {
         pipeline_slice_pack1to8[0] = new Pipeline(vkdev);
-        pipeline_slice_pack1to8[0]->set_optimal_local_size_xyz();
+        pipeline_slice_pack1to8[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack1to8[0]->create("slice_pack1to8", opt, specializations, 2, 11);
         pipeline_slice_pack1to8[1] = new Pipeline(vkdev);
-        pipeline_slice_pack1to8[1]->set_optimal_local_size_xyz();
+        pipeline_slice_pack1to8[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack1to8[1]->create("slice_pack1to8", opt, specializations, 2, 11);
     }
 
+    if ((axis == 0 && shape.dims == 0) || (elempack > out_elempack && out_elempack == 1))
     {
         packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
         packing_pack1->vkdev = vkdev;
+
+        packing_pack1->bottom_shapes.resize(1);
+        packing_pack1->bottom_shapes[0] = shape;
+        packing_pack1->top_shapes.resize(1);
+        packing_pack1->top_shapes[0] = shape_unpacked;
 
         ncnn::ParamDict pd;
         pd.set(0, 1);
@@ -106,9 +182,15 @@ int Slice_vulkan::create_pipeline(const Option& opt)
         packing_pack1->create_pipeline(opt);
     }
 
+    if ((axis == 0 && shape.dims == 0) || (elempack > out_elempack && out_elempack == 4))
     {
         packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
         packing_pack4->vkdev = vkdev;
+
+        packing_pack4->bottom_shapes.resize(1);
+        packing_pack4->bottom_shapes[0] = shape;
+        packing_pack4->top_shapes.resize(1);
+        packing_pack4->top_shapes[0] = shape_unpacked;
 
         ncnn::ParamDict pd;
         pd.set(0, 4);
@@ -258,7 +340,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
-            woffset += top_blob.w * top_blob.elempack / elempack;
+            woffset += top_blob.w * top_blob.elempack / out_elempack;
         }
 
         return 0;
@@ -351,7 +433,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
-            hoffset += top_blob.w * top_blob.elempack / elempack;
+            hoffset += top_blob.h * top_blob.elempack / out_elempack;
         }
 
         return 0;
@@ -502,7 +584,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
-            coffset += top_blob.c * top_blob.elempack / elempack;
+            coffset += top_blob.c * top_blob.elempack / out_elempack;
         }
 
         return 0;

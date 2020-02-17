@@ -22,6 +22,19 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -50,31 +63,31 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
     ivec2 v_offset;
 
-    if (p.dims == 1)
+    if (psc(dims) == 1)
     {
         ivec2 x2 = ivec2(gx * 2) + ivec2(0, 1);
 
         v_offset = x2;
     }
-    else if (p.dims == 2)
+    else if (psc(dims) == 2)
     {
         ivec2 y2 = ivec2(gy * 2) + ivec2(0, 1);
 
-        v_offset = y2 * p.w + gx;
+        v_offset = y2 * psc(w) + gx;
     }
-    else // if (p.dims == 3)
+    else // if (psc(dims) == 3)
     {
         ivec2 z2 = ivec2(gz * 2) + ivec2(0, 1);
 
-        v_offset = z2 * p.cstep + ivec2(gy * p.w + gx);
+        v_offset = z2 * psc(cstep) + ivec2(gy * psc(w) + gx);
     }
 
-    int gi = gz * p.outcstep + gy * p.outw + gx;
+    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_cp4to8(top_blob_data, gi, bottom_blob_data, v_offset);
 }

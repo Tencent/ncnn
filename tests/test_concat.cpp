@@ -16,13 +16,12 @@
 
 #include "layer/concat.h"
 
-static int test_concat(const std::vector<ncnn::Mat>& a, int axis, bool use_packing_layout)
+static int test_concat(const std::vector<ncnn::Mat>& a, int axis)
 {
     ncnn::ParamDict pd;
     pd.set(0, axis);//axis
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -32,12 +31,11 @@ static int test_concat(const std::vector<ncnn::Mat>& a, int axis, bool use_packi
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Concat>("Concat", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Concat>("Concat", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_concat failed a[0].dims=%d a[0]=(%d %d %d) axis=%d use_packing_layout=%d\n", a[0].dims, a[0].w, a[0].h, a[0].c, axis, use_packing_layout);
+        fprintf(stderr, "test_concat failed a[0].dims=%d a[0]=(%d %d %d) axis=%d\n", a[0].dims, a[0].w, a[0].h, a[0].c, axis);
     }
 
     return ret;
@@ -51,13 +49,9 @@ static int test_concat_0()
     a[2] = RandomMat(16, 12, 8);
 
     return 0
-        || test_concat(a, 0, false)
-        || test_concat(a, 1, false)
-        || test_concat(a, 2, false)
-
-        || test_concat(a, 0, true)
-        || test_concat(a, 1, true)
-        || test_concat(a, 2, true)
+        || test_concat(a, 0)
+        || test_concat(a, 1)
+        || test_concat(a, 2)
         ;
 }
 
@@ -68,7 +62,7 @@ static int test_concat_1()
     a[1] = RandomMat(7, 3, 8);
     a[2] = RandomMat(7, 3, 5);
 
-    return test_concat(a, 0, false) || test_concat(a, 0, true);
+    return test_concat(a, 0);
 }
 
 static int test_concat_2()
@@ -78,7 +72,7 @@ static int test_concat_2()
     a[1] = RandomMat(7, 8, 2);
     a[2] = RandomMat(7, 5, 2);
 
-    return test_concat(a, 1, false) || test_concat(a, 1, true);
+    return test_concat(a, 1);
 }
 
 static int test_concat_3()
@@ -88,7 +82,7 @@ static int test_concat_3()
     a[1] = RandomMat(7, 8, 8);
     a[2] = RandomMat(7, 5, 8);
 
-    return test_concat(a, 1, false) || test_concat(a, 1, true);
+    return test_concat(a, 1);
 }
 
 static int test_concat_4()
@@ -98,7 +92,7 @@ static int test_concat_4()
     a[1] = RandomMat(8, 7, 2);
     a[2] = RandomMat(5, 7, 2);
 
-    return test_concat(a, 2, false) || test_concat(a, 2, true);
+    return test_concat(a, 2);
 }
 
 static int test_concat_5()
@@ -108,7 +102,7 @@ static int test_concat_5()
     a[1] = RandomMat(8, 7, 8);
     a[2] = RandomMat(5, 7, 8);
 
-    return test_concat(a, 2, false) || test_concat(a, 2, true);
+    return test_concat(a, 2);
 }
 
 static int test_concat_6()
@@ -118,7 +112,7 @@ static int test_concat_6()
     a[1] = RandomMat(7, 8);
     a[2] = RandomMat(7, 5);
 
-    return test_concat(a, 0, false) || test_concat(a, 0, true);
+    return test_concat(a, 0);
 }
 
 static int test_concat_7()
@@ -128,7 +122,7 @@ static int test_concat_7()
     a[1] = RandomMat(8, 2);
     a[2] = RandomMat(5, 2);
 
-    return test_concat(a, 1, false) || test_concat(a, 1, true);
+    return test_concat(a, 1);
 }
 
 static int test_concat_8()
@@ -138,7 +132,7 @@ static int test_concat_8()
     a[1] = RandomMat(8, 8);
     a[2] = RandomMat(5, 8);
 
-    return test_concat(a, 1, false) || test_concat(a, 1, true);
+    return test_concat(a, 1);
 }
 
 static int test_concat_9()
@@ -148,7 +142,7 @@ static int test_concat_9()
     a[1] = RandomMat(8);
     a[2] = RandomMat(5);
 
-    return test_concat(a, 0, false) || test_concat(a, 0, true);
+    return test_concat(a, 0);
 }
 
 static int test_concat_10()
@@ -158,7 +152,7 @@ static int test_concat_10()
     a[1] = RandomMat(8);
     a[2] = RandomMat(12);
 
-    return test_concat(a, 0, false) || test_concat(a, 0, true);
+    return test_concat(a, 0);
 }
 
 int main()

@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "reshape_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -35,69 +36,147 @@ Reshape_vulkan::Reshape_vulkan()
 
 int Reshape_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations(1);
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    int out_elempack = 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    Mat out_shape_packed;
+    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+
+    std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = ndim;
+    specializations[1 + 0].i = shape_packed.dims;
+    specializations[1 + 1].i = shape_packed.w;
+    specializations[1 + 2].i = shape_packed.h;
+    specializations[1 + 3].i = shape_packed.c;
+    specializations[1 + 4].i = shape_packed.cstep;
+    specializations[1 + 5].i = out_shape_packed.dims;
+    specializations[1 + 6].i = out_shape_packed.w;
+    specializations[1 + 7].i = out_shape_packed.h;
+    specializations[1 + 8].i = out_shape_packed.c;
+    specializations[1 + 9].i = out_shape_packed.cstep;
+
+    Mat local_size_xyz_bottom;// pack4to1 and pack8to1
+    if (shape_packed.dims == 1)
+    {
+        local_size_xyz_bottom.w = std::min(64, shape_packed.w);
+        local_size_xyz_bottom.h = 1;
+        local_size_xyz_bottom.c = 1;
+    }
+    if (shape_packed.dims == 2)
+    {
+        local_size_xyz_bottom.w = std::min(8, shape_packed.w);
+        local_size_xyz_bottom.h = std::min(8, shape_packed.h);
+        local_size_xyz_bottom.c = 1;
+    }
+    if (shape_packed.dims == 3)
+    {
+        local_size_xyz_bottom.w = std::min(4, shape_packed.w);
+        local_size_xyz_bottom.h = std::min(4, shape_packed.h);
+        local_size_xyz_bottom.c = std::min(4, shape_packed.c);
+    }
+
+    Mat local_size_xyz;
+    if (out_shape_packed.dims == 1)
+    {
+        local_size_xyz.w = std::min(64, out_shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (out_shape_packed.dims == 2)
+    {
+        local_size_xyz.w = std::min(8, out_shape_packed.w);
+        local_size_xyz.h = std::min(8, out_shape_packed.h);
+        local_size_xyz.c = 1;
+    }
+    if (out_shape_packed.dims == 3)
+    {
+        local_size_xyz.w = std::min(4, out_shape_packed.w);
+        local_size_xyz.h = std::min(4, out_shape_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_packed.c);
+    }
 
     // pack1
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 1))
     {
         pipeline_reshape = new Pipeline(vkdev);
-        pipeline_reshape->set_optimal_local_size_xyz();
+        pipeline_reshape->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reshape->create("reshape", opt, specializations, 2, 10);
     }
 
     // pack4
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 4))
     {
         pipeline_reshape_pack4 = new Pipeline(vkdev);
-        pipeline_reshape_pack4->set_optimal_local_size_xyz();
+        pipeline_reshape_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reshape_pack4->create("reshape_pack4", opt, specializations, 2, 10);
     }
 
     // pack1to4
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 4))
     {
         pipeline_reshape_pack1to4 = new Pipeline(vkdev);
-        pipeline_reshape_pack1to4->set_optimal_local_size_xyz();
+        pipeline_reshape_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reshape_pack1to4->create("reshape_pack1to4", opt, specializations, 2, 10);
     }
 
     // pack4to1
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 1))
     {
         pipeline_reshape_pack4to1 = new Pipeline(vkdev);
-        pipeline_reshape_pack4to1->set_optimal_local_size_xyz();
+        pipeline_reshape_pack4to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
         pipeline_reshape_pack4to1->create("reshape_pack4to1", opt, specializations, 2, 10);
     }
 
     // pack8
+    if (shape.dims == 0 || (elempack == 8 && out_elempack == 8))
     {
         pipeline_reshape_pack8 = new Pipeline(vkdev);
-        pipeline_reshape_pack8->set_optimal_local_size_xyz();
+        pipeline_reshape_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reshape_pack8->create("reshape_pack8", opt, specializations, 2, 10);
     }
 
     // pack1to8
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 8))
     {
         pipeline_reshape_pack1to8 = new Pipeline(vkdev);
-        pipeline_reshape_pack1to8->set_optimal_local_size_xyz();
+        pipeline_reshape_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reshape_pack1to8->create("reshape_pack1to8", opt, specializations, 2, 10);
     }
 
     // pack4to8
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 8))
     {
         pipeline_reshape_pack4to8 = new Pipeline(vkdev);
-        pipeline_reshape_pack4to8->set_optimal_local_size_xyz();
+        pipeline_reshape_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reshape_pack4to8->create("reshape_pack4to8", opt, specializations, 2, 10);
     }
 
     // pack8to4
+    if (shape.dims == 0 || (elempack == 8 && out_elempack == 4))
     {
         pipeline_reshape_pack8to4 = new Pipeline(vkdev);
-        pipeline_reshape_pack8to4->set_optimal_local_size_xyz();
+        pipeline_reshape_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reshape_pack8to4->create("reshape_pack8to4", opt, specializations, 2, 10);
     }
 
     // pack8to1
+    if (shape.dims == 0 || (elempack == 8 && out_elempack == 1))
     {
         pipeline_reshape_pack8to1 = new Pipeline(vkdev);
-        pipeline_reshape_pack8to1->set_optimal_local_size_xyz();
+        pipeline_reshape_pack8to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
         pipeline_reshape_pack8to1->create("reshape_pack8to1", opt, specializations, 2, 10);
     }
 

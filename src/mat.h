@@ -39,24 +39,6 @@
 
 namespace ncnn {
 
-// thin and pod shape structure
-class Shape
-{
-public:
-    Shape() : dims(0), w(0), h(0), c(0) {}
-    Shape(int _dims, int _w, int _h, int _c) : dims(_dims), w(_w), h(_h), c(_c) {}
-
-public:
-    // the dimension rank
-    // 0 = empty
-    int dims;
-
-    // 0 = variable
-    int w;
-    int h;
-    int c;
-};
-
 #if NCNN_VULKAN
 class VkMat;
 #endif // NCNN_VULKAN
@@ -137,7 +119,6 @@ public:
 
     bool empty() const;
     size_t total() const;
-    Shape shape() const;
 
     // data reference
     Mat channel(int c);
@@ -332,7 +313,6 @@ public:
 
     bool empty() const;
     size_t total() const;
-    Shape shape() const;
 
     // data reference
     VkMat channel(int c);
@@ -417,7 +397,6 @@ public:
 
     bool empty() const;
     size_t total() const;
-    Shape shape() const;
 
     // low-level reference
     VkImage image() const;
@@ -504,9 +483,11 @@ void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt = 
 void convert_packing(const Mat& src, Mat& dst, int elempack, const Option& opt = Option());
 void cast_float32_to_float16(const Mat& src, Mat& dst, const Option& opt = Option());
 void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
+void cast_int8_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
 void quantize_float32_to_int8(const Mat& src, Mat& dst, float scale, const Option& opt = Option());
 void dequantize_int32_to_float32(Mat& m, float scale, const float* bias, int bias_data_size, const Option& opt = Option());
 void requantize_int8_to_int8(const Mat& src, Mat& dst, float scale_in, float scale_out, const float* bias, int bias_data_size, int fusion_relu, const Option& opt = Option());
+void convert_shape_packing(const Mat& src, Mat& dst, int elempack);
 
 inline Mat::Mat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
@@ -1127,11 +1108,6 @@ inline size_t Mat::total() const
     return cstep * c;
 }
 
-inline Shape Mat::shape() const
-{
-    return Shape(dims, w, h, c);
-}
-
 inline Mat Mat::channel(int _c)
 {
     return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
@@ -1678,11 +1654,6 @@ inline size_t VkMat::total() const
     return cstep * c;
 }
 
-inline Shape VkMat::shape() const
-{
-    return Shape(dims, w, h, c);
-}
-
 inline VkMat VkMat::channel(int _c)
 {
     return VkMat(w, h, data, cstep * _c * elemsize, elemsize, elempack, allocator, staging_allocator);
@@ -1847,11 +1818,6 @@ inline bool VkImageMat::empty() const
 inline size_t VkImageMat::total() const
 {
     return width * height;
-}
-
-inline Shape VkImageMat::shape() const
-{
-    return Shape(2, width, height, 1);
 }
 
 inline VkImage VkImageMat::image() const

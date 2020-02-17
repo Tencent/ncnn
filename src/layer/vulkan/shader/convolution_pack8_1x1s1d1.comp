@@ -27,6 +27,17 @@ layout (constant_id = 1) const int activation_type = 0;
 layout (constant_id = 2) const float activation_param_0 = 0;
 layout (constant_id = 3) const float activation_param_1 = 0;
 
+#define shape_constant_id_offset 4
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int size = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 4) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outsize = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -55,7 +66,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outsize || gy >= 1 || gz >= p.outc)
+    if (gx >= psc(outsize) || gy >= 1 || gz >= psc(outc))
         return;
 
     afpvec8 sum0;
@@ -79,10 +90,10 @@ void main()
         sum3 = afpvec8(afpvec4(0.f), afpvec4(0.f));
     }
 
-    int w_offset = gz * p.c * 8;
+    int w_offset = gz * psc(c) * 8;
     int v_offset = gx;
 
-    for (int z = 0; z < p.c; z++)
+    for (int z = 0; z < psc(c); z++)
     {
         afpvec8 v0 = buffer_ld8(bottom_blob_data, v_offset + 0);
         afpvec8 v1 = buffer_ld8(bottom_blob_data, v_offset + 1);
@@ -136,7 +147,7 @@ void main()
         sum3[1].a += dot(v3[0], k7[0]) + dot(v3[1], k7[1]);
 
         w_offset += 8;
-        v_offset += p.cstep;
+        v_offset += psc(cstep);
     }
 
     if (activation_type == 1)
@@ -187,10 +198,10 @@ void main()
         sum3[1] = afp(1.f) / (afp(1.f) + exp(-sum3[1]));
     }
 
-    int gi = gz * p.outcstep + gx;
+    int gi = gz * psc(outcstep) + gx;
 
     buffer_st8(top_blob_data, gi + 0, sum0);
-    if (gx + 1 < p.outcstep) buffer_st8(top_blob_data, gi + 1, sum1);
-    if (gx + 2 < p.outcstep) buffer_st8(top_blob_data, gi + 2, sum2);
-    if (gx + 3 < p.outcstep) buffer_st8(top_blob_data, gi + 3, sum3);
+    if (gx + 1 < psc(outcstep)) buffer_st8(top_blob_data, gi + 1, sum1);
+    if (gx + 2 < psc(outcstep)) buffer_st8(top_blob_data, gi + 2, sum2);
+    if (gx + 3 < psc(outcstep)) buffer_st8(top_blob_data, gi + 3, sum3);
 }

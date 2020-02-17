@@ -23,6 +23,19 @@
 
 layout (constant_id = 0) const int axis = 0;
 
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -51,14 +64,14 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
     afpvec4 sum_value = afpvec4(0.f);
 
-    if (p.dims == 1) // axis == 0
+    if (psc(dims) == 1) // axis == 0
     {
-        for (int i = 0; i < p.w; i++)
+        for (int i = 0; i < psc(w); i++)
         {
             sum_value += buffer_ld4(bottom_top_blob_data, i);
         }
@@ -68,11 +81,11 @@ void main()
         return;
     }
 
-    if (p.dims == 2 && axis == 0)
+    if (psc(dims) == 2 && axis == 0)
     {
-        for (int i = 0; i < p.h; i++)
+        for (int i = 0; i < psc(h); i++)
         {
-            int v_offset = i * p.w + gx;
+            int v_offset = i * psc(w) + gx;
             sum_value += buffer_ld4(bottom_top_blob_data, v_offset);
         }
         afpvec2 sum2 = sum_value.rg + sum_value.ba;
@@ -81,49 +94,49 @@ void main()
         return;
     }
 
-    if (p.dims == 2 && axis == 1)
+    if (psc(dims) == 2 && axis == 1)
     {
-        for (int i = 0; i < p.w; i++)
+        for (int i = 0; i < psc(w); i++)
         {
-            int v_offset = gx * p.w + i;
+            int v_offset = gx * psc(w) + i;
             sum_value += buffer_ld4(bottom_top_blob_data, v_offset);
         }
         buffer_st4(sum_workspace_data, gx, sum_value);
         return;
     }
 
-    if (p.dims == 3 && axis == 0)
+    if (psc(dims) == 3 && axis == 0)
     {
-        for (int i = 0; i < p.c; i++)
+        for (int i = 0; i < psc(c); i++)
         {
-            int v_offset = i * p.cstep + gy * p.w + gx;
+            int v_offset = i * psc(cstep) + gy * psc(w) + gx;
             sum_value += buffer_ld4(bottom_top_blob_data, v_offset);
         }
         afpvec2 sum2 = sum_value.rg + sum_value.ba;
         sum_value = afpvec4(sum2.r + sum2.g);
-        buffer_st4(sum_workspace_data, gy * p.w + gx, sum_value);
+        buffer_st4(sum_workspace_data, gy * psc(w) + gx, sum_value);
         return;
     }
 
-    if (p.dims == 3 && axis == 1)
+    if (psc(dims) == 3 && axis == 1)
     {
-        for (int i = 0; i < p.h; i++)
+        for (int i = 0; i < psc(h); i++)
         {
-            int v_offset = gy * p.cstep + i * p.w + gx;
+            int v_offset = gy * psc(cstep) + i * psc(w) + gx;
             sum_value += buffer_ld4(bottom_top_blob_data, v_offset);
         }
-        buffer_st4(sum_workspace_data, gy * p.w + gx, sum_value);
+        buffer_st4(sum_workspace_data, gy * psc(w) + gx, sum_value);
         return;
     }
 
-    if (p.dims == 3 && axis == 2)
+    if (psc(dims) == 3 && axis == 2)
     {
-        for (int i = 0; i < p.w; i++)
+        for (int i = 0; i < psc(w); i++)
         {
-            int v_offset = gy * p.cstep + gx * p.w + i;
+            int v_offset = gy * psc(cstep) + gx * psc(w) + i;
             sum_value += buffer_ld4(bottom_top_blob_data, v_offset);
         }
-        buffer_st4(sum_workspace_data, gy * p.h + gx, sum_value);
+        buffer_st4(sum_workspace_data, gy * psc(h) + gx, sum_value);
         return;
     }
 }

@@ -21,6 +21,13 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -44,10 +51,10 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-    const int gi = gz * p.cstep + gy * p.w + gx;
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
     afpvec4 mean = buffer_ld4(mean_data, gz);
