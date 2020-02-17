@@ -64,18 +64,26 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     convert_shape_packing(workspace_shape, workspace_shape_packed, elempack);
 
     {
+        Mat local_size_xyz(16, 1, std::min(4, channels / elempack), (void*)0);
+        if (workspace_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = 16;
+            local_size_xyz.h = 1;
+            local_size_xyz.c = std::min(4, workspace_shape_packed.c);
+        }
+
         // pack1
         if (elempack == 1)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(16, 1, channels);
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create("instancenorm_reduce_sum4_fp16_to_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
 
             pipeline_instancenorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(16, 1, channels);
+            pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_sum4_fp32[0]->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
             pipeline_instancenorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(16, 1, channels);
+            pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_sum4_fp32[1]->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
         }
 
@@ -83,14 +91,14 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         if (elempack == 4)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 4));
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create("instancenorm_reduce_sum4_fp16_to_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
 
             pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 4));
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
             pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 4));
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
         }
 
@@ -98,14 +106,14 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         if (elempack == 8)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 8));
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->create("instancenorm_reduce_sum4_fp16_to_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
 
             pipeline_instancenorm_reduce_sum4_fp32_pack8[0] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 8));
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->create("instancenorm_reduce_sum4_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
             pipeline_instancenorm_reduce_sum4_fp32_pack8[1] = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 8));
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->create("instancenorm_reduce_sum4_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
         }
     }
@@ -116,24 +124,32 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         specializations[1].i = workspace_shape_packed.c;
         specializations[2].i = 0;// TODO resolve workspace_shape_packed.cstep;
 
+        Mat local_size_xyz(std::min(64, channels / elempack), 1, 1, (void*)0);
+        if (workspace_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(64, workspace_shape_packed.c);
+            local_size_xyz.h = 1;
+            local_size_xyz.c = 1;
+        }
+
         if (elempack == 1)
         {
             pipeline_instancenorm_reduce_mean = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(channels, 1, 1);
+            pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_mean->create("instancenorm_reduce_mean", opt, specializations, 2, 4);
         }
 
         if (elempack == 4)
         {
             pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(std::max(1, channels / 4), 1, 1);
+            pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_mean_pack4->create("instancenorm_reduce_mean_pack4", opt, specializations, 2, 4);
         }
 
         if (elempack == 8)
         {
             pipeline_instancenorm_reduce_mean_pack8 = new Pipeline(vkdev);
-            pipeline_instancenorm_reduce_mean_pack8->set_optimal_local_size_xyz(std::max(1, channels / 8), 1, 1);
+            pipeline_instancenorm_reduce_mean_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_mean_pack8->create("instancenorm_reduce_mean_pack8", opt, specializations, 2, 4);
         }
     }
@@ -146,24 +162,32 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         specializations[0 + 3].i = shape_packed.c;
         specializations[0 + 4].i = shape_packed.cstep;
 
+        Mat local_size_xyz(4, 4, std::min(4, channels / elempack), (void*)0);
+        if (shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(4, shape_packed.w);
+            local_size_xyz.h = std::min(4, shape_packed.h);
+            local_size_xyz.c = std::min(4, shape_packed.c);
+        }
+
         if (elempack == 1)
         {
             pipeline_instancenorm_sub_mean_square = new Pipeline(vkdev);
-            pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(32, 32, channels);
+            pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_sub_mean_square->create("instancenorm_sub_mean_square", opt, specializations, 3, 5);
         }
 
         if (elempack == 4)
         {
             pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, channels / 4));
+            pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_sub_mean_square_pack4->create("instancenorm_sub_mean_square_pack4", opt, specializations, 3, 5);
         }
 
         if (elempack == 8)
         {
             pipeline_instancenorm_sub_mean_square_pack8 = new Pipeline(vkdev);
-            pipeline_instancenorm_sub_mean_square_pack8->set_optimal_local_size_xyz(32, 32, std::max(1, channels / 8));
+            pipeline_instancenorm_sub_mean_square_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_sub_mean_square_pack8->create("instancenorm_sub_mean_square_pack8", opt, specializations, 3, 5);
         }
     }
@@ -173,24 +197,32 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         specializations[0].f = eps;
         specializations[1].i = channels / elempack;
 
+        Mat local_size_xyz(std::min(64, channels / elempack), 1, 1, (void*)0);
+        if (workspace_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(64, workspace_shape_packed.c);
+            local_size_xyz.h = 1;
+            local_size_xyz.c = 1;
+        }
+
         if (elempack == 1)
         {
             pipeline_instancenorm_coeffs = new Pipeline(vkdev);
-            pipeline_instancenorm_coeffs->set_optimal_local_size_xyz(channels, 1, 1);
+            pipeline_instancenorm_coeffs->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_coeffs->create("instancenorm_coeffs", opt, specializations, 5, 0);
         }
 
         if (elempack == 4)
         {
             pipeline_instancenorm_coeffs_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_coeffs_pack4->set_optimal_local_size_xyz(std::max(1, channels / 4), 1, 1);
+            pipeline_instancenorm_coeffs_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_coeffs_pack4->create("instancenorm_coeffs_pack4", opt, specializations, 5, 0);
         }
 
         if (elempack == 8)
         {
             pipeline_instancenorm_coeffs_pack8 = new Pipeline(vkdev);
-            pipeline_instancenorm_coeffs_pack8->set_optimal_local_size_xyz(std::max(1, channels / 8), 1, 1);
+            pipeline_instancenorm_coeffs_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_coeffs_pack8->create("instancenorm_coeffs_pack8", opt, specializations, 5, 0);
         }
     }
@@ -203,24 +235,32 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         specializations[0 + 3].i = shape_packed.c;
         specializations[0 + 4].i = shape_packed.cstep;
 
+        Mat local_size_xyz(4, 4, std::min(4, channels / elempack), (void*)0);
+        if (shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(4, shape_packed.w);
+            local_size_xyz.h = std::min(4, shape_packed.h);
+            local_size_xyz.c = std::min(4, shape_packed.c);
+        }
+
         if (elempack == 1)
         {
             pipeline_instancenorm_norm = new Pipeline(vkdev);
-            pipeline_instancenorm_norm->set_optimal_local_size_xyz(32, 32, channels);
+            pipeline_instancenorm_norm->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_norm->create("instancenorm_norm", opt, specializations, 2, 5);
         }
 
         if (elempack == 4)
         {
             pipeline_instancenorm_norm_pack4 = new Pipeline(vkdev);
-            pipeline_instancenorm_norm_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, channels / 4));
+            pipeline_instancenorm_norm_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_norm_pack4->create("instancenorm_norm_pack4", opt, specializations, 2, 5);
         }
 
         if (elempack == 8)
         {
             pipeline_instancenorm_norm_pack8 = new Pipeline(vkdev);
-            pipeline_instancenorm_norm_pack8->set_optimal_local_size_xyz(32, 32, std::max(1, channels / 8));
+            pipeline_instancenorm_norm_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_norm_pack8->create("instancenorm_norm_pack8", opt, specializations, 2, 5);
         }
     }

@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "flatten_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -61,7 +62,13 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
     specializations[0 + 8].i = out_shape_packed.c;
     specializations[0 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz = out_shape_packed.dims ? out_shape_packed : Mat();
+    Mat local_size_xyz(64, 1, 1, (void*)0);
+    if (out_shape_packed.dims != 0)
+    {
+        local_size_xyz.w = std::min(64, out_shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
 
     // pack1
     if (shape.dims == 0 || (elempack == 1 && out_elempack == 1))

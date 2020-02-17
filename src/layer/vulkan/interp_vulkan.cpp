@@ -70,11 +70,25 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         specializations[1 + 8].i = out_shape_packed.c;
         specializations[1 + 9].i = out_shape_packed.cstep;
 
+        Mat local_size_xyz;
+        if (out_shape_packed.dims == 2)
+        {
+            local_size_xyz.w = std::min(8, out_shape_packed.w);
+            local_size_xyz.h = std::min(8, out_shape_packed.h);
+            local_size_xyz.c = 1;
+        }
+        if (out_shape_packed.dims == 3)
+        {
+            local_size_xyz.w = std::min(4, out_shape_packed.w);
+            local_size_xyz.h = std::min(4, out_shape_packed.h);
+            local_size_xyz.c = std::min(4, out_shape_packed.c);
+        }
+
         // pack1
         if (shape.dims == 0 || elempack == 1)
         {
             pipeline_interp = new Pipeline(vkdev);
-            pipeline_interp->set_optimal_local_size_xyz();
+            pipeline_interp->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_interp->create("interp", opt, specializations, 2, 12);
         }
 
@@ -82,7 +96,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         if (shape.dims == 0 || elempack == 4)
         {
             pipeline_interp_pack4 = new Pipeline(vkdev);
-            pipeline_interp_pack4->set_optimal_local_size_xyz();
+            pipeline_interp_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_interp_pack4->create("interp_pack4", opt, specializations, 2, 12);
         }
 
@@ -90,7 +104,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         if (shape.dims == 0 || elempack == 8)
         {
             pipeline_interp_pack8 = new Pipeline(vkdev);
-            pipeline_interp_pack8->set_optimal_local_size_xyz();
+            pipeline_interp_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_interp_pack8->create("interp_pack8", opt, specializations, 2, 12);
         }
     }
@@ -102,8 +116,16 @@ int Interp_vulkan::create_pipeline(const Option& opt)
             specializations[0 + 0].i = shape_packed.w;
             specializations[0 + 1].i = out_shape_packed.w;
 
+            Mat local_size_xyz(64, 1, 1, (void*)0);
+            if (out_shape_packed.dims != 0)
+            {
+                local_size_xyz.w = std::min(64, out_shape_packed.w);
+                local_size_xyz.h = 1;
+                local_size_xyz.c = 1;
+            }
+
             pipeline_interp_bicubic_coeffs_x = new Pipeline(vkdev);
-            pipeline_interp_bicubic_coeffs_x->set_optimal_local_size_xyz(64, 1, 1);
+            pipeline_interp_bicubic_coeffs_x->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_interp_bicubic_coeffs_x->create("interp_bicubic_coeffs", opt, specializations, 2, 3);
         }
         {
@@ -111,8 +133,16 @@ int Interp_vulkan::create_pipeline(const Option& opt)
             specializations[0 + 0].i = shape_packed.h;
             specializations[0 + 1].i = out_shape_packed.h;
 
+            Mat local_size_xyz(64, 1, 1, (void*)0);
+            if (out_shape_packed.dims != 0)
+            {
+                local_size_xyz.w = std::min(64, out_shape_packed.h);
+                local_size_xyz.h = 1;
+                local_size_xyz.c = 1;
+            }
+
             pipeline_interp_bicubic_coeffs_y = new Pipeline(vkdev);
-            pipeline_interp_bicubic_coeffs_y->set_optimal_local_size_xyz(64, 1, 1);
+            pipeline_interp_bicubic_coeffs_y->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_interp_bicubic_coeffs_y->create("interp_bicubic_coeffs", opt, specializations, 2, 3);
         }
 
@@ -128,11 +158,25 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         specializations[0 + 8].i = out_shape_packed.c;
         specializations[0 + 9].i = out_shape_packed.cstep;
 
+        Mat local_size_xyz;
+        if (out_shape_packed.dims == 2)
+        {
+            local_size_xyz.w = std::min(8, out_shape_packed.w);
+            local_size_xyz.h = std::min(8, out_shape_packed.h);
+            local_size_xyz.c = 1;
+        }
+        if (out_shape_packed.dims == 3)
+        {
+            local_size_xyz.w = std::min(4, out_shape_packed.w);
+            local_size_xyz.h = std::min(4, out_shape_packed.h);
+            local_size_xyz.c = std::min(4, out_shape_packed.c);
+        }
+
         // pack1
         if (shape.dims == 0 || elempack == 1)
         {
             pipeline_interp_bicubic = new Pipeline(vkdev);
-            pipeline_interp_bicubic->set_optimal_local_size_xyz();
+            pipeline_interp_bicubic->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_interp_bicubic->create("interp_bicubic", opt, specializations, 6, 10);
         }
 
@@ -140,7 +184,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         if (shape.dims == 0 || elempack == 4)
         {
             pipeline_interp_bicubic_pack4 = new Pipeline(vkdev);
-            pipeline_interp_bicubic_pack4->set_optimal_local_size_xyz();
+            pipeline_interp_bicubic_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_interp_bicubic_pack4->create("interp_bicubic_pack4", opt, specializations, 6, 10);
         }
 
@@ -148,7 +192,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         if (shape.dims == 0 || elempack == 8)
         {
             pipeline_interp_bicubic_pack8 = new Pipeline(vkdev);
-            pipeline_interp_bicubic_pack8->set_optimal_local_size_xyz();
+            pipeline_interp_bicubic_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_interp_bicubic_pack8->create("interp_bicubic_pack8", opt, specializations, 6, 10);
         }
     }

@@ -91,14 +91,34 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     specializations[1 + 8].i = out_shape_unpacked.c;
     specializations[1 + 9].i = out_shape_unpacked.cstep;
 
+    Mat local_size_xyz;// TODO more precise group size guessed from out_shape_unpacked
+    if (out_shape_unpacked.dims == 1)
+    {
+        local_size_xyz.w = 64;
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (out_shape_unpacked.dims == 2)
+    {
+        local_size_xyz.w = 8;
+        local_size_xyz.h = 8;
+        local_size_xyz.c = 1;
+    }
+    if (out_shape_unpacked.dims == 3)
+    {
+        local_size_xyz.w = 4;
+        local_size_xyz.h = 4;
+        local_size_xyz.c = 4;
+    }
+
     // pack1
     if (shape.dims == 0 || elempack == 1)
     {
         pipeline_concat[0] = new Pipeline(vkdev);
-        pipeline_concat[0]->set_optimal_local_size_xyz();
+        pipeline_concat[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat[0]->create("concat", opt, specializations, 2, 11);
         pipeline_concat[1] = new Pipeline(vkdev);
-        pipeline_concat[1]->set_optimal_local_size_xyz();
+        pipeline_concat[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat[1]->create("concat", opt, specializations, 2, 11);
     }
 
@@ -106,10 +126,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || elempack == 4)
     {
         pipeline_concat_pack4[0] = new Pipeline(vkdev);
-        pipeline_concat_pack4[0]->set_optimal_local_size_xyz();
+        pipeline_concat_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat_pack4[0]->create("concat_pack4", opt, specializations, 2, 11);
         pipeline_concat_pack4[1] = new Pipeline(vkdev);
-        pipeline_concat_pack4[1]->set_optimal_local_size_xyz();
+        pipeline_concat_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat_pack4[1]->create("concat_pack4", opt, specializations, 2, 11);
     }
 
@@ -117,10 +137,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     if ((axis == 0 && shape.dims == 0) || elempack == 1)
     {
         pipeline_concat_pack4to1[0] = new Pipeline(vkdev);
-        pipeline_concat_pack4to1[0]->set_optimal_local_size_xyz();
+        pipeline_concat_pack4to1[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat_pack4to1[0]->create("concat_pack4to1", opt, specializations, 2, 11);
         pipeline_concat_pack4to1[1] = new Pipeline(vkdev);
-        pipeline_concat_pack4to1[1]->set_optimal_local_size_xyz();
+        pipeline_concat_pack4to1[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat_pack4to1[1]->create("concat_pack4to1", opt, specializations, 2, 11);
     }
 
@@ -128,10 +148,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || elempack == 8)
     {
         pipeline_concat_pack8[0] = new Pipeline(vkdev);
-        pipeline_concat_pack8[0]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat_pack8[0]->create("concat_pack8", opt, specializations, 2, 11);
         pipeline_concat_pack8[1] = new Pipeline(vkdev);
-        pipeline_concat_pack8[1]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat_pack8[1]->create("concat_pack8", opt, specializations, 2, 11);
     }
 
@@ -139,10 +159,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     if ((axis == 0 && shape.dims == 0) || elempack == 4)
     {
         pipeline_concat_pack8to4[0] = new Pipeline(vkdev);
-        pipeline_concat_pack8to4[0]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8to4[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat_pack8to4[0]->create("concat_pack8to4", opt, specializations, 2, 11);
         pipeline_concat_pack8to4[1] = new Pipeline(vkdev);
-        pipeline_concat_pack8to4[1]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8to4[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat_pack8to4[1]->create("concat_pack8to4", opt, specializations, 2, 11);
     }
 
@@ -150,10 +170,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     if ((axis == 0 && shape.dims == 0) || elempack == 1)
     {
         pipeline_concat_pack8to1[0] = new Pipeline(vkdev);
-        pipeline_concat_pack8to1[0]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8to1[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat_pack8to1[0]->create("concat_pack8to1", opt, specializations, 2, 11);
         pipeline_concat_pack8to1[1] = new Pipeline(vkdev);
-        pipeline_concat_pack8to1[1]->set_optimal_local_size_xyz();
+        pipeline_concat_pack8to1[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_concat_pack8to1[1]->create("concat_pack8to1", opt, specializations, 2, 11);
     }
 

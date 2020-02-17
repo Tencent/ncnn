@@ -174,7 +174,13 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     specializations[10 + 8].i = out_shape_packed.c;
     specializations[10 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz = out_shape_packed.dims ? out_shape_packed : Mat(8, 8, std::min(4, num_output / out_elempack), (void*)0);
+    Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
+    if (out_shape_packed.dims != 0)
+    {
+        local_size_xyz.w = std::min(8, out_shape_packed.w);
+        local_size_xyz.h = std::min(8, out_shape_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_packed.c);
+    }
 
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;

@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "normalize_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -58,18 +59,20 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[0].i = across_spatial;
         specializations[1].i = across_channel;
 
+        Mat local_size_xyz;// TODO select by across_channel / across_spatial
+
         // pack1
         if (shape.dims == 0 || elempack == 1)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
-            pipeline_normalize_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz();
+            pipeline_normalize_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp16_to_fp32->create("normalize_reduce_sum4_fp16_to_fp32", opt, specializations, 2, 6);
 
             pipeline_normalize_reduce_sum4_fp32[0] = new Pipeline(vkdev);
-            pipeline_normalize_reduce_sum4_fp32[0]->set_optimal_local_size_xyz();
+            pipeline_normalize_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp32[0]->create("normalize_reduce_sum4_fp32", opt, specializations, 2, 6);
             pipeline_normalize_reduce_sum4_fp32[1] = new Pipeline(vkdev);
-            pipeline_normalize_reduce_sum4_fp32[1]->set_optimal_local_size_xyz();
+            pipeline_normalize_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp32[1]->create("normalize_reduce_sum4_fp32", opt, specializations, 2, 6);
         }
 
@@ -77,14 +80,14 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         if (shape.dims == 0 || elempack == 4)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
-            pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz();
+            pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4->create("normalize_reduce_sum4_fp16_to_fp32_pack4", opt, specializations, 2, 6);
 
             pipeline_normalize_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
-            pipeline_normalize_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz();
+            pipeline_normalize_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp32_pack4[0]->create("normalize_reduce_sum4_fp32_pack4", opt, specializations, 2, 6);
             pipeline_normalize_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
-            pipeline_normalize_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz();
+            pipeline_normalize_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp32_pack4[1]->create("normalize_reduce_sum4_fp32_pack4", opt, specializations, 2, 6);
         }
 
@@ -92,14 +95,14 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         if (shape.dims == 0 || elempack == 8)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
-            pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz();
+            pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8->create("normalize_reduce_sum4_fp16_to_fp32_pack8", opt, specializations, 2, 6);
 
             pipeline_normalize_reduce_sum4_fp32_pack8[0] = new Pipeline(vkdev);
-            pipeline_normalize_reduce_sum4_fp32_pack8[0]->set_optimal_local_size_xyz();
+            pipeline_normalize_reduce_sum4_fp32_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp32_pack8[0]->create("normalize_reduce_sum4_fp32_pack8", opt, specializations, 2, 6);
             pipeline_normalize_reduce_sum4_fp32_pack8[1] = new Pipeline(vkdev);
-            pipeline_normalize_reduce_sum4_fp32_pack8[1]->set_optimal_local_size_xyz();
+            pipeline_normalize_reduce_sum4_fp32_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp32_pack8[1]->create("normalize_reduce_sum4_fp32_pack8", opt, specializations, 2, 6);
         }
     }
@@ -111,24 +114,26 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[2].f = eps;
         specializations[3].i = eps_mode;
 
+        Mat local_size_xyz;// TODO resolve sqsum_workspace shape
+
         if (shape.dims == 0 || elempack == 1)
         {
             pipeline_normalize_coeffs = new Pipeline(vkdev);
-            pipeline_normalize_coeffs->set_optimal_local_size_xyz();
+            pipeline_normalize_coeffs->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_coeffs->create("normalize_coeffs", opt, specializations, 2, 3);
         }
 
         if (shape.dims == 0 || elempack == 4)
         {
             pipeline_normalize_coeffs_pack4 = new Pipeline(vkdev);
-            pipeline_normalize_coeffs_pack4->set_optimal_local_size_xyz();
+            pipeline_normalize_coeffs_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_coeffs_pack4->create("normalize_coeffs_pack4", opt, specializations, 2, 3);
         }
 
         if (shape.dims == 0 || elempack == 8)
         {
             pipeline_normalize_coeffs_pack8 = new Pipeline(vkdev);
-            pipeline_normalize_coeffs_pack8->set_optimal_local_size_xyz();
+            pipeline_normalize_coeffs_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_coeffs_pack8->create("normalize_coeffs_pack8", opt, specializations, 2, 3);
         }
     }
@@ -145,24 +150,32 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[4 + 3].i = shape_packed.c;
         specializations[4 + 4].i = shape_packed.cstep;
 
+        Mat local_size_xyz;
+        if (shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(4, shape_packed.w);
+            local_size_xyz.h = std::min(4, shape_packed.h);
+            local_size_xyz.c = std::min(4, shape_packed.c);
+        }
+
         if (shape.dims == 0 || elempack == 1)
         {
             pipeline_normalize_norm = new Pipeline(vkdev);
-            pipeline_normalize_norm->set_optimal_local_size_xyz();
+            pipeline_normalize_norm->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_norm->create("normalize_norm", opt, specializations, 3, 5);
         }
 
         if (shape.dims == 0 || elempack == 4)
         {
             pipeline_normalize_norm_pack4 = new Pipeline(vkdev);
-            pipeline_normalize_norm_pack4->set_optimal_local_size_xyz();
+            pipeline_normalize_norm_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_norm_pack4->create("normalize_norm_pack4", opt, specializations, 3, 5);
         }
 
         if (shape.dims == 0 || elempack == 8)
         {
             pipeline_normalize_norm_pack8 = new Pipeline(vkdev);
-            pipeline_normalize_norm_pack8->set_optimal_local_size_xyz();
+            pipeline_normalize_norm_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_norm_pack8->create("normalize_norm_pack8", opt, specializations, 3, 5);
         }
     }

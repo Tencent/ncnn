@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "permute_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -67,8 +68,33 @@ int Permute_vulkan::create_pipeline(const Option& opt)
     specializations[1 + 8].i = out_shape_packed.c;
     specializations[1 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz_bottom = shape_packed.dims ? shape_packed : Mat();// pack4to1 and pack8to1
-    Mat local_size_xyz = out_shape_packed.dims ? out_shape_packed : Mat();
+    Mat local_size_xyz_bottom;// pack4to1 and pack8to1
+    if (shape_packed.dims == 2)
+    {
+        local_size_xyz_bottom.w = std::min(8, shape_packed.w);
+        local_size_xyz_bottom.h = std::min(8, shape_packed.h);
+        local_size_xyz_bottom.c = 1;
+    }
+    if (shape_packed.dims == 3)
+    {
+        local_size_xyz_bottom.w = std::min(4, shape_packed.w);
+        local_size_xyz_bottom.h = std::min(4, shape_packed.h);
+        local_size_xyz_bottom.c = std::min(4, shape_packed.c);
+    }
+
+    Mat local_size_xyz;
+    if (out_shape_packed.dims == 2)
+    {
+        local_size_xyz.w = std::min(8, out_shape_packed.w);
+        local_size_xyz.h = std::min(8, out_shape_packed.h);
+        local_size_xyz.c = 1;
+    }
+    if (out_shape_packed.dims == 3)
+    {
+        local_size_xyz.w = std::min(4, out_shape_packed.w);
+        local_size_xyz.h = std::min(4, out_shape_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_packed.c);
+    }
 
     // pack1
     if (shape.dims == 0 || (elempack == 1 && out_elempack == 1))
@@ -225,7 +251,7 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         if (top_blob.empty())
             return -100;
     }
-    else if (dims == 3)
+    else // if (dims == 3)
     {
         // order_type
         // 0 = w h c

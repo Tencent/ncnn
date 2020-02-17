@@ -49,7 +49,25 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     specializations[1 + 3].i = shape_packed.c;
     specializations[1 + 4].i = shape_packed.cstep;
 
-    Mat local_size_xyz = shape_packed.dims ? shape_packed : Mat(4, 4, std::min(4, num_slope / elempack), (void*)0);
+    Mat local_size_xyz(4, 4, std::min(4, num_slope / elempack), (void*)0);
+    if (shape_packed.dims == 1)
+    {
+        local_size_xyz.w = std::min(64, shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 2)
+    {
+        local_size_xyz.w = std::min(8, shape_packed.w);
+        local_size_xyz.h = std::min(8, shape_packed.h);
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 3)
+    {
+        local_size_xyz.w = std::min(4, shape_packed.w);
+        local_size_xyz.h = std::min(4, shape_packed.h);
+        local_size_xyz.c = std::min(4, shape_packed.c);
+    }
 
     // pack1
     if (num_slope == 1 || elempack == 1)

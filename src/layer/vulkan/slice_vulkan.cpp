@@ -89,14 +89,34 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     specializations[1 + 8].i = 0;
     specializations[1 + 9].i = 0;
 
+    Mat local_size_xyz;// TODO more precise group size guessed from shape_unpacked
+    if (shape_unpacked.dims == 1)
+    {
+        local_size_xyz.w = 64;
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (shape_unpacked.dims == 2)
+    {
+        local_size_xyz.w = 8;
+        local_size_xyz.h = 8;
+        local_size_xyz.c = 1;
+    }
+    if (shape_unpacked.dims == 3)
+    {
+        local_size_xyz.w = 4;
+        local_size_xyz.h = 4;
+        local_size_xyz.c = 4;
+    }
+
     // pack1
     if (shape.dims == 0 || out_elempack == 1)
     {
         pipeline_slice[0] = new Pipeline(vkdev);
-        pipeline_slice[0]->set_optimal_local_size_xyz();
+        pipeline_slice[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice[0]->create("slice", opt, specializations, 2, 11);
         pipeline_slice[1] = new Pipeline(vkdev);
-        pipeline_slice[1]->set_optimal_local_size_xyz();
+        pipeline_slice[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice[1]->create("slice", opt, specializations, 2, 11);
     }
 
@@ -104,10 +124,10 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || out_elempack == 4)
     {
         pipeline_slice_pack4[0] = new Pipeline(vkdev);
-        pipeline_slice_pack4[0]->set_optimal_local_size_xyz();
+        pipeline_slice_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack4[0]->create("slice_pack4", opt, specializations, 2, 11);
         pipeline_slice_pack4[1] = new Pipeline(vkdev);
-        pipeline_slice_pack4[1]->set_optimal_local_size_xyz();
+        pipeline_slice_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack4[1]->create("slice_pack4", opt, specializations, 2, 11);
     }
 
@@ -115,10 +135,10 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     if ((axis == 0 && shape.dims == 0) || out_elempack == 1)
     {
         pipeline_slice_pack1to4[0] = new Pipeline(vkdev);
-        pipeline_slice_pack1to4[0]->set_optimal_local_size_xyz();
+        pipeline_slice_pack1to4[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack1to4[0]->create("slice_pack1to4", opt, specializations, 2, 11);
         pipeline_slice_pack1to4[1] = new Pipeline(vkdev);
-        pipeline_slice_pack1to4[1]->set_optimal_local_size_xyz();
+        pipeline_slice_pack1to4[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack1to4[1]->create("slice_pack1to4", opt, specializations, 2, 11);
     }
 
@@ -126,10 +146,10 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || out_elempack == 8)
     {
         pipeline_slice_pack8[0] = new Pipeline(vkdev);
-        pipeline_slice_pack8[0]->set_optimal_local_size_xyz();
+        pipeline_slice_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack8[0]->create("slice_pack8", opt, specializations, 2, 11);
         pipeline_slice_pack8[1] = new Pipeline(vkdev);
-        pipeline_slice_pack8[1]->set_optimal_local_size_xyz();
+        pipeline_slice_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack8[1]->create("slice_pack8", opt, specializations, 2, 11);
     }
 
@@ -137,10 +157,10 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     if ((axis == 0 && shape.dims == 0) || out_elempack == 1)
     {
         pipeline_slice_pack1to8[0] = new Pipeline(vkdev);
-        pipeline_slice_pack1to8[0]->set_optimal_local_size_xyz();
+        pipeline_slice_pack1to8[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack1to8[0]->create("slice_pack1to8", opt, specializations, 2, 11);
         pipeline_slice_pack1to8[1] = new Pipeline(vkdev);
-        pipeline_slice_pack1to8[1]->set_optimal_local_size_xyz();
+        pipeline_slice_pack1to8[1]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_slice_pack1to8[1]->create("slice_pack1to8", opt, specializations, 2, 11);
     }
 

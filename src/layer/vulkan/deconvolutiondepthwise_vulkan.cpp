@@ -166,7 +166,13 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         specializations[11 + 8].i = out_shape_bordered_packed.c;
         specializations[11 + 9].i = out_shape_bordered_packed.cstep;
 
-        Mat local_size_xyz = out_shape_bordered_packed.dims ? out_shape_bordered_packed : Mat(8, 8, std::min(4, num_output / out_elempack), (void*)0);
+        Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
+        if (out_shape_bordered_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(8, out_shape_bordered_packed.w);
+            local_size_xyz.h = std::min(8, out_shape_bordered_packed.h);
+            local_size_xyz.c = std::min(4, out_shape_bordered_packed.c);
+        }
 
         // pack1
         if (elempack == 1)
@@ -255,7 +261,13 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     specializations[11 + 8].i = out_shape_bordered_g_packed.c;
     specializations[11 + 9].i = out_shape_bordered_g_packed.cstep;
 
-    Mat local_size_xyz = out_shape_bordered_g_packed.dims ? out_shape_bordered_g_packed : Mat(8, 8, std::min(4, num_output / out_elempack_g), (void*)0);
+    Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack_g), (void*)0);
+    if (out_shape_bordered_g_packed.dims != 0)
+    {
+        local_size_xyz.w = std::min(8, out_shape_bordered_g_packed.w);
+        local_size_xyz.h = std::min(8, out_shape_bordered_g_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_bordered_g_packed.c);
+    }
 
     // pack1
     if (elempack_g == 1 && out_elempack_g == 1)

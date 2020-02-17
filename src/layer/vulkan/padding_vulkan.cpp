@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "padding_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -63,7 +64,13 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     specializations[3 + 8].i = out_shape_packed.c;
     specializations[3 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz = out_shape_packed.dims ? out_shape_packed : Mat();
+    Mat local_size_xyz;
+    if (out_shape_packed.dims != 0)
+    {
+        local_size_xyz.w = std::min(4, out_shape_packed.w);
+        local_size_xyz.h = std::min(4, out_shape_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_packed.c);
+    }
 
     // pack1
     if (shape.dims == 0 || elempack == 1)

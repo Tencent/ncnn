@@ -50,36 +50,56 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     specializations[0 + 8].i = out_shape_packed.c;
     specializations[0 + 9].i = out_shape_packed.cstep;
 
+    Mat local_size_xyz;// TODO more precise group size guessed from out_shape_packed
+    if (out_shape_packed.dims == 1)
+    {
+        local_size_xyz.w = 64;
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (out_shape_packed.dims == 2)
+    {
+        local_size_xyz.w = 8;
+        local_size_xyz.h = 8;
+        local_size_xyz.c = 1;
+    }
+    if (out_shape_packed.dims == 3)
+    {
+        local_size_xyz.w = 4;
+        local_size_xyz.h = 4;
+        local_size_xyz.c = 4;
+    }
+
     if (out_elempack == 8)
     {
         pipeline_packing_1to8 = new Pipeline(vkdev);
-        pipeline_packing_1to8->set_optimal_local_size_xyz();
+        pipeline_packing_1to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_packing_1to8->create("packing_1to8", opt, specializations, 2, 10);
 
         pipeline_packing_4to8 = new Pipeline(vkdev);
-        pipeline_packing_4to8->set_optimal_local_size_xyz();
+        pipeline_packing_4to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_packing_4to8->create("packing_4to8", opt, specializations, 2, 10);
     }
 
     if (out_elempack == 4)
     {
         pipeline_packing_1to4 = new Pipeline(vkdev);
-        pipeline_packing_1to4->set_optimal_local_size_xyz();
+        pipeline_packing_1to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_packing_1to4->create("packing_1to4", opt, specializations, 2, 10);
 
         pipeline_packing_8to4 = new Pipeline(vkdev);
-        pipeline_packing_8to4->set_optimal_local_size_xyz();
+        pipeline_packing_8to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_packing_8to4->create("packing_8to4", opt, specializations, 2, 10);
     }
 
     if (out_elempack == 1)
     {
         pipeline_packing_4to1 = new Pipeline(vkdev);
-        pipeline_packing_4to1->set_optimal_local_size_xyz();
+        pipeline_packing_4to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_packing_4to1->create("packing_4to1", opt, specializations, 2, 10);
 
         pipeline_packing_8to1 = new Pipeline(vkdev);
-        pipeline_packing_8to1->set_optimal_local_size_xyz();
+        pipeline_packing_8to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_packing_8to1->create("packing_8to1", opt, specializations, 2, 10);
     }
 

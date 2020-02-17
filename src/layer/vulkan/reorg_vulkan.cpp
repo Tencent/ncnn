@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "reorg_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -64,11 +65,19 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     specializations[1 + 8].i = out_shape_packed.c;
     specializations[1 + 9].i = out_shape_packed.cstep;
 
+    Mat local_size_xyz;
+    if (out_shape_packed.dims != 0)
+    {
+        local_size_xyz.w = std::min(4, out_shape_packed.w);
+        local_size_xyz.h = std::min(4, out_shape_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_packed.c);
+    }
+
     // pack1
     if (shape.dims == 0 || (elempack == 1 && out_elempack == 1))
     {
         pipeline_reorg = new Pipeline(vkdev);
-        pipeline_reorg->set_optimal_local_size_xyz();
+        pipeline_reorg->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reorg->create("reorg", opt, specializations, 2, 10);
     }
 
@@ -76,7 +85,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || (elempack == 4 && out_elempack == 4))
     {
         pipeline_reorg_pack4 = new Pipeline(vkdev);
-        pipeline_reorg_pack4->set_optimal_local_size_xyz();
+        pipeline_reorg_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reorg_pack4->create("reorg_pack4", opt, specializations, 2, 10);
     }
 
@@ -84,7 +93,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || (elempack == 1 && out_elempack == 4))
     {
         pipeline_reorg_pack1to4 = new Pipeline(vkdev);
-        pipeline_reorg_pack1to4->set_optimal_local_size_xyz();
+        pipeline_reorg_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reorg_pack1to4->create("reorg_pack1to4", opt, specializations, 2, 10);
     }
 
@@ -92,7 +101,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || (elempack == 8 && out_elempack == 8))
     {
         pipeline_reorg_pack8 = new Pipeline(vkdev);
-        pipeline_reorg_pack8->set_optimal_local_size_xyz();
+        pipeline_reorg_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reorg_pack8->create("reorg_pack8", opt, specializations, 2, 10);
     }
 
@@ -100,7 +109,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || (elempack == 1 && out_elempack == 8))
     {
         pipeline_reorg_pack1to8 = new Pipeline(vkdev);
-        pipeline_reorg_pack1to8->set_optimal_local_size_xyz();
+        pipeline_reorg_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reorg_pack1to8->create("reorg_pack1to8", opt, specializations, 2, 10);
     }
 
@@ -108,7 +117,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 0 || (elempack == 4 && out_elempack == 8))
     {
         pipeline_reorg_pack4to8 = new Pipeline(vkdev);
-        pipeline_reorg_pack4to8->set_optimal_local_size_xyz();
+        pipeline_reorg_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_reorg_pack4to8->create("reorg_pack4to8", opt, specializations, 2, 10);
     }
 
