@@ -21,6 +21,14 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 2) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -50,7 +58,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y) * 4;
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= 16 || gy >= p.outh || gz >= p.outc)
+    if (gx >= 16 || gy >= psc(outh) || gz >= psc(outc))
         return;
 
     afpvec4 sum0 = afpvec4(0.f);
@@ -59,9 +67,9 @@ void main()
     afpvec4 sum3 = afpvec4(0.f);
 
     int v_offset = gy * 16 + gx;
-    int w_offset = gz * p.c * 16 + gx;
+    int w_offset = gz * psc(c) * 16 + gx;
 
-    for (int z = 0; z < p.c; z++)
+    for (int z = 0; z < psc(c); z++)
     {
         afpvec4 v0 = buffer_ld4(bottom_tm_blob_data, v_offset + 0);
         afpvec4 v1 = buffer_ld4(bottom_tm_blob_data, v_offset + 16);
@@ -85,14 +93,14 @@ void main()
         sum2 += v2 * k;
         sum3 += v3 * k;
 
-        v_offset += p.cstep;
+        v_offset += psc(cstep);
         w_offset += 16;
     }
 
-    int gi = gz * p.outcstep + gy * 16 + gx;
+    int gi = gz * psc(outcstep) + gy * 16 + gx;
 
     buffer_st4(top_tm_blob_data, gi + 0, sum0);
-    if (gy + 1 < p.outh) buffer_st4(top_tm_blob_data, gi + 16, sum1);
-    if (gy + 2 < p.outh) buffer_st4(top_tm_blob_data, gi + 32, sum2);
-    if (gy + 3 < p.outh) buffer_st4(top_tm_blob_data, gi + 48, sum3);
+    if (gy + 1 < psc(outh)) buffer_st4(top_tm_blob_data, gi + 16, sum1);
+    if (gy + 2 < psc(outh)) buffer_st4(top_tm_blob_data, gi + 32, sum2);
+    if (gy + 3 < psc(outh)) buffer_st4(top_tm_blob_data, gi + 48, sum3);
 }

@@ -27,6 +27,10 @@ layout (constant_id = 2) const int num_sizes = 0;
 layout (constant_id = 3) const int num_ratios = 0;
 layout (constant_id = 4) const int num_prior = 0;
 
+#define shape_constant_id_offset 5
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -50,11 +54,11 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= num_sizes || gy >= p.w || gz >= p.h)
+    if (gx >= num_sizes || gy >= psc(w) || gz >= psc(h))
         return;
 
     // mxnet style _contrib_MultiBoxPrior
-    int v_offset = (gz * p.w + gy) * num_prior + gx;
+    int v_offset = (gz * psc(w) + gy) * num_prior + gx;
 
     afp center_x = (afp(gy) + afp(offset)) * afp(p.step_w);
     afp center_y = (afp(gz) + afp(offset)) * afp(p.step_h);
@@ -62,7 +66,7 @@ void main()
 
     // ratio = 1, various sizes
     afp size = buffer_ld1(min_sizes_data, gx);
-    afp cw = size * afp(p.h) / afp(p.w) / afp(2);
+    afp cw = size * afp(psc(h)) / afp(psc(w)) / afp(2);
     afp ch = size / afp(2);
 
     afpvec4 box = center + afpvec4(-cw, -ch, cw, ch);
@@ -78,7 +82,7 @@ void main()
         {
             afp v = buffer_ld1(aspect_ratios_data, pi);
             afp ratio = sqrt(v);
-            afp cwr = size * afp(p.h) / afp(p.w) * ratio / afp(2);
+            afp cwr = size * afp(psc(h)) / afp(psc(w)) * ratio / afp(2);
             afp chr = size / ratio / afp(2);
 
             afpvec4 box = center + afpvec4(-cwr, -chr, cwr, chr);

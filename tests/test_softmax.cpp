@@ -16,14 +16,13 @@
 
 #include "layer/softmax.h"
 
-static int test_softmax(const ncnn::Mat& a, int axis, bool use_packing_layout)
+static int test_softmax(const ncnn::Mat& a, int axis)
 {
     ncnn::ParamDict pd;
     pd.set(0, axis);// axis
     pd.set(1, 1);// fixbug0
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -34,12 +33,11 @@ static int test_softmax(const ncnn::Mat& a, int axis, bool use_packing_layout)
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Softmax>("Softmax", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Softmax>("Softmax", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d) axis=%d use_packing_layout=%d\n", a.dims, a.w, a.h, a.c, axis, use_packing_layout);
+        fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d) axis=%d\n", a.dims, a.w, a.h, a.c, axis);
     }
 
     return ret;
@@ -50,13 +48,9 @@ static int test_softmax_0()
     ncnn::Mat a = RandomMat(6, 7, 16);
 
     return 0
-        || test_softmax(a, 0, false)
-        || test_softmax(a, 1, false)
-        || test_softmax(a, 2, false)
-
-        || test_softmax(a, 0, true)
-        || test_softmax(a, 1, true)
-        || test_softmax(a, 2, true)
+        || test_softmax(a, 0)
+        || test_softmax(a, 1)
+        || test_softmax(a, 2)
         ;
 }
 
@@ -65,13 +59,9 @@ static int test_softmax_1()
     ncnn::Mat a = RandomMat(3, 5, 13);
 
     return 0
-        || test_softmax(a, 0, false)
-        || test_softmax(a, 1, false)
-        || test_softmax(a, 2, false)
-
-        || test_softmax(a, 0, true)
-        || test_softmax(a, 1, true)
-        || test_softmax(a, 2, true)
+        || test_softmax(a, 0)
+        || test_softmax(a, 1)
+        || test_softmax(a, 2)
         ;
 }
 
@@ -80,11 +70,8 @@ static int test_softmax_2()
     ncnn::Mat a = RandomMat(6, 16);
 
     return 0
-        || test_softmax(a, 0, false)
-        || test_softmax(a, 1, false)
-
-        || test_softmax(a, 0, true)
-        || test_softmax(a, 1, true)
+        || test_softmax(a, 0)
+        || test_softmax(a, 1)
         ;
 }
 
@@ -93,11 +80,8 @@ static int test_softmax_3()
     ncnn::Mat a = RandomMat(7, 15);
 
     return 0
-        || test_softmax(a, 0, false)
-        || test_softmax(a, 1, false)
-
-        || test_softmax(a, 0, true)
-        || test_softmax(a, 1, true)
+        || test_softmax(a, 0)
+        || test_softmax(a, 1)
         ;
 }
 
@@ -105,22 +89,14 @@ static int test_softmax_4()
 {
     ncnn::Mat a = RandomMat(128);
 
-    return 0
-        || test_softmax(a, 0, false)
-
-        || test_softmax(a, 0, true)
-        ;
+    return test_softmax(a, 0);
 }
 
 static int test_softmax_5()
 {
     ncnn::Mat a = RandomMat(127);
 
-    return 0
-        || test_softmax(a, 0, false)
-
-        || test_softmax(a, 0, true)
-        ;
+    return test_softmax(a, 0);
 }
 
 int main()

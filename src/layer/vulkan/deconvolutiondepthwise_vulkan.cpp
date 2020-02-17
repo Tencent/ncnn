@@ -27,9 +27,8 @@ DeconvolutionDepthWise_vulkan::DeconvolutionDepthWise_vulkan()
     crop = 0;
     output_pad = 0;
     output_crop = 0;
-    packing_pack1 = 0;
-    packing_pack4 = 0;
-    packing_pack8 = 0;
+    packing_unpack = 0;
+    packing_pack = 0;
 
     pipeline_deconvolutiondepthwise = 0;
     pipeline_deconvolutiondepthwise_pack4 = 0;
@@ -48,9 +47,34 @@ DeconvolutionDepthWise_vulkan::DeconvolutionDepthWise_vulkan()
 
 int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
 {
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    // the shape before unpadding
+    Mat out_shape_bordered;
+    // the shape after output adj
+    Mat out_shape_bordered_adj;
+    if (shape.dims != 0)
+    {
+        const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+        const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+        int outw = (shape.w - 1) * stride_w + kernel_extent_w;
+        int outh = (shape.h - 1) * stride_h + kernel_extent_h;
+
+        out_shape_bordered = Mat(outw, outh, out_shape.c, (void*)0);
+
+        out_shape_bordered_adj = Mat(outw + output_pad_right, outh + output_pad_bottom, out_shape.c, (void*)0);
+    }
+
     {
         crop = ncnn::create_layer(ncnn::LayerType::Crop);
         crop->vkdev = vkdev;
+
+        crop->bottom_shapes.resize(1);
+        crop->bottom_shapes[0] = out_shape_bordered_adj;
+        crop->top_shapes.resize(1);
+        crop->top_shapes[0] = out_shape;
 
         ncnn::ParamDict pd;
         pd.set(0, pad_left);
@@ -65,6 +89,11 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         output_pad = ncnn::create_layer(ncnn::LayerType::Padding);
         output_pad->vkdev = vkdev;
+
+        output_pad->bottom_shapes.resize(1);
+        output_pad->bottom_shapes[0] = out_shape_bordered;
+        output_pad->top_shapes.resize(1);
+        output_pad->top_shapes[0] = out_shape_bordered_adj;
 
         ncnn::ParamDict pd;
         pd.set(0, 0);
@@ -83,6 +112,11 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         output_crop = ncnn::create_layer(ncnn::LayerType::Crop);
         output_crop->vkdev = vkdev;
 
+        output_crop->bottom_shapes.resize(1);
+        output_crop->bottom_shapes[0] = out_shape_bordered_adj;
+        output_crop->top_shapes.resize(1);
+        output_crop->top_shapes[0] = out_shape;
+
         ncnn::ParamDict pd;
         pd.set(0, -233);
         pd.set(1, -233);
@@ -93,7 +127,19 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         output_crop->create_pipeline(opt);
     }
 
-    std::vector<vk_specialization_type> specializations(11);
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    Mat out_shape_bordered_packed;
+    convert_shape_packing(out_shape_bordered, out_shape_bordered_packed, out_elempack);
+
+    std::vector<vk_specialization_type> specializations(11 + 10);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
     specializations[2].i = dilation_w;
@@ -106,20 +152,33 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     specializations[9].f = activation_params.w == 1 ? activation_params[0] : 0.f;
     specializations[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
 
-    const int maxk = kernel_w * kernel_h;
-    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
-
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-
     // depth-wise
     if (channels == group && group == num_output)
     {
+        specializations[11 + 0].i = shape_packed.dims;
+        specializations[11 + 1].i = shape_packed.w;
+        specializations[11 + 2].i = shape_packed.h;
+        specializations[11 + 3].i = shape_packed.c;
+        specializations[11 + 4].i = shape_packed.cstep;
+        specializations[11 + 5].i = out_shape_bordered_packed.dims;
+        specializations[11 + 6].i = out_shape_bordered_packed.w;
+        specializations[11 + 7].i = out_shape_bordered_packed.h;
+        specializations[11 + 8].i = out_shape_bordered_packed.c;
+        specializations[11 + 9].i = out_shape_bordered_packed.cstep;
+
+        Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
+        if (out_shape_bordered_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(8, out_shape_bordered_packed.w);
+            local_size_xyz.h = std::min(8, out_shape_bordered_packed.h);
+            local_size_xyz.c = std::min(4, out_shape_bordered_packed.c);
+        }
+
         // pack1
         if (elempack == 1)
         {
             pipeline_deconvolutiondepthwise = new Pipeline(vkdev);
-            pipeline_deconvolutiondepthwise->set_optimal_local_size_xyz(32, 32, num_output);
+            pipeline_deconvolutiondepthwise->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_deconvolutiondepthwise->create("deconvolutiondepthwise", opt, specializations, 4, 10);
         }
 
@@ -127,7 +186,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         if (elempack == 4)
         {
             pipeline_deconvolutiondepthwise_pack4 = new Pipeline(vkdev);
-            pipeline_deconvolutiondepthwise_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 4));
+            pipeline_deconvolutiondepthwise_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_deconvolutiondepthwise_pack4->create("deconvolutiondepthwise_pack4", opt, specializations, 4, 10);
         }
 
@@ -135,7 +194,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         if (elempack == 8)
         {
             pipeline_deconvolutiondepthwise_pack8 = new Pipeline(vkdev);
-            pipeline_deconvolutiondepthwise_pack8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+            pipeline_deconvolutiondepthwise_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_deconvolutiondepthwise_pack8->create("deconvolutiondepthwise_pack8", opt, specializations, 4, 10);
         }
 
@@ -149,11 +208,72 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
     int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
 
+    Mat shape_g_packed;
+    convert_shape_packing(shape, shape_g_packed, elempack_g);
+
+    Mat out_shape_bordered_g_packed;
+    convert_shape_packing(out_shape_bordered, out_shape_bordered_g_packed, out_elempack_g);
+
+    if (elempack > elempack_g)
+    {
+        packing_unpack = ncnn::create_layer(ncnn::LayerType::Packing);
+        packing_unpack->vkdev = vkdev;
+
+        packing_unpack->bottom_shapes.resize(1);
+        packing_unpack->bottom_shapes[0] = shape_packed;
+        packing_unpack->top_shapes.resize(1);
+        packing_unpack->top_shapes[0] = shape_g_packed;
+
+        ncnn::ParamDict pd;
+        pd.set(0, elempack_g);
+
+        packing_unpack->load_param(pd);
+
+        packing_unpack->create_pipeline(opt);
+    }
+
+    if (out_elempack_g < out_elempack)
+    {
+        packing_pack = ncnn::create_layer(ncnn::LayerType::Packing);
+        packing_pack->vkdev = vkdev;
+
+        packing_pack->bottom_shapes.resize(1);
+        packing_pack->bottom_shapes[0] = out_shape_bordered_g_packed;
+        packing_pack->top_shapes.resize(1);
+        packing_pack->top_shapes[0] = out_shape_bordered_packed;
+
+        ncnn::ParamDict pd;
+        pd.set(0, out_elempack);
+
+        packing_pack->load_param(pd);
+
+        packing_pack->create_pipeline(opt);
+    }
+
+    specializations[11 + 0].i = shape_g_packed.dims;
+    specializations[11 + 1].i = shape_g_packed.w;
+    specializations[11 + 2].i = shape_g_packed.h;
+    specializations[11 + 3].i = shape_g_packed.c;
+    specializations[11 + 4].i = shape_g_packed.cstep;
+    specializations[11 + 5].i = out_shape_bordered_g_packed.dims;
+    specializations[11 + 6].i = out_shape_bordered_g_packed.w;
+    specializations[11 + 7].i = out_shape_bordered_g_packed.h;
+    specializations[11 + 8].i = out_shape_bordered_g_packed.c;
+    specializations[11 + 9].i = out_shape_bordered_g_packed.cstep;
+
+    Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack_g), (void*)0);
+    if (out_shape_bordered_g_packed.dims != 0)
+    {
+        local_size_xyz.w = std::min(8, out_shape_bordered_g_packed.w);
+        local_size_xyz.h = std::min(8, out_shape_bordered_g_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_bordered_g_packed.c);
+    }
+
     // pack1
     if (elempack_g == 1 && out_elempack_g == 1)
     {
         pipeline_deconvolutiondepthwise_group = new Pipeline(vkdev);
-        pipeline_deconvolutiondepthwise_group->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolutiondepthwise_group->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolutiondepthwise_group->create("deconvolutiondepthwise_group", opt, specializations, 4, 10);
     }
 
@@ -161,7 +281,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (elempack_g == 4 && out_elempack_g == 4)
     {
         pipeline_deconvolutiondepthwise_group_pack4 = new Pipeline(vkdev);
-        pipeline_deconvolutiondepthwise_group_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolutiondepthwise_group_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolutiondepthwise_group_pack4->create("deconvolutiondepthwise_group_pack4", opt, specializations, 4, 10);
     }
 
@@ -169,7 +289,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (elempack_g == 1 && out_elempack_g == 4)
     {
         pipeline_deconvolutiondepthwise_group_pack1to4 = new Pipeline(vkdev);
-        pipeline_deconvolutiondepthwise_group_pack1to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolutiondepthwise_group_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolutiondepthwise_group_pack1to4->create("deconvolutiondepthwise_group_pack1to4", opt, specializations, 4, 10);
     }
 
@@ -177,7 +297,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (elempack_g == 4 && out_elempack_g == 1)
     {
         pipeline_deconvolutiondepthwise_group_pack4to1 = new Pipeline(vkdev);
-        pipeline_deconvolutiondepthwise_group_pack4to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolutiondepthwise_group_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolutiondepthwise_group_pack4to1->create("deconvolutiondepthwise_group_pack4to1", opt, specializations, 4, 10);
     }
 
@@ -185,7 +305,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (elempack_g == 8 && out_elempack_g == 8)
     {
         pipeline_deconvolutiondepthwise_group_pack8 = new Pipeline(vkdev);
-        pipeline_deconvolutiondepthwise_group_pack8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolutiondepthwise_group_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolutiondepthwise_group_pack8->create("deconvolutiondepthwise_group_pack8", opt, specializations, 4, 10);
     }
 
@@ -193,7 +313,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (elempack_g == 1 && out_elempack_g == 8)
     {
         pipeline_deconvolutiondepthwise_group_pack1to8 = new Pipeline(vkdev);
-        pipeline_deconvolutiondepthwise_group_pack1to8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolutiondepthwise_group_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolutiondepthwise_group_pack1to8->create("deconvolutiondepthwise_group_pack1to8", opt, specializations, 4, 10);
     }
 
@@ -201,7 +321,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (elempack_g == 4 && out_elempack_g == 8)
     {
         pipeline_deconvolutiondepthwise_group_pack4to8 = new Pipeline(vkdev);
-        pipeline_deconvolutiondepthwise_group_pack4to8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolutiondepthwise_group_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolutiondepthwise_group_pack4to8->create("deconvolutiondepthwise_group_pack4to8", opt, specializations, 4, 10);
     }
 
@@ -209,7 +329,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (elempack_g == 8 && out_elempack_g == 4)
     {
         pipeline_deconvolutiondepthwise_group_pack8to4 = new Pipeline(vkdev);
-        pipeline_deconvolutiondepthwise_group_pack8to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolutiondepthwise_group_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolutiondepthwise_group_pack8to4->create("deconvolutiondepthwise_group_pack8to4", opt, specializations, 4, 10);
     }
 
@@ -217,48 +337,8 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     if (elempack_g == 8 && out_elempack_g == 1)
     {
         pipeline_deconvolutiondepthwise_group_pack8to1 = new Pipeline(vkdev);
-        pipeline_deconvolutiondepthwise_group_pack8to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolutiondepthwise_group_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolutiondepthwise_group_pack8to1->create("deconvolutiondepthwise_group_pack8to1", opt, specializations, 4, 10);
-    }
-
-    if (elempack > elempack_g && elempack_g == 1)
-    {
-        packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
-        packing_pack1->vkdev = vkdev;
-
-        ncnn::ParamDict pd;
-        pd.set(0, 1);
-
-        packing_pack1->load_param(pd);
-
-        packing_pack1->create_pipeline(opt);
-    }
-
-    if ((elempack > elempack_g && elempack_g == 4)
-        || (out_elempack_g < out_elempack && out_elempack == 4))
-    {
-        packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
-        packing_pack4->vkdev = vkdev;
-
-        ncnn::ParamDict pd;
-        pd.set(0, 4);
-
-        packing_pack4->load_param(pd);
-
-        packing_pack4->create_pipeline(opt);
-    }
-
-    if (out_elempack_g < out_elempack && out_elempack == 8)
-    {
-        packing_pack8 = ncnn::create_layer(ncnn::LayerType::Packing);
-        packing_pack8->vkdev = vkdev;
-
-        ncnn::ParamDict pd;
-        pd.set(0, 8);
-
-        packing_pack8->load_param(pd);
-
-        packing_pack8->create_pipeline(opt);
     }
 
     return 0;
@@ -287,25 +367,18 @@ int DeconvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
         output_crop = 0;
     }
 
-    if (packing_pack1)
+    if (packing_unpack)
     {
-        packing_pack1->destroy_pipeline(opt);
-        delete packing_pack1;
-        packing_pack1 = 0;
+        packing_unpack->destroy_pipeline(opt);
+        delete packing_unpack;
+        packing_unpack = 0;
     }
 
-    if (packing_pack4)
+    if (packing_pack)
     {
-        packing_pack4->destroy_pipeline(opt);
-        delete packing_pack4;
-        packing_pack4 = 0;
-    }
-
-    if (packing_pack8)
-    {
-        packing_pack8->destroy_pipeline(opt);
-        delete packing_pack8;
-        packing_pack8 = 0;
+        packing_pack->destroy_pipeline(opt);
+        delete packing_pack;
+        packing_pack = 0;
     }
 
     delete pipeline_deconvolutiondepthwise;
@@ -629,8 +702,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
-        const Layer* packing = elempack_g == 4 ? packing_pack4 : packing_pack1;
-        packing->forward(bottom_blob, bottom_blob_unpacked, cmd, opt_pack1);
+        packing_unpack->forward(bottom_blob, bottom_blob_unpacked, cmd, opt_pack1);
     }
 
     VkMat top_blob_unpacked = top_blob_bordered;
@@ -702,8 +774,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     // packing
     if (out_elempack_g < out_elempack)
     {
-        const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
-        packing->forward(top_blob_unpacked, top_blob_bordered, cmd, opt);
+        packing_pack->forward(top_blob_unpacked, top_blob_bordered, cmd, opt);
     }
     else
     {

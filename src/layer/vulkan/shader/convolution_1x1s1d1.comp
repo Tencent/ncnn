@@ -26,6 +26,17 @@ layout (constant_id = 1) const int activation_type = 0;
 layout (constant_id = 2) const float activation_param_0 = 0;
 layout (constant_id = 3) const float activation_param_1 = 0;
 
+#define shape_constant_id_offset 4
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int size_4 = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int cstep_4 = 0;
+
+layout (constant_id = shape_constant_id_offset + 4) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outsize_4 = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outcstep_4 = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -54,7 +65,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outsize_4 || gy >= 1 || gz >= p.outc)
+    if (gx >= psc(outsize_4) || gy >= 1 || gz >= psc(outc))
         return;
 
     afpvec4 sum;
@@ -68,15 +79,15 @@ void main()
         sum = afpvec4(0.f);
     }
 
-    int w_offset = gz * p.c;
+    int w_offset = gz * psc(c);
     int v_offset = gx;
 
-    for (int z = 0; z < p.c; z++)
+    for (int z = 0; z < psc(c); z++)
     {
         sum += buffer_ld1(weight_data, w_offset) * buffer_ld4(bottom_blob_data, v_offset);
 
         w_offset += 1;
-        v_offset += p.cstep_4;
+        v_offset += psc(cstep_4);
     }
 
     if (activation_type == 1)
@@ -99,7 +110,7 @@ void main()
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
-    const int gi = gz * p.outcstep_4 + gx;
+    const int gi = gz * psc(outcstep_4) + gx;
 
     buffer_st4(top_blob_data, gi, sum);
 }

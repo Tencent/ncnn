@@ -41,9 +41,34 @@ Deconvolution_vulkan::Deconvolution_vulkan()
 
 int Deconvolution_vulkan::create_pipeline(const Option& opt)
 {
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    // the shape before unpadding
+    Mat out_shape_bordered;
+    // the shape after output adj
+    Mat out_shape_bordered_adj;
+    if (shape.dims != 0)
+    {
+        const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+        const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+        int outw = (shape.w - 1) * stride_w + kernel_extent_w;
+        int outh = (shape.h - 1) * stride_h + kernel_extent_h;
+
+        out_shape_bordered = Mat(outw, outh, out_shape.c, (void*)0);
+
+        out_shape_bordered_adj = Mat(outw + output_pad_right, outh + output_pad_bottom, out_shape.c, (void*)0);
+    }
+
     {
         crop = ncnn::create_layer(ncnn::LayerType::Crop);
         crop->vkdev = vkdev;
+
+        crop->bottom_shapes.resize(1);
+        crop->bottom_shapes[0] = out_shape_bordered_adj;
+        crop->top_shapes.resize(1);
+        crop->top_shapes[0] = out_shape;
 
         ncnn::ParamDict pd;
         pd.set(0, pad_left);
@@ -58,6 +83,11 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     {
         output_pad = ncnn::create_layer(ncnn::LayerType::Padding);
         output_pad->vkdev = vkdev;
+
+        output_pad->bottom_shapes.resize(1);
+        output_pad->bottom_shapes[0] = out_shape_bordered;
+        output_pad->top_shapes.resize(1);
+        output_pad->top_shapes[0] = out_shape_bordered_adj;
 
         ncnn::ParamDict pd;
         pd.set(0, 0);
@@ -76,6 +106,11 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
         output_crop = ncnn::create_layer(ncnn::LayerType::Crop);
         output_crop->vkdev = vkdev;
 
+        output_crop->bottom_shapes.resize(1);
+        output_crop->bottom_shapes[0] = out_shape_bordered_adj;
+        output_crop->top_shapes.resize(1);
+        output_crop->top_shapes[0] = out_shape;
+
         ncnn::ParamDict pd;
         pd.set(0, -233);
         pd.set(1, -233);
@@ -92,7 +127,13 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
-    std::vector<vk_specialization_type> specializations(10);
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    Mat out_shape_bordered_packed;
+    convert_shape_packing(out_shape_bordered, out_shape_bordered_packed, out_elempack);
+
+    std::vector<vk_specialization_type> specializations(10 + 10);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
     specializations[2].i = dilation_w;
@@ -103,12 +144,30 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     specializations[7].i = activation_type;
     specializations[8].f = activation_params.w == 1 ? activation_params[0] : 0.f;
     specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+    specializations[10 + 0].i = shape_packed.dims;
+    specializations[10 + 1].i = shape_packed.w;
+    specializations[10 + 2].i = shape_packed.h;
+    specializations[10 + 3].i = shape_packed.c;
+    specializations[10 + 4].i = shape_packed.cstep;
+    specializations[10 + 5].i = out_shape_bordered_packed.dims;
+    specializations[10 + 6].i = out_shape_bordered_packed.w;
+    specializations[10 + 7].i = out_shape_bordered_packed.h;
+    specializations[10 + 8].i = out_shape_bordered_packed.c;
+    specializations[10 + 9].i = out_shape_bordered_packed.cstep;
+
+    Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
+    if (out_shape_bordered_packed.dims != 0)
+    {
+        local_size_xyz.w = std::min(8, out_shape_bordered_packed.w);
+        local_size_xyz.h = std::min(8, out_shape_bordered_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_bordered_packed.c);
+    }
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
     {
         pipeline_deconvolution = new Pipeline(vkdev);
-        pipeline_deconvolution->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolution->create("deconvolution", opt, specializations, 4, 10);
     }
 
@@ -116,7 +175,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (elempack == 4 && out_elempack == 4)
     {
         pipeline_deconvolution_pack4 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolution_pack4->create("deconvolution_pack4", opt, specializations, 4, 10);
     }
 
@@ -124,7 +183,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (elempack == 1 && out_elempack == 4)
     {
         pipeline_deconvolution_pack1to4 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack1to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolution_pack1to4->create("deconvolution_pack1to4", opt, specializations, 4, 10);
     }
 
@@ -132,7 +191,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (elempack == 4 && out_elempack == 1)
     {
         pipeline_deconvolution_pack4to1 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack4to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolution_pack4to1->create("deconvolution_pack4to1", opt, specializations, 4, 10);
     }
 
@@ -140,7 +199,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (elempack == 8 && out_elempack == 8)
     {
         pipeline_deconvolution_pack8 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolution_pack8->create("deconvolution_pack8", opt, specializations, 4, 10);
     }
 
@@ -148,7 +207,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (elempack == 1 && out_elempack == 8)
     {
         pipeline_deconvolution_pack1to8 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack1to8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolution_pack1to8->create("deconvolution_pack1to8", opt, specializations, 4, 10);
     }
 
@@ -156,7 +215,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (elempack == 4 && out_elempack == 8)
     {
         pipeline_deconvolution_pack4to8 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack4to8->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolution_pack4to8->create("deconvolution_pack4to8", opt, specializations, 4, 10);
     }
 
@@ -164,7 +223,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (elempack == 8 && out_elempack == 4)
     {
         pipeline_deconvolution_pack8to4 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack8to4->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolution_pack8to4->create("deconvolution_pack8to4", opt, specializations, 4, 10);
     }
 
@@ -172,7 +231,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     if (elempack == 8 && out_elempack == 1)
     {
         pipeline_deconvolution_pack8to1 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack8to1->set_optimal_local_size_xyz(32, 32, std::max(1, num_output / 8));
+        pipeline_deconvolution_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deconvolution_pack8to1->create("deconvolution_pack8to1", opt, specializations, 4, 10);
     }
 

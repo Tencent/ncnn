@@ -23,6 +23,7 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #endif
 
 layout (constant_id = 0) const float eps = 0;
+layout (constant_id = 1) const int w = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -34,18 +35,13 @@ layout (binding = 2) readonly buffer var_blob { sfpvec8 var_data[]; };
 layout (binding = 3) readonly buffer gamma_blob { sfpvec8 gamma_data[]; };
 layout (binding = 4) readonly buffer beta_blob { sfpvec8 beta_data[]; };
 
-layout (push_constant) uniform parameter
-{
-    int w;
-} p;
-
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= 1 || gz >= 1)
+    if (gx >= w || gy >= 1 || gz >= 1)
         return;
 
     afpvec8 mean = buffer_ld8(mean_data, gx);

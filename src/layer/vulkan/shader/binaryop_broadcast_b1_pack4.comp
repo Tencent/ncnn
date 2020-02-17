@@ -23,6 +23,25 @@
 
 layout (constant_id = 0) const int op_type = 0;
 
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int adims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int aw = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int ah = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int ac = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int acstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int bdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int bw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int bh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int bc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int bcstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 10) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 12) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 13) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 14) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -58,17 +77,17 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int gi = gz * p.outcstep + gy * p.outw + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     int bi = 0;
 
-    if (p.bw == p.aw && p.bh == p.ah && p.bc == 1)
+    if (psc(bw) == psc(aw) && psc(bh) == psc(ah) && psc(bc) == 1)
     {
         // special type 2
-        bi = gy * p.bw + gx;
+        bi = gy * psc(bw) + gx;
     }
 
     // type 6 11 16

@@ -16,7 +16,7 @@
 
 #include "layer/pooling.h"
 
-static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, bool use_packing_layout)
+static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -30,7 +30,6 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
     pd.set(6, avgpool_count_include_pad);// avgpool_count_include_pad
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -40,12 +39,11 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Pooling>("Pooling", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Pooling>("Pooling", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_pooling failed w=%d h=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d use_packing_layout=%d\n", w, h, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad, use_packing_layout);
+        fprintf(stderr, "test_pooling failed w=%d h=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d\n", w, h, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad);
     }
 
     return ret;
@@ -70,23 +68,14 @@ static int test_pooling_0()
     for (int i=0; i<11; i++)
     {
         int ret = 0
-            || test_pooling(13, 11, 1, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, false)
-            || test_pooling(13, 11, 2, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, false)
-            || test_pooling(13, 11, 3, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, false)
-            || test_pooling(13, 11, 4, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, false)
-            || test_pooling(13, 11, 7, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, false)
-            || test_pooling(13, 11, 8, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, false)
-            || test_pooling(13, 11, 15, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, false)
-            || test_pooling(13, 11, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, false)
-
-            || test_pooling(13, 11, 1, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, true)
-            || test_pooling(13, 11, 2, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, true)
-            || test_pooling(13, 11, 3, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, true)
-            || test_pooling(13, 11, 4, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, true)
-            || test_pooling(13, 11, 7, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, true)
-            || test_pooling(13, 11, 8, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, true)
-            || test_pooling(13, 11, 15, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, true)
-            || test_pooling(13, 11, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, true)
+            || test_pooling(13, 11, 1, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+            || test_pooling(13, 11, 2, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+            || test_pooling(13, 11, 3, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+            || test_pooling(13, 11, 4, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+            || test_pooling(13, 11, 7, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+            || test_pooling(13, 11, 8, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+            || test_pooling(13, 11, 15, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+            || test_pooling(13, 11, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
             ;
 
         if (ret != 0)
@@ -115,23 +104,14 @@ static int test_pooling_1()
     for (int i=0; i<11; i++)
     {
         int ret = 0
-            || test_pooling(13, 11, 1, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, false)
-            || test_pooling(13, 11, 2, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, false)
-            || test_pooling(13, 11, 3, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 1, false)
-            || test_pooling(13, 11, 4, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, false)
-            || test_pooling(13, 11, 7, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, false)
-            || test_pooling(13, 11, 8, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 1, false)
-            || test_pooling(13, 11, 15, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, false)
-            || test_pooling(13, 11, 16, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, false)
-
-            || test_pooling(13, 11, 1, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, true)
-            || test_pooling(13, 11, 2, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, true)
-            || test_pooling(13, 11, 3, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 1, true)
-            || test_pooling(13, 11, 4, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, true)
-            || test_pooling(13, 11, 7, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, true)
-            || test_pooling(13, 11, 8, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 1, true)
-            || test_pooling(13, 11, 15, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, true)
-            || test_pooling(13, 11, 16, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, true)
+            || test_pooling(13, 11, 1, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+            || test_pooling(13, 11, 2, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+            || test_pooling(13, 11, 3, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 1)
+            || test_pooling(13, 11, 4, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+            || test_pooling(13, 11, 7, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+            || test_pooling(13, 11, 8, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 1)
+            || test_pooling(13, 11, 15, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+            || test_pooling(13, 11, 16, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
             ;
 
         if (ret != 0)
@@ -144,27 +124,16 @@ static int test_pooling_1()
 static int test_pooling_2()
 {
     return 0
-        || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0, false)
-        || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0, false)
-        || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0, false)
-        || test_pooling(6, 3, 3, 1, 1, 1, 0, 1, 0, 0, false)
-        || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, false)
-        || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0, false)
-        || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, false)
-        || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0, false)
-        || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0, false)
-        || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0, false)
-
-        || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0, true)
-        || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0, true)
-        || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0, true)
-        || test_pooling(6, 3, 3, 1, 1, 1, 0, 1, 0, 0, true)
-        || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, true)
-        || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0, true)
-        || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, true)
-        || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0, true)
-        || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0, true)
-        || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0, true)
+        || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0)
+        || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0)
+        || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0)
+        || test_pooling(6, 3, 3, 1, 1, 1, 0, 1, 0, 0)
+        || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0)
+        || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0)
+        || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0)
+        || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0)
+        || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0)
+        || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0)
         ;
 }
 

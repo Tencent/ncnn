@@ -1654,9 +1654,12 @@ int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
         innerproduct->num_output = convolution->num_output;
         innerproduct->bias_term = convolution->bias_term;
         innerproduct->weight_data_size = convolution->weight_data_size;
+        innerproduct->int8_scale_term = convolution->int8_scale_term;
 
         innerproduct->weight_data = convolution->weight_data;
         innerproduct->bias_data = convolution->bias_data;
+        innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
+        innerproduct->bottom_blob_int8_scale = convolution->bottom_blob_int8_scale;
 
         innerproduct->activation_type = convolution->activation_type;
         innerproduct->activation_params = convolution->activation_params;
@@ -1717,9 +1720,12 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
         innerproduct2->num_output = convolution->num_output;
         innerproduct2->bias_term = convolution->bias_term;
         innerproduct2->weight_data_size = convolution->weight_data_size;
+        innerproduct->int8_scale_term = convolution->int8_scale_term;
 
         innerproduct2->weight_data = convolution->weight_data;
         innerproduct2->bias_data = convolution->bias_data;
+        innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
+        innerproduct->bottom_blob_int8_scale = convolution->bottom_blob_int8_scale;
 
         innerproduct2->activation_type = convolution->activation_type;
         innerproduct2->activation_params = convolution->activation_params;
@@ -1817,7 +1823,7 @@ int NetOptimize::shape_inference()
             ncnn::Mat m;
             ex.extract(top_blob_index, m);
 
-            blobs[top_blob_index].shape = m.shape();
+            blobs[top_blob_index].shape = m;
         }
     }
 

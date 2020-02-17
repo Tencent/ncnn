@@ -26,6 +26,19 @@ layout (constant_id = 0) const int type = 1;
 layout (constant_id = 1) const float value = 0;
 layout (constant_id = 2) const int per_channel_pad = 0;
 
+#define shape_constant_id_offset 3
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -58,19 +71,19 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int gi = gz * p.outcstep + gy * p.outw + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     int x = gx - p.left;
     int y = gy - p.top;
 
     if (type == 0)
     {
-        if (x >= 0 && x < p.w && y >= 0 && y < p.h)
+        if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
         {
-            int v_offset = gz * p.cstep + y * p.w + x;
+            int v_offset = gz * psc(cstep) + y * psc(w) + x;
             buffer_cp8(top_blob_data, gi, bottom_blob_data, v_offset);
         }
         else if (per_channel_pad == 1)
@@ -85,20 +98,20 @@ void main()
     }
     else if (type == 1)
     {
-        x = clamp(x, 0, p.w - 1);
-        y = clamp(y, 0, p.h - 1);
+        x = clamp(x, 0, psc(w) - 1);
+        y = clamp(y, 0, psc(h) - 1);
 
-        int v_offset = gz * p.cstep + y * p.w + x;
+        int v_offset = gz * psc(cstep) + y * psc(w) + x;
         buffer_cp8(top_blob_data, gi, bottom_blob_data, v_offset);
     }
     else if (type == 2)
     {
         x = abs(x);
         y = abs(y);
-        x = (p.w - 1) - abs(x - (p.w - 1));
-        y = (p.h - 1) - abs(y - (p.h - 1));
+        x = (psc(w) - 1) - abs(x - (psc(w) - 1));
+        y = (psc(h) - 1) - abs(y - (psc(h) - 1));
 
-        int v_offset = gz * p.cstep + y * p.w + x;
+        int v_offset = gz * psc(cstep) + y * psc(w) + x;
         buffer_cp8(top_blob_data, gi, bottom_blob_data, v_offset);
     }
 }

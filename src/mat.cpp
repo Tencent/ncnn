@@ -400,6 +400,25 @@ void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt)
     delete cast;
 }
 
+void cast_int8_to_float32(const Mat& src, Mat& dst, const Option& opt)
+{
+    Layer* cast = create_layer(LayerType::Cast);
+
+    ParamDict pd;
+    pd.set(0, 3);
+    pd.set(1, 1);
+
+    cast->load_param(pd);
+
+    cast->create_pipeline(opt);
+
+    cast->forward(src, dst, opt);
+
+    cast->destroy_pipeline(opt);
+
+    delete cast;
+}
+
 void quantize_float32_to_int8(const Mat& src, Mat& dst, float scale, const Option& opt)
 {
     Layer* quantize = create_layer(LayerType::Quantize);
@@ -468,6 +487,26 @@ void requantize_int8_to_int8(const Mat& src, Mat& dst, float scale_in, float sca
     requantize->destroy_pipeline(opt);
 
     delete requantize;
+}
+
+void convert_shape_packing(const Mat& src, Mat& dst, int _elempack)
+{
+    int dims = src.dims;
+    size_t elemsize = src.elemsize;
+    int elempack = src.elempack;
+
+    if (dims == 1)
+    {
+        dst = Mat(src.w * elempack / _elempack, (void*)0, elemsize / elempack * _elempack, _elempack);
+    }
+    if (dims == 2)
+    {
+        dst = Mat(src.w, src.h * elempack / _elempack, (void*)0, elemsize / elempack * _elempack, _elempack);
+    }
+    if (dims == 3)
+    {
+        dst = Mat(src.w, src.h, src.c * elempack / _elempack, (void*)0, elemsize / elempack * _elempack, _elempack);
+    }
 }
 
 } // namespace ncnn

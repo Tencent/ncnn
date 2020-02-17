@@ -145,88 +145,42 @@ void Pipeline::destroy()
 
 void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
 {
-    if (c > 0)
+    set_optimal_local_size_xyz(Mat(w, h, c, (void*)0));
+}
+
+void Pipeline::set_optimal_local_size_xyz(const Mat& local_size_xyz)
+{
+    int w = local_size_xyz.w;
+    int h = local_size_xyz.h;
+    int c = local_size_xyz.c;
+
+    if (w == 0 && h == 0 && c == 0)
     {
-        local_size_z = vkdev->info.max_workgroup_size[2];
-        while ((uint32_t)c < local_size_z)
-        {
-            local_size_z /= 2;
-        }
-    }
-    else
-    {
-        local_size_z = std::min((uint32_t)128, vkdev->info.max_workgroup_size[2]);
-    }
-
-    uint32_t max_local_size_xy = vkdev->info.max_workgroup_invocations / local_size_z;
-
-    if (h == w || (h < 0 && w < 0))
-    {
-        uint32_t local_size_xy = sqrt(max_local_size_xy);
-        uint32_t local_size_xy_prefer = 128;
-        while (local_size_xy < local_size_xy_prefer)
-        {
-            local_size_xy_prefer /= 2;
-        }
-        local_size_x = local_size_xy_prefer;
-        local_size_y = local_size_xy_prefer;
-    }
-    if (h > 0 && w > 0)
-    {
-        if (h > w)
-        {
-            float ps = h / (float)w;
-            float local_size_xy = sqrt(max_local_size_xy / ps);
-            local_size_y = local_size_xy * ps;
-            local_size_x = std::max((uint32_t)local_size_xy, (uint32_t)1);
-        }
-        else
-        {
-            float ps = w / (float)h;
-            float local_size_xy = sqrt(max_local_size_xy / ps);
-            local_size_y = std::max((uint32_t)local_size_xy, (uint32_t)1);
-            local_size_x = local_size_xy * ps;
-        }
-
-        uint32_t local_size_y_prefer = std::min((uint32_t)128, vkdev->info.max_workgroup_size[1]);
-        while (local_size_y < local_size_y_prefer)
-        {
-            local_size_y_prefer /= 2;
-        }
-
-        uint32_t local_size_x_prefer = std::min((uint32_t)128, vkdev->info.max_workgroup_size[0]);
-        while (local_size_x < local_size_x_prefer)
-        {
-            local_size_x_prefer /= 2;
-        }
-
-        local_size_y = local_size_y_prefer;
-        local_size_x = local_size_x_prefer;
-    }
-    else if (h > 0)
-    {
-        local_size_y = std::min(max_local_size_xy, vkdev->info.max_workgroup_size[1]);
-        while ((uint32_t)h < local_size_y)
-        {
-            local_size_y /= 2;
-        }
-
-        uint32_t max_local_size_x = max_local_size_xy / local_size_y;
-        local_size_x = std::min(max_local_size_x, vkdev->info.max_workgroup_size[0]);
-    }
-    else if (w > 0)
-    {
-        local_size_x = std::min(max_local_size_xy, vkdev->info.max_workgroup_size[0]);
-        while ((uint32_t)w < local_size_x)
-        {
-            local_size_x /= 2;
-        }
-
-        uint32_t max_local_size_y = max_local_size_xy / local_size_x;
-        local_size_y = std::min(max_local_size_y, vkdev->info.max_workgroup_size[1]);
+        // fallback to the common and safe 4x4x4
+        w = 4;
+        h = 4;
+        c = 4;
     }
 
-//     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+    w = std::min(w, (int)vkdev->info.max_workgroup_size[0]);
+    h = std::min(h, (int)vkdev->info.max_workgroup_size[1]);
+    c = std::min(c, (int)vkdev->info.max_workgroup_size[2]);
+
+    if (w * h * c <= (int)vkdev->info.max_workgroup_invocations)
+    {
+        return set_local_size_xyz(w, h, c);
+    }
+
+    int max_local_size_xy = (int)vkdev->info.max_workgroup_invocations / c;
+
+    int wh_max = std::max(1, (int)sqrt(max_local_size_xy));
+    while (w * h >= wh_max)
+    {
+        w = std::max(1, w / 2);
+        h = std::max(1, h / 2);
+    }
+
+    set_local_size_xyz(w, h, c);
 }
 
 void Pipeline::set_local_size_xyz(int w, int h, int c)
@@ -234,6 +188,8 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
     local_size_x = w;
     local_size_y = h;
     local_size_z = c;
+
+//     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
 }
 
 int Pipeline::create_descriptorset_layout(int binding_count)
