@@ -145,7 +145,7 @@ public:
     const float& operator[](size_t i) const;
 
 #if NCNN_PIXEL
-    enum
+    enum PixelType
     {
         PIXEL_CONVERT_SHIFT = 16,
         PIXEL_FORMAT_MASK = 0x0000ffff,
