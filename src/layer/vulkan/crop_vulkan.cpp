@@ -40,9 +40,90 @@ Crop_vulkan::Crop_vulkan()
 
 int Crop_vulkan::create_pipeline(const Option& opt)
 {
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    int out_elempack = 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+
+    int offset_elempack = 1;
+    bool numpy_style_slice = !starts.empty() && !ends.empty();
+    if (numpy_style_slice)
+    {
+        // TODO vec and image crop
+        offset_elempack = elempack;
+
+        const int* starts_ptr = starts;
+        const int* axes_ptr = axes;
+
+        int _axes[4] = {0,1,2,3};
+        int num_axis = axes.w;
+        if (num_axis == 0)
+        {
+            num_axis = shape.dims + 1;// +1 for N-dim
+        }
+        else
+        {
+            for (int i=0; i<num_axis; i++)
+            {
+                int axis = axes_ptr[i];
+                if (axis < 0)
+                    axis = shape.dims + 1 + axis;// +1 for N-dim
+                _axes[i] = axis;
+            }
+        }
+
+        for (int i=0; i<num_axis; i++)
+        {
+            int axis = _axes[i];
+            if (axis == 0)
+                continue;// skip N-dim
+
+            if (axis == 1)
+            {
+                int start = starts_ptr[i];
+                int _coffset = start >= 0 ? start : shape.c + start;
+                offset_elempack = opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+            }
+        }
+    }
+    else
+    {
+        // TODO vec and image crop
+        if (coffset == 0)
+            offset_elempack = elempack;
+        else
+            offset_elempack = opt.use_shader_pack8 && coffset % 8 == 0 ? 8 : coffset % 4 == 0 ? 4 : 1;
+    }
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    Mat out_shape_packed;
+    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+
+    Mat shape_unpacked = shape_packed;
+    if (bottom_shapes.size() == 1 && shape.dims != 0 && elempack == out_elempack && elempack > offset_elempack)
+    {
+        convert_shape_packing(shape, shape_unpacked, offset_elempack);
+    }
+
+    if (shape.dims == 0 || (elempack > 1 && offset_elempack == 1) || bottom_shapes.size() == 2)
     {
         packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
         packing_pack1->vkdev = vkdev;
+
+        packing_pack1->bottom_shapes.resize(1);
+        packing_pack1->bottom_shapes[0] = shape_packed;
+        packing_pack1->top_shapes.resize(1);
+        packing_pack1->top_shapes[0] = shape_unpacked;
 
         ncnn::ParamDict pd;
         pd.set(0, 1);
@@ -52,9 +133,15 @@ int Crop_vulkan::create_pipeline(const Option& opt)
         packing_pack1->create_pipeline(opt);
     }
 
+    if (shape.dims == 0 || (elempack > 4 && offset_elempack == 4) || bottom_shapes.size() == 2)
     {
         packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
         packing_pack4->vkdev = vkdev;
+
+        packing_pack4->bottom_shapes.resize(1);
+        packing_pack4->bottom_shapes[0] = shape_packed;
+        packing_pack4->top_shapes.resize(1);
+        packing_pack4->top_shapes[0] = shape_unpacked;
 
         ncnn::ParamDict pd;
         pd.set(0, 4);
@@ -64,68 +151,107 @@ int Crop_vulkan::create_pipeline(const Option& opt)
         packing_pack4->create_pipeline(opt);
     }
 
-    std::vector<vk_specialization_type> specializations;
+    std::vector<vk_specialization_type> specializations(0 + 10);
+    specializations[0 + 0].i = shape_unpacked.dims;
+    specializations[0 + 1].i = shape_unpacked.w;
+    specializations[0 + 2].i = shape_unpacked.h;
+    specializations[0 + 3].i = shape_unpacked.c;
+    specializations[0 + 4].i = shape_unpacked.cstep;
+    specializations[0 + 5].i = out_shape_packed.dims;
+    specializations[0 + 6].i = out_shape_packed.w;
+    specializations[0 + 7].i = out_shape_packed.h;
+    specializations[0 + 8].i = out_shape_packed.c;
+    specializations[0 + 9].i = out_shape_packed.cstep;
+
+    Mat local_size_xyz;
+    if (out_shape_packed.dims == 1)
+    {
+        local_size_xyz.w = std::min(64, out_shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (out_shape_packed.dims == 2)
+    {
+        local_size_xyz.w = std::min(8, out_shape_packed.w);
+        local_size_xyz.h = std::min(8, out_shape_packed.h);
+        local_size_xyz.c = 1;
+    }
+    if (out_shape_packed.dims == 3)
+    {
+        local_size_xyz.w = std::min(4, out_shape_packed.w);
+        local_size_xyz.h = std::min(4, out_shape_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_packed.c);
+    }
 
     // pack1
+    if (out_shape.dims == 0 || out_elempack == 1)
     {
         pipeline_crop = new Pipeline(vkdev);
-        pipeline_crop->set_optimal_local_size_xyz();
+        pipeline_crop->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_crop->create("crop", opt, specializations, 2, 13);
     }
 
     // pack4
+    if (out_shape.dims == 0 || out_elempack == 4)
     {
         pipeline_crop_pack4 = new Pipeline(vkdev);
-        pipeline_crop_pack4->set_optimal_local_size_xyz();
+        pipeline_crop_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_crop_pack4->create("crop_pack4", opt, specializations, 2, 13);
     }
 
     // pack1to4
+    if (out_shape.dims == 0 || out_elempack == 4)
     {
         pipeline_crop_pack1to4 = new Pipeline(vkdev);
-        pipeline_crop_pack1to4->set_optimal_local_size_xyz();
+        pipeline_crop_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_crop_pack1to4->create("crop_pack1to4", opt, specializations, 2, 13);
     }
 
     // pack4to1
+    if (out_shape.dims == 0 || out_elempack == 1)
     {
         pipeline_crop_pack4to1 = new Pipeline(vkdev);
-        pipeline_crop_pack4to1->set_optimal_local_size_xyz();
+        pipeline_crop_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_crop_pack4to1->create("crop_pack4to1", opt, specializations, 2, 13);
     }
 
     // pack8
+    if (out_shape.dims == 0 || (elempack == 8 && out_elempack == 8))
     {
         pipeline_crop_pack8 = new Pipeline(vkdev);
-        pipeline_crop_pack8->set_optimal_local_size_xyz();
+        pipeline_crop_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_crop_pack8->create("crop_pack8", opt, specializations, 2, 13);
     }
 
     // pack1to8
+    if (out_shape.dims == 0 || out_elempack == 8)
     {
         pipeline_crop_pack1to8 = new Pipeline(vkdev);
-        pipeline_crop_pack1to8->set_optimal_local_size_xyz();
+        pipeline_crop_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_crop_pack1to8->create("crop_pack1to8", opt, specializations, 2, 13);
     }
 
     // pack4to8
+    if (out_shape.dims == 0 || out_elempack == 8)
     {
         pipeline_crop_pack4to8 = new Pipeline(vkdev);
-        pipeline_crop_pack4to8->set_optimal_local_size_xyz();
+        pipeline_crop_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_crop_pack4to8->create("crop_pack4to8", opt, specializations, 2, 13);
     }
 
     // pack8to4
+    if (out_shape.dims == 0 || (elempack == 8 && out_elempack == 4))
     {
         pipeline_crop_pack8to4 = new Pipeline(vkdev);
-        pipeline_crop_pack8to4->set_optimal_local_size_xyz();
+        pipeline_crop_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_crop_pack8to4->create("crop_pack8to4", opt, specializations, 2, 13);
     }
 
     // pack8to1
+    if (out_shape.dims == 0 || (elempack == 8 && out_elempack == 1))
     {
         pipeline_crop_pack8to1 = new Pipeline(vkdev);
-        pipeline_crop_pack8to1->set_optimal_local_size_xyz();
+        pipeline_crop_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_crop_pack8to1->create("crop_pack8to1", opt, specializations, 2, 13);
     }
 

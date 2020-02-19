@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "sigmoid_vulkan.h"
-#include <math.h>
+#include <algorithm>
 
 namespace ncnn {
 
@@ -30,26 +30,64 @@ Sigmoid_vulkan::Sigmoid_vulkan()
 
 int Sigmoid_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations;
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    std::vector<vk_specialization_type> specializations(0 + 5);
+    specializations[0 + 0].i = shape_packed.dims;
+    specializations[0 + 1].i = shape_packed.w;
+    specializations[0 + 2].i = shape_packed.h;
+    specializations[0 + 3].i = shape_packed.c;
+    specializations[0 + 4].i = shape_packed.cstep;
+
+    Mat local_size_xyz;
+    if (shape_packed.dims == 1)
+    {
+        local_size_xyz.w = std::min(64, shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 2)
+    {
+        local_size_xyz.w = std::min(8, shape_packed.w);
+        local_size_xyz.h = std::min(8, shape_packed.h);
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 3)
+    {
+        local_size_xyz.w = std::min(4, shape_packed.w);
+        local_size_xyz.h = std::min(4, shape_packed.h);
+        local_size_xyz.c = std::min(4, shape_packed.c);
+    }
 
     // pack1
+    if (shape.dims == 0 || elempack == 1)
     {
         pipeline_sigmoid = new Pipeline(vkdev);
-        pipeline_sigmoid->set_optimal_local_size_xyz();
+        pipeline_sigmoid->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_sigmoid->create("sigmoid", opt, specializations, 1, 5);
     }
 
     // pack4
+    if (shape.dims == 0 || elempack == 4)
     {
         pipeline_sigmoid_pack4 = new Pipeline(vkdev);
-        pipeline_sigmoid_pack4->set_optimal_local_size_xyz();
+        pipeline_sigmoid_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_sigmoid_pack4->create("sigmoid_pack4", opt, specializations, 1, 5);
     }
 
     // pack8
+    if (shape.dims == 0 || elempack == 8)
     {
         pipeline_sigmoid_pack8 = new Pipeline(vkdev);
-        pipeline_sigmoid_pack8->set_optimal_local_size_xyz();
+        pipeline_sigmoid_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_sigmoid_pack8->create("sigmoid_pack8", opt, specializations, 1, 5);
     }
 

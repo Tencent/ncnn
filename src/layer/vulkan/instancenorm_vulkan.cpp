@@ -50,102 +50,219 @@ InstanceNorm_vulkan::InstanceNorm_vulkan()
 
 int InstanceNorm_vulkan::create_pipeline(const Option& opt)
 {
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
-    std::vector<vk_specialization_type> specializations(1);
-    specializations[0].f = eps;
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
 
-    // pack1
-    if (elempack == 1)
+    // TODO resolve workspace_shape.w
+    Mat workspace_shape = Mat(1, 1, channels, (void*)0);
+
+    Mat workspace_shape_packed;
+    convert_shape_packing(workspace_shape, workspace_shape_packed, elempack);
+
     {
-        pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(16, 1, channels);
-        pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create("instancenorm_reduce_sum4_fp16_to_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
+        Mat local_size_xyz(16, 1, std::min(4, channels / elempack), (void*)0);
+        if (workspace_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = 16;
+            local_size_xyz.h = 1;
+            local_size_xyz.c = std::min(4, workspace_shape_packed.c);
+        }
 
-        pipeline_instancenorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(16, 1, channels);
-        pipeline_instancenorm_reduce_sum4_fp32[0]->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
-        pipeline_instancenorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(16, 1, channels);
-        pipeline_instancenorm_reduce_sum4_fp32[1]->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
+        // pack1
+        if (elempack == 1)
+        {
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create("instancenorm_reduce_sum4_fp16_to_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
 
-        pipeline_instancenorm_reduce_mean = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(channels, 1, 1);
-        pipeline_instancenorm_reduce_mean->create("instancenorm_reduce_mean", opt, std::vector<vk_specialization_type>(), 2, 4);
+            pipeline_instancenorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_sum4_fp32[0]->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_sum4_fp32[1]->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
+        }
 
-        pipeline_instancenorm_sub_mean_square = new Pipeline(vkdev);
-        pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(32, 32, channels);
-        pipeline_instancenorm_sub_mean_square->create("instancenorm_sub_mean_square", opt, std::vector<vk_specialization_type>(), 3, 5);
+        // pack4
+        if (elempack == 4)
+        {
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create("instancenorm_reduce_sum4_fp16_to_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
 
-        pipeline_instancenorm_coeffs = new Pipeline(vkdev);
-        pipeline_instancenorm_coeffs->set_optimal_local_size_xyz(channels, 1, 1);
-        pipeline_instancenorm_coeffs->create("instancenorm_coeffs", opt, specializations, 5, 1);
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
+        }
 
-        pipeline_instancenorm_norm = new Pipeline(vkdev);
-        pipeline_instancenorm_norm->set_optimal_local_size_xyz(32, 32, channels);
-        pipeline_instancenorm_norm->create("instancenorm_norm", opt, std::vector<vk_specialization_type>(), 2, 5);
+        // pack8
+        if (elempack == 8)
+        {
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->create("instancenorm_reduce_sum4_fp16_to_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
+
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[0] = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->create("instancenorm_reduce_sum4_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[1] = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->create("instancenorm_reduce_sum4_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
+        }
     }
 
-    // pack4
-    if (elempack == 4)
     {
-        pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 4));
-        pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create("instancenorm_reduce_sum4_fp16_to_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
+        std::vector<vk_specialization_type> specializations(0 + 3);
+        specializations[0].i = 0;// TODO resolve workspace_shape_packed.w;
+        specializations[1].i = workspace_shape_packed.c;
+        specializations[2].i = 0;// TODO resolve workspace_shape_packed.cstep;
 
-        pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 4));
-        pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
-        pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 4));
-        pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
+        Mat local_size_xyz(std::min(64, channels / elempack), 1, 1, (void*)0);
+        if (workspace_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(64, workspace_shape_packed.c);
+            local_size_xyz.h = 1;
+            local_size_xyz.c = 1;
+        }
 
-        pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(std::max(1, channels / 4), 1, 1);
-        pipeline_instancenorm_reduce_mean_pack4->create("instancenorm_reduce_mean_pack4", opt, std::vector<vk_specialization_type>(), 2, 4);
+        if (elempack == 1)
+        {
+            pipeline_instancenorm_reduce_mean = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_mean->create("instancenorm_reduce_mean", opt, specializations, 2, 4);
+        }
 
-        pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, channels / 4));
-        pipeline_instancenorm_sub_mean_square_pack4->create("instancenorm_sub_mean_square_pack4", opt, std::vector<vk_specialization_type>(), 3, 5);
+        if (elempack == 4)
+        {
+            pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_mean_pack4->create("instancenorm_reduce_mean_pack4", opt, specializations, 2, 4);
+        }
 
-        pipeline_instancenorm_coeffs_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_coeffs_pack4->set_optimal_local_size_xyz(std::max(1, channels / 4), 1, 1);
-        pipeline_instancenorm_coeffs_pack4->create("instancenorm_coeffs_pack4", opt, specializations, 5, 1);
-
-        pipeline_instancenorm_norm_pack4 = new Pipeline(vkdev);
-        pipeline_instancenorm_norm_pack4->set_optimal_local_size_xyz(32, 32, std::max(1, channels / 4));
-        pipeline_instancenorm_norm_pack4->create("instancenorm_norm_pack4", opt, std::vector<vk_specialization_type>(), 2, 5);
+        if (elempack == 8)
+        {
+            pipeline_instancenorm_reduce_mean_pack8 = new Pipeline(vkdev);
+            pipeline_instancenorm_reduce_mean_pack8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_reduce_mean_pack8->create("instancenorm_reduce_mean_pack8", opt, specializations, 2, 4);
+        }
     }
 
-    // pack8
-    if (elempack == 8)
     {
-        pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 8));
-        pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->create("instancenorm_reduce_sum4_fp16_to_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
+        std::vector<vk_specialization_type> specializations(0 + 5);
+        specializations[0 + 0].i = shape_packed.dims;
+        specializations[0 + 1].i = shape_packed.w;
+        specializations[0 + 2].i = shape_packed.h;
+        specializations[0 + 3].i = shape_packed.c;
+        specializations[0 + 4].i = shape_packed.cstep;
 
-        pipeline_instancenorm_reduce_sum4_fp32_pack8[0] = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 8));
-        pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->create("instancenorm_reduce_sum4_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
-        pipeline_instancenorm_reduce_sum4_fp32_pack8[1] = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->set_optimal_local_size_xyz(16, 1, std::max(1, channels / 8));
-        pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->create("instancenorm_reduce_sum4_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
+        Mat local_size_xyz(4, 4, std::min(4, channels / elempack), (void*)0);
+        if (shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(4, shape_packed.w);
+            local_size_xyz.h = std::min(4, shape_packed.h);
+            local_size_xyz.c = std::min(4, shape_packed.c);
+        }
 
-        pipeline_instancenorm_reduce_mean_pack8 = new Pipeline(vkdev);
-        pipeline_instancenorm_reduce_mean_pack8->set_optimal_local_size_xyz(std::max(1, channels / 8), 1, 1);
-        pipeline_instancenorm_reduce_mean_pack8->create("instancenorm_reduce_mean_pack8", opt, std::vector<vk_specialization_type>(), 2, 4);
+        if (elempack == 1)
+        {
+            pipeline_instancenorm_sub_mean_square = new Pipeline(vkdev);
+            pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_sub_mean_square->create("instancenorm_sub_mean_square", opt, specializations, 3, 5);
+        }
 
-        pipeline_instancenorm_sub_mean_square_pack8 = new Pipeline(vkdev);
-        pipeline_instancenorm_sub_mean_square_pack8->set_optimal_local_size_xyz(32, 32, std::max(1, channels / 8));
-        pipeline_instancenorm_sub_mean_square_pack8->create("instancenorm_sub_mean_square_pack8", opt, std::vector<vk_specialization_type>(), 3, 5);
+        if (elempack == 4)
+        {
+            pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
+            pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_sub_mean_square_pack4->create("instancenorm_sub_mean_square_pack4", opt, specializations, 3, 5);
+        }
 
-        pipeline_instancenorm_coeffs_pack8 = new Pipeline(vkdev);
-        pipeline_instancenorm_coeffs_pack8->set_optimal_local_size_xyz(std::max(1, channels / 8), 1, 1);
-        pipeline_instancenorm_coeffs_pack8->create("instancenorm_coeffs_pack8", opt, specializations, 5, 1);
+        if (elempack == 8)
+        {
+            pipeline_instancenorm_sub_mean_square_pack8 = new Pipeline(vkdev);
+            pipeline_instancenorm_sub_mean_square_pack8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_sub_mean_square_pack8->create("instancenorm_sub_mean_square_pack8", opt, specializations, 3, 5);
+        }
+    }
 
-        pipeline_instancenorm_norm_pack8 = new Pipeline(vkdev);
-        pipeline_instancenorm_norm_pack8->set_optimal_local_size_xyz(32, 32, std::max(1, channels / 8));
-        pipeline_instancenorm_norm_pack8->create("instancenorm_norm_pack8", opt, std::vector<vk_specialization_type>(), 2, 5);
+    {
+        std::vector<vk_specialization_type> specializations(2);
+        specializations[0].f = eps;
+        specializations[1].i = channels / elempack;
+
+        Mat local_size_xyz(std::min(64, channels / elempack), 1, 1, (void*)0);
+        if (workspace_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(64, workspace_shape_packed.c);
+            local_size_xyz.h = 1;
+            local_size_xyz.c = 1;
+        }
+
+        if (elempack == 1)
+        {
+            pipeline_instancenorm_coeffs = new Pipeline(vkdev);
+            pipeline_instancenorm_coeffs->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_coeffs->create("instancenorm_coeffs", opt, specializations, 5, 0);
+        }
+
+        if (elempack == 4)
+        {
+            pipeline_instancenorm_coeffs_pack4 = new Pipeline(vkdev);
+            pipeline_instancenorm_coeffs_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_coeffs_pack4->create("instancenorm_coeffs_pack4", opt, specializations, 5, 0);
+        }
+
+        if (elempack == 8)
+        {
+            pipeline_instancenorm_coeffs_pack8 = new Pipeline(vkdev);
+            pipeline_instancenorm_coeffs_pack8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_coeffs_pack8->create("instancenorm_coeffs_pack8", opt, specializations, 5, 0);
+        }
+    }
+
+    {
+        std::vector<vk_specialization_type> specializations(0 + 5);
+        specializations[0 + 0].i = shape_packed.dims;
+        specializations[0 + 1].i = shape_packed.w;
+        specializations[0 + 2].i = shape_packed.h;
+        specializations[0 + 3].i = shape_packed.c;
+        specializations[0 + 4].i = shape_packed.cstep;
+
+        Mat local_size_xyz(4, 4, std::min(4, channels / elempack), (void*)0);
+        if (shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(4, shape_packed.w);
+            local_size_xyz.h = std::min(4, shape_packed.h);
+            local_size_xyz.c = std::min(4, shape_packed.c);
+        }
+
+        if (elempack == 1)
+        {
+            pipeline_instancenorm_norm = new Pipeline(vkdev);
+            pipeline_instancenorm_norm->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_norm->create("instancenorm_norm", opt, specializations, 2, 5);
+        }
+
+        if (elempack == 4)
+        {
+            pipeline_instancenorm_norm_pack4 = new Pipeline(vkdev);
+            pipeline_instancenorm_norm_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_norm_pack4->create("instancenorm_norm_pack4", opt, specializations, 2, 5);
+        }
+
+        if (elempack == 8)
+        {
+            pipeline_instancenorm_norm_pack8 = new Pipeline(vkdev);
+            pipeline_instancenorm_norm_pack8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_instancenorm_norm_pack8->create("instancenorm_norm_pack8", opt, specializations, 2, 5);
+        }
     }
 
     return 0;
@@ -229,12 +346,13 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int c = bottom_top_blob.c;
     int size = w * h;
     size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
 
     // mean
-    VkMat mean_workspace(channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+    VkMat mean_workspace(c, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
     {
         // reduce sum
         VkMat sum_workspace;
@@ -320,11 +438,11 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
     }
 
     // var
-    VkMat var_workspace(channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+    VkMat var_workspace(c, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
     {
         // sub mean and square
         VkMat square_workspace;
-        square_workspace.create(w, h, channels, 4u*elempack, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        square_workspace.create(w, h, c, 4u*elempack, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
         {
         std::vector<VkMat> bindings(3);
         bindings[0] = bottom_top_blob;
@@ -406,7 +524,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
 
     // coeffs
     VkMat coeffs_workspace;
-    coeffs_workspace.create(channels, elemsize * 2, elempack * 2, opt.workspace_vkallocator, opt.staging_vkallocator);
+    coeffs_workspace.create(c, elemsize * 2, elempack * 2, opt.workspace_vkallocator, opt.staging_vkallocator);
     {
     std::vector<VkMat> bindings(5);
     bindings[0] = coeffs_workspace;
@@ -415,8 +533,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
     bindings[3] = gamma_data_gpu;
     bindings[4] = beta_data_gpu;
 
-    std::vector<vk_constant_type> constants(1);
-    constants[0].i = channels;
+    std::vector<vk_constant_type> constants(0);
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_coeffs_pack8
                              : elempack == 4 ? pipeline_instancenorm_coeffs_pack4

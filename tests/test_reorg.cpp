@@ -16,13 +16,12 @@
 
 #include "layer/reorg.h"
 
-static int test_reorg(const ncnn::Mat& a, int stride, bool use_packing_layout)
+static int test_reorg(const ncnn::Mat& a, int stride)
 {
     ncnn::ParamDict pd;
     pd.set(0, stride);//stride
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -32,12 +31,11 @@ static int test_reorg(const ncnn::Mat& a, int stride, bool use_packing_layout)
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Reorg>("Reorg", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Reorg>("Reorg", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_reorg failed a.dims=%d a=(%d %d %d) stride=%d use_packing_layout=%d\n", a.dims, a.w, a.h, a.c, stride, use_packing_layout);
+        fprintf(stderr, "test_reorg failed a.dims=%d a=(%d %d %d) stride=%d\n", a.dims, a.w, a.h, a.c, stride);
     }
 
     return ret;
@@ -46,21 +44,13 @@ static int test_reorg(const ncnn::Mat& a, int stride, bool use_packing_layout)
 static int test_reorg_0()
 {
     return 0
-        || test_reorg(RandomMat(6, 7, 1), 1, false)
-        || test_reorg(RandomMat(6, 6, 2), 2, false)
-        || test_reorg(RandomMat(6, 8, 3), 2, false)
-        || test_reorg(RandomMat(4, 4, 4), 4, false)
-        || test_reorg(RandomMat(8, 8, 8), 2, false)
-        || test_reorg(RandomMat(10, 10, 12), 2, false)
-        || test_reorg(RandomMat(9, 9, 16), 3, false)
-
-        || test_reorg(RandomMat(6, 7, 1), 1, true)
-        || test_reorg(RandomMat(6, 6, 2), 2, true)
-        || test_reorg(RandomMat(6, 8, 3), 2, true)
-        || test_reorg(RandomMat(4, 4, 4), 4, true)
-        || test_reorg(RandomMat(8, 8, 8), 2, true)
-        || test_reorg(RandomMat(10, 10, 12), 2, true)
-        || test_reorg(RandomMat(9, 9, 16), 3, true)
+        || test_reorg(RandomMat(6, 7, 1), 1)
+        || test_reorg(RandomMat(6, 6, 2), 2)
+        || test_reorg(RandomMat(6, 8, 3), 2)
+        || test_reorg(RandomMat(4, 4, 4), 4)
+        || test_reorg(RandomMat(8, 8, 8), 2)
+        || test_reorg(RandomMat(10, 10, 12), 2)
+        || test_reorg(RandomMat(9, 9, 16), 3)
         ;
 }
 

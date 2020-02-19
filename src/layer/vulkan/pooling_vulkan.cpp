@@ -36,9 +36,54 @@ Pooling_vulkan::Pooling_vulkan()
 
 int Pooling_vulkan::create_pipeline(const Option& opt)
 {
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    // the shape after padding
+    Mat shape_bordered;
+    if (shape.dims != 0)
+    {
+        if (pad_mode == 0)
+        {
+            int wtail = (shape.w + pad_left + pad_right - kernel_w) % stride_w;
+            int htail = (shape.h + pad_top + pad_bottom - kernel_h) % stride_h;
+
+            int wtailpad = 0;
+            int htailpad = 0;
+            if (wtail != 0)
+                wtailpad = stride_w - wtail;
+            if (htail != 0)
+                htailpad = stride_h - htail;
+
+            shape_bordered = Mat(shape.w + pad_left + pad_right + wtailpad, shape.h + pad_top + pad_bottom + htailpad, shape.c, (void*)0);
+        }
+        else if (pad_mode == 1)
+        {
+            shape_bordered = Mat(shape.w + pad_left + pad_right, shape.h + pad_top + pad_bottom, shape.c, (void*)0);
+        }
+        else if (pad_mode == 2 || pad_mode == 3)
+        {
+            int wpad = kernel_w + (shape.w - 1) / stride_w * stride_w - shape.w;
+            int hpad = kernel_h + (shape.h - 1) / stride_h * stride_h - shape.h;
+            if (wpad > 0 || hpad > 0)
+            {
+                shape_bordered = Mat(shape.w + wpad, shape.h + hpad, shape.c, (void*)0);
+            }
+        }
+        else
+        {
+            shape_bordered = shape;
+        }
+    }
+
     {
         padding = ncnn::create_layer(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;
+
+        padding->bottom_shapes.resize(1);
+        padding->bottom_shapes[0] = shape;
+        padding->top_shapes.resize(1);
+        padding->top_shapes[0] = shape_bordered;
 
         ncnn::ParamDict pd;
         pd.set(0, pad_top);
@@ -61,35 +106,65 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         padding->create_pipeline(opt);
     }
 
+    int elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+
+    Mat shape_bordered_packed;
+    convert_shape_packing(shape_bordered, shape_bordered_packed, elempack);
+
+    Mat out_shape_packed;
+    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+
     if (global_pooling)
     {
-        std::vector<vk_specialization_type> specializations(1);
+        std::vector<vk_specialization_type> specializations(1 + 10);
         specializations[0].i = pooling_type;
+        specializations[1 + 0].i = shape_bordered_packed.dims;
+        specializations[1 + 1].i = shape_bordered_packed.w;
+        specializations[1 + 2].i = shape_bordered_packed.h;
+        specializations[1 + 3].i = shape_bordered_packed.c;
+        specializations[1 + 4].i = shape_bordered_packed.cstep;
+        specializations[1 + 5].i = out_shape_packed.dims;
+        specializations[1 + 6].i = out_shape_packed.w;
+        specializations[1 + 7].i = out_shape_packed.h;
+        specializations[1 + 8].i = out_shape_packed.c;
+        specializations[1 + 9].i = out_shape_packed.cstep;
+
+        Mat local_size_xyz(64, 1, 1, (void*)0);
+        if (out_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(64, out_shape_packed.w);
+            local_size_xyz.h = 1;
+            local_size_xyz.c = 1;
+        }
 
         // pack1
+        if (shape.dims == 0 || elempack == 1)
         {
             pipeline_pooling_global = new Pipeline(vkdev);
-            pipeline_pooling_global->set_optimal_local_size_xyz(256, 1, 1);
+            pipeline_pooling_global->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_pooling_global->create("pooling_global", opt, specializations, 2, 12);
         }
 
         // pack4
+        if (shape.dims == 0 || elempack == 4)
         {
             pipeline_pooling_global_pack4 = new Pipeline(vkdev);
-            pipeline_pooling_global_pack4->set_optimal_local_size_xyz(256, 1, 1);
+            pipeline_pooling_global_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_pooling_global_pack4->create("pooling_global_pack4", opt, specializations, 2, 12);
         }
 
         // pack8
+        if (shape.dims == 0 || elempack == 8)
         {
             pipeline_pooling_global_pack8 = new Pipeline(vkdev);
-            pipeline_pooling_global_pack8->set_optimal_local_size_xyz(256, 1, 1);
+            pipeline_pooling_global_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_pooling_global_pack8->create("pooling_global_pack8", opt, specializations, 2, 12);
         }
     }
     else
     {
-        std::vector<vk_specialization_type> specializations(12);
+        std::vector<vk_specialization_type> specializations(12 + 10);
         specializations[0].i = pooling_type;
         specializations[1].i = kernel_w;
         specializations[2].i = kernel_h;
@@ -102,25 +177,46 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         specializations[9].i = global_pooling;
         specializations[10].i = pad_mode;
         specializations[11].i = avgpool_count_include_pad;
+        specializations[12 + 0].i = shape_bordered_packed.dims;
+        specializations[12 + 1].i = shape_bordered_packed.w;
+        specializations[12 + 2].i = shape_bordered_packed.h;
+        specializations[12 + 3].i = shape_bordered_packed.c;
+        specializations[12 + 4].i = shape_bordered_packed.cstep;
+        specializations[12 + 5].i = out_shape_packed.dims;
+        specializations[12 + 6].i = out_shape_packed.w;
+        specializations[12 + 7].i = out_shape_packed.h;
+        specializations[12 + 8].i = out_shape_packed.c;
+        specializations[12 + 9].i = out_shape_packed.cstep;
+
+        Mat local_size_xyz;
+        if (out_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(4, out_shape_packed.w);
+            local_size_xyz.h = std::min(4, out_shape_packed.h);
+            local_size_xyz.c = std::min(4, out_shape_packed.c);
+        }
 
         // pack1
+        if (shape.dims == 0 || elempack == 1)
         {
             pipeline_pooling = new Pipeline(vkdev);
-            pipeline_pooling->set_optimal_local_size_xyz();
+            pipeline_pooling->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_pooling->create("pooling", opt, specializations, 2, 12);
         }
 
         // pack4
+        if (shape.dims == 0 || elempack == 4)
         {
             pipeline_pooling_pack4 = new Pipeline(vkdev);
-            pipeline_pooling_pack4->set_optimal_local_size_xyz();
+            pipeline_pooling_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_pooling_pack4->create("pooling_pack4", opt, specializations, 2, 12);
         }
 
         // pack8
+        if (shape.dims == 0 || elempack == 8)
         {
             pipeline_pooling_pack8 = new Pipeline(vkdev);
-            pipeline_pooling_pack8->set_optimal_local_size_xyz();
+            pipeline_pooling_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_pooling_pack8->create("pooling_pack8", opt, specializations, 2, 12);
         }
     }

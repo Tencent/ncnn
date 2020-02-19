@@ -23,6 +23,19 @@
 
 layout (constant_id = 0) const int order_type = 0;
 
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -51,12 +64,12 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
     int v_offset;
 
-    if (p.dims == 2)
+    if (psc(dims) == 2)
     {
         // order_type
         // 0 = w h
@@ -64,14 +77,14 @@ void main()
 
         if (order_type == 0)
         {
-            v_offset = gy * p.w + gx;
+            v_offset = gy * psc(w) + gx;
         }
         if (order_type == 1)
         {
-            v_offset = gx * p.w + gy;
+            v_offset = gx * psc(w) + gy;
         }
     }
-    else if (p.dims == 3)
+    else // if (psc(dims) == 3)
     {
         // order_type
         // 0 = w h c
@@ -83,31 +96,31 @@ void main()
 
         if (order_type == 0)
         {
-            v_offset = gz * p.cstep + gy * p.w + gx;
+            v_offset = gz * psc(cstep) + gy * psc(w) + gx;
         }
         if (order_type == 1)
         {
-            v_offset = gz * p.cstep + gx * p.w + gy;
+            v_offset = gz * psc(cstep) + gx * psc(w) + gy;
         }
         if (order_type == 2)
         {
-            v_offset = gy * p.cstep + gz * p.w + gx;
+            v_offset = gy * psc(cstep) + gz * psc(w) + gx;
         }
         if (order_type == 3)
         {
-            v_offset = gx * p.cstep + gz * p.w + gy;
+            v_offset = gx * psc(cstep) + gz * psc(w) + gy;
         }
         if (order_type == 4)
         {
-            v_offset = gy * p.cstep + gx * p.w + gz;
+            v_offset = gy * psc(cstep) + gx * psc(w) + gz;
         }
         if (order_type == 5)
         {
-            v_offset = gx * p.cstep + gy * p.w + gz;
+            v_offset = gx * psc(cstep) + gy * psc(w) + gz;
         }
     }
 
-    const int gi = gz * p.outcstep + gy * p.outw + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
 }

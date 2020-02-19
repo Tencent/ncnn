@@ -33,6 +33,19 @@ layout (constant_id = 7) const int activation_type = 0;
 layout (constant_id = 8) const float activation_param_0 = 0;
 layout (constant_id = 9) const float activation_param_1 = 0;
 
+#define shape_constant_id_offset 10
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -63,7 +76,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
     afpvec4 sum;
@@ -80,7 +93,7 @@ void main()
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int w_offset_0 = gz * p.c * kernel_w * kernel_h;
+    int w_offset_0 = gz * psc(c) * kernel_w * kernel_h;
 
     for (int y = 0; y < kernel_h; y++)
     {
@@ -89,7 +102,7 @@ void main()
             continue;
 
         int sy = sys / stride_h;
-        if (sy >= p.h)
+        if (sy >= psc(h))
             continue;
 
         for (int x = 0; x < kernel_w; x++)
@@ -99,13 +112,13 @@ void main()
                 continue;
 
             int sx = sxs / stride_w;
-            if (sx >= p.w)
+            if (sx >= psc(w))
                 continue;
 
-            int v_offset = sy * p.w + sx;
+            int v_offset = sy * psc(w) + sx;
             int w_offset = w_offset_0 + y * kernel_w + x;
 
-            for (int z = 0; z < p.c; z++)
+            for (int z = 0; z < psc(c); z++)
             {
                 afpvec8 v = buffer_ld8(bottom_blob_data, v_offset);
 
@@ -120,7 +133,7 @@ void main()
                 sum.b += dot(v[0], k2[0]) + dot(v[1], k2[1]);
                 sum.a += dot(v[0], k3[0]) + dot(v[1], k3[1]);
 
-                v_offset += p.cstep;
+                v_offset += psc(cstep);
                 w_offset += kernel_w * kernel_h;
             }
         }
@@ -146,7 +159,7 @@ void main()
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
-    const int gi = gz * p.outcstep + gy * p.outw + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st4(top_blob_data, gi, sum);
 }

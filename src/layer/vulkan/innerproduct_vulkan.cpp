@@ -39,9 +39,23 @@ InnerProduct_vulkan::InnerProduct_vulkan()
 
 int InnerProduct_vulkan::create_pipeline(const Option& opt)
 {
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    Mat shape_flatten;
+    if (shape.dims != 0)
+    {
+        shape_flatten = Mat(shape.w * shape.h * shape.c, (void*)0);
+    }
+
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
         flatten->vkdev = vkdev;
+
+        flatten->bottom_shapes.resize(1);
+        flatten->bottom_shapes[0] = shape;
+        flatten->top_shapes.resize(1);
+        flatten->top_shapes[0] = shape_flatten;
 
         ncnn::ParamDict pd;
 
@@ -55,17 +69,41 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
-    std::vector<vk_specialization_type> specializations(4);
+    Mat shape_flatten_packed;
+    convert_shape_packing(shape_flatten, shape_flatten_packed, elempack);
+
+    Mat out_shape_packed;
+    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+
+    std::vector<vk_specialization_type> specializations(4 + 10);
     specializations[0].i = bias_term;
     specializations[1].i = activation_type;
     specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
     specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+    specializations[4 + 0].i = shape_flatten_packed.dims;
+    specializations[4 + 1].i = shape_flatten_packed.w;
+    specializations[4 + 2].i = shape_flatten_packed.h;
+    specializations[4 + 3].i = shape_flatten_packed.c;
+    specializations[4 + 4].i = shape_flatten_packed.cstep;
+    specializations[4 + 5].i = out_shape_packed.dims;
+    specializations[4 + 6].i = out_shape_packed.w;
+    specializations[4 + 7].i = out_shape_packed.h;
+    specializations[4 + 8].i = out_shape_packed.c;
+    specializations[4 + 9].i = out_shape_packed.cstep;
+
+    Mat local_size_xyz(std::min(64, num_output / out_elempack), 1, 1, (void*)0);
+    if (out_shape_packed.dims != 0)
+    {
+        local_size_xyz.w = std::min(64, out_shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
     {
         pipeline_innerproduct = new Pipeline(vkdev);
-        pipeline_innerproduct->set_optimal_local_size_xyz(num_output, 1, 1);
+        pipeline_innerproduct->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct->create("innerproduct", opt, specializations, 4, 10);
     }
 
@@ -73,7 +111,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (elempack == 4 && out_elempack == 4)
     {
         pipeline_innerproduct_pack4 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
+        pipeline_innerproduct_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack4->create("innerproduct_pack4", opt, specializations, 4, 10);
     }
 
@@ -81,7 +119,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (elempack == 1 && out_elempack == 4)
     {
         pipeline_innerproduct_pack1to4 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack1to4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
+        pipeline_innerproduct_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack1to4->create("innerproduct_pack1to4", opt, specializations, 4, 10);
     }
 
@@ -89,7 +127,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (elempack == 4 && out_elempack == 1)
     {
         pipeline_innerproduct_pack4to1 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(num_output, 1, 1);
+        pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", opt, specializations, 4, 10);
     }
 
@@ -97,7 +135,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (elempack == 8 && out_elempack == 8)
     {
         pipeline_innerproduct_pack8 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack8->set_optimal_local_size_xyz(num_output / 8, 1, 1);
+        pipeline_innerproduct_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack8->create("innerproduct_pack8", opt, specializations, 4, 10);
     }
 
@@ -105,7 +143,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (elempack == 1 && out_elempack == 8)
     {
         pipeline_innerproduct_pack1to8 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack1to8->set_optimal_local_size_xyz(num_output / 8, 1, 1);
+        pipeline_innerproduct_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack1to8->create("innerproduct_pack1to8", opt, specializations, 4, 10);
     }
 
@@ -113,7 +151,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (elempack == 4 && out_elempack == 8)
     {
         pipeline_innerproduct_pack4to8 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack4to8->set_optimal_local_size_xyz(num_output / 8, 1, 1);
+        pipeline_innerproduct_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack4to8->create("innerproduct_pack4to8", opt, specializations, 4, 10);
     }
 
@@ -121,7 +159,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (elempack == 8 && out_elempack == 4)
     {
         pipeline_innerproduct_pack8to4 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack8to4->set_optimal_local_size_xyz(num_output / 4, 1, 1);
+        pipeline_innerproduct_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack8to4->create("innerproduct_pack8to4", opt, specializations, 4, 10);
     }
 
@@ -129,7 +167,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (elempack == 8 && out_elempack == 1)
     {
         pipeline_innerproduct_pack8to1 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack8to1->set_optimal_local_size_xyz(num_output, 1, 1);
+        pipeline_innerproduct_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack8to1->create("innerproduct_pack8to1", opt, specializations, 4, 10);
     }
 

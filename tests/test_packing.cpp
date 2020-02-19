@@ -22,7 +22,6 @@ static int test_packing(const ncnn::Mat& a, int out_elempack)
     pd.set(0, out_elempack);//out_elempack
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -32,9 +31,8 @@ static int test_packing(const ncnn::Mat& a, int out_elempack)
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = false;
 
-    int ret = test_layer<ncnn::Packing>("Packing", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Packing>("Packing", pd, weights, opt, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_packing failed a.dims=%d a=(%d %d %d) out_elempack=%d\n", a.dims, a.w, a.h, a.c, out_elempack);

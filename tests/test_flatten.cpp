@@ -16,12 +16,11 @@
 
 #include "layer/flatten.h"
 
-static int test_flatten(const ncnn::Mat& a, bool use_packing_layout)
+static int test_flatten(const ncnn::Mat& a)
 {
     ncnn::ParamDict pd;
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -32,12 +31,11 @@ static int test_flatten(const ncnn::Mat& a, bool use_packing_layout)
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Flatten>("Flatten", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Flatten>("Flatten", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_flatten failed a.dims=%d a=(%d %d %d) use_packing_layout=%d\n", a.dims, a.w, a.h, a.c, use_packing_layout);
+        fprintf(stderr, "test_flatten failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
     }
 
     return ret;
@@ -46,25 +44,15 @@ static int test_flatten(const ncnn::Mat& a, bool use_packing_layout)
 static int test_flatten_0()
 {
     return 0
-        || test_flatten(RandomMat(2, 4, 4), false)
-        || test_flatten(RandomMat(3, 5, 8), false)
-        || test_flatten(RandomMat(1, 1, 16), false)
-        || test_flatten(RandomMat(1, 7, 1), false)
-        || test_flatten(RandomMat(6, 6, 15), false)
-        || test_flatten(RandomMat(13, 13), false)
-        || test_flatten(RandomMat(8, 12), false)
-        || test_flatten(RandomMat(32), false)
-        || test_flatten(RandomMat(17), false)
-
-        || test_flatten(RandomMat(2, 4, 4), true)
-        || test_flatten(RandomMat(3, 5, 8), true)
-        || test_flatten(RandomMat(1, 1, 16), true)
-        || test_flatten(RandomMat(1, 7, 1), true)
-        || test_flatten(RandomMat(6, 6, 15), true)
-        || test_flatten(RandomMat(13, 13), true)
-        || test_flatten(RandomMat(8, 12), true)
-        || test_flatten(RandomMat(32), true)
-        || test_flatten(RandomMat(17), true)
+        || test_flatten(RandomMat(2, 4, 4))
+        || test_flatten(RandomMat(3, 5, 8))
+        || test_flatten(RandomMat(1, 1, 16))
+        || test_flatten(RandomMat(1, 7, 1))
+        || test_flatten(RandomMat(6, 6, 15))
+        || test_flatten(RandomMat(13, 13))
+        || test_flatten(RandomMat(8, 12))
+        || test_flatten(RandomMat(32))
+        || test_flatten(RandomMat(17))
         ;
 }
 

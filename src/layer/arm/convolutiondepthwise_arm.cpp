@@ -671,7 +671,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     opt_g.blob_allocator = top_blob.allocator;
 
                     Mat top_blob_g = top_blob.channel(g);
-                    dequantize_int32_to_float32(top_blob_g, scale_in, &bias_data[g], bias_term ? 0 : 1, opt_g);
+                    dequantize_int32_to_float32(top_blob_g, scale_in, bias_term ? (const float*)bias_data + g : 0, bias_term ? 0 : 1, opt_g);
                 }
 
                 if (activation)
@@ -702,7 +702,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     opt_g.blob_allocator = top_blob.allocator;
 
                     Mat top_blob_g = top_blob.channel(g);
-                    dequantize_int32_to_float32(top_blob_g, scale_in, &bias_data[g], bias_term ? 0 : 1, opt_g);
+                    dequantize_int32_to_float32(top_blob_g, scale_in, bias_term ? (const float*)bias_data + g : 0, bias_term ? 0 : 1, opt_g);
                 }
 
                 if (activation)

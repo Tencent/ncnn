@@ -16,7 +16,7 @@
 
 #include "layer/shufflechannel.h"
 
-static int test_shufflechannel(int w, int h, int c, int group, bool use_packing_layout)
+static int test_shufflechannel(int w, int h, int c, int group)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -24,7 +24,6 @@ static int test_shufflechannel(int w, int h, int c, int group, bool use_packing_
     pd.set(0, group);// group
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -35,12 +34,11 @@ static int test_shufflechannel(int w, int h, int c, int group, bool use_packing_
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::ShuffleChannel>("ShuffleChannel", pd, mb, opt, a);
+    int ret = test_layer<ncnn::ShuffleChannel>("ShuffleChannel", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_shufflechannel failed w=%d h=%d c=%d group=%d use_packing_layout=%d\n", w, h, c, group, use_packing_layout);
+        fprintf(stderr, "test_shufflechannel failed w=%d h=%d c=%d group=%d\n", w, h, c, group);
     }
 
     return ret;
@@ -49,21 +47,13 @@ static int test_shufflechannel(int w, int h, int c, int group, bool use_packing_
 static int test_shufflechannel_0()
 {
     return 0
-        || test_shufflechannel(3, 7, 1, 1, false)
-        || test_shufflechannel(3, 7, 2, 2, false)
-        || test_shufflechannel(3, 7, 3, 3, false)
-        || test_shufflechannel(3, 7, 4, 2, false)
-        || test_shufflechannel(3, 7, 12, 3, false)
-        || test_shufflechannel(3, 7, 15, 3, false)
-        || test_shufflechannel(3, 7, 16, 2, false)
-
-        || test_shufflechannel(3, 7, 1, 1, true)
-        || test_shufflechannel(3, 7, 2, 2, true)
-        || test_shufflechannel(3, 7, 3, 3, true)
-        || test_shufflechannel(3, 7, 4, 2, true)
-        || test_shufflechannel(3, 7, 12, 3, true)
-        || test_shufflechannel(3, 7, 15, 3, true)
-        || test_shufflechannel(3, 7, 16, 2, true)
+        || test_shufflechannel(3, 7, 1, 1)
+        || test_shufflechannel(3, 7, 2, 2)
+        || test_shufflechannel(3, 7, 3, 3)
+        || test_shufflechannel(3, 7, 4, 2)
+        || test_shufflechannel(3, 7, 12, 3)
+        || test_shufflechannel(3, 7, 15, 3)
+        || test_shufflechannel(3, 7, 16, 2)
         ;
 }
 

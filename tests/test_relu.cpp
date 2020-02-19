@@ -16,15 +16,12 @@
 
 #include "layer/relu.h"
 
-static int test_relu(float slope, bool use_packing_layout)
+static int test_relu(const ncnn::Mat& a, float slope)
 {
-    ncnn::Mat a = RandomMat(6, 7, 8);
-
     ncnn::ParamDict pd;
     pd.set(0, slope);//slope
 
     std::vector<ncnn::Mat> weights(0);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -34,12 +31,11 @@ static int test_relu(float slope, bool use_packing_layout)
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::ReLU>("ReLU", pd, mb, opt, a);
+    int ret = test_layer<ncnn::ReLU>("ReLU", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_relu failed slope=%f use_packing_layout=%d\n", slope, use_packing_layout);
+        fprintf(stderr, "test_relu failed slope=%f\n", slope);
     }
 
     return ret;
@@ -48,11 +44,30 @@ static int test_relu(float slope, bool use_packing_layout)
 static int test_relu_0()
 {
     return 0
-        || test_relu(0.f, false)
-        || test_relu(0.1f, false)
+        || test_relu(RandomMat(6, 7, 16), 0.f)
+        || test_relu(RandomMat(6, 7, 16), 0.1f)
+        || test_relu(RandomMat(3, 5, 13), 0.f)
+        || test_relu(RandomMat(3, 5, 13), 0.1f)
+        ;
+}
 
-        || test_relu(0.f, true)
-        || test_relu(0.1f, true)
+static int test_relu_1()
+{
+    return 0
+        || test_relu(RandomMat(6, 16), 0.f)
+        || test_relu(RandomMat(6, 16), 0.1f)
+        || test_relu(RandomMat(7, 15), 0.f)
+        || test_relu(RandomMat(7, 15), 0.1f)
+        ;
+}
+
+static int test_relu_2()
+{
+    return 0
+        || test_relu(RandomMat(128), 0.f)
+        || test_relu(RandomMat(128), 0.1f)
+        || test_relu(RandomMat(127), 0.f)
+        || test_relu(RandomMat(127), 0.1f)
         ;
 }
 
@@ -60,5 +75,9 @@ int main()
 {
     SRAND(7767517);
 
-    return test_relu_0();
+    return 0
+        || test_relu_0()
+        || test_relu_1()
+        || test_relu_2()
+        ;
 }

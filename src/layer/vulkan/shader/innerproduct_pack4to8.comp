@@ -27,6 +27,19 @@ layout (constant_id = 1) const int activation_type = 0;
 layout (constant_id = 2) const float activation_param_0 = 0;
 layout (constant_id = 3) const float activation_param_1 = 0;
 
+#define shape_constant_id_offset 4
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -57,7 +70,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= 1 || gz >= 1)
+    if (gx >= psc(outw) || gy >= 1 || gz >= 1)
         return;
 
     afpvec8 sum;
@@ -71,9 +84,9 @@ void main()
         sum = afpvec8(afpvec4(0.f), afpvec4(0.f));
     }
 
-    int w_offset = gx * p.w;
+    int w_offset = gx * psc(w);
 
-    for (int i = 0; i < p.w; i++)
+    for (int i = 0; i < psc(w); i++)
     {
         afpvec4 v = buffer_ld4(bottom_blob_data, i);
 

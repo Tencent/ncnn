@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "flatten_vulkan.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -32,47 +33,88 @@ Flatten_vulkan::Flatten_vulkan()
 
 int Flatten_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations;
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    int out_elempack = 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+
+    Mat shape_packed;
+    convert_shape_packing(shape, shape_packed, elempack);
+
+    Mat out_shape_packed;
+    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+
+    std::vector<vk_specialization_type> specializations(0 + 10);
+    specializations[0 + 0].i = shape_packed.dims;
+    specializations[0 + 1].i = shape_packed.w;
+    specializations[0 + 2].i = shape_packed.h;
+    specializations[0 + 3].i = shape_packed.c;
+    specializations[0 + 4].i = shape_packed.cstep;
+    specializations[0 + 5].i = out_shape_packed.dims;
+    specializations[0 + 6].i = out_shape_packed.w;
+    specializations[0 + 7].i = out_shape_packed.h;
+    specializations[0 + 8].i = out_shape_packed.c;
+    specializations[0 + 9].i = out_shape_packed.cstep;
+
+    Mat local_size_xyz(64, 1, 1, (void*)0);
+    if (out_shape_packed.dims != 0)
+    {
+        local_size_xyz.w = std::min(64, out_shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
 
     // pack1
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 1))
     {
         pipeline_flatten = new Pipeline(vkdev);
-        pipeline_flatten->set_optimal_local_size_xyz();
+        pipeline_flatten->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_flatten->create("flatten", opt, specializations, 2, 10);
     }
 
     // pack4
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 4))
     {
         pipeline_flatten_pack4 = new Pipeline(vkdev);
-        pipeline_flatten_pack4->set_optimal_local_size_xyz();
+        pipeline_flatten_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_flatten_pack4->create("flatten_pack4", opt, specializations, 2, 10);
     }
 
     // pack1to4
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 4))
     {
         pipeline_flatten_pack1to4 = new Pipeline(vkdev);
-        pipeline_flatten_pack1to4->set_optimal_local_size_xyz();
+        pipeline_flatten_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_flatten_pack1to4->create("flatten_pack1to4", opt, specializations, 2, 10);
     }
 
     // pack8
+    if (shape.dims == 0 || (elempack == 8 && out_elempack == 8))
     {
         pipeline_flatten_pack8 = new Pipeline(vkdev);
-        pipeline_flatten_pack8->set_optimal_local_size_xyz();
+        pipeline_flatten_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_flatten_pack8->create("flatten_pack8", opt, specializations, 2, 10);
     }
 
     // pack1to8
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 8))
     {
         pipeline_flatten_pack1to8 = new Pipeline(vkdev);
-        pipeline_flatten_pack1to8->set_optimal_local_size_xyz();
+        pipeline_flatten_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_flatten_pack1to8->create("flatten_pack1to8", opt, specializations, 2, 10);
     }
 
     // pack4to8
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 8))
     {
         pipeline_flatten_pack4to8 = new Pipeline(vkdev);
-        pipeline_flatten_pack4to8->set_optimal_local_size_xyz();
+        pipeline_flatten_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_flatten_pack4to8->create("flatten_pack4to8", opt, specializations, 2, 10);
     }
 
