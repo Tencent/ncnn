@@ -109,11 +109,33 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
     int elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
     int out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
+    size_t elemsize;
+    size_t out_elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+        out_elemsize = out_elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+        out_elemsize = out_elempack * 4u;
+    }
+
     Mat shape_bordered_packed;
-    convert_shape_packing(shape_bordered, shape_bordered_packed, elempack);
+    if (shape_bordered.dims == 1) shape_bordered_packed = Mat(shape_bordered.w / elempack, (void*)0, elemsize, elempack);
+    if (shape_bordered.dims == 2) shape_bordered_packed = Mat(shape_bordered.w, shape_bordered.h / elempack, (void*)0, elemsize, elempack);
+    if (shape_bordered.dims == 3) shape_bordered_packed = Mat(shape_bordered.w, shape_bordered.h, shape_bordered.c / elempack, (void*)0, elemsize, elempack);
 
     Mat out_shape_packed;
-    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     if (global_pooling)
     {

@@ -73,8 +73,24 @@ int Slice_vulkan::create_pipeline(const Option& opt)
         out_elempack = elempack;
     }
 
+    size_t out_elemsize;
+    if (opt.use_fp16_storage)
+    {
+        out_elemsize = out_elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
+    }
+    else
+    {
+        out_elemsize = out_elempack * 4u;
+    }
+
     Mat shape_unpacked;
-    convert_shape_packing(shape, shape_unpacked, out_elempack);
+    if (shape.dims == 1) shape_unpacked = Mat(shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (shape.dims == 2) shape_unpacked = Mat(shape.w, shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (shape.dims == 3) shape_unpacked = Mat(shape.w, shape.h, shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = axis;

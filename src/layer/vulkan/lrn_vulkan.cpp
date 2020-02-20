@@ -44,24 +44,37 @@ int LRN_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
     if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
-    Mat workspace_shape;
+    size_t elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+    }
+
+    Mat shape_packed;
+    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+
     Mat workspace_shape_packed;
     if (shape.dims != 0)
     {
         if (region_type == NormRegion_ACROSS_CHANNELS)
         {
-            workspace_shape = Mat(shape.w, shape.h, shape.c + local_size - 1, (void*)0);
-            workspace_shape_packed = workspace_shape;
+            workspace_shape_packed = Mat(shape.w, shape.h, shape.c + local_size - 1, (void*)0);
         }
         else if (region_type == NormRegion_WITHIN_CHANNEL)
         {
-            workspace_shape = Mat(shape.w + local_size - 1, shape.h + local_size - 1, shape.c, (void*)0);
-            convert_shape_packing(workspace_shape, workspace_shape_packed, elempack);
+            workspace_shape_packed = Mat(shape.w + local_size - 1, shape.h + local_size - 1, shape.c / elempack, (void*)0, elempack * 4u, elempack);
         }
     }
-
-    Mat shape_packed;
-    convert_shape_packing(shape, shape_packed, elempack);
 
     {
         int pad = local_size / 2;

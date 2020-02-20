@@ -103,16 +103,54 @@ int Crop_vulkan::create_pipeline(const Option& opt)
             offset_elempack = opt.use_shader_pack8 && coffset % 8 == 0 ? 8 : coffset % 4 == 0 ? 4 : 1;
     }
 
+    size_t elemsize;
+    size_t out_elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+        out_elemsize = out_elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+        out_elemsize = out_elempack * 4u;
+    }
+
     Mat shape_packed;
-    convert_shape_packing(shape, shape_packed, elempack);
+    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
     Mat out_shape_packed;
-    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     Mat shape_unpacked = shape_packed;
     if (bottom_shapes.size() == 1 && shape.dims != 0 && elempack == out_elempack && elempack > offset_elempack)
     {
-        convert_shape_packing(shape, shape_unpacked, offset_elempack);
+        size_t offset_elemsize;
+        if (opt.use_fp16_storage)
+        {
+            offset_elemsize = offset_elempack * 2u;
+        }
+        else if (opt.use_fp16_packed)
+        {
+            offset_elemsize = offset_elempack == 1 ? 4u : offset_elempack * 2u;
+        }
+        else
+        {
+            offset_elemsize = offset_elempack * 4u;
+        }
+
+        if (shape.dims == 1) shape_unpacked = Mat(shape.w / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
+        if (shape.dims == 2) shape_unpacked = Mat(shape.w, shape.h / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
+        if (shape.dims == 3) shape_unpacked = Mat(shape.w, shape.h, shape.c / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
     }
 
     if (shape.dims == 0 || (elempack > 1 && offset_elempack == 1) || bottom_shapes.size() == 2)

@@ -75,8 +75,24 @@ int Concat_vulkan::create_pipeline(const Option& opt)
         elempack = out_elempack;
     }
 
+    size_t elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+    }
+
     Mat out_shape_unpacked;
-    convert_shape_packing(out_shape, out_shape_unpacked, elempack);
+    if (out_shape.dims == 1) out_shape_unpacked = Mat(out_shape.w / elempack, (void*)0, elemsize, elempack);
+    if (out_shape.dims == 2) out_shape_unpacked = Mat(out_shape.w, out_shape.h / elempack, (void*)0, elemsize, elempack);
+    if (out_shape.dims == 3) out_shape_unpacked = Mat(out_shape.w, out_shape.h, out_shape.c / elempack, (void*)0, elemsize, elempack);
 
     std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = axis;
