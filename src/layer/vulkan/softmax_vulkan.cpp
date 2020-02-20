@@ -48,42 +48,50 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
     if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
-    Mat workspace_shape;
-    Mat workspace_shape_packed;
-
-    if (shape.dims == 1) // axis == 0
+    size_t elemsize;
+    if (opt.use_fp16_storage)
     {
-        workspace_shape = Mat(1, (void*)0);
-        workspace_shape_packed.elempack = elempack;
+        elemsize = elempack * 2u;
     }
-    else if (shape.dims == 2 && axis == 0)
+    else if (opt.use_fp16_packed)
     {
-        workspace_shape = Mat(shape.w, (void*)0);
-        workspace_shape_packed.elempack = elempack;
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
     }
-    else if (shape.dims == 2 && axis == 1)
+    else
     {
-        workspace_shape = Mat(shape.h, (void*)0);
-        convert_shape_packing(workspace_shape, workspace_shape_packed, elempack);
-    }
-    else if (shape.dims == 3 && axis == 0)
-    {
-        workspace_shape = Mat(shape.w, shape.h, (void*)0);
-        workspace_shape_packed.elempack = elempack;
-    }
-    else if (shape.dims == 3 && axis == 1)
-    {
-        workspace_shape = Mat(shape.w, shape.c, (void*)0);
-        convert_shape_packing(workspace_shape, workspace_shape_packed, elempack);
-    }
-    else if (shape.dims == 3 && axis == 2)
-    {
-        workspace_shape = Mat(shape.h, shape.c, (void*)0);
-        convert_shape_packing(workspace_shape, workspace_shape_packed, elempack);
+        elemsize = elempack * 4u;
     }
 
     Mat shape_packed;
-    convert_shape_packing(shape, shape_packed, elempack);
+    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+
+    Mat workspace_shape_packed;
+    if (shape.dims == 1) // axis == 0
+    {
+        workspace_shape_packed = Mat(1, (void*)0, elemsize, elempack);
+    }
+    else if (shape.dims == 2 && axis == 0)
+    {
+        workspace_shape_packed = Mat(shape.w, (void*)0, elemsize, elempack);
+    }
+    else if (shape.dims == 2 && axis == 1)
+    {
+        workspace_shape_packed = Mat(shape.h / elempack, (void*)0, elemsize, elempack);
+    }
+    else if (shape.dims == 3 && axis == 0)
+    {
+        workspace_shape_packed = Mat(shape.w, shape.h, (void*)0, elemsize, elempack);
+    }
+    else if (shape.dims == 3 && axis == 1)
+    {
+        workspace_shape_packed = Mat(shape.w, shape.c / elempack, (void*)0, elemsize, elempack);
+    }
+    else if (shape.dims == 3 && axis == 2)
+    {
+        workspace_shape_packed = Mat(shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+    }
 
     std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = axis;

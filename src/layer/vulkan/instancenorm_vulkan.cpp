@@ -54,14 +54,25 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
 
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
+    size_t elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+    }
+
     Mat shape_packed;
-    convert_shape_packing(shape, shape_packed, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, channels / elempack, (void*)0, elemsize, elempack);
 
     // TODO resolve workspace_shape.w
-    Mat workspace_shape = Mat(1, 1, channels, (void*)0);
-
-    Mat workspace_shape_packed;
-    convert_shape_packing(workspace_shape, workspace_shape_packed, elempack);
+    Mat workspace_shape_packed(1, 1, channels / elempack, (void*)0, elemsize, elempack);
 
     {
         Mat local_size_xyz(16, 1, std::min(4, channels / elempack), (void*)0);

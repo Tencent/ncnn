@@ -35,8 +35,24 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
+    size_t out_elemsize;
+    if (opt.use_fp16_storage)
+    {
+        out_elemsize = out_elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
+    }
+    else
+    {
+        out_elemsize = out_elempack * 4u;
+    }
+
     Mat out_shape_packed;
-    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     std::vector<vk_specialization_type> specializations(0 + 10);
     specializations[0 + 0].i = 0;// FIXME shape elempack may be dynamic

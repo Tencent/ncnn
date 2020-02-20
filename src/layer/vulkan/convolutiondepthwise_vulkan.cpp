@@ -103,11 +103,29 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
+    size_t elemsize;
+    size_t out_elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+        out_elemsize = out_elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+        out_elemsize = out_elempack * 4u;
+    }
+
     Mat shape_bordered_packed;
-    convert_shape_packing(shape_bordered, shape_bordered_packed, elempack);
+    if (shape_bordered.dims == 3) shape_bordered_packed = Mat(shape_bordered.w, shape_bordered.h, shape_bordered.c / elempack, (void*)0, elemsize, elempack);
 
     Mat out_shape_packed;
-    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     std::vector<vk_specialization_type> specializations(11 + 10);
     specializations[0].i = kernel_w;
@@ -178,11 +196,29 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
     int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
 
+    size_t elemsize_g;
+    size_t out_elemsize_g;
+    if (opt.use_fp16_storage)
+    {
+        elemsize_g = elempack_g * 2u;
+        out_elemsize_g = out_elempack_g * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize_g = elempack_g == 1 ? 4u : elempack_g * 2u;
+        out_elemsize_g = out_elempack_g == 1 ? 4u : out_elempack_g * 2u;
+    }
+    else
+    {
+        elemsize_g = elempack_g * 4u;
+        out_elemsize_g = out_elempack_g * 4u;
+    }
+
     Mat shape_bordered_g_packed;
-    convert_shape_packing(shape_bordered, shape_bordered_g_packed, elempack_g);
+    if (shape_bordered.dims == 3) shape_bordered_g_packed = Mat(shape_bordered.w, shape_bordered.h, shape_bordered.c / elempack_g, (void*)0, elemsize_g, elempack_g);
 
     Mat out_shape_g_packed;
-    convert_shape_packing(out_shape, out_shape_g_packed, out_elempack_g);
+    if (out_shape.dims == 3) out_shape_g_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack_g, (void*)0, out_elemsize_g, out_elempack_g);
 
     if (elempack > elempack_g)
     {

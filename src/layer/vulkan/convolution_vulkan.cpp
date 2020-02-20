@@ -146,11 +146,29 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
+    size_t elemsize;
+    size_t out_elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+        out_elemsize = out_elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+        out_elemsize = out_elempack * 4u;
+    }
+
     Mat shape_bordered_packed;
-    convert_shape_packing(shape_bordered, shape_bordered_packed, elempack);
+    if (shape_bordered.dims == 3) shape_bordered_packed = Mat(shape_bordered.w, shape_bordered.h, num_input / elempack, (void*)0, elemsize, elempack);
 
     Mat out_shape_packed;
-    convert_shape_packing(out_shape, out_shape_packed, out_elempack);
+    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, num_output / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     std::vector<vk_specialization_type> specializations(10 + 10);
     specializations[0].i = kernel_w;
@@ -268,16 +286,16 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             }
 
             Mat shape_winograd_bordered_packed;
-            convert_shape_packing(shape_winograd_bordered, shape_winograd_bordered_packed, elempack);
+            if (shape_winograd_bordered.dims == 3) shape_winograd_bordered_packed = Mat(shape_winograd_bordered.w, shape_winograd_bordered.h, shape_winograd_bordered.c / elempack, (void*)0, elemsize, elempack);
 
             Mat shape_winograd_input_transformed_packed;
-            convert_shape_packing(shape_winograd_input_transformed, shape_winograd_input_transformed_packed, elempack);
+            if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h, shape_winograd_input_transformed.c / elempack, (void*)0, elemsize, elempack);
 
             Mat shape_winograd_gemm_packed;
-            convert_shape_packing(shape_winograd_gemm, shape_winograd_gemm_packed, elempack);
+            if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h, shape_winograd_gemm.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
             Mat shape_winograd_out_bordered_packed;
-            convert_shape_packing(shape_winograd_out_bordered, shape_winograd_out_bordered_packed, elempack);
+            if (shape_winograd_out_bordered.dims == 3) shape_winograd_out_bordered_packed = Mat(shape_winograd_out_bordered.w, shape_winograd_out_bordered.h, shape_winograd_out_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
             {
                 winograd_padding = ncnn::create_layer(ncnn::LayerType::Padding);
@@ -445,16 +463,16 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             }
 
             Mat shape_winograd_bordered_packed;
-            convert_shape_packing(shape_winograd_bordered, shape_winograd_bordered_packed, elempack);
+            if (shape_winograd_bordered.dims == 3) shape_winograd_bordered_packed = Mat(shape_winograd_bordered.w, shape_winograd_bordered.h, shape_winograd_bordered.c / elempack, (void*)0, elemsize, elempack);
 
             Mat shape_winograd_input_transformed_packed;
-            convert_shape_packing(shape_winograd_input_transformed, shape_winograd_input_transformed_packed, elempack);
+            if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h, shape_winograd_input_transformed.c / elempack, (void*)0, elemsize, elempack);
 
             Mat shape_winograd_gemm_packed;
-            convert_shape_packing(shape_winograd_gemm, shape_winograd_gemm_packed, elempack);
+            if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h, shape_winograd_gemm.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
             Mat shape_winograd_out_bordered_packed;
-            convert_shape_packing(shape_winograd_out_bordered, shape_winograd_out_bordered_packed, elempack);
+            if (shape_winograd_out_bordered.dims == 3) shape_winograd_out_bordered_packed = Mat(shape_winograd_out_bordered.w, shape_winograd_out_bordered.h, shape_winograd_out_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
             {
                 winograd_padding = ncnn::create_layer(ncnn::LayerType::Padding);
