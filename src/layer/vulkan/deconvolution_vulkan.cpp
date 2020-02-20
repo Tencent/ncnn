@@ -379,7 +379,10 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data, bias_data_gpu, opt);
+        Mat bias_data_packed;
+        convert_packing(bias_data, bias_data_packed, out_elempack);
+
+        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
     }
 
     return 0;

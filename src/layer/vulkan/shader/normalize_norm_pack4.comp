@@ -25,8 +25,9 @@ layout (constant_id = 0) const int across_spatial = 0;
 layout (constant_id = 1) const int across_channel = 0;
 layout (constant_id = 2) const int channel_shared = 0;
 layout (constant_id = 3) const int scale_term = 0;
+layout (constant_id = 4) const float channel_shared_scale = 1.f;
 
-#define shape_constant_id_offset 4
+#define shape_constant_id_offset 5
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -86,7 +87,7 @@ void main()
     {
         if (channel_shared == 1)
         {
-            v = v * buffer_ld4(scale_blob_data, 0);
+            v = v * afp(channel_shared_scale);
         }
         else
         {

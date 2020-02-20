@@ -466,7 +466,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
-//     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
     Mat weight_data_transposed(weight_data.w);
     {
@@ -496,7 +496,10 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
 
         if (bias_term)
         {
-            cmd.record_upload(bias_data, bias_data_gpu, opt);
+            Mat bias_data_packed;
+            convert_packing(bias_data, bias_data_packed, out_elempack);
+
+            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
         }
 
         return 0;
@@ -558,7 +561,10 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data, bias_data_gpu, opt);
+        Mat bias_data_packed;
+        convert_packing(bias_data, bias_data_packed, out_elempack_g);
+
+        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
     }
 
     return 0;
@@ -734,6 +740,14 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
 
     int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
     int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+    size_t out_elemsize_g = elemsize / elempack * out_elempack_g;
+
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
+        if (out_elempack_g == 8) out_elemsize_g = 8*2u;
+        if (out_elempack_g == 4) out_elemsize_g = 4*2u;
+        if (out_elempack_g == 1) out_elemsize_g = 4u;
+    }
 
     // unpacking
     VkMat bottom_blob_unpacked = bottom_blob;
@@ -748,7 +762,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     VkMat top_blob_unpacked = top_blob_bordered;
     if (out_elempack_g < out_elempack)
     {
-        top_blob_unpacked.create(outw, outh, num_output / out_elempack_g, out_elemsize / out_elempack * out_elempack_g, out_elempack_g, opt.workspace_vkallocator, opt.staging_vkallocator);
+        top_blob_unpacked.create(outw, outh, num_output / out_elempack_g, out_elemsize_g, out_elempack_g, opt.workspace_vkallocator, opt.staging_vkallocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
