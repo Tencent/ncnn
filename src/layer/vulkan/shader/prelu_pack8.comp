@@ -23,8 +23,9 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #endif
 
 layout (constant_id = 0) const int num_slope = 0;
+layout (constant_id = 1) const float slope_value = 1.f;
 
-#define shape_constant_id_offset 1
+#define shape_constant_id_offset 2
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -58,11 +59,21 @@ void main()
 
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
-    const ivec3 gxyz = ivec3(gx, gy, gz);
-    const int abi = num_slope > 1 ? gxyz[psc(dims) - 1] : 0;
-
     afpvec8 v = buffer_ld8(bottom_top_blob_data, gi);
-    afpvec8 slope = buffer_ld8(slope_blob_data, abi);
+
+    afpvec8 slope;
+
+    if (num_slope == 1)
+    {
+        slope = afpvec8(slope_value);
+    }
+    else
+    {
+        const ivec3 gxyz = ivec3(gx, gy, gz);
+        const int abi = gxyz[psc(dims) - 1];
+
+        slope = buffer_ld8(slope_blob_data, abi);
+    }
 
     v[0] = mix(v[0], v[0] * slope[0], lessThan(v[0], afpvec4(0.f)));
     v[1] = mix(v[1], v[1] * slope[1], lessThan(v[1], afpvec4(0.f)));

@@ -140,7 +140,12 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (per_channel_pad_data_size == 0)
         return 0;
 
-    cmd.record_upload(per_channel_pad_data, per_channel_pad_data_gpu, opt);
+    int elempack = opt.use_shader_pack8 && per_channel_pad_data_size % 8 == 0 ? 8 : per_channel_pad_data_size % 4 == 0 ? 4 : 1;
+
+    Mat per_channel_pad_data_packed;
+    convert_packing(per_channel_pad_data, per_channel_pad_data_packed, elempack);
+
+    cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu, opt);
 
     return 0;
 }

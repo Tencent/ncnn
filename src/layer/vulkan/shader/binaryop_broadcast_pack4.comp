@@ -93,7 +93,7 @@ void main()
             {
                 // special type 1
                 ai = gi;
-                bi = gz;
+                bi = gz * psc(bcstep);
             }
         }
 

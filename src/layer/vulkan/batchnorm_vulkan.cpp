@@ -123,9 +123,17 @@ int BatchNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    cmd.record_upload(a_data, a_data_gpu, opt);
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
-    cmd.record_upload(b_data, b_data_gpu, opt);
+    Mat a_data_packed;
+    convert_packing(a_data, a_data_packed, elempack);
+
+    cmd.record_upload(a_data_packed, a_data_gpu, opt);
+
+    Mat b_data_packed;
+    convert_packing(b_data, b_data_packed, elempack);
+
+    cmd.record_upload(b_data_packed, b_data_gpu, opt);
 
     return 0;
 }

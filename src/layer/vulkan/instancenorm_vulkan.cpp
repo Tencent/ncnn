@@ -346,9 +346,17 @@ int InstanceNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int InstanceNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    cmd.record_upload(gamma_data, gamma_data_gpu, opt);
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
-    cmd.record_upload(beta_data, beta_data_gpu, opt);
+    Mat gamma_data_packed;
+    convert_packing(gamma_data, gamma_data_packed, elempack);
+
+    cmd.record_upload(gamma_data_packed, gamma_data_gpu, opt);
+
+    Mat beta_data_packed;
+    convert_packing(beta_data, beta_data_packed, elempack);
+
+    cmd.record_upload(beta_data_packed, beta_data_gpu, opt);
 
     return 0;
 }
