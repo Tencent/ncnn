@@ -165,41 +165,49 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         }
     }
 
+    Mat square_workspace_packed;
+    if (shape.dims == 3) square_workspace_packed = Mat(shape.w, shape.h, channels / elempack, (void*)0, elempack * 4u, elempack);
+
     {
-        std::vector<vk_specialization_type> specializations(0 + 5);
+        std::vector<vk_specialization_type> specializations(0 + 10);
         specializations[0 + 0].i = shape_packed.dims;
         specializations[0 + 1].i = shape_packed.w;
         specializations[0 + 2].i = shape_packed.h;
         specializations[0 + 3].i = shape_packed.c;
         specializations[0 + 4].i = shape_packed.cstep;
+        specializations[0 + 5].i = square_workspace_packed.dims;
+        specializations[0 + 6].i = square_workspace_packed.w;
+        specializations[0 + 7].i = square_workspace_packed.h;
+        specializations[0 + 8].i = square_workspace_packed.c;
+        specializations[0 + 9].i = square_workspace_packed.cstep;
 
         Mat local_size_xyz(4, 4, std::min(4, channels / elempack), (void*)0);
-        if (shape_packed.dims != 0)
+        if (square_workspace_packed.dims != 0)
         {
-            local_size_xyz.w = std::min(4, shape_packed.w);
-            local_size_xyz.h = std::min(4, shape_packed.h);
-            local_size_xyz.c = std::min(4, shape_packed.c);
+            local_size_xyz.w = std::min(4, square_workspace_packed.w);
+            local_size_xyz.h = std::min(4, square_workspace_packed.h);
+            local_size_xyz.c = std::min(4, square_workspace_packed.c);
         }
 
         if (elempack == 1)
         {
             pipeline_instancenorm_sub_mean_square = new Pipeline(vkdev);
             pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_sub_mean_square->create("instancenorm_sub_mean_square", opt, specializations, 3, 5);
+            pipeline_instancenorm_sub_mean_square->create("instancenorm_sub_mean_square", opt, specializations, 3, 10);
         }
 
         if (elempack == 4)
         {
             pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_sub_mean_square_pack4->create("instancenorm_sub_mean_square_pack4", opt, specializations, 3, 5);
+            pipeline_instancenorm_sub_mean_square_pack4->create("instancenorm_sub_mean_square_pack4", opt, specializations, 3, 10);
         }
 
         if (elempack == 8)
         {
             pipeline_instancenorm_sub_mean_square_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_sub_mean_square_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_sub_mean_square_pack8->create("instancenorm_sub_mean_square_pack8", opt, specializations, 3, 5);
+            pipeline_instancenorm_sub_mean_square_pack8->create("instancenorm_sub_mean_square_pack8", opt, specializations, 3, 10);
         }
     }
 
@@ -468,12 +476,17 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         bindings[1] = mean_workspace;
         bindings[2] = square_workspace;
 
-        std::vector<vk_constant_type> constants(5);
+        std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_top_blob.dims;
         constants[1].i = bottom_top_blob.w;
         constants[2].i = bottom_top_blob.h;
         constants[3].i = bottom_top_blob.c;
         constants[4].i = bottom_top_blob.cstep;
+        constants[5].i = square_workspace.dims;
+        constants[6].i = square_workspace.w;
+        constants[7].i = square_workspace.h;
+        constants[8].i = square_workspace.c;
+        constants[9].i = square_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_sub_mean_square_pack8
                                  : elempack == 4 ? pipeline_instancenorm_sub_mean_square_pack4
