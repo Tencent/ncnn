@@ -815,7 +815,7 @@ int main(int argc, char** argv)
         "{thread t       | 4 | count of processing threads }"
     ;
 
-    const cv::CommandLineParser parser(argc, argv, key_map);
+    cv::CommandLineParser parser(argc, argv, key_map);
 
     if (parser.has("help"))
     {
