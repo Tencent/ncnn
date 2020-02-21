@@ -53,6 +53,8 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
     int h1 = b.h;
     int channels1 = b.c;
     int size1 = w1 * h1;
+    size_t elemsize1 = b.elemsize;
+    int elempack1 = b.elempack;
 
     if (a.dims == 3)
     {
@@ -62,7 +64,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 3)
         {
-            if (b.w == 1 && b.h == 1)
+            if (w1 == 1 && h1 == 1 && channels1 == channels)
             {
                 // special type 1
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -78,6 +80,30 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                         float32x4_t _outp = op(_p, _b0);
                         vst1q_f32(outptr, _outp);
                         ptr += 4;
+                        outptr += 4;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (w1 == w && h1 == h && channels1 == 1 && elempack1 == 1)
+            {
+                // special type 2
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    const float* ptr1 = b;
+                    float* outptr = c.channel(q);
+                    for (int i = 0; i < size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(ptr);
+                        float32x4_t _p1 = vld1q_dup_f32(ptr1);
+                        float32x4_t _outp = op(_p, _p1);
+                        vst1q_f32(outptr, _outp);
+                        ptr += 4;
+                        ptr1 += 1;
                         outptr += 4;
                     }
                 }
@@ -139,7 +165,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 1)
         {
-            if (b.w == 1)
+            if (b.w == 1 && elempack1 == 1)
             {
                 // type 16
                 float32x4_t _b0 = vdupq_n_f32(b[0]);
@@ -248,7 +274,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (c.empty())
                 return -100;
 
-            if (b.w == 1)
+            if (b.w == 1 && elempack1 == 1)
             {
                 // type 11
                 float32x4_t _b0 = vdupq_n_f32(b[0]);
@@ -291,12 +317,12 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
     }
     else if (a.dims == 1)
     {
-        if (a.w == 1)
+        if (a.w == 1 && elempack == 1)
         {
             if (b.dims == 3)
             {
                 // type 4
-                c.create(w1, h1, channels1, elemsize, elempack, opt.blob_allocator);
+                c.create(w1, h1, channels1, elemsize1, elempack1, opt.blob_allocator);
                 if (c.empty())
                     return -100;
 
@@ -323,7 +349,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (b.dims == 2)
             {
                 // type 3
-                c.create(w1, h1, elemsize, elempack, opt.blob_allocator);
+                c.create(w1, h1, elemsize1, elempack1, opt.blob_allocator);
                 if (c.empty())
                     return -100;
 
@@ -345,7 +371,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (b.dims == 1)
             {
                 // type 2
-                c.create(w1, elemsize, elempack, opt.blob_allocator);
+                c.create(w1, elemsize1, elempack1, opt.blob_allocator);
                 if (c.empty())
                     return -100;
 
@@ -427,7 +453,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (c.empty())
                 return -100;
 
-            if (b.w == 1)
+            if (b.w == 1 && elempack1 == 1)
             {
                 // type 6
                 float32x4_t _b0 = vdupq_n_f32(b[0]);
@@ -495,22 +521,22 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 }
 
 template<typename T>
-struct binary_op_add : std::binary_function<T,T,T> {
+struct binary_op_add {
     T operator() (const T& x, const T& y) const { return vaddq_f32(x, y); }
 };
 
 template<typename T>
-struct binary_op_sub : std::binary_function<T,T,T> {
+struct binary_op_sub {
     T operator() (const T& x, const T& y) const { return vsubq_f32(x, y); }
 };
 
 template<typename T>
-struct binary_op_mul : std::binary_function<T,T,T> {
+struct binary_op_mul {
     T operator() (const T& x, const T& y) const { return vmulq_f32(x, y); }
 };
 
 template<typename T>
-struct binary_op_div : std::binary_function<T,T,T> {
+struct binary_op_div {
     T operator() (const T& x, const T& y) const
 #if __aarch64__
     { return vdivq_f32(x, y); }
@@ -520,27 +546,27 @@ struct binary_op_div : std::binary_function<T,T,T> {
 };
 
 template<typename T>
-struct binary_op_max : std::binary_function<T,T,T> {
+struct binary_op_max {
     T operator() (const T& x, const T& y) const { return vmaxq_f32(x, y); }
 };
 
 template<typename T>
-struct binary_op_min : std::binary_function<T,T,T> {
+struct binary_op_min {
     T operator() (const T& x, const T& y) const { return vminq_f32(x, y); }
 };
 
 template<typename T>
-struct binary_op_pow : std::binary_function<T,T,T> {
+struct binary_op_pow {
     T operator() (const T& x, const T& y) const { return pow_ps(x, y); }
 };
 
 template<typename T>
-struct binary_op_rsub : std::binary_function<T,T,T> {
+struct binary_op_rsub {
     T operator() (const T& x, const T& y) const { return vsubq_f32(y, x); }
 };
 
 template<typename T>
-struct binary_op_rdiv : std::binary_function<T,T,T> {
+struct binary_op_rdiv {
     T operator() (const T& x, const T& y) const
 #if __aarch64__
     { return vdivq_f32(y, x); }

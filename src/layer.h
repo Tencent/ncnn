@@ -115,6 +115,9 @@ public:
     std::vector<int> bottoms;
     // blob index which this layer produces as output
     std::vector<int> tops;
+    // shape hint
+    std::vector<Mat> bottom_shapes;
+    std::vector<Mat> top_shapes;
 };
 
 // layer factory function

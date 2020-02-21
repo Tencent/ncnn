@@ -24,6 +24,82 @@ static inline signed char float2int8(float v)
 }
 
 #if __aarch64__
+#if 1 
+#include "gemm_symm_int8.h"
+static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
+{
+    kernel_tm.create(outch, inch, (size_t)1u);
+    const int8_t *a = _kernel;
+    int8_t *sa = kernel_tm;
+    reorder_a((int8_t*)a, sa, outch, inch, inch);
+}
+
+static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+{
+    const size_t n = bottom_blob.w * bottom_blob.h;
+    const size_t k = bottom_blob.c;
+    const size_t m = top_blob.c;
+
+    ncnn::Mat bottom_tm(k * n, (size_t)1u, opt.workspace_allocator);
+    {
+        const int8_t* pData = bottom_blob;
+        int8_t *pReorder = bottom_tm;
+        reorder_b(pData, pReorder, k, n, bottom_blob.cstep);
+    }
+    
+    // GEMM
+    int32_t *pc = top_blob;
+    const int8_t *pa = kernel; 
+    const int8_t *pb = bottom_tm;
+    const size_t ldc = top_blob.cstep;
+
+    int8kernel((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr, opt);
+}
+
+
+static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+{
+    const size_t n = bottom_blob.w * bottom_blob.h;
+    const size_t k = bottom_blob.c;
+    const size_t m = top_blob.c;
+
+    ncnn::Mat scales_tm(m);
+    ncnn::Mat bias_tm(m);
+    float* scales  = scales_tm;
+    const float* bias = _bias;
+
+    // outptr0[0]  = float2int8(((float)sum0 * scale_requant_in + bias0) * scale_requant_out);
+    // the equation could convert to:
+    //      out = float2int8( (float)sum * (scale_requant_in * scale_requant_out) + (bias * scale_requant_out) )
+    // prebuild the list of (scales_requant_in*scale_requant_out)
+    for (size_t i = 0; i < m; ++i)
+    {
+        scales_tm[i] = scales_requant[2*i] * scales_requant[2*i + 1];
+    }
+    if (!_bias.empty())
+    {
+        for (size_t i = 0; i < m; ++i)
+        {
+            bias_tm[i] = bias[i] * scales_requant[2*i + 1];
+        }
+        bias = bias_tm;
+    }
+
+    ncnn::Mat bottom_tm(k * n, (size_t)1u, opt.workspace_allocator);
+    {
+        const int8_t *pData = bottom_blob;
+        int8_t *pReorder = bottom_tm;
+        reorder_b(pData, pReorder, k, n, bottom_blob.cstep);
+    }
+    
+    // GEMM
+    int8_t *pc = top_blob;
+    const int8_t *pa = kernel;
+    const int8_t *pb = bottom_tm;
+    const size_t ldc = top_blob.cstep;
+    int8kernel((void*)pc, pa, pb, m, k, n, ldc, scales, (float*)bias, opt);
+}
+#else
 static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
 {
     const signed char* kernel = _kernel;
@@ -36,7 +112,7 @@ static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& 
 
     nn_outch = outch >> 2;
     remain_outch_start = nn_outch << 2;
-    
+
     for (int pp=0; pp<nn_outch; pp++)
     {
         int p = pp * 4;
@@ -69,7 +145,7 @@ static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& 
         }
 
         for (; q<inch; q++)
-        { 
+        {
             ktmp[0] = k0[0];
             ktmp[1] = k1[0];
             ktmp[2] = k2[0];
@@ -80,7 +156,7 @@ static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& 
             k1 += 1;
             k2 += 1;
             k3 += 1;
-        }           
+        }
     }
 
     for (int p=remain_outch_start; p<outch; p++)
@@ -200,7 +276,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
         int* outptr2 = top_blob.channel(p+2);
         int* outptr3 = top_blob.channel(p+3);
 
-        int i = 0;  
+        int i = 0;
         for (; i+3<size; i+=4)
         {
             signed char* tmpptr = bottom_tm.channel(i/4);
@@ -333,7 +409,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "st1      {v21.4s}, [%1]             \n"
                 "st1      {v22.4s}, [%2]             \n"
                 "st1      {v23.4s}, [%3]             \n"
-                
+
                 : "=r"(outptr0), // %0
                   "=r"(outptr1), // %1
                   "=r"(outptr2), // %2
@@ -346,10 +422,10 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                   "3"(outptr3),
                   "4"(tmpptr),
                   "5"(kptr),
-                  "r"(inch)      // %12 
+                  "r"(inch)      // %12
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
-            );          
-#else          
+            );
+#else
             int sum0_0 = 0;
             int sum0_1 = 0;
             int sum0_2 = 0;
@@ -462,14 +538,14 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
             outptr0 += 4;
             outptr1 += 4;
             outptr2 += 4;
-            outptr3 += 4;        
+            outptr3 += 4;
         }
 
         for (; i<size; i++)
         {
             signed char* tmpptr = bottom_tm.channel(i/4 + i%4);
             const signed char* kptr = kernel.channel(p/4);
-#if __ARM_NEON
+#if 0//__ARM_NEON
             int32x4_t _sum = vdupq_n_s32(0);
 
             int q=0;
@@ -508,10 +584,10 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
                 tmpptr += 2;
                 kptr += 8;
-            }   
+            }
 
             for (; q<inch; q++)
-            {             
+            {
                 int8x8_t _r0 = vld1_s8(tmpptr);   // i0[0-3]
                 int8x8_t _k = vld1_s8(kptr);      // k[0-3][0]
 
@@ -585,8 +661,8 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
         int i = 0;
         for (; i+3<size; i+=4)
         {
-            signed char* tmpptr = bottom_tm.channel(i/4);   
-            const signed char* kptr = kernel.channel(p/4 + p%4);           
+            signed char* tmpptr = bottom_tm.channel(i/4);
+            const signed char* kptr = kernel.channel(p/4 + p%4);
 
 #if __ARM_NEON
             int32x4_t _sum = vdupq_n_s32(0);
@@ -605,7 +681,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 _k[7] = _k[1];
 
                 int16x8_t _tp0 = vmull_s8(_k, _r0);
-                _sum = vpadalq_s16(_sum, _tp0);                    
+                _sum = vpadalq_s16(_sum, _tp0);
 
                 tmpptr += 8;
                 kptr += 2;
@@ -672,10 +748,10 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
         for (; i<size; i++)
         {
-            signed char* tmpptr = bottom_tm.channel(i/4 + i%4);   
+            signed char* tmpptr = bottom_tm.channel(i/4 + i%4);
             const signed char* kptr = kernel.channel(p/4 + p%4);
 
-            int q = 0;            
+            int q = 0;
             int sum0 = 0;
 
             for (; q<inch; q++)
@@ -689,7 +765,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
             outptr0++;
         }
-    }        
+    }
 }
 
 
@@ -822,7 +898,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
         _scale_out03[2] = scale_requant_out2;
         _scale_out03[3] = scale_requant_out3;
 
-        int i = 0;  
+        int i = 0;
         for (; i+3<size; i+=4)
         {
             signed char* tmpptr = bottom_tm.channel(i/4);
@@ -1009,8 +1085,8 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                   "w"(_scale_in03), // %17
                   "w"(_scale_out03) // %18
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
-            );          
-#else          
+            );
+#else
             int sum0_0 = 0;
             int sum0_1 = 0;
             int sum0_2 = 0;
@@ -1123,7 +1199,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
             outptr0 += 4;
             outptr1 += 4;
             outptr2 += 4;
-            outptr3 += 4;        
+            outptr3 += 4;
         }
 
         for (; i<size; i++)
@@ -1169,10 +1245,10 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
                 tmpptr += 2;
                 kptr += 8;
-            }   
+            }
 
             for (; q<inch; q++)
-            {             
+            {
                 int8x8_t _r0 = vld1_s8(tmpptr);   // i0[0-3]
                 int8x8_t _k = vld1_s8(kptr);      // k[0-3][0]
 
@@ -1291,7 +1367,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 _k[7] = _k[1];
 
                 int16x8_t _tp0 = vmull_s8(_k, _r0);
-                _sum = vpadalq_s16(_sum, _tp0);                    
+                _sum = vpadalq_s16(_sum, _tp0);
 
                 tmpptr += 8;
                 kptr += 2;
@@ -1375,10 +1451,10 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
         for (; i<size; i++)
         {
-            signed char* tmpptr = bottom_tm.channel(i/4 + i%4);   
+            signed char* tmpptr = bottom_tm.channel(i/4 + i%4);
             const signed char* kptr = kernel.channel(p/4 + p%4);
 
-            int q = 0;            
+            int q = 0;
             int sum0 = 0;
 
             for (; q<inch; q++)
@@ -1395,7 +1471,9 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
     }
 }
 
+#endif
 #else
+
 static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
 {
     const signed char* kernel = _kernel;
@@ -3501,25 +3579,3 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
     }
 }
 #endif
-
-static void conv1x1s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
-{
-    int kernel_w = 1;
-    int kernel_h = 1;
-
-    int stride_w = 1;
-    int stride_h = 1;
-
-    conv_im2col_sgemm_int8_neon(bottom_blob, top_blob, _kernel, kernel_w, kernel_h, stride_w, stride_h, opt);
-}
-
-static void conv1x1s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
-{
-    int kernel_w = 1;
-    int kernel_h = 1;
-
-    int stride_w = 2;
-    int stride_h = 2;
-
-    conv_im2col_sgemm_int8_neon(bottom_blob, top_blob, _kernel, kernel_w, kernel_h, stride_w, stride_h, opt);
-}

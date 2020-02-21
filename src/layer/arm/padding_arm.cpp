@@ -30,7 +30,7 @@ Padding_arm::Padding_arm()
 }
 
 #if __ARM_NEON
-static void padding_constant_pack4_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right, float v)
+static void padding_constant_pack4_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right, float32x4_t v)
 {
     const float* ptr = src;
     float* outptr = dst;
@@ -43,10 +43,10 @@ static void padding_constant_pack4_neon(const Mat& src, Mat& dst, int top, int b
 
 #if __aarch64__
     asm volatile(
-        "dup    v0.4s, %w10             \n"
-        "dup    v1.4s, %w10             \n"
-        "dup    v2.4s, %w10             \n"
-        "dup    v3.4s, %w10             \n"
+        "mov    v0.16b, %10.16b         \n"
+        "mov    v1.16b, %10.16b         \n"
+        "mov    v2.16b, %10.16b         \n"
+        "mov    v3.16b, %10.16b         \n"
 
         // fill top
         "lsr    w4, %w8, #3             \n"// w4 = nn = top_size >> 3
@@ -198,15 +198,15 @@ static void padding_constant_pack4_neon(const Mat& src, Mat& dst, int top, int b
           "r"(right),       // %7
           "r"(top_size),    // %8
           "r"(bottom_size), // %9
-          "r"(v)            // %10
+          "w"(v)            // %10
         : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
     );
 #else // __aarch64__
     asm volatile(
-        "vdup.f32   q0, %10             \n"
-        "vdup.f32   q1, %10             \n"
-        "vdup.f32   q2, %10             \n"
-        "vdup.f32   q3, %10             \n"
+        "vmov       q0, %q10            \n"
+        "vmov       q1, %q10            \n"
+        "vmov       q2, %q10            \n"
+        "vmov       q3, %q10            \n"
 
         // fill top
         "lsr        r4, %8, #3          \n"// r4 = nn = top_size >> 3
@@ -358,7 +358,7 @@ static void padding_constant_pack4_neon(const Mat& src, Mat& dst, int top, int b
           "r"(right),       // %7
           "r"(top_size),    // %8
           "r"(bottom_size), // %9
-          "r"(v)            // %10
+          "w"(v)            // %10
         : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
     );
 #endif // __aarch64__
@@ -439,6 +439,88 @@ static void padding_replicate_pack4_neon(const Mat& src, Mat& dst, int top, int 
         }
     }
 }
+
+static void padding_reflect_pack4_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)
+{
+    const float* ptr = src;
+    float* outptr = dst;
+
+    // fill top
+    ptr += top * src.w * 4;
+    for (int y = 0; y < top; y++)
+    {
+        const float* ptr0 = ptr;
+        for (int x = 0; x < left; x++)
+        {
+            float32x4_t _p = vld1q_f32(ptr0 + (left - x) * 4);
+            vst1q_f32(outptr, _p);
+            outptr += 4;
+        }
+        for (int x = 0; x < src.w; x++)
+        {
+            float32x4_t _p = vld1q_f32(ptr0);
+            vst1q_f32(outptr, _p);
+            ptr0 += 4;
+            outptr += 4;
+        }
+        for (int x = 0; x < right; x++)
+        {
+            float32x4_t _p = vld1q_f32(ptr0 - 8 - x * 4);
+            vst1q_f32(outptr, _p);
+            outptr += 4;
+        }
+        ptr -= src.w * 4;
+    }
+    // fill center
+    for (int y = 0; y < src.h; y++)
+    {
+        for (int x = 0; x < left; x++)
+        {
+            float32x4_t _p = vld1q_f32(ptr + (left - x) * 4);
+            vst1q_f32(outptr, _p);
+            outptr += 4;
+        }
+        for (int x = 0; x < src.w; x++)
+        {
+            float32x4_t _p = vld1q_f32(ptr);
+            vst1q_f32(outptr, _p);
+            ptr += 4;
+            outptr += 4;
+        }
+        for (int x = 0; x < right; x++)
+        {
+            float32x4_t _p = vld1q_f32(ptr - 8 - x * 4);
+            vst1q_f32(outptr, _p);
+            outptr += 4;
+        }
+    }
+    // fill bottom
+    ptr -= 2 * src.w * 4;
+    for (int y = 0; y < bottom; y++)
+    {
+        const float* ptr0 = ptr;
+        for (int x = 0; x < left; x++)
+        {
+            float32x4_t _p = vld1q_f32(ptr0 + (left - x) * 4);
+            vst1q_f32(outptr, _p);
+            outptr += 4;
+        }
+        for (int x = 0; x < src.w; x++)
+        {
+            float32x4_t _p = vld1q_f32(ptr0);
+            vst1q_f32(outptr, _p);
+            ptr0 += 4;
+            outptr += 4;
+        }
+        for (int x = 0; x < right; x++)
+        {
+            float32x4_t _p = vld1q_f32(ptr0 - 8 - x * 4);
+            vst1q_f32(outptr, _p);
+            outptr += 4;
+        }
+        ptr -= src.w * 4;
+    }
+}
 #endif // __ARM_NEON
 
 int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -471,9 +553,11 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return -100;
 
             if (type == 0)
-                padding_constant_pack4_neon(bottom_blob, top_blob, 0, 0, left, right, value);
-            else
+                padding_constant_pack4_neon(bottom_blob, top_blob, 0, 0, left, right, vdupq_n_f32(value));
+            else if (type == 1)
                 padding_replicate_pack4_neon(bottom_blob, top_blob, 0, 0, left, right);
+            else // if (type == 2)
+                padding_reflect_pack4_neon(bottom_blob, top_blob, 0, 0, left, right);
 
             return 0;
         }
@@ -487,9 +571,11 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return -100;
 
             if (type == 0)
-                padding_constant_pack4_neon(bottom_blob, top_blob, top, bottom, left, right, value);
-            else
+                padding_constant_pack4_neon(bottom_blob, top_blob, top, bottom, left, right, vdupq_n_f32(value));
+            else if (type == 1)
                 padding_replicate_pack4_neon(bottom_blob, top_blob, top, bottom, left, right);
+            else // if (type == 2)
+                padding_reflect_pack4_neon(bottom_blob, top_blob, top, bottom, left, right);
 
             return 0;
         }
@@ -506,10 +592,14 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 const Mat m = bottom_blob.channel(q);
                 Mat borderm = top_blob.channel(q);
 
+                float32x4_t pad_value = per_channel_pad_data_size ? vld1q_f32((const float*)per_channel_pad_data + q * 4) : vdupq_n_f32(value);
+
                 if (type == 0)
-                    padding_constant_pack4_neon(m, borderm, top, bottom, left, right, value);
-                else
+                    padding_constant_pack4_neon(m, borderm, top, bottom, left, right, pad_value);
+                else if (type == 1)
                     padding_replicate_pack4_neon(m, borderm, top, bottom, left, right);
+                else // if (type == 2)
+                    padding_reflect_pack4_neon(m, borderm, top, bottom, left, right);
             }
 
             return 0;

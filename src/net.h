@@ -170,12 +170,15 @@ protected:
     ncnn::Layer* cast_float16_to_float32;
     ncnn::Layer* packing_pack1;
     ncnn::Layer* packing_pack4;
+    ncnn::Layer* packing_pack8;
 #endif // NCNN_VULKAN
 };
 
 class Extractor
 {
 public:
+    ~Extractor();
+
     // enable light mode
     // intermediate blob will be recycled when enabled
     // enabled by default
@@ -242,7 +245,7 @@ public:
 
 protected:
     friend Extractor Net::create_extractor() const;
-    Extractor(const Net* net, int blob_count);
+    Extractor(const Net* net, size_t blob_count);
 
 private:
     const Net* net;
@@ -250,6 +253,9 @@ private:
     Option opt;
 
 #if NCNN_VULKAN
+    VkAllocator* local_blob_vkallocator;
+    VkAllocator* local_staging_vkallocator;
+
     std::vector<VkMat> blob_mats_gpu;
 #endif // NCNN_VULKAN
 };

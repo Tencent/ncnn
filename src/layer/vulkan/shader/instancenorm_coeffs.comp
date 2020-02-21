@@ -18,10 +18,11 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
 layout (constant_id = 0) const float eps = 0;
+layout (constant_id = 1) const int w = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -33,28 +34,23 @@ layout (binding = 2) readonly buffer var_blob { sfp var_data[]; };
 layout (binding = 3) readonly buffer gamma_blob { sfp gamma_data[]; };
 layout (binding = 4) readonly buffer beta_blob { sfp beta_data[]; };
 
-layout (push_constant) uniform parameter
-{
-    int w;
-} p;
-
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= 1 || gz >= 1)
+    if (gx >= w || gy >= 1 || gz >= 1)
         return;
 
-    afp mean = sfp2afp(mean_data[gx]);
-    afp var = sfp2afp(var_data[gx]);
-    afp gamma = sfp2afp(gamma_data[gx]);
-    afp beta = sfp2afp(beta_data[gx]);
+    afp mean = buffer_ld1(mean_data, gx);
+    afp var = buffer_ld1(var_data, gx);
+    afp gamma = buffer_ld1(gamma_data, gx);
+    afp beta = buffer_ld1(beta_data, gx);
 
     afp a = gamma / (sqrt(var + afp(eps)));
     afp b = - mean * a + beta;
 
-    coeffs_blob_data[gx*2] = afp2sfp(a);
-    coeffs_blob_data[gx*2 +1] = afp2sfp(b);
+    buffer_st1(coeffs_blob_data, gx*2, a);
+    buffer_st1(coeffs_blob_data, gx*2 +1, b);
 }

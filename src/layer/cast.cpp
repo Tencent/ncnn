@@ -153,15 +153,15 @@ static float float16_to_float32(unsigned short value)
 static signed char float32_to_int8(float value)
 {
     float tmp;
-    if (value >= 0.f) tmp = value + 0.5;
-    else tmp = value - 0.5;
+    if (value >= 0.f) tmp = value + 0.5f;
+    else tmp = value - 0.5f;
 
     if (tmp > 127)
         return 127;
     if (tmp < -128)
         return -128;
 
-    return tmp;
+    return static_cast<signed char>(tmp);
 }
 
 int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -239,6 +239,21 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             for (int i=0; i<size; i++)
             {
                 outptr[i] = float16_to_float32(ptr[i]);
+            }
+        }
+    }
+
+    if (type_from == 3 && type_to == 1)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const signed char* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+
+            for (int i=0; i<size; i++)
+            {
+                outptr[i] = (float)ptr[i];
             }
         }
     }

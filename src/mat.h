@@ -141,11 +141,11 @@ public:
     template<typename T> operator const T*() const;
 
     // convenient access float vec element
-    float& operator[](int i);
-    const float& operator[](int i) const;
+    float& operator[](size_t i);
+    const float& operator[](size_t i) const;
 
 #if NCNN_PIXEL
-    enum
+    enum PixelType
     {
         PIXEL_CONVERT_SHIFT = 16,
         PIXEL_FORMAT_MASK = 0x0000ffff,
@@ -174,13 +174,21 @@ public:
     };
     // convenient construct from pixel data
     static Mat from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator = 0);
+    // convenient construct from pixel data with stride(bytes-per-row) parameter
+    static Mat from_pixels(const unsigned char* pixels, int type, int w, int h, int stride, Allocator* allocator = 0);
     // convenient construct from pixel data and resize to specific size
     static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height, Allocator* allocator = 0);
+    // convenient construct from pixel data and resize to specific size with stride(bytes-per-row) parameter
+    static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height, Allocator* allocator = 0);
 
     // convenient export to pixel data
     void to_pixels(unsigned char* pixels, int type) const;
+    // convenient export to pixel data with stride(bytes-per-row) parameter
+    void to_pixels(unsigned char* pixels, int type, int stride) const;
     // convenient export to pixel data and resize to specific size
     void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height) const;
+    // convenient export to pixel data and resize to specific size with stride(bytes-per-row) parameter
+    void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height, int target_stride) const;
 
 #if __ANDROID_API__ >= 9
     // convenient construct from android Bitmap
@@ -221,7 +229,7 @@ public:
     // the allocator
     Allocator* allocator;
 
-    // the dimensionality
+    // the dimension rank
     int dims;
 
     int w;
@@ -354,7 +362,7 @@ public:
     VkAllocator* allocator;
     VkAllocator* staging_allocator;
 
-    // the dimensionality
+    // the dimension rank
     int dims;
 
     int w;
@@ -362,6 +370,56 @@ public:
     int c;
 
     size_t cstep;
+};
+
+class VkImageMat
+{
+public:
+    // empty
+    VkImageMat();
+    // image
+    VkImageMat(int width, int height, VkFormat format, VkImageAllocator* allocator);
+    // copy
+    VkImageMat(const VkImageMat& m);
+    // external image
+    VkImageMat(int width, int height, VkImageMemory* data, VkFormat format, VkImageAllocator* allocator);
+    // release
+    ~VkImageMat();
+    // assign
+    VkImageMat& operator=(const VkImageMat& m);
+    // allocate image
+    void create(int width, int height, VkFormat format, VkImageAllocator* allocator);
+
+    // refcount++
+    void addref();
+    // refcount--
+    void release();
+
+    bool empty() const;
+    size_t total() const;
+
+    // low-level reference
+    VkImage image() const;
+    VkImageView imageview() const;
+
+#if __ANDROID_API__ >= 26
+    // convenient construct from android hardware buffer
+    static VkImageMat from_android_hardware_buffer(AHardwareBuffer* hb, VkAndroidHardwareBufferImageAllocator* allocator);
+#endif // __ANDROID_API__ >= 26
+
+    // device image
+    VkImageMemory* data;
+
+    // pointer to the reference counter
+    // when points to user-allocated data, the pointer is NULL
+    int* refcount;
+
+    // the allocator
+    VkImageAllocator* allocator;
+
+    int width;
+    int height;
+    VkFormat format;
 };
 
 // type for vulkan specialization constant and push constant
@@ -378,9 +436,39 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned c
 void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+// image pixel bilinear resize with stride(bytes-per-row) parameter
+void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
 // image pixel bilinear resize, convenient wrapper for yuv420sp(nv21)
 void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 #endif // NCNN_PIXEL
+#if NCNN_PIXEL_ROTATE
+// type is the from type, 6 means rotating from 6 to 1
+//
+//     1        2       3      4         5            6           7          8
+//
+//   888888  888888      88  88      8888888888  88                  88  8888888888
+//   88          88      88  88      88  88      88  88          88  88      88  88
+//   8888      8888    8888  8888    88          8888888888  8888888888          88
+//   88          88      88  88
+//   88          88  888888  888888
+//
+// ref http://sylvana.net/jpegcrop/exif_orientation.html
+// image pixel kanna rotate
+void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+// image pixel kanna rotate with stride(bytes-per-row) parameter
+void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+// image pixel kanna rotate, convenient wrapper for yuv420sp(nv21)
+void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+#endif // NCNN_PIXEL_ROTATE
 
 // mat process
 enum
@@ -395,6 +483,10 @@ void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt = 
 void convert_packing(const Mat& src, Mat& dst, int elempack, const Option& opt = Option());
 void cast_float32_to_float16(const Mat& src, Mat& dst, const Option& opt = Option());
 void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
+void cast_int8_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
+void quantize_float32_to_int8(const Mat& src, Mat& dst, float scale, const Option& opt = Option());
+void dequantize_int32_to_float32(Mat& m, float scale, const float* bias, int bias_data_size, const Option& opt = Option());
+void requantize_int8_to_int8(const Mat& src, Mat& dst, float scale_in, float scale_out, const float* bias, int bias_data_size, int fusion_relu, const Option& opt = Option());
 
 inline Mat::Mat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
@@ -1089,12 +1181,12 @@ inline Mat::operator const T*() const
     return (const T*)data;
 }
 
-inline float& Mat::operator[](int i)
+inline float& Mat::operator[](size_t i)
 {
     return ((float*)data)[i];
 }
 
-inline const float& Mat::operator[](int i) const
+inline const float& Mat::operator[](size_t i) const
 {
     return ((const float*)data)[i];
 }
@@ -1469,10 +1561,20 @@ inline void VkMat::discard_staging_buffer()
 inline void VkMat::upload(const Mat& m)
 {
     memcpy(mapped_ptr(), m.data, m.total() * m.elemsize);
+
+    if (allocator->mappable)
+    {
+        allocator->flush(data);
+    }
 }
 
 inline void VkMat::download(Mat& m) const
 {
+    if (allocator->mappable)
+    {
+        allocator->invalidate(data);
+    }
+
     memcpy(m.data, mapped_ptr(), total() * elemsize);
 }
 
@@ -1610,6 +1712,123 @@ inline size_t VkMat::staging_buffer_offset() const
 {
     return staging_data->offset;
 }
+
+inline VkImageMat::VkImageMat()
+    : data(0), refcount(0), allocator(0), width(0), height(0), format(VK_FORMAT_UNDEFINED)
+{
+}
+
+inline VkImageMat::VkImageMat(int _width, int _height, VkFormat _format, VkImageAllocator* _allocator)
+    : data(0), refcount(0), allocator(0), width(0), height(0), format(VK_FORMAT_UNDEFINED)
+{
+    create(_width, _height, _format, _allocator);
+}
+
+inline VkImageMat::VkImageMat(const VkImageMat& m)
+    : data(m.data), refcount(m.refcount), allocator(m.allocator), width(m.width), height(m.height), format(m.format)
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+}
+
+inline VkImageMat::VkImageMat(int _width, int _height, VkImageMemory* _data, VkFormat _format, VkImageAllocator* _allocator)
+    : data(_data), refcount(0), allocator(_allocator), width(_width), height(_height), format(_format)
+{
+}
+
+inline VkImageMat::~VkImageMat()
+{
+    release();
+}
+
+inline VkImageMat& VkImageMat::operator=(const VkImageMat& m)
+{
+    if (this == &m)
+        return *this;
+
+    if (m.refcount)
+        NCNN_XADD(m.refcount, 1);
+
+    release();
+
+    data = m.data;
+    refcount = m.refcount;
+    allocator = m.allocator;
+
+    width = m.width;
+    height = m.height;
+    format = m.format;
+
+    return *this;
+}
+
+inline void VkImageMat::create(int _width, int _height, VkFormat _format, VkImageAllocator* _allocator)
+{
+    if (width == _width && height == _height && format == _format && allocator == _allocator)
+        return;
+
+    release();
+
+    allocator = _allocator;
+
+    width = _width;
+    height = _height;
+    format = _format;
+
+    if (total() > 0)
+    {
+        data = allocator->fastMalloc(width, height, format);
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+inline void VkImageMat::addref()
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+}
+
+inline void VkImageMat::release()
+{
+    if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
+        if (allocator && data)
+        {
+            allocator->fastFree(data);
+        }
+    }
+
+    data = 0;
+
+    width = 0;
+    height = 0;
+    format = VK_FORMAT_UNDEFINED;
+
+    refcount = 0;
+}
+
+inline bool VkImageMat::empty() const
+{
+    return data == 0 || total() == 0;
+}
+
+inline size_t VkImageMat::total() const
+{
+    return width * height;
+}
+
+inline VkImage VkImageMat::image() const
+{
+    return data->image;
+}
+
+inline VkImageView VkImageMat::imageview() const
+{
+    return data->imageview;
+}
+
 #endif // NCNN_VULKAN
 
 } // namespace ncnn

@@ -18,12 +18,31 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
 layout (constant_id = 0) const int op_type = 0;
 layout (constant_id = 1) const int with_scalar = 0;
 layout (constant_id = 2) const float const_b = 0;
+
+#define shape_constant_id_offset 3
+layout (constant_id = shape_constant_id_offset + 0) const int adims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int aw = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int ah = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int ac = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int acstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int bdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int bw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int bh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int bc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int bcstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 10) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 12) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 13) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 14) const int outcstep = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -60,12 +79,12 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int gi = gz * p.outcstep + gy * p.outw + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
-    afpvec4 v1 = sfp2afpvec4(a_blob_data[gi]);
+    afpvec4 v1 = buffer_ld4(a_blob_data, gi);
 
     afpvec4 res;
 
@@ -84,12 +103,12 @@ void main()
         if (op_type == 7) res = b - v1;
         if (op_type == 8) res = b / v1;
 
-        a_blob_data[gi] = afp2sfpvec4(res);
+        buffer_st4(a_blob_data, gi, res);
     }
     else
     {
         // type 7 13 19
-        afpvec4 v2 = sfp2afpvec4(b_blob_data[gi]);
+        afpvec4 v2 = buffer_ld4(b_blob_data, gi);
 
         if (op_type == 0) res = v1 + v2;
         if (op_type == 1) res = v1 - v2;
@@ -101,6 +120,6 @@ void main()
         if (op_type == 7) res = v2 - v1;
         if (op_type == 8) res = v2 / v1;
 
-        top_blob_data[gi] = afp2sfpvec4(res);
+        buffer_st4(top_blob_data, gi, res);
     }
 }

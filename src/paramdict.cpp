@@ -190,11 +190,11 @@ int ParamDict::load_param_bin(const DataReader& dr)
 //     binary -233(EOP)
 
     int id = 0;
-    int nread;
+    size_t nread;
     nread = dr.read(&id, sizeof(int));
-    if (nread != (int)sizeof(int))
+    if (nread != sizeof(int))
     {
-        fprintf(stderr, "ParamDict read id failed %d\n", nread);
+        fprintf(stderr, "ParamDict read id failed %zd\n", nread);
         return -1;
     }
 
@@ -210,9 +210,9 @@ int ParamDict::load_param_bin(const DataReader& dr)
         {
             int len = 0;
             nread = dr.read(&len, sizeof(int));
-            if (nread != (int)sizeof(int))
+            if (nread != sizeof(int))
             {
-                fprintf(stderr, "ParamDict read array length failed %d\n", nread);
+                fprintf(stderr, "ParamDict read array length failed %zd\n", nread);
                 return -1;
             }
 
@@ -220,9 +220,9 @@ int ParamDict::load_param_bin(const DataReader& dr)
 
             float* ptr = params[id].v;
             nread = dr.read(ptr, sizeof(float) * len);
-            if (nread != (int)sizeof(float) * len)
+            if (nread != sizeof(float) * len)
             {
-                fprintf(stderr, "ParamDict read array element failed %d\n", nread);
+                fprintf(stderr, "ParamDict read array element failed %zd\n", nread);
                 return -1;
             }
 
@@ -231,9 +231,9 @@ int ParamDict::load_param_bin(const DataReader& dr)
         else
         {
             nread = dr.read(&params[id].f, sizeof(float));
-            if (nread != (int)sizeof(float))
+            if (nread != sizeof(float))
             {
-                fprintf(stderr, "ParamDict read value failed %d\n", nread);
+                fprintf(stderr, "ParamDict read value failed %zd\n", nread);
                 return -1;
             }
 
@@ -241,9 +241,9 @@ int ParamDict::load_param_bin(const DataReader& dr)
         }
 
         nread = dr.read(&id, sizeof(int));
-        if (nread != (int)sizeof(int))
+        if (nread != sizeof(int))
         {
-            fprintf(stderr, "ParamDict read EOP failed %d\n", nread);
+            fprintf(stderr, "ParamDict read EOP failed %zd\n", nread);
             return -1;
         }
     }

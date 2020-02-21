@@ -18,10 +18,25 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define FLT_MAX 3.402823466e+38
+
 layout (constant_id = 0) const int pooling_type = 0;
+
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -51,21 +66,21 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    int size = p.w * p.h;
-    int v_offset = gx * p.cstep;
+    int size = psc(w) * psc(h);
+    int v_offset = gx * psc(cstep);
 
     afp res;
 
     if (pooling_type == 0)
     {
-        res = afp(-99999999.f);
+        res = afp(-FLT_MAX);
 
         for (int i = 0; i < size; i++)
         {
-            afp v = sfp2afp(bottom_blob_data[v_offset + i]);
+            afp v = buffer_ld1(bottom_blob_data, v_offset + i);
             res = max(res, v);
         }
     }
@@ -75,11 +90,11 @@ void main()
 
         for (int i = 0; i < size; i++)
         {
-            res += sfp2afp(bottom_blob_data[v_offset + i]);
+            res += buffer_ld1(bottom_blob_data, v_offset + i);
         }
 
         res /= afp(size);
     }
 
-    top_blob_data[gx] = afp2sfp(res);
+    buffer_st1(top_blob_data, gx, res);
 }

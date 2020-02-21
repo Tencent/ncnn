@@ -42,6 +42,7 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<Object>& objects)
     // original pretrained model from https://github.com/chuanqi305/SqueezeNet-SSD
     // squeezenet_ssd_voc_deploy.prototxt
     // https://drive.google.com/open?id=0B3gersZ2cHIxdGpyZlZnbEQ5Snc
+    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
     squeezenet.load_param("squeezenet_ssd_voc.param");
     squeezenet.load_model("squeezenet_ssd_voc.bin");
 

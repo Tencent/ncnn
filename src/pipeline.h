@@ -30,10 +30,11 @@ class Pipeline
 {
 public:
     Pipeline(const VulkanDevice* vkdev);
-    ~Pipeline();
+    virtual ~Pipeline();
 
 public:
-    void set_optimal_local_size_xyz(int w = 32, int h = 32, int c = 32);
+    void set_optimal_local_size_xyz(int w = 4, int h = 4, int c = 4);
+    void set_optimal_local_size_xyz(const Mat& local_size_xyz);
     void set_local_size_xyz(int w, int h, int c);
 
     int create(const uint32_t* spv_data, size_t spv_data_size, const char* entry_name,
@@ -68,6 +69,40 @@ public:
     uint32_t local_size_y;
     uint32_t local_size_z;
 };
+
+#if __ANDROID_API__ >= 26
+class VkCompute;
+class ImportAndroidHardwareBufferPipeline : private Pipeline
+{
+public:
+    ImportAndroidHardwareBufferPipeline(const VulkanDevice* vkdev);
+    ~ImportAndroidHardwareBufferPipeline();
+
+    int create(AHardwareBuffer* hb, int type_to, int rotate_from, const Option& opt);
+    void destroy();
+
+    friend class VkCompute;
+
+protected:
+    int create_sampler(AHardwareBuffer* hb);
+    int create_descriptorset_layout();
+    int create_descriptor_update_template();
+
+public:
+    int w;
+    int h;
+    int outw;
+    int outh;
+    int outc;
+    size_t out_elemsize;
+    int out_elempack;
+    int type_to;
+    int rotate_from;
+
+    VkSamplerYcbcrConversionKHR samplerYcbcrConversion;
+    VkSampler sampler;
+};
+#endif // __ANDROID_API__ >= 26
 #endif // NCNN_VULKAN
 
 } // namespace ncnn

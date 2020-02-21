@@ -114,7 +114,8 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     // py-faster-rcnn/models/pascal_voc/ZF/faster_rcnn_alt_opt/faster_rcnn_test.pt
     // https://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0
     // ZF_faster_rcnn_final.caffemodel
-    fasterrcnn.load_param("ZF_faster_rcnn_final.proto");
+    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
+    fasterrcnn.load_param("ZF_faster_rcnn_final.param");
     fasterrcnn.load_model("ZF_faster_rcnn_final.bin");
 
     // hyper parameters taken from
@@ -160,9 +161,9 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     ex1.input("data", in);
     ex1.input("im_info", im_info);
 
-    ncnn::Mat conv5;// feature
+    ncnn::Mat conv5_relu5;// feature
     ncnn::Mat rois;// all rois
-    ex1.extract("conv5", conv5);
+    ex1.extract("conv5_relu5", conv5_relu5);
     ex1.extract("rois", rois);
 
     // step2, extract bbox and score for each roi
@@ -172,7 +173,7 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
         ncnn::Extractor ex2 = fasterrcnn.create_extractor();
 
         ncnn::Mat roi = rois.channel(i);// get single roi
-        ex2.input("conv5", conv5);
+        ex2.input("conv5_relu5", conv5_relu5);
         ex2.input("rois", roi);
 
         ncnn::Mat bbox_pred;

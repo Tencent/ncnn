@@ -69,7 +69,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 3)
         {
-            if (b.w == 1 && b.h == 1)
+            if (w1 == 1 && h1 == 1 && channels1 == channels)
             {
                 // special type 1
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -81,6 +81,24 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     for (int i = 0; i < size; i++)
                     {
                         outptr[i] = op(ptr[i], b0[0]);
+                    }
+                }
+
+                return 0;
+            }
+
+            if (w1 == w && h1 == h && channels1 == 1)
+            {
+                // special type 2
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    const float* ptr1 = b;
+                    float* outptr = c.channel(q);
+                    for (int i = 0; i < size; i++)
+                    {
+                        outptr[i] = op(ptr[i], ptr1[i]);
                     }
                 }
 
@@ -414,27 +432,27 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 }
 
 template<typename T>
-struct binary_op_max : std::binary_function<T,T,T> {
+struct binary_op_max {
     T operator() (const T& x, const T& y) const { return std::max(x, y); }
 };
 
 template<typename T>
-struct binary_op_min : std::binary_function<T,T,T> {
+struct binary_op_min {
     T operator() (const T& x, const T& y) const { return std::min(x, y); }
 };
 
 template<typename T>
-struct binary_op_pow : std::binary_function<T,T,T> {
-    T operator() (const T& x, const T& y) const { return pow(x, y); }
+struct binary_op_pow {
+    T operator() (const T& x, const T& y) const { return static_cast<T>(pow(x, y)); }
 };
 
 template<typename T>
-struct binary_op_rsub : std::binary_function<T,T,T> {
+struct binary_op_rsub {
     T operator() (const T& x, const T& y) const { return y - x; }
 };
 
 template<typename T>
-struct binary_op_rdiv : std::binary_function<T,T,T> {
+struct binary_op_rdiv {
     T operator() (const T& x, const T& y) const { return y / x; }
 };
 

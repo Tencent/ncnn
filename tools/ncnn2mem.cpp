@@ -29,7 +29,7 @@ static int find_blob_index_by_name(const char* name)
     {
         if (blob_names[i] == name)
         {
-            return i;
+            return static_cast<int>(i);
         }
     }
 

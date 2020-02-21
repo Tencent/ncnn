@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 #include "platform.h"
+#include "mat.h"
 
 namespace ncnn {
 
@@ -36,6 +37,8 @@ public:
     int producer;
     // layer index which need this blob as input
     std::vector<int> consumers;
+    // shape hint
+    Mat shape;
 };
 
 } // namespace ncnn

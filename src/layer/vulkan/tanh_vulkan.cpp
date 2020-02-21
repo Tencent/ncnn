@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "tanh_vulkan.h"
-#include <math.h>
+#include <algorithm>
 
 namespace ncnn {
 
@@ -25,24 +25,86 @@ TanH_vulkan::TanH_vulkan()
 
     pipeline_tanh = 0;
     pipeline_tanh_pack4 = 0;
+    pipeline_tanh_pack8 = 0;
 }
 
 int TanH_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations;
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    size_t elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+    }
+
+    Mat shape_packed;
+    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+
+    std::vector<vk_specialization_type> specializations(0 + 5);
+    specializations[0 + 0].i = shape_packed.dims;
+    specializations[0 + 1].i = shape_packed.w;
+    specializations[0 + 2].i = shape_packed.h;
+    specializations[0 + 3].i = shape_packed.c;
+    specializations[0 + 4].i = shape_packed.cstep;
+
+    Mat local_size_xyz;
+    if (shape_packed.dims == 1)
+    {
+        local_size_xyz.w = std::min(64, shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 2)
+    {
+        local_size_xyz.w = std::min(8, shape_packed.w);
+        local_size_xyz.h = std::min(8, shape_packed.h);
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 3)
+    {
+        local_size_xyz.w = std::min(4, shape_packed.w);
+        local_size_xyz.h = std::min(4, shape_packed.h);
+        local_size_xyz.c = std::min(4, shape_packed.c);
+    }
 
     // pack1
+    if (shape.dims == 0 || elempack == 1)
     {
         pipeline_tanh = new Pipeline(vkdev);
-        pipeline_tanh->set_optimal_local_size_xyz();
+        pipeline_tanh->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_tanh->create("tanh", opt, specializations, 1, 5);
     }
 
     // pack4
+    if (shape.dims == 0 || elempack == 4)
     {
         pipeline_tanh_pack4 = new Pipeline(vkdev);
-        pipeline_tanh_pack4->set_optimal_local_size_xyz();
+        pipeline_tanh_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_tanh_pack4->create("tanh_pack4", opt, specializations, 1, 5);
+    }
+
+    // pack8
+    if (shape.dims == 0 || elempack == 8)
+    {
+        pipeline_tanh_pack8 = new Pipeline(vkdev);
+        pipeline_tanh_pack8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_tanh_pack8->create("tanh_pack8", opt, specializations, 1, 5);
     }
 
     return 0;
@@ -55,6 +117,9 @@ int TanH_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_tanh_pack4;
     pipeline_tanh_pack4 = 0;
+
+    delete pipeline_tanh_pack8;
+    pipeline_tanh_pack8 = 0;
 
     return 0;
 }
@@ -73,7 +138,9 @@ int TanH_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_tanh_pack4 : pipeline_tanh;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_tanh_pack8
+                             : elempack == 4 ? pipeline_tanh_pack4
+                             : pipeline_tanh;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
