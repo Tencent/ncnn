@@ -159,7 +159,7 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8
-    if (shape.dims == 0 || out_elempack == 8)
+    if ((opt.use_shader_pack8 && shape.dims == 0) || out_elempack == 8)
     {
         pipeline_slice_pack8[0] = new Pipeline(vkdev);
         pipeline_slice_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -170,7 +170,7 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack1to8
-    if ((axis == 0 && shape.dims == 0) || out_elempack == 1)
+    if ((opt.use_shader_pack8 && axis == 0 && shape.dims == 0) || out_elempack == 1)
     {
         pipeline_slice_pack1to8[0] = new Pipeline(vkdev);
         pipeline_slice_pack1to8[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -198,7 +198,7 @@ int Slice_vulkan::create_pipeline(const Option& opt)
         packing_pack1->create_pipeline(opt);
     }
 
-    if ((axis == 0 && shape.dims == 0) || (elempack > out_elempack && out_elempack == 4))
+    if ((opt.use_shader_pack8 && axis == 0 && shape.dims == 0) || (elempack > out_elempack && out_elempack == 4))
     {
         packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
         packing_pack4->vkdev = vkdev;

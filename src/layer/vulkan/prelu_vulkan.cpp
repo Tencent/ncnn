@@ -103,7 +103,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8
-    if (num_slope == 1 || elempack == 8)
+    if ((opt.use_shader_pack8 && num_slope == 1) || elempack == 8)
     {
         pipeline_prelu_pack8 = new Pipeline(vkdev);
         pipeline_prelu_pack8->set_optimal_local_size_xyz(local_size_xyz);
