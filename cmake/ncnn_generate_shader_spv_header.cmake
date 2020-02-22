@@ -31,7 +31,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D sfp2afpmat4(v)=v"
              "-D afp2sfpmat4(v)=v"
              "-D psc(x)=(x==0?p.x:x)"
-             -V -Os -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
+             -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_SRC_NAME_WE}.spv"
         VERBATIM
@@ -67,7 +67,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D buffer_cp8to4(buf,i2,sbuf,si)={uvec4 _v=sbuf[si]; buf[i2.r]=_v.rg;buf[i2.g]=_v.ba;}"
              "-D psc(x)=(x==0?p.x:x)"
              -DNCNN_fp16_packed=1
-             -V -Os -s -e ${SHADER_fp16p_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16p_SPV_HEX_FILE} ${SHADER_SRC}
+             -V -s -e ${SHADER_fp16p_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16p_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_fp16p_SRC_NAME_WE}.spv"
         VERBATIM
@@ -103,7 +103,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D buffer_cp8to4(buf,i2,sbuf,si)={uvec4 _v=sbuf[si]; buf[i2.r]=_v.rg;buf[i2.g]=_v.ba;}"
              "-D psc(x)=(x==0?p.x:x)"
              -DNCNN_fp16_packed=1 -DNCNN_fp16_arithmetic=1
-             -V -Os -s -e ${SHADER_fp16pa_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16pa_SPV_HEX_FILE} ${SHADER_SRC}
+             -V -s -e ${SHADER_fp16pa_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16pa_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_fp16pa_SRC_NAME_WE}.spv"
         VERBATIM
@@ -139,7 +139,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D buffer_cp8to4(buf,i2,sbuf,si)={buf[i2.r]=sbuf[si].abcd;buf[i2.g]=sbuf[si].efgh;}"
              "-D psc(x)=(x==0?p.x:x)"
              -DNCNN_fp16_storage=1
-             -V -Os -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
+             -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_fp16s_SRC_NAME_WE}.spv"
         VERBATIM
@@ -177,7 +177,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D afp2sfpmat4(v)=v"
              "-D psc(x)=(x==0?p.x:x)"
              -DNCNN_fp16_storage=1 -DNCNN_fp16_arithmetic=1
-             -V -Os -s -e ${SHADER_fp16sa_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16sa_SPV_HEX_FILE} ${SHADER_SRC}
+             -V -s -e ${SHADER_fp16sa_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16sa_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_fp16sa_SRC_NAME_WE}.spv"
         VERBATIM
