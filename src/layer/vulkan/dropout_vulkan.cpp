@@ -101,7 +101,7 @@ int Dropout_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8
-    if (shape.dims == 0 || elempack == 8)
+    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
     {
         pipeline_dropout_pack8 = new Pipeline(vkdev);
         pipeline_dropout_pack8->set_optimal_local_size_xyz(local_size_xyz);

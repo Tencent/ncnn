@@ -125,13 +125,13 @@ int LRN_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if (region_type == 0 && (shape.dims == 0 || elempack == 8))
+        if (region_type == 0 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8))
         {
             pipeline_lrn_square_pad_across_channel_pack8 = new Pipeline(vkdev);
             pipeline_lrn_square_pad_across_channel_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_square_pad_across_channel_pack8->create("lrn_square_pad_across_channel_pack8", opt, specializations, 2, 10);
         }
-        if (region_type == 1 && (shape.dims == 0 || elempack == 8))
+        if (region_type == 1 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8))
         {
             pipeline_lrn_square_pad_within_channel_pack8 = new Pipeline(vkdev);
             pipeline_lrn_square_pad_within_channel_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -188,13 +188,13 @@ int LRN_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if (region_type == 0 && (shape.dims == 0 || elempack == 8))
+        if (region_type == 0 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8))
         {
             pipeline_lrn_norm_across_channel_pack8 = new Pipeline(vkdev);
             pipeline_lrn_norm_across_channel_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_norm_across_channel_pack8->create("lrn_norm_across_channel_pack8", opt, specializations, 2, 10);
         }
-        if (region_type == 1 && (shape.dims == 0 || elempack == 8))
+        if (region_type == 1 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8))
         {
             pipeline_lrn_norm_within_channel_pack8 = new Pipeline(vkdev);
             pipeline_lrn_norm_within_channel_pack8->set_optimal_local_size_xyz(local_size_xyz);
