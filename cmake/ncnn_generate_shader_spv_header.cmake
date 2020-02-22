@@ -31,7 +31,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D sfp2afpmat4(v)=v"
              "-D afp2sfpmat4(v)=v"
              "-D psc(x)=(x==0?p.x:x)"
-             -V -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
+             -V -Os -s -e ${SHADER_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_SRC_NAME_WE}.spv"
         VERBATIM
@@ -67,12 +67,48 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D buffer_cp8to4(buf,i2,sbuf,si)={uvec4 _v=sbuf[si]; buf[i2.r]=_v.rg;buf[i2.g]=_v.ba;}"
              "-D psc(x)=(x==0?p.x:x)"
              -DNCNN_fp16_packed=1
-             -V -s -e ${SHADER_fp16p_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16p_SPV_HEX_FILE} ${SHADER_SRC}
+             -V -Os -s -e ${SHADER_fp16p_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16p_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_fp16p_SRC_NAME_WE}.spv"
         VERBATIM
     )
     set_source_files_properties(${SHADER_fp16p_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+
+    # fp16 packed + fp16 arithmetic
+    set(SHADER_fp16pa_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_fp16pa")
+
+    set(SHADER_fp16pa_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_fp16pa_SRC_NAME_WE}.spv.hex.h)
+    add_custom_command(
+        OUTPUT ${SHADER_fp16pa_SPV_HEX_FILE}
+        COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
+        ARGS -Dsfp=float -Dsfpvec2=uint -Dsfpvec4=uvec2 -Dsfpvec8=uvec4
+             -Dafp=float16_t -Dafpvec2=f16vec2 -Dafpvec4=f16vec4  -Dafpvec8=f16mat2x4 -Dafpmat4=f16mat4
+             "-D buffer_ld1(buf,i)=float16_t(buf[i])"
+             "-D buffer_st1(buf,i,v)={buf[i]=float(v);}"
+             "-D buffer_cp1(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_cp1to4(buf,i,sbuf,si4)={buf[i]=uvec2(packHalf2x16(vec2(f16vec2(sbuf[si4.r],sbuf[si4.g]))),packHalf2x16(vec2(f16vec2(sbuf[si4.b],sbuf[si4.a]))));}"
+             "-D buffer_cp1to8(buf,i,sbuf,si4,sii4)={buf[i]=uvec4(packHalf2x16(vec2(f16vec2(sbuf[si4.r],sbuf[si4.g]))),packHalf2x16(vec2(f16vec2(sbuf[si4.b],sbuf[si4.a]))),packHalf2x16(vec2(f16vec2(sbuf[sii4.r],sbuf[sii4.g]))),packHalf2x16(vec2(f16vec2(sbuf[sii4.b],sbuf[sii4.a]))));}"
+             "-D buffer_ld2(buf,i)=f16vec2(unpackHalf2x16(buf[i]))"
+             "-D buffer_st2(buf,i,v)={buf[i]=packHalf2x16(vec2(v))}"
+             "-D buffer_cp2(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_ld4(buf,i)=f16vec4(vec4(unpackHalf2x16(buf[i].x),unpackHalf2x16(buf[i].y)))"
+             "-D buffer_st4(buf,i,v)={buf[i]=uvec2(packHalf2x16(vec2(v.rg)),packHalf2x16(vec2(v.ba)));}"
+             "-D buffer_cp4(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_cp4to1(buf,i4,sbuf,si)={uvec2 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g;}"
+             "-D buffer_cp4to8(buf,i,sbuf,si2)={buf[i]=uvec4(sbuf[si2.r],sbuf[si2.g]);}"
+             "-D buffer_ld8(buf,i)=f16mat2x4(f16vec4(vec4(unpackHalf2x16(buf[i].r),unpackHalf2x16(buf[i].g))),f16vec4(vec4(unpackHalf2x16(buf[i].b),unpackHalf2x16(buf[i].a))))"
+             "-D buffer_st8(buf,i,v)={buf[i]=uvec4(uvec2(packHalf2x16(vec2(v[0].rg)),packHalf2x16(vec2(v[0].ba))),uvec2(packHalf2x16(vec2(v[1].rg)),packHalf2x16(vec2(v[1].ba))));}"
+             "-D buffer_cp8(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_cp8to1(buf,i4,ii4,sbuf,si)={uvec4 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.r);vec2 _v1=unpackHalf2x16(_v.g);vec2 _v2=unpackHalf2x16(_v.b);vec2 _v3=unpackHalf2x16(_v.a); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g; buf[ii4.r]=_v2.r;buf[ii4.g]=_v2.g;buf[ii4.b]=_v3.r;buf[ii4.a]=_v3.g;}"
+             "-D buffer_cp8to4(buf,i2,sbuf,si)={uvec4 _v=sbuf[si]; buf[i2.r]=_v.rg;buf[i2.g]=_v.ba;}"
+             "-D psc(x)=(x==0?p.x:x)"
+             -DNCNN_fp16_packed=1 -DNCNN_fp16_arithmetic=1
+             -V -Os -s -e ${SHADER_fp16pa_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16pa_SPV_HEX_FILE} ${SHADER_SRC}
+        DEPENDS ${SHADER_SRC}
+        COMMENT "Building SPIR-V module ${SHADER_fp16pa_SRC_NAME_WE}.spv"
+        VERBATIM
+    )
+    set_source_files_properties(${SHADER_fp16pa_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
 
     # fp16 storage
     set(SHADER_fp16s_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_fp16s")
@@ -103,7 +139,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D buffer_cp8to4(buf,i2,sbuf,si)={buf[i2.r]=sbuf[si].abcd;buf[i2.g]=sbuf[si].efgh;}"
              "-D psc(x)=(x==0?p.x:x)"
              -DNCNN_fp16_storage=1
-             -V -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
+             -V -Os -s -e ${SHADER_fp16s_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_fp16s_SRC_NAME_WE}.spv"
         VERBATIM
@@ -111,11 +147,11 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
     set_source_files_properties(${SHADER_fp16s_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
 
     # fp16 storage + fp16 arithmetic
-    set(SHADER_fp16a_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_fp16a")
+    set(SHADER_fp16sa_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_fp16sa")
 
-    set(SHADER_fp16a_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_fp16a_SRC_NAME_WE}.spv.hex.h)
+    set(SHADER_fp16sa_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_fp16sa_SRC_NAME_WE}.spv.hex.h)
     add_custom_command(
-        OUTPUT ${SHADER_fp16a_SPV_HEX_FILE}
+        OUTPUT ${SHADER_fp16sa_SPV_HEX_FILE}
         COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
         ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4 -Dsfpvec8=f16mat2x4 -Dsfpmat4=f16mat4
              -Dafp=float16_t -Dafpvec2=f16vec2 -Dafpvec4=f16vec4 -Dafpvec8=f16mat2x4 -Dafpmat4=f16mat4
@@ -140,21 +176,22 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D sfp2afpmat4(v)=v"
              "-D afp2sfpmat4(v)=v"
              "-D psc(x)=(x==0?p.x:x)"
-             -DNCNN_fp16_arithmetic=1
-             -V -s -e ${SHADER_fp16a_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16a_SPV_HEX_FILE} ${SHADER_SRC}
+             -DNCNN_fp16_storage=1 -DNCNN_fp16_arithmetic=1
+             -V -Os -s -e ${SHADER_fp16sa_SRC_NAME_WE} --source-entrypoint main -x -o ${SHADER_fp16sa_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
-        COMMENT "Building SPIR-V module ${SHADER_fp16a_SRC_NAME_WE}.spv"
+        COMMENT "Building SPIR-V module ${SHADER_fp16sa_SRC_NAME_WE}.spv"
         VERBATIM
     )
-    set_source_files_properties(${SHADER_fp16a_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+    set_source_files_properties(${SHADER_fp16sa_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
 
     set(LOCAL_SHADER_SPV_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.spv.h)
 
     file(WRITE ${LOCAL_SHADER_SPV_HEADER}
         "static const uint32_t ${SHADER_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_SRC_NAME_WE}.spv.hex.h\"\n};\n"
         "static const uint32_t ${SHADER_fp16p_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16p_SRC_NAME_WE}.spv.hex.h\"\n};\n"
+        "static const uint32_t ${SHADER_fp16pa_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16pa_SRC_NAME_WE}.spv.hex.h\"\n};\n"
         "static const uint32_t ${SHADER_fp16s_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16s_SRC_NAME_WE}.spv.hex.h\"\n};\n"
-        "static const uint32_t ${SHADER_fp16a_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16a_SRC_NAME_WE}.spv.hex.h\"\n};\n"
+        "static const uint32_t ${SHADER_fp16sa_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16sa_SRC_NAME_WE}.spv.hex.h\"\n};\n"
     )
 
     set_source_files_properties(${LOCAL_SHADER_SPV_HEADER} PROPERTIES GENERATED TRUE)
@@ -162,8 +199,9 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
     set(LOCAL_SHADER_SPV_HEX_HEADERS
         ${SHADER_SPV_HEX_FILE}
         ${SHADER_fp16p_SPV_HEX_FILE}
+        ${SHADER_fp16pa_SPV_HEX_FILE}
         ${SHADER_fp16s_SPV_HEX_FILE}
-        ${SHADER_fp16a_SPV_HEX_FILE}
+        ${SHADER_fp16sa_SPV_HEX_FILE}
     )
 
     set(${SHADER_SPV_HEADER} ${LOCAL_SHADER_SPV_HEADER} PARENT_SCOPE)

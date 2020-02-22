@@ -90,7 +90,7 @@ void main()
     for (int z = 0; z < psc(c); z++)
     {
 #if NCNN_fp16_packed
-        sum += weight_data[w_offset] * bottom_blob_data[v_offset];
+        sum += afp(weight_data[w_offset]) * afpvec4(bottom_blob_data[v_offset]);
 #else
         sum += buffer_ld1(weight_data, w_offset) * buffer_ld4(bottom_blob_data, v_offset);
 #endif
