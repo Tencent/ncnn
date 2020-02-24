@@ -83,7 +83,7 @@ static void conv_im2col_sgemm_int8_neon(const Mat &bottom_blob, Mat &top_blob, c
     int8_t *pb  = bottom_tm;
     const size_t ldc = top_blob.cstep;
 
-    int8kernel((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr, opt);
+    int8kernel((void*)pc, pa, pb, m, k, n, ldc, 0, 0, opt);
 }
 #else
 static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_size)
