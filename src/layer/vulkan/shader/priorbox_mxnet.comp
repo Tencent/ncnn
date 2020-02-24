@@ -66,29 +66,27 @@ void main()
 
     // ratio = 1, various sizes
     afp size = buffer_ld1(min_sizes_data, gx);
-    afp cw = size * afp(psc(h)) / afp(psc(w)) / afp(2);
-    afp ch = size / afp(2);
+    afp cw = size * afp(0.5f) * afp(psc(h)) / afp(psc(w));
+    afp ch = size * afp(0.5f);
 
     afpvec4 box = center + afpvec4(-cw, -ch, cw, ch);
     box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
     buffer_st4(top_blob_data, v_offset, box);
 
-    if (gx == num_sizes - 1)
+    if (gx == 0)
     {
         // various ratios, size = min_size = size[0]
-        afp size = buffer_ld1(min_sizes_data, 0);
         for (int pi = 1; pi < num_ratios; pi++)
         {
             afp v = buffer_ld1(aspect_ratios_data, pi);
-            afp ratio = sqrt(v);
-            afp cwr = size * afp(psc(h)) / afp(psc(w)) * ratio / afp(2);
-            afp chr = size / ratio / afp(2);
+            afp cwr = cw * sqrt(v);
+            afp chr = ch / sqrt(v);
 
             afpvec4 box = center + afpvec4(-cwr, -chr, cwr, chr);
             box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-            buffer_st4(top_blob_data, v_offset + pi, box);
+            buffer_st4(top_blob_data, v_offset + num_sizes - 1 + pi, box);
         }
     }
 }
