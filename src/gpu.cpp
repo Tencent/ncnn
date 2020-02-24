@@ -539,9 +539,8 @@ int create_gpu_instance()
 
         if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49))
         {
-            // ignore qcom adreno with old buggy driver
-            fprintf(stderr, "qcom adreno driver is too old\n");
-            continue;
+            // qcom adreno with old buggy driver
+            gpu_info.bug_local_size_spec_const = true;
         }
 
         gpu_info.physical_device = physicalDevice;
