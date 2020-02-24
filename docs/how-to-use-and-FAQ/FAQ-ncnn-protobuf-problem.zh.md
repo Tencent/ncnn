@@ -20,9 +20,18 @@
 
 一般是因为系统安装了不止一个 protobuf。
 
-##### 设置 C++ so 的目录和 protobuf 版本一致
+##### 先看 protoc 需要的 so 版本号
+> ldd \`whereis protoc| awk '{print $2}'\` | grep libprotobuf.so
+
+例如是 libprotobuf.so.10
+
+##### 然后搜这个文件所在的路径
+> cd / && find . -type f | grep libprotobuf.so.10
+假设在`/home/user/mydir`
+
+##### 设置 protobuf.so 的搜索目录
 打开`~/.bashrc`，在末尾增加
-> export LD_LIBRARY_PATH=${YOUR_PROTOBUF_LIB_PATH}:$LD_LIBRARY_PATH
+> export LD_LIBRARY_PATH=/home/user/mydir:$LD_LIBRARY_PATH
 
 ##### 让配置生效
 > source ~/.bashrc
