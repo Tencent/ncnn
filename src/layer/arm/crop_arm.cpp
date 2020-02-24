@@ -576,7 +576,20 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt);
     }
 
-    return Crop::forward(bottom_blob_unpacked, top_blob, opt);
+    Mat reference_blob_unpacked = reference_blob;
+    if (ref_elempack != 1)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_allocator = opt.workspace_allocator;
+
+        convert_packing(reference_blob, reference_blob_unpacked, 1, opt);
+    }
+
+    std::vector<Mat> bottom_blobs_unpacked(2);
+    bottom_blobs_unpacked[0] = bottom_blob_unpacked;
+    bottom_blobs_unpacked[1] = reference_blob_unpacked;
+
+    return Crop::forward(bottom_blobs_unpacked, top_blobs, opt);
 }
 
 } // namespace ncnn

@@ -111,7 +111,7 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8
-    if (shape.dims == 0 || elempack == 8)
+    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
     {
         pipeline_eltwise_pack8[0] = new Pipeline(vkdev);
         pipeline_eltwise_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);

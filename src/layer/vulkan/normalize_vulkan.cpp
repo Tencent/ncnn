@@ -108,7 +108,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if (shape.dims == 0 || elempack == 8)
+        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -146,7 +146,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
             pipeline_normalize_coeffs_pack4->create("normalize_coeffs_pack4", opt, specializations, 2, 3);
         }
 
-        if (shape.dims == 0 || elempack == 8)
+        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
         {
             pipeline_normalize_coeffs_pack8 = new Pipeline(vkdev);
             pipeline_normalize_coeffs_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -189,7 +189,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
             pipeline_normalize_norm_pack4->create("normalize_norm_pack4", opt, specializations, 3, 5);
         }
 
-        if (shape.dims == 0 || elempack == 8)
+        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
         {
             pipeline_normalize_norm_pack8 = new Pipeline(vkdev);
             pipeline_normalize_norm_pack8->set_optimal_local_size_xyz(local_size_xyz);

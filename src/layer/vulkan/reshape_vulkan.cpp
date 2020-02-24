@@ -163,7 +163,7 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8
-    if (shape.dims == 0 || (elempack == 8 && out_elempack == 8))
+    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 8))
     {
         pipeline_reshape_pack8 = new Pipeline(vkdev);
         pipeline_reshape_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -171,7 +171,7 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack1to8
-    if (shape.dims == 0 || (elempack == 1 && out_elempack == 8))
+    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 1 && out_elempack == 8))
     {
         pipeline_reshape_pack1to8 = new Pipeline(vkdev);
         pipeline_reshape_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
@@ -179,7 +179,7 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4to8
-    if (shape.dims == 0 || (elempack == 4 && out_elempack == 8))
+    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 4 && out_elempack == 8))
     {
         pipeline_reshape_pack4to8 = new Pipeline(vkdev);
         pipeline_reshape_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
@@ -187,7 +187,7 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8to4
-    if (shape.dims == 0 || (elempack == 8 && out_elempack == 4))
+    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 4))
     {
         pipeline_reshape_pack8to4 = new Pipeline(vkdev);
         pipeline_reshape_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
@@ -195,7 +195,7 @@ int Reshape_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8to1
-    if (shape.dims == 0 || (elempack == 8 && out_elempack == 1))
+    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 1))
     {
         pipeline_reshape_pack8to1 = new Pipeline(vkdev);
         pipeline_reshape_pack8to1->set_optimal_local_size_xyz(local_size_xyz_bottom);

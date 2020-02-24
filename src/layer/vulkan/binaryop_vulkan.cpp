@@ -162,7 +162,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if (shape.dims == 0 || elempack == 8)
+        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
         {
             pipeline_binaryop_pack8 = new Pipeline(vkdev);
             pipeline_binaryop_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -243,21 +243,21 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if (shape.dims == 0 || (elempack == 8 && elempack1 == 8))
+        if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && elempack1 == 8))
         {
             pipeline_binaryop_broadcast_pack8 = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_binaryop_broadcast_pack8->create("binaryop_broadcast_pack8", opt, specializations, 3, 15);
         }
 
-        if (shape.dims == 0 || (shape.dims == 1 && shape.w == 1 && elempack == 1 && elempack1 == 8))
+        if ((opt.use_shader_pack8 && shape.dims == 0) || (shape.dims == 1 && shape.w == 1 && elempack == 1 && elempack1 == 8))
         {
             pipeline_binaryop_broadcast_a1_pack8 = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_a1_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_binaryop_broadcast_a1_pack8->create("binaryop_broadcast_a1_pack8", opt, specializations, 3, 15);
         }
 
-        if (shape.dims == 0 || (shape1.dims == 1 && shape1.w == 1 && elempack1 == 1 && elempack == 8)
+        if ((opt.use_shader_pack8 && shape.dims == 0) || (shape1.dims == 1 && shape1.w == 1 && elempack1 == 1 && elempack == 8)
             || (shape.dims == 3 && shape1.dims == 3 && shape1.w == shape.w && shape1.h == shape.h && shape1.c == 1 && elempack1 == 1 && elempack == 8))
         {
             pipeline_binaryop_broadcast_b1_pack8 = new Pipeline(vkdev);

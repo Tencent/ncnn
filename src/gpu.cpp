@@ -439,7 +439,7 @@ int create_gpu_instance()
     applicationInfo.pApplicationName = "ncnn";
     applicationInfo.applicationVersion = 0;
     applicationInfo.pEngineName = "ncnn";
-    applicationInfo.engineVersion = 20190319;
+    applicationInfo.engineVersion = 20200222;
     applicationInfo.apiVersion = VK_MAKE_VERSION(1, 0, 0);
 
     VkInstanceCreateInfo instanceCreateInfo;
@@ -521,11 +521,20 @@ int create_gpu_instance()
 //         fprintf(stderr, "[%u] pipelineCacheUUID = %u\n", i, physicalDeviceProperties.pipelineCacheUUID);
 
         gpu_info.bug_local_size_spec_const = false;
+        gpu_info.bug_implicit_fp16_arithmetic = false;
 
         if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
         {
             // arm mali with old buggy driver
             gpu_info.bug_local_size_spec_const = true;
+        }
+
+//         if (physicalDeviceProperties.vendorID == 0x13b5 || physicalDeviceProperties.vendorID == 0x5143)
+        if (physicalDeviceProperties.vendorID == 0x5143 && (physicalDeviceProperties.deviceID == 0x6030001 || physicalDeviceProperties.deviceID == 0x6040001))
+        {
+            // TODO FIXME enable devices other than qcom855/qcom855plus
+            // arm mali and qcom adreno driver accept spirv with fp16 arithmetic actually
+            gpu_info.bug_implicit_fp16_arithmetic = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49))
@@ -764,11 +773,19 @@ int create_gpu_instance()
             gpu_info.support_fp16_storage = false;
         }
 
-        fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueG=%u[%u]  queueT=%u[%u]  buglssc=%d\n", i, physicalDeviceProperties.deviceName,
+        if (gpu_info.bug_implicit_fp16_arithmetic)
+        {
+            // force capability on as long as the driver accept spirv with fp16 arithmetic :D
+            gpu_info.support_fp16_arithmetic = true;
+        }
+
+        fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueG=%u[%u]  queueT=%u[%u]\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_family_index, gpu_info.compute_queue_count,
                 gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
-                gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count,
-                gpu_info.bug_local_size_spec_const);
+                gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
+
+        fprintf(stderr, "[%u %s]  buglssc=%d  bugihfa=%d\n", i, physicalDeviceProperties.deviceName,
+                gpu_info.bug_local_size_spec_const, gpu_info.bug_implicit_fp16_arithmetic);
 
         fprintf(stderr, "[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
@@ -1420,6 +1437,15 @@ static inline bool string_ends_with_fp16p(const char* name)
     return memcmp(name + len - 6, "_fp16p", 6) == 0;
 }
 
+static inline bool string_ends_with_fp16pa(const char* name)
+{
+    int len = strlen(name);
+    if (len < 7)
+        return false;
+
+    return memcmp(name + len - 7, "_fp16pa", 7) == 0;
+}
+
 static inline bool string_ends_with_fp16s(const char* name)
 {
     int len = strlen(name);
@@ -1429,13 +1455,13 @@ static inline bool string_ends_with_fp16s(const char* name)
     return memcmp(name + len - 6, "_fp16s", 6) == 0;
 }
 
-static inline bool string_ends_with_fp16a(const char* name)
+static inline bool string_ends_with_fp16sa(const char* name)
 {
     int len = strlen(name);
-    if (len < 6)
+    if (len < 7)
         return false;
 
-    return memcmp(name + len - 6, "_fp16a", 6) == 0;
+    return memcmp(name + len - 7, "_fp16sa", 7) == 0;
 }
 
 int VulkanDevice::create_shader_module()
@@ -1458,15 +1484,21 @@ int VulkanDevice::create_shader_module()
                 continue;
         }
 
+        if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
+        {
+            if (string_ends_with_fp16pa(shader_name))
+                continue;
+        }
+
         if (!info.support_fp16_storage)
         {
             if (string_ends_with_fp16s(shader_name))
                 continue;
         }
 
-        if (!info.support_fp16_arithmetic)
+        if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
         {
-            if (string_ends_with_fp16a(shader_name))
+            if (string_ends_with_fp16sa(shader_name))
                 continue;
         }
 
