@@ -27,6 +27,7 @@
 
 ##### 然后搜这个文件所在的路径
 > cd / && find . -type f | grep libprotobuf.so.10
+
 假设在`/home/user/mydir`
 
 ##### 设置 protobuf.so 的搜索目录
