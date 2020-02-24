@@ -347,7 +347,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_na
     VkResult ret = vkCreateComputePipelines(vkdev->vkdevice(), 0, 1, &computePipelineCreateInfo, 0, &pipeline);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateComputePipelines failed %d\n", ret);
+        fprintf(stderr, "vkCreateComputePipelines failed %d %s\n", ret, entry_name);
         return -1;
     }
 
