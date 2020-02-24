@@ -30,3 +30,7 @@
 如果以上办法不行的话，尝试删除已有protobuf（注意不要删到系统自带的，新手请谨慎），然后用以下命令重装
 > sudo apt-get install --reinstall libprotobuf8
 版本号需改为自己的版本号
+
+
+### 行走江湖必备
+关于环境变量设置、工具和技巧，强烈建议学习下 https://missing.csail.mit.edu/ 
