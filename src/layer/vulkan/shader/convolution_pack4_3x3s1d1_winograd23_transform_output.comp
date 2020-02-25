@@ -26,6 +26,17 @@ layout (constant_id = 1) const int activation_type = 0;
 layout (constant_id = 2) const float activation_param_0 = 0;
 layout (constant_id = 3) const float activation_param_1 = 0;
 
+#define shape_constant_id_offset 4
+layout (constant_id = shape_constant_id_offset + 0) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 2) const int block_x = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int block_y = 0;
+
+layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -53,11 +64,11 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.block_x || gy >= p.block_y || gz >= p.c)
+    if (gx >= p.block_x || gy >= p.block_y || gz >= psc(c))
         return;
 
     // load 16
-    int v_tm_offset = gz * p.cstep + (gy * p.block_x + gx) * 16;
+    int v_tm_offset = gz * psc(cstep) + (gy * p.block_x + gx) * 16;
 
     afpvec4 v00 = buffer_ld4(top_tm_blob_data, v_tm_offset + 0);
     afpvec4 v01 = buffer_ld4(top_tm_blob_data, v_tm_offset + 1);
@@ -144,8 +155,8 @@ void main()
     }
 
     // store 2x2
-    int v_offset_0 = gz * p.outcstep + gy * 2 * p.outw + gx * 2;
-    int v_offset_1 = v_offset_0 + p.outw;
+    int v_offset_0 = gz * psc(outcstep) + gy * 2 * psc(outw) + gx * 2;
+    int v_offset_1 = v_offset_0 + psc(outw);
 
     buffer_st4(top_blob_data, v_offset_0 + 0, v00);
     buffer_st4(top_blob_data, v_offset_0 + 1, v01);

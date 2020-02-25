@@ -432,23 +432,26 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) co
 
     if (resize_type == 1)// nearest
     {
+        const float hs = output_height ? h / (float)output_height : 1.f / height_scale;
+        const float ws = output_width ? w / (float)output_width : 1.f / width_scale;
+
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < c; ++q)
+        for (int q = 0; q < c; q++)
         {
-            const float *ptr = bottom_blob.channel(q);
-            float *output_ptr = top_blob.channel(q);
-            for (int y = 0; y < oh; ++y)
+            const float* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+            for (int y = 0; y < oh; y++)
             {
-                const int in_y = std::min((int) (y / height_scale), (h - 1));
-                for (int x = 0; x < ow; ++x)
+                int in_y = std::min((int) (y * hs), (h - 1));
+                for (int x = 0; x < ow; x++)
                 {
-                    const int in_x = std::min((int) (x / width_scale), (w - 1));
-                    output_ptr[ow * y + x] = ptr[in_y * w + in_x];
+                    int in_x = std::min((int) (x * ws), (w - 1));
+                    *outptr++ = ptr[in_y * w + in_x];
                 }
             }
         }
-        return 0;
 
+        return 0;
     }
     else if (resize_type == 2)// bilinear
     {

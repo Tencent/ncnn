@@ -26,6 +26,14 @@ layout (constant_id = 0) const int across_spatial = 0;
 layout (constant_id = 1) const int across_channel = 0;
 layout (constant_id = 2) const int channel_shared = 0;
 layout (constant_id = 3) const int scale_term = 0;
+layout (constant_id = 4) const float channel_shared_scale = 1.f;
+
+#define shape_constant_id_offset 5
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -50,10 +58,10 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-    const int gi = gz * p.cstep + gy * p.w + gx;
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     afpvec8 v = buffer_ld8(bottom_top_blob_data, gi);
 
@@ -71,7 +79,7 @@ void main()
 
     if (across_spatial == 0 && across_channel == 1)
     {
-        a = buffer_ld8(coeffs_blob_data, gy * p.w + gx);
+        a = buffer_ld8(coeffs_blob_data, gy * psc(w) + gx);
     }
 
     v[0] = v[0] * a[0];
@@ -79,12 +87,18 @@ void main()
 
     if (scale_term == 1)
     {
-        int si = channel_shared == 1 ? 0 : gz;
+        if (channel_shared == 1)
+        {
+            v[0] = v[0] * afp(channel_shared_scale);
+            v[1] = v[1] * afp(channel_shared_scale);
+        }
+        else
+        {
+            afpvec8 scale = buffer_ld8(scale_blob_data, gz);
 
-        afpvec8 scale = buffer_ld8(scale_blob_data, si);
-
-        v[0] = v[0] * scale[0];
-        v[1] = v[1] * scale[1];
+            v[0] = v[0] * scale[0];
+            v[1] = v[1] * scale[1];
+        }
     }
 
     buffer_st8(bottom_top_blob_data, gi, v);

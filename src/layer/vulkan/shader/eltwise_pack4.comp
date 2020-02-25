@@ -24,6 +24,13 @@
 layout (constant_id = 0) const int op_type = 0;
 layout (constant_id = 1) const int coeff_term = 0;
 
+#define shape_constant_id_offset 2
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -50,10 +57,10 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-    const int gi = gz * p.cstep + gy * p.w + gx;
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     afpvec4 v1 = buffer_ld4(bottom_blob1_data, gi);
     afpvec4 v2 = buffer_ld4(bottom_blob2_data, gi);
@@ -74,13 +81,13 @@ void main()
     else
     {
         if (op_type == 0)
-            res = v1 * afp(p.coeff0) * v2 * afp(p.coeff1);
+            res = v1 * v2;
 
         if (op_type == 1)
             res = v1 * afp(p.coeff0) + v2 * afp(p.coeff1);
 
         if (op_type == 2)
-            res = max(v1 * afp(p.coeff0), v2 * afp(p.coeff1));
+            res = max(v1, v2);
     }
 
     buffer_st4(top_blob_data, gi, res);

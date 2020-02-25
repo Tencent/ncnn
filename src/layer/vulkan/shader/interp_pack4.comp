@@ -23,6 +23,19 @@
 
 layout (constant_id = 0) const int resize_type = 0;
 
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -54,21 +67,21 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int gi = gz * p.outcstep + gy * p.outw + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     if (resize_type == 1) // nearest
     {
         afpvec2 gxy = afpvec2(gx, gy);
-        ivec2 sxy_max = ivec2(p.w - 1, p.h - 1);
+        ivec2 sxy_max = ivec2(psc(w) - 1, psc(h) - 1);
         ivec2 sxy = min(ivec2(floor(gxy * afpvec2(p.scale_x, p.scale_y))), sxy_max);
 
         int sx = sxy.r;
         int sy = sxy.g;
 
-        int v_offset = gz * p.cstep + sy * p.w + sx;
+        int v_offset = gz * psc(cstep) + sy * psc(w) + sx;
 
         buffer_cp4(top_blob_data, gi, bottom_blob_data, v_offset);
     }
@@ -81,7 +94,7 @@ void main()
 
         fxy -= afpvec2(sxy);
 
-        ivec2 sxy_max = ivec2(p.w - 2, p.h - 2);
+        ivec2 sxy_max = ivec2(psc(w) - 2, psc(h) - 2);
 
         bvec2 underflow = lessThan(sxy, ivec2(0));
         bvec2 overflow = greaterThan(sxy, sxy_max);
@@ -94,8 +107,8 @@ void main()
         int sx = sxy.r;
         int sy = sxy.g;
 
-        int v_offset_0 = gz * p.cstep + sy * p.w + sx;
-        int v_offset_1 = gz * p.cstep + (sy + 1) * p.w + sx;
+        int v_offset_0 = gz * psc(cstep) + sy * psc(w) + sx;
+        int v_offset_1 = gz * psc(cstep) + (sy + 1) * psc(w) + sx;
 
         afpvec4 a0 = buffer_ld4(bottom_blob_data, v_offset_0);
         afpvec4 a1 = buffer_ld4(bottom_blob_data, v_offset_0 + 1);

@@ -34,6 +34,19 @@ layout (constant_id = 8) const int activation_type = 0;
 layout (constant_id = 9) const float activation_param_0 = 0;
 layout (constant_id = 10) const float activation_param_1 = 0;
 
+#define shape_constant_id_offset 11
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -64,7 +77,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
     afp sum;
@@ -79,18 +92,18 @@ void main()
     }
 
     // group convolution
-    const int channels_g = p.c / group;
-    const int num_output_g = p.outc / group;
+    const int channels_g = psc(c) / group;
+    const int num_output_g = psc(outc) / group;
 
     // group id
     const int gg = gz / num_output_g;
 
     int w_offset = gz * channels_g * kernel_w * kernel_h;
-    int v_offset_0 = gg * channels_g * p.cstep;
+    int v_offset_0 = gg * channels_g * psc(cstep);
 
     for (int z = 0; z < channels_g; z++)
     {
-        int v_offset = v_offset_0 + gy * stride_h * p.w + gx * stride_w;
+        int v_offset = v_offset_0 + gy * stride_h * psc(w) + gx * stride_w;
 
         for (int y = 0; y < kernel_h; y++)
         {
@@ -104,11 +117,11 @@ void main()
                 sum += dot(v[0], k[0]) + dot(v[1], k[1]);
             }
 
-            v_offset += dilation_h * p.w;
+            v_offset += dilation_h * psc(w);
             w_offset += kernel_w;
         }
 
-        v_offset_0 += p.cstep;
+        v_offset_0 += psc(cstep);
     }
 
     if (activation_type == 1)
@@ -131,7 +144,7 @@ void main()
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
-    const int gi = gz * p.outcstep + gy * p.outw + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st1(top_blob_data, gi, sum);
 }

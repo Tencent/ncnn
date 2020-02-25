@@ -21,8 +21,10 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-layout (constant_id = 0) const float eps = 0.f;
-layout (constant_id = 1) const int eps_mode = 0;
+layout (constant_id = 0) const int across_spatial = 0;
+layout (constant_id = 1) const int across_channel = 0;
+layout (constant_id = 2) const float eps = 0.f;
+layout (constant_id = 3) const int eps_mode = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -47,9 +49,11 @@ void main()
     if (gx >= p.size || gy >= 1 || gz >= p.c)
         return;
 
-    int gi = gz * p.cstep + gx;
+    int v_offset = gz * p.cstep + gx;
 
-    afp sqsum = afp(sqsum_blob_data[gi]);
+    int gi = gz * p.size + gx;
+
+    afp sqsum = afp(sqsum_blob_data[v_offset]);
 
     afp a;
 

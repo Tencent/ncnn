@@ -23,6 +23,19 @@
 
 layout (constant_id = 0) const int order_type = 0;
 
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -51,12 +64,12 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
     ivec4 v_offset;
 
-    if (p.dims == 2)
+    if (psc(dims) == 2)
     {
         // order_type
         // 0 = w h
@@ -64,14 +77,14 @@ void main()
 
         if (order_type == 0)
         {
-            v_offset = ivec4((gy * 4) * p.outw + gx) + ivec4(0, 1, 2, 3) * p.outw;
+            v_offset = ivec4((gy * 4) * psc(outw) + gx) + ivec4(0, 1, 2, 3) * psc(outw);
         }
         if (order_type == 1)
         {
-            v_offset = ivec4(gx * p.outw + gy * 4) + ivec4(0, 1, 2, 3);
+            v_offset = ivec4(gx * psc(outw) + gy * 4) + ivec4(0, 1, 2, 3);
         }
     }
-    else if (p.dims == 3)
+    else // if (psc(dims) == 3)
     {
         // order_type
         // 0 = w h c
@@ -83,31 +96,31 @@ void main()
 
         if (order_type == 0)
         {
-            v_offset = ivec4((gz * 4) * p.outcstep + gy * p.outw + gx) + ivec4(0, 1, 2, 3) * p.outcstep;
+            v_offset = ivec4((gz * 4) * psc(outcstep) + gy * psc(outw) + gx) + ivec4(0, 1, 2, 3) * psc(outcstep);
         }
         if (order_type == 1)
         {
-            v_offset = ivec4((gz * 4) * p.outcstep + gx * p.outw + gy) + ivec4(0, 1, 2, 3) * p.outcstep;
+            v_offset = ivec4((gz * 4) * psc(outcstep) + gx * psc(outw) + gy) + ivec4(0, 1, 2, 3) * psc(outcstep);
         }
         if (order_type == 2)
         {
-            v_offset = ivec4(gy * p.outcstep + (gz * 4) * p.outw + gx) + ivec4(0, 1, 2, 3) * p.outw;
+            v_offset = ivec4(gy * psc(outcstep) + (gz * 4) * psc(outw) + gx) + ivec4(0, 1, 2, 3) * psc(outw);
         }
         if (order_type == 3)
         {
-            v_offset = ivec4(gy * p.outcstep + gx * p.outw + gz * 4) + ivec4(0, 1, 2, 3);
+            v_offset = ivec4(gy * psc(outcstep) + gx * psc(outw) + gz * 4) + ivec4(0, 1, 2, 3);
         }
         if (order_type == 4)
         {
-            v_offset = ivec4(gx * p.outcstep + (gz * 4) * p.outw + gy) + ivec4(0, 1, 2, 3) * p.outw;
+            v_offset = ivec4(gx * psc(outcstep) + (gz * 4) * psc(outw) + gy) + ivec4(0, 1, 2, 3) * psc(outw);
         }
         if (order_type == 5)
         {
-            v_offset = ivec4(gx * p.outcstep + gy * p.outw + gz * 4) + ivec4(0, 1, 2, 3);
+            v_offset = ivec4(gx * psc(outcstep) + gy * psc(outw) + gz * 4) + ivec4(0, 1, 2, 3);
         }
     }
 
-    int gi = gz * p.cstep + gy * p.w + gx;
+    int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     buffer_cp4to1(top_blob_data, v_offset, bottom_blob_data, gi);
 }

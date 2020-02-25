@@ -16,7 +16,7 @@
 
 #include "layer/padding.h"
 
-static int test_padding(int w, int h, int c, int top, int bottom, int left, int right, int type, float value, int per_channel_pad_data_size, bool use_packing_layout)
+static int test_padding(int w, int h, int c, int top, int bottom, int left, int right, int type, float value, int per_channel_pad_data_size)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -32,7 +32,6 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
     std::vector<ncnn::Mat> weights(per_channel_pad_data_size ? 1 : 0);
     if (per_channel_pad_data_size)
         weights[0] = RandomMat(per_channel_pad_data_size);
-    ncnn::ModelBinFromMatArray mb(weights.data());
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -43,12 +42,11 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
     opt.use_fp16_arithmetic = false;
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
-    opt.use_packing_layout = use_packing_layout;
 
-    int ret = test_layer<ncnn::Padding>("Padding", pd, mb, opt, a);
+    int ret = test_layer<ncnn::Padding>("Padding", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_padding failed w=%d h=%d c=%d top=%d bottom=%d left=%d right=%d type=%d value=%f per_channel_pad_data_size=%d use_packing_layout=%d\n", w, h, c, top, bottom, left, right, type, value, per_channel_pad_data_size, use_packing_layout);
+        fprintf(stderr, "test_padding failed w=%d h=%d c=%d top=%d bottom=%d left=%d right=%d type=%d value=%f per_channel_pad_data_size=%d\n", w, h, c, top, bottom, left, right, type, value, per_channel_pad_data_size);
     }
 
     return ret;
@@ -57,23 +55,14 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
 static int test_padding_0()
 {
     return 0
-        || test_padding(5, 7, 16, 1, 1, 1, 1, 0, 0.f, 0, false)
-        || test_padding(5, 7, 16, 2, 3, 2, 3, 1, 0.f, 0, false)
-        || test_padding(5, 7, 16, 4, 3, 4, 3, 2, 0.f, 0, false)
-        || test_padding(5, 7, 16, 4, 3, 4, 3, 0, 0.f, 16, false)
-        || test_padding(5, 7, 5, 2, 3, 2, 3, 1, 0.f, 0, false)
-        || test_padding(5, 7, 6, 4, 3, 4, 3, 2, 0.f, 0, false)
-        || test_padding(5, 7, 7, 0, 1, 0, 1, 0, 233.f, 0, false)
-        || test_padding(5, 7, 3, 2, 1, 2, 1, 0, 0.f, 3, false)
-
-        || test_padding(5, 7, 16, 1, 1, 1, 1, 0, 0.f, 0, true)
-        || test_padding(5, 7, 16, 2, 3, 2, 3, 1, 0.f, 0, true)
-        || test_padding(5, 7, 16, 4, 3, 4, 3, 2, 0.f, 0, true)
-        || test_padding(5, 7, 16, 4, 3, 4, 3, 0, 0.f, 16, true)
-        || test_padding(5, 7, 5, 2, 3, 2, 3, 1, 0.f, 0, true)
-        || test_padding(5, 7, 6, 4, 3, 4, 3, 2, 0.f, 0, true)
-        || test_padding(5, 7, 7, 0, 1, 0, 1, 0, 233.f, 0, true)
-        || test_padding(5, 7, 3, 2, 1, 2, 1, 0, 0.f, 3, true)
+        || test_padding(5, 7, 16, 1, 1, 1, 1, 0, 0.f, 0)
+        || test_padding(5, 7, 16, 2, 3, 2, 3, 1, 0.f, 0)
+        || test_padding(5, 7, 16, 4, 3, 4, 3, 2, 0.f, 0)
+        || test_padding(5, 7, 16, 4, 3, 4, 3, 0, 0.f, 16)
+        || test_padding(5, 7, 5, 2, 3, 2, 3, 1, 0.f, 0)
+        || test_padding(5, 7, 6, 4, 3, 4, 3, 2, 0.f, 0)
+        || test_padding(5, 7, 7, 0, 1, 0, 1, 0, 233.f, 0)
+        || test_padding(5, 7, 3, 2, 1, 2, 1, 0, 0.f, 3)
         ;
 }
 

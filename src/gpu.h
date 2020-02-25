@@ -114,6 +114,9 @@ public:
     // bug is not feature
     bool bug_local_size_spec_const;
 
+    // but sometimes bug is a feature
+    bool bug_implicit_fp16_arithmetic;
+
     // fp16 and int8 feature
     bool support_fp16_packed;
     bool support_fp16_storage;

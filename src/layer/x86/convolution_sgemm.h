@@ -718,7 +718,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _sum3 = _mm256_fmadd_ps(_vb0, _va3, _sum3);    // sum3 = (a00-a07) * k30
 
                     va += 4;
-                    vb += 4;
+                    vb += 8;
                 }
 
                 _mm256_storeu_ps(output0, _sum0);
@@ -948,7 +948,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _sum0 = _mm256_fmadd_ps(_vb0, _va0, _sum0);    // sum0 = (a00-a07) * k00
 
                     va += 1;
-                    vb += 4;
+                    vb += 8;
                 }
 
                 _mm256_storeu_ps(output, _sum0); 
