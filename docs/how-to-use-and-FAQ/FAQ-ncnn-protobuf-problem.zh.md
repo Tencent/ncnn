@@ -3,10 +3,10 @@
 一般是因为 protobuf 未安装或环境变量未设置
 
 ##### Ubuntu 系统尝试以下命令
-> sudo apt-get install libprotobuf-dev
+> sudo apt-get install libprotobuf-dev protobuf-compiler
 
 ##### CentOS 尝试
-> sudo yum install libprotobuf-dev
+> sudo yum install protobuf-devel.x86_64 protobuf-compiler.x86_64
 
 ##### 然后设置 C++ 环境
 打开`~/.bashrc`，在末尾增加
