@@ -2313,8 +2313,17 @@ int main(int argc, char** argv)
         else if (op == "Pad")
         {
             std::string mode = get_node_attr_s(node, "mode");
-            std::vector<int> pads = get_node_attr_ai(node, "pads");
             float value = get_node_attr_f(node, "value", 0.f);
+
+            std::vector<int> pads;
+            if (node.input_size() == 1)
+            {
+                pads = get_node_attr_ai(node, "pads");
+            }
+            else
+            {
+                pads = get_tensor_proto_reshape_shape(weights[node.input(1)]);
+            }
 
             int type = 0;
             if (mode == "constant")
@@ -2467,6 +2476,94 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", shape[2]);
                 fprintf(pp, " 2=%d", shape[1]);
             }
+        }
+        else if (op == "Resize")
+        {
+            std::string mode = get_node_attr_s(node, "mode");
+
+            std::vector<float> scales;
+            {
+                const onnx::TensorProto& scales_tp = weights[node.input(2)];
+                const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
+
+                int float_data_size = scales_tp.float_data_size();
+                //float data is None, use raw data instead
+                if (float_data_size == 0) {
+                    float_data_size = scales_tp.dims().Get(0);
+                }
+
+                for (int j=0; j<float_data_size; j++)
+                {
+                    scales.push_back(shape_data[j]);
+                }
+            }
+
+            std::vector<int> sizes;
+            {
+                sizes = get_tensor_proto_reshape_shape(weights[node.input(3)]);
+            }
+
+            int resize_type = 1;
+            if (mode == "nearest")
+            {
+                resize_type = 1;
+            }
+            else if (mode == "linear")
+            {
+                resize_type = 2;
+            }
+            else if (mode == "cubic")
+            {
+                resize_type = 3;
+            }
+
+            if (scales.empty() && sizes.empty())
+            {
+                fprintf(stderr, "Unsupported Resize scales and sizes are all empty!\n");
+            }
+
+            float h_scale = 1.f;
+            float w_scale = 1.f;
+            if (scales.size() == 2)
+            {
+                w_scale = scales[1];
+            }
+            else if (scales.size() == 3)
+            {
+                h_scale = scales[1];
+                w_scale = scales[2];
+            }
+            else if (scales.size() == 4)
+            {
+                h_scale = scales[2];
+                w_scale = scales[3];
+
+                if (scales[1] != 1.f)
+                    fprintf(stderr, "Unsupported Resize scales !\n");
+            }
+
+            int output_height = 0;
+            int output_width = 0;
+            if (sizes.size() == 2)
+            {
+                output_width = sizes[1];
+            }
+            else if (sizes.size() == 3)
+            {
+                output_height = sizes[1];
+                output_width = sizes[2];
+            }
+            else if (sizes.size() == 4)
+            {
+                output_height = sizes[2];
+                output_width = sizes[3];
+            }
+
+            fprintf(pp, " 0=%d", resize_type);
+            fprintf(pp, " 1=%e", h_scale);
+            fprintf(pp, " 2=%e", w_scale);
+            fprintf(pp, " 3=%d", output_height);
+            fprintf(pp, " 4=%d", output_width);
         }
         else if (op == "ShuffleChannel")
         {
@@ -2627,7 +2724,7 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported transpose type !\n");
             }
         }
-        else if (op == "Upsample" || op == "Resize")
+        else if (op == "Upsample")
         {
             std::string mode = get_node_attr_s(node, "mode");
 
@@ -2665,7 +2762,7 @@ int main(int argc, char** argv)
             }
             else if (mode == "trilinear")
             {
-                fprintf(stderr, "Unsupported Upsample/Resize mode !\n");
+                fprintf(stderr, "Unsupported Upsample mode !\n");
             }
 
             float h_scale = 1.f;
@@ -2685,11 +2782,11 @@ int main(int argc, char** argv)
                 w_scale = scales[3];
 
                 if (scales[1] != 1.f)
-                    fprintf(stderr, "Unsupported Upsample/Resize scales !\n");
+                    fprintf(stderr, "Unsupported Upsample scales !\n");
             }
             else
             {
-                fprintf(stderr, "Unsupported Upsample/Resize scales !\n");
+                fprintf(stderr, "Unsupported Upsample scales !\n");
             }
 
             fprintf(pp, " 0=%d", resize_type);
