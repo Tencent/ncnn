@@ -395,12 +395,12 @@ int Convolution_arm::create_pipeline(const Option& opt)
             conv3x3s2_transform_kernel_neon(weight_data, weight_3x3s2_data, num_input, num_output);
         }
 
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        if (opt.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             conv_im2col_sgemm_transform_kernel_neon(weight_data, weight_sgemm_data, num_input, num_output, maxk);
         }
 
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        if (opt.use_sgemm_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             conv_im2col_sgemm_transform_kernel_neon(weight_data, weight_sgemm_data, num_input, num_output, maxk);
         }
@@ -853,8 +853,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-//             conv1x1s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-            conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
+            if (opt.use_sgemm_convolution)
+                conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
+            else
+                conv1x1s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
             if (activation)
             {
@@ -880,11 +882,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-//             conv3x3s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-            if (outw >=8 && outh >=8)
-                conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
-            else
+            if (opt.use_sgemm_convolution && !(outw >=8 && outh >=8))
                 conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
+            else
+                conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
 
             if (activation)
             {
@@ -973,7 +974,28 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             kptr += maxk;
                         }
 
-                        sum = activation_ss(sum, activation_type, activation_params);
+                        if (activation_type == 1)
+                        {
+                            sum = std::max(sum, 0.f);
+                        }
+                        else if (activation_type == 2)
+                        {
+                            float slope = activation_params[0];
+                            sum = sum > 0.f ? sum : sum * slope;
+                        }
+                        else if (activation_type == 3)
+                        {
+                            float min = activation_params[0];
+                            float max = activation_params[1];
+                            if (sum < min)
+                                sum = min;
+                            if (sum > max)
+                                sum = max;
+                        }
+                        else if (activation_type == 4)
+                        {
+                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
+                        }
 
                         outptr[j] = sum;
                     }

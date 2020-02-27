@@ -75,8 +75,24 @@ int Concat_vulkan::create_pipeline(const Option& opt)
         elempack = out_elempack;
     }
 
+    size_t elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+    }
+
     Mat out_shape_unpacked;
-    convert_shape_packing(out_shape, out_shape_unpacked, elempack);
+    if (out_shape.dims == 1) out_shape_unpacked = Mat(out_shape.w / elempack, (void*)0, elemsize, elempack);
+    if (out_shape.dims == 2) out_shape_unpacked = Mat(out_shape.w, out_shape.h / elempack, (void*)0, elemsize, elempack);
+    if (out_shape.dims == 3) out_shape_unpacked = Mat(out_shape.w, out_shape.h, out_shape.c / elempack, (void*)0, elemsize, elempack);
 
     std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = axis;
@@ -145,7 +161,7 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8
-    if (shape.dims == 0 || elempack == 8)
+    if (opt.use_shader_pack8 && (shape.dims == 0 || elempack == 8))
     {
         pipeline_concat_pack8[0] = new Pipeline(vkdev);
         pipeline_concat_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -156,7 +172,7 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8to4
-    if ((axis == 0 && shape.dims == 0) || elempack == 4)
+    if (opt.use_shader_pack8 && ((axis == 0 && shape.dims == 0) || elempack == 4))
     {
         pipeline_concat_pack8to4[0] = new Pipeline(vkdev);
         pipeline_concat_pack8to4[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -167,7 +183,7 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8to1
-    if ((axis == 0 && shape.dims == 0) || elempack == 1)
+    if (opt.use_shader_pack8 && ((axis == 0 && shape.dims == 0) || elempack == 1))
     {
         pipeline_concat_pack8to1[0] = new Pipeline(vkdev);
         pipeline_concat_pack8to1[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -195,7 +211,7 @@ int Concat_vulkan::create_pipeline(const Option& opt)
         packing_pack4->create_pipeline(opt);
     }
 
-    if ((axis == 0 && shape.dims == 0) || (elempack < out_elempack && out_elempack == 8))
+    if ((opt.use_shader_pack8 && axis == 0 && shape.dims == 0) || (elempack < out_elempack && out_elempack == 8))
     {
         packing_pack8 = ncnn::create_layer(ncnn::LayerType::Packing);
         packing_pack8->vkdev = vkdev;
@@ -286,6 +302,13 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
         int out_elempack = opt.use_shader_pack8 && top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
+
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
 
         VkMat& top_blob = top_blobs[0];
         top_blob.create(top_w / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
@@ -382,6 +405,13 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
         int out_elempack = opt.use_shader_pack8 && top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
+
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
 
         VkMat& top_blob = top_blobs[0];
         top_blob.create(w, top_h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
@@ -533,6 +563,13 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
         int out_elempack = opt.use_shader_pack8 && top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
+
+        if (opt.use_fp16_packed && !opt.use_fp16_storage)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
 
         VkMat& top_blob = top_blobs[0];
         top_blob.create(w, h, top_channels / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);

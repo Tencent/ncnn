@@ -922,6 +922,118 @@ static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, 
     }
 }
 
+static void fuse_pixelshuffle(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, onnx::TensorProto>& binaryop_weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count, std::vector<std::string>& reduced_binaryop_weights)
+{
+    int node_count = mutable_graph->node_size();
+    for (int i=0; i<node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // PixelShuffle <= Reshape - Transpose - Reshape
+        // PixelShuffle <= Reshape - Transpose - Constant - Reshape
+        if (node->op_type() == "Reshape")
+        {
+            if (node_reference.find(node->output(0)) == node_reference.end() || node_reference[node->output(0)] != 1)
+                continue;
+
+            std::vector<int> shape;
+            if (node->input_size() == 1)
+            {
+                shape = get_node_attr_ai(*node, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node->input(1)) == weights.end())
+                    continue;
+
+                shape = get_tensor_proto_reshape_shape(weights[node->input(1)]);
+            }
+
+            // -1, 3, upscale_factor, upscale_factor, height, width
+            if (shape.size() != 6)
+                continue;
+
+            if (shape[0] != 1 && shape[0] != -1)
+                continue;
+
+            if (shape[2] != shape[3])
+                continue;
+
+            if (i+2 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
+
+            if (node3->op_type() == "Constant")
+            {
+                if (i+3 >= node_count)
+                    continue;
+
+                node3 = mutable_graph->mutable_node(i+3);
+            }
+
+            if (node2->op_type() != "Transpose" || node3->op_type() != "Reshape")
+                continue;
+
+            if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
+                continue;
+
+            // 0 1 4 2 5 3
+            std::vector<int> perm = get_node_attr_ai(*node2, "perm");
+            if (perm.size() != 6)
+                continue;
+
+            if (perm[0] != 0 || perm[1] != 1 || perm[2] != 4 || perm[3] != 2 || perm[4] != 5 || perm[5] != 3)
+                continue;
+
+            std::vector<int> shape3;
+            if (node3->input_size() == 1)
+            {
+                shape3 = get_node_attr_ai(*node3, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node3->input(1)) == weights.end())
+                    continue;
+
+                shape3 = get_tensor_proto_reshape_shape(weights[node3->input(1)]);
+            }
+
+            // -1, 3, height, width
+            if (shape3.size() != 4)
+                continue;
+
+            if (shape3[0] != 1 && shape3[0] != -1)
+                continue;
+
+            if (shape3[1] != shape[1] && shape3[2] != shape[2] * shape[4] && shape3[3] != shape[3] * shape[5])
+                continue;
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node2->set_op_type("noop_reducedncnn");
+
+            node_reference.erase(node_reference.find(node->output(0)));
+            node_reference.erase(node_reference.find(node2->output(0)));
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+
+            node3->set_op_type("PixelShuffle");
+            node3->set_input(0, node->input(0));
+
+            onnx::AttributeProto* attr_group = node3->add_attribute();
+            attr_group->set_name("scale_factor");
+            attr_group->set_i(shape[2]);
+
+            reduced_node_count += 2;
+            i += 2;
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     const char* onnxpb = argv[1];
@@ -1118,6 +1230,7 @@ int main(int argc, char** argv)
     fuse_unsqueeze_prelu(mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
     fuse_normalize      (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
     fuse_flatten        (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
+    fuse_pixelshuffle   (mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
 
     // remove node_reference entry with reference equals to one
     int splitncnn_blob_count = 0;
@@ -1353,6 +1466,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "DepthToSpace")
+        {
+            fprintf(pp, "%-16s", "PixelShuffle");
+        }
         else if (op == "Div")
         {
             fprintf(pp, "%-16s", "BinaryOp");
@@ -1459,6 +1576,10 @@ int main(int argc, char** argv)
         else if (op == "Pad")
         {
             fprintf(pp, "%-16s", "Padding");
+        }
+        else if (op == "PixelShuffle")
+        {
+            fprintf(pp, "%-16s", "PixelShuffle");
         }
         else if (op == "Pow")
         {
@@ -1965,6 +2086,20 @@ int main(int argc, char** argv)
             int op_type = 10;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (op == "DepthToSpace")
+        {
+            // pixelshuffle
+            std::string mode = get_node_attr_s(node, "mode");
+            if (mode == "CRD")
+            {
+                int scale_factor = get_node_attr_i(node, "blocksize", 1);
+                fprintf(pp, " 0=%d", scale_factor);
+            }
+            else
+            {
+                fprintf(stderr, "Unsupported DepthToSpace mode %s!\n", mode.c_str());
+            }
+        }
         else if (op == "Div")
         {
             int op_type = 3;
@@ -2178,8 +2313,17 @@ int main(int argc, char** argv)
         else if (op == "Pad")
         {
             std::string mode = get_node_attr_s(node, "mode");
-            std::vector<int> pads = get_node_attr_ai(node, "pads");
             float value = get_node_attr_f(node, "value", 0.f);
+
+            std::vector<int> pads;
+            if (node.input_size() == 1)
+            {
+                pads = get_node_attr_ai(node, "pads");
+            }
+            else
+            {
+                pads = get_tensor_proto_reshape_shape(weights[node.input(1)]);
+            }
 
             int type = 0;
             if (mode == "constant")
@@ -2233,6 +2377,11 @@ int main(int argc, char** argv)
         {
             int op_type = 6;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "PixelShuffle")
+        {
+            int scale_factor = get_node_attr_i(node, "scale_factor", 1);
+            fprintf(pp, " 0=%d", scale_factor);
         }
         else if (op == "PRelu")
         {
@@ -2327,6 +2476,94 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", shape[2]);
                 fprintf(pp, " 2=%d", shape[1]);
             }
+        }
+        else if (op == "Resize")
+        {
+            std::string mode = get_node_attr_s(node, "mode");
+
+            std::vector<float> scales;
+            {
+                const onnx::TensorProto& scales_tp = weights[node.input(2)];
+                const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
+
+                int float_data_size = scales_tp.float_data_size();
+                //float data is None, use raw data instead
+                if (float_data_size == 0) {
+                    float_data_size = scales_tp.dims().Get(0);
+                }
+
+                for (int j=0; j<float_data_size; j++)
+                {
+                    scales.push_back(shape_data[j]);
+                }
+            }
+
+            std::vector<int> sizes;
+            {
+                sizes = get_tensor_proto_reshape_shape(weights[node.input(3)]);
+            }
+
+            int resize_type = 1;
+            if (mode == "nearest")
+            {
+                resize_type = 1;
+            }
+            else if (mode == "linear")
+            {
+                resize_type = 2;
+            }
+            else if (mode == "cubic")
+            {
+                resize_type = 3;
+            }
+
+            if (scales.empty() && sizes.empty())
+            {
+                fprintf(stderr, "Unsupported Resize scales and sizes are all empty!\n");
+            }
+
+            float h_scale = 1.f;
+            float w_scale = 1.f;
+            if (scales.size() == 2)
+            {
+                w_scale = scales[1];
+            }
+            else if (scales.size() == 3)
+            {
+                h_scale = scales[1];
+                w_scale = scales[2];
+            }
+            else if (scales.size() == 4)
+            {
+                h_scale = scales[2];
+                w_scale = scales[3];
+
+                if (scales[1] != 1.f)
+                    fprintf(stderr, "Unsupported Resize scales !\n");
+            }
+
+            int output_height = 0;
+            int output_width = 0;
+            if (sizes.size() == 2)
+            {
+                output_width = sizes[1];
+            }
+            else if (sizes.size() == 3)
+            {
+                output_height = sizes[1];
+                output_width = sizes[2];
+            }
+            else if (sizes.size() == 4)
+            {
+                output_height = sizes[2];
+                output_width = sizes[3];
+            }
+
+            fprintf(pp, " 0=%d", resize_type);
+            fprintf(pp, " 1=%e", h_scale);
+            fprintf(pp, " 2=%e", w_scale);
+            fprintf(pp, " 3=%d", output_height);
+            fprintf(pp, " 4=%d", output_width);
         }
         else if (op == "ShuffleChannel")
         {
@@ -2487,7 +2724,7 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported transpose type !\n");
             }
         }
-        else if (op == "Upsample" || op == "Resize")
+        else if (op == "Upsample")
         {
             std::string mode = get_node_attr_s(node, "mode");
 
@@ -2525,7 +2762,7 @@ int main(int argc, char** argv)
             }
             else if (mode == "trilinear")
             {
-                fprintf(stderr, "Unsupported Upsample/Resize mode !\n");
+                fprintf(stderr, "Unsupported Upsample mode !\n");
             }
 
             float h_scale = 1.f;
@@ -2545,11 +2782,11 @@ int main(int argc, char** argv)
                 w_scale = scales[3];
 
                 if (scales[1] != 1.f)
-                    fprintf(stderr, "Unsupported Upsample/Resize scales !\n");
+                    fprintf(stderr, "Unsupported Upsample scales !\n");
             }
             else
             {
-                fprintf(stderr, "Unsupported Upsample/Resize scales !\n");
+                fprintf(stderr, "Unsupported Upsample scales !\n");
             }
 
             fprintf(pp, " 0=%d", resize_type);

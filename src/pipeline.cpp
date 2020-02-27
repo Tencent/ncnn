@@ -82,9 +82,13 @@ int Pipeline::create(const char* _name, const Option& opt, const std::vector<vk_
 {
     std::string name = _name;
 
-    if (vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
-        name += "_fp16a";
+        name += "_fp16sa";
+    }
+    else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    {
+        name += "_fp16pa";
     }
     else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage)
     {
@@ -343,7 +347,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_na
     VkResult ret = vkCreateComputePipelines(vkdev->vkdevice(), 0, 1, &computePipelineCreateInfo, 0, &pipeline);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateComputePipelines failed %d\n", ret);
+        fprintf(stderr, "vkCreateComputePipelines failed %d %s\n", ret, entry_name);
         return -1;
     }
 
@@ -468,9 +472,13 @@ int ImportAndroidHardwareBufferPipeline::create(AHardwareBuffer* hb, int _type_t
 
     std::string name = "convert_ycbcr";
 
-    if (vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
-        name += "_fp16a";
+        name += "_fp16sa";
+    }
+    else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    {
+        name += "_fp16pa";
     }
     else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage)
     {

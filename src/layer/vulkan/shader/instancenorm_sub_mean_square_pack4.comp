@@ -28,6 +28,12 @@ layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
@@ -43,6 +49,12 @@ layout (push_constant) uniform parameter
     int h;
     int c;
     int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
 } p;
 
 void main()
@@ -51,12 +63,14 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
-    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+    int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
+
+    afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
     afpvec4 mean = buffer_ld4(mean_data, gz);
 
     v = v - mean;

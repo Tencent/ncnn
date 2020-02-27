@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -21,26 +21,27 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-layout (constant_id = 0) const int across_spatial = 0;
-layout (constant_id = 1) const int across_channel = 0;
-layout (constant_id = 2) const int channel_shared = 0;
-layout (constant_id = 3) const int scale_term = 0;
-layout (constant_id = 4) const float channel_shared_scale = 1.f;
+layout (constant_id = 0) const int upscale_factor = 0;
 
-#define shape_constant_id_offset 5
+#define shape_constant_id_offset 1
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
-layout (binding = 1) readonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
-layout (binding = 2) readonly buffer scale_blob { sfpvec4 scale_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -49,6 +50,12 @@ layout (push_constant) uniform parameter
     int h;
     int c;
     int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
 } p;
 
 void main()
@@ -60,40 +67,16 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+    ivec4 gz4 = gz * 4 + ivec4(0, 1, 2, 3);
 
-    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+    ivec4 z4 = gz4 / (upscale_factor * upscale_factor);
+    ivec4 zi4 = gz4 % (upscale_factor * upscale_factor);
+    ivec4 y4 = gy * upscale_factor + zi4 / upscale_factor;
+    ivec4 x4 = gx * upscale_factor + zi4 % upscale_factor;
 
-    afpvec4 a;
+    ivec4 v_offset = z4 * psc(outcstep) + y4 * psc(outw) + x4;
 
-    if (across_spatial == 1 && across_channel == 1)
-    {
-        a = buffer_ld4(coeffs_blob_data, 0);
-    }
+    int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
-    if (across_spatial == 1 && across_channel == 0)
-    {
-        a = buffer_ld4(coeffs_blob_data, gz);
-    }
-
-    if (across_spatial == 0 && across_channel == 1)
-    {
-        a = buffer_ld4(coeffs_blob_data, gy * psc(w) + gx);
-    }
-
-    v = v * a;
-
-    if (scale_term == 1)
-    {
-        if (channel_shared == 1)
-        {
-            v = v * afp(channel_shared_scale);
-        }
-        else
-        {
-            v = v * buffer_ld4(scale_blob_data, gz);
-        }
-    }
-
-    buffer_st4(bottom_top_blob_data, gi, v);
+    buffer_cp4to1(top_blob_data, v_offset, bottom_blob_data, gi);
 }

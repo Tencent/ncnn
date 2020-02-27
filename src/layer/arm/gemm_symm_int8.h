@@ -1009,7 +1009,7 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
 
 void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias) {
     void *pc0, *pc1;
-    if (scales == nullptr) {
+    if (scales == 0) {
         pc0 = (int32_t*)dst;
         pc1 = ((int32_t*)pc0) + ldc;
     } else {
@@ -1692,7 +1692,7 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
 
 void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias) {
     void *pc0, *pc1, *pc2, *pc3;
-    if (scales == nullptr) {
+    if (scales == 0) {
         pc0 = (int32_t*)dst;
         pc1 = ((int32_t*)pc0) + ldc;
         pc2 = ((int32_t*)pc1) + ldc;
@@ -2635,7 +2635,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
     int8_t* pa = (int8_t*)sa;
     int8_t* pb = (int8_t*)sb;
     const int nn = (m >> 2) << 2;
-    if (scales == nullptr) {
+    if (scales == 0) {
         int32_t* pc = (int32_t*)dst;
 #if PRINT_MATRIX
         int32_t* origin = pc;
@@ -2643,7 +2643,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i += 4) {
-            int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, nullptr, nullptr);
+            int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, 0, 0);
         }
 
         pa += nn * k;
@@ -2652,16 +2652,16 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
         switch(m-nn)
         {
             case 3:
-                int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr);
+                int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, 0, 0);
                 pc += 2 * ldc;
                 pa += 2 * k;
-                int8kernel_m1((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr);
+                int8kernel_m1((void*)pc, pa, pb, m, k, n, ldc, 0, 0);
                 break;
             case 2:
-                int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr);
+                int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, 0, 0);
                 break;
             case 1:
-                int8kernel_m1((void*)pc, pa, pb, m, k, n, ldc, nullptr, nullptr);
+                int8kernel_m1((void*)pc, pa, pb, m, k, n, ldc, 0, 0);
                 break;
             case 0:
             default:
@@ -2678,14 +2678,14 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
 #endif
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i += 4) {
-            int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, scales + i, (bias==nullptr)? nullptr: bias+i);
+            int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, scales + i, (bias==0)? 0: bias+i);
         }
 
         pa += nn * k;
         pc += nn * ldc;
 
         scales += nn;
-        bias = (bias == nullptr)? nullptr: bias + nn;
+        bias = (bias == 0)? 0: bias + nn;
 
         switch(m-nn)
         {
@@ -2694,7 +2694,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
                 pc += 2 * ldc;
                 pa += 2 * k;
                 scales += 2;
-                bias = (bias == nullptr)? nullptr: bias + 2;
+                bias = (bias == 0)? 0: bias + 2;
                 int8kernel_m1((void*)pc, pa, pb, m, k, n, ldc, scales, bias);
                 break;
             case 2:

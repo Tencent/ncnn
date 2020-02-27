@@ -37,8 +37,24 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
     if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
+    size_t elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+    }
+
     Mat shape_packed;
-    convert_shape_packing(shape, shape_packed, elempack);
+    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
     if (scale_data_size == -233)
     {
@@ -87,11 +103,11 @@ int Scale_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if (shape.dims == 0 || elempack == 8)
+        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
         {
-            pipeline_scale_pack4 = new Pipeline(vkdev);
-            pipeline_scale_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_scale_pack4->create("scale_pack8", opt, specializations, 3, 5);
+            pipeline_scale_pack8 = new Pipeline(vkdev);
+            pipeline_scale_pack8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_scale_pack8->create("scale_pack8", opt, specializations, 3, 5);
         }
 
         return 0;
