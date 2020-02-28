@@ -274,7 +274,7 @@ int VkAllocator::flush(VkBufferMemory* ptr)
     mappedMemoryRange.pNext = 0;
     mappedMemoryRange.memory = ptr->memory;
     mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size);
-    mappedMemoryRange.size = round_up(ptr->capacity, vkdev->info.non_coherent_atom_size) - mappedMemoryRange.offset;
+    mappedMemoryRange.size = round_up(ptr->offset + ptr->capacity, vkdev->info.non_coherent_atom_size) - mappedMemoryRange.offset;
 
     VkResult ret = vkFlushMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
     if (ret != VK_SUCCESS)
@@ -296,7 +296,7 @@ int VkAllocator::invalidate(VkBufferMemory* ptr)
     mappedMemoryRange.pNext = 0;
     mappedMemoryRange.memory = ptr->memory;
     mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size);
-    mappedMemoryRange.size = round_up(ptr->capacity, vkdev->info.non_coherent_atom_size) - mappedMemoryRange.offset;
+    mappedMemoryRange.size = round_up(ptr->offset + ptr->capacity, vkdev->info.non_coherent_atom_size) - mappedMemoryRange.offset;
 
     VkResult ret = vkInvalidateMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
     if (ret != VK_SUCCESS)
