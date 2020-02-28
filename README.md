@@ -1,12 +1,23 @@
 ![](https://raw.githubusercontent.com/Tencent/ncnn/master/images/256-ncnn.png)
 # ncnn
 
-![GitHub forks](https://img.shields.io/github/forks/Tencent/ncnn?style=social) ![GitHub stars](https://img.shields.io/github/stars/Tencent/ncnn?style=social) ![GitHub watchers](https://img.shields.io/github/watchers/Tencent/ncnn?style=social)
-
-[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://raw.githubusercontent.com/Tencent/ncnn/master/LICENSE.txt) ![Travis Build Status](https://img.shields.io/travis/Tencent/ncnn/master?label=build%40travis) ![GitHub Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/CI/master?label=build%40actions) [![Coverage Status](https://coveralls.io/repos/github/Tencent/ncnn/badge.svg?branch=master)](https://coveralls.io/github/Tencent/ncnn?branch=master)
-![GitHub issues](https://img.shields.io/github/issues/Tencent/ncnn) ![GitHub issues](https://img.shields.io/github/issues-closed/Tencent/ncnn) ![GitHub pull requests](https://img.shields.io/github/issues-pr/Tencent/ncnn) ![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/Tencent/ncnn)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/Tencent/ncnn?label=release%40latest) ![GitHub Releases](https://img.shields.io/github/downloads/Tencent/ncnn/latest/total) ![GitHub All Releases](https://img.shields.io/github/downloads/Tencent/ncnn/total?label=downloads%40total)
-![GitHub commits since latest release](https://img.shields.io/github/commits-since/Tencent/ncnn/latest/master?label=commits%40last)![GitHub commit activity](https://img.shields.io/github/commit-activity/m/Tencent/ncnn?label=commits) ![GitHub contributors](https://img.shields.io/github/contributors-anon/Tencent/ncnn)
+[![GitHub watchers](https://img.shields.io/github/watchers/Tencent/ncnn?style=social)](https://github.com/Tencent/ncnn/watchers)
+[![GitHub forks](https://img.shields.io/github/forks/Tencent/ncnn?style=social)](https://github.com/Tencent/ncnn/network/members)
+[![GitHub stars](https://img.shields.io/github/stars/Tencent/ncnn?style=social)](https://github.com/Tencent/ncnn/stargazers)  
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://raw.githubusercontent.com/Tencent/ncnn/master/LICENSE.txt)
+[![Travis Build Status](https://img.shields.io/travis/Tencent/ncnn/master?label=build%40travis)](https://travis-ci.org/Tencent/ncnn)
+[![GitHub Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/CI/master?label=build%40actions)](https://github.com/Tencent/ncnn/actions)
+[![Coverage Status](https://coveralls.io/repos/github/Tencent/ncnn/badge.svg?branch=master)](https://coveralls.io/github/Tencent/ncnn?branch=master)  
+[![GitHub issues](https://img.shields.io/github/issues/Tencent/ncnn)](https://github.com/Tencent/ncnn/issues?q=is%3Aopen+is%3Aissue)
+[![GitHub issues](https://img.shields.io/github/issues-closed/Tencent/ncnn)](https://github.com/Tencent/ncnn/issues?q=is%3Aissue+is%3Aclosed)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/Tencent/ncnn)](https://github.com/Tencent/ncnn/issues?q=is%3Aopen+is%3Apr)
+[![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/Tencent/ncnn)](https://github.com/Tencent/ncnn/issues?q=is%3Apr+is%3Aclosed)  
+[![GitHub latest release (latest by date)](https://img.shields.io/github/v/release/Tencent/ncnn?label=release%40latest)](https://github.com/Tencent/ncnn/releases)
+[![GitHub latest release downloads](https://img.shields.io/github/downloads/Tencent/ncnn/latest/total)](https://github.com/Tencent/ncnn/releases/latest)
+[![GitHub All Releases](https://img.shields.io/github/downloads/Tencent/ncnn/total?label=downloads%40total)](https://github.com/Tencent/ncnn/releases)  
+![GitHub commits since latest release](https://img.shields.io/github/commits-since/Tencent/ncnn/latest/master?label=commits%40last)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/Tencent/ncnn?label=commits)](https://github.com/Tencent/ncnn/graphs/commit-activity)
+[![GitHub contributors](https://img.shields.io/github/contributors-anon/Tencent/ncnn)](https://github.com/Tencent/ncnn/graphs/contributors)  
 
 
 ncnn is a high-performance neural network inference computing framework optimized for mobile platforms. ncnn is deeply considerate about deployment and uses on mobile phones from the beginning of design. ncnn does not have third party dependencies. it is cross-platform, and runs faster than all known open source frameworks on mobile phone cpu. Developers can easily deploy deep learning algorithm models to the mobile platform by using efficient ncnn implementation, create intelligent APPs, and bring the artificial intelligence to your fingertips. ncnn is currently being used in many Tencent applications, such as QQ, Qzone, WeChat, Pitu and so on.
