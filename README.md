@@ -15,7 +15,7 @@
 [![GitHub latest release (latest by date)](https://img.shields.io/github/v/release/Tencent/ncnn?label=release%40latest)](https://github.com/Tencent/ncnn/releases)
 [![GitHub latest release downloads](https://img.shields.io/github/downloads/Tencent/ncnn/latest/total)](https://github.com/Tencent/ncnn/releases/latest)
 [![GitHub All Releases](https://img.shields.io/github/downloads/Tencent/ncnn/total?label=downloads%40total)](https://github.com/Tencent/ncnn/releases)  
-![GitHub commits since latest release](https://img.shields.io/github/commits-since/Tencent/ncnn/latest/master?label=commits%40last)
+[![GitHub commits since latest release](https://img.shields.io/github/commits-since/Tencent/ncnn/latest/master?label=commits%40last)](https://github.com/Tencent/ncnn/graphs/commit-activity)
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/m/Tencent/ncnn?label=commits)](https://github.com/Tencent/ncnn/graphs/commit-activity)
 [![GitHub contributors](https://img.shields.io/github/contributors-anon/Tencent/ncnn)](https://github.com/Tencent/ncnn/graphs/contributors)  
 
