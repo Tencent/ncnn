@@ -1,0 +1,17 @@
+name: linux-x64-cpu-gcc
+on: [push, pull_request]
+jobs:
+  linux-gcc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: update
+      run: sudo apt-get update
+    - name: protobuf
+      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
+    - name: configure
+      run: mkdir build && cd build && cmake ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2

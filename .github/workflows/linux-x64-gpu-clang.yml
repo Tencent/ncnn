@@ -1,0 +1,62 @@
+name: linux-x64-gpu-clang
+on: [push, pull_request]
+jobs:
+  linux-clang-gpu:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: update
+      run: sudo apt-get update
+    - name: protobuf
+      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "1.1.114.0"
+        key: vulkansdk-linux-x86_64-1.1.114.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+        rm -rf 1.1.114.0/source 1.1.114.0/samples
+        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: actions/cache@v1
+      with:
+        path: swiftshader-install
+        key: swiftshader-linux-install
+    - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: google/swiftshader
+        path: swiftshader
+        ref: 59465799210b3f4962af1a9dc44a4ffecb422c10
+    - name: checkout-swiftshader-submodules
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        git submodule update --init --recursive
+    - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DBUILD_EGL=0 -DBUILD_GLESv2=0 -DBUILD_GLES_CM=0 -DBUILD_VULKAN=1 -DBUILD_SAMPLES=0 -DBUILD_TESTS=0 -DWARNINGS_AS_ERRORS=0 ..
+        cmake --build . -j 2
+        mkdir $GITHUB_WORKSPACE/swiftshader-install
+        cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
+    - name: configure
+      env:
+        CC: clang
+        CXX: clang++
+      run: export VULKAN_SDK=`pwd`/1.1.114.0/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: |
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        cd build && ctest --output-on-failure -j 2

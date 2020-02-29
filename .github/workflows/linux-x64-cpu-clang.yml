@@ -1,0 +1,20 @@
+name: linux-x64-cpu-clang
+on: [push, pull_request]
+jobs:
+  linux-clang:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: update
+      run: sudo apt-get update
+    - name: protobuf
+      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
+    - name: configure
+      env:
+        CC: clang
+        CXX: clang++
+      run: mkdir build && cd build && cmake ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
