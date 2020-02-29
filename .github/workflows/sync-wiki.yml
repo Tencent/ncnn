@@ -10,12 +10,12 @@ jobs:
     - uses: actions/checkout@v1
     - name: sync
       run: |
-        cp -r docs $GITHUB_WORKSPACE/action-protobuf.wiki
-        cd $GITHUB_WORKSPACE/action-protobuf.wiki
+        cp -r docs $GITHUB_WORKSPACE/ncnn.wiki
+        cd $GITHUB_WORKSPACE/ncnn.wiki
         git config --global user.name "wiki-sync-bot"
         git config --global user.email "wiki-sync-bot@qq.com"
         git init
         git add .
         git commit -m "sync"
-        git remote add upstream https://${{ secrets.WIKI_SYNC_BOT_TOKEN }}@github.com/nihui/action-protobuf.wiki.git
+        git remote add upstream https://${{ secrets.WIKI_SYNC_BOT_TOKEN }}@github.com/Tencent/ncnn.wiki.git
         git push upstream master -f
