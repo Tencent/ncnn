@@ -1,7 +1,7 @@
 name: ios-64bit-gpu
 on: [push, pull_request]
 jobs:
-  ios-iphoneos-gpu:
+  ios-iphone-os-gpu:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v1
