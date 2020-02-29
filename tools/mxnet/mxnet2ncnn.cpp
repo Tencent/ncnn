@@ -2384,6 +2384,11 @@ int main(int argc, char** argv)
             std::vector<int> end = n.attr("end");
             std::vector<int> step = n.attr("step");// TODO
 
+            // skip N-dim
+            begin.erase(begin.begin());
+            end.erase(end.begin());
+            step.erase(step.begin());
+
             // assert step == 1
             for (int i=0; i<(int)step.size(); i++)
             {
@@ -2391,12 +2396,12 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
-            fprintf(pp, " -23309=%zd", begin.size());
+            fprintf(pp, " -23309=%d", (int)begin.size());
             for (int i=0; i<(int)begin.size(); i++)
             {
                 fprintf(pp, ",%d", begin[i]);
             }
-            fprintf(pp, " -23310=%zd", end.size());
+            fprintf(pp, " -23310=%d", (int)end.size());
             for (int i=0; i<(int)end.size(); i++)
             {
                 fprintf(pp, ",%d", end[i]);
@@ -2407,6 +2412,12 @@ int main(int argc, char** argv)
             int axis = n.attr("axis");
             int begin = n.attr("begin");
             int end = n.has_attr("end") ? n.attr("end") : INT_MAX;
+
+            if (axis == 0 || axis > 3 || axis < -3)
+                fprintf(stderr, "Unsupported slice_axis axes !\n");
+
+            if (axis > 0)
+                axis = axis - 1;// -1 for skip N-dim
 
             fprintf(pp, " -23309=1,%d", begin);
             fprintf(pp, " -23310=1,%d", end);
