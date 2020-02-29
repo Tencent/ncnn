@@ -50,6 +50,7 @@ public:
 
 static int g_warmup_loop_count = 8;
 static int g_loop_count = 4;
+static bool g_enable_cooling_down = true;
 
 static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
 static ncnn::PoolAllocator g_workspace_pool_allocator;
@@ -94,12 +95,15 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     }
 #endif // NCNN_VULKAN
 
-    // sleep 10 seconds for cooling down SOC  :(
+    if (g_enable_cooling_down)
+    {
+        // sleep 10 seconds for cooling down SOC  :(
 #ifdef _WIN32
-    Sleep(10 * 1000);
+        Sleep(10 * 1000);
 #else
-    sleep(10);
+        sleep(10);
 #endif
+    }
 
     ncnn::Mat out;
 
@@ -145,6 +149,7 @@ int main(int argc, char** argv)
     int num_threads = ncnn::get_cpu_count();
     int powersave = 0;
     int gpu_device = -1;
+    int cooling_down = 1;
 
     if (argc >= 2)
     {
@@ -162,8 +167,14 @@ int main(int argc, char** argv)
     {
         gpu_device = atoi(argv[4]);
     }
+    if (argc >= 6)
+    {
+        cooling_down = atoi(argv[5]);
+    }
 
     bool use_vulkan_compute = gpu_device != -1;
+
+    g_enable_cooling_down = cooling_down != 0;
 
     g_loop_count = loop_count;
 
@@ -213,6 +224,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "num_threads = %d\n", num_threads);
     fprintf(stderr, "powersave = %d\n", ncnn::get_cpu_powersave());
     fprintf(stderr, "gpu_device = %d\n", gpu_device);
+    fprintf(stderr, "cooling_down = %d\n", (int)g_enable_cooling_down);
 
     // run
     benchmark("squeezenet", ncnn::Mat(227, 227, 3), opt);
