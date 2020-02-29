@@ -1,0 +1,15 @@
+name: macos-x64-cpu
+on: [push, pull_request]
+jobs:
+  macos-clang:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: protobuf
+      run: brew install protobuf opencv3
+    - name: configure
+      run: mkdir build && cd build && cmake ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
