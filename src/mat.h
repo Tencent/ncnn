@@ -120,6 +120,9 @@ public:
     bool empty() const;
     size_t total() const;
 
+    // shape only
+    Mat shape() const;
+
     // data reference
     Mat channel(int c);
     const Mat channel(int c) const;
@@ -313,6 +316,9 @@ public:
 
     bool empty() const;
     size_t total() const;
+
+    // shape only
+    Mat shape() const;
 
     // data reference
     VkMat channel(int c);
@@ -1107,6 +1113,18 @@ inline size_t Mat::total() const
     return cstep * c;
 }
 
+inline Mat Mat::shape() const
+{
+    if (dims == 1)
+        return Mat(w * elempack, (void*)0);
+    if (dims == 2)
+        return Mat(w, h * elempack, (void*)0);
+    if (dims == 3)
+        return Mat(w, h, c * elempack, (void*)0);
+
+    return Mat();
+}
+
 inline Mat Mat::channel(int _c)
 {
     return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
@@ -1651,6 +1669,18 @@ inline bool VkMat::empty() const
 inline size_t VkMat::total() const
 {
     return cstep * c;
+}
+
+inline Mat VkMat::shape() const
+{
+    if (dims == 1)
+        return Mat(w * elempack, (void*)0);
+    if (dims == 2)
+        return Mat(w, h * elempack, (void*)0);
+    if (dims == 3)
+        return Mat(w, h, c * elempack, (void*)0);
+
+    return Mat();
 }
 
 inline VkMat VkMat::channel(int _c)
