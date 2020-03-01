@@ -139,16 +139,16 @@ void normalize(const ncnn::Mat& in, ncnn::Mat& out)
 ncnn::create_gpu_instance();
 
 {
-ncnn::VulkanDevice vkdev;
+ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
-ncnn::VkWeightBufferAllocator g_weight_vkallocator(&vkdev);
-ncnn::VkBlobBufferAllocator g_blob_vkallocator(&vkdev);
-ncnn::VkStagingBufferAllocator g_staging_vkallocator(&vkdev);
-ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(&vkdev);
+ncnn::VkWeightBufferAllocator g_weight_vkallocator(vkdev);
+ncnn::VkBlobBufferAllocator g_blob_vkallocator(vkdev);
+ncnn::VkStagingBufferAllocator g_staging_vkallocator(vkdev);
+ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(vkdev);
 
 // create layer
 ncnn::Layer* convolution = ncnn::create_layer("Convolution");
-convolution->vkdev = &vkdev;
+convolution->vkdev = vkdev;
 
 // load param
 {
@@ -173,7 +173,7 @@ convolution->load_model(mb);
 
 // upload model
 {
-ncnn::VkTransfer cmd(&vkdev);
+ncnn::VkTransfer cmd(vkdev);
 cmd.weight_vkallocator = &g_weight_vkallocator;
 cmd.staging_vkallocator = &g_weight_staging_vkallocator;
 
@@ -220,7 +220,7 @@ ncnn::VkMat top_gpu;
 
 // forward
 {
-ncnn::VkCompute cmd(&vkdev);
+ncnn::VkCompute cmd(vkdev);
 
 cmd.record_upload(bottom_gpu);
 
@@ -230,8 +230,7 @@ top_gpu.prepare_staging_buffer();
 
 cmd.record_download(top_gpu);
 
-cmd.submit();
-cmd.wait();
+cmd.submit_and_wait();
 }
 
 ncnn::Mat top;
