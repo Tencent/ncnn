@@ -5,6 +5,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
+    - name: lcov
+      run: sudo apt-get install lcov
     - name: configure
       run: |
         mkdir build && cd build
@@ -13,7 +15,7 @@ jobs:
       run: cmake --build build -j 2
     - name: test
       run: cd build && ctest --output-on-failure -j 2
-    - name: lcov
+    - name: lcov-collect
       run: |
         cd build
         lcov -d ./src -c -o $GITHUB_WORKSPACE/lcov.info
