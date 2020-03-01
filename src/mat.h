@@ -477,7 +477,7 @@ void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigne
 #endif // NCNN_PIXEL_ROTATE
 
 // mat process
-enum
+enum BorderType
 {
     BORDER_CONSTANT = 0,
     BORDER_REPLICATE = 1,
