@@ -33,6 +33,7 @@ option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
 option(NCNN_AVX2 "optimize x86 platform with avx2" OFF)
 option(NCNN_DISABLE_PIC "disable position-independent code" OFF)
 option(NCNN_BUILD_TESTS "build tests" ON)
+option(NCNN_COVERAGE "build for coverage" OFF)
 
 if(ANDROID OR IOS)
     option(NCNN_DISABLE_RTTI "disable rtti" ON)
@@ -55,6 +56,11 @@ endif()
 # set cmake default folder name
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "cmake")
+
+if(NCNN_COVERAGE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -coverage -fprofile-arcs -ftest-coverage")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -coverage -lgcov")
+endif()
 
 add_subdirectory(src)
 add_subdirectory(benchmark)

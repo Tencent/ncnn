@@ -1,0 +1,26 @@
+name: test-coverage
+on: [push, pull_request]
+jobs:
+  linux-gcc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
+    - name: lcov
+      run: |
+        cd build
+        lcov -d ./src -c -o $GITHUB_WORKSPACE/lcov.info
+        lcov -r $GITHUB_WORKSPACE/lcov.info '/usr/*' -o $GITHUB_WORKSPACE/lcov.info
+        lcov --list $GITHUB_WORKSPACE/lcov.info
+    - name: coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: $GITHUB_WORKSPACE/lcov.info
