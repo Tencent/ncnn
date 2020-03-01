@@ -18,11 +18,11 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov -d ./src -c -o $GITHUB_WORKSPACE/lcov.info
-        lcov -r $GITHUB_WORKSPACE/lcov.info '/usr/*' -o $GITHUB_WORKSPACE/lcov.info
-        lcov --list $GITHUB_WORKSPACE/lcov.info
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov --list lcov.info
     - name: coveralls
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: $GITHUB_WORKSPACE/lcov.info
+        path-to-lcov: build/lcov.info
