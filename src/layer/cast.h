@@ -34,6 +34,7 @@ public:
     // 1 = float32
     // 2 = float16
     // 3 = int8
+    // 4 = bfloat16
     int type_from;
     int type_to;
 };
