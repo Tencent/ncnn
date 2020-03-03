@@ -49,7 +49,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 #if __ARM_NEON
     if (elempack % 4 == 0)
     {
+#if (__ARM_FP & 2)
         if (!cpu_support_arm_vfpv4() && (type_from == 2 || type_to == 2))
+#else
+        if (type_from == 2 || type_to == 2)
+#endif // (__ARM_FP & 2)
         {
             // no fp16 conversion instruction, fallback
             return Cast::forward(bottom_blob, top_blob, opt);
