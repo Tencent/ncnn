@@ -19,6 +19,24 @@ jobs:
     - name: test
       run: cd build && ctest --output-on-failure -j 2
 
+  linux-clang-avx2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: update
+      run: sudo apt-get update
+    - name: protobuf
+      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
+    - name: configure
+      env:
+        CC: clang
+        CXX: clang++
+      run: mkdir build && cd build && cmake -DNCNN_AVX2=ON ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
+
   linux-clang-nostdio:
     runs-on: ubuntu-latest
     steps:
