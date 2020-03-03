@@ -1,7 +1,7 @@
 name: test-coverage
 on: [push, pull_request]
 jobs:
-  linux-gcc:
+  linux-gcc-gpu:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -55,6 +55,35 @@ jobs:
       run: |
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
         cd build && ctest --output-on-failure -j 2
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov --list lcov.info
+    - name: coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: build/lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+
+  linux-gcc-avx2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_AVX2=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
     - name: lcov-collect
       run: |
         cd build
