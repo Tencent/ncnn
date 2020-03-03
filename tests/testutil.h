@@ -218,12 +218,12 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     ncnn::VkWeightBufferAllocator g_weight_vkallocator(vkdev);
     ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(vkdev);
 
-    ncnn::VkBlobBufferAllocator g_blob_vkallocator(vkdev);
-    ncnn::VkStagingBufferAllocator g_staging_vkallocator(vkdev);
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
-    opt.blob_vkallocator = &g_blob_vkallocator;
-    opt.workspace_vkallocator = &g_blob_vkallocator;
-    opt.staging_vkallocator = &g_staging_vkallocator;
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
 
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
@@ -346,7 +346,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         std::vector<ncnn::VkMat> a4_fp16_gpu(a4_fp16.size());
         for (size_t i=0; i<a4_fp16.size(); i++)
         {
-            a4_fp16_gpu[i].create_like(a4_fp16[i], &g_blob_vkallocator, &g_staging_vkallocator);
+            a4_fp16_gpu[i].create_like(a4_fp16[i], opt.blob_vkallocator, opt.staging_vkallocator);
             a4_fp16_gpu[i].prepare_staging_buffer();
             a4_fp16_gpu[i].upload(a4_fp16[i]);
         }
@@ -400,6 +400,13 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
     delete op;
 
+#if NCNN_VULKAN
+    vkdev->reclaim_blob_allocator(blob_vkallocator);
+    vkdev->reclaim_staging_allocator(staging_vkallocator);
+    g_weight_vkallocator.clear();
+    g_weight_staging_vkallocator.clear();
+#endif // NCNN_VULKAN
+
     if (CompareMat(b, c, epsilon) != 0)
     {
         fprintf(stderr, "test_layer failed cpu\n");
@@ -439,12 +446,12 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     ncnn::VkWeightBufferAllocator g_weight_vkallocator(vkdev);
     ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(vkdev);
 
-    ncnn::VkBlobBufferAllocator g_blob_vkallocator(vkdev);
-    ncnn::VkStagingBufferAllocator g_staging_vkallocator(vkdev);
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
-    opt.blob_vkallocator = &g_blob_vkallocator;
-    opt.workspace_vkallocator = &g_blob_vkallocator;
-    opt.staging_vkallocator = &g_staging_vkallocator;
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
 
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
@@ -545,7 +552,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
         // upload
         ncnn::VkMat a4_fp16_gpu;
-        a4_fp16_gpu.create_like(a4_fp16, &g_blob_vkallocator, &g_staging_vkallocator);
+        a4_fp16_gpu.create_like(a4_fp16, opt.blob_vkallocator, opt.staging_vkallocator);
         a4_fp16_gpu.prepare_staging_buffer();
         a4_fp16_gpu.upload(a4_fp16);
 
@@ -583,9 +590,10 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     delete op;
 
 #if NCNN_VULKAN
-    g_blob_vkallocator.clear();
-    g_staging_vkallocator.clear();
+    vkdev->reclaim_blob_allocator(blob_vkallocator);
+    vkdev->reclaim_staging_allocator(staging_vkallocator);
     g_weight_vkallocator.clear();
+    g_weight_staging_vkallocator.clear();
 #endif // NCNN_VULKAN
 
     if (CompareMat(b, c, epsilon) != 0)
