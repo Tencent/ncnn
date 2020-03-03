@@ -61,3 +61,69 @@ jobs:
 #        cd build && ctest --output-on-failure -j 2
 #        export VK_ICD_FILENAMES="vulkansdk-macos-1.1.114.0/macOS/etc/vulkan/icd.d/MoltenVK_icd.json"
 #        cd build && ctest --output-on-failure -j 2
+
+  macos-clang-gpu-nostdio:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "vulkansdk-macos-1.1.114.0"
+        key: vulkansdk-macos-1.1.114.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/mac/vulkansdk-macos-1.1.114.0.tar.gz?Human=true -O vulkansdk-macos-1.1.114.0.tar.gz
+        tar -xf vulkansdk-macos-1.1.114.0.tar.gz
+        rm -rf vulkansdk-macos-1.1.114.0/Applications
+        find vulkansdk-macos-1.1.114.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+    - name: configure
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.114.0/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON -DNCNN_STDIO=OFF -DNCNN_STRING=ON -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+    - name: build
+      run: cmake --build build -j 2
+
+  macos-clang-gpu-nostring:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "vulkansdk-macos-1.1.114.0"
+        key: vulkansdk-macos-1.1.114.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/mac/vulkansdk-macos-1.1.114.0.tar.gz?Human=true -O vulkansdk-macos-1.1.114.0.tar.gz
+        tar -xf vulkansdk-macos-1.1.114.0.tar.gz
+        rm -rf vulkansdk-macos-1.1.114.0/Applications
+        find vulkansdk-macos-1.1.114.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+    - name: configure
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.114.0/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON -DNCNN_STDIO=ON -DNCNN_STRING=OFF -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+    - name: build
+      run: cmake --build build -j 2
+
+  macos-clang-gpu-nostdio-nostring:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "vulkansdk-macos-1.1.114.0"
+        key: vulkansdk-macos-1.1.114.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/mac/vulkansdk-macos-1.1.114.0.tar.gz?Human=true -O vulkansdk-macos-1.1.114.0.tar.gz
+        tar -xf vulkansdk-macos-1.1.114.0.tar.gz
+        rm -rf vulkansdk-macos-1.1.114.0/Applications
+        find vulkansdk-macos-1.1.114.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+    - name: configure
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.114.0/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON -DNCNN_STDIO=OFF -DNCNN_STRING=OFF -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+    - name: build
+      run: cmake --build build -j 2
