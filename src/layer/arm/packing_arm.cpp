@@ -34,12 +34,18 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return Packing::forward(bottom_blob, top_blob, opt);
     }
 
+    size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     if (elempack == out_elempack)
     {
         top_blob = bottom_blob;
         return 0;
+    }
+
+    if (elemsize / elempack != 4u)
+    {
+        return Packing::forward(bottom_blob, top_blob, opt);
     }
 
     bool pack1to4 = elempack == 1 && out_elempack == 4;
@@ -54,7 +60,6 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
 
     if (!use_padding)
     {
