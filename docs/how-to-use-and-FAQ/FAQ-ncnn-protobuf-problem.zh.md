@@ -45,13 +45,18 @@ CentOS 尝试
 1. 首先在 [protobuf/releases](https://github.com/protocolbuffers/protobuf/releases/tag/v3.10.0) 下载所需的 pb 版本，例如需要 v3.10.0 。注意要下载 -cpp 后缀的压缩包。
 
 2. 解压到某一目录，然后编译
->  tar xvf protobuf-cpp-3.10.0.tar.gz && cd protobuf-3.10.0/ && ./configure && make -j 3
+>  tar xvf protobuf-cpp-3.10.0.tar.gz && cd protobuf-3.10.0/
+./configure --prefix=/your_install_dir && make -j 3 && make install
 
-3. **不不不要**`sudo make install`安装到系统目录，源码编译好的 so 在隐藏目录 `src/.libs` 里，例如是`/tmp/protobuf-3.10.0/src/.libs`
+3. **不不不要**忽略`--prefix`直接安装到系统目录，源码编译好的 so 和头文件在`your_install_dir`里
 
 4. 设置 protobuf.so 的搜索目录
 打开`~/.bashrc`，在末尾增加
-> export LD_LIBRARY_PATH=/tmp/protobuf-3.10.0/src/.libs:$LD_LIBRARY_PATH
+
+```
+export LD_LIBRARY_PATH=/your_install_dir/lib:$LD_LIBRARY_PATH
+export CPLUS_INCLUDE_PATH=/your_install_dir/include:$CPLUS_INCLUDE_PATH
+```
 
 5. 让配置生效
 > source ~/.bashrc
