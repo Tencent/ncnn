@@ -659,7 +659,14 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
+        top_blob_bordered = top_blob;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
+    }
     {
         // AT
         // const float itm[2][4] = {
@@ -1668,7 +1675,14 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    top_blob_bordered.create(outw, outh, outch, elemsize, opt.workspace_allocator);
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
+        top_blob_bordered = top_blob;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, outch, elemsize, opt.workspace_allocator);
+    }
     {
         // AT
         // const float itm[4][6] = {
