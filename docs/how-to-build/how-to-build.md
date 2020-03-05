@@ -16,11 +16,11 @@ install g++ cmake protobuf
 
 (optional) download and install vulkan-sdk from https://vulkan.lunarg.com/sdk/home
 ```
-$ wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
-$ tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+$ wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+$ tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
 
 # setup env
-$ export VULKAN_SDK=`pwd`/1.1.92.1/x86_64
+$ export VULKAN_SDK=`pwd`/1.1.114.0/x86_64
 ```
 
 ```
@@ -80,7 +80,7 @@ download protobuf-3.4.0 from https://github.com/google/protobuf/archive/v3.4.0.z
 ```
 (optional) download and install vulkan-sdk from https://vulkan.lunarg.com/sdk/home
 
-launch VulkanSDK-1.1.92.1-Installer.exe and install
+launch VulkanSDK-1.1.114.0-Installer.exe and install
 
 build ncnn library (replace <protobuf-root-dir> with your path)
 ```
@@ -111,11 +111,11 @@ $ brew install protobuf
 
 (optional) download and install vulkan-sdk from https://vulkan.lunarg.com/sdk/home
 ```
-$ wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz
-$ tar -xf vulkansdk-macos-1.1.92.1.tar.gz
+$ wget https://sdk.lunarg.com/sdk/download/1.1.114.0/mac/vulkansdk-macos-1.1.114.0.tar.gz?Human=true -O vulkansdk-macos-1.1.114.0.tar.gz
+$ tar -xf vulkansdk-macos-1.1.114.0.tar.gz
 
 # setup env
-$ export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS
+$ export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.114.0/macOS
 ```
 
 ```
@@ -257,11 +257,11 @@ list(APPEND ANDROID_COMPILER_FLAGS
 
 (optional) download and install vulkan-sdk from https://vulkan.lunarg.com/sdk/home
 ```
-$ wget https://sdk.lunarg.com/sdk/download/1.1.92.1/linux/vulkansdk-linux-x86_64-1.1.92.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.92.1.tar.gz
-$ tar -xf vulkansdk-linux-x86_64-1.1.92.1.tar.gz
+$ wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
+$ tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
 
 # setup env
-$ export VULKAN_SDK=`pwd`/1.1.92.1/x86_64
+$ export VULKAN_SDK=`pwd`/1.1.114.0/x86_64
 ```
 
 build armv7 library
@@ -316,11 +316,11 @@ install xcode
 
 (optional) download and install vulkan-sdk from https://vulkan.lunarg.com/sdk/home
 ```
-$ wget https://sdk.lunarg.com/sdk/download/1.1.92.1/mac/vulkansdk-macos-1.1.92.1.tar.gz?Human=true -O vulkansdk-macos-1.1.92.1.tar.gz
-$ tar -xf vulkansdk-macos-1.1.92.1.tar.gz
+$ wget https://sdk.lunarg.com/sdk/download/1.1.114.0/mac/vulkansdk-macos-1.1.114.0.tar.gz?Human=true -O vulkansdk-macos-1.1.114.0.tar.gz
+$ tar -xf vulkansdk-macos-1.1.114.0.tar.gz
 
 # setup env
-$ export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.92.1/macOS
+$ export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.114.0/macOS
 ```
 
 build library for iPhoneOS
@@ -332,7 +332,7 @@ $ cd build-ios
 $ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS ..
 
 # vulkan is only available on arm64 devices
-$ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DVulkan_INCLUDE_DIR=`pwd`/vulkansdk-macos-1.1.92.1/MoltenVK/include -DVulkan_LIBRARY=`pwd`/vulkansdk-macos-1.1.92.1/MoltenVK/iOS/dynamic/libMoltenVK.dylib -DNCNN_VULKAN=ON ..
+$ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DVulkan_INCLUDE_DIR=`pwd`/vulkansdk-macos-1.1.114.0/MoltenVK/include -DVulkan_LIBRARY=`pwd`/vulkansdk-macos-1.1.114.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib -DNCNN_VULKAN=ON ..
 
 $ make -j4
 $ make install
