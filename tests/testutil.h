@@ -210,6 +210,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
     ncnn::Option opt = _opt;
 
+    if (!op->support_vulkan) opt.use_vulkan_compute = false;
     if (!op->support_packing) opt.use_packing_layout = false;
 
 #if NCNN_VULKAN
@@ -438,6 +439,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         (*func)((T*)op);
     }
 
+    if (!op->support_vulkan) opt.use_vulkan_compute = false;
     if (!op->support_packing) opt.use_packing_layout = false;
 
 #if NCNN_VULKAN
