@@ -141,3 +141,16 @@ for (int i=0; i<count; i++)
     ex.input(your_data[i]);
 }
 ```
+
+### use proper loading api
+
+If you want to load plain param file buffer, you shall use Net::load_param_mem instead of Net::load_param.
+
+For more information about the ncnn model load api, see [ncnn-load-model](ncnn-load-model)
+
+```
+ncnn::Net net;
+
+// param_buffer is the content buffe of XYZ.param file
+net.load_param_mem(param_buffer);
+```

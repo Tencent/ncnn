@@ -176,12 +176,12 @@ static int test_crop_3()
     ncnn::Mat a = RandomMat(13, 11, 16);
 
     return 0
-        || test_crop(a, IntArrayMat(0, 0, 0), IntArrayMat(100, 100, 100), IntArrayMat(1, 2, 3))
-        || test_crop(a, IntArrayMat(4), IntArrayMat(8), IntArrayMat(1))
-        || test_crop(a, IntArrayMat(2), IntArrayMat(7), IntArrayMat(2))
-        || test_crop(a, IntArrayMat(3), IntArrayMat(5), IntArrayMat(3))
-        || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(1, 2))
-        || test_crop(a, IntArrayMat(1, 4), IntArrayMat(-5, 7), IntArrayMat(2, -3))
+        || test_crop(a, IntArrayMat(0, 0, 0), IntArrayMat(100, 100, 100), IntArrayMat(0, 1, 2))
+        || test_crop(a, IntArrayMat(4), IntArrayMat(8), IntArrayMat(0))
+        || test_crop(a, IntArrayMat(2), IntArrayMat(7), IntArrayMat(1))
+        || test_crop(a, IntArrayMat(3), IntArrayMat(5), IntArrayMat(2))
+        || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(0, 1))
+        || test_crop(a, IntArrayMat(1, 4), IntArrayMat(-5, 7), IntArrayMat(1, -3))
         || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(-1, -2))
         || test_crop(a, IntArrayMat(1, 2, 3), IntArrayMat(-3, -2, -1), IntArrayMat(-3, -2, -1))
         ;
@@ -192,12 +192,12 @@ static int test_crop_4()
     ncnn::Mat a = RandomMat(13, 11, 17);
 
     return 0
-        || test_crop(a, IntArrayMat(0, 0, 0), IntArrayMat(100, 100, 100), IntArrayMat(1, 2, 3))
-        || test_crop(a, IntArrayMat(4), IntArrayMat(8), IntArrayMat(1))
-        || test_crop(a, IntArrayMat(2), IntArrayMat(7), IntArrayMat(2))
-        || test_crop(a, IntArrayMat(3), IntArrayMat(5), IntArrayMat(3))
-        || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(1, 2))
-        || test_crop(a, IntArrayMat(1, 4), IntArrayMat(-5, 7), IntArrayMat(2, -3))
+        || test_crop(a, IntArrayMat(0, 0, 0), IntArrayMat(100, 100, 100), IntArrayMat(0, 1, 2))
+        || test_crop(a, IntArrayMat(4), IntArrayMat(8), IntArrayMat(0))
+        || test_crop(a, IntArrayMat(2), IntArrayMat(7), IntArrayMat(1))
+        || test_crop(a, IntArrayMat(3), IntArrayMat(5), IntArrayMat(2))
+        || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(0, 1))
+        || test_crop(a, IntArrayMat(1, 4), IntArrayMat(-5, 7), IntArrayMat(1, -3))
         || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(-1, -2))
         || test_crop(a, IntArrayMat(1, 2, 3), IntArrayMat(-3, -2, -1), IntArrayMat(-3, -2, -1))
         ;

@@ -615,8 +615,8 @@ int main(int argc, char** argv)
         else if (layer.type() == "Concat")
         {
             const caffe::ConcatParameter& concat_param = layer.concat_param();
-            int dim = concat_param.axis() - 1;
-            fprintf(pp, " 0=%d", dim);
+            int axis = concat_param.axis() - 1;
+            fprintf(pp, " 0=%d", axis);
         }
         else if (layer.type() == "Convolution" || layer.type() == "ConvolutionDepthwise" || layer.type() == "DepthwiseConvolution")
         {
@@ -800,19 +800,19 @@ int main(int argc, char** argv)
             if (num_offset == 1)
             {
                 int offset = crop_param.offset(0);
-                int axis = crop_param.axis();
-                if (axis == 1)
+                int axis = crop_param.axis() - 1;
+                if (axis == 0)
                 {
                     fprintf(pp, " 0=%d", offset);
                     fprintf(pp, " 1=%d", offset);
                     fprintf(pp, " 2=%d", offset);
                 }
-                else if (axis == 2)
+                else if (axis == 1)
                 {
                     fprintf(pp, " 0=%d", offset);
                     fprintf(pp, " 1=%d", offset);
                 }
-                else if (axis == 3)
+                else if (axis == 2)
                 {
                     fprintf(pp, " 0=%d", offset);
                 }
