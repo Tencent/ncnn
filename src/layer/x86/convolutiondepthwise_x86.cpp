@@ -396,6 +396,14 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
 
                 if (activation)
                 {
+                    if (activation_type == 3)
+                    {
+                        ncnn::ParamDict pd;
+                        pd.set(0, activation_params[0] * top_blob_int8_scale);// min
+                        pd.set(1, activation_params[1] * top_blob_int8_scale);// max
+                        activation->load_param(pd);
+                    }
+
                     activation->forward_inplace(top_blob, opt);
                 }
 
@@ -407,6 +415,14 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
 
                 if (activation)
                 {
+                    if (activation_type == 3)
+                    {
+                        ncnn::ParamDict pd;
+                        pd.set(0, activation_params[0] * top_blob_int8_scale);// min
+                        pd.set(1, activation_params[1] * top_blob_int8_scale);// max
+                        activation->load_param(pd);
+                    }
+
                     activation->forward_inplace(top_blob, opt);
                 }
 
