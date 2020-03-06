@@ -513,6 +513,21 @@ int Net::load_model(const DataReader& dr)
             ret = -1;
             break;
         }
+    }
+
+    fuse_network();
+
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        Layer* layer = layers[i];
+
+        //Here we found inconsistent content in the parameter file.
+        if (!layer)
+        {
+            fprintf(stderr, "load_model error at layer %d, parameter file has inconsistent content.\n", (int)i);
+            ret = -1;
+            break;
+        }
 
         int cret = layer->create_pipeline(opt);
         if (cret != 0)
@@ -531,8 +546,6 @@ int Net::load_model(const DataReader& dr)
         upload_model();
     }
 #endif // NCNN_VULKAN
-
-    fuse_network();
 
     return ret;
 }
