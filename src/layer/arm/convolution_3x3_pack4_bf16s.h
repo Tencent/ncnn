@@ -1679,7 +1679,14 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
+        top_blob_bordered = top_blob;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
+    }
     {
 //         const float otm[6][8] = {
 //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
