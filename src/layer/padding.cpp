@@ -112,7 +112,8 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             outptr += w;
         }
     }
-    else if (type == 1)
+
+    if (type == 1)
     {
         int y = 0;
         // fill top
@@ -196,7 +197,8 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             outptr += w;
         }
     }
-    else if (type == 2)
+
+    if (type == 2)
     {
         int y = 0;
         // fill top
@@ -310,7 +312,9 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
         if (elemsize == 1)
             copy_make_border_image<signed char>(bottom_blob, top_blob, 0, left, type, static_cast<signed char>(value));
-        else if (elemsize == 4)
+        if (elemsize == 2)
+            copy_make_border_image<unsigned short>(bottom_blob, top_blob, 0, left, type, float32_to_bfloat16(value));
+        if (elemsize == 4)
             copy_make_border_image<float>(bottom_blob, top_blob, 0, left, type, value);
 
         return 0;
@@ -326,7 +330,9 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
         if (elemsize == 1)
             copy_make_border_image<signed char>(bottom_blob, top_blob, top, left, type, static_cast<signed char>(value));
-        else if (elemsize == 4)
+        if (elemsize == 2)
+            copy_make_border_image<unsigned short>(bottom_blob, top_blob, top, left, type, float32_to_bfloat16(value));
+        if (elemsize == 4)
             copy_make_border_image<float>(bottom_blob, top_blob, top, left, type, value);
 
         return 0;
@@ -348,7 +354,9 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
             if (elemsize == 1)
                 copy_make_border_image<signed char>(m, borderm, top, left, type, static_cast<signed char>(pad_value));
-            else if (elemsize == 4)
+            if (elemsize == 2)
+                copy_make_border_image<unsigned short>(m, borderm, top, left, type, float32_to_bfloat16(pad_value));
+            if (elemsize == 4)
                 copy_make_border_image<float>(m, borderm, top, left, type, pad_value);
         }
 
@@ -400,7 +408,9 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
         if (elemsize == 1)
             copy_make_border_image<signed char>(bottom_blob, top_blob, 0, _left, type, static_cast<signed char>(value));
-        else if (elemsize == 4)
+        if (elemsize == 2)
+            copy_make_border_image<unsigned short>(bottom_blob, top_blob, 0, _left, type, float32_to_bfloat16(value));
+        if (elemsize == 4)
             copy_make_border_image<float>(bottom_blob, top_blob, 0, _left, type, value);
 
         return 0;
@@ -416,7 +426,9 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
         if (elemsize == 1)
             copy_make_border_image<signed char>(bottom_blob, top_blob, _top, _left, type, static_cast<signed char>(value));
-        else if (elemsize == 4)
+        if (elemsize == 2)
+            copy_make_border_image<unsigned short>(bottom_blob, top_blob, _top, _left, type, float32_to_bfloat16(value));
+        if (elemsize == 4)
             copy_make_border_image<float>(bottom_blob, top_blob, _top, _left, type, value);
 
         return 0;
@@ -438,7 +450,9 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
             if (elemsize == 1)
                 copy_make_border_image<signed char>(m, borderm, _top, _left, type, static_cast<signed char>(pad_value));
-            else if (elemsize == 4)
+            if (elemsize == 2)
+                copy_make_border_image<unsigned short>(m, borderm, _top, _left, type, float32_to_bfloat16(pad_value));
+            if (elemsize == 4)
                 copy_make_border_image<float>(m, borderm, _top, _left, type, pad_value);
         }
 
