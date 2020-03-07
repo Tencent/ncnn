@@ -328,13 +328,13 @@ static void conv1x1s1_sgemm_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_bl
                 "prfm   pldl1keep, [%3, #256]       \n"
                 "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%3], #32 \n"
 
+                "prfm   pldl1keep, [%4, #256]       \n"
+                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%4], #32 \n"// w0011_01
+
                 "shll   v0.4s, v0.4h, #16           \n"
                 "shll   v1.4s, v1.4h, #16           \n"
                 "shll   v2.4s, v2.4h, #16           \n"
                 "shll   v3.4s, v3.4h, #16           \n"
-
-                "prfm   pldl1keep, [%4, #256]       \n"
-                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%4], #32 \n"// w0011_01
 
                 "shll   v4.4s, v4.4h, #16           \n"
                 "shll   v5.4s, v5.4h, #16           \n"
@@ -560,13 +560,13 @@ static void conv1x1s1_sgemm_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_bl
                 "prfm   pldl1keep, [%3, #256]       \n"
                 "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%3], #32 \n"// r0 r1 r2 r3
 
+                "prfm   pldl1keep, [%4, #256]       \n"
+                "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%4], #32 \n"// w0011_01
+
                 "shll   v0.4s, v0.4h, #16           \n"
                 "shll   v1.4s, v1.4h, #16           \n"
                 "shll   v2.4s, v2.4h, #16           \n"
                 "shll   v3.4s, v3.4h, #16           \n"
-
-                "prfm   pldl1keep, [%4, #256]       \n"
-                "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%4], #32 \n"// w0011_01
 
                 "shll   v8.4s, v8.4h, #16           \n"
                 "shll   v9.4s, v9.4h, #16           \n"
@@ -729,13 +729,13 @@ static void conv1x1s1_sgemm_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_bl
                 "prfm   pldl1keep, [%3, #256]       \n"
                 "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%3], #32 \n"// r0 r1 r2 r3
 
+                "prfm   pldl1keep, [%4, #256]       \n"
+                "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%4], #32 \n"// w0011_01
+
                 "shll   v0.4s, v0.4h, #16           \n"
                 "shll   v1.4s, v1.4h, #16           \n"
                 "shll   v2.4s, v2.4h, #16           \n"
                 "shll   v3.4s, v3.4h, #16           \n"
-
-                "prfm   pldl1keep, [%4, #256]       \n"
-                "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%4], #32 \n"// w0011_01
 
                 "shll   v8.4s, v8.4h, #16           \n"
                 "shll   v9.4s, v9.4h, #16           \n"
@@ -841,11 +841,11 @@ static void conv1x1s1_sgemm_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_bl
                 "prfm   pldl1keep, [%3, #128]       \n"
                 "ld1    {v0.4h, v1.4h}, [%3], #16   \n"// r0 r1
 
-                "shll   v0.4s, v0.4h, #16           \n"
-                "shll   v1.4s, v1.4h, #16           \n"
-
                 "prfm   pldl1keep, [%4, #256]       \n"
                 "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%4], #32 \n"// w0011_01
+
+                "shll   v0.4s, v0.4h, #16           \n"
+                "shll   v1.4s, v1.4h, #16           \n"
 
                 "shll   v8.4s, v8.4h, #16           \n"
                 "shll   v9.4s, v9.4h, #16           \n"
@@ -922,10 +922,10 @@ static void conv1x1s1_sgemm_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_bl
                 "prfm   pldl1keep, [%3, #64]        \n"
                 "ld1    {v0.4h}, [%3], #8           \n"// r0
 
-                "shll   v0.4s, v0.4h, #16           \n"
-
                 "prfm   pldl1keep, [%4, #256]       \n"
                 "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%4], #32 \n"// w0011_01
+
+                "shll   v0.4s, v0.4h, #16           \n"
 
                 "shll   v8.4s, v8.4h, #16           \n"
                 "shll   v9.4s, v9.4h, #16           \n"
@@ -1018,13 +1018,13 @@ static void conv1x1s1_sgemm_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_bl
                 "prfm   pldl1keep, [%2, #256]       \n"
                 "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%2], #32 \n"
 
+                "prfm   pldl1keep, [%3, #256]       \n"
+                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%3], #32 \n"// w0123_0
+
                 "shll   v0.4s, v0.4h, #16           \n"
                 "shll   v1.4s, v1.4h, #16           \n"
                 "shll   v2.4s, v2.4h, #16           \n"
                 "shll   v3.4s, v3.4h, #16           \n"
-
-                "prfm   pldl1keep, [%3, #256]       \n"
-                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%3], #32 \n"// w0123_0
 
                 "shll   v4.4s, v4.4h, #16           \n"
                 "shll   v5.4s, v5.4h, #16           \n"
@@ -1164,13 +1164,13 @@ static void conv1x1s1_sgemm_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_bl
                 "prfm   pldl1keep, [%2, #256]       \n"
                 "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%2], #32 \n"// r0 r1 r2 r3
 
+                "prfm   pldl1keep, [%3, #256]       \n"
+                "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%3], #32 \n"// w0123
+
                 "shll   v0.4s, v0.4h, #16           \n"
                 "shll   v1.4s, v1.4h, #16           \n"
                 "shll   v2.4s, v2.4h, #16           \n"
                 "shll   v3.4s, v3.4h, #16           \n"
-
-                "prfm   pldl1keep, [%3, #256]       \n"
-                "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%3], #32 \n"// w0123
 
                 "shll   v8.4s, v8.4h, #16           \n"
                 "shll   v9.4s, v9.4h, #16           \n"
@@ -1267,13 +1267,13 @@ static void conv1x1s1_sgemm_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_bl
                 "pld        [%2, #256]      \n"
                 "vld1.u16   {d4-d7}, [%2]!  \n"
 
+                "pld        [%3, #256]      \n"
+                "vld1.u16   {d12-d15}, [%3]! \n"
+
                 "vshll.u16  q0, d4, #16     \n"
                 "vshll.u16  q1, d5, #16     \n"
                 "vshll.u16  q2, d6, #16     \n"
                 "vshll.u16  q3, d7, #16     \n"
-
-                "pld        [%3, #256]      \n"
-                "vld1.u16   {d12-d15}, [%3]! \n"
 
                 "vshll.u16  q4, d12, #16    \n"
                 "vshll.u16  q5, d13, #16    \n"
@@ -1378,13 +1378,13 @@ static void conv1x1s1_sgemm_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_bl
                 "prfm   pldl1keep, [%2, #256]       \n"
                 "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%2], #32 \n"// r0 r1 r2 r3
 
+                "prfm   pldl1keep, [%3, #256]       \n"
+                "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%3], #32 \n"// w0123
+
                 "shll   v0.4s, v0.4h, #16           \n"
                 "shll   v1.4s, v1.4h, #16           \n"
                 "shll   v2.4s, v2.4h, #16           \n"
                 "shll   v3.4s, v3.4h, #16           \n"
-
-                "prfm   pldl1keep, [%3, #256]       \n"
-                "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%3], #32 \n"// w0123
 
                 "shll   v8.4s, v8.4h, #16           \n"
                 "shll   v9.4s, v9.4h, #16           \n"
@@ -1446,13 +1446,13 @@ static void conv1x1s1_sgemm_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_bl
                 "pld        [%2, #256]      \n"
                 "vld1.u16   {d4-d7}, [%2]!  \n"
 
+                "pld        [%3, #256]      \n"
+                "vld1.u16   {d12-d15}, [%3]! \n"
+
                 "vshll.u16  q0, d4, #16     \n"
                 "vshll.u16  q1, d5, #16     \n"
                 "vshll.u16  q2, d6, #16     \n"
                 "vshll.u16  q3, d7, #16     \n"
-
-                "pld        [%3, #256]      \n"
-                "vld1.u16   {d12-d15}, [%3]! \n"
 
                 "vshll.u16  q4, d12, #16    \n"
                 "vshll.u16  q5, d13, #16    \n"

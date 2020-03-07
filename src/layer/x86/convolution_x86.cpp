@@ -66,8 +66,15 @@ int Convolution_x86::create_pipeline(const Option& opt)
         activation = ncnn::create_layer(ncnn::LayerType::Clip);
 
         ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]);// min
-        pd.set(1, activation_params[1]);// max
+        if (use_int8_requantize)
+        {
+            pd.set(0, activation_params[0] * top_blob_int8_scale);// min
+            pd.set(1, activation_params[1] * top_blob_int8_scale);// max
+        }else{
+            pd.set(0, activation_params[0]);// min
+            pd.set(1, activation_params[1]);// max
+        }
+
         activation->load_param(pd);
     }
     else if (activation_type == 4)
