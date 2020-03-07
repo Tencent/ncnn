@@ -79,9 +79,9 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (type == 0)
                 padding_constant_pack4_neon(bottom_blob, top_blob, 0, 0, left, right, vdupq_n_f32(value));
-            else if (type == 1)
+            if (type == 1)
                 padding_replicate_pack4_neon(bottom_blob, top_blob, 0, 0, left, right);
-            else // if (type == 2)
+            if (type == 2)
                 padding_reflect_pack4_neon(bottom_blob, top_blob, 0, 0, left, right);
 
             return 0;
@@ -97,9 +97,9 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (type == 0)
                 padding_constant_pack4_neon(bottom_blob, top_blob, top, bottom, left, right, vdupq_n_f32(value));
-            else if (type == 1)
+            if (type == 1)
                 padding_replicate_pack4_neon(bottom_blob, top_blob, top, bottom, left, right);
-            else // if (type == 2)
+            if (type == 2)
                 padding_reflect_pack4_neon(bottom_blob, top_blob, top, bottom, left, right);
 
             return 0;
@@ -121,9 +121,9 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                 if (type == 0)
                     padding_constant_pack4_neon(m, borderm, top, bottom, left, right, pad_value);
-                else if (type == 1)
+                if (type == 1)
                     padding_replicate_pack4_neon(m, borderm, top, bottom, left, right);
-                else // if (type == 2)
+                if (type == 2)
                     padding_reflect_pack4_neon(m, borderm, top, bottom, left, right);
             }
 
@@ -159,9 +159,9 @@ int Padding_arm::forward_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
             if (type == 0)
                 padding_constant_pack4_bf16_neon(bottom_blob, top_blob, 0, 0, left, right, vdupq_n_u16(value_bf16));
-            else if (type == 1)
+            if (type == 1)
                 padding_replicate_pack4_bf16_neon(bottom_blob, top_blob, 0, 0, left, right);
-            else // if (type == 2)
+            if (type == 2)
                 padding_reflect_pack4_bf16_neon(bottom_blob, top_blob, 0, 0, left, right);
 
             return 0;
@@ -177,9 +177,9 @@ int Padding_arm::forward_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
             if (type == 0)
                 padding_constant_pack4_bf16_neon(bottom_blob, top_blob, top, bottom, left, right, vdupq_n_u16(value_bf16));
-            else if (type == 1)
+            if (type == 1)
                 padding_replicate_pack4_bf16_neon(bottom_blob, top_blob, top, bottom, left, right);
-            else // if (type == 2)
+            if (type == 2)
                 padding_reflect_pack4_bf16_neon(bottom_blob, top_blob, top, bottom, left, right);
 
             return 0;
@@ -201,9 +201,9 @@ int Padding_arm::forward_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
                 if (type == 0)
                     padding_constant_pack4_bf16_neon(m, borderm, top, bottom, left, right, vcombine_u16(pad_value, pad_value));
-                else if (type == 1)
+                if (type == 1)
                     padding_replicate_pack4_bf16_neon(m, borderm, top, bottom, left, right);
-                else // if (type == 2)
+                if (type == 2)
                     padding_reflect_pack4_bf16_neon(m, borderm, top, bottom, left, right);
             }
 
