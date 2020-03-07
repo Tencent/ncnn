@@ -1076,22 +1076,24 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack,
 
 inline void Mat::create_like(const Mat& m, Allocator* _allocator)
 {
-    if (m.dims == 1)
+    int _dims = m.dims;
+    if (_dims == 1)
         create(m.w, m.elemsize, m.elempack, _allocator);
-    else if (m.dims == 2)
+    if (_dims == 2)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator);
-    else if (m.dims == 3)
+    if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
 }
 
 #if NCNN_VULKAN
 inline void Mat::create_like(const VkMat& m, Allocator* _allocator)
 {
-    if (m.dims == 1)
+    int _dims = m.dims;
+    if (_dims == 1)
         create(m.w, m.elemsize, m.elempack, _allocator);
-    else if (m.dims == 2)
+    if (_dims == 2)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator);
-    else if (m.dims == 3)
+    if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
 }
 #endif // NCNN_VULKAN
@@ -1550,21 +1552,23 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempac
 
 inline void VkMat::create_like(const Mat& m, VkAllocator* _allocator, VkAllocator* _staging_allocator)
 {
-    if (m.dims == 1)
+    int _dims = m.dims;
+    if (_dims == 1)
         create(m.w, m.elemsize, m.elempack, _allocator, _staging_allocator);
-    else if (m.dims == 2)
+    if (_dims == 2)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator, _staging_allocator);
-    else if (m.dims == 3)
+    if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator, _staging_allocator);
 }
 
 inline void VkMat::create_like(const VkMat& m, VkAllocator* _allocator, VkAllocator* _staging_allocator)
 {
-    if (m.dims == 1)
+    int _dims = m.dims;
+    if (_dims == 1)
         create(m.w, m.elemsize, m.elempack, _allocator, _staging_allocator);
-    else if (m.dims == 2)
+    if (_dims == 2)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator, _staging_allocator);
-    else if (m.dims == 3)
+    if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator, _staging_allocator);
 }
 
