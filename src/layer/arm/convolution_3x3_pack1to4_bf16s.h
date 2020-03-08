@@ -39,7 +39,7 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
     {
         int p = pp * 2;
 
-        Mat out0 = top_blob_fp32.channel(omp_get_thread_num());
+        Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
         float32x4_t _bias1 = bias ? vld1q_f32((const float*)bias + (p+1) * 4) : vdupq_n_f32(0.f);
@@ -775,7 +775,7 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=remain_outch_start; p<outch; p++)
     {
-        Mat out0 = top_blob_fp32.channel(omp_get_thread_num());
+        Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
         out0.fill(_bias0);
@@ -1996,7 +1996,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
     {
         int p = pp * 2;
 
-        Mat out0 = top_blob_fp32.channel(omp_get_thread_num());
+        Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
         float32x4_t _bias1 = bias ? vld1q_f32((const float*)bias + (p+1) * 4) : vdupq_n_f32(0.f);
@@ -2789,7 +2789,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=remain_outch_start; p<outch; p++)
     {
-        Mat out0 = top_blob_fp32.channel(omp_get_thread_num());
+        Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
         out0.fill(_bias0);

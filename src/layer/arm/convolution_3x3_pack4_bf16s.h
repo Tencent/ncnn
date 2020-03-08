@@ -1897,7 +1897,7 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p=0; p<outch; p++)
     {
-        Mat out0 = top_blob_fp32.channel(omp_get_thread_num());
+        Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
         out0.fill(_bias0);
