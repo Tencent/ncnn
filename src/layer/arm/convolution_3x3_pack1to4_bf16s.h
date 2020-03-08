@@ -2087,10 +2087,11 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%0], #64 \n"// sum0
 
                         "shll   v0.4s, v0.4h, #16           \n"
-                        "shll   v1.4s, v1.4h, #16           \n"
 
 //                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%0] \n"// sum1
+
+                        "shll   v1.4s, v1.4h, #16           \n"
 
                         "fmla   v6.4s, %8.4s, v0.s[0]       \n"
                         "fmla   v7.4s, %8.4s, v0.s[2]       \n"
