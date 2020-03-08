@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "flatten.h"
+#include <string.h>
 
 namespace ncnn {
 
@@ -39,13 +40,10 @@ int Flatten::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = (float*)top_blob + size * q;
+        const unsigned char* ptr = bottom_blob.channel(q);
+        unsigned char* outptr = (unsigned char*)top_blob + size * elemsize * q;
 
-        for (int i=0; i<size; i++)
-        {
-            outptr[i] = ptr[i];
-        }
+        memcpy(outptr, ptr, size * elemsize);
     }
 
     return 0;
