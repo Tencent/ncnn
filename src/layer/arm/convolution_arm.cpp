@@ -14,12 +14,9 @@
 
 #include "convolution_arm.h"
 #include "benchmark.h"
+#include "cpu.h"
 
 #include "layer_type.h"
-
-#if _OPENMP
-#include <omp.h>
-#endif
 
 #if __ARM_NEON
 #include <arm_neon.h>
