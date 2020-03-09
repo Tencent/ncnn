@@ -513,6 +513,21 @@ int Net::load_model(const DataReader& dr)
             ret = -1;
             break;
         }
+    }
+
+    fuse_network();
+
+    for (size_t i=0; i<layers.size(); i++)
+    {
+        Layer* layer = layers[i];
+
+        //Here we found inconsistent content in the parameter file.
+        if (!layer)
+        {
+            fprintf(stderr, "load_model error at layer %d, parameter file has inconsistent content.\n", (int)i);
+            ret = -1;
+            break;
+        }
 
         int cret = layer->create_pipeline(opt);
         if (cret != 0)
@@ -531,8 +546,6 @@ int Net::load_model(const DataReader& dr)
         upload_model();
     }
 #endif // NCNN_VULKAN
-
-    fuse_network();
 
     return ret;
 }
@@ -700,9 +713,9 @@ int Net::fuse_network()
         Layer* layer = layers[i];
         if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise")
         {
-            if (layer->type == "Convolution" && (((Convolution*)layer)->use_int8_inference == false))
+            if (layer->type == "Convolution" && (((Convolution*)layer)->weight_data.elemsize != 1u))
                 continue;
-            if (layer->type == "ConvolutionDepthWise" && (((ConvolutionDepthWise*)layer)->use_int8_inference == false))
+            if (layer->type == "ConvolutionDepthWise" && (((ConvolutionDepthWise*)layer)->weight_data.elemsize != 1u))
                 continue;    
             net_quantized = true;
         }
@@ -717,9 +730,9 @@ int Net::fuse_network()
 
         if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise")
         {
-            if (layer->type == "Convolution" && (((Convolution*)layer)->use_int8_inference == false))
+            if (layer->type == "Convolution" && (((Convolution*)layer)->weight_data.elemsize != 1u))
                 continue;
-            if (layer->type == "ConvolutionDepthWise" && (((ConvolutionDepthWise*)layer)->use_int8_inference == false))
+            if (layer->type == "ConvolutionDepthWise" && (((ConvolutionDepthWise*)layer)->weight_data.elemsize != 1u))
                 continue;
 
             for (size_t n=0; n<blobs[layer->tops[0]].consumers.size(); n++)
@@ -729,9 +742,9 @@ int Net::fuse_network()
 
                 if (layer_next->type == "Convolution" || layer_next->type == "ConvolutionDepthWise")
                 {
-                    if (layer_next->type == "Convolution" && ((Convolution*)layer_next)->use_int8_inference == false)
+                    if (layer_next->type == "Convolution" && ((Convolution*)layer_next)->weight_data.elemsize != 1u)
                         continue;
-                    if (layer_next->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next)->use_int8_inference == false)
+                    if (layer_next->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next)->weight_data.elemsize != 1u)
                         continue;    
 
                     // fprintf(stderr, "%s, %s\n", layer->name.c_str(), layer_next->name.c_str());
@@ -763,12 +776,12 @@ int Net::fuse_network()
 
                     if (layer_next_2->type == "Convolution" || layer_next_2->type == "ConvolutionDepthWise")
                     {
-                        if (layer_next_2->type == "Convolution" && ((Convolution*)layer_next_2)->use_int8_inference == false)
+                        if (layer_next_2->type == "Convolution" && ((Convolution*)layer_next_2)->weight_data.elemsize != 1u)
                             continue;
-                        if (layer_next_2->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next_2)->use_int8_inference == false)
+                        if (layer_next_2->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next_2)->weight_data.elemsize != 1u)
                             continue;    
 
-                        fprintf(stderr, "%s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
+//                         fprintf(stderr, "%s, %s, %s\n", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
                         if (layer->type == "Convolution" && layer_next_2->type == "Convolution")
                         {
                             ((Convolution*)layer)->use_int8_requantize = true;

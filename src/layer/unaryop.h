@@ -28,7 +28,7 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-    enum {
+    enum OperationType {
         Operation_ABS   = 0,
         Operation_NEG   = 1,
         Operation_FLOOR = 2,

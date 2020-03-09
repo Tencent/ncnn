@@ -26,9 +26,9 @@ DEFINE_LAYER_CREATOR(Cast_arm)
 
 Cast_arm::Cast_arm()
 {
-#if __ARM_NEON && (__ARM_FP & 2)
-    support_packing = cpu_support_arm_vfpv4();
-#endif // __ARM_NEON && (__ARM_FP & 2)
+#if __ARM_NEON
+    support_packing = true;
+#endif // __ARM_NEON
 }
 
 int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -46,12 +46,19 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-#if __ARM_NEON && (__ARM_FP & 2)
-    if (opt.use_packing_layout)
-    {
-
+#if __ARM_NEON
     if (elempack % 4 == 0)
     {
+#if (__ARM_FP & 2)
+        if (!cpu_support_arm_vfpv4() && (type_from == 2 || type_to == 2))
+#else
+        if (type_from == 2 || type_to == 2)
+#endif // (__ARM_FP & 2)
+        {
+            // no fp16 conversion instruction, fallback
+            return Cast::forward(bottom_blob, top_blob, opt);
+        }
+
         size_t out_elemsize = elemsize;
         if (type_to == 1)
         {
@@ -67,6 +74,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         {
             // int8
             out_elemsize = elempack;
+        }
+        else if (type_to == 4)
+        {
+            // bfloat16
+            out_elemsize = 2 * elempack;
         }
 
         if (dims == 1)
@@ -86,6 +98,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         int size = w * h * elempack;
 
+#if (__ARM_FP & 2)
         if (type_from == 1 && type_to == 2)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -99,6 +112,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 #if __aarch64__
                 asm volatile(
                     "0:                             \n"
+                    "prfm   pldl1keep, [%1, #128]   \n"
                     "ld1    {v0.4s}, [%1], #16      \n"
                     "fcvtn  v1.4h, v0.4s            \n"
                     "subs   %w0, %w0, #1            \n"
@@ -146,6 +160,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 #if __aarch64__
                 asm volatile(
                     "0:                             \n"
+                    "prfm   pldl1keep, [%1, #64]    \n"
                     "ld1    {v0.4h}, [%1], #8       \n"
                     "fcvtl  v1.4s, v0.4h            \n"
                     "subs   %w0, %w0, #1            \n"
@@ -179,6 +194,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 #endif // __aarch64__
             }
         }
+#endif // (__ARM_FP & 2)
 
         if (type_from == 3 && type_to == 1)
         {
@@ -195,13 +211,107 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }
         }
 
+        if (type_from == 1 && type_to == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
+
+                int nn = size / 4;
+
+#if __aarch64__
+                asm volatile(
+                    "0:                             \n"
+                    "prfm   pldl1keep, [%1, #128]   \n"
+                    "ld1    {v0.4s}, [%1], #16      \n"
+                    "shrn   v1.4h, v0.4s, #16       \n"
+                    "subs   %w0, %w0, #1            \n"
+                    "st1    {v1.4h}, [%2], #8       \n"
+                    "bne    0b                      \n"
+                    : "=r"(nn),     // %0
+                      "=r"(ptr),    // %1
+                      "=r"(outptr)  // %2
+                    : "0"(nn),
+                      "1"(ptr),
+                      "2"(outptr)
+                    : "cc", "memory", "v0", "v1"
+                );
+#else
+                asm volatile(
+                    "0:                             \n"
+                    "pld        [%1, #128]          \n"
+                    "vld1.f32   {d0-d1}, [%1 :128]! \n"
+                    "vshrn.u32  d2, q0, #16         \n"
+                    "subs       %0, #1              \n"
+                    "vst1.u16   {d2}, [%2 :64]!     \n"
+                    "bne        0b                  \n"
+                    : "=r"(nn),     // %0
+                      "=r"(ptr),    // %1
+                      "=r"(outptr)  // %2
+                    : "0"(nn),
+                      "1"(ptr),
+                      "2"(outptr)
+                    : "cc", "memory", "q0", "q1"
+                );
+#endif // __aarch64__
+            }
+        }
+
+        if (type_from == 4 && type_to == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                float* outptr = top_blob.channel(q);
+
+                int nn = size / 4;
+
+#if __aarch64__
+                asm volatile(
+                    "0:                             \n"
+                    "prfm   pldl1keep, [%1, #64]    \n"
+                    "ld1    {v0.4h}, [%1], #8       \n"
+                    "shll   v1.4s, v0.4h, #16       \n"
+                    "subs   %w0, %w0, #1            \n"
+                    "st1    {v1.4s}, [%2], #16      \n"
+                    "bne    0b                      \n"
+                    : "=r"(nn),     // %0
+                      "=r"(ptr),    // %1
+                      "=r"(outptr)  // %2
+                    : "0"(nn),
+                      "1"(ptr),
+                      "2"(outptr)
+                    : "cc", "memory", "v0", "v1"
+                );
+#else
+                asm volatile(
+                    "0:                             \n"
+                    "pld        [%1, #64]           \n"
+                    "vld1.u16   {d0}, [%1 :64]!     \n"
+                    "vshll.u16  q1, d0, #16         \n"
+                    "subs       %0, #1              \n"
+                    "vst1.f32   {d2-d3}, [%2 :128]! \n"
+                    "bne        0b                  \n"
+                    : "=r"(nn),     // %0
+                      "=r"(ptr),    // %1
+                      "=r"(outptr)  // %2
+                    : "0"(nn),
+                      "1"(ptr),
+                      "2"(outptr)
+                    : "cc", "memory", "q0", "q1"
+                );
+#endif // __aarch64__
+            }
+        }
+
         // TODO more cast type
 
         return 0;
     }
-
-    } // opt.use_packing_layout
-#endif // __ARM_NEON && (__ARM_FP & 2)
+#endif // __ARM_NEON
 
     return Cast::forward(bottom_blob, top_blob, opt);
 }

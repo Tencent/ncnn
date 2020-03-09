@@ -30,6 +30,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
@@ -38,6 +39,8 @@ public:
 
     // packing
     Mat weight_data_pack4;
+
+    Mat weight_data_pack4_bf16;
 };
 
 } // namespace ncnn

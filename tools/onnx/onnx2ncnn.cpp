@@ -2592,24 +2592,45 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
-            fprintf(pp, " -23309=%zu", starts.size());
+            // filter out N-dim axis
+            if (!axes.empty())
+            {
+                for (int i=0; i<(int)axes.size(); i++)
+                {
+                    int axis = axes[i];
+                    if (axis == 0)
+                    {
+                        starts.erase(starts.begin() + i);
+                        ends.erase(ends.begin() + i);
+                        axes.erase(axes.begin() + i);
+                        break;
+                    }
+                }
+            }
+
+            fprintf(pp, " -23309=%d", (int)starts.size());
             for (int i=0; i<(int)starts.size(); i++)
             {
                 fprintf(pp, ",%d", starts[i]);
             }
-            fprintf(pp, " -23310=%zu", ends.size());
+            fprintf(pp, " -23310=%d", (int)ends.size());
             for (int i=0; i<(int)ends.size(); i++)
             {
                 fprintf(pp, ",%d", ends[i]);
             }
             if (!axes.empty())
             {
-                fprintf(pp, " -23311=%zu", axes.size());
+                fprintf(pp, " -23311=%d", (int)axes.size());
                 for (int i=0; i<(int)axes.size(); i++)
                 {
-                    if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
-                        fprintf(stderr, "Unsupported reduction axes !\n");
-                    fprintf(pp, ",%d", axes[i]);
+                    int axis = axes[i];
+                    if (axis == 0 || axis > 3 || axis < -3)
+                        fprintf(stderr, "Unsupported slice axes !\n");
+
+                    if (axis > 0)
+                        axis = axis - 1;// -1 for skip N-dim
+
+                    fprintf(pp, ",%d", axis);
                 }
             }
         }

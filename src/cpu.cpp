@@ -546,4 +546,13 @@ void set_omp_dynamic(int dynamic)
 #endif
 }
 
+int get_omp_thread_num()
+{
+#if _OPENMP
+    return omp_get_thread_num();
+#else
+    return 0;
+#endif
+}
+
 } // namespace ncnn

@@ -30,6 +30,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int create_pipeline_int8_arm(const Option& opt);
     int forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forwardDilation_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
@@ -51,8 +52,11 @@ public:
     Mat weight_data_pack1to4;
     Mat weight_data_pack4to1;
 
-    Mat weight_3x3_winograd64_data_pack4;
-    Mat weight_1x1_sgemm_data_pack4;
+    // bf16
+    Mat weight_data_pack4_bf16;
+    Mat weight_data_pack1to4_bf16;
+    Mat weight_data_pack4to1_bf16;
+    Mat weight_data_bf16;
 
     // int8
     bool use_winograd3x3_int8;

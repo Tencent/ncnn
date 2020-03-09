@@ -100,63 +100,8 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         return 0;
     }
 
-    Mat bottom_blob_bordered = bottom_blob;
-
-    float pad_value = 0.f;
-    if (pooling_type == PoolMethod_MAX)
-    {
-        pad_value = -FLT_MAX;
-    }
-    else if (pooling_type == PoolMethod_AVE)
-    {
-        pad_value = 0.f;
-    }
-
-    int wtailpad = 0;
-    int htailpad = 0;
-
-    if (pad_mode == 0) // full padding
-    {
-        int wtail = (w + pad_left + pad_right - kernel_w) % stride_w;
-        int htail = (h + pad_top + pad_bottom - kernel_h) % stride_h;
-
-        if (wtail != 0)
-            wtailpad = stride_w - wtail;
-        if (htail != 0)
-            htailpad = stride_h - htail;
-
-        Option opt_b = opt;
-        opt_b.blob_allocator = opt.workspace_allocator;
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt_b);
-    }
-    else if (pad_mode == 1) // valid padding
-    {
-        Option opt_b = opt;
-        opt_b.blob_allocator = opt.workspace_allocator;
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
-    }
-    else if (pad_mode == 2) // tensorflow padding=SAME or onnx padding=SAME_UPPER
-    {
-        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-        }
-    }
-    else if (pad_mode == 3) // onnx padding=SAME_LOWER
-    {
-        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-        }
-    }
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
     if (bottom_blob_bordered.empty())
         return -100;
 
@@ -224,6 +169,15 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     {
         if (avgpool_count_include_pad == 0)
         {
+            int wtailpad = 0;
+            int htailpad = 0;
+
+            if (pad_mode == 0) // full padding
+            {
+                wtailpad = bottom_blob_bordered.w - bottom_blob.w - pad_left - pad_right;
+                htailpad = bottom_blob_bordered.h - bottom_blob.h - pad_top - pad_bottom;
+            }
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<channels; q++)
             {
@@ -306,6 +260,70 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     }
 
     return 0;
+}
+
+void Pooling::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+
+    bottom_blob_bordered = bottom_blob;
+
+    float pad_value = 0.f;
+    if (pooling_type == PoolMethod_MAX)
+    {
+        pad_value = -FLT_MAX;
+    }
+    else if (pooling_type == PoolMethod_AVE)
+    {
+        pad_value = 0.f;
+    }
+
+    int wtailpad = 0;
+    int htailpad = 0;
+
+    if (pad_mode == 0) // full padding
+    {
+        int wtail = (w + pad_left + pad_right - kernel_w) % stride_w;
+        int htail = (h + pad_top + pad_bottom - kernel_h) % stride_h;
+
+        if (wtail != 0)
+            wtailpad = stride_w - wtail;
+        if (htail != 0)
+            htailpad = stride_h - htail;
+
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt_b);
+    }
+    else if (pad_mode == 1) // valid padding
+    {
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
+    }
+    else if (pad_mode == 2) // tensorflow padding=SAME or onnx padding=SAME_UPPER
+    {
+        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+        }
+    }
+    else if (pad_mode == 3) // onnx padding=SAME_LOWER
+    {
+        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+        }
+    }
 }
 
 } // namespace ncnn
