@@ -70,6 +70,9 @@ public:
     // accept input blob with packed storage
     bool support_packing;
 
+    // accept bf16
+    bool support_bf16_storage;
+
 public:
     // implement inference
     // return 0 if success

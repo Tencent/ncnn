@@ -89,6 +89,9 @@ public:
     bool use_packing_layout;
 
     bool use_shader_pack8;
+
+    // enable options for cpu inference
+    bool use_bf16_storage;
 };
 
 } // namespace ncnn

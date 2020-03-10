@@ -27,6 +27,8 @@ ReLU_arm::ReLU_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+    support_bf16_storage = true;
 }
 
 int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const

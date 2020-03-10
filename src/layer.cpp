@@ -38,6 +38,8 @@ Layer::Layer()
     support_vulkan = false;
     support_packing = false;
 
+    support_bf16_storage = false;
+
 #if NCNN_VULKAN
     vkdev = 0;
 #endif // NCNN_VULKAN

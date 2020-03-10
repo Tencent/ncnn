@@ -387,22 +387,22 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fmla   v16.4s, %14.4s, v12.4s      \n"
                     "fmla   v17.4s, %14.4s, v13.4s      \n"
 
-                    "add    %3, %3, #32                 \n"
+                    "add    %3, %3, #16                 \n"
 
                     "fmla   v18.4s, %20.4s, v26.4s      \n"
                     "fmla   v19.4s, %20.4s, v27.4s      \n"
 
-                    "add    %4, %4, #32                 \n"
+                    "add    %4, %4, #16                 \n"
 
                     "shrn   v16.4h, v16.4s, #16         \n"
                     "shrn   v17.4h, v17.4s, #16         \n"
 
-                    "add    %2, %2, #32                 \n"
+                    "add    %2, %2, #16                 \n"
 
                     "shrn   v18.4h, v18.4s, #16         \n"
                     "shrn   v19.4h, v19.4s, #16         \n"
 
-                    "add    %5, %5, #32                 \n"
+                    "add    %5, %5, #16                 \n"
 
                     "st1    {v16.4h, v17.4h}, [%0], #16 \n"
                     "st1    {v18.4h, v19.4h}, [%1], #16 \n"
@@ -884,17 +884,17 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fmla   v18.4s, %15.4s, v13.4s      \n"
                     "fmla   v19.4s, %15.4s, v14.4s      \n"
 
-                    "add    %1, %1, #32                 \n"
+                    "add    %1, %1, #16                 \n"
 
                     "fmla   v16.4s, %16.4s, v14.4s      \n"
                     "fmla   v17.4s, %16.4s, v15.4s      \n"
 
-                    "add    %2, %2, #32                 \n"
+                    "add    %2, %2, #16                 \n"
 
                     "fadd   v18.4s, v18.4s, v16.4s      \n"
                     "fadd   v19.4s, v19.4s, v17.4s      \n"
 
-                    "add    %3, %3, #32                 \n"
+                    "add    %3, %3, #16                 \n"
 
                     "shrn   v18.4h, v18.4s, #16         \n"
                     "shrn   v19.4h, v19.4s, #16         \n"
