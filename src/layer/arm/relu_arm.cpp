@@ -352,15 +352,201 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             {
                 unsigned short* ptr = bottom_top_blob.channel(q);
 
-                float32x4_t _zero = vdupq_n_f32(0.f);
-                for (int i=0; i<size; i++)
-                {
-                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                    _p = vmaxq_f32(_p, _zero);
-                    vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+#if __aarch64__
+                asm volatile(
+                    "eor    v16.16b, v16.16b, v16.16b \n"
 
-                    ptr += 4;
-                }
+                    "lsr    w4, %w2, #3             \n"// w4 = nn = size >> 3
+                    "cmp    w4, #0                  \n"
+                    "beq    1f                      \n"
+
+                    "0:                             \n"
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%0] \n"
+                    "shll   v0.4s, v4.4h, #16       \n"
+                    "shll2  v1.4s, v4.8h, #16       \n"
+                    "shll   v2.4s, v5.4h, #16       \n"
+                    "shll2  v3.4s, v5.8h, #16       \n"
+                    "shll   v4.4s, v6.4h, #16       \n"
+                    "shll2  v5.4s, v6.8h, #16       \n"
+                    "shll   v6.4s, v7.4h, #16       \n"
+                    "shll2  v7.4s, v7.8h, #16       \n"
+                    "fmax   v0.4s, v0.4s, v16.4s    \n"
+                    "fmax   v1.4s, v1.4s, v16.4s    \n"
+                    "fmax   v2.4s, v2.4s, v16.4s    \n"
+                    "fmax   v3.4s, v3.4s, v16.4s    \n"
+                    "fmax   v4.4s, v4.4s, v16.4s    \n"
+                    "fmax   v5.4s, v5.4s, v16.4s    \n"
+                    "fmax   v6.4s, v6.4s, v16.4s    \n"
+                    "fmax   v7.4s, v7.4s, v16.4s    \n"
+                    "shrn   v0.4h, v0.4s, #16       \n"
+                    "shrn2  v0.8h, v1.4s, #16       \n"
+                    "shrn   v1.4h, v2.4s, #16       \n"
+                    "shrn2  v1.8h, v3.4s, #16       \n"
+                    "shrn   v2.4h, v4.4s, #16       \n"
+                    "shrn2  v2.8h, v5.4s, #16       \n"
+                    "shrn   v3.4h, v6.4s, #16       \n"
+                    "shrn2  v3.8h, v7.4s, #16       \n"
+                    "subs   w4, w4, #1              \n"
+                    "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                    "bne    0b                      \n"
+
+                    "1:                             \n"
+
+                    "and    w4, %w2, #7             \n"// w4 = remain = size & 7
+
+                    "cmp    w4, #4                  \n"// w4 >= 4
+                    "blt    2f                      \n"
+                    "prfm   pldl1keep, [%0, #256]   \n"
+                    "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0] \n"
+                    "shll   v0.4s, v0.4h, #16       \n"
+                    "shll   v1.4s, v1.4h, #16       \n"
+                    "shll   v2.4s, v2.4h, #16       \n"
+                    "shll   v3.4s, v3.4h, #16       \n"
+                    "fmax   v0.4s, v0.4s, v16.4s    \n"
+                    "fmax   v1.4s, v1.4s, v16.4s    \n"
+                    "fmax   v2.4s, v2.4s, v16.4s    \n"
+                    "fmax   v3.4s, v3.4s, v16.4s    \n"
+                    "shrn   v0.4h, v0.4s, #16       \n"
+                    "shrn   v1.4h, v1.4s, #16       \n"
+                    "shrn   v2.4h, v2.4s, #16       \n"
+                    "shrn   v3.4h, v3.4s, #16       \n"
+                    "sub    w4, w4, #4              \n"
+                    "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0], #32 \n"
+                    "2:                             \n"
+
+                    "cmp    w4, #2                  \n"// w4 >= 2
+                    "blt    3f                      \n"
+                    "prfm   pldl1keep, [%0, #128]   \n"
+                    "ld1    {v0.4h, v1.4h}, [%0]    \n"
+                    "shll   v0.4s, v0.4h, #16       \n"
+                    "shll   v1.4s, v1.4h, #16       \n"
+                    "fmax   v0.4s, v0.4s, v16.4s    \n"
+                    "fmax   v1.4s, v1.4s, v16.4s    \n"
+                    "shrn   v0.4h, v0.4s, #16       \n"
+                    "shrn   v1.4h, v1.4s, #16       \n"
+                    "sub    w4, w4, #2              \n"
+                    "st1    {v0.4h, v1.4h}, [%0], #16 \n"
+                    "3:                             \n"
+
+                    "cmp    w4, #0                  \n"// w4 > 0
+                    "beq    4f                      \n"
+                    "prfm   pldl1keep, [%0, #64]    \n"
+                    "ld1    {v0.4h}, [%0]           \n"
+                    "shll   v0.4s, v0.4h, #16       \n"
+                    "fmax   v0.4s, v0.4s, v16.4s    \n"
+                    "shrn   v0.4h, v0.4s, #16       \n"
+                    "st1    {v0.4h}, [%0], #8       \n"
+                    "4:                             \n"
+
+                    : "=r"(ptr)     // %0
+                    : "0"(ptr),
+                      "r"(size)     // %2
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16"
+                );
+#else // __aarch64__
+                asm volatile(
+                    "veor       q12, q12            \n"
+
+                    "lsr        r4, %2, #3          \n"// r4 = nn = size >> 3
+                    "cmp        r4, #0              \n"
+                    "beq        1f                  \n"
+
+                    "0:                             \n"
+                    "pld        [%0, #512]          \n"
+                    "vldm       %0, {d16-d23}       \n"
+                    "vshll.u16  q0, d16, #16        \n"
+                    "vshll.u16  q1, d17, #16        \n"
+                    "vshll.u16  q2, d18, #16        \n"
+                    "vshll.u16  q3, d19, #16        \n"
+                    "vshll.u16  q8, d20, #16        \n"
+                    "vshll.u16  q9, d21, #16        \n"
+                    "vshll.u16  q10, d22, #16       \n"
+                    "vshll.u16  q11, d23, #16       \n"
+                    "vmax.f32   q0, q0, q12         \n"
+                    "vmax.f32   q1, q1, q12         \n"
+                    "vmax.f32   q2, q2, q12         \n"
+                    "vmax.f32   q3, q3, q12         \n"
+                    "vmax.f32   q8, q8, q12         \n"
+                    "vmax.f32   q9, q9, q12         \n"
+                    "vmax.f32   q10, q10, q12       \n"
+                    "vmax.f32   q11, q11, q12       \n"
+                    "vshrn.u32  d0, q0, #16         \n"
+                    "vshrn.u32  d1, q1, #16         \n"
+                    "vshrn.u32  d2, q2, #16         \n"
+                    "vshrn.u32  d3, q3, #16         \n"
+                    "vshrn.u32  d4, q8, #16         \n"
+                    "vshrn.u32  d5, q9, #16         \n"
+                    "vshrn.u32  d6, q10, #16        \n"
+                    "vshrn.u32  d7, q11, #16        \n"
+                    "subs       r4, r4, #1          \n"
+                    "vstm       %0!, {d0-d7}        \n"
+                    "bne        0b                  \n"
+
+                    "1:                             \n"
+
+                    "and        r4, %2, #7          \n"// r4 = remain = size & 7
+
+                    "cmp        r4, #4              \n"// r4 >= 4
+                    "blt        2f                  \n"
+                    "pld        [%0, #256]          \n"
+                    "vld1.u16   {d4-d7}, [%0 :64]   \n"
+                    "vshll.u16  q0, d4, #16         \n"
+                    "vshll.u16  q1, d5, #16         \n"
+                    "vshll.u16  q2, d6, #16         \n"
+                    "vshll.u16  q3, d7, #16         \n"
+                    "vmax.f32   q0, q0, q12         \n"
+                    "vmax.f32   q1, q1, q12         \n"
+                    "vmax.f32   q2, q2, q12         \n"
+                    "vmax.f32   q3, q3, q12         \n"
+                    "vshrn.u32  d0, q0, #16         \n"
+                    "vshrn.u32  d1, q1, #16         \n"
+                    "vshrn.u32  d2, q2, #16         \n"
+                    "vshrn.u32  d3, q3, #16         \n"
+                    "sub        r4, r4, #4          \n"
+                    "vst1.u16   {d0-d3}, [%0 :64]!  \n"
+                    "2:                             \n"
+
+                    "cmp        r4, #2              \n"// r4 >= 2
+                    "blt        3f                  \n"
+                    "pld        [%0, #128]          \n"
+                    "vld1.u16   {d2-d3}, [%0 :64]   \n"
+                    "vshll.u16  q0, d2, #16         \n"
+                    "vshll.u16  q1, d3, #16         \n"
+                    "vmax.f32   q0, q0, q12         \n"
+                    "vmax.f32   q1, q1, q12         \n"
+                    "vshrn.u32  d0, q0, #16         \n"
+                    "vshrn.u32  d1, q1, #16         \n"
+                    "sub        r4, r4, #2          \n"
+                    "vst1.u16   {d0-d1}, [%0 :64]!  \n"
+                    "3:                             \n"
+
+                    "cmp        r4, #0              \n"// r4 > 0
+                    "beq        4f                  \n"
+                    "pld        [%0, #64]           \n"
+                    "vld1.u16   {d0}, [%0 :64]      \n"
+                    "vshll.u16  q0, d0, #16         \n"
+                    "vmax.f32   q0, q0, q12         \n"
+                    "vshrn.u32  d0, q0, #16         \n"
+                    "vst1.u16   {d0}, [%0 :64]!     \n"
+                    "4:                             \n"
+
+                    : "=r"(ptr)     // %0
+                    : "0"(ptr),
+                      "r"(size)     // %2
+                    : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12"
+                );
+#endif // __aarch64__
+
+//                 float32x4_t _zero = vdupq_n_f32(0.f);
+//                 for (int i=0; i<size; i++)
+//                 {
+//                     float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+//                     _p = vmaxq_f32(_p, _zero);
+//                     vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+//
+//                     ptr += 4;
+//                 }
             }
         }
         else
