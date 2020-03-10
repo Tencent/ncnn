@@ -32,6 +32,8 @@ InnerProduct_arm::InnerProduct_arm()
     support_packing = true;
 #endif // __ARM_NEON
 
+    support_bf16_storage = true;
+
     flatten = 0;
 }
 

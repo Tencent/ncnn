@@ -40,6 +40,8 @@ public:
     // packing
     Mat weight_data_pack4;
 
+    // bf16
+    Mat weight_data_bf16;
     Mat weight_data_pack4_bf16;
 };
 
