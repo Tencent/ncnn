@@ -2102,7 +2102,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v12.4s, %17.4s, v1.s[0]     \n"
                         "fmla   v13.4s, %17.4s, v1.s[2]     \n"
 
-                        "ld1    {v4.h}[7], [%1]             \n"
+                        "ld1    {v4.h}[0], [%1]             \n"
 
                         "fmla   v6.4s, %9.4s, v0.s[1]       \n"
                         "fmla   v7.4s, %9.4s, v0.s[3]       \n"
@@ -2142,7 +2142,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v12.4s, %20.4s, v3.s[0]     \n"
                         "fmla   v13.4s, %20.4s, v3.s[2]     \n"
 
-                        "ld1    {v5.h}[7], [%2]             \n"
+                        "ld1    {v5.h}[0], [%2]             \n"
 
                         "fmla   v6.4s, %12.4s, v2.s[1]      \n"
                         "fmla   v7.4s, %12.4s, v2.s[3]      \n"
@@ -2183,7 +2183,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v12.4s, %23.4s, v1.s[0]     \n"
                         "fmla   v13.4s, %23.4s, v1.s[2]     \n"
 
-                        "ld1    {v4.h}[7], [%3]             \n"
+                        "ld1    {v4.h}[0], [%3]             \n"
 
                         "fmla   v6.4s, %15.4s, v0.s[1]      \n"
                         "fmla   v7.4s, %15.4s, v0.s[3]      \n"
@@ -2462,7 +2462,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v12.4s, %21.4s, v1.s[0]     \n"
                         "fmla   v13.4s, %21.4s, v1.s[2]     \n"
 
-                        "ld1    {v4.h}[7], [%3]             \n"
+                        "ld1    {v4.h}[0], [%3]             \n"
 
                         "fmla   v6.4s, %13.4s, v0.s[1]      \n"
                         "fmla   v7.4s, %13.4s, v0.s[3]      \n"
@@ -2503,7 +2503,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v12.4s, %24.4s, v3.s[0]     \n"
                         "fmla   v13.4s, %24.4s, v3.s[2]     \n"
 
-                        "ld1    {v5.h}[7], [%4]             \n"
+                        "ld1    {v5.h}[0], [%4]             \n"
 
                         "fmla   v6.4s, %16.4s, v2.s[1]      \n"
                         "fmla   v7.4s, %16.4s, v2.s[3]      \n"
@@ -2544,7 +2544,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v12.4s, %27.4s, v1.s[0]     \n"
                         "fmla   v13.4s, %27.4s, v1.s[2]     \n"
 
-                        "ld1    {v4.h}[7], [%5]             \n"
+                        "ld1    {v4.h}[0], [%5]             \n"
 
                         "fmla   v6.4s, %19.4s, v0.s[1]      \n"
                         "fmla   v7.4s, %19.4s, v0.s[3]      \n"

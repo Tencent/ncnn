@@ -46,8 +46,8 @@ namespace ncnn {
 #include "convolution_5x5_pack4.h"
 #include "convolution_7x7_pack1to4.h"
 
-
 #include "convolution_1x1_pack4_bf16s.h"
+#include "convolution_1x1_pack4to1_bf16s.h"
 #include "convolution_3x3_pack4_bf16s.h"
 #include "convolution_3x3_pack1to4_bf16s.h"
 #endif // __ARM_NEON
@@ -1233,6 +1233,39 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
     if (elempack == 4 && out_elempack == 1)
     {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_pack4to1_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1_bf16, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s2_pack4to1_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1_bf16, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            fprintf(stderr, "implement me!\n");
+
+//             // TODO more proper condition
+//             conv3x3s1_winograd64_pack4to1_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1, bias_data, opt);
+//
+// //             conv3x3s1_pack4to1_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
