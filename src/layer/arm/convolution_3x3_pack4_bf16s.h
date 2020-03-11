@@ -155,15 +155,6 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         r0 += w * 4;
                     }
 
-//                     unsigned short* r0_tm_0 = (unsigned short*)img0_tm + (i * w_tm/8 + j) * 4;
-//                     unsigned short* r0_tm_1 = r0_tm_0 + tiles * 4;
-//                     unsigned short* r0_tm_2 = r0_tm_0 + tiles * 8;
-//                     unsigned short* r0_tm_3 = r0_tm_0 + tiles * 12;
-//                     unsigned short* r0_tm_4 = r0_tm_0 + tiles * 16;
-//                     unsigned short* r0_tm_5 = r0_tm_0 + tiles * 20;
-//                     unsigned short* r0_tm_6 = r0_tm_0 + tiles * 24;
-//                     unsigned short* r0_tm_7 = r0_tm_0 + tiles * 28;
-
                     float* r0_tm_0 = (float*)img0_tm + (i * w_tm/8 + j) * 4;
                     float* r0_tm_1 = r0_tm_0 + tiles * 4;
                     float* r0_tm_2 = r0_tm_0 + tiles * 8;
@@ -225,15 +216,6 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 
 //                         r0_tm[5] = tmp56a + tmp56b;
 //                         r0_tm[6] = tmp56a - tmp56b;
-
-//                         vst1_u16(r0_tm_0, vshrn_n_u32(vreinterpretq_u32_f32(_r0tm0), 16));
-//                         vst1_u16(r0_tm_1, vshrn_n_u32(vreinterpretq_u32_f32(_r0tm1), 16));
-//                         vst1_u16(r0_tm_2, vshrn_n_u32(vreinterpretq_u32_f32(_r0tm2), 16));
-//                         vst1_u16(r0_tm_3, vshrn_n_u32(vreinterpretq_u32_f32(_r0tm3), 16));
-//                         vst1_u16(r0_tm_4, vshrn_n_u32(vreinterpretq_u32_f32(_r0tm4), 16));
-//                         vst1_u16(r0_tm_5, vshrn_n_u32(vreinterpretq_u32_f32(_r0tm5), 16));
-//                         vst1_u16(r0_tm_6, vshrn_n_u32(vreinterpretq_u32_f32(_r0tm6), 16));
-//                         vst1_u16(r0_tm_7, vshrn_n_u32(vreinterpretq_u32_f32(_r0tm7), 16));
 
                         vst1q_f32(r0_tm_0, _r0tm0);
                         vst1q_f32(r0_tm_1, _r0tm1);
@@ -1726,15 +1708,6 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                 {
 //                     top_blob_tm.create(tiles, 64, outch, elemsize, elempack);
 
-//                     const unsigned short* output0_tm_0 = (const unsigned short*)out0_tm + (i * w_tm/8 + j) * 4;
-//                     const unsigned short* output0_tm_1 = output0_tm_0 + tiles * 4;
-//                     const unsigned short* output0_tm_2 = output0_tm_0 + tiles * 8;
-//                     const unsigned short* output0_tm_3 = output0_tm_0 + tiles * 12;
-//                     const unsigned short* output0_tm_4 = output0_tm_0 + tiles * 16;
-//                     const unsigned short* output0_tm_5 = output0_tm_0 + tiles * 20;
-//                     const unsigned short* output0_tm_6 = output0_tm_0 + tiles * 24;
-//                     const unsigned short* output0_tm_7 = output0_tm_0 + tiles * 28;
-
                     const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm/8 + j) * 4;
                     const float* output0_tm_1 = output0_tm_0 + tiles * 4;
                     const float* output0_tm_2 = output0_tm_0 + tiles * 8;
@@ -1749,15 +1722,6 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                     // TODO neon optimize
                     for (int m=0; m<8; m++)
                     {
-//                         float32x4_t _out0tm0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(output0_tm_0), 16));
-//                         float32x4_t _out0tm1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(output0_tm_1), 16));
-//                         float32x4_t _out0tm2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(output0_tm_2), 16));
-//                         float32x4_t _out0tm3 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(output0_tm_3), 16));
-//                         float32x4_t _out0tm4 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(output0_tm_4), 16));
-//                         float32x4_t _out0tm5 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(output0_tm_5), 16));
-//                         float32x4_t _out0tm6 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(output0_tm_6), 16));
-//                         float32x4_t _out0tm7 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(output0_tm_7), 16));
-
                         float32x4_t _out0tm0 = vld1q_f32(output0_tm_0);
                         float32x4_t _out0tm1 = vld1q_f32(output0_tm_1);
                         float32x4_t _out0tm2 = vld1q_f32(output0_tm_2);
