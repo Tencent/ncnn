@@ -1132,6 +1132,22 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
             }
         }
 
+        if (opt.use_bf16_storage)
+        {
+            if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_bf16_storage)
+            {
+                Mat bottom_blob_bf16;
+                cast_float32_to_bfloat16(bottom_blob, bottom_blob_bf16, opt);
+                bottom_blob = bottom_blob_bf16;
+            }
+            if (bottom_blob.elemsize / bottom_blob.elempack == 2u && !layer->support_bf16_storage)
+            {
+                Mat bottom_blob_fp32;
+                cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+                bottom_blob = bottom_blob_fp32;
+            }
+        }
+
         if (opt.use_packing_layout)
         {
             int elempack = layer->support_packing ? 4 : 1;
@@ -1203,6 +1219,22 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt
                 if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
                 {
                     bottom_blobs[i] = bottom_blobs[i].clone();
+                }
+            }
+
+            if (opt.use_bf16_storage)
+            {
+                if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_bf16_storage)
+                {
+                    Mat bottom_blob_bf16;
+                    cast_float32_to_bfloat16(bottom_blobs[i], bottom_blob_bf16, opt);
+                    bottom_blobs[i] = bottom_blob_bf16;
+                }
+                if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 2u && !layer->support_bf16_storage)
+                {
+                    Mat bottom_blob_fp32;
+                    cast_bfloat16_to_float32(bottom_blobs[i], bottom_blob_fp32, opt);
+                    bottom_blobs[i] = bottom_blob_fp32;
                 }
             }
 

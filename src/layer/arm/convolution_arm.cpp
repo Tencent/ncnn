@@ -61,6 +61,8 @@ Convolution_arm::Convolution_arm()
     support_packing = true;
 #endif // __ARM_NEON
 
+    support_bf16_storage = true;
+
     activation = 0;
     convolution_dilation1 = 0;
 }
@@ -1117,7 +1119,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                             _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                         }
 
-                        const unsigned short* kptr = (const unsigned short*)weight_data_pack4_bf16 + maxk * channels * p * 16;
+                        const unsigned short* kptr = weight_data_pack4_bf16.channel(p);
 
                         // channels
                         for (int q=0; q<channels; q++)
@@ -1125,7 +1127,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                             const Mat m = bottom_blob_bordered.channel(q);
                             const unsigned short* sptr = m.row<const unsigned short>(i*stride_h) + j*stride_w * 4;
 
-                            for (int k = 0; k < maxk; k++) // 29.23
+                            for (int k = 0; k < maxk; k++)
                             {
                                 float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16( sptr + space_ofs[k] * 4 ), 16));
 
@@ -1200,15 +1202,15 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                             _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                         }
 
-                        const unsigned short* kptr = (const unsigned short*)weight_data_pack1to4_bf16 + maxk * channels * p * 4;
+                        const unsigned short* kptr = weight_data_pack1to4_bf16.channel(p);
 
                         // channels
                         for (int q=0; q<channels; q++)
                         {
                             const Mat m = bottom_blob_bordered.channel(q);
-                            const unsigned short* sptr = m.row<unsigned short>(i*stride_h) + j*stride_w;
+                            const unsigned short* sptr = m.row<const unsigned short>(i*stride_h) + j*stride_w;
 
-                            for (int k = 0; k < maxk; k++) // 29.23
+                            for (int k = 0; k < maxk; k++)
                             {
                                 float32x4_t _val = vdupq_n_f32(bfloat16_to_float32( sptr[ space_ofs[k] ] ));
                                 float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16( kptr ), 16));
@@ -1249,7 +1251,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                             sum = bias_data[p];
                         }
 
-                        const unsigned short* kptr = (const unsigned short*)weight_data_pack4to1_bf16 + maxk * channels * p * 4;
+                        const unsigned short* kptr = weight_data_pack4to1_bf16.channel(p);
 
                         // channels
                         for (int q=0; q<channels; q++)
@@ -1257,7 +1259,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                             const Mat m = bottom_blob_bordered.channel(q);
                             const unsigned short* sptr = m.row<const unsigned short>(i*stride_h) + j*stride_w * 4;
 
-                            for (int k = 0; k < maxk; k++) // 29.23
+                            for (int k = 0; k < maxk; k++)
                             {
                                 float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16( sptr + space_ofs[k] * 4 ), 16));
                                 float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16( kptr ), 16));

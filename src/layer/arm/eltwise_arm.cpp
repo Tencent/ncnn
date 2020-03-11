@@ -27,10 +27,15 @@ Eltwise_arm::Eltwise_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+    support_bf16_storage = true;
 }
 
 int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    if (bottom_blobs[0].elemsize / bottom_blobs[0].elempack == 2u)
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
+
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -45,9 +50,6 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         return -100;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
-
     if (elempack == 4)
     {
         if (op_type == Operation_PROD)
@@ -96,7 +98,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 }
             }
         }
-        else if (op_type == Operation_SUM)
+        if (op_type == Operation_SUM)
         {
             if (coeffs.w == 0)
             {
@@ -195,7 +197,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 }
             }
         }
-        else if (op_type == Operation_MAX)
+        if (op_type == Operation_MAX)
         {
             // first blob
             const Mat& bottom_blob1 = bottom_blobs[1];
@@ -244,8 +246,6 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
         return 0;
     }
-
-    } // opt.use_packing_layout
 #endif // __ARM_NEON
 
     if (op_type == Operation_PROD)
@@ -400,7 +400,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             }
         }
     }
-    else if (op_type == Operation_SUM)
+    if (op_type == Operation_SUM)
     {
         if (coeffs.w == 0)
         {
@@ -721,7 +721,7 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             }
         }
     }
-    else if (op_type == Operation_MAX)
+    if (op_type == Operation_MAX)
     {
         // first blob
         const Mat& bottom_blob1 = bottom_blobs[1];
@@ -868,6 +868,775 @@ int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                     *outptr = std::max(*ptr, *outptr);
 
                     ptr++;
+                    outptr++;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+    int size = w * h;
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (bottom_blobs.size() == 2)
+    {
+        // fast path without fp32 accumulator
+#if __ARM_NEON
+        if (elempack == 4)
+        {
+            if (op_type == Operation_PROD)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[1];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob.channel(q);
+                    const unsigned short* ptr1 = bottom_blob1.channel(q);
+                    unsigned short* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        _p = vmulq_f32(_p, _p1);
+                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+
+                        ptr += 4;
+                        ptr1 += 4;
+                        outptr += 4;
+                    }
+                }
+            }
+            if (op_type == Operation_SUM)
+            {
+                if (coeffs.w == 0)
+                {
+                    const Mat& bottom_blob1 = bottom_blobs[1];
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q=0; q<channels; q++)
+                    {
+                        const unsigned short* ptr = bottom_blob.channel(q);
+                        const unsigned short* ptr1 = bottom_blob1.channel(q);
+                        unsigned short* outptr = top_blob.channel(q);
+
+                        for (int i=0; i<size; i++)
+                        {
+                            float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                            _p = vaddq_f32(_p, _p1);
+                            vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+
+                            ptr += 4;
+                            ptr1 += 4;
+                            outptr += 4;
+                        }
+                    }
+                }
+                else
+                {
+                    const Mat& bottom_blob1 = bottom_blobs[1];
+                    float32x4_t _coeff0 = vdupq_n_f32(coeffs[0]);
+                    float32x4_t _coeff1 = vdupq_n_f32(coeffs[1]);
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q=0; q<channels; q++)
+                    {
+                        const unsigned short* ptr = bottom_blob.channel(q);
+                        const unsigned short* ptr1 = bottom_blob1.channel(q);
+                        unsigned short* outptr = top_blob.channel(q);
+
+                        for (int i=0; i<size; i++)
+                        {
+                            float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                            _p = vmulq_f32(_p, _coeff0);
+                            _p = vmlaq_f32(_p, _p1, _coeff1);
+                            vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+
+                            ptr += 4;
+                            ptr1 += 4;
+                            outptr += 4;
+                        }
+                    }
+                }
+            }
+            if (op_type == Operation_MAX)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[1];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob.channel(q);
+                    const unsigned short* ptr1 = bottom_blob1.channel(q);
+                    unsigned short* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        _p = vmaxq_f32(_p, _p1);
+                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+
+                        ptr += 4;
+                        ptr1 += 4;
+                        outptr += 4;
+                    }
+                }
+            }
+
+            return 0;
+        }
+#endif // __ARM_NEON
+
+        if (op_type == Operation_PROD)
+        {
+            const Mat& bottom_blob1 = bottom_blobs[1];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob1.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    *outptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) * bfloat16_to_float32(*ptr1));
+
+                    ptr++;
+                    ptr1++;
+                    outptr++;
+                }
+            }
+        }
+        if (op_type == Operation_SUM)
+        {
+            if (coeffs.w == 0)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[1];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob.channel(q);
+                    const unsigned short* ptr1 = bottom_blob1.channel(q);
+                    unsigned short* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        *outptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) + bfloat16_to_float32(*ptr1));
+
+                        ptr++;
+                        ptr1++;
+                        outptr++;
+                    }
+                }
+            }
+            else
+            {
+                const Mat& bottom_blob1 = bottom_blobs[1];
+                float coeff0 = coeffs[0];
+                float coeff1 = coeffs[1];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob.channel(q);
+                    const unsigned short* ptr1 = bottom_blob1.channel(q);
+                    unsigned short* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        *outptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) * coeff0 + bfloat16_to_float32(*ptr1) * coeff1);
+
+                        ptr++;
+                        ptr1++;
+                        outptr++;
+                    }
+                }
+            }
+        }
+        if (op_type == Operation_MAX)
+        {
+            // first blob
+            const Mat& bottom_blob1 = bottom_blobs[1];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob1.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    *outptr = float32_to_bfloat16(std::max(bfloat16_to_float32(*ptr), bfloat16_to_float32(*ptr1)));
+
+                    ptr++;
+                    ptr1++;
+                    outptr++;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    Mat top_blob_fp32(w, h, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
+    if (top_blob_fp32.empty())
+        return -100;
+
+#if __ARM_NEON
+    if (elempack == 4)
+    {
+        if (op_type == Operation_PROD)
+        {
+            // first blob
+            const Mat& bottom_blob1 = bottom_blobs[1];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob1.channel(q);
+                float* outptr = top_blob_fp32.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                    float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                    _p = vmulq_f32(_p, _p1);
+                    vst1q_f32(outptr, _p);
+
+                    ptr += 4;
+                    ptr1 += 4;
+                    outptr += 4;
+                }
+            }
+
+            size_t b=2;
+            for (; b<bottom_blobs.size()-1; b++)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob1.channel(q);
+                    float* outptr = top_blob_fp32.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(outptr);
+                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        _p = vmulq_f32(_p, _p1);
+                        vst1q_f32(outptr, _p);
+
+                        ptr += 4;
+                        outptr += 4;
+                    }
+                }
+            }
+            for (; b<bottom_blobs.size(); b++)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob1.channel(q);
+                    const float* ptr0 = top_blob_fp32.channel(q);
+                    unsigned short* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(ptr0);
+                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        _p = vmulq_f32(_p, _p1);
+                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+
+                        ptr += 4;
+                        ptr0 += 4;
+                        outptr += 4;
+                    }
+                }
+            }
+        }
+        if (op_type == Operation_SUM)
+        {
+            if (coeffs.w == 0)
+            {
+                // first blob
+                const Mat& bottom_blob1 = bottom_blobs[1];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob.channel(q);
+                    const unsigned short* ptr1 = bottom_blob1.channel(q);
+                    float* outptr = top_blob_fp32.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        _p = vaddq_f32(_p, _p1);
+                        vst1q_f32(outptr, _p);
+
+                        ptr += 4;
+                        ptr1 += 4;
+                        outptr += 4;
+                    }
+                }
+
+                size_t b=2;
+                for (; b<bottom_blobs.size()-1; b++)
+                {
+                    const Mat& bottom_blob1 = bottom_blobs[b];
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q=0; q<channels; q++)
+                    {
+                        const unsigned short* ptr = bottom_blob1.channel(q);
+                        float* outptr = top_blob_fp32.channel(q);
+
+                        for (int i=0; i<size; i++)
+                        {
+                            float32x4_t _p = vld1q_f32(outptr);
+                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                            _p = vaddq_f32(_p, _p1);
+                            vst1q_f32(outptr, _p);
+
+                            ptr += 4;
+                            outptr += 4;
+                        }
+                    }
+                }
+                for (; b<bottom_blobs.size(); b++)
+                {
+                    const Mat& bottom_blob1 = bottom_blobs[b];
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q=0; q<channels; q++)
+                    {
+                        const unsigned short* ptr = bottom_blob1.channel(q);
+                        const float* ptr0 = top_blob_fp32.channel(q);
+                        unsigned short* outptr = top_blob.channel(q);
+
+                        for (int i=0; i<size; i++)
+                        {
+                            float32x4_t _p = vld1q_f32(ptr0);
+                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                            _p = vaddq_f32(_p, _p1);
+                            vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+
+                            ptr += 4;
+                            ptr0 += 4;
+                            outptr += 4;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // first blob
+                const Mat& bottom_blob1 = bottom_blobs[1];
+                float32x4_t _coeff0 = vdupq_n_f32(coeffs[0]);
+                float32x4_t _coeff1 = vdupq_n_f32(coeffs[1]);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob.channel(q);
+                    const unsigned short* ptr1 = bottom_blob1.channel(q);
+                    float* outptr = top_blob_fp32.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        _p = vmulq_f32(_p, _coeff0);
+                        _p = vmlaq_f32(_p, _p1, _coeff1);
+                        vst1q_f32(outptr, _p);
+
+                        ptr += 4;
+                        ptr1 += 4;
+                        outptr += 4;
+                    }
+                }
+
+                size_t b=2;
+                for (; b<bottom_blobs.size()-1; b++)
+                {
+                    const Mat& bottom_blob1 = bottom_blobs[b];
+                    float32x4_t _coeff = vdupq_n_f32(coeffs[b]);
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q=0; q<channels; q++)
+                    {
+                        const unsigned short* ptr = bottom_blob1.channel(q);
+                        float* outptr = top_blob_fp32.channel(q);
+
+                        for (int i=0; i<size; i++)
+                        {
+                            float32x4_t _p = vld1q_f32(outptr);
+                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                            _p = vmlaq_f32(_p, _p1, _coeff);
+                            vst1q_f32(outptr, _p);
+
+                            ptr += 4;
+                            outptr += 4;
+                        }
+                    }
+                }
+                for (; b<bottom_blobs.size(); b++)
+                {
+                    const Mat& bottom_blob1 = bottom_blobs[b];
+                    float32x4_t _coeff = vdupq_n_f32(coeffs[b]);
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q=0; q<channels; q++)
+                    {
+                        const unsigned short* ptr = bottom_blob1.channel(q);
+                        const float* ptr0 = top_blob_fp32.channel(q);
+                        unsigned short* outptr = top_blob.channel(q);
+
+                        for (int i=0; i<size; i++)
+                        {
+                            float32x4_t _p = vld1q_f32(ptr0);
+                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                            _p = vmlaq_f32(_p, _p1, _coeff);
+                            vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+
+                            ptr += 4;
+                            ptr0 += 4;
+                            outptr += 4;
+                        }
+                    }
+                }
+            }
+        }
+        if (op_type == Operation_MAX)
+        {
+            // first blob
+            const Mat& bottom_blob1 = bottom_blobs[1];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob1.channel(q);
+                float* outptr = top_blob_fp32.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                    float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                    _p = vmaxq_f32(_p, _p1);
+                    vst1q_f32(outptr, _p);
+
+                    ptr += 4;
+                    ptr1 += 4;
+                    outptr += 4;
+                }
+            }
+
+            size_t b=2;
+            for (; b<bottom_blobs.size()-1; b++)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob1.channel(q);
+                    float* outptr = top_blob_fp32.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(outptr);
+                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        _p = vmaxq_f32(_p, _p1);
+                        vst1q_f32(outptr, _p);
+
+                        ptr += 4;
+                        outptr += 4;
+                    }
+                }
+            }
+            for (; b<bottom_blobs.size(); b++)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob1.channel(q);
+                    const float* ptr0 = top_blob_fp32.channel(q);
+                    unsigned short* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(ptr0);
+                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        _p = vmaxq_f32(_p, _p1);
+                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+
+                        ptr += 4;
+                        ptr0 += 4;
+                        outptr += 4;
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+#endif // __ARM_NEON
+
+    if (op_type == Operation_PROD)
+    {
+        // first blob
+        const Mat& bottom_blob1 = bottom_blobs[1];
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const unsigned short* ptr = bottom_blob.channel(q);
+            const unsigned short* ptr1 = bottom_blob1.channel(q);
+            float* outptr = top_blob_fp32.channel(q);
+
+            for (int i=0; i<size; i++)
+            {
+                *outptr = bfloat16_to_float32(*ptr) * bfloat16_to_float32(*ptr1);
+
+                ptr++;
+                ptr1++;
+                outptr++;
+            }
+        }
+
+        size_t b=2;
+        for (; b<bottom_blobs.size()-1; b++)
+        {
+            const Mat& bottom_blob1 = bottom_blobs[b];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob1.channel(q);
+                float* outptr = top_blob_fp32.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    *outptr *= bfloat16_to_float32(*ptr);
+
+                    ptr++;
+                    outptr++;
+                }
+            }
+        }
+        for (; b<bottom_blobs.size(); b++)
+        {
+            const Mat& bottom_blob1 = bottom_blobs[b];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob1.channel(q);
+                const float* ptr0 = top_blob_fp32.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    *outptr = float32_to_bfloat16(*ptr0 * bfloat16_to_float32(*ptr));
+
+                    ptr++;
+                    ptr0++;
+                    outptr++;
+                }
+            }
+        }
+    }
+    if (op_type == Operation_SUM)
+    {
+        if (coeffs.w == 0)
+        {
+            // first blob
+            const Mat& bottom_blob1 = bottom_blobs[1];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob1.channel(q);
+                float* outptr = top_blob_fp32.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    *outptr = bfloat16_to_float32(*ptr) + bfloat16_to_float32(*ptr1);
+
+                    ptr++;
+                    ptr1++;
+                    outptr++;
+                }
+            }
+
+            size_t b=2;
+            for (; b<bottom_blobs.size()-1; b++)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob1.channel(q);
+                    float* outptr = top_blob_fp32.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        *outptr += bfloat16_to_float32(*ptr);
+
+                        ptr++;
+                        outptr++;
+                    }
+                }
+            }
+            for (; b<bottom_blobs.size(); b++)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob1.channel(q);
+                    const float* ptr0 = top_blob_fp32.channel(q);
+                    unsigned short* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        *outptr = float32_to_bfloat16(*ptr0 + bfloat16_to_float32(*ptr));
+
+                        ptr++;
+                        ptr0++;
+                        outptr++;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // first blob
+            const Mat& bottom_blob1 = bottom_blobs[1];
+            float coeff0 = coeffs[0];
+            float coeff1 = coeffs[1];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob1.channel(q);
+                float* outptr = top_blob_fp32.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    *outptr = bfloat16_to_float32(*ptr) * coeff0 + bfloat16_to_float32(*ptr1) * coeff1;
+
+                    ptr++;
+                    ptr1++;
+                    outptr++;
+                }
+            }
+
+            size_t b=2;
+            for (; b<bottom_blobs.size()-1; b++)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[b];
+                float coeff = coeffs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob1.channel(q);
+                    float* outptr = top_blob_fp32.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        *outptr += bfloat16_to_float32(*ptr) * coeff;
+
+                        ptr++;
+                        outptr++;
+                    }
+                }
+            }
+            for (; b<bottom_blobs.size(); b++)
+            {
+                const Mat& bottom_blob1 = bottom_blobs[b];
+                float coeff = coeffs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q=0; q<channels; q++)
+                {
+                    const unsigned short* ptr = bottom_blob1.channel(q);
+                    const float* ptr0 = top_blob_fp32.channel(q);
+                    unsigned short* outptr = top_blob.channel(q);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        *outptr = float32_to_bfloat16(*ptr0 + bfloat16_to_float32(*ptr) * coeff);
+
+                        ptr++;
+                        ptr0++;
+                        outptr++;
+                    }
+                }
+            }
+        }
+    }
+    if (op_type == Operation_MAX)
+    {
+        // first blob
+        const Mat& bottom_blob1 = bottom_blobs[1];
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const unsigned short* ptr = bottom_blob.channel(q);
+            const unsigned short* ptr1 = bottom_blob1.channel(q);
+            float* outptr = top_blob_fp32.channel(q);
+
+            for (int i=0; i<size; i++)
+            {
+                *outptr = std::max(bfloat16_to_float32(*ptr), bfloat16_to_float32(*ptr1));
+
+                ptr++;
+                ptr1++;
+                outptr++;
+            }
+        }
+
+        size_t b=2;
+        for (; b<bottom_blobs.size()-1; b++)
+        {
+            const Mat& bottom_blob1 = bottom_blobs[b];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob1.channel(q);
+                float* outptr = top_blob_fp32.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    *outptr = std::max(bfloat16_to_float32(*ptr), *outptr);
+
+                    ptr++;
+                    outptr++;
+                }
+            }
+        }
+        for (; b<bottom_blobs.size(); b++)
+        {
+            const Mat& bottom_blob1 = bottom_blobs[b];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob1.channel(q);
+                const float* ptr0 = top_blob_fp32.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
+
+                for (int i=0; i<size; i++)
+                {
+                    *outptr = float32_to_bfloat16(std::max(bfloat16_to_float32(*ptr), *ptr0));
+
+                    ptr++;
+                    ptr0++;
                     outptr++;
                 }
             }

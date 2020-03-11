@@ -27,6 +27,8 @@ Flatten_arm::Flatten_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+    support_bf16_storage = true;
 }
 
 int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const

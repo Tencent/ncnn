@@ -32,6 +32,8 @@ Padding_arm::Padding_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+    support_bf16_storage = true;
 }
 
 int Padding_arm::create_pipeline(const Option& opt)
