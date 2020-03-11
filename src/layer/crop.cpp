@@ -104,7 +104,9 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
         if (elemsize == 1)
             copy_cut_border_image<signed char>(bottom_blob, top_blob, 0, _woffset);
-        else if (elemsize == 4)
+        if (elemsize == 2)
+            copy_cut_border_image<unsigned short>(bottom_blob, top_blob, 0, _woffset);
+        if (elemsize == 4)
             copy_cut_border_image<float>(bottom_blob, top_blob, 0, _woffset);
 
         return 0;
@@ -124,7 +126,9 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
         if (elemsize == 1)
             copy_cut_border_image<signed char>(bottom_blob, top_blob, _hoffset, _woffset);
-        else if (elemsize == 4)
+        if (elemsize == 2)
+            copy_cut_border_image<unsigned short>(bottom_blob, top_blob, _hoffset, _woffset);
+        if (elemsize == 4)
             copy_cut_border_image<float>(bottom_blob, top_blob, _hoffset, _woffset);
 
         return 0;
@@ -161,7 +165,9 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
             if (elemsize == 1)
                 copy_cut_border_image<signed char>(m, borderm, _hoffset, _woffset);
-            else if (elemsize == 4)
+            if (elemsize == 2)
+                copy_cut_border_image<unsigned short>(m, borderm, _hoffset, _woffset);
+            if (elemsize == 4)
                 copy_cut_border_image<float>(m, borderm, _hoffset, _woffset);
         }
 
@@ -209,7 +215,9 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
         if (elemsize == 1)
             copy_cut_border_image<signed char>(bottom_blob, top_blob, 0, _woffset);
-        else if (elemsize == 4)
+        if (elemsize == 2)
+            copy_cut_border_image<unsigned short>(bottom_blob, top_blob, 0, _woffset);
+        if (elemsize == 4)
             copy_cut_border_image<float>(bottom_blob, top_blob, 0, _woffset);
 
         return 0;
@@ -229,7 +237,9 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
         if (elemsize == 1)
             copy_cut_border_image<signed char>(bottom_blob, top_blob, _hoffset, _woffset);
-        else if (elemsize == 4)
+        if (elemsize == 2)
+            copy_cut_border_image<unsigned short>(bottom_blob, top_blob, _hoffset, _woffset);
+        if (elemsize == 4)
             copy_cut_border_image<float>(bottom_blob, top_blob, _hoffset, _woffset);
 
         return 0;
@@ -266,7 +276,9 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
             if (elemsize == 1)
                 copy_cut_border_image<signed char>(m, borderm, _hoffset, _woffset);
-            else if (elemsize == 4)
+            if (elemsize == 2)
+                copy_cut_border_image<unsigned short>(m, borderm, _hoffset, _woffset);
+            if (elemsize == 4)
                 copy_cut_border_image<float>(m, borderm, _hoffset, _woffset);
         }
 
