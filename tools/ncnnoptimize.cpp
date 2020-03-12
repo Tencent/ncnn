@@ -56,6 +56,7 @@
 #include "layer/normalize.h"
 #include "layer/padding.h"
 #include "layer/permute.h"
+#include "layer/pixelshuffle.h"
 #include "layer/pooling.h"
 #include "layer/power.h"
 #include "layer/prelu.h"
@@ -2394,6 +2395,13 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Permute* op_default = (ncnn::Permute*)layer_default;
 
             fprintf_param_value(" 0=%d", order_type)
+        }
+        else if (layer->type == "PixelShuffle")
+        {
+            ncnn::PixelShuffle* op = (ncnn::PixelShuffle*)layer;
+            ncnn::PixelShuffle* op_default = (ncnn::PixelShuffle*)layer_default;
+
+            fprintf_param_value(" 0=%d", upscale_factor)
         }
         else if (layer->type == "Pooling")
         {
