@@ -16,6 +16,7 @@
 
 #if __MIPS_MSA
 #include <msa.h>
+#include "mips_common.h"
 #include "mips_mathfun.h"
 #endif // __MIPS_MSA
 
@@ -45,9 +46,7 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __MIPS_MSA
 
 #if __MIPS_MSA
-        ncnn::FloatInt fi_one = { .f = 1.f };
-
-        v4f32 _one = (v4f32)__msa_fill_w(fi_one.i);
+        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
         for (; nn>0; nn--)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);

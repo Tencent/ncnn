@@ -1,6 +1,6 @@
 // Leo is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2020 Leo <leo@nullptr.com.cn>. All rights reserved.
+// Copyright (C) 2019 Leo <leo@nullptr.com.cn>. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,30 +12,29 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_MIPS_COMMON_H
-#define LAYER_MIPS_COMMON_H
+#ifndef LAYER_CONVOLUTION_MIPS_H
+#define LAYER_CONVOLUTION_MIPS_H
 
-#include <stdint.h>
-#include <msa.h>
+#include "convolution.h"
 
 namespace ncnn {
 
-typedef union {
-    int32_t i;
-    float f;
-} FloatInt;
+class Convolution_mips : virtual public Convolution
+{
+public:
+    Convolution_mips();
 
-/* declare some mips constants with union */
-#define _MIPS_FLOAT_CONST(Name, Val) \
-    static const ncnn::FloatInt Name = { .f = Val }
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
+
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+public:
+    Layer* activation;
+    bool use_winograd3x3;
+    Mat weight_3x3_winograd64_data;
+};
 
 } // namespace ncnn
 
-/* float type data load instructions */
-inline v4f32 __msa_fill_w_f32(float val)
-{
-    ncnn::FloatInt fi_tmpval = { .f = val };
-    return (v4f32)__msa_fill_w(fi_tmpval.i);
-}
-
-#endif // LAYER_MIPS_COMMON_H
+#endif // LAYER_CONVOLUTION_MIPS_H
