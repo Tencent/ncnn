@@ -31,7 +31,13 @@ Packing_arm::Packing_arm()
 
 int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (opt.use_bf16_storage)
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    bool elemtype_is_bf16 = (elemsize == 2u && elempack == 1) || (elemsize == 8u && elempack == 4);
+    bool elemtype_is_fp32 = (elemsize == 4u && elempack == 1) || (elemsize == 16u && elempack == 4);
+
+    if (opt.use_bf16_storage && elemtype_is_bf16)
         return forward_bf16s(bottom_blob, top_blob, opt);
 
     if (use_padding)
@@ -39,8 +45,11 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return Packing::forward(bottom_blob, top_blob, opt);
     }
 
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
+    if (!elemtype_is_fp32)
+    {
+        // non-fp32 type
+        return Packing::forward(bottom_blob, top_blob, opt);
+    }
 
     if (elempack == out_elempack)
     {

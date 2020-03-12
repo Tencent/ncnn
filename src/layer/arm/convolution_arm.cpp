@@ -51,6 +51,7 @@ namespace ncnn {
 #include "convolution_3x3_pack4_bf16s.h"
 #include "convolution_3x3_pack1to4_bf16s.h"
 #include "convolution_3x3_pack4to1_bf16s.h"
+#include "convolution_7x7_pack1to4_bf16s.h"
 #endif // __ARM_NEON
 
 
@@ -1369,6 +1370,15 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             conv3x3s2_pack1to4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4_bf16, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv7x7s2_pack1to4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4_bf16, bias_data, opt);
 
             if (activation)
             {
