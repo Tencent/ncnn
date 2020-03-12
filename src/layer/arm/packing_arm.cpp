@@ -31,7 +31,7 @@ Packing_arm::Packing_arm()
 
 int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (bottom_blob.elemsize / bottom_blob.elempack == 2u)
+    if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blob, top_blob, opt);
 
     if (use_padding)

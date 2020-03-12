@@ -36,7 +36,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (bottom_top_blob.elemsize == 1u)
         return forward_inplace_int8_neon(bottom_top_blob, opt);
 
-    if (bottom_top_blob.elemsize / bottom_top_blob.elempack == 2u)
+    if (opt.use_bf16_storage)
         return forward_inplace_bf16s(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;

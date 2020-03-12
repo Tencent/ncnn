@@ -259,10 +259,8 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         return forward_int8_arm(bottom_blob, top_blob, opt);
     }
 
-    if (bottom_blob.elemsize / bottom_blob.elempack == 2u)
-    {
+    if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blob, top_blob, opt);
-    }
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;

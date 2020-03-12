@@ -52,7 +52,10 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 #endif // __ARM_NEON
 
-    ncnn::cast_float32_to_bfloat16(weight_data, weight_data_bf16, opt);
+    if (opt.use_bf16_storage)
+    {
+        ncnn::cast_float32_to_bfloat16(weight_data, weight_data_bf16, opt);
+    }
 
     return 0;
 }
@@ -77,10 +80,8 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return InnerProduct::forward(bottom_blob, top_blob, opt);
     }
 
-    if (bottom_blob.elemsize / bottom_blob.elempack == 2u)
-    {
+    if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blob, top_blob, opt);
-    }
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;

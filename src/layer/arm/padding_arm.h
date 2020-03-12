@@ -30,7 +30,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-    int forward_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     // bf16
