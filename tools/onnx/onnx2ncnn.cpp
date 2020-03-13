@@ -1183,9 +1183,22 @@ int main(int argc, char** argv)
             {
                 node_reference[input_name] = node_reference[input_name] + 1;
             }
+
+            if (op == "LSTM")
+            {
+                // ignore all optional input blobs
+                break;
+            }
         }
 
         if (op == "Dropout")
+        {
+            const std::string& output_name = node.output(0);
+            blob_names.insert(output_name);
+            continue;
+        }
+
+        if (op == "LSTM")
         {
             const std::string& output_name = node.output(0);
             blob_names.insert(output_name);
@@ -1549,6 +1562,13 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "LRN");
         }
+        else if (op == "LSTM")
+        {
+            fprintf(pp, "%-16s", "LSTM");
+            // force no output hidden and cell blob
+            input_size = 1;
+            output_size = 1;
+        }
         else if (op == "MatMul")
         {
             fprintf(pp, "%-16s", "InnerProduct");
@@ -1686,7 +1706,7 @@ int main(int argc, char** argv)
 
         fprintf(pp, " %-24s %d %d", name.c_str(), input_size, output_size);
 
-        for (int j=0; j<node.input_size(); j++)
+        for (int j=0; j<input_size; j++)
         {
             std::string input_name = node.input(j);
 
@@ -2244,6 +2264,59 @@ int main(int argc, char** argv)
             fprintf(pp, " 2=%e", alpha);
             fprintf(pp, " 3=%e", beta);
             fprintf(pp, " 4=%e", bias);
+        }
+        else if (op == "LSTM")
+        {
+            const onnx::TensorProto& W = weights[node.input(1)];
+            const onnx::TensorProto& R = weights[node.input(2)];
+            const onnx::TensorProto& B = weights[node.input(3)];
+
+            int hidden_size = get_node_attr_i(node, "hidden_size", 0);
+            std::string direction = get_node_attr_s(node, "direction");
+
+            int direction_type = 0;
+            if (direction == "forward")
+            {
+                direction_type = 0;
+            }
+            else if (direction == "reverse")
+            {
+                direction_type = 1;
+            }
+            else if (direction == "bidirectional")
+            {
+                direction_type = 2;
+            }
+
+            int weight_data_size = get_tensor_proto_data_size(W);
+
+            fprintf(pp, " 0=%d", hidden_size);
+            fprintf(pp, " 1=%d", weight_data_size);
+            fprintf(pp, " 2=%d", direction_type);
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(W, bp);
+
+            // reduce xc and hc bias
+            {
+                int bias_data_size = get_tensor_proto_data_size(B) / 2;
+                const float* xcbptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+                const float* hcbptr = xcbptr + bias_data_size;
+
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                for (int j=0; j<bias_data_size; j++)
+                {
+                    float vb = xcbptr[j] + hcbptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+            }
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(R, bp);
         }
         else if (op == "MatMul")
         {
