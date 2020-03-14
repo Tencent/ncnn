@@ -529,18 +529,24 @@ int create_gpu_instance()
             gpu_info.bug_local_size_spec_const = true;
         }
 
-//         if (physicalDeviceProperties.vendorID == 0x13b5 || physicalDeviceProperties.vendorID == 0x5143)
-        if (physicalDeviceProperties.vendorID == 0x5143 && (physicalDeviceProperties.deviceID == 0x6030001 || physicalDeviceProperties.deviceID == 0x6040001))
-        {
-            // TODO FIXME enable devices other than qcom855/qcom855plus
-            // arm mali and qcom adreno driver accept spirv with fp16 arithmetic actually
-            gpu_info.bug_implicit_fp16_arithmetic = true;
-        }
-
         if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49))
         {
             // qcom adreno with old buggy driver
             gpu_info.bug_local_size_spec_const = true;
+        }
+
+        if (physicalDeviceProperties.vendorID == 0x13b5 && (physicalDeviceProperties.deviceID == 0x7500001 || physicalDeviceProperties.deviceID == 0x8602000))
+        {
+            // TODO enable devices other than rk3288/rk3399
+            // arm mali driver accept spirv with fp16 arithmetic
+            gpu_info.bug_implicit_fp16_arithmetic = true;
+        }
+
+        if (physicalDeviceProperties.vendorID == 0x5143 && (physicalDeviceProperties.deviceID == 0x6030001 || physicalDeviceProperties.deviceID == 0x6040001))
+        {
+            // TODO enable devices other than qcom855/qcom855plus
+            // qcom adreno driver accept spirv with fp16 arithmetic
+            gpu_info.bug_implicit_fp16_arithmetic = true;
         }
 
         gpu_info.physical_device = physicalDevice;
