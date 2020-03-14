@@ -1183,9 +1183,22 @@ int main(int argc, char** argv)
             {
                 node_reference[input_name] = node_reference[input_name] + 1;
             }
+
+            if (op == "LSTM")
+            {
+                // ignore all optional input blobs
+                break;
+            }
         }
 
         if (op == "Dropout")
+        {
+            const std::string& output_name = node.output(0);
+            blob_names.insert(output_name);
+            continue;
+        }
+
+        if (op == "LSTM")
         {
             const std::string& output_name = node.output(0);
             blob_names.insert(output_name);
@@ -1549,6 +1562,13 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "LRN");
         }
+        else if (op == "LSTM")
+        {
+            fprintf(pp, "%-16s", "LSTM");
+            // force no output hidden and cell blob
+            input_size = 1;
+            output_size = 1;
+        }
         else if (op == "MatMul")
         {
             fprintf(pp, "%-16s", "InnerProduct");
@@ -1686,7 +1706,7 @@ int main(int argc, char** argv)
 
         fprintf(pp, " %-24s %d %d", name.c_str(), input_size, output_size);
 
-        for (int j=0; j<node.input_size(); j++)
+        for (int j=0; j<input_size; j++)
         {
             std::string input_name = node.input(j);
 
@@ -2244,6 +2264,168 @@ int main(int argc, char** argv)
             fprintf(pp, " 2=%e", alpha);
             fprintf(pp, " 3=%e", beta);
             fprintf(pp, " 4=%e", bias);
+        }
+        else if (op == "LSTM")
+        {
+            const onnx::TensorProto& W = weights[node.input(1)];
+            const onnx::TensorProto& R = weights[node.input(2)];
+            const onnx::TensorProto& B = weights[node.input(3)];
+
+            int hidden_size = get_node_attr_i(node, "hidden_size", 0);
+            std::string direction = get_node_attr_s(node, "direction");
+
+            int direction_type = 0;
+            if (direction == "forward")
+            {
+                direction_type = 0;
+            }
+            else if (direction == "reverse")
+            {
+                direction_type = 1;
+            }
+            else if (direction == "bidirectional")
+            {
+                direction_type = 2;
+            }
+
+            int weight_data_size = get_tensor_proto_data_size(W);
+
+            fprintf(pp, " 0=%d", hidden_size);
+            fprintf(pp, " 1=%d", weight_data_size);
+            fprintf(pp, " 2=%d", direction_type);
+
+            int num_directions = direction_type == 2 ? 2 : 1;
+
+            int quantize_tag = 0;
+
+            // reorder num_directions-IOFG-hidden-size to num_directions-IFOG-hidden-size
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int weight_data_size_g = get_tensor_proto_data_size(W) / 4 / num_directions;
+                const float* wptr = W.has_raw_data() ? (const float*)W.raw_data().data() : W.float_data().data();
+
+                const float* iptr = wptr;
+                const float* optr = wptr + weight_data_size_g;
+                const float* fptr = wptr + weight_data_size_g * 2;
+                const float* gptr = wptr + weight_data_size_g * 3;
+                fwrite(iptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(fptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(optr, sizeof(float), weight_data_size_g, bp);
+                fwrite(gptr, sizeof(float), weight_data_size_g, bp);
+
+                if (direction_type == 2)
+                {
+                    iptr += weight_data_size_g * 4;
+                    optr += weight_data_size_g * 4;
+                    fptr += weight_data_size_g * 4;
+                    gptr += weight_data_size_g * 4;
+                    fwrite(iptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(fptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(optr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(gptr, sizeof(float), weight_data_size_g, bp);
+                }
+            }
+
+            // reduce xc and hc bias
+            // reorder num_directions-IOFG-hidden to num_directions-IFOG-hidden
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int bias_data_size_g = get_tensor_proto_data_size(B) / 2 / 4 / num_directions;
+                const float* xcbptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+                const float* xiptr = xcbptr;
+                const float* xoptr = xcbptr + bias_data_size_g;
+                const float* xfptr = xcbptr + bias_data_size_g * 2;
+                const float* xgptr = xcbptr + bias_data_size_g * 3;
+                const float* hiptr = xcbptr + bias_data_size_g * 4;
+                const float* hoptr = xcbptr + bias_data_size_g * 5;
+                const float* hfptr = xcbptr + bias_data_size_g * 6;
+                const float* hgptr = xcbptr + bias_data_size_g * 7;
+
+                for (int j=0; j<bias_data_size_g; j++)
+                {
+                    float vb = xiptr[j] + hiptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+                for (int j=0; j<bias_data_size_g; j++)
+                {
+                    float vb = xfptr[j] + hfptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+                for (int j=0; j<bias_data_size_g; j++)
+                {
+                    float vb = xoptr[j] + hoptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+                for (int j=0; j<bias_data_size_g; j++)
+                {
+                    float vb = xgptr[j] + hgptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+
+                if (direction_type == 2)
+                {
+                    xiptr += bias_data_size_g * 8;
+                    xoptr += bias_data_size_g * 8;
+                    xfptr += bias_data_size_g * 8;
+                    xgptr += bias_data_size_g * 8;
+                    hiptr += bias_data_size_g * 8;
+                    hoptr += bias_data_size_g * 8;
+                    hfptr += bias_data_size_g * 8;
+                    hgptr += bias_data_size_g * 8;
+
+                    for (int j=0; j<bias_data_size_g; j++)
+                    {
+                        float vb = xiptr[j] + hiptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                    for (int j=0; j<bias_data_size_g; j++)
+                    {
+                        float vb = xfptr[j] + hfptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                    for (int j=0; j<bias_data_size_g; j++)
+                    {
+                        float vb = xoptr[j] + hoptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                    for (int j=0; j<bias_data_size_g; j++)
+                    {
+                        float vb = xgptr[j] + hgptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                }
+            }
+
+            // reorder num_directions-IOFG-hidden-hidden to num_directions-IFOG-hidden-hidden
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int weight_data_size_g = get_tensor_proto_data_size(R) / 4 / num_directions;
+                const float* rptr = R.has_raw_data() ? (const float*)R.raw_data().data() : R.float_data().data();
+
+                const float* iptr = rptr;
+                const float* optr = rptr + weight_data_size_g;
+                const float* fptr = rptr + weight_data_size_g * 2;
+                const float* gptr = rptr + weight_data_size_g * 3;
+                fwrite(iptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(fptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(optr, sizeof(float), weight_data_size_g, bp);
+                fwrite(gptr, sizeof(float), weight_data_size_g, bp);
+
+                if (direction_type == 2)
+                {
+                    iptr += weight_data_size_g * 4;
+                    optr += weight_data_size_g * 4;
+                    fptr += weight_data_size_g * 4;
+                    gptr += weight_data_size_g * 4;
+                    fwrite(iptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(fptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(optr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(gptr, sizeof(float), weight_data_size_g, bp);
+                }
+            }
         }
         else if (op == "MatMul")
         {
