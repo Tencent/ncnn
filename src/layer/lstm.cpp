@@ -91,7 +91,10 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         // calculate hidden
         // gate_input_t := W_hc * h_conted_{t-1} + W_xc * x_t + b_c
         int cont = t > 0;
-        const float* x = reverse ? bottom_blob.row(T-1-t) : bottom_blob.row(t);
+
+        int ti = reverse ? T-1-t : t;
+
+        const float* x = bottom_blob.row(ti);
         for (int q=0; q<num_output; q++)
         {
             const float* bias_c_I = bias_c.row(0);
@@ -150,7 +153,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         // tanh(G)
         // c_t := f_t .* c_{t-1} + i_t .* g_t
         // h_t := o_t .* tanh[c_t]
-        float* output_data = top_blob.row(t);
+        float* output_data = top_blob.row(ti);
         for (int q=0; q<num_output; q++)
         {
             const float* gates_data = gates.row(q);
@@ -165,8 +168,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             O = 1.f / (1.f + exp(-O));
             G = tanh(G);
 
-            //cell[q] is not initialized and so might be nan, and 0*nan evals to nan
-            float cell2 = cont ? F * cell[q] + I * G : I * G;
+            float cell2 = F * cell[q] + I * G;
             float H = O * tanh(cell2);
             cell[q] = cell2;
             hidden[q] = H;
