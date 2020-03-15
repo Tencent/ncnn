@@ -51,6 +51,7 @@
 #include "layer/interp.h"
 #include "layer/log.h"
 #include "layer/lrn.h"
+#include "layer/lstm.h"
 #include "layer/memorydata.h"
 #include "layer/mvn.h"
 #include "layer/normalize.h"
@@ -2343,6 +2344,19 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%e", alpha)
             fprintf_param_value(" 3=%e", beta)
             fprintf_param_value(" 4=%e", bias)
+        }
+        else if (layer->type == "LSTM")
+        {
+            ncnn::LSTM* op = (ncnn::LSTM*)layer;
+            ncnn::LSTM* op_default = (ncnn::LSTM*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", weight_data_size)
+            fprintf_param_value(" 2=%d", direction)
+
+            fwrite_weight_tag_data(0, op->weight_xc_data, bp);
+            fwrite_weight_tag_data(0, op->bias_c_data, bp);
+            fwrite_weight_tag_data(0, op->weight_hc_data, bp);
         }
         else if (layer->type == "MemoryData")
         {
