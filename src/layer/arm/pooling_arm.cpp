@@ -36,14 +36,14 @@ Pooling_arm::Pooling_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+    support_bf16_storage = true;
 }
 
 int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (bottom_blob.elemsize / bottom_blob.elempack == 2u)
-    {
+    if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blob, top_blob, opt);
-    }
 
     // max value in NxN window
     // avg value in NxN window

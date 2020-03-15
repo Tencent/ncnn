@@ -33,7 +33,7 @@ Eltwise_arm::Eltwise_arm()
 
 int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    if (bottom_blobs[0].elemsize / bottom_blobs[0].elempack == 2u)
+    if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
 
     const Mat& bottom_blob = bottom_blobs[0];
