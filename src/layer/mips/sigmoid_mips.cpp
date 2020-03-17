@@ -1,6 +1,6 @@
 // Leo is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 Leo <leo@nullptr.com.cn>. All rights reserved.
+// Copyright (C) 2020 Leo <leo@nullptr.com.cn>. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,31 +12,31 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "bias_mips.h"
+#include "sigmoid_mips.h"
 
 #if __MIPS_MSA
 #include <msa.h>
 #include "mips_common.h"
+#include "mips_mathfun.h"
 #endif // __MIPS_MSA
+
+#include <math.h>
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Bias_mips)
+DEFINE_LAYER_CREATOR(Sigmoid_mips)
 
-int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
 
-    const float* bias_ptr = bias_data;
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
-
-        float bias = bias_ptr[q];
 
 #if __MIPS_MSA
         int nn = size >> 2;
@@ -46,20 +46,23 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __MIPS_MSA
 
 #if __MIPS_MSA
-        v4f32 _bias = (v4f32)__msa_fill_w_f32(bias);
+        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
         for (; nn>0; nn--)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-            v4f32 _outp = __msa_fadd_w(_p, _bias);
+            _p = (v4f32)__msa_bnegi_w((v4u32)_p, 31);
+            _p = exp_ps(_p);
+            _p = __msa_fadd_w(_p, _one);
+            v4f32 _outp = __msa_fdiv_w(_one, _p);
             __msa_st_w((v4i32)_outp, ptr, 0);
 
             ptr += 4;
         }
 #endif // __MIPS_MSA
-
         for (; remain>0; remain--)
         {
-            *ptr = *ptr + bias;
+            *ptr = 1.f / (1.f + exp(-*ptr));
+
             ptr++;
         }
     }

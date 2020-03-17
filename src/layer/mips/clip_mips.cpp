@@ -16,6 +16,7 @@
 
 #if __MIPS_MSA
 #include <msa.h>
+#include "mips_common.h"
 #endif // __MIPS_MSA
 
 namespace ncnn {
@@ -42,8 +43,11 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __MIPS_MSA
 
 #if __MIPS_MSA
-        v4f32 _max = (v4f32)__msa_fill_w(max);
-        v4f32 _min = (v4f32)__msa_fill_w(min);
+        ncnn::FloatInt fi_max = { .f = max };
+        ncnn::FloatInt fi_min = { .f = min };
+
+        v4f32 _max = (v4f32)__msa_fill_w(fi_max.i);
+        v4f32 _min = (v4f32)__msa_fill_w(fi_min.i);
         for (; nn>0; nn--)
         {
             v4f32 _ptr = (v4f32)__msa_ld_w(ptr, 0);
