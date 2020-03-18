@@ -171,7 +171,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         quantize_float32_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scale, opt_g);
     }
 
-    top_blob.create(num_output, elemsize, opt.blob_allocator);
+    top_blob.create(num_output, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
