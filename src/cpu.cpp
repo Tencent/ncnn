@@ -228,9 +228,9 @@ static int get_cpucount()
     if (count < 1)
         count = 1;
 
-    if (count > (int)sizeof(size_t))
+    if (count > (int)sizeof(size_t) * 8)
     {
-        fprintf(stderr, "more than %d cpu detected, thread affinity may not work properly :(\n", (int)sizeof(size_t));
+        fprintf(stderr, "more than %d cpu detected, thread affinity may not work properly :(\n", (int)sizeof(size_t) * 8);
     }
 
     return count;
@@ -344,7 +344,7 @@ typedef struct
 #endif
     cpu_set_t mask;
     CPU_ZERO(&mask);
-    for (int i=0; i<(int)sizeof(size_t); i++)
+    for (int i=0; i<(int)sizeof(size_t) * 8; i++)
     {
         if (thread_affinity_mask & (1 << i))
             CPU_SET(i, &mask);
@@ -470,7 +470,7 @@ int set_cpu_thread_affinity(size_t thread_affinity_mask)
 {
 #ifdef __ANDROID__
     int num_threads = 0;
-    for (int i=0; i<(int)sizeof(size_t); i++)
+    for (int i=0; i<(int)sizeof(size_t) * 8; i++)
     {
         if (thread_affinity_mask & (1 << i))
             num_threads++;
