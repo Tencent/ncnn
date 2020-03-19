@@ -193,13 +193,13 @@ int cpu_support_arm_asimdhp()
 
 static int get_cpucount()
 {
+    int count = 0;
 #ifdef __ANDROID__
     // get cpu count from /proc/cpuinfo
     FILE* fp = fopen("/proc/cpuinfo", "rb");
     if (!fp)
         return 1;
 
-    int count = 0;
     char line[1024];
     while (!feof(fp))
     {
@@ -214,27 +214,26 @@ static int get_cpucount()
     }
 
     fclose(fp);
-
-    if (count < 1)
-        count = 1;
-
-    return count;
 #elif __IOS__
-    int count = 0;
     size_t len = sizeof(count);
     sysctlbyname("hw.ncpu", &count, &len, NULL, 0);
+#else
+#ifdef _OPENMP
+    count = omp_get_max_threads();
+#else
+    count = 1;
+#endif // _OPENMP
+#endif
 
     if (count < 1)
         count = 1;
 
+    if (count > (int)sizeof(size_t))
+    {
+        fprintf(stderr, "more than %d cpu detected, thread affinity may not work properly :(\n", (int)sizeof(size_t));
+    }
+
     return count;
-#else
-#ifdef _OPENMP
-    return omp_get_max_threads();
-#else
-    return 1;
-#endif // _OPENMP
-#endif
 }
 
 static int g_cpucount = get_cpucount();
@@ -316,7 +315,7 @@ static int get_max_freq_khz(int cpuid)
     return max_freq_khz;
 }
 
-static int set_sched_affinity(const std::vector<int>& cpuids)
+static int set_sched_affinity(size_t thread_affinity_mask)
 {
     // cpu_set_t definition
     // ref http://stackoverflow.com/questions/16319725/android-set-thread-affinity
@@ -324,14 +323,14 @@ static int set_sched_affinity(const std::vector<int>& cpuids)
 #define __NCPUBITS  (8 * sizeof (unsigned long))
 typedef struct
 {
-   unsigned long __bits[CPU_SETSIZE / __NCPUBITS];
+    unsigned long __bits[CPU_SETSIZE / __NCPUBITS];
 } cpu_set_t;
 
 #define CPU_SET(cpu, cpusetp) \
-  ((cpusetp)->__bits[(cpu)/__NCPUBITS] |= (1UL << ((cpu) % __NCPUBITS)))
+    ((cpusetp)->__bits[(cpu)/__NCPUBITS] |= (1UL << ((cpu) % __NCPUBITS)))
 
 #define CPU_ZERO(cpusetp) \
-  memset((cpusetp), 0, sizeof(cpu_set_t))
+    memset((cpusetp), 0, sizeof(cpu_set_t))
 
     // set affinity for thread
 #ifdef __GLIBC__
@@ -345,9 +344,10 @@ typedef struct
 #endif
     cpu_set_t mask;
     CPU_ZERO(&mask);
-    for (int i=0; i<(int)cpuids.size(); i++)
+    for (int i=0; i<(int)sizeof(size_t); i++)
     {
-        CPU_SET(cpuids[i], &mask);
+        if (thread_affinity_mask & (1 << i))
+            CPU_SET(i, &mask);
     }
 
     int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(mask), &mask);
@@ -355,65 +355,6 @@ typedef struct
     {
         fprintf(stderr, "syscall error %d\n", syscallret);
         return -1;
-    }
-
-    return 0;
-}
-
-static int sort_cpuid_by_max_frequency(std::vector<int>& cpuids, int* little_cluster_offset)
-{
-    const int cpu_count = cpuids.size();
-
-    *little_cluster_offset = 0;
-
-    if (cpu_count == 0)
-        return 0;
-
-    std::vector<int> cpu_max_freq_khz;
-    cpu_max_freq_khz.resize(cpu_count);
-
-    for (int i=0; i<cpu_count; i++)
-    {
-        int max_freq_khz = get_max_freq_khz(i);
-
-        // printf("%d max freq = %d khz\n", i, max_freq_khz);
-
-        cpuids[i] = i;
-        cpu_max_freq_khz[i] = max_freq_khz;
-    }
-
-    // sort cpuid as big core first
-    // simple bubble sort
-    for (int i=0; i<cpu_count; i++)
-    {
-        for (int j=i+1; j<cpu_count; j++)
-        {
-            if (cpu_max_freq_khz[i] < cpu_max_freq_khz[j])
-            {
-                // swap
-                int tmp = cpuids[i];
-                cpuids[i] = cpuids[j];
-                cpuids[j] = tmp;
-
-                tmp = cpu_max_freq_khz[i];
-                cpu_max_freq_khz[i] = cpu_max_freq_khz[j];
-                cpu_max_freq_khz[j] = tmp;
-            }
-        }
-    }
-
-    // SMP
-    int mid_max_freq_khz = (cpu_max_freq_khz.front() + cpu_max_freq_khz.back()) / 2;
-    if (mid_max_freq_khz == cpu_max_freq_khz.back())
-        return 0;
-
-    for (int i=0; i<cpu_count; i++)
-    {
-        if (cpu_max_freq_khz[i] < mid_max_freq_khz)
-        {
-            *little_cluster_offset = i;
-            break;
-        }
     }
 
     return 0;
@@ -429,83 +370,140 @@ int get_cpu_powersave()
 
 int set_cpu_powersave(int powersave)
 {
-#ifdef __ANDROID__
-    static std::vector<int> sorted_cpuids;
-    static int little_cluster_offset = 0;
-
-    if (sorted_cpuids.empty())
-    {
-        // 0 ~ g_cpucount
-        sorted_cpuids.resize(g_cpucount);
-        for (int i=0; i<g_cpucount; i++)
-        {
-            sorted_cpuids[i] = i;
-        }
-
-        // descent sort by max frequency
-        sort_cpuid_by_max_frequency(sorted_cpuids, &little_cluster_offset);
-    }
-
-    if (little_cluster_offset == 0 && powersave != 0)
-    {
-        powersave = 0;
-        fprintf(stderr, "SMP cpu powersave not supported\n");
-    }
-
-    // prepare affinity cpuid
-    std::vector<int> cpuids;
-    if (powersave == 0)
-    {
-        cpuids = sorted_cpuids;
-    }
-    else if (powersave == 1)
-    {
-        cpuids = std::vector<int>(sorted_cpuids.begin() + little_cluster_offset, sorted_cpuids.end());
-    }
-    else if (powersave == 2)
-    {
-        cpuids = std::vector<int>(sorted_cpuids.begin(), sorted_cpuids.begin() + little_cluster_offset);
-    }
-    else
+    if (powersave < 0 || powersave > 2)
     {
         fprintf(stderr, "powersave %d not supported\n", powersave);
         return -1;
     }
 
-#ifdef _OPENMP
-    // set affinity for each thread
-    int num_threads = cpuids.size();
-    omp_set_num_threads(num_threads);
-    std::vector<int> ssarets(num_threads, 0);
-    #pragma omp parallel for
-    for (int i=0; i<num_threads; i++)
-    {
-        ssarets[i] = set_sched_affinity(cpuids);
-    }
-    for (int i=0; i<num_threads; i++)
-    {
-        if (ssarets[i] != 0)
-        {
-            return -1;
-        }
-    }
-#else
-    int ssaret = set_sched_affinity(cpuids);
-    if (ssaret != 0)
-    {
-        return -1;
-    }
-#endif
+    size_t thread_affinity_mask = get_cpu_thread_affinity_mask(powersave);
+
+    int ret = set_cpu_thread_affinity(thread_affinity_mask);
+    if (ret != 0)
+        return ret;
 
     g_powersave = powersave;
 
     return 0;
+}
+
+static size_t g_thread_affinity_mask_all = 0;
+static size_t g_thread_affinity_mask_little = 0;
+static size_t g_thread_affinity_mask_big = 0;
+
+static int setup_thread_affinity_masks()
+{
+    g_thread_affinity_mask_all = (1 << g_cpucount) - 1;
+
+#ifdef __ANDROID__
+    int max_freq_khz_min = INT_MAX;
+    int max_freq_khz_max = 0;
+    std::vector<int> cpu_max_freq_khz(g_cpucount);
+    for (int i=0; i<g_cpucount; i++)
+    {
+        int max_freq_khz = get_max_freq_khz(i);
+
+//         fprintf(stderr, "%d max freq = %d khz\n", i, max_freq_khz);
+
+        cpu_max_freq_khz[i] = max_freq_khz;
+
+        if (max_freq_khz > max_freq_khz_max)
+            max_freq_khz_max = max_freq_khz;
+        if (max_freq_khz < max_freq_khz_min)
+            max_freq_khz_min = max_freq_khz;
+    }
+
+    int max_freq_khz_medium = (max_freq_khz_min + max_freq_khz_max) / 2;
+    if (max_freq_khz_medium == max_freq_khz_max)
+    {
+        g_thread_affinity_mask_little = 0;
+        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+        return 0;
+    }
+
+    for (int i=0; i<g_cpucount; i++)
+    {
+        if (cpu_max_freq_khz[i] < max_freq_khz_medium)
+            g_thread_affinity_mask_little |= (1 << i);
+        else
+            g_thread_affinity_mask_big |= (1 << i);
+    }
+#else
+    // TODO implement me for other platforms
+    g_thread_affinity_mask_little = 0;
+    g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+#endif
+
+    return 0;
+}
+
+size_t get_cpu_thread_affinity_mask(int powersave)
+{
+    if (g_thread_affinity_mask_all == 0)
+    {
+        setup_thread_affinity_masks();
+    }
+
+    if (g_thread_affinity_mask_little == 0)
+    {
+        // SMP cpu powersave not supported
+        // fallback to all cores anyway
+        return g_thread_affinity_mask_all;
+    }
+
+    if (powersave == 0)
+        return g_thread_affinity_mask_all;
+
+    if (powersave == 1)
+        return g_thread_affinity_mask_little;
+
+    if (powersave == 2)
+        return g_thread_affinity_mask_big;
+
+    fprintf(stderr, "powersave %d not supported\n", powersave);
+
+    // fallback to all cores anyway
+    return g_thread_affinity_mask_all;
+}
+
+int set_cpu_thread_affinity(size_t thread_affinity_mask)
+{
+#ifdef __ANDROID__
+    int num_threads = 0;
+    for (int i=0; i<(int)sizeof(size_t); i++)
+    {
+        if (thread_affinity_mask & (1 << i))
+            num_threads++;
+    }
+
+#ifdef _OPENMP
+    // set affinity for each thread
+    set_omp_num_threads(num_threads);
+    std::vector<int> ssarets(num_threads, 0);
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i=0; i<num_threads; i++)
+    {
+        ssarets[i] = set_sched_affinity(thread_affinity_mask);
+    }
+    for (int i=0; i<num_threads; i++)
+    {
+        if (ssarets[i] != 0)
+            return -1;
+    }
+#else
+    int ssaret = set_sched_affinity(thread_affinity_mask);
+    if (ssaret != 0)
+        return -1;
+#endif
+
+    return 0;
 #elif __IOS__
     // thread affinity not supported on ios
+    (void)thread_affinity_mask;
     return -1;
 #else
     // TODO
-    (void) powersave;  // Avoid unused parameter warning.
+    (void)thread_affinity_mask;
     return -1;
 #endif
 }
