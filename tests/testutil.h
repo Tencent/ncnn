@@ -624,15 +624,50 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     ncnn::Option opts[2];
     opts[0] = _opt;
     opts[0].use_packing_layout = false;
+    opts[0].use_fp16_packed = false;
+    opts[0].use_fp16_storage = false;
+    opts[0].use_shader_pack8 = false;
     opts[1] = _opt;
     opts[1].use_packing_layout = true;
+    opts[1].use_fp16_packed = true;
+    opts[1].use_fp16_storage = false;
+    opts[1].use_shader_pack8 = true;
 
     for (int i = 0; i < 2; i++)
     {
         const ncnn::Option& opt = opts[i];
 
+        // fp16 representation
+        std::vector<ncnn::Mat> a_fp16;
+        std::vector<ncnn::Mat> weights_fp16;
+        float epsilon_fp16;
+        if (opt.use_fp16_packed || opt.use_fp16_storage)
+        {
+            a_fp16.resize(a.size());
+            for (size_t j = 0; j < a.size(); j++)
+            {
+                ncnn::Mat tmp;
+                ncnn::cast_float32_to_float16(a[j], tmp, opt);
+                ncnn::cast_float16_to_float32(tmp, a_fp16[j], opt);
+            }
+            weights_fp16.resize(weights.size());
+            for (size_t j = 0; j < weights.size(); j++)
+            {
+                ncnn::Mat tmp;
+                ncnn::cast_float32_to_float16(weights[j], tmp, opt);
+                ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
+            }
+            epsilon_fp16 = epsilon * 100;// 0.1
+        }
+        else
+        {
+            a_fp16 = a;
+            weights_fp16 = weights;
+            epsilon_fp16 = epsilon;
+        }
+
         std::vector<ncnn::Mat> top_shapes;
-        int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights, opt, a, top_blob_count, top_shapes, epsilon, func);
+        int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_blob_count, top_shapes, epsilon_fp16, func);
         if (ret != 0)
         {
             fprintf(stderr, "test_layer %s failed use_packing_layout=%d\n", layer_type, opt.use_packing_layout);
@@ -649,15 +684,48 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     ncnn::Option opts[2];
     opts[0] = _opt;
     opts[0].use_packing_layout = false;
+    opts[0].use_fp16_packed = false;
+    opts[0].use_fp16_storage = false;
+    opts[0].use_shader_pack8 = false;
     opts[1] = _opt;
     opts[1].use_packing_layout = true;
+    opts[1].use_fp16_packed = true;
+    opts[1].use_fp16_storage = false;
+    opts[1].use_shader_pack8 = true;
 
     for (int i = 0; i < 2; i++)
     {
         const ncnn::Option& opt = opts[i];
 
+        // fp16 representation
+        ncnn::Mat a_fp16;
+        std::vector<ncnn::Mat> weights_fp16;
+        float epsilon_fp16;
+        if (opt.use_fp16_packed || opt.use_fp16_storage)
+        {
+            {
+                ncnn::Mat tmp;
+                ncnn::cast_float32_to_float16(a, tmp, opt);
+                ncnn::cast_float16_to_float32(tmp, a_fp16, opt);
+            }
+            weights_fp16.resize(weights.size());
+            for (size_t j = 0; j < weights.size(); j++)
+            {
+                ncnn::Mat tmp;
+                ncnn::cast_float32_to_float16(weights[j], tmp, opt);
+                ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
+            }
+            epsilon_fp16 = epsilon * 100;// 0.1
+        }
+        else
+        {
+            a_fp16 = a;
+            weights_fp16 = weights;
+            epsilon_fp16 = epsilon;
+        }
+
         ncnn::Mat top_shape;
-        int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights, opt, a, top_shape, epsilon, func);
+        int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_shape, epsilon_fp16, func);
         if (ret != 0)
         {
             fprintf(stderr, "test_layer %s failed use_packing_layout=%d\n", layer_type, opt.use_packing_layout);

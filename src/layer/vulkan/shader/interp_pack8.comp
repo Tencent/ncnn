@@ -122,6 +122,8 @@ void main()
         afpvec8 a;
         afpvec8 b;
         a[0] = a0[0] * (afp(1.f) - fx) + a1[0] * fx;
+        a[1] = a0[1] * (afp(1.f) - fx) + a1[1] * fx;
+        b[0] = b0[0] * (afp(1.f) - fx) + b1[0] * fx;
         b[1] = b0[1] * (afp(1.f) - fx) + b1[1] * fx;
 
         afpvec8 res;
