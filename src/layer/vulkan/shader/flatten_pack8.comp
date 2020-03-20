@@ -86,9 +86,9 @@ void main()
         ivec4 yy4 = ii4 / psc(w);
         ivec4 xx4 = ii4 % psc(w);
 
-        v_offset = ((y4 / 8) * psc(w) + x4) * 2 + (y4 % 8) / 2;
+        v_offset = ((y4 / 8) * psc(w) + x4) * 4 + (y4 % 8) / 2;
         lane4 = y4 % 2;
-        vv_offset = ((yy4 / 8) * psc(w) + xx4) * 2 + (yy4 % 8) / 2;
+        vv_offset = ((yy4 / 8) * psc(w) + xx4) * 4 + (yy4 % 8) / 2;
         lane8 = yy4 % 2;
     }
     else // if (psc(dims) == 3)
@@ -102,9 +102,9 @@ void main()
         ivec4 yy4 = ii4 % size / psc(w);
         ivec4 xx4 = ii4 % size % psc(w);
 
-        v_offset = ((z4 / 8) * psc(cstep) + y4 * psc(w) + x4) * 2 + (z4 % 4) / 2;
+        v_offset = ((z4 / 8) * psc(cstep) + y4 * psc(w) + x4) * 4 + (z4 % 8) / 2;
         lane4 = z4 % 2;
-        vv_offset = ((zz4 / 8) * psc(cstep) + yy4 * psc(w) + xx4) * 2 + (zz4 % 4) / 2;
+        vv_offset = ((zz4 / 8) * psc(cstep) + yy4 * psc(w) + xx4) * 4 + (zz4 % 8) / 2;
         lane8 = zz4 % 2;
     }
 

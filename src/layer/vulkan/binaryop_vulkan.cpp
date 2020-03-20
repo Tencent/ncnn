@@ -311,8 +311,6 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
 
     VkMat& top_blob = top_blobs[0];
 
-    int elempack = bottom_blob.elempack;
-
     // broadcast
     if (bottom_blob.dims > bottom_blob1.dims)
     {
@@ -335,6 +333,8 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     }
     if (top_blob.empty())
         return -100;
+
+    int out_elempack = top_blob.elempack;
 
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_blob;
@@ -379,27 +379,27 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         {
             if (bottom_blob.dims == 1 && bottom_blob.w == 1 && bottom_blob.elempack == 1)
             {
-                pipeline = elempack == 8 ? pipeline_binaryop_broadcast_a1_pack8 : pipeline_binaryop_broadcast_a1_pack4;
+                pipeline = out_elempack == 8 ? pipeline_binaryop_broadcast_a1_pack8 : pipeline_binaryop_broadcast_a1_pack4;
             }
             else if (bottom_blob1.dims == 1 && bottom_blob1.w == 1 && bottom_blob1.elempack == 1)
             {
-                pipeline = elempack == 8 ? pipeline_binaryop_broadcast_b1_pack8 : pipeline_binaryop_broadcast_b1_pack4;
+                pipeline = out_elempack == 8 ? pipeline_binaryop_broadcast_b1_pack8 : pipeline_binaryop_broadcast_b1_pack4;
             }
             else if (bottom_blob.dims == 3 && bottom_blob1.dims == 3 && bottom_blob1.w == bottom_blob.w && bottom_blob1.h == bottom_blob.h && bottom_blob1.c == 1 && bottom_blob1.elempack == 1)
             {
                 // special type 2
-                pipeline = elempack == 8 ? pipeline_binaryop_broadcast_b1_pack8 : pipeline_binaryop_broadcast_b1_pack4;
+                pipeline = out_elempack == 8 ? pipeline_binaryop_broadcast_b1_pack8 : pipeline_binaryop_broadcast_b1_pack4;
             }
             else
             {
-                pipeline = elempack == 8 ? pipeline_binaryop_broadcast_pack8 : pipeline_binaryop_broadcast_pack4;
+                pipeline = out_elempack == 8 ? pipeline_binaryop_broadcast_pack8 : pipeline_binaryop_broadcast_pack4;
             }
         }
     }
     else
     {
-        pipeline = elempack == 8 ? pipeline_binaryop_pack8
-                 : elempack == 4 ? pipeline_binaryop_pack4
+        pipeline = out_elempack == 8 ? pipeline_binaryop_pack8
+                 : out_elempack == 4 ? pipeline_binaryop_pack4
                  : pipeline_binaryop;
     }
 
