@@ -434,8 +434,23 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
                 continue;
 
-            float relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
-            float relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            float relu6_min;
+            float relu6_max;
+            if (node2->input_size() == 1)
+            {
+                relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
+                relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node2->input(1)];
+                const onnx::TensorProto& max_tp = weights[node2->input(2)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+                const float* max_data = max_tp.has_raw_data() ? (const float*)max_tp.raw_data().data() : max_tp.float_data().data();
+
+                relu6_min = min_data[0];
+                relu6_max = max_data[0];
+            }
             if (relu6_min != 0.f || relu6_max != 6.f)
                 continue;
 
@@ -578,8 +593,23 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
                 continue;
 
-            float relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
-            float relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            float relu6_min;
+            float relu6_max;
+            if (node2->input_size() == 1)
+            {
+                relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
+                relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node2->input(1)];
+                const onnx::TensorProto& max_tp = weights[node2->input(2)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+                const float* max_data = max_tp.has_raw_data() ? (const float*)max_tp.raw_data().data() : max_tp.float_data().data();
+
+                relu6_min = min_data[0];
+                relu6_max = max_data[0];
+            }
             if (relu6_min != 0.f || relu6_max != 6.f)
                 continue;
 
@@ -769,7 +799,18 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
                 continue;
 
             // +eps
-            float clip_min = get_node_attr_f(*node2, "min", 0.f);
+            float clip_min;
+            if (node2->input_size() == 1)
+            {
+                clip_min = get_node_attr_f(*node2, "min", -FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node2->input(1)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+
+                clip_min = min_data[0];
+            }
 
             // reduce
             node->set_op_type("noop_reducedncnn");
@@ -1856,8 +1897,24 @@ int main(int argc, char** argv)
         }
         else if (op == "Clip")
         {
-            float min = get_node_attr_f(node, "min", -FLT_MAX);
-            float max = get_node_attr_f(node, "max", FLT_MAX);
+            float min;
+            float max;
+            if (node.input_size() == 1)
+            {
+                min = get_node_attr_f(node, "min", -FLT_MAX);
+                max = get_node_attr_f(node, "max", FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node.input(1)];
+                const onnx::TensorProto& max_tp = weights[node.input(2)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+                const float* max_data = max_tp.has_raw_data() ? (const float*)max_tp.raw_data().data() : max_tp.float_data().data();
+
+                min = min_data[0];
+                max = max_data[0];
+            }
+
             fprintf(pp, " 0=%e", min);
             fprintf(pp, " 1=%e", max);
         }
