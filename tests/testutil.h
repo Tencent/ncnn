@@ -214,6 +214,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
 
+    if (opt.use_int8_inference) opt.use_bf16_storage = false;
+
 #if NCNN_VULKAN
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -297,7 +299,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             a4 = a;
         }
 
-        if (opt.use_bf16_storage && !opt.use_int8_inference)
+        if (opt.use_bf16_storage)
         {
             for (size_t i=0; i<a4.size(); i++)
             {
@@ -321,7 +323,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             op->forward(a4, c, opt);
         }
 
-        if (opt.use_bf16_storage && !opt.use_int8_inference)
+        if (opt.use_bf16_storage)
         {
             for (size_t i=0; i<c.size(); i++)
             {
@@ -464,6 +466,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
 
+    if (opt.use_int8_inference) opt.use_bf16_storage = false;
+
 #if NCNN_VULKAN
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -537,7 +541,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             a4 = a;
         }
 
-        if (opt.use_bf16_storage && !opt.use_int8_inference)
+        if (opt.use_bf16_storage)
         {
             ncnn::Mat a_bf16;
             ncnn::cast_float32_to_bfloat16(a4, a_bf16, opt);
@@ -554,7 +558,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             op->forward(a4, c, opt);
         }
 
-        if (opt.use_bf16_storage && !opt.use_int8_inference)
+        if (opt.use_bf16_storage)
         {
             ncnn::Mat c_fp32;
             ncnn::cast_bfloat16_to_float32(c, c_fp32, opt);

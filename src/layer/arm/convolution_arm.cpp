@@ -109,16 +109,16 @@ int Convolution_arm::create_pipeline(const Option& opt)
         activation->create_pipeline(opt);
     }
 
+    if (opt.use_bf16_storage)
+    {
+        return create_pipeline_bf16s(opt);
+    }
+
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         support_packing = false;
 
         return create_pipeline_int8_arm(opt);
-    }
-
-    if (opt.use_bf16_storage)
-    {
-        return create_pipeline_bf16s(opt);
     }
 
     if (opt.use_packing_layout == false && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
