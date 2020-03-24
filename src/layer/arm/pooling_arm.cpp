@@ -532,7 +532,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     {
                         const unsigned short* sptr = m.row<const unsigned short>(i*stride_h) + j*stride_w;
 
-                        float max = sptr[0];
+                        float max = -FLT_MAX;
 
                         for (int k = 0; k < maxk; k++)
                         {
