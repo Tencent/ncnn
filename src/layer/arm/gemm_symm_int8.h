@@ -660,11 +660,11 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
         "            // save            \n"
         "            st1 {v8.s}[0], [%2]\n"
         "            add %2, %2, #4     \n"
-        "            b m1_loopnd4_finish\n"
+        "            b 10f\n"
         "    7:                         \n"
         "        st1 {v8.4s}, [%2], #16 \n"
         
-        "    m1_loopnd4_finish:     \n"
+        "    10:     \n"
         "        subs %w8, %w8, #1  \n"
         "        mov %0, x8         \n"
         "        bne 9b             \n"
@@ -696,7 +696,7 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
 
     if (n2 > 0) {
         asm volatile(
-        "m1_nd2_start:                  \n"
+        "9:                  \n"
         "    eor v8.16b, v8.16b, v8.16b   \n"
         "    eor v9.16b, v9.16b, v9.16b   \n"
         "    eor v10.16b, v10.16b, v10.16b\n"
@@ -822,11 +822,11 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
         "            // save            \n"
         "            st1 {v8.h}[0], [%2]\n"
         "            add %2, %2, #2     \n"
-        "            b m1_loopnd2_finish\n"
+        "            b 10f\n"
         "    7:          \n"
         "        st1 {v8.2s}, [%2], #8  \n"
 
-        "    m1_loopnd2_finish: \n"
+        "   10: \n"
         "        mov %0, x8     \n"
         : "=r"(pa),     // %0
           "=r"(pb),     // %1
@@ -857,7 +857,7 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
     if (n1 > 0) {
 
     asm volatile (
-        "m1_nd1_start:                    \n"
+        "9:                    \n"
         "    eor v8.16b, v8.16b, v8.16b   \n"
         "    eor v9.16b, v9.16b, v9.16b   \n"
         "    eor v10.16b, v10.16b, v10.16b\n"
@@ -973,11 +973,11 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
         "            sqxtn v8.8b, v8.8h \n"
         "            // save            \n"
         "            st1 {v8.b}[0], [%2]\n"
-        "        b m1_finish            \n"
+        "        b 10f                  \n"
 
         "    7:          \n"
         "        st1 {v8.s}[0], [%2]    \n"
-        "    m1_finish:                 \n"
+        "    10:                        \n"
         "        mov x0, #0             \n"
         : "=r"(pa),     // %0
           "=r"(pb),     // %1
@@ -1251,12 +1251,12 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "            add %2, %2, #4         \n"
         "            st1 {v8.s}[1], [%3]    \n"
         "            add %3, %3, #4         \n"
-        "            b m2_loopnd4_finish    \n"
+        "            b 10f  \n"
         "    7:              \n"
         "        st1 {v8.4s}, [%2], #16     \n"
         "        st1 {v9.4s}, [%3], #16     \n"
         
-        "    m2_loopnd4_finish:       \n"
+        "   10:      \n"
         "        subs %w9, %w9, #1    \n"
         "        mov %0, x8           \n"
         "        bne 9b               \n"
@@ -1308,7 +1308,7 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "eor v22.16b, v22.16b, v22.16b  \n"
         "eor v23.16b, v23.16b, v23.16b  \n"
 
-        "m2_nd2_start:                  \n"
+        "9:                \n"
         "    mov x8, %0  // PanelA      \n"
         
         "    cmp %w5, #0                \n"
@@ -1465,15 +1465,15 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "            sqxtn v8.8b, v8.8h     \n"
         "            // save                \n"
         "            st1 {v8.h}[0], [%2]    \n"
-        "            add %2, %2, #2       \n"
+        "            add %2, %2, #2         \n"
         "            st1 {v8.h}[1], [%3]    \n"
-        "            add %3, %3, #2       \n"
-        "            b m2_loopnd2_finish    \n"
+        "            add %3, %3, #2         \n"
+        "            b 10f   \n"
 
         "    7:"
         "        st1 {v8.2s}, [%2], #8      \n"
         "        st1 {v12.2s}, [%3], #8     \n"
-        "    m2_loopnd2_finish:             \n"
+        "    10:            \n"
         "        mov %0, x8                 \n"
         : "=r"(pa),     // %0
           "=r"(pb),     // %1
@@ -1521,7 +1521,7 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "eor v22.16b, v22.16b, v22.16b  \n"
         "eor v23.16b, v23.16b, v23.16b  \n"
 
-        "m2_nd1_start:                  \n"
+        "9:                \n"
         "    cmp %w5, #0                \n"
         "    beq 1f             // k <=7\n"
         
@@ -1654,12 +1654,12 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "            // save                \n"
         "            st1 {v8.b}[0], [%2]    \n"
         "            st1 {v8.b}[1], [%3]    \n"
-        "            b m2_finish            \n"
+        "            b 10f           \n"
 
         "    7:                         \n"
         "        st1 {v8.s}[0], [%2]    \n"
         "        st1 {v12.s}[0], [%3]   \n"
-        "    m2_finish:                 \n"
+        "    10:                \n"
         "        mov x0, #0             \n"
         : "=r"(pa),     // %0
           "=r"(pb),     // %1
@@ -2043,7 +2043,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "            add %x4, %x4, #4       \n"
         "            st1 {v9.s}[1], [%5]    \n"
         "            add %x5, %x5, #4       \n"
-        "            b m4_loopnd4_finish    \n"
+        "            b 10f   \n"
 
         "    9:                             \n"
         "        st1 {v8.4s}, [%x2], #16    \n"
@@ -2051,7 +2051,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "        st1 {v10.4s}, [%x4], #16   \n"
         "        st1 {v11.4s}, [%x5], #16   \n"
         
-        "    m4_loopnd4_finish:          \n"
+        "    10:         \n"
         "        subs %x11, %x11, #1     \n"
         "        mov %x0, x8             \n"
         "        bne 8b                  \n"
@@ -2107,11 +2107,11 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "    eor v22.8b, v22.8b, v22.8b \n"
         "    eor v23.8b, v23.8b, v23.8b \n"
 
-        "m4_nd2_start:                  \n"
+        "9:                \n"
         "    mov x8, %x0  // PanelA     \n"
         
-        "    cmp %w7, #0                 \n"
-        "    beq 1f         // k <= 7     \n"
+        "    cmp %w7, #0                \n"
+        "    beq 1f         // k <= 7   \n"
         
         "    mov w20, %w7                \n"
         "    cmp %w6, #0                 \n"
@@ -2344,12 +2344,12 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "            st1 {v8.h}[0], [%2]    \n"
         "            add %2, %2, #2         \n"
         "            st1 {v8.h}[1], [%3]    \n"
-        "            add %3, %3, #2       \n"
+        "            add %3, %3, #2         \n"
         "            st1 {v16.h}[0], [%4]   \n"
-        "            add %4, %4, #2       \n"
+        "            add %4, %4, #2         \n"
         "            st1 {v16.h}[1], [%5]   \n"
-        "            add %5, %5, #2       \n"
-        "            b m4_loopnd2_finish    \n"
+        "            add %5, %5, #2         \n"
+        "            b 10f   \n"
 
         "    7:             \n"
         "        st1 {v8.2s}, [%2], #8     \n"
@@ -2357,7 +2357,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "        st1 {v16.2s}, [%4], #8    \n"
         "        st1 {v20.2s}, [%5], #8    \n"
 
-        "    m4_loopnd2_finish:             \n"
+        "    10:            \n"
         "        mov %0, x8                 \n"
         : "=r"(pa),     // %0
           "=r"(pb),     // %1
@@ -2409,7 +2409,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "    eor v22.8b, v22.8b, v22.8b \n"
         "    eor v23.8b, v23.8b, v23.8b \n"
 
-        "m4_n1_start:                       \n"
+        "1:                      \n"
         "    cmp %w7, #0                     \n"
         "    beq 10f             \n"
         
@@ -2587,7 +2587,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "            st1 {v8.b}[1], [%3]   \n"
         "            st1 {v8.b}[2], [%4]   \n"
         "            st1 {v8.b}[3], [%5]   \n"
-        "            b m4_finish            \n"
+        "            b 2f          \n"
 
         "        // no need to add the last output pointer\n"
         "    16:                           \n"
@@ -2596,7 +2596,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
         "        st1 {v16.s}[0], [%4]      \n"
         "        st1 {v20.s}[0], [%5]      \n"
 
-        "    m4_finish:                     \n"
+        "    2:                            \n"
         "        mov x0, #0                 \n"
         : "=r"(pa),     // %0
           "=r"(pb),     // %1
