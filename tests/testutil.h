@@ -297,7 +297,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             a4 = a;
         }
 
-        if (opt.use_bf16_storage)
+        if (opt.use_bf16_storage && !opt.use_int8_inference)
         {
             for (size_t i=0; i<a4.size(); i++)
             {
@@ -321,7 +321,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             op->forward(a4, c, opt);
         }
 
-        if (opt.use_bf16_storage)
+        if (opt.use_bf16_storage && !opt.use_int8_inference)
         {
             for (size_t i=0; i<c.size(); i++)
             {
@@ -537,7 +537,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             a4 = a;
         }
 
-        if (opt.use_bf16_storage)
+        if (opt.use_bf16_storage && !opt.use_int8_inference)
         {
             ncnn::Mat a_bf16;
             ncnn::cast_float32_to_bfloat16(a4, a_bf16, opt);
@@ -554,7 +554,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             op->forward(a4, c, opt);
         }
 
-        if (opt.use_bf16_storage)
+        if (opt.use_bf16_storage && !opt.use_int8_inference)
         {
             ncnn::Mat c_fp32;
             ncnn::cast_bfloat16_to_float32(c, c_fp32, opt);
