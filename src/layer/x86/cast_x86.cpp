@@ -77,6 +77,11 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         // int8
         out_elemsize = elempack;
     }
+    else if (type_to == 4)
+    {
+        // bfloat16
+        out_elemsize = 2 * elempack;
+    }
 
     if (dims == 1)
     {
@@ -158,6 +163,12 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 _mm256_maskstore_ps(outptr, mask.vec, fp32);
             }
         }
+    }
+
+    if (type_from == 4 || type_to == 4)
+    {
+        // TODO
+        return Cast::forward(bottom_blob, top_blob, opt);
     }
 
     return 0;

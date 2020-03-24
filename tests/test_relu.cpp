@@ -35,7 +35,7 @@ static int test_relu(const ncnn::Mat& a, float slope)
     int ret = test_layer<ncnn::ReLU>("ReLU", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_relu failed slope=%f\n", slope);
+        fprintf(stderr, "test_relu failed a.dims=%d a=(%d %d %d) slope=%f\n", a.dims, a.w, a.h, a.c, slope);
     }
 
     return ret;
