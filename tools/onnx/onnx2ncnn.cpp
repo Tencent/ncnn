@@ -151,7 +151,7 @@ static onnx::TensorProto get_node_attr_tensor(const onnx::NodeProto& node, const
     return onnx::TensorProto();
 }
 
-static std::vector<int> get_tensor_proto_reshape_shape(const onnx::TensorProto& tp)
+static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
 {
     const int64_t* shape_data = 0;
     int size = 0;
@@ -168,13 +168,13 @@ static std::vector<int> get_tensor_proto_reshape_shape(const onnx::TensorProto& 
         size = tp.int64_data_size();
     }
 
-    std::vector<int> shape;
+    std::vector<int> v(size);
     for (int j=0; j<size; j++)
     {
-        shape.push_back(shape_data[j]);
+        v[j] = shape_data[j];
     }
 
-    return shape;
+    return v;
 }
 
 static int get_tensor_proto_data_size(const onnx::TensorProto& tp)
@@ -315,7 +315,7 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
                 if (weights.find(node->input(1)) == weights.end())
                     continue;
 
-                shape = get_tensor_proto_reshape_shape(weights[node->input(1)]);
+                shape = get_node_attr_from_input_ai(weights[node->input(1)]);
             }
 
             // 1 groups channels_per_group, height, width
@@ -364,7 +364,7 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
                 if (weights.find(node3->input(1)) == weights.end())
                     continue;
 
-                shape3 = get_tensor_proto_reshape_shape(weights[node3->input(1)]);
+                shape3 = get_node_attr_from_input_ai(weights[node3->input(1)]);
             }
 
             // 1, -1, height, width
@@ -434,8 +434,23 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
                 continue;
 
-            float relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
-            float relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            float relu6_min;
+            float relu6_max;
+            if (node2->input_size() == 1)
+            {
+                relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
+                relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node2->input(1)];
+                const onnx::TensorProto& max_tp = weights[node2->input(2)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+                const float* max_data = max_tp.has_raw_data() ? (const float*)max_tp.raw_data().data() : max_tp.float_data().data();
+
+                relu6_min = min_data[0];
+                relu6_max = max_data[0];
+            }
             if (relu6_min != 0.f || relu6_max != 6.f)
                 continue;
 
@@ -578,8 +593,23 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
                 continue;
 
-            float relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
-            float relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            float relu6_min;
+            float relu6_max;
+            if (node2->input_size() == 1)
+            {
+                relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
+                relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node2->input(1)];
+                const onnx::TensorProto& max_tp = weights[node2->input(2)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+                const float* max_data = max_tp.has_raw_data() ? (const float*)max_tp.raw_data().data() : max_tp.float_data().data();
+
+                relu6_min = min_data[0];
+                relu6_max = max_data[0];
+            }
             if (relu6_min != 0.f || relu6_max != 6.f)
                 continue;
 
@@ -769,7 +799,18 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
                 continue;
 
             // +eps
-            float clip_min = get_node_attr_f(*node2, "min", 0.f);
+            float clip_min;
+            if (node2->input_size() == 1)
+            {
+                clip_min = get_node_attr_f(*node2, "min", -FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node2->input(1)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+
+                clip_min = min_data[0];
+            }
 
             // reduce
             node->set_op_type("noop_reducedncnn");
@@ -858,7 +899,7 @@ static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, 
             if (weights.find(node2->input(1)) == weights.end())
                 continue;
 
-            std::vector<int> gather_indices = get_tensor_proto_reshape_shape(weights[node2->input(1)]);
+            std::vector<int> gather_indices = get_node_attr_from_input_ai(weights[node2->input(1)]);
             if (gather_indices.size() != 1 || gather_indices[0] != 0)
                 continue;
 
@@ -880,7 +921,7 @@ static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, 
             if (weights.find(node5->input(0)) == weights.end())
                 continue;
 
-            std::vector<int> unsqueeze2_data = get_tensor_proto_reshape_shape(weights[node5->input(0)]);
+            std::vector<int> unsqueeze2_data = get_node_attr_from_input_ai(weights[node5->input(0)]);
             if (unsqueeze2_data.size() != 1 || unsqueeze2_data[0] != -1)
                 continue;
 
@@ -947,7 +988,7 @@ static void fuse_pixelshuffle(onnx::GraphProto* mutable_graph, std::map<std::str
                 if (weights.find(node->input(1)) == weights.end())
                     continue;
 
-                shape = get_tensor_proto_reshape_shape(weights[node->input(1)]);
+                shape = get_node_attr_from_input_ai(weights[node->input(1)]);
             }
 
             // -1, 3, upscale_factor, upscale_factor, height, width
@@ -999,7 +1040,7 @@ static void fuse_pixelshuffle(onnx::GraphProto* mutable_graph, std::map<std::str
                 if (weights.find(node3->input(1)) == weights.end())
                     continue;
 
-                shape3 = get_tensor_proto_reshape_shape(weights[node3->input(1)]);
+                shape3 = get_node_attr_from_input_ai(weights[node3->input(1)]);
             }
 
             // -1, 3, height, width
@@ -1856,8 +1897,24 @@ int main(int argc, char** argv)
         }
         else if (op == "Clip")
         {
-            float min = get_node_attr_f(node, "min", -FLT_MAX);
-            float max = get_node_attr_f(node, "max", FLT_MAX);
+            float min;
+            float max;
+            if (node.input_size() == 1)
+            {
+                min = get_node_attr_f(node, "min", -FLT_MAX);
+                max = get_node_attr_f(node, "max", FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node.input(1)];
+                const onnx::TensorProto& max_tp = weights[node.input(2)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+                const float* max_data = max_tp.has_raw_data() ? (const float*)max_tp.raw_data().data() : max_tp.float_data().data();
+
+                min = min_data[0];
+                max = max_data[0];
+            }
+
             fprintf(pp, " 0=%e", min);
             fprintf(pp, " 1=%e", max);
         }
@@ -2504,7 +2561,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                pads = get_tensor_proto_reshape_shape(weights[node.input(1)]);
+                pads = get_node_attr_from_input_ai(weights[node.input(1)]);
             }
 
             int type = 0;
@@ -2639,7 +2696,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                shape = get_tensor_proto_reshape_shape(weights[node.input(1)]);
+                shape = get_node_attr_from_input_ai(weights[node.input(1)]);
             }
 
             if (shape.size() == 1) {
@@ -2682,7 +2739,7 @@ int main(int argc, char** argv)
 
             std::vector<int> sizes;
             {
-                sizes = get_tensor_proto_reshape_shape(weights[node.input(3)]);
+                sizes = get_node_attr_from_input_ai(weights[node.input(3)]);
             }
 
             int resize_type = 1;
@@ -2762,10 +2819,24 @@ int main(int argc, char** argv)
         }
         else if (op == "Slice")
         {
-            std::vector<int> starts = get_node_attr_ai(node, "starts");
-            std::vector<int> ends = get_node_attr_ai(node, "ends");
-            std::vector<int> axes = get_node_attr_ai(node, "axes");
-            std::vector<int> steps = get_node_attr_ai(node, "steps");// TODO
+            std::vector<int> starts;
+            std::vector<int> ends;
+            std::vector<int> axes;
+            std::vector<int> steps;
+            if (node.input_size() == 1)
+            {
+                starts = get_node_attr_ai(node, "starts");
+                ends = get_node_attr_ai(node, "ends");
+                axes = get_node_attr_ai(node, "axes");
+                steps = get_node_attr_ai(node, "steps");// TODO
+            }
+            else
+            {
+                starts = get_node_attr_from_input_ai(weights[node.input(1)]);
+                ends = get_node_attr_from_input_ai(weights[node.input(2)]);
+                axes = get_node_attr_from_input_ai(weights[node.input(3)]);
+                steps = get_node_attr_from_input_ai(weights[node.input(4)]);
+            }
 
             // assert step == 1
             for (int i=0; i<(int)steps.size(); i++)

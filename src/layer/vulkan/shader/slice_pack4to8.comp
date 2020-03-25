@@ -41,7 +41,7 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
-layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
@@ -74,9 +74,14 @@ void main()
 
     ivec3 gxyz = ivec3(gx, gy, gz);
 
+    gxyz[psc(dims) - 1] *= 2;
     gxyz[psc(dims) - 1 - axis] += p.offset;
 
-    int v_offset = gxyz.z * psc(cstep) + gxyz.y * psc(w) + gxyz.x;
+    int v_offset_0 = gxyz.z * psc(cstep) + gxyz.y * psc(w) + gxyz.x;
 
-    buffer_cp8(top_blob_data, gi, bottom_blob_data, v_offset);
+    ivec3 gxyz4 = ivec3(1, psc(w), psc(cstep));
+
+    ivec2 v_offset = v_offset_0 + ivec2(0, 1) * gxyz4[psc(dims) - 1 - axis];
+
+    buffer_cp4to8(top_blob_data, gi, bottom_blob_data, v_offset);
 }
