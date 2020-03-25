@@ -110,6 +110,7 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "fmla   v24.4s, v14.4s, v16.4s      \n"
                     "shll   v18.4s, v18.4h, #16         \n"
                     "fmla   v25.4s, v14.4s, v17.4s      \n"
+                    "shll   v19.4s, v19.4h, #16         \n"
                     "fmla   v26.4s, v14.4s, v18.4s      \n"
                     "prfm   pldl1keep, [%3, #256]       \n"
                     "ld1    {v20.4h, v21.4h, v22.4h, v23.4h}, [%3]      \n"// r14 r15 r16 r17
@@ -119,7 +120,6 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                     "fmla   v28.4s, v15.4s, v16.4s      \n"
                     "fmla   v29.4s, v15.4s, v17.4s      \n"
-                    "shll   v19.4s, v19.4h, #16         \n"
                     "fmla   v30.4s, v15.4s, v18.4s      \n"
                     "fmla   v31.4s, v15.4s, v19.4s      \n"
 
