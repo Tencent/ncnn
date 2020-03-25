@@ -8,6 +8,17 @@ if(NCNN_VULKAN)
     message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
 endif()
 
+# Add source file to list, and add to special visual folder
+function(ncnn_src_group ncnn_src_string folder)
+    string(REPLACE " " ";" _ncnn_src_list ${ncnn_src_string})
+
+    string(REGEX REPLACE "/" "\\\\" _target_folder "${folder}")
+
+    foreach(_file IN LISTS ${_ncnn_src_list}) 
+        source_group ("${_target_folder}" FILES "${_file}")
+    endforeach ()
+endfunction()
+
 set(ncnn_SRCS
     allocator.cpp
     blob.cpp
@@ -28,6 +39,8 @@ set(ncnn_SRCS
     pipeline.cpp
     benchmark.cpp
 )
+
+ncnn_src_group(ncnn_SRCS "sources")
 
 if(ANDROID)
     list(APPEND ncnn_SRCS mat_pixel_android.cpp)
@@ -91,6 +104,10 @@ macro(ncnn_add_layer class)
             set(WITH_LAYER_${name}_vulkan 1)
             list(APPEND ncnn_SRCS ${LAYER_VULKAN_SRC})
         endif()
+
+        source_group ("sources\\\\layers" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${name}.cpp")
+        source_group ("sources\\\\layers\\\\${arch}" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${arch}/${name}_${arch}.cpp")
+        source_group ("sources\\\\layers\\\\vulkan" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/${name}_vulkan.cpp")
     endif()
 
     # generate layer_declaration and layer_registry file
