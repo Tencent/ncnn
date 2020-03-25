@@ -404,6 +404,7 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
         // HardSwish <= Add(+3) - Clip(0,6) - Mul(X,) - Div(/6)
+        // HardSwish <= Add(+3) - Clip(0,6) - Mul(X,) - Constant - Div(/6)
         //     out = x * F.relu6(x + 3, inplace=True) / 6
         if (node->op_type() == "Add")
         {
@@ -427,6 +428,14 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
             onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
             onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
             onnx::NodeProto* node4 = mutable_graph->mutable_node(i+3);
+
+            if (node4->op_type() == "Constant")
+            {
+                if (i+4 >= node_count)
+                    continue;
+
+                node4 = mutable_graph->mutable_node(i+4);
+            }
 
             if (node2->op_type() != "Clip" || node3->op_type() != "Mul" || node4->op_type() != "Div")
                 continue;
@@ -564,6 +573,7 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
         // HardSigmoid <= Add(+3) - Clip(0,6) - Div(/6)
+        // HardSigmoid <= Add(+3) - Clip(0,6) - Constant - Div(/6)
         //     out = F.relu6(x + 3, inplace=True) / 6
         if (node->op_type() == "Add")
         {
@@ -586,6 +596,14 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
 
             onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
             onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
+
+            if (node3->op_type() == "Constant")
+            {
+                if (i+3 >= node_count)
+                    continue;
+
+                node3 = mutable_graph->mutable_node(i+3);
+            }
 
             if (node2->op_type() != "Clip" || node3->op_type() != "Div")
                 continue;
@@ -1491,6 +1509,9 @@ int main(int argc, char** argv)
             // check weight before BinaryOp
             if (binaryop_weights.find(node.output(0)) != binaryop_weights.end())
             {
+                if (std::find(reduced_binaryop_weights.begin(), reduced_binaryop_weights.end(), node.output(0)) != reduced_binaryop_weights.end())
+                    continue;
+
                 fprintf(pp, "%-16s", "MemoryData");
             }
             else
