@@ -27,10 +27,15 @@ HardSwish_arm::HardSwish_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+    support_bf16_storage = true;
 }
 
 int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+    if (opt.use_bf16_storage)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
@@ -38,9 +43,6 @@ int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
-
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -66,8 +68,6 @@ int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
         return 0;
     }
-
-    } // opt.use_packing_layout
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -106,6 +106,87 @@ int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 ;
             else
                 *ptr = *ptr * (*ptr * alpha + beta);
+            ++ptr;
+        }
+    }
+
+    return 0;
+}
+
+int HardSwish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+#if __ARM_NEON
+    if (elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            float32x4_t _zero = vdupq_n_f32(0.f);
+            float32x4_t _one = vdupq_n_f32(1.f);
+            for (int i=0; i<size; i++)
+            {
+                float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                float32x4_t _ans = vdupq_n_f32(beta);
+                _ans = vmlaq_n_f32(_ans, _p, alpha);
+                _ans = vmaxq_f32(_ans, _zero);
+                _ans = vminq_f32(_ans, _one);
+                _ans = vmulq_f32(_ans, _p);
+                vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_ans), 16));
+
+                ptr += 4;
+            }
+        }
+
+        return 0;
+    }
+#endif // __ARM_NEON
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q=0; q<channels; q++)
+    {
+        unsigned short* ptr = bottom_top_blob.channel(q);
+
+#if __ARM_NEON
+        int nn = size >> 2;
+        int remain = size - (nn << 2);
+#else
+        int remain = size;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        float32x4_t _zero = vdupq_n_f32(0.f);
+        float32x4_t _one = vdupq_n_f32(1.f);
+        while (nn--)
+        {
+            float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+            float32x4_t _ans = vdupq_n_f32(beta);
+            _ans = vmlaq_n_f32(_ans, _p, alpha);
+            _ans = vmaxq_f32(_ans, _zero);
+            _ans = vminq_f32(_ans, _one);
+            _ans = vmulq_f32(_ans, _p);
+            vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_ans), 16));
+
+            ptr += 4;
+        }
+#endif // __ARM_NEON
+        for (; remain>0; remain--)
+        {
+            float v = bfloat16_to_float32(*ptr);
+            if (v < lower)
+                v = 0.f;
+            else if (v > upper)
+                ;
+            else
+                v = v * (v * alpha + beta);
+            *ptr = float32_to_bfloat16(v);
             ++ptr;
         }
     }
