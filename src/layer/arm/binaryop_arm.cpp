@@ -1571,10 +1571,10 @@ int BinaryOp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
     Mat& top_blob = top_blobs[0];
 
-#if __ARM_NEON
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
 
+#if __ARM_NEON
     if (elempack == 4 || elempack1 == 4)
     {
         if (op_type == Operation_ADD)
@@ -1641,9 +1641,9 @@ int BinaryOp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
 int BinaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __ARM_NEON
     int elempack = bottom_top_blob.elempack;
 
+#if __ARM_NEON
     if (elempack == 4)
     {
         if (op_type == Operation_ADD)
