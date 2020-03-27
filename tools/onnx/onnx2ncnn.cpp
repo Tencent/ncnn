@@ -1362,13 +1362,9 @@ int main(int argc, char** argv)
     }
 
     // place MemoryData next
-    for (int j=0; j<graph.input_size(); j++)
+    for (std::map<std::string, onnx::TensorProto>::iterator it = binaryop_weights.begin(); it != binaryop_weights.end(); it++)
     {
-        const std::string& input_name = graph.input(j).name();
-
-        // check weight before BinaryOp
-        if (binaryop_weights.find(input_name) == binaryop_weights.end())
-            continue;
+        const std::string& input_name = it->first;
 
         if (std::find(reduced_binaryop_weights.begin(), reduced_binaryop_weights.end(), input_name) != reduced_binaryop_weights.end())
             continue;
@@ -1419,7 +1415,6 @@ int main(int argc, char** argv)
         fprintf(pp, "\n");
 
         internal_split++;
-
     }
 
     for (int i=0; i<node_count; i++)
