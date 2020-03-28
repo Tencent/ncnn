@@ -449,7 +449,7 @@ int ImportAndroidHardwareBufferPipeline::create(AHardwareBuffer* hb, int _type_t
         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
         out_elempack = 1;
     }
-    else // if (type_to == 4)
+    else // if (type_to == 4 || type_to == 5)
     {
         outc = 4;
         out_elemsize = ((vkdev->info.support_fp16_packed && opt.use_fp16_packed) || (vkdev->info.support_fp16_storage && opt.use_fp16_storage)) ? 8u : 16u;

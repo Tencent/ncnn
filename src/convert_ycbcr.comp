@@ -127,4 +127,15 @@ void main()
 
         buffer_st4(vkmat_pack4_blob_data, v_offset, afpvec4(rgba));
     }
+
+    if (type_to == 5) // PIXEL_BGRA
+    {
+        int v_offset = gy * outw + gx;
+
+        vec4 rgba;
+        rgba.bgr = rgb;
+        rgba.a = 255.f;
+
+        buffer_st4(vkmat_pack4_blob_data, v_offset, afpvec4(rgba));
+    }
 }
