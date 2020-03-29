@@ -290,10 +290,10 @@ int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
                         uint16x4x2_t _p01 = vzip_u16(_p0, _p1);
                         uint16x4x2_t _p12 = vzip_u16(_p1, _p2);
 
-                        uint16x4_t _0415 = _p01.val[0];
+                        uint32x2_t _0415 = vreinterpret_u32_u16(_p01.val[0]);
                         uint16x4_t _2637 = _p01.val[1];
                         uint16x4_t _4859 = _p12.val[0];
-                        uint16x4_t _6x7y = _p12.val[1];
+                        uint32x2_t _6x7y = vreinterpret_u32_u16(_p12.val[1]);
 
                         uint16x4_t _98yx = vrev32_u16(_p2);
                         uint16x4x2_t _90y281x3 = vtrn_u16(_98yx, _p0);
