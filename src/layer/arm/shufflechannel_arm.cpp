@@ -29,10 +29,15 @@ ShuffleChannel_arm::ShuffleChannel_arm()
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+
+    support_bf16_storage = true;
 }
 
 int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    if (opt.use_bf16_storage)
+        return forward_bf16s(bottom_blob, top_blob, opt);
+
     if (group == 1)
     {
         top_blob = bottom_blob;
@@ -169,6 +174,186 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         vst1q_f32(outptr1, _p1);
                         vst1q_f32(outptr2, _p2);
                         vst1q_f32(outptr3, _p3);
+
+                        ptr0 += 4;
+                        ptr1 += 4;
+                        ptr2 += 4;
+                        ptr3 += 4;
+                        outptr0 += 4;
+                        outptr1 += 4;
+                        outptr2 += 4;
+                        outptr3 += 4;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // slow path for too large group or shuffle inside elempack
+            Option opt_pack = opt;
+            opt_pack.blob_allocator = opt.workspace_allocator;
+
+            Mat bottom_blob_unpacked;
+            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+
+            Mat top_blob_unpacked;
+            int ret = ShuffleChannel::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
+            if (ret != 0)
+                return ret;
+
+            convert_packing(top_blob_unpacked, top_blob, 4, opt);
+        }
+
+        return 0;
+    }
+
+    } // opt.use_packing_layout
+#endif // __ARM_NEON
+
+    return ShuffleChannel::forward(bottom_blob, top_blob, opt);
+}
+
+int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    if (group == 1)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    int elempack = bottom_blob.elempack;
+
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    int size = w * h;
+    size_t elemsize = bottom_blob.elemsize;
+
+    if (elempack == 4)
+    {
+        if (group <= 4 && channels % group == 0)
+        {
+            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            int channels_per_group = channels / group;
+
+            if (group == 2)
+            {
+                for (int q=0; q<channels_per_group; q++)
+                {
+                    const unsigned short* ptr0 = bottom_blob.channel(q);
+                    const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
+                    unsigned short* outptr0 = top_blob.channel(q*2);
+                    unsigned short* outptr1 = top_blob.channel(q*2+1);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        uint16x4_t _p0 = vld1_u16(ptr0);
+                        uint16x4_t _p1 = vld1_u16(ptr1);
+
+                        uint16x4x2_t _p01 = vzip_u16(_p0, _p1);
+
+                        vst1_u16(outptr0, _p01.val[0]);
+                        vst1_u16(outptr1, _p01.val[1]);
+
+                        ptr0 += 4;
+                        ptr1 += 4;
+                        outptr0 += 4;
+                        outptr1 += 4;
+                    }
+                }
+            }
+            else if (group == 3)
+            {
+                for (int q=0; q<channels_per_group; q++)
+                {
+                    const unsigned short* ptr0 = bottom_blob.channel(q);
+                    const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
+                    const unsigned short* ptr2 = bottom_blob.channel(channels_per_group*2 + q);
+                    unsigned short* outptr0 = top_blob.channel(q*3);
+                    unsigned short* outptr1 = top_blob.channel(q*3+1);
+                    unsigned short* outptr2 = top_blob.channel(q*3+2);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        uint16x4_t _p0 = vld1_u16(ptr0);
+                        uint16x4_t _p1 = vld1_u16(ptr1);
+                        uint16x4_t _p2 = vld1_u16(ptr2);
+
+                        // TODO figure out a faster way
+                        uint16x4x2_t _p01 = vzip_u16(_p0, _p1);
+                        uint16x4x2_t _p12 = vzip_u16(_p1, _p2);
+
+                        uint16x4_t _0415 = _p01.val[0];
+                        uint16x4_t _2637 = _p01.val[1];
+                        uint16x4_t _4859 = _p12.val[0];
+                        uint16x4_t _6x7y = _p12.val[1];
+
+                        uint16x4_t _98yx = vrev32_u16(_p2);
+                        uint16x4x2_t _90y281x3 = vtrn_u16(_98yx, _p0);
+
+                        uint32x2_t _81x3 = vreinterpret_u32_u16(_90y281x3.val[1]);
+
+                        uint32x2x2_t _048115x3 = vtrn_u32(_0415, _81x3);
+                        uint32x2x2_t _816xx37y = vtrn_u32(_81x3, _6x7y);
+
+                        uint16x4_t _0481 = vreinterpret_u16_u32(_048115x3.val[0]);
+                        uint16x4_t _5926 = vext_u16(_4859, _2637, 2);
+                        uint16x4_t _x37y = vreinterpret_u16_u32(_816xx37y.val[1]);
+
+                        vst1_u16(outptr0, _0481);
+                        vst1_u16(outptr1, _5926);
+                        vst1_u16(outptr2, _x37y);
+
+                        ptr0 += 4;
+                        ptr1 += 4;
+                        ptr2 += 4;
+                        outptr0 += 4;
+                        outptr1 += 4;
+                        outptr2 += 4;
+                    }
+                }
+            }
+            else // group == 4
+            {
+                for (int q=0; q<channels_per_group; q++)
+                {
+                    const unsigned short* ptr0 = bottom_blob.channel(q);
+                    const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
+                    const unsigned short* ptr2 = bottom_blob.channel(channels_per_group*2 + q);
+                    const unsigned short* ptr3 = bottom_blob.channel(channels_per_group*3 + q);
+                    unsigned short* outptr0 = top_blob.channel(q*4);
+                    unsigned short* outptr1 = top_blob.channel(q*4+1);
+                    unsigned short* outptr2 = top_blob.channel(q*4+2);
+                    unsigned short* outptr3 = top_blob.channel(q*4+3);
+
+                    for (int i=0; i<size; i++)
+                    {
+                        uint16x4_t _p0 = vld1_u16(ptr0);
+                        uint16x4_t _p1 = vld1_u16(ptr1);
+                        uint16x4_t _p2 = vld1_u16(ptr2);
+                        uint16x4_t _p3 = vld1_u16(ptr3);
+
+                        // transpose 4x4
+                        uint16x4x2_t _p01 = vtrn_u16(_p0, _p1);
+                        uint16x4x2_t _p23 = vtrn_u16(_p2, _p3);
+                        uint32x2x2_t _p02 = vtrn_u32(vreinterpret_u32_u16(_p01.val[0]), vreinterpret_u32_u16(_p23.val[0]));
+                        uint32x2x2_t _p13 = vtrn_u32(vreinterpret_u32_u16(_p01.val[1]), vreinterpret_u32_u16(_p23.val[1]));
+                        _p0 = vreinterpret_u16_u32(_p02.val[0]);
+                        _p1 = vreinterpret_u16_u32(_p13.val[0]);
+                        _p2 = vreinterpret_u16_u32(_p02.val[1]);
+                        _p3 = vreinterpret_u16_u32(_p13.val[1]);
+
+                        vst1_u16(outptr0, _p0);
+                        vst1_u16(outptr1, _p1);
+                        vst1_u16(outptr2, _p2);
+                        vst1_u16(outptr3, _p3);
 
                         ptr0 += 4;
                         ptr1 += 4;
