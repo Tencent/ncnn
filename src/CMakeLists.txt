@@ -104,10 +104,6 @@ macro(ncnn_add_layer class)
             set(WITH_LAYER_${name}_vulkan 1)
             list(APPEND ncnn_SRCS ${LAYER_VULKAN_SRC})
         endif()
-
-        source_group ("sources\\\\layers" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${name}.cpp")
-        source_group ("sources\\\\layers\\\\${arch}" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${arch}/${name}_${arch}.cpp")
-        source_group ("sources\\\\layers\\\\vulkan" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/${name}_vulkan.cpp")
     endif()
 
     # generate layer_declaration and layer_registry file
@@ -116,6 +112,8 @@ macro(ncnn_add_layer class)
         set(layer_declaration_class "class ${class}_final : virtual public ${class}")
         set(create_pipeline_content "        { int ret = ${class}::create_pipeline(opt); if (ret) return ret; }\n")
         set(destroy_pipeline_content "        { int ret = ${class}::destroy_pipeline(opt); if (ret) return ret; }\n")
+
+        source_group ("sources\\\\layers" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${name}.cpp")
     endif()
 
     if(WITH_LAYER_${name}_${arch})
@@ -123,6 +121,8 @@ macro(ncnn_add_layer class)
         set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_${arch}")
         set(create_pipeline_content "${create_pipeline_content}        { int ret = ${class}_${arch}::create_pipeline(opt); if (ret) return ret; }\n")
         set(destroy_pipeline_content "        { int ret = ${class}_${arch}::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
+
+        source_group ("sources\\\\layers\\\\${arch}" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${arch}/${name}_${arch}.cpp")
     endif()
 
     if(WITH_LAYER_${name}_vulkan)
@@ -137,6 +137,8 @@ macro(ncnn_add_layer class)
         foreach(SHADER_SRC ${SHADER_SRCS})
             ncnn_add_shader(${SHADER_SRC})
         endforeach()
+
+        source_group ("sources\\\\layers\\\\vulkan" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/${name}_vulkan.cpp")
     endif()
 
     if(WITH_LAYER_${name})
