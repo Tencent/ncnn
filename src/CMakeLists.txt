@@ -8,6 +8,17 @@ if(NCNN_VULKAN)
     message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
 endif()
 
+# Add source file to list, and add to special visual folder
+function(ncnn_src_group ncnn_src_string folder)
+    string(REPLACE " " ";" _ncnn_src_list ${ncnn_src_string})
+
+    string(REGEX REPLACE "/" "\\\\" _target_folder "${folder}")
+
+    foreach(_file IN LISTS ${_ncnn_src_list}) 
+        source_group ("${_target_folder}" FILES "${_file}")
+    endforeach ()
+endfunction()
+
 set(ncnn_SRCS
     allocator.cpp
     blob.cpp
@@ -28,6 +39,8 @@ set(ncnn_SRCS
     pipeline.cpp
     benchmark.cpp
 )
+
+ncnn_src_group(ncnn_SRCS "sources")
 
 if(ANDROID)
     list(APPEND ncnn_SRCS mat_pixel_android.cpp)
@@ -99,6 +112,8 @@ macro(ncnn_add_layer class)
         set(layer_declaration_class "class ${class}_final : virtual public ${class}")
         set(create_pipeline_content "        { int ret = ${class}::create_pipeline(opt); if (ret) return ret; }\n")
         set(destroy_pipeline_content "        { int ret = ${class}::destroy_pipeline(opt); if (ret) return ret; }\n")
+
+        source_group ("sources\\\\layers" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${name}.cpp")
     endif()
 
     if(WITH_LAYER_${name}_${arch})
@@ -106,6 +121,8 @@ macro(ncnn_add_layer class)
         set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_${arch}")
         set(create_pipeline_content "${create_pipeline_content}        { int ret = ${class}_${arch}::create_pipeline(opt); if (ret) return ret; }\n")
         set(destroy_pipeline_content "        { int ret = ${class}_${arch}::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
+
+        source_group ("sources\\\\layers\\\\${arch}" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${arch}/${name}_${arch}.cpp")
     endif()
 
     if(WITH_LAYER_${name}_vulkan)
@@ -120,6 +137,8 @@ macro(ncnn_add_layer class)
         foreach(SHADER_SRC ${SHADER_SRCS})
             ncnn_add_shader(${SHADER_SRC})
         endforeach()
+
+        source_group ("sources\\\\layers\\\\vulkan" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/${name}_vulkan.cpp")
     endif()
 
     if(WITH_LAYER_${name})
