@@ -14,6 +14,7 @@
 
 #include "padding_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -99,7 +100,7 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_padding = new Pipeline(vkdev);
         pipeline_padding->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_padding->create("padding", opt, specializations, 3, 12);
+        pipeline_padding->create(LayerShaderType::padding, opt, specializations);
     }
 
     // pack4
@@ -107,7 +108,7 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_padding_pack4 = new Pipeline(vkdev);
         pipeline_padding_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_padding_pack4->create("padding_pack4", opt, specializations, 3, 12);
+        pipeline_padding_pack4->create(LayerShaderType::padding_pack4, opt, specializations);
     }
 
     // pack8
@@ -115,7 +116,7 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_padding_pack8 = new Pipeline(vkdev);
         pipeline_padding_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_padding_pack8->create("padding_pack8", opt, specializations, 3, 12);
+        pipeline_padding_pack8->create(LayerShaderType::padding_pack8, opt, specializations);
     }
 
     return 0;

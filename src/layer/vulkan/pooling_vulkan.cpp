@@ -16,6 +16,7 @@
 #include <float.h>
 #include <algorithm>
 #include "layer_type.h"
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -165,7 +166,7 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_pooling_global = new Pipeline(vkdev);
             pipeline_pooling_global->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling_global->create("pooling_global", opt, specializations, 2, 12);
+            pipeline_pooling_global->create(LayerShaderType::pooling_global, opt, specializations);
         }
 
         // pack4
@@ -173,7 +174,7 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_pooling_global_pack4 = new Pipeline(vkdev);
             pipeline_pooling_global_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling_global_pack4->create("pooling_global_pack4", opt, specializations, 2, 12);
+            pipeline_pooling_global_pack4->create(LayerShaderType::pooling_global_pack4, opt, specializations);
         }
 
         // pack8
@@ -181,7 +182,7 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_pooling_global_pack8 = new Pipeline(vkdev);
             pipeline_pooling_global_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling_global_pack8->create("pooling_global_pack8", opt, specializations, 2, 12);
+            pipeline_pooling_global_pack8->create(LayerShaderType::pooling_global_pack8, opt, specializations);
         }
     }
     else
@@ -223,7 +224,7 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_pooling = new Pipeline(vkdev);
             pipeline_pooling->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling->create("pooling", opt, specializations, 2, 12);
+            pipeline_pooling->create(LayerShaderType::pooling, opt, specializations);
         }
 
         // pack4
@@ -231,7 +232,7 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_pooling_pack4 = new Pipeline(vkdev);
             pipeline_pooling_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling_pack4->create("pooling_pack4", opt, specializations, 2, 12);
+            pipeline_pooling_pack4->create(LayerShaderType::pooling_pack4, opt, specializations);
         }
 
         // pack8
@@ -239,7 +240,7 @@ int Pooling_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_pooling_pack8 = new Pipeline(vkdev);
             pipeline_pooling_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling_pack8->create("pooling_pack8", opt, specializations, 2, 12);
+            pipeline_pooling_pack8->create(LayerShaderType::pooling_pack8, opt, specializations);
         }
     }
 

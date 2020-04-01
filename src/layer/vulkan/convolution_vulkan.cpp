@@ -15,6 +15,7 @@
 #include "convolution_vulkan.h"
 #include <algorithm>
 #include "layer_type.h"
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -225,13 +226,13 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             specializations[4 + 6].i = out_shape_packed.c;
             specializations[4 + 7].i = out_shape_packed.cstep / 4;
 
-            pipeline_convolution_1x1s1d1->create("convolution_1x1s1d1", opt, specializations, 4, 8);
+            pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1, opt, specializations);
         }
         else
         {
             pipeline_convolution = new Pipeline(vkdev);
             pipeline_convolution->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolution->create("convolution", opt, specializations, 4, 10);
+            pipeline_convolution->create(LayerShaderType::convolution, opt, specializations);
         }
     }
 
@@ -257,7 +258,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             specializations[4 + 6].i = out_shape_packed.c;
             specializations[4 + 7].i = out_shape_packed.cstep;
 
-            pipeline_convolution_pack4_1x1s1d1->create("convolution_pack4_1x1s1d1", opt, specializations, 4, 8);
+            pipeline_convolution_pack4_1x1s1d1->create(LayerShaderType::convolution_pack4_1x1s1d1, opt, specializations);
         }
         else if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
         {
@@ -353,7 +354,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input->create("convolution_pack4_3x3s1d1_winograd23_transform_input", opt, specializations, 2, 7);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input->create(LayerShaderType::convolution_pack4_3x3s1d1_winograd23_transform_input, opt, specializations);
             }
 
             {
@@ -366,7 +367,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, std::min(4, num_output / 4));
-                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create("convolution_pack4_3x3s1d1_winograd23_gemm", opt, specializations, 3, 5);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_pack4_3x3s1d1_winograd23_gemm, opt, specializations);
             }
 
             {
@@ -385,14 +386,14 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->create("convolution_pack4_3x3s1d1_winograd23_transform_output", opt, specializations, 3, 7);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->create(LayerShaderType::convolution_pack4_3x3s1d1_winograd23_transform_output, opt, specializations);
             }
         }
         else
         {
             pipeline_convolution_pack4 = new Pipeline(vkdev);
             pipeline_convolution_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolution_pack4->create("convolution_pack4", opt, specializations, 4, 10);
+            pipeline_convolution_pack4->create(LayerShaderType::convolution_pack4, opt, specializations);
         }
     }
 
@@ -401,7 +402,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack1to4 = new Pipeline(vkdev);
         pipeline_convolution_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack1to4->create("convolution_pack1to4", opt, specializations, 4, 10);
+        pipeline_convolution_pack1to4->create(LayerShaderType::convolution_pack1to4, opt, specializations);
     }
 
     // pack4to1
@@ -409,7 +410,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack4to1 = new Pipeline(vkdev);
         pipeline_convolution_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack4to1->create("convolution_pack4to1", opt, specializations, 4, 10);
+        pipeline_convolution_pack4to1->create(LayerShaderType::convolution_pack4to1, opt, specializations);
     }
 
     // pack8
@@ -434,7 +435,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             specializations[4 + 6].i = out_shape_packed.c;
             specializations[4 + 7].i = out_shape_packed.cstep;
 
-            pipeline_convolution_pack8_1x1s1d1->create("convolution_pack8_1x1s1d1", opt, specializations, 4, 8);
+            pipeline_convolution_pack8_1x1s1d1->create(LayerShaderType::convolution_pack8_1x1s1d1, opt, specializations);
         }
         else if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
         {
@@ -530,7 +531,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack8_3x3s1d1_winograd23_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_pack8_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack8_3x3s1d1_winograd23_transform_input->create("convolution_pack8_3x3s1d1_winograd23_transform_input", opt, specializations, 2, 7);
+                pipeline_convolution_pack8_3x3s1d1_winograd23_transform_input->create(LayerShaderType::convolution_pack8_3x3s1d1_winograd23_transform_input, opt, specializations);
             }
 
             {
@@ -543,7 +544,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack8_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
                 pipeline_convolution_pack8_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, std::min(4, num_output / 8));
-                pipeline_convolution_pack8_3x3s1d1_winograd23_gemm->create("convolution_pack8_3x3s1d1_winograd23_gemm", opt, specializations, 3, 5);
+                pipeline_convolution_pack8_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_pack8_3x3s1d1_winograd23_gemm, opt, specializations);
             }
 
             {
@@ -562,14 +563,14 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack8_3x3s1d1_winograd23_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_pack8_3x3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack8_3x3s1d1_winograd23_transform_output->create("convolution_pack8_3x3s1d1_winograd23_transform_output", opt, specializations, 3, 7);
+                pipeline_convolution_pack8_3x3s1d1_winograd23_transform_output->create(LayerShaderType::convolution_pack8_3x3s1d1_winograd23_transform_output, opt, specializations);
             }
         }
         else
         {
             pipeline_convolution_pack8 = new Pipeline(vkdev);
             pipeline_convolution_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolution_pack8->create("convolution_pack8", opt, specializations, 4, 10);
+            pipeline_convolution_pack8->create(LayerShaderType::convolution_pack8, opt, specializations);
         }
     }
 
@@ -578,7 +579,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack1to8 = new Pipeline(vkdev);
         pipeline_convolution_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack1to8->create("convolution_pack1to8", opt, specializations, 4, 10);
+        pipeline_convolution_pack1to8->create(LayerShaderType::convolution_pack1to8, opt, specializations);
     }
 
     // pack4to8
@@ -586,7 +587,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack4to8 = new Pipeline(vkdev);
         pipeline_convolution_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack4to8->create("convolution_pack4to8", opt, specializations, 4, 10);
+        pipeline_convolution_pack4to8->create(LayerShaderType::convolution_pack4to8, opt, specializations);
     }
 
     // pack8to4
@@ -594,7 +595,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack8to4 = new Pipeline(vkdev);
         pipeline_convolution_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack8to4->create("convolution_pack8to4", opt, specializations, 4, 10);
+        pipeline_convolution_pack8to4->create(LayerShaderType::convolution_pack8to4, opt, specializations);
     }
 
     // pack8to1
@@ -602,7 +603,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack8to1 = new Pipeline(vkdev);
         pipeline_convolution_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack8to1->create("convolution_pack8to1", opt, specializations, 4, 10);
+        pipeline_convolution_pack8to1->create(LayerShaderType::convolution_pack8to1, opt, specializations);
     }
 
     return 0;

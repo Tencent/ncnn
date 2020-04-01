@@ -14,6 +14,7 @@
 
 #include "normalize_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -82,14 +83,14 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_reduce_sum4_fp16_to_fp32->create("normalize_reduce_sum4_fp16_to_fp32", opt, specializations, 2, 6);
+            pipeline_normalize_reduce_sum4_fp16_to_fp32->create(LayerShaderType::normalize_reduce_sum4_fp16_to_fp32, opt, specializations);
 
             pipeline_normalize_reduce_sum4_fp32[0] = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_reduce_sum4_fp32[0]->create("normalize_reduce_sum4_fp32", opt, specializations, 2, 6);
+            pipeline_normalize_reduce_sum4_fp32[0]->create(LayerShaderType::normalize_reduce_sum4_fp32, opt, specializations);
             pipeline_normalize_reduce_sum4_fp32[1] = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_reduce_sum4_fp32[1]->create("normalize_reduce_sum4_fp32", opt, specializations, 2, 6);
+            pipeline_normalize_reduce_sum4_fp32[1]->create(LayerShaderType::normalize_reduce_sum4_fp32, opt, specializations);
         }
 
         // pack4
@@ -97,14 +98,14 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4->create("normalize_reduce_sum4_fp16_to_fp32_pack4", opt, specializations, 2, 6);
+            pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::normalize_reduce_sum4_fp16_to_fp32_pack4, opt, specializations);
 
             pipeline_normalize_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_reduce_sum4_fp32_pack4[0]->create("normalize_reduce_sum4_fp32_pack4", opt, specializations, 2, 6);
+            pipeline_normalize_reduce_sum4_fp32_pack4[0]->create(LayerShaderType::normalize_reduce_sum4_fp32_pack4, opt, specializations);
             pipeline_normalize_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_reduce_sum4_fp32_pack4[1]->create("normalize_reduce_sum4_fp32_pack4", opt, specializations, 2, 6);
+            pipeline_normalize_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::normalize_reduce_sum4_fp32_pack4, opt, specializations);
         }
 
         // pack8
@@ -112,14 +113,14 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8->create("normalize_reduce_sum4_fp16_to_fp32_pack8", opt, specializations, 2, 6);
+            pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8->create(LayerShaderType::normalize_reduce_sum4_fp16_to_fp32_pack8, opt, specializations);
 
             pipeline_normalize_reduce_sum4_fp32_pack8[0] = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp32_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_reduce_sum4_fp32_pack8[0]->create("normalize_reduce_sum4_fp32_pack8", opt, specializations, 2, 6);
+            pipeline_normalize_reduce_sum4_fp32_pack8[0]->create(LayerShaderType::normalize_reduce_sum4_fp32_pack8, opt, specializations);
             pipeline_normalize_reduce_sum4_fp32_pack8[1] = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp32_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_reduce_sum4_fp32_pack8[1]->create("normalize_reduce_sum4_fp32_pack8", opt, specializations, 2, 6);
+            pipeline_normalize_reduce_sum4_fp32_pack8[1]->create(LayerShaderType::normalize_reduce_sum4_fp32_pack8, opt, specializations);
         }
     }
 
@@ -136,21 +137,21 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_normalize_coeffs = new Pipeline(vkdev);
             pipeline_normalize_coeffs->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_coeffs->create("normalize_coeffs", opt, specializations, 2, 3);
+            pipeline_normalize_coeffs->create(LayerShaderType::normalize_coeffs, opt, specializations);
         }
 
         if (shape.dims == 0 || elempack == 4)
         {
             pipeline_normalize_coeffs_pack4 = new Pipeline(vkdev);
             pipeline_normalize_coeffs_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_coeffs_pack4->create("normalize_coeffs_pack4", opt, specializations, 2, 3);
+            pipeline_normalize_coeffs_pack4->create(LayerShaderType::normalize_coeffs_pack4, opt, specializations);
         }
 
         if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
         {
             pipeline_normalize_coeffs_pack8 = new Pipeline(vkdev);
             pipeline_normalize_coeffs_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_coeffs_pack8->create("normalize_coeffs_pack8", opt, specializations, 2, 3);
+            pipeline_normalize_coeffs_pack8->create(LayerShaderType::normalize_coeffs_pack8, opt, specializations);
         }
     }
 
@@ -179,21 +180,21 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_normalize_norm = new Pipeline(vkdev);
             pipeline_normalize_norm->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_norm->create("normalize_norm", opt, specializations, 3, 5);
+            pipeline_normalize_norm->create(LayerShaderType::normalize_norm, opt, specializations);
         }
 
         if (shape.dims == 0 || elempack == 4)
         {
             pipeline_normalize_norm_pack4 = new Pipeline(vkdev);
             pipeline_normalize_norm_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_norm_pack4->create("normalize_norm_pack4", opt, specializations, 3, 5);
+            pipeline_normalize_norm_pack4->create(LayerShaderType::normalize_norm_pack4, opt, specializations);
         }
 
         if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
         {
             pipeline_normalize_norm_pack8 = new Pipeline(vkdev);
             pipeline_normalize_norm_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_normalize_norm_pack8->create("normalize_norm_pack8", opt, specializations, 3, 5);
+            pipeline_normalize_norm_pack8->create(LayerShaderType::normalize_norm_pack8, opt, specializations);
         }
     }
 

@@ -14,6 +14,7 @@
 
 #include "sigmoid_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -88,7 +89,7 @@ int Sigmoid_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_sigmoid = new Pipeline(vkdev);
         pipeline_sigmoid->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_sigmoid->create("sigmoid", opt, specializations, 1, 5);
+        pipeline_sigmoid->create(LayerShaderType::sigmoid, opt, specializations);
     }
 
     // pack4
@@ -96,7 +97,7 @@ int Sigmoid_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_sigmoid_pack4 = new Pipeline(vkdev);
         pipeline_sigmoid_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_sigmoid_pack4->create("sigmoid_pack4", opt, specializations, 1, 5);
+        pipeline_sigmoid_pack4->create(LayerShaderType::sigmoid_pack4, opt, specializations);
     }
 
     // pack8
@@ -104,7 +105,7 @@ int Sigmoid_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_sigmoid_pack8 = new Pipeline(vkdev);
         pipeline_sigmoid_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_sigmoid_pack8->create("sigmoid_pack8", opt, specializations, 1, 5);
+        pipeline_sigmoid_pack8->create(LayerShaderType::sigmoid_pack8, opt, specializations);
     }
 
     return 0;

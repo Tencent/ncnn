@@ -14,6 +14,7 @@
 
 #include "softmax_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -135,8 +136,8 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
             pipeline_softmax_reduce_max->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_softmax_reduce_sum->set_optimal_local_size_xyz(local_size_xyz);
 
-            pipeline_softmax_reduce_max->create("softmax_reduce_max", opt, specializations, 2, 10);
-            pipeline_softmax_reduce_sum->create("softmax_reduce_sum", opt, specializations, 2, 10);
+            pipeline_softmax_reduce_max->create(LayerShaderType::softmax_reduce_max, opt, specializations);
+            pipeline_softmax_reduce_sum->create(LayerShaderType::softmax_reduce_sum, opt, specializations);
         }
 
         // pack4
@@ -147,8 +148,8 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
             pipeline_softmax_reduce_max_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_softmax_reduce_sum_pack4->set_optimal_local_size_xyz(local_size_xyz);
 
-            pipeline_softmax_reduce_max_pack4->create("softmax_reduce_max_pack4", opt, specializations, 2, 10);
-            pipeline_softmax_reduce_sum_pack4->create("softmax_reduce_sum_pack4", opt, specializations, 2, 10);
+            pipeline_softmax_reduce_max_pack4->create(LayerShaderType::softmax_reduce_max_pack4, opt, specializations);
+            pipeline_softmax_reduce_sum_pack4->create(LayerShaderType::softmax_reduce_sum_pack4, opt, specializations);
         }
 
         // pack8
@@ -160,8 +161,8 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
             pipeline_softmax_reduce_max_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_softmax_reduce_sum_pack8->set_optimal_local_size_xyz(local_size_xyz);
 
-            pipeline_softmax_reduce_max_pack8->create("softmax_reduce_max_pack8", opt, specializations, 2, 10);
-            pipeline_softmax_reduce_sum_pack8->create("softmax_reduce_sum_pack8", opt, specializations, 2, 10);
+            pipeline_softmax_reduce_max_pack8->create(LayerShaderType::softmax_reduce_max_pack8, opt, specializations);
+            pipeline_softmax_reduce_sum_pack8->create(LayerShaderType::softmax_reduce_sum_pack8, opt, specializations);
         }
     }
 
@@ -194,8 +195,8 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
             pipeline_softmax_exp_sub_max->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_softmax_div_sum->set_optimal_local_size_xyz(local_size_xyz);
 
-            pipeline_softmax_exp_sub_max->create("softmax_exp_sub_max", opt, specializations, 2, 10);
-            pipeline_softmax_div_sum->create("softmax_div_sum", opt, specializations, 2, 10);
+            pipeline_softmax_exp_sub_max->create(LayerShaderType::softmax_exp_sub_max, opt, specializations);
+            pipeline_softmax_div_sum->create(LayerShaderType::softmax_div_sum, opt, specializations);
         }
 
         // pack4
@@ -206,8 +207,8 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
             pipeline_softmax_exp_sub_max_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_softmax_div_sum_pack4->set_optimal_local_size_xyz(local_size_xyz);
 
-            pipeline_softmax_exp_sub_max_pack4->create("softmax_exp_sub_max_pack4", opt, specializations, 2, 10);
-            pipeline_softmax_div_sum_pack4->create("softmax_div_sum_pack4", opt, specializations, 2, 10);
+            pipeline_softmax_exp_sub_max_pack4->create(LayerShaderType::softmax_exp_sub_max_pack4, opt, specializations);
+            pipeline_softmax_div_sum_pack4->create(LayerShaderType::softmax_div_sum_pack4, opt, specializations);
         }
 
         // pack8
@@ -219,8 +220,8 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
             pipeline_softmax_exp_sub_max_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_softmax_div_sum_pack8->set_optimal_local_size_xyz(local_size_xyz);
 
-            pipeline_softmax_exp_sub_max_pack8->create("softmax_exp_sub_max_pack8", opt, specializations, 2, 10);
-            pipeline_softmax_div_sum_pack8->create("softmax_div_sum_pack8", opt, specializations, 2, 10);
+            pipeline_softmax_exp_sub_max_pack8->create(LayerShaderType::softmax_exp_sub_max_pack8, opt, specializations);
+            pipeline_softmax_div_sum_pack8->create(LayerShaderType::softmax_div_sum_pack8, opt, specializations);
         }
     }
 

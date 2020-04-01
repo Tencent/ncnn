@@ -14,6 +14,7 @@
 
 #include "unaryop_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -89,7 +90,7 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_unaryop = new Pipeline(vkdev);
         pipeline_unaryop->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_unaryop->create("unaryop", opt, specializations, 1, 5);
+        pipeline_unaryop->create(LayerShaderType::unaryop, opt, specializations);
     }
 
     // pack4
@@ -97,7 +98,7 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_unaryop_pack4 = new Pipeline(vkdev);
         pipeline_unaryop_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_unaryop_pack4->create("unaryop_pack4", opt, specializations, 1, 5);
+        pipeline_unaryop_pack4->create(LayerShaderType::unaryop_pack4, opt, specializations);
     }
 
     // pack8
@@ -105,7 +106,7 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_unaryop_pack8 = new Pipeline(vkdev);
         pipeline_unaryop_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_unaryop_pack8->create("unaryop_pack8", opt, specializations, 1, 5);
+        pipeline_unaryop_pack8->create(LayerShaderType::unaryop_pack8, opt, specializations);
     }
 
     return 0;
