@@ -420,7 +420,7 @@ public:
 
 #if __ANDROID_API__ >= 26
     // convenient construct from android hardware buffer
-    static VkImageMat from_android_hardware_buffer(AHardwareBuffer* hb, VkAndroidHardwareBufferImageAllocator* allocator);
+    static VkImageMat from_android_hardware_buffer(VkAndroidHardwareBufferImageAllocator* allocator);
 #endif // __ANDROID_API__ >= 26
 
     // device image
