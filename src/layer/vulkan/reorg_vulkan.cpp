@@ -14,6 +14,7 @@
 
 #include "reorg_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -100,7 +101,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_reorg = new Pipeline(vkdev);
         pipeline_reorg->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reorg->create("reorg", opt, specializations, 2, 10);
+        pipeline_reorg->create(LayerShaderType::reorg, opt, specializations);
     }
 
     // pack4
@@ -108,7 +109,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_reorg_pack4 = new Pipeline(vkdev);
         pipeline_reorg_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reorg_pack4->create("reorg_pack4", opt, specializations, 2, 10);
+        pipeline_reorg_pack4->create(LayerShaderType::reorg_pack4, opt, specializations);
     }
 
     // pack1to4
@@ -116,7 +117,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_reorg_pack1to4 = new Pipeline(vkdev);
         pipeline_reorg_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reorg_pack1to4->create("reorg_pack1to4", opt, specializations, 2, 10);
+        pipeline_reorg_pack1to4->create(LayerShaderType::reorg_pack1to4, opt, specializations);
     }
 
     // pack8
@@ -124,7 +125,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_reorg_pack8 = new Pipeline(vkdev);
         pipeline_reorg_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reorg_pack8->create("reorg_pack8", opt, specializations, 2, 10);
+        pipeline_reorg_pack8->create(LayerShaderType::reorg_pack8, opt, specializations);
     }
 
     // pack1to8
@@ -132,7 +133,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_reorg_pack1to8 = new Pipeline(vkdev);
         pipeline_reorg_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reorg_pack1to8->create("reorg_pack1to8", opt, specializations, 2, 10);
+        pipeline_reorg_pack1to8->create(LayerShaderType::reorg_pack1to8, opt, specializations);
     }
 
     // pack4to8
@@ -140,7 +141,7 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_reorg_pack4to8 = new Pipeline(vkdev);
         pipeline_reorg_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_reorg_pack4to8->create("reorg_pack4to8", opt, specializations, 2, 10);
+        pipeline_reorg_pack4to8->create(LayerShaderType::reorg_pack4to8, opt, specializations);
     }
 
     return 0;

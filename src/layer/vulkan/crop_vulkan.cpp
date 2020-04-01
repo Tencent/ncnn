@@ -15,6 +15,7 @@
 #include "crop_vulkan.h"
 #include <algorithm>
 #include "layer_type.h"
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -224,7 +225,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_crop = new Pipeline(vkdev);
         pipeline_crop->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop->create("crop", opt, specializations, 2, 13);
+        pipeline_crop->create(LayerShaderType::crop, opt, specializations);
     }
 
     // pack4
@@ -232,7 +233,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_crop_pack4 = new Pipeline(vkdev);
         pipeline_crop_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack4->create("crop_pack4", opt, specializations, 2, 13);
+        pipeline_crop_pack4->create(LayerShaderType::crop_pack4, opt, specializations);
     }
 
     // pack1to4
@@ -240,7 +241,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_crop_pack1to4 = new Pipeline(vkdev);
         pipeline_crop_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack1to4->create("crop_pack1to4", opt, specializations, 2, 13);
+        pipeline_crop_pack1to4->create(LayerShaderType::crop_pack1to4, opt, specializations);
     }
 
     // pack4to1
@@ -248,7 +249,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_crop_pack4to1 = new Pipeline(vkdev);
         pipeline_crop_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack4to1->create("crop_pack4to1", opt, specializations, 2, 13);
+        pipeline_crop_pack4to1->create(LayerShaderType::crop_pack4to1, opt, specializations);
     }
 
     // pack8
@@ -256,7 +257,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_crop_pack8 = new Pipeline(vkdev);
         pipeline_crop_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack8->create("crop_pack8", opt, specializations, 2, 13);
+        pipeline_crop_pack8->create(LayerShaderType::crop_pack8, opt, specializations);
     }
 
     // pack1to8
@@ -264,7 +265,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_crop_pack1to8 = new Pipeline(vkdev);
         pipeline_crop_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack1to8->create("crop_pack1to8", opt, specializations, 2, 13);
+        pipeline_crop_pack1to8->create(LayerShaderType::crop_pack1to8, opt, specializations);
     }
 
     // pack4to8
@@ -272,7 +273,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_crop_pack4to8 = new Pipeline(vkdev);
         pipeline_crop_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack4to8->create("crop_pack4to8", opt, specializations, 2, 13);
+        pipeline_crop_pack4to8->create(LayerShaderType::crop_pack4to8, opt, specializations);
     }
 
     // pack8to4
@@ -280,7 +281,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_crop_pack8to4 = new Pipeline(vkdev);
         pipeline_crop_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack8to4->create("crop_pack8to4", opt, specializations, 2, 13);
+        pipeline_crop_pack8to4->create(LayerShaderType::crop_pack8to4, opt, specializations);
     }
 
     // pack8to1
@@ -288,7 +289,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_crop_pack8to1 = new Pipeline(vkdev);
         pipeline_crop_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_crop_pack8to1->create("crop_pack8to1", opt, specializations, 2, 13);
+        pipeline_crop_pack8to1->create(LayerShaderType::crop_pack8to1, opt, specializations);
     }
 
     return 0;

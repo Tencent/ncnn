@@ -14,6 +14,7 @@
 
 #include "shufflechannel_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -97,7 +98,7 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_shufflechannel = new Pipeline(vkdev);
         pipeline_shufflechannel->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_shufflechannel->create("shufflechannel", opt, specializations, 2, 10);
+        pipeline_shufflechannel->create(LayerShaderType::shufflechannel, opt, specializations);
     }
 
     // pack4
@@ -105,7 +106,7 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_shufflechannel_pack4 = new Pipeline(vkdev);
         pipeline_shufflechannel_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_shufflechannel_pack4->create("shufflechannel_pack4", opt, specializations, 2, 10);
+        pipeline_shufflechannel_pack4->create(LayerShaderType::shufflechannel_pack4, opt, specializations);
     }
 
     // pack8
@@ -113,7 +114,7 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_shufflechannel_pack8 = new Pipeline(vkdev);
         pipeline_shufflechannel_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_shufflechannel_pack8->create("shufflechannel_pack8", opt, specializations, 2, 10);
+        pipeline_shufflechannel_pack8->create(LayerShaderType::shufflechannel_pack8, opt, specializations);
     }
 
     return 0;

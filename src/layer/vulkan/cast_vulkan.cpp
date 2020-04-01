@@ -14,6 +14,7 @@
 
 #include "cast_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -113,7 +114,7 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_cast_fp32_to_fp16 = new Pipeline(vkdev);
             pipeline_cast_fp32_to_fp16->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp32_to_fp16->create("cast_fp32_to_fp16", opt, specializations, 2, 10);
+            pipeline_cast_fp32_to_fp16->create(LayerShaderType::cast_fp32_to_fp16, opt, specializations);
         }
 
         // pack4
@@ -121,7 +122,7 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_cast_fp32_to_fp16_pack4 = new Pipeline(vkdev);
             pipeline_cast_fp32_to_fp16_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp32_to_fp16_pack4->create("cast_fp32_to_fp16_pack4", opt, specializations, 2, 10);
+            pipeline_cast_fp32_to_fp16_pack4->create(LayerShaderType::cast_fp32_to_fp16_pack4, opt, specializations);
         }
 
         // pack8
@@ -129,7 +130,7 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_cast_fp32_to_fp16_pack8 = new Pipeline(vkdev);
             pipeline_cast_fp32_to_fp16_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp32_to_fp16_pack8->create("cast_fp32_to_fp16_pack8", opt, specializations, 2, 10);
+            pipeline_cast_fp32_to_fp16_pack8->create(LayerShaderType::cast_fp32_to_fp16_pack8, opt, specializations);
         }
     }
 
@@ -140,7 +141,7 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_cast_fp16_to_fp32 = new Pipeline(vkdev);
             pipeline_cast_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp16_to_fp32->create("cast_fp16_to_fp32", opt, specializations, 2, 10);
+            pipeline_cast_fp16_to_fp32->create(LayerShaderType::cast_fp16_to_fp32, opt, specializations);
         }
 
         // pack4
@@ -148,7 +149,7 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_cast_fp16_to_fp32_pack4 = new Pipeline(vkdev);
             pipeline_cast_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp16_to_fp32_pack4->create("cast_fp16_to_fp32_pack4", opt, specializations, 2, 10);
+            pipeline_cast_fp16_to_fp32_pack4->create(LayerShaderType::cast_fp16_to_fp32_pack4, opt, specializations);
         }
 
         // pack8
@@ -156,7 +157,7 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_cast_fp16_to_fp32_pack8 = new Pipeline(vkdev);
             pipeline_cast_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp16_to_fp32_pack8->create("cast_fp16_to_fp32_pack8", opt, specializations, 2, 10);
+            pipeline_cast_fp16_to_fp32_pack8->create(LayerShaderType::cast_fp16_to_fp32_pack8, opt, specializations);
         }
     }
 

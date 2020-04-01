@@ -15,6 +15,7 @@
 #include "priorbox_vulkan.h"
 #include <algorithm>
 #include <math.h>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -83,7 +84,7 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
 
         pipeline_priorbox = new Pipeline(vkdev);
         pipeline_priorbox->set_optimal_local_size_xyz();
-        pipeline_priorbox->create("priorbox", opt, specializations, 4, 6);
+        pipeline_priorbox->create(LayerShaderType::priorbox, opt, specializations);
     }
 
     // mxnet style
@@ -104,7 +105,7 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
 
         pipeline_priorbox_mxnet = new Pipeline(vkdev);
         pipeline_priorbox_mxnet->set_optimal_local_size_xyz();
-        pipeline_priorbox_mxnet->create("priorbox_mxnet", opt, specializations, 3, 4);
+        pipeline_priorbox_mxnet->create(LayerShaderType::priorbox_mxnet, opt, specializations);
     }
 
     return 0;

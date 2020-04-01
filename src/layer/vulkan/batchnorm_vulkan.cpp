@@ -14,6 +14,7 @@
 
 #include "batchnorm_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -85,7 +86,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_batchnorm = new Pipeline(vkdev);
         pipeline_batchnorm->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_batchnorm->create("batchnorm", opt, specializations, 3, 5);
+        pipeline_batchnorm->create(LayerShaderType::batchnorm, opt, specializations);
     }
 
     // pack4
@@ -93,7 +94,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_batchnorm_pack4 = new Pipeline(vkdev);
         pipeline_batchnorm_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_batchnorm_pack4->create("batchnorm_pack4", opt, specializations, 3, 5);
+        pipeline_batchnorm_pack4->create(LayerShaderType::batchnorm_pack4, opt, specializations);
     }
 
     // pack8
@@ -101,7 +102,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_batchnorm_pack8 = new Pipeline(vkdev);
         pipeline_batchnorm_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_batchnorm_pack8->create("batchnorm_pack8", opt, specializations, 3, 5);
+        pipeline_batchnorm_pack8->create(LayerShaderType::batchnorm_pack8, opt, specializations);
     }
 
     return 0;

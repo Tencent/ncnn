@@ -14,6 +14,7 @@
 
 #include "pixelshuffle_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -108,7 +109,7 @@ int PixelShuffle_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_pixelshuffle = new Pipeline(vkdev);
         pipeline_pixelshuffle->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_pixelshuffle->create("pixelshuffle", opt, specializations, 2, 10);
+        pipeline_pixelshuffle->create(LayerShaderType::pixelshuffle, opt, specializations);
     }
 
     // pack4
@@ -116,7 +117,7 @@ int PixelShuffle_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_pixelshuffle_pack4 = new Pipeline(vkdev);
         pipeline_pixelshuffle_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_pixelshuffle_pack4->create("pixelshuffle_pack4", opt, specializations, 2, 10);
+        pipeline_pixelshuffle_pack4->create(LayerShaderType::pixelshuffle_pack4, opt, specializations);
     }
 
     // pack4to1
@@ -124,7 +125,7 @@ int PixelShuffle_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_pixelshuffle_pack4to1 = new Pipeline(vkdev);
         pipeline_pixelshuffle_pack4to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
-        pipeline_pixelshuffle_pack4to1->create("pixelshuffle_pack4to1", opt, specializations, 2, 10);
+        pipeline_pixelshuffle_pack4to1->create(LayerShaderType::pixelshuffle_pack4to1, opt, specializations);
     }
 
     // pack8
@@ -132,7 +133,7 @@ int PixelShuffle_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_pixelshuffle_pack8 = new Pipeline(vkdev);
         pipeline_pixelshuffle_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_pixelshuffle_pack8->create("pixelshuffle_pack8", opt, specializations, 2, 10);
+        pipeline_pixelshuffle_pack8->create(LayerShaderType::pixelshuffle_pack8, opt, specializations);
     }
 
     // pack8to1
@@ -140,7 +141,7 @@ int PixelShuffle_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_pixelshuffle_pack8to1 = new Pipeline(vkdev);
         pipeline_pixelshuffle_pack8to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
-        pipeline_pixelshuffle_pack8to1->create("pixelshuffle_pack8to1", opt, specializations, 2, 10);
+        pipeline_pixelshuffle_pack8to1->create(LayerShaderType::pixelshuffle_pack8to1, opt, specializations);
     }
 
     // pack8to4
@@ -148,7 +149,7 @@ int PixelShuffle_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_pixelshuffle_pack8to4 = new Pipeline(vkdev);
         pipeline_pixelshuffle_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_pixelshuffle_pack8to4->create("pixelshuffle_pack8to4", opt, specializations, 2, 10);
+        pipeline_pixelshuffle_pack8to4->create(LayerShaderType::pixelshuffle_pack8to4, opt, specializations);
     }
 
     return 0;

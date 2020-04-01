@@ -55,14 +55,26 @@ macro(ncnn_add_shader SHADER_SRC)
     string(APPEND layer_shader_spv_data "#include \"${SHADER_SPV_HEADER_NAME}\"\n")
 
     get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
-    string(APPEND layer_shader_registry "{\"${SHADER_SRC_NAME_WE}\",${SHADER_SRC_NAME_WE}_spv_data,sizeof(${SHADER_SRC_NAME_WE}_spv_data)},\n")
-    string(APPEND layer_shader_registry "{\"${SHADER_SRC_NAME_WE}_fp16p\",${SHADER_SRC_NAME_WE}_fp16p_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16p_spv_data)},\n")
-    string(APPEND layer_shader_registry "{\"${SHADER_SRC_NAME_WE}_fp16pa\",${SHADER_SRC_NAME_WE}_fp16pa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16pa_spv_data)},\n")
-    string(APPEND layer_shader_registry "{\"${SHADER_SRC_NAME_WE}_fp16s\",${SHADER_SRC_NAME_WE}_fp16s_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16s_spv_data)},\n")
-    string(APPEND layer_shader_registry "{\"${SHADER_SRC_NAME_WE}_fp16sa\",${SHADER_SRC_NAME_WE}_fp16sa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16sa_spv_data)},\n")
+    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_spv_data,sizeof(${SHADER_SRC_NAME_WE}_spv_data)},\n")
+    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16p_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16p_spv_data)},\n")
+    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16pa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16pa_spv_data)},\n")
+    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16s_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16s_spv_data)},\n")
+    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16sa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16sa_spv_data)},\n")
 
     list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEADER})
     list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEX_HEADERS})
+
+    # generate layer_shader_type_enum file
+    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE} = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16p = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16pa = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16s = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16sa = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
 endmacro()
 
 macro(ncnn_add_layer class)
@@ -165,6 +177,7 @@ endmacro()
 set(SHADER_SPV_HEX_FILES)
 
 set(__LAYER_TYPE_ENUM_INDEX 0)
+set(__LAYER_SHADER_TYPE_ENUM_INDEX 0)
 
 # layer implementation
 ncnn_add_layer(AbsVal)
@@ -250,6 +263,7 @@ configure_file(layer_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
 configure_file(layer_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
 configure_file(layer_shader_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h)
 configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h)
+configure_file(layer_shader_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
 
@@ -361,6 +375,7 @@ if(NCNN_INSTALL_SDK)
         datareader.h
         gpu.h
         layer.h
+        layer_shader_type.h
         layer_type.h
         mat.h
         modelbin.h
@@ -370,6 +385,7 @@ if(NCNN_INSTALL_SDK)
         paramdict.h
         pipeline.h
         benchmark.h
+        ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h
         DESTINATION include/ncnn

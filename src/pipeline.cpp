@@ -46,8 +46,18 @@ Pipeline::~Pipeline()
     destroy();
 }
 
-int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations)
 {
+    ShaderInfo si = resolve_shader_info(spv_data, spv_data_size);
+
+    // -3 for local_size_xyz
+    int specialization_count_expected = si.specialization_count - 3;
+    if ((int)specializations.size() != specialization_count_expected)
+    {
+        fprintf(stderr, "pipeline specialization count mismatch, expect %d but got %d\n", specialization_count_expected, (int)specializations.size());
+        return -1;
+    }
+
     if (vkdev->info.bug_local_size_spec_const)
     {
         local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
@@ -57,18 +67,66 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const char*
         local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
     }
 
-//     fprintf(stderr, "local_shader_module %p %s created\n", local_shader_module, entry_name);
+//     fprintf(stderr, "local_shader_module %p created\n", local_shader_module);
 
-    return create(local_shader_module, entry_name, specializations, binding_count, push_constant_count);
+    return create(local_shader_module, specializations, si.binding_count, si.push_constant_count);
 }
 
-int Pipeline::create(VkShaderModule shader_module, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
+{
+    const ShaderInfo& si = get_shader_info(shader_type_index);
+
+    // -3 for local_size_xyz
+    int specialization_count_expected = si.specialization_count - 3;
+    if ((int)specializations.size() != specialization_count_expected)
+    {
+        fprintf(stderr, "pipeline %d specialization count mismatch, expect %d but got %d\n", shader_type_index, specialization_count_expected, (int)specializations.size());
+        return -1;
+    }
+
+    // ncnn_add_shader cmake macro
+    // 0 = fp32
+    // 1 = fp16p
+    // 2 = fp16pa
+    // 3 = fp16s
+    // 4 = fp16sa
+
+    if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    {
+        shader_type_index += 4;
+    }
+    else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    {
+        shader_type_index += 2;
+    }
+    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage)
+    {
+        shader_type_index += 3;
+    }
+    else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed)
+    {
+        shader_type_index += 1;
+    }
+
+    if (vkdev->info.bug_local_size_spec_const)
+    {
+        local_shader_module = vkdev->create_shader_module(shader_type_index, local_size_x, local_size_y, local_size_z);
+
+        return create(local_shader_module, specializations, si.binding_count, si.push_constant_count);
+    }
+
+    VkShaderModule shader_module = vkdev->get_shader_module(shader_type_index);
+
+    return create(shader_module, specializations, si.binding_count, si.push_constant_count);
+}
+
+int Pipeline::create(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
 {
     create_descriptorset_layout(binding_count);
 
     create_pipeline_layout(push_constant_count);
 
-    create_pipeline(shader_module, entry_name, specializations);
+    create_pipeline(shader_module, specializations);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
@@ -76,39 +134,6 @@ int Pipeline::create(VkShaderModule shader_module, const char* entry_name, const
     }
 
     return 0;
-}
-
-int Pipeline::create(const char* _name, const Option& opt, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
-{
-    std::string name = _name;
-
-    if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
-    {
-        name += "_fp16sa";
-    }
-    else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
-    {
-        name += "_fp16pa";
-    }
-    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage)
-    {
-        name += "_fp16s";
-    }
-    else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed)
-    {
-        name += "_fp16p";
-    }
-
-    if (vkdev->info.bug_local_size_spec_const)
-    {
-        local_shader_module = vkdev->create_shader_module(name.c_str(), local_size_x, local_size_y, local_size_z);
-
-        return create(local_shader_module, name.c_str(), specializations, binding_count, push_constant_count);
-    }
-
-    VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
-
-    return create(shader_module, name.c_str(), specializations, binding_count, push_constant_count);
 }
 
 void Pipeline::destroy()
@@ -280,7 +305,7 @@ int Pipeline::create_pipeline_layout(int push_constant_count)
     return 0;
 }
 
-int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_name, const std::vector<vk_specialization_type>& specializations)
+int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations)
 {
     const int specialization_count = specializations.size();
 
@@ -332,7 +357,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_na
     pipelineShaderStageCreateInfo.flags = 0;
     pipelineShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineShaderStageCreateInfo.module = shader_module;
-    pipelineShaderStageCreateInfo.pName = entry_name;
+    pipelineShaderStageCreateInfo.pName = "main";
     pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
 
     VkComputePipelineCreateInfo computePipelineCreateInfo;
@@ -347,7 +372,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_na
     VkResult ret = vkCreateComputePipelines(vkdev->vkdevice(), 0, 1, &computePipelineCreateInfo, 0, &pipeline);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateComputePipelines failed %d %s\n", ret, entry_name);
+        fprintf(stderr, "vkCreateComputePipelines failed %d\n", ret);
         return -1;
     }
 

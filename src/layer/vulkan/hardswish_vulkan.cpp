@@ -14,6 +14,7 @@
 
 #include "hardswish_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -90,7 +91,7 @@ int HardSwish_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_hardswish = new Pipeline(vkdev);
         pipeline_hardswish->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardswish->create("hardswish", opt, specializations, 1, 5);
+        pipeline_hardswish->create(LayerShaderType::hardswish, opt, specializations);
     }
 
     // pack4
@@ -98,7 +99,7 @@ int HardSwish_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_hardswish_pack4 = new Pipeline(vkdev);
         pipeline_hardswish_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardswish_pack4->create("hardswish_pack4", opt, specializations, 1, 5);
+        pipeline_hardswish_pack4->create(LayerShaderType::hardswish_pack4, opt, specializations);
     }
 
     // pack8
@@ -106,7 +107,7 @@ int HardSwish_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_hardswish_pack8 = new Pipeline(vkdev);
         pipeline_hardswish_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardswish_pack8->create("hardswish_pack8", opt, specializations, 1, 5);
+        pipeline_hardswish_pack8->create(LayerShaderType::hardswish_pack8, opt, specializations);
     }
 
     return 0;

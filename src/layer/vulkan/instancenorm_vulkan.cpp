@@ -14,6 +14,7 @@
 
 #include "instancenorm_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -88,14 +89,14 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create("instancenorm_reduce_sum4_fp16_to_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32, opt, std::vector<vk_specialization_type>());
 
             pipeline_instancenorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32[0]->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp32[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
             pipeline_instancenorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32[1]->create("instancenorm_reduce_sum4_fp32", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp32[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
         }
 
         // pack4
@@ -103,14 +104,14 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create("instancenorm_reduce_sum4_fp16_to_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32_pack4, opt, std::vector<vk_specialization_type>());
 
             pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
             pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create("instancenorm_reduce_sum4_fp32_pack4", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
         }
 
         // pack8
@@ -118,14 +119,14 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->create("instancenorm_reduce_sum4_fp16_to_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32_pack8, opt, std::vector<vk_specialization_type>());
 
             pipeline_instancenorm_reduce_sum4_fp32_pack8[0] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->create("instancenorm_reduce_sum4_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack8, opt, std::vector<vk_specialization_type>());
             pipeline_instancenorm_reduce_sum4_fp32_pack8[1] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->create("instancenorm_reduce_sum4_fp32_pack8", opt, std::vector<vk_specialization_type>(), 2, 6);
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack8, opt, std::vector<vk_specialization_type>());
         }
     }
 
@@ -147,21 +148,21 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_instancenorm_reduce_mean = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_mean->create("instancenorm_reduce_mean", opt, specializations, 2, 4);
+            pipeline_instancenorm_reduce_mean->create(LayerShaderType::instancenorm_reduce_mean, opt, specializations);
         }
 
         if (elempack == 4)
         {
             pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_mean_pack4->create("instancenorm_reduce_mean_pack4", opt, specializations, 2, 4);
+            pipeline_instancenorm_reduce_mean_pack4->create(LayerShaderType::instancenorm_reduce_mean_pack4, opt, specializations);
         }
 
         if (elempack == 8)
         {
             pipeline_instancenorm_reduce_mean_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_mean_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_mean_pack8->create("instancenorm_reduce_mean_pack8", opt, specializations, 2, 4);
+            pipeline_instancenorm_reduce_mean_pack8->create(LayerShaderType::instancenorm_reduce_mean_pack8, opt, specializations);
         }
     }
 
@@ -193,21 +194,21 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_instancenorm_sub_mean_square = new Pipeline(vkdev);
             pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_sub_mean_square->create("instancenorm_sub_mean_square", opt, specializations, 3, 10);
+            pipeline_instancenorm_sub_mean_square->create(LayerShaderType::instancenorm_sub_mean_square, opt, specializations);
         }
 
         if (elempack == 4)
         {
             pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_sub_mean_square_pack4->create("instancenorm_sub_mean_square_pack4", opt, specializations, 3, 10);
+            pipeline_instancenorm_sub_mean_square_pack4->create(LayerShaderType::instancenorm_sub_mean_square_pack4, opt, specializations);
         }
 
         if (elempack == 8)
         {
             pipeline_instancenorm_sub_mean_square_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_sub_mean_square_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_sub_mean_square_pack8->create("instancenorm_sub_mean_square_pack8", opt, specializations, 3, 10);
+            pipeline_instancenorm_sub_mean_square_pack8->create(LayerShaderType::instancenorm_sub_mean_square_pack8, opt, specializations);
         }
     }
 
@@ -228,21 +229,21 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_instancenorm_coeffs = new Pipeline(vkdev);
             pipeline_instancenorm_coeffs->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_coeffs->create("instancenorm_coeffs", opt, specializations, 5, 0);
+            pipeline_instancenorm_coeffs->create(LayerShaderType::instancenorm_coeffs, opt, specializations);
         }
 
         if (elempack == 4)
         {
             pipeline_instancenorm_coeffs_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_coeffs_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_coeffs_pack4->create("instancenorm_coeffs_pack4", opt, specializations, 5, 0);
+            pipeline_instancenorm_coeffs_pack4->create(LayerShaderType::instancenorm_coeffs_pack4, opt, specializations);
         }
 
         if (elempack == 8)
         {
             pipeline_instancenorm_coeffs_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_coeffs_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_coeffs_pack8->create("instancenorm_coeffs_pack8", opt, specializations, 5, 0);
+            pipeline_instancenorm_coeffs_pack8->create(LayerShaderType::instancenorm_coeffs_pack8, opt, specializations);
         }
     }
 
@@ -266,21 +267,21 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_instancenorm_norm = new Pipeline(vkdev);
             pipeline_instancenorm_norm->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_norm->create("instancenorm_norm", opt, specializations, 2, 5);
+            pipeline_instancenorm_norm->create(LayerShaderType::instancenorm_norm, opt, specializations);
         }
 
         if (elempack == 4)
         {
             pipeline_instancenorm_norm_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_norm_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_norm_pack4->create("instancenorm_norm_pack4", opt, specializations, 2, 5);
+            pipeline_instancenorm_norm_pack4->create(LayerShaderType::instancenorm_norm_pack4, opt, specializations);
         }
 
         if (elempack == 8)
         {
             pipeline_instancenorm_norm_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_norm_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_norm_pack8->create("instancenorm_norm_pack8", opt, specializations, 2, 5);
+            pipeline_instancenorm_norm_pack8->create(LayerShaderType::instancenorm_norm_pack8, opt, specializations);
         }
     }
 

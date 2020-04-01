@@ -16,6 +16,7 @@
 #include <math.h>
 #include <algorithm>
 #include <functional>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -150,7 +151,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_binaryop = new Pipeline(vkdev);
             pipeline_binaryop->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_binaryop->create("binaryop", opt, specializations, 3, 15);
+            pipeline_binaryop->create(LayerShaderType::binaryop, opt, specializations);
         }
 
         // pack4
@@ -158,7 +159,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_binaryop_pack4 = new Pipeline(vkdev);
             pipeline_binaryop_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_binaryop_pack4->create("binaryop_pack4", opt, specializations, 3, 15);
+            pipeline_binaryop_pack4->create(LayerShaderType::binaryop_pack4, opt, specializations);
         }
 
         // pack8
@@ -166,7 +167,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_binaryop_pack8 = new Pipeline(vkdev);
             pipeline_binaryop_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_binaryop_pack8->create("binaryop_pack8", opt, specializations, 3, 15);
+            pipeline_binaryop_pack8->create(LayerShaderType::binaryop_pack8, opt, specializations);
         }
     }
 
@@ -216,7 +217,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_binaryop_broadcast = new Pipeline(vkdev);
             pipeline_binaryop_broadcast->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_binaryop_broadcast->create("binaryop_broadcast", opt, specializations, 3, 15);
+            pipeline_binaryop_broadcast->create(LayerShaderType::binaryop_broadcast, opt, specializations);
         }
 
         // pack4
@@ -224,14 +225,14 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_binaryop_broadcast_pack4 = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_binaryop_broadcast_pack4->create("binaryop_broadcast_pack4", opt, specializations, 3, 15);
+            pipeline_binaryop_broadcast_pack4->create(LayerShaderType::binaryop_broadcast_pack4, opt, specializations);
         }
 
         if (shape.dims == 0 || (shape.dims == 1 && shape.w == 1 && elempack == 1 && elempack1 == 4))
         {
             pipeline_binaryop_broadcast_a1_pack4 = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_a1_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_binaryop_broadcast_a1_pack4->create("binaryop_broadcast_a1_pack4", opt, specializations, 3, 15);
+            pipeline_binaryop_broadcast_a1_pack4->create(LayerShaderType::binaryop_broadcast_a1_pack4, opt, specializations);
         }
 
         if (shape.dims == 0 || (shape1.dims == 1 && shape1.w == 1 && elempack1 == 1 && elempack == 4)
@@ -239,7 +240,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_binaryop_broadcast_b1_pack4 = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_b1_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_binaryop_broadcast_b1_pack4->create("binaryop_broadcast_b1_pack4", opt, specializations, 3, 15);
+            pipeline_binaryop_broadcast_b1_pack4->create(LayerShaderType::binaryop_broadcast_b1_pack4, opt, specializations);
         }
 
         // pack8
@@ -247,14 +248,14 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_binaryop_broadcast_pack8 = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_binaryop_broadcast_pack8->create("binaryop_broadcast_pack8", opt, specializations, 3, 15);
+            pipeline_binaryop_broadcast_pack8->create(LayerShaderType::binaryop_broadcast_pack8, opt, specializations);
         }
 
         if ((opt.use_shader_pack8 && shape.dims == 0) || (shape.dims == 1 && shape.w == 1 && elempack == 1 && elempack1 == 8))
         {
             pipeline_binaryop_broadcast_a1_pack8 = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_a1_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_binaryop_broadcast_a1_pack8->create("binaryop_broadcast_a1_pack8", opt, specializations, 3, 15);
+            pipeline_binaryop_broadcast_a1_pack8->create(LayerShaderType::binaryop_broadcast_a1_pack8, opt, specializations);
         }
 
         if ((opt.use_shader_pack8 && shape.dims == 0) || (shape1.dims == 1 && shape1.w == 1 && elempack1 == 1 && elempack == 8)
@@ -262,7 +263,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_binaryop_broadcast_b1_pack8 = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_b1_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_binaryop_broadcast_b1_pack8->create("binaryop_broadcast_b1_pack8", opt, specializations, 3, 15);
+            pipeline_binaryop_broadcast_b1_pack8->create(LayerShaderType::binaryop_broadcast_b1_pack8, opt, specializations);
         }
     }
 
