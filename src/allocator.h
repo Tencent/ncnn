@@ -32,7 +32,9 @@
 #include "gpu.h"
 #endif // NCNN_VULKAN
 
-struct AHardwareBuffer;
+#if __ANDROID_API__ >= 26
+#include <android/hardware_buffer.h>
+#endif // __ANDROID_API__ >= 26
 
 namespace ncnn {
 
@@ -356,19 +358,26 @@ class ImportAndroidHardwareBufferPipeline;
 class VkAndroidHardwareBufferImageAllocator : public VkImageAllocator
 {
 public:
-    VkAndroidHardwareBufferImageAllocator(const VulkanDevice* vkdev, const ImportAndroidHardwareBufferPipeline* p);
+    VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, AHardwareBuffer* _hb);
     virtual ~VkAndroidHardwareBufferImageAllocator();
 
 public:
-    virtual VkImageMemory* fastMalloc(AHardwareBuffer* hb);
+    virtual VkImageMemory* fastMalloc(int width, int height, VkFormat format);
     virtual void fastFree(VkImageMemory* ptr);
 
-protected:
-    virtual VkImageMemory* fastMalloc(int /*width*/, int /*height*/, VkFormat /*format*/) { return 0; }
-    virtual VkBufferMemory* fastMalloc(size_t /*size*/) { return 0; }
+public:
+    int init();
 
-private:
-    const ImportAndroidHardwareBufferPipeline* const q;
+    int width() const;
+    int height() const;
+    uint64_t external_format() const;
+
+public:
+    AHardwareBuffer* hb;
+    AHardwareBuffer_Desc bufferDesc;
+    VkAndroidHardwareBufferFormatPropertiesANDROID bufferFormatProperties;
+    VkAndroidHardwareBufferPropertiesANDROID bufferProperties;
+    VkSamplerYcbcrConversionKHR samplerYcbcrConversion;
 };
 #endif // __ANDROID_API__ >= 26
 

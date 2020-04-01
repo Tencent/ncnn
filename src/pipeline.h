@@ -78,28 +78,22 @@ public:
     ImportAndroidHardwareBufferPipeline(const VulkanDevice* vkdev);
     ~ImportAndroidHardwareBufferPipeline();
 
-    int create(AHardwareBuffer* hb, int type_to, int rotate_from, const Option& opt);
+    int create(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator, int type_to, int rotate_from, const Option& opt);
+    int create(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator, int type_to, int rotate_from, int target_width, int target_height, const Option& opt);
     void destroy();
 
     friend class VkCompute;
 
 protected:
-    int create_sampler(AHardwareBuffer* hb);
+    int create_sampler(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator);
     int create_descriptorset_layout();
     int create_descriptor_update_template();
 
 public:
-    int w;
-    int h;
-    int outw;
-    int outh;
-    int outc;
-    size_t out_elemsize;
-    int out_elempack;
     int type_to;
     int rotate_from;
+    bool need_resize;
 
-    VkSamplerYcbcrConversionKHR samplerYcbcrConversion;
     VkSampler sampler;
 };
 #endif // __ANDROID_API__ >= 26

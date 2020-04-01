@@ -407,7 +407,6 @@ int Pipeline::create_descriptor_update_template(int binding_count)
 #if __ANDROID_API__ >= 26
 ImportAndroidHardwareBufferPipeline::ImportAndroidHardwareBufferPipeline(const VulkanDevice* _vkdev) : Pipeline(_vkdev)
 {
-    samplerYcbcrConversion = 0;
     sampler = 0;
 }
 
@@ -416,55 +415,76 @@ ImportAndroidHardwareBufferPipeline::~ImportAndroidHardwareBufferPipeline()
     destroy();
 }
 
-int ImportAndroidHardwareBufferPipeline::create(AHardwareBuffer* hb, int _type_to, int _rotate_from, const Option& opt)
+int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator, int _type_to, int _rotate_from, const Option& opt)
 {
-    AHardwareBuffer_Desc bufferDesc;
-    AHardwareBuffer_describe(hb, &bufferDesc);
-
-    w = bufferDesc.width;
-    h = bufferDesc.height;
-    type_to = _type_to;
-    rotate_from = _rotate_from;
+    int target_width;
+    int target_height;
 
     if (rotate_from < 5) // 1 2 3 4
     {
-        outw = w;
-        outh = h;
+        target_width = ahb_im_allocator->width();
+        target_height = ahb_im_allocator->height();
     }
     else // 5 6 7 8
     {
-        outw = h;
-        outh = w;
+        target_width = ahb_im_allocator->height();
+        target_height = ahb_im_allocator->width();
     }
 
-    if (type_to == 1 || type_to == 2)
+    return create(ahb_im_allocator, _type_to, _rotate_from, target_width, target_height, opt);
+}
+
+int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator, int _type_to, int _rotate_from, int target_width, int target_height, const Option& opt)
+{
+    int w = ahb_im_allocator->width();
+    int h = ahb_im_allocator->height();
+
+    type_to = _type_to;
+    rotate_from = _rotate_from;
+
+    need_resize = false;
+    if (rotate_from < 5) // 1 2 3 4
     {
-        outc = 3;
-        out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
-        out_elempack = 1;
+        if (target_width != w || target_height != h)
+            need_resize = true;
     }
-    else if (type_to == 3)
+    else // 5 6 7 8
     {
-        outc = 1;
-        out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
-        out_elempack = 1;
+        if (target_width != h || target_height != w)
+            need_resize = true;
     }
-    else // if (type_to == 4 || type_to == 5)
-    {
-        outc = 4;
-        out_elemsize = ((vkdev->info.support_fp16_packed && opt.use_fp16_packed) || (vkdev->info.support_fp16_storage && opt.use_fp16_storage)) ? 8u : 16u;
-        out_elempack = 4;
-    }
+
+//     if (type_to == 1 || type_to == 2)
+//     {
+//         outc = 3;
+//         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
+//         out_elempack = 1;
+//     }
+//     else if (type_to == 3)
+//     {
+//         outc = 1;
+//         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
+//         out_elempack = 1;
+//     }
+//     else // if (type_to == 4 || type_to == 5)
+//     {
+//         outc = 1;
+//         out_elemsize = ((vkdev->info.support_fp16_packed && opt.use_fp16_packed) || (vkdev->info.support_fp16_storage && opt.use_fp16_storage)) ? 8u : 16u;
+//         out_elempack = 4;
+//     }
 
     set_local_size_xyz(8, 8, 1);
 
-    std::vector<vk_specialization_type> specializations(4);
-    specializations[0].i = outw;
-    specializations[1].i = outh;
-    specializations[2].i = type_to;
-    specializations[3].i = rotate_from;
+    std::vector<vk_specialization_type> specializations(7);
+    specializations[0].i = ahb_im_allocator->width();
+    specializations[1].i = ahb_im_allocator->height();
+    specializations[2].i = target_width;
+    specializations[3].i = target_height;
+    specializations[4].i = type_to;
+    specializations[5].i = rotate_from;
+    specializations[6].i = need_resize;
 
-    create_sampler(hb);
+    create_sampler(ahb_im_allocator);
 
     create_descriptorset_layout();
 
@@ -509,68 +529,28 @@ void ImportAndroidHardwareBufferPipeline::destroy()
         sampler = 0;
     }
 
-    if (samplerYcbcrConversion)
-    {
-        vkdev->vkDestroySamplerYcbcrConversionKHR(vkdev->vkdevice(), samplerYcbcrConversion, 0);
-        samplerYcbcrConversion = 0;
-    }
-
     Pipeline::destroy();
 }
 
-int ImportAndroidHardwareBufferPipeline::create_sampler(AHardwareBuffer* hb)
+int ImportAndroidHardwareBufferPipeline::create_sampler(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator)
 {
     VkResult ret;
 
-    VkAndroidHardwareBufferFormatPropertiesANDROID bufferFormatProperties;
-    bufferFormatProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
-    bufferFormatProperties.pNext = 0;
-
-    VkAndroidHardwareBufferPropertiesANDROID bufferProperties;
-    bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
-    bufferProperties.pNext = &bufferFormatProperties;
-
-    ret = vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkGetAndroidHardwareBufferPropertiesANDROID failed %d\n", ret);
-        return -1;
-    }
-
-    VkExternalFormatANDROID externalFormat;
-    externalFormat.sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID;
-    externalFormat.pNext = 0;
-    externalFormat.externalFormat = bufferFormatProperties.externalFormat;
-
-    VkSamplerYcbcrConversionCreateInfoKHR samplerYcbcrConversionCreateInfo;
-    samplerYcbcrConversionCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO_KHR;
-    samplerYcbcrConversionCreateInfo.pNext = &externalFormat;
-    samplerYcbcrConversionCreateInfo.format = VK_FORMAT_UNDEFINED;
-    samplerYcbcrConversionCreateInfo.ycbcrModel = bufferFormatProperties.suggestedYcbcrModel;
-    samplerYcbcrConversionCreateInfo.ycbcrRange = bufferFormatProperties.suggestedYcbcrRange;
-    samplerYcbcrConversionCreateInfo.components = bufferFormatProperties.samplerYcbcrConversionComponents;
-    samplerYcbcrConversionCreateInfo.xChromaOffset = bufferFormatProperties.suggestedXChromaOffset;
-    samplerYcbcrConversionCreateInfo.yChromaOffset = bufferFormatProperties.suggestedYChromaOffset;
-    samplerYcbcrConversionCreateInfo.chromaFilter = VK_FILTER_NEAREST;
-    samplerYcbcrConversionCreateInfo.forceExplicitReconstruction = VK_FALSE;
-
-    ret = vkdev->vkCreateSamplerYcbcrConversionKHR(vkdev->vkdevice(), &samplerYcbcrConversionCreateInfo, 0, &samplerYcbcrConversion);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkCreateSamplerYcbcrConversionKHR failed %d\n", ret);
-        return -1;
-    }
+    VkExternalFormatANDROID externalFormatANDROID;
+    externalFormatANDROID.sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID;
+    externalFormatANDROID.pNext = 0;
+    externalFormatANDROID.externalFormat = ahb_im_allocator->external_format();
 
     VkSamplerYcbcrConversionInfoKHR samplerYcbcrConversionInfo;
     samplerYcbcrConversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
-    samplerYcbcrConversionInfo.pNext = &externalFormat;
-    samplerYcbcrConversionInfo.conversion = samplerYcbcrConversion;
+    samplerYcbcrConversionInfo.pNext = &externalFormatANDROID;
+    samplerYcbcrConversionInfo.conversion = ahb_im_allocator->samplerYcbcrConversion;
 
     VkSamplerCreateInfo samplerCreateInfo;
     samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     samplerCreateInfo.pNext = &samplerYcbcrConversionInfo;
-    samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
-    samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
+    samplerCreateInfo.magFilter = need_resize ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+    samplerCreateInfo.minFilter = need_resize ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
     samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
     samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;

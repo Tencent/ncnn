@@ -21,10 +21,13 @@
 #extension GL_AMD_gpu_shader_half_float: require
 #endif
 
-layout (constant_id = 0) const int outw = 0;
-layout (constant_id = 1) const int outh = 0;
-layout (constant_id = 2) const int type_to = 0;
-layout (constant_id = 3) const int rotate_from = 0;
+layout (constant_id = 0) const int w = 0;
+layout (constant_id = 1) const int h = 0;
+layout (constant_id = 2) const int outw = 0;
+layout (constant_id = 3) const int outh = 0;
+layout (constant_id = 4) const int type_to = 0;
+layout (constant_id = 5) const int rotate_from = 0;
+layout (constant_id = 6) const int need_resize = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -83,6 +86,20 @@ void main()
     if (rotate_from == 8)
     {
         pos = vec2(outh - 1 - gy, gx);
+    }
+
+    if (need_resize == 1)
+    {
+        if (rotate_from < 5) // 1 2 3 4
+        {
+            pos.x = pos.x * (float(w) / outw);
+            pos.y = pos.y * (float(h) / outh);
+        }
+        else // 5 6 7 8
+        {
+            pos.x = pos.x * (float(w) / outh);
+            pos.y = pos.y * (float(h) / outw);
+        }
     }
 
     vec3 rgb = texture(android_hardware_buffer_image, pos).rgb * 255.f;
