@@ -19,6 +19,7 @@
 #include <string>
 #include "mat.h"
 #include "option.h"
+#include "layer_shader_type.h"
 
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
@@ -515,28 +516,35 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
 
     create_pipeline_layout(0);
 
-    std::string name = "convert_ycbcr";
+    int shader_type_index = LayerShaderType::convert_ycbcr;
+
+    // ncnn_add_shader cmake macro
+    // 0 = fp32
+    // 1 = fp16p
+    // 2 = fp16pa
+    // 3 = fp16s
+    // 4 = fp16sa
 
     if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
-        name += "_fp16sa";
+        shader_type_index += 4;
     }
     else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
-        name += "_fp16pa";
+        shader_type_index += 2;
     }
     else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage)
     {
-        name += "_fp16s";
+        shader_type_index += 3;
     }
     else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed)
     {
-        name += "_fp16p";
+        shader_type_index += 1;
     }
 
-    VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
+    VkShaderModule shader_module = vkdev->get_shader_module(shader_type_index);
 
-    create_pipeline(shader_module, name.c_str(), specializations);
+    create_pipeline(shader_module, specializations);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
