@@ -158,8 +158,40 @@ static void to_rgb(const Mat& m, unsigned char* rgb, int stride)
     {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
         int remain = w;
+#endif // __ARM_NEON
 
+#if __ARM_NEON
+        for (; nn>0; nn--)
+        {
+            float32x4_t _rlow = vld1q_f32(ptr0);
+            float32x4_t _rhigh = vld1q_f32(ptr0+4);
+            float32x4_t _glow = vld1q_f32(ptr1);
+            float32x4_t _ghigh = vld1q_f32(ptr1+4);
+            float32x4_t _blow = vld1q_f32(ptr2);
+            float32x4_t _bhigh = vld1q_f32(ptr2+4);
+
+            int16x8_t _r16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_rlow)), vmovn_s32(vcvtq_s32_f32(_rhigh)));
+            int16x8_t _g16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_glow)), vmovn_s32(vcvtq_s32_f32(_ghigh)));
+            int16x8_t _b16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_blow)), vmovn_s32(vcvtq_s32_f32(_bhigh)));
+
+            uint8x8x3_t _rgb;
+            _rgb.val[0] = vqmovun_s16(_r16);
+            _rgb.val[1] = vqmovun_s16(_g16);
+            _rgb.val[2] = vqmovun_s16(_b16);
+
+            vst3_u8(rgb, _rgb);
+
+            rgb += 3*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
+#endif // __ARM_NEON
         for (; remain>0; remain--)
         {
             rgb[0] = SATURATE_CAST_UCHAR(*ptr0);
@@ -286,8 +318,29 @@ static void to_gray(const Mat& m, unsigned char* gray, int stride)
     {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
         int remain = w;
+#endif // __ARM_NEON
 
+#if __ARM_NEON
+        for (; nn>0; nn--)
+        {
+            float32x4_t _glow = vld1q_f32(ptr);
+            float32x4_t _ghigh = vld1q_f32(ptr+4);
+
+            int16x8_t _g16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_glow)), vmovn_s32(vcvtq_s32_f32(_ghigh)));
+
+            uint8x8_t _gray = vqmovun_s16(_g16);
+
+            vst1_u8(gray, _gray);
+
+            gray += 8;
+            ptr += 8;
+        }
+#endif // __ARM_NEON
         for (; remain>0; remain--)
         {
             *gray = SATURATE_CAST_UCHAR(*ptr);
@@ -453,8 +506,45 @@ static void to_rgba(const Mat& m, unsigned char* rgba, int stride)
     {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
         int remain = w;
+#endif // __ARM_NEON
 
+#if __ARM_NEON
+        for (; nn>0; nn--)
+        {
+            float32x4_t _rlow = vld1q_f32(ptr0);
+            float32x4_t _rhigh = vld1q_f32(ptr0+4);
+            float32x4_t _glow = vld1q_f32(ptr1);
+            float32x4_t _ghigh = vld1q_f32(ptr1+4);
+            float32x4_t _blow = vld1q_f32(ptr2);
+            float32x4_t _bhigh = vld1q_f32(ptr2+4);
+            float32x4_t _alow = vld1q_f32(ptr3);
+            float32x4_t _ahigh = vld1q_f32(ptr3+4);
+
+            int16x8_t _r16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_rlow)), vmovn_s32(vcvtq_s32_f32(_rhigh)));
+            int16x8_t _g16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_glow)), vmovn_s32(vcvtq_s32_f32(_ghigh)));
+            int16x8_t _b16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_blow)), vmovn_s32(vcvtq_s32_f32(_bhigh)));
+            int16x8_t _a16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_alow)), vmovn_s32(vcvtq_s32_f32(_ahigh)));
+
+            uint8x8x4_t _rgba;
+            _rgba.val[0] = vqmovun_s16(_r16);
+            _rgba.val[1] = vqmovun_s16(_g16);
+            _rgba.val[2] = vqmovun_s16(_b16);
+            _rgba.val[3] = vqmovun_s16(_a16);
+
+            vst4_u8(rgba, _rgba);
+
+            rgba += 4*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+            ptr3 += 8;
+        }
+#endif // __ARM_NEON
         for (; remain>0; remain--)
         {
             rgba[0] = SATURATE_CAST_UCHAR(*ptr0);
@@ -608,8 +698,40 @@ static void to_bgr2rgb(const Mat& m, unsigned char* rgb, int stride)
     {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
         int remain = w;
+#endif // __ARM_NEON
 
+#if __ARM_NEON
+        for (; nn>0; nn--)
+        {
+            float32x4_t _rlow = vld1q_f32(ptr2);
+            float32x4_t _rhigh = vld1q_f32(ptr2+4);
+            float32x4_t _glow = vld1q_f32(ptr1);
+            float32x4_t _ghigh = vld1q_f32(ptr1+4);
+            float32x4_t _blow = vld1q_f32(ptr0);
+            float32x4_t _bhigh = vld1q_f32(ptr0+4);
+
+            int16x8_t _r16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_rlow)), vmovn_s32(vcvtq_s32_f32(_rhigh)));
+            int16x8_t _g16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_glow)), vmovn_s32(vcvtq_s32_f32(_ghigh)));
+            int16x8_t _b16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_blow)), vmovn_s32(vcvtq_s32_f32(_bhigh)));
+
+            uint8x8x3_t _rgb;
+            _rgb.val[0] = vqmovun_s16(_r16);
+            _rgb.val[1] = vqmovun_s16(_g16);
+            _rgb.val[2] = vqmovun_s16(_b16);
+
+            vst3_u8(rgb, _rgb);
+
+            rgb += 3*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
+#endif // __ARM_NEON
         for (; remain>0; remain--)
         {
             rgb[2] = SATURATE_CAST_UCHAR(*ptr0);
@@ -764,8 +886,42 @@ static void to_rgb2rgba(const Mat& m, unsigned char* rgba, int stride)
     {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
         int remain = w;
+#endif // __ARM_NEON
 
+#if __ARM_NEON
+        uint8x8_t _a = vdup_n_u8(255);
+        for (; nn>0; nn--)
+        {
+            float32x4_t _rlow = vld1q_f32(ptr0);
+            float32x4_t _rhigh = vld1q_f32(ptr0+4);
+            float32x4_t _glow = vld1q_f32(ptr1);
+            float32x4_t _ghigh = vld1q_f32(ptr1+4);
+            float32x4_t _blow = vld1q_f32(ptr2);
+            float32x4_t _bhigh = vld1q_f32(ptr2+4);
+
+            int16x8_t _r16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_rlow)), vmovn_s32(vcvtq_s32_f32(_rhigh)));
+            int16x8_t _g16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_glow)), vmovn_s32(vcvtq_s32_f32(_ghigh)));
+            int16x8_t _b16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_blow)), vmovn_s32(vcvtq_s32_f32(_bhigh)));
+
+            uint8x8x4_t _rgba;
+            _rgba.val[0] = vqmovun_s16(_r16);
+            _rgba.val[1] = vqmovun_s16(_g16);
+            _rgba.val[2] = vqmovun_s16(_b16);
+            _rgba.val[3] = _a;
+
+            vst4_u8(rgba, _rgba);
+
+            rgba += 4*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
+#endif // __ARM_NEON
         for (; remain>0; remain--)
         {
             rgba[0] = SATURATE_CAST_UCHAR(*ptr0);
@@ -921,8 +1077,42 @@ static void to_bgr2rgba(const Mat& m, unsigned char* rgba, int stride)
     {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
         int remain = w;
+#endif // __ARM_NEON
 
+#if __ARM_NEON
+        uint8x8_t _a = vdup_n_u8(255);
+        for (; nn>0; nn--)
+        {
+            float32x4_t _rlow = vld1q_f32(ptr2);
+            float32x4_t _rhigh = vld1q_f32(ptr2+4);
+            float32x4_t _glow = vld1q_f32(ptr1);
+            float32x4_t _ghigh = vld1q_f32(ptr1+4);
+            float32x4_t _blow = vld1q_f32(ptr0);
+            float32x4_t _bhigh = vld1q_f32(ptr0+4);
+
+            int16x8_t _r16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_rlow)), vmovn_s32(vcvtq_s32_f32(_rhigh)));
+            int16x8_t _g16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_glow)), vmovn_s32(vcvtq_s32_f32(_ghigh)));
+            int16x8_t _b16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_blow)), vmovn_s32(vcvtq_s32_f32(_bhigh)));
+
+            uint8x8x4_t _rgba;
+            _rgba.val[0] = vqmovun_s16(_r16);
+            _rgba.val[1] = vqmovun_s16(_g16);
+            _rgba.val[2] = vqmovun_s16(_b16);
+            _rgba.val[3] = _a;
+
+            vst4_u8(rgba, _rgba);
+
+            rgba += 4*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+        }
+#endif // __ARM_NEON
         for (; remain>0; remain--)
         {
             rgba[0] = SATURATE_CAST_UCHAR(*ptr2);
@@ -1091,8 +1281,36 @@ static void to_gray2rgba(const Mat& m, unsigned char* rgba, int stride)
     {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
         int remain = w;
+#endif // __ARM_NEON
 
+#if __ARM_NEON
+        uint8x8_t _a = vdup_n_u8(255);
+        for (; nn>0; nn--)
+        {
+            float32x4_t _glow = vld1q_f32(ptr);
+            float32x4_t _ghigh = vld1q_f32(ptr+4);
+
+            int16x8_t _g16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_glow)), vmovn_s32(vcvtq_s32_f32(_ghigh)));
+
+            uint8x8_t _gray = vqmovun_s16(_g16);
+
+            uint8x8x4_t _rgba;
+            _rgba.val[0] = _gray;
+            _rgba.val[1] = _gray;
+            _rgba.val[2] = _gray;
+            _rgba.val[3] = _a;
+
+            vst4_u8(rgba, _rgba);
+
+            rgba += 4*8;
+            ptr += 8;
+        }
+#endif // __ARM_NEON
         for (; remain>0; remain--)
         {
             unsigned char gray = SATURATE_CAST_UCHAR(*ptr);
@@ -1592,8 +1810,45 @@ static void to_rgba2bgra(const Mat& m, unsigned char* bgra, int stride)
     {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
         int remain = w;
+#endif // __ARM_NEON
 
+#if __ARM_NEON
+        for (; nn>0; nn--)
+        {
+            float32x4_t _rlow = vld1q_f32(ptr0);
+            float32x4_t _rhigh = vld1q_f32(ptr0+4);
+            float32x4_t _glow = vld1q_f32(ptr1);
+            float32x4_t _ghigh = vld1q_f32(ptr1+4);
+            float32x4_t _blow = vld1q_f32(ptr2);
+            float32x4_t _bhigh = vld1q_f32(ptr2+4);
+            float32x4_t _alow = vld1q_f32(ptr3);
+            float32x4_t _ahigh = vld1q_f32(ptr3+4);
+
+            int16x8_t _r16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_rlow)), vmovn_s32(vcvtq_s32_f32(_rhigh)));
+            int16x8_t _g16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_glow)), vmovn_s32(vcvtq_s32_f32(_ghigh)));
+            int16x8_t _b16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_blow)), vmovn_s32(vcvtq_s32_f32(_bhigh)));
+            int16x8_t _a16 = vcombine_s16(vmovn_s32(vcvtq_s32_f32(_alow)), vmovn_s32(vcvtq_s32_f32(_ahigh)));
+
+            uint8x8x4_t _bgra;
+            _bgra.val[0] = vqmovun_s16(_b16);
+            _bgra.val[1] = vqmovun_s16(_g16);
+            _bgra.val[2] = vqmovun_s16(_r16);
+            _bgra.val[3] = vqmovun_s16(_a16);
+
+            vst4_u8(bgra, _bgra);
+
+            bgra += 4*8;
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+            ptr3 += 8;
+        }
+#endif // __ARM_NEON
         for (; remain>0; remain--)
         {
             bgra[0] = SATURATE_CAST_UCHAR(*ptr2);
