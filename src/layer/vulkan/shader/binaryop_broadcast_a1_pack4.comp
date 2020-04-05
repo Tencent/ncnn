@@ -82,8 +82,16 @@ void main()
 
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
+    int ai = 0;
+
+    if (psc(bw) == psc(aw) && psc(bh) == psc(ah) && psc(ac) == 1)
+    {
+        // special type 4
+        ai = gy * psc(aw) + gx;
+    }
+
     // type 2 3 4
-    afpvec4 v1 = afpvec4(buffer_ld1(a_blob_data, 0));
+    afpvec4 v1 = afpvec4(buffer_ld1(a_blob_data, ai));
     afpvec4 v2 = buffer_ld4(b_blob_data, gi);
 
     afpvec4 res;
