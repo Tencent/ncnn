@@ -106,6 +106,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         // pack1
         {
             bottom_blob_flattened.w *= bottom_blob_flattened.elempack;
+            bottom_blob_flattened.cstep = bottom_blob_flattened.w;
             bottom_blob_flattened.elemsize = 4u;
             bottom_blob_flattened.elempack = 1;
         }
