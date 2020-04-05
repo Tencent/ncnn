@@ -51,6 +51,7 @@ static int test_flatten_0()
         || test_flatten(RandomMat(6, 6, 15))
         || test_flatten(RandomMat(13, 13))
         || test_flatten(RandomMat(8, 12))
+        || test_flatten(RandomMat(8, 2))
         || test_flatten(RandomMat(32))
         || test_flatten(RandomMat(17))
         ;

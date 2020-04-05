@@ -193,7 +193,7 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
-    if (dims == 2 && elempack == 1)
+    if (dims == 2 && elempack == 1 && !(opt.use_fp16_packed && !opt.use_fp16_storage && out_elempack != 1))
     {
         top_blob = bottom_blob;
         top_blob.dims = 1;

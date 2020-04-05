@@ -69,18 +69,35 @@ void main()
     ivec4 i4 = gx * 8 + ivec4(0, 1, 2, 3);
     ivec4 ii4 = i4 + 4;
 
-    int size = psc(w) * psc(h);
+    ivec4 v_offset;
+    ivec4 vv_offset;
 
-    ivec4 z4 = i4 / size;
-    ivec4 y4 = i4 % size / psc(w);
-    ivec4 x4 = i4 % size % psc(w);
+    if (psc(dims) == 2)
+    {
+        ivec4 y4 = i4 / psc(w);
+        ivec4 x4 = i4 % psc(w);
 
-    ivec4 zz4 = ii4 / size;
-    ivec4 yy4 = ii4 % size / psc(w);
-    ivec4 xx4 = ii4 % size % psc(w);
+        ivec4 yy4 = ii4 / psc(w);
+        ivec4 xx4 = ii4 % psc(w);
 
-    ivec4 v_offset = z4 * psc(cstep) + y4 * psc(w) + x4;
-    ivec4 vv_offset = zz4 * psc(cstep) + yy4 * psc(w) + xx4;
+        v_offset = y4 * psc(w) + x4;
+        vv_offset = yy4 * psc(w) + xx4;
+    }
+    else // if (psc(dims) == 3)
+    {
+        int size = psc(w) * psc(h);
+
+        ivec4 z4 = i4 / size;
+        ivec4 y4 = i4 % size / psc(w);
+        ivec4 x4 = i4 % size % psc(w);
+
+        ivec4 zz4 = ii4 / size;
+        ivec4 yy4 = ii4 % size / psc(w);
+        ivec4 xx4 = ii4 % size % psc(w);
+
+        v_offset = z4 * psc(cstep) + y4 * psc(w) + x4;
+        vv_offset = zz4 * psc(cstep) + yy4 * psc(w) + xx4;
+    }
 
     buffer_cp1to8(top_blob_data, gx, bottom_blob_data, v_offset, vv_offset);
 }
