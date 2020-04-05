@@ -452,6 +452,40 @@ static int test_binaryop_s2()
     return 0;
 }
 
+static int test_binaryop_s3()
+{
+    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
+    {
+        int ret = 0
+            || test_binaryop(RandomMat(1, 1, 2), RandomMat(2, 3, 2), op_type)
+            || test_binaryop(RandomMat(1, 1, 4), RandomMat(2, 3, 4), op_type)
+            || test_binaryop(RandomMat(1, 1, 8), RandomMat(2, 3, 8), op_type)
+            ;
+
+        if (ret != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
+static int test_binaryop_s4()
+{
+    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
+    {
+        int ret = 0
+            || test_binaryop(RandomMat(2, 3, 1), RandomMat(2, 3, 2), op_type)
+            || test_binaryop(RandomMat(2, 3, 1), RandomMat(2, 3, 4), op_type)
+            || test_binaryop(RandomMat(2, 3, 1), RandomMat(2, 3, 8), op_type)
+            ;
+
+        if (ret != 0)
+            return -1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -478,5 +512,7 @@ int main()
         || test_binaryop_19()
         || test_binaryop_s1()
         || test_binaryop_s2()
+        || test_binaryop_s3()
+        || test_binaryop_s4()
         ;
 }
