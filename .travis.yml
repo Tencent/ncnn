@@ -55,7 +55,7 @@ matrix:
       env:
         - NAME=linux-gcc-arm32
         - BEFORE_BUILD="sudo dpkg --add-architecture armhf && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
-        - BUILD="mkdir build && cd build && cmake .. && make -j2 && ctest --output-on-failure -j 2"
+        - BUILD="setarch linux32 --verbose --32bit && mkdir build && cd build && cmake .. && make -j2 && ctest --output-on-failure -j 2"
 
 before_install:
   - eval "${BEFORE_BUILD}"
