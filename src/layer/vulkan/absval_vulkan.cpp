@@ -14,6 +14,7 @@
 
 #include "absval_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -88,7 +89,7 @@ int AbsVal_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_absval = new Pipeline(vkdev);
         pipeline_absval->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_absval->create("absval", opt, specializations, 1, 5);
+        pipeline_absval->create(LayerShaderType::absval, opt, specializations);
     }
 
     // pack4
@@ -96,7 +97,7 @@ int AbsVal_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_absval_pack4 = new Pipeline(vkdev);
         pipeline_absval_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_absval_pack4->create("absval_pack4", opt, specializations, 1, 5);
+        pipeline_absval_pack4->create(LayerShaderType::absval_pack4, opt, specializations);
     }
 
     // pack8
@@ -104,7 +105,7 @@ int AbsVal_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_absval_pack8 = new Pipeline(vkdev);
         pipeline_absval_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_absval_pack8->create("absval_pack8", opt, specializations, 1, 5);
+        pipeline_absval_pack8->create(LayerShaderType::absval_pack8, opt, specializations);
     }
 
     return 0;

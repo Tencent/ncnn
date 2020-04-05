@@ -14,6 +14,7 @@
 
 #include "prelu_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -91,7 +92,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_prelu = new Pipeline(vkdev);
         pipeline_prelu->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_prelu->create("prelu", opt, specializations, 2, 5);
+        pipeline_prelu->create(LayerShaderType::prelu, opt, specializations);
     }
 
     // pack4
@@ -99,7 +100,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_prelu_pack4 = new Pipeline(vkdev);
         pipeline_prelu_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_prelu_pack4->create("prelu_pack4", opt, specializations, 2, 5);
+        pipeline_prelu_pack4->create(LayerShaderType::prelu_pack4, opt, specializations);
     }
 
     // pack8
@@ -107,7 +108,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_prelu_pack8 = new Pipeline(vkdev);
         pipeline_prelu_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_prelu_pack8->create("prelu_pack8", opt, specializations, 2, 5);
+        pipeline_prelu_pack8->create(LayerShaderType::prelu_pack8, opt, specializations);
     }
 
     return 0;

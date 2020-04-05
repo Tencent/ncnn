@@ -15,6 +15,7 @@
 #include "deconvolution_vulkan.h"
 #include <algorithm>
 #include "layer_type.h"
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -190,7 +191,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolution = new Pipeline(vkdev);
         pipeline_deconvolution->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution->create("deconvolution", opt, specializations, 4, 10);
+        pipeline_deconvolution->create(LayerShaderType::deconvolution, opt, specializations);
     }
 
     // pack4
@@ -198,7 +199,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolution_pack4 = new Pipeline(vkdev);
         pipeline_deconvolution_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack4->create("deconvolution_pack4", opt, specializations, 4, 10);
+        pipeline_deconvolution_pack4->create(LayerShaderType::deconvolution_pack4, opt, specializations);
     }
 
     // pack1to4
@@ -206,7 +207,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolution_pack1to4 = new Pipeline(vkdev);
         pipeline_deconvolution_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack1to4->create("deconvolution_pack1to4", opt, specializations, 4, 10);
+        pipeline_deconvolution_pack1to4->create(LayerShaderType::deconvolution_pack1to4, opt, specializations);
     }
 
     // pack4to1
@@ -214,7 +215,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolution_pack4to1 = new Pipeline(vkdev);
         pipeline_deconvolution_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack4to1->create("deconvolution_pack4to1", opt, specializations, 4, 10);
+        pipeline_deconvolution_pack4to1->create(LayerShaderType::deconvolution_pack4to1, opt, specializations);
     }
 
     // pack8
@@ -222,7 +223,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolution_pack8 = new Pipeline(vkdev);
         pipeline_deconvolution_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack8->create("deconvolution_pack8", opt, specializations, 4, 10);
+        pipeline_deconvolution_pack8->create(LayerShaderType::deconvolution_pack8, opt, specializations);
     }
 
     // pack1to8
@@ -230,7 +231,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolution_pack1to8 = new Pipeline(vkdev);
         pipeline_deconvolution_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack1to8->create("deconvolution_pack1to8", opt, specializations, 4, 10);
+        pipeline_deconvolution_pack1to8->create(LayerShaderType::deconvolution_pack1to8, opt, specializations);
     }
 
     // pack4to8
@@ -238,7 +239,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolution_pack4to8 = new Pipeline(vkdev);
         pipeline_deconvolution_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack4to8->create("deconvolution_pack4to8", opt, specializations, 4, 10);
+        pipeline_deconvolution_pack4to8->create(LayerShaderType::deconvolution_pack4to8, opt, specializations);
     }
 
     // pack8to4
@@ -246,7 +247,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolution_pack8to4 = new Pipeline(vkdev);
         pipeline_deconvolution_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack8to4->create("deconvolution_pack8to4", opt, specializations, 4, 10);
+        pipeline_deconvolution_pack8to4->create(LayerShaderType::deconvolution_pack8to4, opt, specializations);
     }
 
     // pack8to1
@@ -254,7 +255,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_deconvolution_pack8to1 = new Pipeline(vkdev);
         pipeline_deconvolution_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack8to1->create("deconvolution_pack8to1", opt, specializations, 4, 10);
+        pipeline_deconvolution_pack8to1->create(LayerShaderType::deconvolution_pack8to1, opt, specializations);
     }
 
     return 0;

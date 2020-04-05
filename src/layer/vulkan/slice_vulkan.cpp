@@ -15,6 +15,7 @@
 #include "slice_vulkan.h"
 #include <algorithm>
 #include "layer_type.h"
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -132,10 +133,10 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_slice[0] = new Pipeline(vkdev);
         pipeline_slice[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice[0]->create("slice", opt, specializations, 2, 11);
+        pipeline_slice[0]->create(LayerShaderType::slice, opt, specializations);
         pipeline_slice[1] = new Pipeline(vkdev);
         pipeline_slice[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice[1]->create("slice", opt, specializations, 2, 11);
+        pipeline_slice[1]->create(LayerShaderType::slice, opt, specializations);
     }
 
     // pack4
@@ -143,10 +144,10 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_slice_pack4[0] = new Pipeline(vkdev);
         pipeline_slice_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack4[0]->create("slice_pack4", opt, specializations, 2, 11);
+        pipeline_slice_pack4[0]->create(LayerShaderType::slice_pack4, opt, specializations);
         pipeline_slice_pack4[1] = new Pipeline(vkdev);
         pipeline_slice_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack4[1]->create("slice_pack4", opt, specializations, 2, 11);
+        pipeline_slice_pack4[1]->create(LayerShaderType::slice_pack4, opt, specializations);
     }
 
     // pack1to4
@@ -154,10 +155,10 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_slice_pack1to4[0] = new Pipeline(vkdev);
         pipeline_slice_pack1to4[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack1to4[0]->create("slice_pack1to4", opt, specializations, 2, 11);
+        pipeline_slice_pack1to4[0]->create(LayerShaderType::slice_pack1to4, opt, specializations);
         pipeline_slice_pack1to4[1] = new Pipeline(vkdev);
         pipeline_slice_pack1to4[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack1to4[1]->create("slice_pack1to4", opt, specializations, 2, 11);
+        pipeline_slice_pack1to4[1]->create(LayerShaderType::slice_pack1to4, opt, specializations);
     }
 
     // pack8
@@ -165,10 +166,10 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_slice_pack8[0] = new Pipeline(vkdev);
         pipeline_slice_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack8[0]->create("slice_pack8", opt, specializations, 2, 11);
+        pipeline_slice_pack8[0]->create(LayerShaderType::slice_pack8, opt, specializations);
         pipeline_slice_pack8[1] = new Pipeline(vkdev);
         pipeline_slice_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack8[1]->create("slice_pack8", opt, specializations, 2, 11);
+        pipeline_slice_pack8[1]->create(LayerShaderType::slice_pack8, opt, specializations);
     }
 
     // pack1to8
@@ -176,10 +177,10 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_slice_pack1to8[0] = new Pipeline(vkdev);
         pipeline_slice_pack1to8[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack1to8[0]->create("slice_pack1to8", opt, specializations, 2, 11);
+        pipeline_slice_pack1to8[0]->create(LayerShaderType::slice_pack1to8, opt, specializations);
         pipeline_slice_pack1to8[1] = new Pipeline(vkdev);
         pipeline_slice_pack1to8[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack1to8[1]->create("slice_pack1to8", opt, specializations, 2, 11);
+        pipeline_slice_pack1to8[1]->create(LayerShaderType::slice_pack1to8, opt, specializations);
     }
 
     // pack4to8
@@ -187,10 +188,10 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_slice_pack4to8[0] = new Pipeline(vkdev);
         pipeline_slice_pack4to8[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack4to8[0]->create("slice_pack4to8", opt, specializations, 2, 11);
+        pipeline_slice_pack4to8[0]->create(LayerShaderType::slice_pack4to8, opt, specializations);
         pipeline_slice_pack4to8[1] = new Pipeline(vkdev);
         pipeline_slice_pack4to8[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_slice_pack4to8[1]->create("slice_pack4to8", opt, specializations, 2, 11);
+        pipeline_slice_pack4to8[1]->create(LayerShaderType::slice_pack4to8, opt, specializations);
     }
 
     if ((axis == 0 && shape.dims == 0) || (elempack > out_elempack && out_elempack == 1))

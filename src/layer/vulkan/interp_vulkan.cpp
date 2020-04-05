@@ -14,6 +14,7 @@
 
 #include "interp_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -111,7 +112,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_interp = new Pipeline(vkdev);
             pipeline_interp->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_interp->create("interp", opt, specializations, 2, 12);
+            pipeline_interp->create(LayerShaderType::interp, opt, specializations);
         }
 
         // pack4
@@ -119,7 +120,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_interp_pack4 = new Pipeline(vkdev);
             pipeline_interp_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_interp_pack4->create("interp_pack4", opt, specializations, 2, 12);
+            pipeline_interp_pack4->create(LayerShaderType::interp_pack4, opt, specializations);
         }
 
         // pack8
@@ -127,7 +128,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_interp_pack8 = new Pipeline(vkdev);
             pipeline_interp_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_interp_pack8->create("interp_pack8", opt, specializations, 2, 12);
+            pipeline_interp_pack8->create(LayerShaderType::interp_pack8, opt, specializations);
         }
     }
 
@@ -148,7 +149,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
 
             pipeline_interp_bicubic_coeffs_x = new Pipeline(vkdev);
             pipeline_interp_bicubic_coeffs_x->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_interp_bicubic_coeffs_x->create("interp_bicubic_coeffs", opt, specializations, 2, 3);
+            pipeline_interp_bicubic_coeffs_x->create(LayerShaderType::interp_bicubic_coeffs, opt, specializations);
         }
         {
             std::vector<vk_specialization_type> specializations(0 + 2);
@@ -165,7 +166,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
 
             pipeline_interp_bicubic_coeffs_y = new Pipeline(vkdev);
             pipeline_interp_bicubic_coeffs_y->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_interp_bicubic_coeffs_y->create("interp_bicubic_coeffs", opt, specializations, 2, 3);
+            pipeline_interp_bicubic_coeffs_y->create(LayerShaderType::interp_bicubic_coeffs, opt, specializations);
         }
 
         std::vector<vk_specialization_type> specializations(0 + 10);
@@ -199,7 +200,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_interp_bicubic = new Pipeline(vkdev);
             pipeline_interp_bicubic->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_interp_bicubic->create("interp_bicubic", opt, specializations, 6, 10);
+            pipeline_interp_bicubic->create(LayerShaderType::interp_bicubic, opt, specializations);
         }
 
         // pack4
@@ -207,7 +208,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_interp_bicubic_pack4 = new Pipeline(vkdev);
             pipeline_interp_bicubic_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_interp_bicubic_pack4->create("interp_bicubic_pack4", opt, specializations, 6, 10);
+            pipeline_interp_bicubic_pack4->create(LayerShaderType::interp_bicubic_pack4, opt, specializations);
         }
 
         // pack8
@@ -215,7 +216,7 @@ int Interp_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_interp_bicubic_pack8 = new Pipeline(vkdev);
             pipeline_interp_bicubic_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_interp_bicubic_pack8->create("interp_bicubic_pack8", opt, specializations, 6, 10);
+            pipeline_interp_bicubic_pack8->create(LayerShaderType::interp_bicubic_pack8, opt, specializations);
         }
     }
 

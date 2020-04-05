@@ -1152,35 +1152,25 @@ void VkSimpleImageAllocator::fastFree(VkImageMemory* ptr)
 }
 
 #if __ANDROID_API__ >= 26
-VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, const ImportAndroidHardwareBufferPipeline* p) : VkImageAllocator(_vkdev), q(p)
+VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, AHardwareBuffer* _hb) : VkImageAllocator(_vkdev), hb(_hb)
 {
+    samplerYcbcrConversion = 0;
+
+    init();
 }
 
 VkAndroidHardwareBufferImageAllocator::~VkAndroidHardwareBufferImageAllocator()
 {
+    if (samplerYcbcrConversion)
+    {
+        vkdev->vkDestroySamplerYcbcrConversionKHR(vkdev->vkdevice(), samplerYcbcrConversion, 0);
+        samplerYcbcrConversion = 0;
+    }
 }
 
-VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(AHardwareBuffer* hb)
+VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*width*/, int /*height*/, VkFormat /*format*/)
 {
     VkResult ret;
-
-    AHardwareBuffer_Desc bufferDesc;
-    AHardwareBuffer_describe(hb, &bufferDesc);
-
-    VkAndroidHardwareBufferFormatPropertiesANDROID bufferFormatProperties;
-    bufferFormatProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
-    bufferFormatProperties.pNext = 0;
-
-    VkAndroidHardwareBufferPropertiesANDROID bufferProperties;
-    bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
-    bufferProperties.pNext = &bufferFormatProperties;
-
-    ret = vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkGetAndroidHardwareBufferPropertiesANDROID failed %d\n", ret);
-        return 0;
-    }
 
     VkExternalFormatANDROID externalFormat;
     externalFormat.sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID;
@@ -1267,7 +1257,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(AHardwareBuffer
     VkSamplerYcbcrConversionInfoKHR samplerYcbcrConversionInfo;
     samplerYcbcrConversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
     samplerYcbcrConversionInfo.pNext = &externalFormat;
-    samplerYcbcrConversionInfo.conversion = q->samplerYcbcrConversion;
+    samplerYcbcrConversionInfo.conversion = samplerYcbcrConversion;
 
     VkImageViewCreateInfo imageViewCreateInfo;
     imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1312,6 +1302,69 @@ void VkAndroidHardwareBufferImageAllocator::fastFree(VkImageMemory* ptr)
     vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
 
     delete ptr;
+}
+
+int VkAndroidHardwareBufferImageAllocator::init()
+{
+    AHardwareBuffer_describe(hb, &bufferDesc);
+
+    VkResult ret;
+
+    // resolve externalFormat
+    bufferFormatProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
+    bufferFormatProperties.pNext = 0;
+
+    bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
+    bufferProperties.pNext = &bufferFormatProperties;
+
+    ret = vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkGetAndroidHardwareBufferPropertiesANDROID failed %d\n", ret);
+        return -1;
+    }
+
+    // setup samplerYcbcrConversion
+    VkExternalFormatANDROID externalFormat;
+    externalFormat.sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID;
+    externalFormat.pNext = 0;
+    externalFormat.externalFormat = bufferFormatProperties.externalFormat;
+
+    VkSamplerYcbcrConversionCreateInfoKHR samplerYcbcrConversionCreateInfo;
+    samplerYcbcrConversionCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO_KHR;
+    samplerYcbcrConversionCreateInfo.pNext = &externalFormat;
+    samplerYcbcrConversionCreateInfo.format = VK_FORMAT_UNDEFINED;
+    samplerYcbcrConversionCreateInfo.ycbcrModel = bufferFormatProperties.suggestedYcbcrModel;
+    samplerYcbcrConversionCreateInfo.ycbcrRange = bufferFormatProperties.suggestedYcbcrRange;
+    samplerYcbcrConversionCreateInfo.components = bufferFormatProperties.samplerYcbcrConversionComponents;
+    samplerYcbcrConversionCreateInfo.xChromaOffset = bufferFormatProperties.suggestedXChromaOffset;
+    samplerYcbcrConversionCreateInfo.yChromaOffset = bufferFormatProperties.suggestedYChromaOffset;
+    samplerYcbcrConversionCreateInfo.chromaFilter = VK_FILTER_NEAREST;
+    samplerYcbcrConversionCreateInfo.forceExplicitReconstruction = VK_FALSE;
+
+    ret = vkdev->vkCreateSamplerYcbcrConversionKHR(vkdev->vkdevice(), &samplerYcbcrConversionCreateInfo, 0, &samplerYcbcrConversion);
+    if (ret != VK_SUCCESS)
+    {
+        fprintf(stderr, "vkCreateSamplerYcbcrConversionKHR failed %d\n", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VkAndroidHardwareBufferImageAllocator::width() const
+{
+    return bufferDesc.width;
+}
+
+int VkAndroidHardwareBufferImageAllocator::height() const
+{
+    return bufferDesc.height;
+}
+
+uint64_t VkAndroidHardwareBufferImageAllocator::external_format() const
+{
+    return bufferFormatProperties.externalFormat;
 }
 #endif // __ANDROID_API__ >= 26
 

@@ -33,10 +33,8 @@ Flatten_arm::Flatten_arm()
 
 int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (bottom_blob.elemsize / bottom_blob.elempack == 2u)
-    {
+    if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blob, top_blob, opt);
-    }
 
     int dims = bottom_blob.dims;
 

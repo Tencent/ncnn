@@ -215,6 +215,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
 
     if (opt.use_int8_inference) opt.use_bf16_storage = false;
+    if (opt.use_int8_inference) opt.use_packing_layout = false;
 
 #if NCNN_VULKAN
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
@@ -467,6 +468,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
 
     if (opt.use_int8_inference) opt.use_bf16_storage = false;
+    if (opt.use_int8_inference) opt.use_packing_layout = false;
 
 #if NCNN_VULKAN
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
@@ -732,8 +734,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_blob_count, top_shapes, epsilon_fp16, func);
         if (ret != 0)
         {
-            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_bf16_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_bf16_storage);
-            return ret;
+            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage);
         }
     }
 
@@ -810,7 +811,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_shape, epsilon_fp16, func);
         if (ret != 0)
         {
-            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_bf16_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_bf16_storage);
+            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage);
             return ret;
         }
     }

@@ -95,6 +95,13 @@ void main()
                 ai = gi;
                 bi = gz * psc(bcstep);
             }
+
+            if (psc(aw) == 1 && psc(ah) == 1)
+            {
+                // special type 3
+                ai = gz * psc(acstep);
+                bi = gi;
+            }
         }
 
         if (psc(bdims) == 2)

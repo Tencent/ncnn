@@ -14,6 +14,7 @@
 
 #include "eltwise_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -93,10 +94,10 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_eltwise[0] = new Pipeline(vkdev);
         pipeline_eltwise[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_eltwise[0]->create("eltwise", opt, specializations, 3, 5+2);
+        pipeline_eltwise[0]->create(LayerShaderType::eltwise, opt, specializations);
         pipeline_eltwise[1] = new Pipeline(vkdev);
         pipeline_eltwise[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_eltwise[1]->create("eltwise", opt, specializations, 3, 5+2);
+        pipeline_eltwise[1]->create(LayerShaderType::eltwise, opt, specializations);
     }
 
     // pack4
@@ -104,10 +105,10 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_eltwise_pack4[0] = new Pipeline(vkdev);
         pipeline_eltwise_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_eltwise_pack4[0]->create("eltwise_pack4", opt, specializations, 3, 5+2);
+        pipeline_eltwise_pack4[0]->create(LayerShaderType::eltwise_pack4, opt, specializations);
         pipeline_eltwise_pack4[1] = new Pipeline(vkdev);
         pipeline_eltwise_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_eltwise_pack4[1]->create("eltwise_pack4", opt, specializations, 3, 5+2);
+        pipeline_eltwise_pack4[1]->create(LayerShaderType::eltwise_pack4, opt, specializations);
     }
 
     // pack8
@@ -115,10 +116,10 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_eltwise_pack8[0] = new Pipeline(vkdev);
         pipeline_eltwise_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_eltwise_pack8[0]->create("eltwise_pack8", opt, specializations, 3, 5+2);
+        pipeline_eltwise_pack8[0]->create(LayerShaderType::eltwise_pack8, opt, specializations);
         pipeline_eltwise_pack8[1] = new Pipeline(vkdev);
         pipeline_eltwise_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_eltwise_pack8[1]->create("eltwise_pack8", opt, specializations, 3, 5+2);
+        pipeline_eltwise_pack8[1]->create(LayerShaderType::eltwise_pack8, opt, specializations);
     }
 
     return 0;

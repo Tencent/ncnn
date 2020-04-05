@@ -14,6 +14,7 @@
 
 #include "dropout_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -89,7 +90,7 @@ int Dropout_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_dropout = new Pipeline(vkdev);
         pipeline_dropout->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_dropout->create("dropout", opt, specializations, 1, 5);
+        pipeline_dropout->create(LayerShaderType::dropout, opt, specializations);
     }
 
     // pack4
@@ -97,7 +98,7 @@ int Dropout_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_dropout_pack4 = new Pipeline(vkdev);
         pipeline_dropout_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_dropout_pack4->create("dropout_pack4", opt, specializations, 1, 5);
+        pipeline_dropout_pack4->create(LayerShaderType::dropout_pack4, opt, specializations);
     }
 
     // pack8
@@ -105,7 +106,7 @@ int Dropout_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_dropout_pack8 = new Pipeline(vkdev);
         pipeline_dropout_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_dropout_pack8->create("dropout_pack8", opt, specializations, 1, 5);
+        pipeline_dropout_pack8->create(LayerShaderType::dropout_pack8, opt, specializations);
     }
 
     return 0;
