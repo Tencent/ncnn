@@ -8,8 +8,8 @@ addons:
       - cmake
       - libprotobuf-dev
       - protobuf-compiler
-      - libopencv-dev
       - lcov
+      #- libopencv-dev
 
 matrix:
   include:
