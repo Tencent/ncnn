@@ -4,7 +4,7 @@ jobs:
   linux-gcc-gpu:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: lcov
       run: sudo apt-get install lcov
     - name: cache-vulkansdk
@@ -75,7 +75,7 @@ jobs:
   linux-gcc-avx2:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: lcov
       run: sudo apt-get install lcov
     - name: configure

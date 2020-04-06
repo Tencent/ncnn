@@ -4,7 +4,7 @@ jobs:
   windows-vs2019:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-protobuf
       id: cache-protobuf
       uses: actions/cache@v1
@@ -32,7 +32,7 @@ jobs:
   windows-vs2019-avx2:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-protobuf
       id: cache-protobuf
       uses: actions/cache@v1
@@ -60,7 +60,7 @@ jobs:
   windows-vs2019-nostdio:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: configure
       run: |
         mkdir build; cd build
@@ -71,7 +71,7 @@ jobs:
   windows-vs2019-nostring:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: configure
       run: |
         mkdir build; cd build
@@ -82,7 +82,7 @@ jobs:
   windows-vs2019-nostdio-nostring:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: configure
       run: |
         mkdir build; cd build
