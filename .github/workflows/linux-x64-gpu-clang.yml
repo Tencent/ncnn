@@ -4,7 +4,7 @@ jobs:
   linux-clang-gpu:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: update
       run: sudo apt-get update
     - name: protobuf
@@ -64,7 +64,7 @@ jobs:
   linux-clang-gpu-nostdio:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -89,7 +89,7 @@ jobs:
   linux-clang-gpu-nostring:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -114,7 +114,7 @@ jobs:
   linux-clang-gpu-nostdio-nostring:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1

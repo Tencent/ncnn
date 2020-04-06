@@ -4,7 +4,7 @@ jobs:
   windows-vs2019-gpu:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-protobuf
       id: cache-protobuf
       uses: actions/cache@v1
@@ -75,7 +75,7 @@ jobs:
   windows-vs2019-gpu-nostdio:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -99,7 +99,7 @@ jobs:
   windows-vs2019-gpu-nostring:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -123,7 +123,7 @@ jobs:
   windows-vs2019-gpu-nostdio-nostring:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
