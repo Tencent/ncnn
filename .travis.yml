@@ -54,7 +54,7 @@ matrix:
       env:
         - NAME=linux-gcc-arm32
         - BEFORE_BUILD="sudo dpkg --add-architecture armhf && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
-        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF - .. && arm-linux-gnueabihf-gcc -march=armv7-a -mfloat-abi=hard -mfpu=neon-vfpv4 -dM -E - < /dev/null | grep NEON && make -j2 VERBOSE=1 && readelf -A tests/test_absval && ctest --output-on-failure -j 2"
+        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF - .. && make -j2 VERBOSE=1 && ctest --output-on-failure -j 2"
 
     - name: "test-coverage-arm32"
       os: linux
