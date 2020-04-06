@@ -5611,7 +5611,6 @@ static void conv3x3s1_winograd64_neon3(const Mat& bottom_blob, Mat& top_blob, co
 }
 #endif
 
-#if 0
 static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
@@ -6114,7 +6113,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                           "11"(r3),
                           "w"(_coeff0), // %24
                           "w"(_coeff1), // %25
-                          "r"(stepw)        // %26
+                          "g"(stepw)        // %26
                         : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
                     );
 
@@ -6373,7 +6372,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                           "11"(t3),
                           "w"(_coeff0), // %24
                           "w"(_coeff1), // %25
-                          "r"(step)        // %26
+                          "g"(step)        // %26
                         : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
                     );
 #endif // __aarch64__
@@ -8346,7 +8345,6 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
-#endif
 
 static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
 {
@@ -8878,7 +8876,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                           "11"(r3),
                           "w"(_coeff0), // %24
                           "w"(_coeff1), // %25
-                          "r"(stepw)        // %26
+                          "g"(stepw)        // %26
                         : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
                     );
 
@@ -9150,7 +9148,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                           "11"(t3),
                           "w"(_coeff0), // %24
                           "w"(_coeff1), // %25
-                          "r"(step)        // %26
+                          "g"(step)        // %26
                         : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
                     );
 #endif // __aarch64__
