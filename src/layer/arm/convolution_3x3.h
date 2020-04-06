@@ -5612,7 +5612,9 @@ static void conv3x3s1_winograd64_neon3(const Mat& bottom_blob, Mat& top_blob, co
 #endif
 
 #if __ARM_NEON && !__aarch64__
-__attribute__((optimize("-fomit-frame-pointer")))
+// __attribute__((optimize("-fomit-frame-pointer")))
+#pragma GCC push_options
+#pragma GCC optimize("-fomit-frame-pointer")
 #endif
 static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
 {
@@ -8349,9 +8351,9 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-#if __ARM_NEON && !__aarch64__
-__attribute__((optimize("-fomit-frame-pointer")))
-#endif
+// #if __ARM_NEON && !__aarch64__
+// __attribute__((optimize("-fomit-frame-pointer")))
+// #endif
 static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
@@ -11719,6 +11721,9 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
     if (top_blob_bordered.w != top_blob.w || top_blob_bordered.h != top_blob.h)
         copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
+#if __ARM_NEON && !__aarch64__
+#pragma GCC pop_options
+#endif
 
 static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
