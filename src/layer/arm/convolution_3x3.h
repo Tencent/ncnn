@@ -5700,7 +5700,10 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     const float* r2 = r0 + w*2;
                     const float* r3 = r0 + w*3;
 
-#if __aarch64__
+                    // the assembly block for armv7 input transform requires 13 general registers
+                    // old gcc may fail to allocate register on debug build without -fomit-frame-pointer
+                    // so, fallback to intrinsic version for armv7 debug build     --- nihui
+#if __aarch64__ || !defined(NDEBUG)
                     for (int m=0; m+3<8; m+=4)
                     {
                         float32x4_t _r0_0123 = vld1q_f32(r0);
@@ -8436,7 +8439,10 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     const float* r2 = r0 + w*2;
                     const float* r3 = r0 + w*3;
 
-#if __aarch64__
+                    // the assembly block for armv7 input transform requires 13 general registers
+                    // old gcc may fail to allocate register on debug build without -fomit-frame-pointer
+                    // so, fallback to intrinsic version for armv7 debug build     --- nihui
+#if __aarch64__ || !defined(NDEBUG)
                     for (int m=0; m+3<8; m+=4)
                     {
                         float32x4_t _r0_0123 = vld1q_f32(r0);

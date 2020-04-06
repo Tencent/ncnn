@@ -4,7 +4,7 @@ jobs:
   linux-clang:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: update
       run: sudo apt-get update
     - name: protobuf
@@ -22,7 +22,7 @@ jobs:
   linux-clang-avx2:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: update
       run: sudo apt-get update
     - name: protobuf
@@ -40,7 +40,7 @@ jobs:
   linux-clang-nostdio:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: configure
       env:
         CC: clang
@@ -52,7 +52,7 @@ jobs:
   linux-clang-nostring:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: configure
       env:
         CC: clang
@@ -64,7 +64,7 @@ jobs:
   linux-clang-nostdio-nostring:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: configure
       env:
         CC: clang

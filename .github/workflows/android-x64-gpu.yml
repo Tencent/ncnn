@@ -4,7 +4,7 @@ jobs:
   android-x86_64-gpu:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -26,7 +26,7 @@ jobs:
   android-x86_64-gpu-nostdio:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -48,7 +48,7 @@ jobs:
   android-x86_64-gpu-nostring:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -70,7 +70,7 @@ jobs:
   android-x86_64-gpu-nostdio-nostring:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
