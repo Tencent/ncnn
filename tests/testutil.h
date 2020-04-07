@@ -236,13 +236,6 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     op->vkdev = vkdev;
 #endif // NCNN_VULKAN
 
-    if (op->one_blob_only && a.size() != 1)
-    {
-        fprintf(stderr, "layer with one_blob_only but consume multiple inputs\n");
-        delete op;
-        return -1;
-    }
-
     if (!top_shapes.empty())
     {
         op->bottom_shapes = a;
@@ -250,6 +243,13 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     }
 
     op->load_param(pd);
+
+    if (op->one_blob_only && a.size() != 1)
+    {
+        fprintf(stderr, "layer with one_blob_only but consume multiple inputs\n");
+        delete op;
+        return -1;
+    }
 
     ncnn::ModelBinFromMatArray mb(weights.data());
 
