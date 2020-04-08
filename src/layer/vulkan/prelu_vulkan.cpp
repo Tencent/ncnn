@@ -61,11 +61,11 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     std::vector<vk_specialization_type> specializations(2 + 5);
     specializations[0].i = num_slope;
     specializations[1].f = num_slope == 1 ? slope_data[0] : 1.f;
-    specializations[1 + 0].i = shape_packed.dims;
-    specializations[1 + 1].i = shape_packed.w;
-    specializations[1 + 2].i = shape_packed.h;
-    specializations[1 + 3].i = shape_packed.c;
-    specializations[1 + 4].i = shape_packed.cstep;
+    specializations[2 + 0].i = shape_packed.dims;
+    specializations[2 + 1].i = shape_packed.w;
+    specializations[2 + 2].i = shape_packed.h;
+    specializations[2 + 3].i = shape_packed.c;
+    specializations[2 + 4].i = shape_packed.cstep;
 
     Mat local_size_xyz(4, 4, std::min(4, num_slope / elempack), (void*)0);
     if (shape_packed.dims == 1)

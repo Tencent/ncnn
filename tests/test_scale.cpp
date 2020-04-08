@@ -29,6 +29,7 @@ static int test_scale(const ncnn::Mat& a, int scale_data_size, int bias)
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Scale>("Scale", pd, weights, opt, a);
