@@ -61,11 +61,6 @@ jobs:
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
-    - name: coveralls
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: build/lcov.info
     - name: codecov
       uses: codecov/codecov-action@v1
       with:
@@ -90,11 +85,6 @@ jobs:
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
-    - name: coveralls
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: build/lcov.info
     - name: codecov
       uses: codecov/codecov-action@v1
       with:
