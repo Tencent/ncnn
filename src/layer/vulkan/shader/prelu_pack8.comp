@@ -65,7 +65,7 @@ void main()
 
     if (num_slope == 1)
     {
-        slope = afpvec8(slope_value);
+        slope = afpvec8(afpvec4(slope_value), afpvec4(slope_value));
     }
     else
     {
