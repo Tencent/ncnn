@@ -152,18 +152,18 @@ int Command::queue_submit_and_wait_fence()
         }
     }
 
+    vkdev->reclaim_queue(queue_family_index, queue);
+
 //     fprintf(stderr, "==================== wait\n");
     {
         VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, UINT64_MAX);
         if (ret != VK_SUCCESS)
         {
             fprintf(stderr, "vkWaitForFences failed %d\n", ret);
-            vkdev->reclaim_queue(queue_family_index, queue);
             return -1;
         }
     }
 
-    vkdev->reclaim_queue(queue_family_index, queue);
     return 0;
 }
 
