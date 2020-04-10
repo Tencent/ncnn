@@ -261,10 +261,13 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (opt.use_vulkan_compute)
     {
         ncnn::VkTransfer cmd(vkdev);
-        cmd.weight_vkallocator = &g_weight_vkallocator;
-        cmd.staging_vkallocator = &g_weight_staging_vkallocator;
 
-        op->upload_model(cmd, opt);
+        ncnn::Option opt_upload = opt;
+        opt_upload.blob_vkallocator = &g_weight_vkallocator;
+        opt_upload.workspace_vkallocator = &g_weight_vkallocator;
+        opt_upload.staging_vkallocator = &g_weight_staging_vkallocator;
+
+        op->upload_model(cmd, opt_upload);
 
         cmd.submit_and_wait();
     }
@@ -367,57 +370,35 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             }
         }
 
-        // upload
-        std::vector<ncnn::VkMat> a4_fp16_gpu(a4_fp16.size());
-        for (size_t i=0; i<a4_fp16.size(); i++)
-        {
-            a4_fp16_gpu[i].create_like(a4_fp16[i], opt.blob_vkallocator, opt.staging_vkallocator);
-            a4_fp16_gpu[i].prepare_staging_buffer();
-            a4_fp16_gpu[i].upload(a4_fp16[i]);
-        }
-
         // forward
         ncnn::VkCompute cmd(vkdev);
 
+        // upload
+        std::vector<ncnn::VkMat> a4_fp16_gpu(a4_fp16.size());
         for (size_t i=0; i<a4_fp16_gpu.size(); i++)
         {
-            cmd.record_upload(a4_fp16_gpu[i]);
+            cmd.record_upload(a4_fp16[i], a4_fp16_gpu[i], opt);
         }
 
         std::vector<ncnn::VkMat> d4_fp16_gpu(top_blob_count);
         if (op->support_inplace)
         {
-            for (size_t i=0; i<a4_fp16_gpu.size(); i++)
-            {
-                d4_fp16_gpu[i].create_like(a4_fp16_gpu[i], a4_fp16_gpu[i].allocator, a4_fp16_gpu[i].staging_allocator);
-                cmd.record_clone(a4_fp16_gpu[i], d4_fp16_gpu[i]);
-            }
+            op->forward_inplace(a4_fp16_gpu, cmd, opt);
 
-            op->forward_inplace(d4_fp16_gpu, cmd, opt);
+            d4_fp16_gpu = a4_fp16_gpu;
         }
         else
         {
             op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
         }
 
-        for (size_t i=0; i<d4_fp16_gpu.size(); i++)
-        {
-            d4_fp16_gpu[i].prepare_staging_buffer();
-        }
-
-        for (size_t i=0; i<d4_fp16_gpu.size(); i++)
-        {
-            cmd.record_download(d4_fp16_gpu[i]);
-        }
-
-        cmd.submit_and_wait();
-
         // download
         for (size_t i=0; i<d4_fp16_gpu.size(); i++)
         {
-            d[i].create_like(d4_fp16_gpu[i]);
-            d4_fp16_gpu[i].download(d[i]);
+            cmd.record_download(d4_fp16_gpu[i], d[i], opt);
         }
+
+        cmd.submit_and_wait();
     }
 #endif // NCNN_VULKAN
 
@@ -509,14 +490,15 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (opt.use_vulkan_compute)
     {
         ncnn::VkTransfer cmd(vkdev);
-        cmd.weight_vkallocator = &g_weight_vkallocator;
-        cmd.staging_vkallocator = &g_weight_staging_vkallocator;
 
-        op->upload_model(cmd, opt);
+        ncnn::Option opt_upload = opt;
+        opt_upload.blob_vkallocator = &g_weight_vkallocator;
+        opt_upload.workspace_vkallocator = &g_weight_vkallocator;
+        opt_upload.staging_vkallocator = &g_weight_staging_vkallocator;
+
+        op->upload_model(cmd, opt_upload);
 
         cmd.submit_and_wait();
-
-        g_weight_staging_vkallocator.clear();
     }
 #endif // NCNN_VULKAN
 
@@ -594,38 +576,29 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
             a4_fp16 = a4;
         }
 
-        // upload
-        ncnn::VkMat a4_fp16_gpu;
-        a4_fp16_gpu.create_like(a4_fp16, opt.blob_vkallocator, opt.staging_vkallocator);
-        a4_fp16_gpu.prepare_staging_buffer();
-        a4_fp16_gpu.upload(a4_fp16);
-
         // forward
         ncnn::VkCompute cmd(vkdev);
 
-        cmd.record_upload(a4_fp16_gpu);
+        // upload
+        ncnn::VkMat a4_fp16_gpu;
+        cmd.record_upload(a4_fp16, a4_fp16_gpu, opt);
 
         ncnn::VkMat d4_fp16_gpu;
         if (op->support_inplace)
         {
-            d4_fp16_gpu.create_like(a4_fp16_gpu, a4_fp16_gpu.allocator, a4_fp16_gpu.staging_allocator);
-            cmd.record_clone(a4_fp16_gpu, d4_fp16_gpu);
-            op->forward_inplace(d4_fp16_gpu, cmd, opt);
+            op->forward_inplace(a4_fp16_gpu, cmd, opt);
+
+            d4_fp16_gpu = a4_fp16_gpu;
         }
         else
         {
             op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
         }
 
-        d4_fp16_gpu.prepare_staging_buffer();
-
-        cmd.record_download(d4_fp16_gpu);
+        // download
+        cmd.record_download(d4_fp16_gpu, d, opt);
 
         cmd.submit_and_wait();
-
-        // download
-        d.create_like(d4_fp16_gpu);
-        d4_fp16_gpu.download(d);
     }
 #endif // NCNN_VULKAN
 

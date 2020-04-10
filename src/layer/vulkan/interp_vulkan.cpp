@@ -274,7 +274,7 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         return 0;
     }
 
-    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -306,11 +306,11 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     }
     else if (resize_type == 3) // bicubic
     {
-        VkMat alpha(outw, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator, opt.staging_vkallocator);
+        VkMat alpha(outw, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator);
         if (alpha.empty())
             return -100;
 
-        VkMat xofs(outw, (size_t)4u, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
+        VkMat xofs(outw, (size_t)4u, 1, opt.workspace_vkallocator);
         if (xofs.empty())
             return -100;
 
@@ -328,11 +328,11 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
             cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, bindings, constants, alpha);
         }
 
-        VkMat beta(outh, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator, opt.staging_vkallocator);
+        VkMat beta(outh, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator);
         if (beta.empty())
             return -100;
 
-        VkMat yofs(outh, (size_t)4u, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
+        VkMat yofs(outh, (size_t)4u, 1, opt.workspace_vkallocator);
         if (yofs.empty())
             return -100;
 

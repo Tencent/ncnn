@@ -298,7 +298,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
             reduced_c = (bottom_top_blob.c + 3) / 4;
         }
 
-        sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
         {
         std::vector<VkMat> bindings(2);
         bindings[0] = bottom_top_blob;
@@ -347,7 +347,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         }
 
         VkMat sqsum_workspace_reduced;
-        sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
 
         {
         std::vector<VkMat> bindings(2);
@@ -377,7 +377,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
     // coeffs
     VkMat coeffs_workspace;
-    coeffs_workspace.create(sqsum_workspace.w * sqsum_workspace.h * sqsum_workspace.c, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+    coeffs_workspace.create(sqsum_workspace.w * sqsum_workspace.h * sqsum_workspace.c, elemsize, elempack, opt.workspace_vkallocator);
     {
         std::vector<VkMat> bindings(2);
         bindings[0] = sqsum_workspace;

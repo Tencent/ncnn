@@ -192,12 +192,9 @@ public:
     void* mapped_ptr;
 
     // buffer state, modified by command functions internally
-    // 0=null
-    // 1=created
-    // 2=transfer
-    // 3=compute
-    // 4=readonly
-    mutable int state;
+    mutable VkAccessFlags access_flags;
+    mutable uint32_t queue_owner;
+    mutable VkPipelineStageFlags stage_flags;
 
     // initialize and modified by mat
     int refcount;
@@ -311,13 +308,10 @@ public:
 
     VkDeviceMemory memory;
 
-    // buffer state, modified by command functions internally
-    // 0=null
-    // 1=created
-    // 2=transfer
-    // 3=compute
-    // 4=readonly
-    mutable int state;
+    // image state, modified by command functions internally
+    mutable VkAccessFlags access_flags;
+    mutable uint32_t queue_owner;
+    mutable VkPipelineStageFlags stage_flags;
 
     // initialize and modified by mat
     int refcount;

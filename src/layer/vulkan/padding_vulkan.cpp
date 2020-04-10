@@ -170,7 +170,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int outw = w + left + right;
     int outh = h + top + bottom;
 
-    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -239,7 +239,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int outw = w + _left + _right;
     int outh = h + _top + _bottom;
 
-    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 

@@ -287,7 +287,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     if (global_pooling)
     {
-        top_blob.create(channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(channels, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -336,8 +336,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         Option opt_pad = opt;
         opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-        VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-        padding_param_blob.prepare_staging_buffer();
+        VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
         int* padding_params = padding_param_blob.mapped();
 
         padding_params[0] = pad_top;
@@ -369,8 +368,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            padding_param_blob.prepare_staging_buffer();
+            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = hpad / 2;
@@ -396,8 +394,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            padding_param_blob.prepare_staging_buffer();
+            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = hpad - hpad / 2;
@@ -421,7 +418,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int outw = (w - kernel_w) / stride_w + 1;
     int outh = (h - kernel_h) / stride_h + 1;
 
-    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
