@@ -156,7 +156,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
     // stash staging
-    staging_buffers.push_back(dst_staging);
+    upload_staging_buffers.push_back(dst_staging);
 }
 
 void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
@@ -207,22 +207,16 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             src.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
         }
 
-        // memcpy device to dst
+        // stash download post buffer and mat
+        download_post_buffers.push_back(src);
+        download_post_mats.push_back(dst);
+
+        // post memcpy device to dst
         {
             record r;
-            r.type = record::TYPE_post_invalidate_buffer;
+            r.type = record::TYPE_post_download;
             r.command_buffer = 0;
-            r.post_invalidate_buffer.allocator = src.allocator;
-            r.post_invalidate_buffer.data = src.data;
-            delayed_records.push_back(r);
-        }
-        {
-            record r;
-            r.type = record::TYPE_post_copy_host_memory;
-            r.command_buffer = 0;
-            r.post_copy_host_memory.src = src.mapped_ptr();
-            r.post_copy_host_memory.dst = dst.data;
-            r.post_copy_host_memory.size = src.total() * src.elemsize;
+            r.post_download.download_post_buffer_mat_offset = download_post_buffers.size() - 1;
             delayed_records.push_back(r);
         }
 
@@ -331,27 +325,18 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         }
     }
 
-    // memcpy staging to dst
-    {
-        record r;
-        r.type = record::TYPE_post_invalidate_buffer;
-        r.command_buffer = 0;
-        r.post_invalidate_buffer.allocator = src_staging.allocator;
-        r.post_invalidate_buffer.data = src_staging.data;
-        delayed_records.push_back(r);
-    }
-    {
-        record r;
-        r.type = record::TYPE_post_copy_host_memory;
-        r.command_buffer = 0;
-        r.post_copy_host_memory.src = src_staging.mapped_ptr();
-        r.post_copy_host_memory.dst = dst.data;
-        r.post_copy_host_memory.size = src_staging.total() * src_staging.elemsize;
-        delayed_records.push_back(r);
-    }
+    // stash download post buffer and mat
+    download_post_buffers.push_back(src_staging);
+    download_post_mats.push_back(dst);
 
-    // stash staging
-    staging_buffers.push_back(src_staging);
+    // post memcpy device to dst
+    {
+        record r;
+        r.type = record::TYPE_post_download;
+        r.command_buffer = 0;
+        r.post_download.download_post_buffer_mat_offset = download_post_buffers.size() - 1;
+        delayed_records.push_back(r);
+    }
 }
 
 void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
@@ -732,7 +717,7 @@ int VkCompute::submit_and_wait()
                 break;
             }
 #endif // NCNN_BENCHMARK
-            case record::TYPE_post_copy_host_memory:
+            case record::TYPE_post_download:
             default:
                 break;
 
@@ -794,14 +779,13 @@ int VkCompute::submit_and_wait()
 
         switch (r.type)
         {
-        case record::TYPE_post_invalidate_buffer:
+        case record::TYPE_post_download:
         {
-            r.post_invalidate_buffer.allocator->invalidate(r.post_invalidate_buffer.data);
-            break;
-        }
-        case record::TYPE_post_copy_host_memory:
-        {
-            memcpy(r.post_copy_host_memory.dst, r.post_copy_host_memory.src, r.post_copy_host_memory.size);
+            const VkMat& src = download_post_buffers[r.post_download.download_post_buffer_mat_offset];
+            Mat& dst = download_post_mats[r.post_download.download_post_buffer_mat_offset];
+
+            src.allocator->invalidate(src.data);
+            memcpy(dst.data, src.mapped_ptr(), dst.total() * dst.elemsize);
             break;
         }
         case record::TYPE_copy_buffer:
@@ -1202,7 +1186,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     dst.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
     // stash staging
-    staging_buffers.push_back(dst_staging);
+    upload_staging_buffers.push_back(dst_staging);
 }
 
 int VkTransfer::submit_and_wait()
