@@ -375,6 +375,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     {
         const VkMat& binding = bindings[i];
 
+        if ((binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT && binding.data->stage_flags == VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+            || (binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT))
         {
             // barrier device any @ compute/null to shader-readwrite @ compute
             VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
@@ -407,12 +409,12 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
                 r.buffer_barrers.barriers = barriers;
                 delayed_records.push_back(r);
             }
-        }
 
-        // mark device shader-readwrite @ compute
-        binding.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        binding.data->queue_owner = vkdev->info.compute_queue_family_index;
-        binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            // mark device shader-readwrite @ compute
+            binding.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            binding.data->queue_owner = vkdev->info.compute_queue_family_index;
+            binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        }
     }
 
     // record bind pipeline
@@ -1010,8 +1012,6 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     // memcpy src_flattened to staging
     memcpy(dst_staging.mapped_ptr(), src_flattened.data, src_flattened.total() * src_flattened.elemsize);
 
-//     // get or create transfer command buffer
-
     VkCommandBuffer command_buffer;
     if (vkdev->info.unified_compute_transfer_queue)
     {
@@ -1053,7 +1053,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
     if (!vkdev->info.unified_compute_transfer_queue)
     {
-        // queue ownership transfer any @ transfer to shader-readwrite @ compute
+        // queue ownership transfer any @ transfer to shader-read @ compute
 
         // release
         {
@@ -1080,7 +1080,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
             barrier.pNext = 0;
             barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
             barrier.srcQueueFamilyIndex = vkdev->info.transfer_queue_family_index;
             barrier.dstQueueFamilyIndex = vkdev->info.compute_queue_family_index;
             barrier.buffer = dst.buffer();
@@ -1095,7 +1095,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     }
 
     // mark device shader-readwrite @ compute
-    dst.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+    dst.data->access_flags = VK_ACCESS_SHADER_READ_BIT;
     dst.data->queue_owner = vkdev->info.compute_queue_family_index;
     dst.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
