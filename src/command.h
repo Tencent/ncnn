@@ -62,17 +62,9 @@ protected:
     const VulkanDevice* vkdev;
 
     VkCommandPool compute_command_pool;
-    VkCommandPool transfer_command_pool;
 
-    VkCommandBuffer upload_command_buffer;
-    VkCommandBuffer download_command_buffer;
     VkCommandBuffer compute_command_buffer;
 
-    VkSemaphore upload_compute_semaphore;
-    VkSemaphore compute_download_semaphore;
-
-    VkFence upload_command_fence;
-    VkFence download_command_fence;
     VkFence compute_command_fence;
 
     std::vector<VkMat> staging_buffers;
@@ -135,7 +127,6 @@ protected:
     VkQueryPool query_pool;
 #endif // NCNN_BENCHMARK
 };
-
 
 class VkTransfer
 {

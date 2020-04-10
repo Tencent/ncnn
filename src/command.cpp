@@ -25,18 +25,10 @@ namespace ncnn {
 
 VkCompute::VkCompute(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
-    transfer_command_pool = 0;
     compute_command_pool = 0;
 
-    upload_command_buffer = 0;
-    download_command_buffer = 0;
     compute_command_buffer = 0;
 
-    upload_compute_semaphore = 0;
-    compute_download_semaphore = 0;
-
-    upload_command_fence = 0;
-    download_command_fence = 0;
     compute_command_fence = 0;
 
 #if NCNN_BENCHMARK
@@ -72,19 +64,6 @@ VkCompute::~VkCompute()
 
     vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &compute_command_buffer);
     vkDestroyCommandPool(vkdev->vkdevice(), compute_command_pool, 0);
-
-    if (!vkdev->info.unified_compute_transfer_queue)
-    {
-        vkDestroyFence(vkdev->vkdevice(), upload_command_fence, 0);
-        vkDestroyFence(vkdev->vkdevice(), download_command_fence, 0);
-
-        vkDestroySemaphore(vkdev->vkdevice(), upload_compute_semaphore, 0);
-        vkDestroySemaphore(vkdev->vkdevice(), compute_download_semaphore, 0);
-
-        vkFreeCommandBuffers(vkdev->vkdevice(), transfer_command_pool, 1, &upload_command_buffer);
-        vkFreeCommandBuffers(vkdev->vkdevice(), transfer_command_pool, 1, &download_command_buffer);
-        vkDestroyCommandPool(vkdev->vkdevice(), transfer_command_pool, 0);
-    }
 }
 
 void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
@@ -108,16 +87,6 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         return;
     }
 
-    VkCommandBuffer command_buffer;
-    if (vkdev->info.unified_compute_transfer_queue)
-    {
-        command_buffer = compute_command_buffer;
-    }
-    else
-    {
-        command_buffer = upload_command_buffer;
-    }
-
     // create staging
     VkMat dst_staging;
     dst_staging.create_like(src, opt.staging_vkallocator);
@@ -126,7 +95,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     memcpy(dst_staging.mapped_ptr(), src.data, src.total() * src.elemsize);
     dst_staging.allocator->flush(dst_staging.data);
 
-    // barrier staging host-write @ null to transfer-read @ queue
+    // barrier staging host-write @ null to transfer-read @ compute
     {
         VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -144,14 +113,14 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
             delete[] barriers;
         }
         else
         {
             record r;
             r.type = record::TYPE_buffer_barrers;
-            r.command_buffer = command_buffer;
+            r.command_buffer = compute_command_buffer;
             r.buffer_barrers.src_stage = src_stage;
             r.buffer_barrers.dst_stage = dst_stage;
             r.buffer_barrers.barrier_count = 1;
@@ -169,14 +138,14 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkCmdCopyBuffer(command_buffer, dst_staging.buffer(), dst.buffer(), 1, regions);
+            vkCmdCopyBuffer(compute_command_buffer, dst_staging.buffer(), dst.buffer(), 1, regions);
             delete[] regions;
         }
         else
         {
             record r;
             r.type = record::TYPE_copy_buffer;
-            r.command_buffer = command_buffer;
+            r.command_buffer = compute_command_buffer;
             r.copy_buffer.src = dst_staging.buffer();
             r.copy_buffer.dst = dst.buffer();
             r.copy_buffer.region_count = 1;
@@ -186,7 +155,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
         // mark device transfer-write @ queue
         dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
-        dst.data->queue_owner = vkdev->info.transfer_queue_family_index;
+        dst.data->queue_owner = vkdev->info.compute_queue_family_index;
         dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
@@ -201,19 +170,9 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     // create dst
     dst.create_like(src, opt.blob_allocator);
 
-    VkCommandBuffer command_buffer;
-    if (vkdev->info.unified_compute_transfer_queue)
-    {
-        command_buffer = compute_command_buffer;
-    }
-    else
-    {
-        command_buffer = download_command_buffer;
-    }
-
     if (src.allocator->mappable)
     {
-        // barrier device any @ any to host-read @ any
+        // barrier device any @ compute to host-read @ compute
         if (src.data->access_flags != VK_ACCESS_HOST_READ_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
         {
             VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
@@ -232,14 +191,14 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
             if (vkdev->info.support_VK_KHR_push_descriptor)
             {
-                vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+                vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
                 delete[] barriers;
             }
             else
             {
                 record r;
                 r.type = record::TYPE_buffer_barrers;
-                r.command_buffer = command_buffer;
+                r.command_buffer = compute_command_buffer;
                 r.buffer_barrers.src_stage = src_stage;
                 r.buffer_barrers.dst_stage = dst_stage;
                 r.buffer_barrers.barrier_count = 1;
@@ -249,6 +208,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
             // mark device host-read @ any
             src.data->access_flags = VK_ACCESS_HOST_READ_BIT;
+            src.data->queue_owner = vkdev->info.compute_queue_family_index;
             src.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
         }
 
@@ -274,9 +234,8 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         return;
     }
 
-    if (vkdev->info.unified_compute_transfer_queue || src.data->queue_owner == vkdev->info.transfer_queue_family_index)
     {
-        // barrier device any @ queue to transfer-read @ queue
+        // barrier device any @ compute to transfer-read @ compute
         VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         barriers[0].pNext = 0;
@@ -293,14 +252,14 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
             delete[] barriers;
         }
         else
         {
             record r;
             r.type = record::TYPE_buffer_barrers;
-            r.command_buffer = command_buffer;
+            r.command_buffer = compute_command_buffer;
             r.buffer_barrers.src_stage = src_stage;
             r.buffer_barrers.dst_stage = dst_stage;
             r.buffer_barrers.barrier_count = 1;
@@ -308,82 +267,10 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             delayed_records.push_back(r);
         }
     }
-    else
-    {
-        // queue ownership transfer any @ compute to transfer-read @ transfer
-
-        // release
-        {
-            VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
-            barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-            barriers[0].pNext = 0;
-            barriers[0].srcAccessMask = src.data->access_flags;
-            barriers[0].dstAccessMask = 0;
-            barriers[0].srcQueueFamilyIndex = vkdev->info.compute_queue_family_index;
-            barriers[0].dstQueueFamilyIndex = vkdev->info.transfer_queue_family_index;
-            barriers[0].buffer = src.buffer();
-            barriers[0].offset = src.buffer_offset();
-            barriers[0].size = src.buffer_capacity();
-
-            VkPipelineStageFlags src_stage = src.data->stage_flags;
-            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-
-            if (vkdev->info.support_VK_KHR_push_descriptor)
-            {
-                vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
-                delete[] barriers;
-            }
-            else
-            {
-                record r;
-                r.type = record::TYPE_buffer_barrers;
-                r.command_buffer = compute_command_buffer;
-                r.buffer_barrers.src_stage = src_stage;
-                r.buffer_barrers.dst_stage = dst_stage;
-                r.buffer_barrers.barrier_count = 1;
-                r.buffer_barrers.barriers = barriers;
-                delayed_records.push_back(r);
-            }
-        }
-
-        // acquire
-        {
-            VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
-            barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-            barriers[0].pNext = 0;
-            barriers[0].srcAccessMask = 0;
-            barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            barriers[0].srcQueueFamilyIndex = vkdev->info.compute_queue_family_index;
-            barriers[0].dstQueueFamilyIndex = vkdev->info.transfer_queue_family_index;
-            barriers[0].buffer = src.buffer();
-            barriers[0].offset = src.buffer_offset();
-            barriers[0].size = src.buffer_capacity();
-
-            VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
-            if (vkdev->info.support_VK_KHR_push_descriptor)
-            {
-                vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
-                delete[] barriers;
-            }
-            else
-            {
-                record r;
-                r.type = record::TYPE_buffer_barrers;
-                r.command_buffer = command_buffer;
-                r.buffer_barrers.src_stage = src_stage;
-                r.buffer_barrers.dst_stage = dst_stage;
-                r.buffer_barrers.barrier_count = 1;
-                r.buffer_barrers.barriers = barriers;
-                delayed_records.push_back(r);
-            }
-        }
-    }
 
     // mark device transfer-read @ transfer
     src.data->access_flags = VK_ACCESS_TRANSFER_READ_BIT;
-    src.data->queue_owner = vkdev->info.transfer_queue_family_index;
+    src.data->queue_owner = vkdev->info.compute_queue_family_index;
     src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
     // create staging
@@ -399,14 +286,14 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkCmdCopyBuffer(command_buffer, src.buffer(), src_staging.buffer(), 1, regions);
+            vkCmdCopyBuffer(compute_command_buffer, src.buffer(), src_staging.buffer(), 1, regions);
             delete[] regions;
         }
         else
         {
             record r;
             r.type = record::TYPE_copy_buffer;
-            r.command_buffer = command_buffer;
+            r.command_buffer = compute_command_buffer;
             r.copy_buffer.src = src.buffer();
             r.copy_buffer.dst = src_staging.buffer();
             r.copy_buffer.region_count = 1;
@@ -415,7 +302,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         }
     }
 
-    // barrier staging transfer-write @ transfer to host-read @ transfer
+    // barrier staging transfer-write @ compute to host-read @ compute
     {
         VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -433,14 +320,14 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
             delete[] barriers;
         }
         else
         {
             record r;
             r.type = record::TYPE_buffer_barrers;
-            r.command_buffer = command_buffer;
+            r.command_buffer = compute_command_buffer;
             r.buffer_barrers.src_stage = src_stage;
             r.buffer_barrers.dst_stage = dst_stage;
             r.buffer_barrers.barrier_count = 1;
@@ -448,9 +335,9 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             delayed_records.push_back(r);
         }
 
-        // mark staging host-read @ transfer
+        // mark staging host-read @ compute
         src_staging.data->access_flags = VK_ACCESS_HOST_READ_BIT;
-        src_staging.data->queue_owner = vkdev->info.transfer_queue_family_index;
+        src_staging.data->queue_owner = vkdev->info.compute_queue_family_index;
         src_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
     }
 
@@ -488,7 +375,6 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     {
         const VkMat& binding = bindings[i];
 
-        if (vkdev->info.unified_compute_transfer_queue || binding.data->queue_owner == vkdev->info.compute_queue_family_index || binding.data->queue_owner == VK_QUEUE_FAMILY_IGNORED)
         {
             // barrier device any @ compute/null to shader-readwrite @ compute
             VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
@@ -520,78 +406,6 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
                 r.buffer_barrers.barrier_count = 1;
                 r.buffer_barrers.barriers = barriers;
                 delayed_records.push_back(r);
-            }
-        }
-        else
-        {
-            // queue ownership transfer any @ transfer to shader-readwrite @ compute
-
-            // release
-            {
-                VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
-                barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-                barriers[0].pNext = 0;
-                barriers[0].srcAccessMask = binding.data->access_flags;
-                barriers[0].dstAccessMask = 0;
-                barriers[0].srcQueueFamilyIndex = binding.data->queue_owner;
-                barriers[0].dstQueueFamilyIndex = vkdev->info.compute_queue_family_index;
-                barriers[0].buffer = binding.buffer();
-                barriers[0].offset = binding.buffer_offset();
-                barriers[0].size = binding.buffer_capacity();
-
-                VkPipelineStageFlags src_stage = binding.data->stage_flags;
-                VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-
-                if (vkdev->info.support_VK_KHR_push_descriptor)
-                {
-                    vkCmdPipelineBarrier(upload_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
-                    delete[] barriers;
-                }
-                else
-                {
-                    record r;
-                    r.type = record::TYPE_buffer_barrers;
-                    r.command_buffer = upload_command_buffer;
-                    r.buffer_barrers.src_stage = src_stage;
-                    r.buffer_barrers.dst_stage = dst_stage;
-                    r.buffer_barrers.barrier_count = 1;
-                    r.buffer_barrers.barriers = barriers;
-                    delayed_records.push_back(r);
-                }
-            }
-
-            // acquire
-            {
-                VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
-                barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-                barriers[0].pNext = 0;
-                barriers[0].srcAccessMask = 0;
-                barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-                barriers[0].srcQueueFamilyIndex = binding.data->queue_owner;
-                barriers[0].dstQueueFamilyIndex = vkdev->info.compute_queue_family_index;
-                barriers[0].buffer = binding.buffer();
-                barriers[0].offset = binding.buffer_offset();
-                barriers[0].size = binding.buffer_capacity();
-
-                VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-                VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-
-                if (vkdev->info.support_VK_KHR_push_descriptor)
-                {
-                    vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
-                    delete[] barriers;
-                }
-                else
-                {
-                    record r;
-                    r.type = record::TYPE_buffer_barrers;
-                    r.command_buffer = compute_command_buffer;
-                    r.buffer_barrers.src_stage = src_stage;
-                    r.buffer_barrers.dst_stage = dst_stage;
-                    r.buffer_barrers.barrier_count = 1;
-                    r.buffer_barrers.barriers = barriers;
-                    delayed_records.push_back(r);
-                }
             }
         }
 
@@ -873,129 +687,33 @@ int VkCompute::submit_and_wait()
         return -1;
     }
 
-    if (vkdev->info.unified_compute_transfer_queue)
+    // submit compute
     {
-        // submit compute
-        {
-            VkSubmitInfo submitInfo;
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.pNext = 0;
-            submitInfo.waitSemaphoreCount = 0;
-            submitInfo.pWaitSemaphores = 0;
-            submitInfo.pWaitDstStageMask = 0;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &compute_command_buffer;
-            submitInfo.signalSemaphoreCount = 0;
-            submitInfo.pSignalSemaphores = 0;
+        VkSubmitInfo submitInfo;
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pNext = 0;
+        submitInfo.waitSemaphoreCount = 0;
+        submitInfo.pWaitSemaphores = 0;
+        submitInfo.pWaitDstStageMask = 0;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &compute_command_buffer;
+        submitInfo.signalSemaphoreCount = 0;
+        submitInfo.pSignalSemaphores = 0;
 
-            VkResult ret = vkQueueSubmit(compute_queue, 1, &submitInfo, compute_command_fence);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkQueueSubmit failed %d\n", ret);
-                vkdev->reclaim_queue(vkdev->info.compute_queue_family_index, compute_queue);
-                return -1;
-            }
-        }
-    }
-    else
-    {
-        VkQueue transfer_queue = vkdev->acquire_queue(vkdev->info.transfer_queue_family_index);
-        if (transfer_queue == 0)
+        VkResult ret = vkQueueSubmit(compute_queue, 1, &submitInfo, compute_command_fence);
+        if (ret != VK_SUCCESS)
         {
-            fprintf(stderr, "out of transfer queue\n");
+            fprintf(stderr, "vkQueueSubmit failed %d\n", ret);
             vkdev->reclaim_queue(vkdev->info.compute_queue_family_index, compute_queue);
             return -1;
         }
-
-        // submit upload compute download
-        {
-            VkSubmitInfo submitInfo;
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.pNext = 0;
-            submitInfo.waitSemaphoreCount = 0;
-            submitInfo.pWaitSemaphores = 0;
-            submitInfo.pWaitDstStageMask = 0;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &upload_command_buffer;
-            submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &upload_compute_semaphore;
-
-            VkResult ret = vkQueueSubmit(transfer_queue, 1, &submitInfo, upload_command_fence);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkQueueSubmit failed %d\n", ret);
-                vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index, transfer_queue);
-                vkdev->reclaim_queue(vkdev->info.compute_queue_family_index, compute_queue);
-                return -1;
-            }
-        }
-        {
-            VkPipelineStageFlags wait_dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;// FIXME
-
-            VkSubmitInfo submitInfo;
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.pNext = 0;
-            submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &upload_compute_semaphore;
-            submitInfo.pWaitDstStageMask = &wait_dst_stage;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &compute_command_buffer;
-            submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &compute_download_semaphore;
-
-            VkResult ret = vkQueueSubmit(compute_queue, 1, &submitInfo, compute_command_fence);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkQueueSubmit failed %d\n", ret);
-                vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index, transfer_queue);
-                vkdev->reclaim_queue(vkdev->info.compute_queue_family_index, compute_queue);
-                return -1;
-            }
-        }
-        {
-            VkPipelineStageFlags wait_dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;// FIXME
-
-            VkSubmitInfo submitInfo;
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.pNext = 0;
-            submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &compute_download_semaphore;
-            submitInfo.pWaitDstStageMask = &wait_dst_stage;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &download_command_buffer;
-            submitInfo.signalSemaphoreCount = 0;
-            submitInfo.pSignalSemaphores = 0;
-
-            VkResult ret = vkQueueSubmit(transfer_queue, 1, &submitInfo, download_command_fence);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkQueueSubmit failed %d\n", ret);
-                vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index, transfer_queue);
-                vkdev->reclaim_queue(vkdev->info.compute_queue_family_index, compute_queue);
-                return -1;
-            }
-        }
-
-        vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index, transfer_queue);
     }
 
     vkdev->reclaim_queue(vkdev->info.compute_queue_family_index, compute_queue);
 
     // wait
-    if (vkdev->info.unified_compute_transfer_queue)
     {
         VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &compute_command_fence, VK_TRUE, UINT64_MAX);
-        if (ret != VK_SUCCESS)
-        {
-            fprintf(stderr, "vkWaitForFences failed %d\n", ret);
-            return -1;
-        }
-    }
-    else
-    {
-        VkFence fences[3] = { upload_command_fence, compute_command_fence, download_command_fence };
-
-        VkResult ret = vkWaitForFences(vkdev->vkdevice(), 3, fences, VK_TRUE, UINT64_MAX);
         if (ret != VK_SUCCESS)
         {
             fprintf(stderr, "vkWaitForFences failed %d\n", ret);
@@ -1056,43 +774,6 @@ int VkCompute::reset()
         {
             fprintf(stderr, "vkResetFences failed %d\n", ret);
             return -1;
-        }
-    }
-
-    if (!vkdev->info.unified_compute_transfer_queue)
-    {
-        {
-            VkResult ret = vkResetCommandBuffer(upload_command_buffer, 0);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkResetCommandBuffer failed %d\n", ret);
-                return -1;
-            }
-        }
-        {
-            VkResult ret = vkResetCommandBuffer(download_command_buffer, 0);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkResetCommandBuffer failed %d\n", ret);
-                return -1;
-            }
-        }
-
-        {
-            VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &upload_command_fence);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkResetFences failed %d\n", ret);
-                return -1;
-            }
-        }
-        {
-            VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &download_command_fence);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkResetFences failed %d\n", ret);
-                return -1;
-            }
         }
     }
 
@@ -1208,119 +889,6 @@ int VkCompute::init()
         }
     }
 
-    if (!vkdev->info.unified_compute_transfer_queue)
-    {
-        // transfer_command_pool
-        {
-            VkCommandPoolCreateInfo commandPoolCreateInfo;
-            commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-            commandPoolCreateInfo.pNext = 0;
-            commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-            commandPoolCreateInfo.queueFamilyIndex = vkdev->info.transfer_queue_family_index;
-
-            VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &transfer_command_pool);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkCreateCommandPool failed %d\n", ret);
-                return -1;
-            }
-        }
-
-        // upload_command_buffer
-        {
-            VkCommandBufferAllocateInfo commandBufferAllocateInfo;
-            commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            commandBufferAllocateInfo.pNext = 0;
-            commandBufferAllocateInfo.commandPool = transfer_command_pool;
-            commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            commandBufferAllocateInfo.commandBufferCount = 1;
-
-            VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &upload_command_buffer);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkAllocateCommandBuffers failed %d\n", ret);
-                return -1;
-            }
-        }
-
-        // download_command_buffer
-        {
-            VkCommandBufferAllocateInfo commandBufferAllocateInfo;
-            commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            commandBufferAllocateInfo.pNext = 0;
-            commandBufferAllocateInfo.commandPool = transfer_command_pool;
-            commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            commandBufferAllocateInfo.commandBufferCount = 1;
-
-            VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &download_command_buffer);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkAllocateCommandBuffers failed %d\n", ret);
-                return -1;
-            }
-        }
-
-        // upload_compute_semaphore
-        {
-            VkSemaphoreCreateInfo semaphoreCreateInfo;
-            semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            semaphoreCreateInfo.pNext = 0;
-            semaphoreCreateInfo.flags = 0;
-
-            VkResult ret = vkCreateSemaphore(vkdev->vkdevice(), &semaphoreCreateInfo, 0, &upload_compute_semaphore);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkCreateSemaphore failed %d\n", ret);
-                return -1;
-            }
-        }
-
-        // compute_download_semaphore
-        {
-            VkSemaphoreCreateInfo semaphoreCreateInfo;
-            semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            semaphoreCreateInfo.pNext = 0;
-            semaphoreCreateInfo.flags = 0;
-
-            VkResult ret = vkCreateSemaphore(vkdev->vkdevice(), &semaphoreCreateInfo, 0, &compute_download_semaphore);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkCreateSemaphore failed %d\n", ret);
-                return -1;
-            }
-        }
-
-        // upload_command_fence
-        {
-            VkFenceCreateInfo fenceCreateInfo;
-            fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            fenceCreateInfo.pNext = 0;
-            fenceCreateInfo.flags = 0;
-
-            VkResult ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &upload_command_fence);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkCreateFence failed %d\n", ret);
-                return -1;
-            }
-        }
-
-        // download_command_fence
-        {
-            VkFenceCreateInfo fenceCreateInfo;
-            fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            fenceCreateInfo.pNext = 0;
-            fenceCreateInfo.flags = 0;
-
-            VkResult ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &download_command_fence);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkCreateFence failed %d\n", ret);
-                return -1;
-            }
-        }
-    }
-
     if (vkdev->info.support_VK_KHR_push_descriptor)
     {
         begin_command_buffer();
@@ -1336,51 +904,17 @@ int VkCompute::init()
 
 int VkCompute::begin_command_buffer()
 {
+    VkCommandBufferBeginInfo commandBufferBeginInfo;
+    commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    commandBufferBeginInfo.pNext = 0;
+    commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    commandBufferBeginInfo.pInheritanceInfo = 0;
+
+    VkResult ret = vkBeginCommandBuffer(compute_command_buffer, &commandBufferBeginInfo);
+    if (ret != VK_SUCCESS)
     {
-        VkCommandBufferBeginInfo commandBufferBeginInfo;
-        commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        commandBufferBeginInfo.pNext = 0;
-        commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        commandBufferBeginInfo.pInheritanceInfo = 0;
-
-        VkResult ret = vkBeginCommandBuffer(compute_command_buffer, &commandBufferBeginInfo);
-        if (ret != VK_SUCCESS)
-        {
-            fprintf(stderr, "vkBeginCommandBuffer failed %d\n", ret);
-            return -1;
-        }
-    }
-
-    if (vkdev->info.unified_compute_transfer_queue)
-        return 0;
-
-    {
-        VkCommandBufferBeginInfo commandBufferBeginInfo;
-        commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        commandBufferBeginInfo.pNext = 0;
-        commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        commandBufferBeginInfo.pInheritanceInfo = 0;
-
-        VkResult ret = vkBeginCommandBuffer(upload_command_buffer, &commandBufferBeginInfo);
-        if (ret != VK_SUCCESS)
-        {
-            fprintf(stderr, "vkBeginCommandBuffer failed %d\n", ret);
-            return -1;
-        }
-    }
-    {
-        VkCommandBufferBeginInfo commandBufferBeginInfo;
-        commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        commandBufferBeginInfo.pNext = 0;
-        commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        commandBufferBeginInfo.pInheritanceInfo = 0;
-
-        VkResult ret = vkBeginCommandBuffer(download_command_buffer, &commandBufferBeginInfo);
-        if (ret != VK_SUCCESS)
-        {
-            fprintf(stderr, "vkBeginCommandBuffer failed %d\n", ret);
-            return -1;
-        }
+        fprintf(stderr, "vkBeginCommandBuffer failed %d\n", ret);
+        return -1;
     }
 
     return 0;
@@ -1388,33 +922,11 @@ int VkCompute::begin_command_buffer()
 
 int VkCompute::end_command_buffer()
 {
+    VkResult ret = vkEndCommandBuffer(compute_command_buffer);
+    if (ret != VK_SUCCESS)
     {
-        VkResult ret = vkEndCommandBuffer(compute_command_buffer);
-        if (ret != VK_SUCCESS)
-        {
-            fprintf(stderr, "vkEndCommandBuffer failed %d\n", ret);
-            return -1;
-        }
-    }
-
-    if (!vkdev->info.unified_compute_transfer_queue)
-    {
-        {
-            VkResult ret = vkEndCommandBuffer(upload_command_buffer);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkEndCommandBuffer failed %d\n", ret);
-                return -1;
-            }
-        }
-        {
-            VkResult ret = vkEndCommandBuffer(download_command_buffer);
-            if (ret != VK_SUCCESS)
-            {
-                fprintf(stderr, "vkEndCommandBuffer failed %d\n", ret);
-                return -1;
-            }
-        }
+        fprintf(stderr, "vkEndCommandBuffer failed %d\n", ret);
+        return -1;
     }
 
     return 0;
