@@ -1431,7 +1431,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
         {
             // load bottom blobs
             std::vector<VkMat> bottom_blobs(layer->bottoms.size());
-            std::vector<VkMat> bottom_blobs_unpacked(layer->bottoms.size());
             for (size_t i=0; i<layer->bottoms.size(); i++)
             {
                 int bottom_blob_index = layer->bottoms[i];
@@ -1465,7 +1464,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         }
 
                         // upload
-                        VkMat& bottom_blob_unpacked = bottom_blobs_unpacked[i];
+                        VkMat bottom_blob_unpacked;
                         cmd.record_upload(bottom_blob_cpu_fp16, bottom_blob_unpacked, opt);
 
                         // cast to fp16 (integrated gpu)
@@ -1718,7 +1717,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
         else
         {
             // load bottom blobs
-            std::vector<VkMat> bottom_blobs_unpacked(layer->bottoms.size());
             std::vector<Mat> bottom_blobs_cpu_fp16(layer->bottoms.size());
             for (size_t i=0; i<layer->bottoms.size(); i++)
             {
@@ -1765,7 +1763,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         }
 
                         // cast to fp32 (integrated gpu)
-                        VkMat& bottom_blob_unpacked = bottom_blobs_unpacked[i];
+                        VkMat bottom_blob_unpacked;
                         if (opt.use_fp16_storage && vkdev->info.type != 0)
                         {
                             cast_float16_to_float32->forward(bottom_blob_unpacked_fp16, bottom_blob_unpacked, cmd, opt);
@@ -1851,7 +1849,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                 }
             }
 
-            bottom_blobs_unpacked.clear();
             bottom_blobs_cpu_fp16.clear();
 
             // forward

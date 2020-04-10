@@ -69,7 +69,9 @@ protected:
 
     VkFence compute_command_fence;
 
-    std::vector<VkMat> staging_buffers;
+    std::vector<VkMat> upload_staging_buffers;
+    std::vector<VkMat> download_post_buffers;
+    std::vector<Mat> download_post_mats;
 
     // the good-old path for device without VK_KHR_push_descriptor
     std::vector<VkDescriptorPool> descriptor_pools;
@@ -92,8 +94,7 @@ protected:
             TYPE_write_timestamp,
 #endif // NCNN_BENCHMARK
 
-            TYPE_post_invalidate_buffer,
-            TYPE_post_copy_host_memory,
+            TYPE_post_download,
         };
 
         int type;
@@ -117,8 +118,7 @@ protected:
         struct { uint32_t query; } write_timestamp;
 #endif // NCNN_BENCHMARK
 
-        struct { VkAllocator* allocator; VkBufferMemory* data; } post_invalidate_buffer;
-        struct { void* src; void* dst; size_t size; } post_copy_host_memory;
+        struct { uint32_t download_post_buffer_mat_offset; } post_download;
         };
     };
 
@@ -160,7 +160,7 @@ protected:
     VkFence upload_command_fence;
     VkFence compute_command_fence;
 
-    std::vector<VkMat> staging_buffers;
+    std::vector<VkMat> upload_staging_buffers;
 };
 
 } // namespace ncnn
