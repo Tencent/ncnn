@@ -171,6 +171,7 @@ protected:
     ncnn::Layer* packing_pack1;
     ncnn::Layer* packing_pack4;
     ncnn::Layer* packing_pack8;
+    ncnn::Layer* deep_copy;
 #endif // NCNN_VULKAN
 };
 

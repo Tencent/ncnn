@@ -207,38 +207,29 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
         a4_fp16 = a4;
     }
 
-    // upload
-    ncnn::VkMat a4_gpu;
-    a4_gpu.create_like(a4_fp16, opt.blob_vkallocator, opt.staging_vkallocator);
-    a4_gpu.prepare_staging_buffer();
-    a4_gpu.upload(a4_fp16);
-
     // forward
     ncnn::VkCompute cmd(vkdev);
 
-    cmd.record_upload(a4_gpu);
+    // upload
+    ncnn::VkMat a4_gpu;
+    cmd.record_upload(a4_fp16, a4_gpu, opt);
 
     ncnn::VkMat d4_gpu;
     if (op->support_inplace)
     {
-        d4_gpu.create_like(a4_gpu, a4_gpu.allocator, a4_gpu.staging_allocator);
-        cmd.record_clone(a4_gpu, d4_gpu);
-        op->forward_inplace(d4_gpu, cmd, opt);
+        op->forward_inplace(a4_gpu, cmd, opt);
+
+        d4_gpu = a4_gpu;
     }
     else
     {
         op->forward(a4_gpu, d4_gpu, cmd, opt);
     }
 
-    d4_gpu.prepare_staging_buffer();
-
-    cmd.record_download(d4_gpu);
+    // download
+    cmd.record_download(d4_gpu, d, opt);
 
     cmd.submit_and_wait();
-
-    // download
-    d.create_like(d4_gpu);
-    d4_gpu.download(d);
 
     op->destroy_pipeline(opt);
 
@@ -331,38 +322,29 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
         a4_fp16 = a4;
     }
 
-    // upload
-    ncnn::VkMat a4_gpu;
-    a4_gpu.create_like(a4_fp16, opt.blob_vkallocator, opt.staging_vkallocator);
-    a4_gpu.prepare_staging_buffer();
-    a4_gpu.upload(a4_fp16);
-
     // forward
     ncnn::VkCompute cmd(vkdev);
 
-    cmd.record_upload(a4_gpu);
+    // upload
+    ncnn::VkMat a4_gpu;
+    cmd.record_upload(a4_fp16, a4_gpu, opt);
 
     ncnn::VkMat d4_gpu;
     if (op->support_inplace)
     {
-        d4_gpu.create_like(a4_gpu, a4_gpu.allocator, a4_gpu.staging_allocator);
-        cmd.record_clone(a4_gpu, d4_gpu);
-        op->forward_inplace(d4_gpu, cmd, opt);
+        op->forward_inplace(a4_gpu, cmd, opt);
+
+        d4_gpu = a4_gpu;
     }
     else
     {
         op->forward(a4_gpu, d4_gpu, cmd, opt);
     }
 
-    d4_gpu.prepare_staging_buffer();
-
-    cmd.record_download(d4_gpu);
+    // download
+    cmd.record_download(d4_gpu, d, opt);
 
     cmd.submit_and_wait();
-
-    // download
-    d.create_like(d4_gpu);
-    d4_gpu.download(d);
 
     op->destroy_pipeline(opt);
 

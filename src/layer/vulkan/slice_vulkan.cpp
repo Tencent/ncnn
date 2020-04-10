@@ -314,7 +314,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             }
 
             VkMat& top_blob = top_blobs[i];
-            top_blob.create(slice / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(slice / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
             if (top_blob.empty())
                 return -100;
 
@@ -416,7 +416,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             }
 
             VkMat& top_blob = top_blobs[i];
-            top_blob.create(w, slice / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(w, slice / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
             if (top_blob.empty())
                 return -100;
 
@@ -508,7 +508,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             }
 
             VkMat& top_blob = top_blobs[i];
-            top_blob.create(slice, h, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(slice, h, elemsize, elempack, opt.blob_vkallocator);
             if (top_blob.empty())
                 return -100;
 
@@ -576,7 +576,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             }
 
             VkMat& top_blob = top_blobs[i];
-            top_blob.create(w, h, slice / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(w, h, slice / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
             if (top_blob.empty())
                 return -100;
 
@@ -669,7 +669,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             }
 
             VkMat& top_blob = top_blobs[i];
-            top_blob.create(w, slice, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(w, slice, channels, elemsize, elempack, opt.blob_vkallocator);
             if (top_blob.empty())
                 return -100;
 
@@ -727,7 +727,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             }
 
             VkMat& top_blob = top_blobs[i];
-            top_blob.create(slice, h, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create(slice, h, channels, elemsize, elempack, opt.blob_vkallocator);
             if (top_blob.empty())
                 return -100;
 

@@ -275,7 +275,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             return 0;
         }
 
-        top_blob.create(_w / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(_w / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     else if (ndim == 2)
     {
@@ -308,7 +308,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             return 0;
         }
 
-        top_blob.create(_w, _h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(_w, _h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     else // if (ndim == 3)
     {
@@ -348,7 +348,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             return 0;
         }
 
-        top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
 
     if (top_blob.empty())
