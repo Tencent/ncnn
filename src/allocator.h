@@ -193,7 +193,6 @@ public:
 
     // buffer state, modified by command functions internally
     mutable VkAccessFlags access_flags;
-    mutable uint32_t queue_owner;
     mutable VkPipelineStageFlags stage_flags;
 
     // initialize and modified by mat
@@ -310,7 +309,6 @@ public:
 
     // image state, modified by command functions internally
     mutable VkAccessFlags access_flags;
-    mutable uint32_t queue_owner;
     mutable VkPipelineStageFlags stage_flags;
 
     // initialize and modified by mat

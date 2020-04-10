@@ -37,6 +37,8 @@ public:
 
     void record_download(const VkMat& src, Mat& dst, const Option& opt);
 
+    void record_clone(const VkMat& src, VkMat& dst, const Option& opt);
+
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher);
 
 #if NCNN_BENCHMARK

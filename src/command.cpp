@@ -26,9 +26,7 @@ namespace ncnn {
 VkCompute::VkCompute(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
     compute_command_pool = 0;
-
     compute_command_buffer = 0;
-
     compute_command_fence = 0;
 
 #if NCNN_BENCHMARK
@@ -81,7 +79,6 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
         // mark device host-write @ null
         dst.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
-        dst.data->queue_owner = VK_QUEUE_FAMILY_IGNORED;
         dst.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
 
         return;
@@ -155,7 +152,6 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
         // mark device transfer-write @ queue
         dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
-        dst.data->queue_owner = vkdev->info.compute_queue_family_index;
         dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
@@ -208,7 +204,6 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
             // mark device host-read @ any
             src.data->access_flags = VK_ACCESS_HOST_READ_BIT;
-            src.data->queue_owner = vkdev->info.compute_queue_family_index;
             src.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
         }
 
@@ -270,7 +265,6 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
     // mark device transfer-read @ transfer
     src.data->access_flags = VK_ACCESS_TRANSFER_READ_BIT;
-    src.data->queue_owner = vkdev->info.compute_queue_family_index;
     src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
     // create staging
@@ -337,7 +331,6 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
         // mark staging host-read @ compute
         src_staging.data->access_flags = VK_ACCESS_HOST_READ_BIT;
-        src_staging.data->queue_owner = vkdev->info.compute_queue_family_index;
         src_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
     }
 
@@ -362,6 +355,82 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
     // stash staging
     staging_buffers.push_back(src_staging);
+}
+
+void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
+{
+//     fprintf(stderr, "record_clone\n");
+
+    // create dst
+    dst.create_like(src, opt.blob_vkallocator);
+
+    if (src.data->access_flags != VK_ACCESS_TRANSFER_READ_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
+    {
+        // barrier device any @ compute to transfer-read @ compute
+        VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barriers[0].pNext = 0;
+        barriers[0].srcAccessMask = src.data->access_flags;
+        barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].buffer = src.buffer();
+        barriers[0].offset = src.buffer_offset();
+        barriers[0].size = src.buffer_capacity();
+
+        VkPipelineStageFlags src_stage = src.data->stage_flags;
+        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            delete[] barriers;
+        }
+        else
+        {
+            record r;
+            r.type = record::TYPE_buffer_barrers;
+            r.command_buffer = compute_command_buffer;
+            r.buffer_barrers.src_stage = src_stage;
+            r.buffer_barrers.dst_stage = dst_stage;
+            r.buffer_barrers.barrier_count = 1;
+            r.buffer_barrers.barriers = barriers;
+            delayed_records.push_back(r);
+        }
+
+        // mark device transfer-read @ transfer
+        src.data->access_flags = VK_ACCESS_TRANSFER_READ_BIT;
+        src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+
+    // record device to staging
+    {
+        VkBufferCopy* regions = new VkBufferCopy[1];
+        regions[0].srcOffset = src.buffer_offset();
+        regions[0].dstOffset = dst.buffer_offset();
+        regions[0].size = std::min(src.buffer_capacity(), dst.buffer_capacity());
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdCopyBuffer(compute_command_buffer, src.buffer(), dst.buffer(), 1, regions);
+            delete[] regions;
+        }
+        else
+        {
+            record r;
+            r.type = record::TYPE_copy_buffer;
+            r.command_buffer = compute_command_buffer;
+            r.copy_buffer.src = src.buffer();
+            r.copy_buffer.dst = dst.buffer();
+            r.copy_buffer.region_count = 1;
+            r.copy_buffer.regions = regions;
+            delayed_records.push_back(r);
+        }
+    }
+
+    // mark device transfer-read @ transfer
+    dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
+    dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 }
 
 void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
@@ -412,7 +481,6 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
             // mark device shader-readwrite @ compute
             binding.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-            binding.data->queue_owner = vkdev->info.compute_queue_family_index;
             binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
         }
     }
@@ -999,7 +1067,6 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
         // mark device host-write @ null
         dst.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
-        dst.data->queue_owner = VK_QUEUE_FAMILY_IGNORED;
         dst.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
 
         return;
@@ -1096,7 +1163,6 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
     // mark device shader-readwrite @ compute
     dst.data->access_flags = VK_ACCESS_SHADER_READ_BIT;
-    dst.data->queue_owner = vkdev->info.compute_queue_family_index;
     dst.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
     // stash staging

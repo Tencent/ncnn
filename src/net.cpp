@@ -48,7 +48,6 @@ Net::Net()
     packing_pack1 = 0;
     packing_pack4 = 0;
     packing_pack8 = 0;
-    deep_copy = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -62,7 +61,6 @@ Net::~Net()
     delete packing_pack1;
     delete packing_pack4;
     delete packing_pack8;
-    delete deep_copy;
 #endif // NCNN_VULKAN
 }
 
@@ -1014,13 +1012,6 @@ int Net::create_pipeline()
     packing_pack4->create_pipeline(opt);
     packing_pack8->create_pipeline(opt);
 
-    {
-    deep_copy = ncnn::create_layer(ncnn::LayerType::DeepCopy);
-    deep_copy->vkdev = vkdev;
-    }
-
-    deep_copy->create_pipeline(opt);
-
     return 0;
 }
 
@@ -1040,9 +1031,6 @@ int Net::destroy_pipeline()
 
     if (packing_pack8)
         packing_pack8->destroy_pipeline(opt);
-
-    if (deep_copy)
-        deep_copy->destroy_pipeline(opt);
 
     return 0;
 }
@@ -1399,7 +1387,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                 if (layer->support_inplace && *bottom_blob.refcount != 1)
                 {
                     VkMat bottom_blob_copy;
-                    deep_copy->forward(bottom_blob, bottom_blob_copy, cmd, opt);
+                    cmd.record_clone(bottom_blob, bottom_blob_copy, opt);
 //                     fprintf(stderr, "clone %p[+%lu] %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
                     bottom_blob = bottom_blob_copy;
                 }
@@ -1516,7 +1504,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
                     {
                         VkMat bottom_blob_copy;
-                        deep_copy->forward(bottom_blobs[i], bottom_blob_copy, cmd, opt);
+                        cmd.record_clone(bottom_blobs[i], bottom_blob_copy, opt);
 //                         fprintf(stderr, "clone %p[+%lu] %p[+%lu]\n", bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
                         bottom_blobs[i] = bottom_blob_copy;
                     }
@@ -1600,7 +1588,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         if (layer->support_inplace && *bottom_blob.refcount != 1)
                         {
                             VkMat bottom_blob_copy;
-                            deep_copy->forward(bottom_blob, bottom_blob_copy, cmd, opt);
+                            cmd.record_clone(bottom_blob, bottom_blob_copy, opt);
 //                             fprintf(stderr, "clone %p[+%lu] %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
                             bottom_blob = bottom_blob_copy;
                         }
@@ -1759,7 +1747,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                             if (layer->support_inplace && *bottom_blob.refcount != 1)
                             {
                                 VkMat bottom_blob_copy;
-                                deep_copy->forward(bottom_blob, bottom_blob_copy, cmd, opt);
+                                cmd.record_clone(bottom_blob, bottom_blob_copy, opt);
 //                                 fprintf(stderr, "clone %p[+%lu] %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
                                 bottom_blob = bottom_blob_copy;
                             }
