@@ -283,33 +283,33 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
     if (dims == 1) // axis == 0
     {
-        max_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
     }
     else if (dims == 2 && axis == 0)
     {
-        max_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
     }
     else if (dims == 2 && axis == 1)
     {
-        max_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
     }
     else if (dims == 3 && axis == 0)
     {
-        max_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
     }
     else if (dims == 3 && axis == 1)
     {
-        max_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
     }
     else if (dims == 3 && axis == 2)
     {
-        max_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
-        sum_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        max_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
     }
 
     // reduce max

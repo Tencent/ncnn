@@ -414,11 +414,11 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     VkMat top_blob_bordered;
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
     }
     else
     {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     if (top_blob_bordered.empty())
         return -100;
@@ -528,8 +528,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         int wcut = top_blob_bordered_adj.w - output_w;
         int hcut = top_blob_bordered_adj.h - output_h;
 
-        VkMat crop_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-        crop_param_blob.prepare_staging_buffer();
+        VkMat crop_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
         int* crop_params = crop_param_blob.mapped();
 
         if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233)

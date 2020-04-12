@@ -111,6 +111,9 @@ public:
     uint32_t graphics_queue_count;
     uint32_t transfer_queue_count;
 
+    // property
+    bool unified_compute_transfer_queue;
+
     // bug is not feature
     bool bug_local_size_spec_const;
 

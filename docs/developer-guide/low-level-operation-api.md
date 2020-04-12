@@ -150,6 +150,17 @@ ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(vkdev);
 ncnn::Layer* convolution = ncnn::create_layer("Convolution");
 convolution->vkdev = vkdev;
 
+// set option
+ncnn::Option opt;
+opt.lightmode = true;
+opt.num_threads = 4;
+opt.blob_allocator = 0;
+opt.workspace_allocator = 0;
+opt.vulkan_compute = true;
+opt.blob_vkallocator = &g_blob_vkallocator;
+opt.workspace_vkallocator = &g_blob_vkallocator;
+opt.staging_vkallocator = &g_staging_vkallocator;
+
 // load param
 {
 ncnn::ParamDict pd;
@@ -171,74 +182,40 @@ ncnn::ModelBinFromMatArray mb(weights);
 convolution->load_model(mb);
 }
 
-// upload model
-{
-ncnn::VkTransfer cmd(vkdev);
-cmd.weight_vkallocator = &g_weight_vkallocator;
-cmd.staging_vkallocator = &g_weight_staging_vkallocator;
-
-convolution->upload_model(cmd);
-
-cmd.submit();
-cmd.wait();
-
-g_weight_staging_vkallocator.clear();
-}
-
 // create pipeline
 convolution->create_pipeline(opt);
 
-// set default option
+// upload model
 {
-ncnn::Option opt = ncnn::get_default_option();
+ncnn::VkTransfer cmd(vkdev);
 
-opt.lightmode = true;
-opt.num_threads = 4;
-opt.blob_allocator = 0;
-opt.workspace_allocator = 0;
+ncnn::Option opt_upload = opt;
+opt_upload.blob_vkallocator = &g_weight_vkallocator;
+opt_upload.workspace_vkallocator = &g_weight_vkallocator;
+opt_upload.staging_vkallocator = &g_weight_staging_vkallocator;
 
-opt.vulkan_compute = true;
-opt.blob_vkallocator = &g_blob_vkallocator;
-opt.workspace_vkallocator = &g_blob_vkallocator;
-opt.staging_vkallocator = &g_staging_vkallocator;
+convolution->upload_model(cmd, opt_upload);
 
-ncnn::set_default_option(opt);
+cmd.submit_and_wait();
 }
 
 ncnn::Mat bottom = random_mat(w, h, inch);
 
-ncnn::VkMat bottom_gpu;
-
-// copy bottom to bottom_gpu
-{
-bottom_gpu.create_like(bottom, &g_blob_vkallocator, &g_staging_vkallocator);
-bottom_gpu.prepare_staging_buffer();
-bottom_gpu.upload(bottom);
-}
-
-ncnn::VkMat top_gpu;
+ncnn::Mat top;
 
 // forward
 {
 ncnn::VkCompute cmd(vkdev);
 
-cmd.record_upload(bottom_gpu);
+ncnn::VkMat bottom_gpu;
+cmd.record_upload(bottom, bottom_gpu, opt);
 
+ncnn::VkMat top_gpu;
 convolution->forward(bottom_gpu, top_gpu, cmd, opt);
 
-top_gpu.prepare_staging_buffer();
-
-cmd.record_download(top_gpu);
+cmd.record_download(top_gpu, top, opt);
 
 cmd.submit_and_wait();
-}
-
-ncnn::Mat top;
-
-// copy top_gpu to top
-{
-top.create_like(top_gpu);
-top_gpu.download(top);
 }
 
 convolution->destroy_pipeline(opt);

@@ -254,11 +254,11 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
     if (region_type == NormRegion_ACROSS_CHANNELS)
     {
         // always create scalar square workspace blob for norm across channel
-        square_workspace.create(w, h, channels * elempack + local_size - 1, 4u, 1, opt.workspace_vkallocator, opt.staging_vkallocator);
+        square_workspace.create(w, h, channels * elempack + local_size - 1, 4u, 1, opt.workspace_vkallocator);
     }
     else if (region_type == NormRegion_WITHIN_CHANNEL)
     {
-        square_workspace.create(w + local_size - 1, h + local_size - 1, channels, elempack * 4u, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        square_workspace.create(w + local_size - 1, h + local_size - 1, channels, elempack * 4u, elempack, opt.workspace_vkallocator);
     }
 
     // square pad

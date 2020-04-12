@@ -317,21 +317,21 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     // broadcast
     if (bottom_blob.dims > bottom_blob1.dims)
     {
-        top_blob.create_like(bottom_blob, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create_like(bottom_blob, opt.blob_vkallocator);
     }
     else if (bottom_blob.dims < bottom_blob1.dims)
     {
-        top_blob.create_like(bottom_blob1, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create_like(bottom_blob1, opt.blob_vkallocator);
     }
     else // if (bottom_blob.dims == bottom_blob1.dims)
     {
         if (bottom_blob.w * bottom_blob.h * bottom_blob.c * bottom_blob.elempack >= bottom_blob1.w * bottom_blob1.h * bottom_blob1.c * bottom_blob1.elempack)
         {
-            top_blob.create_like(bottom_blob, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create_like(bottom_blob, opt.blob_vkallocator);
         }
         else
         {
-            top_blob.create_like(bottom_blob1, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob.create_like(bottom_blob1, opt.blob_vkallocator);
         }
     }
     if (top_blob.empty())

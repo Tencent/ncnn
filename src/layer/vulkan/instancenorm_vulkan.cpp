@@ -380,7 +380,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
     int elempack = bottom_top_blob.elempack;
 
     // mean
-    VkMat mean_workspace(c, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+    VkMat mean_workspace(c, elemsize, elempack, opt.workspace_vkallocator);
     {
         // reduce sum
         VkMat sum_workspace;
@@ -389,7 +389,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         int reduced_h = 1;
         int reduced_c = bottom_top_blob.c;
 
-        sum_workspace.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
         {
         std::vector<VkMat> bindings(2);
         bindings[0] = bottom_top_blob;
@@ -419,7 +419,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         int reduced_c = sum_workspace.c;
 
         VkMat sum_workspace_reduced;
-        sum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
 
         {
         std::vector<VkMat> bindings(2);
@@ -466,11 +466,11 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
     }
 
     // var
-    VkMat var_workspace(c, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+    VkMat var_workspace(c, elemsize, elempack, opt.workspace_vkallocator);
     {
         // sub mean and square
         VkMat square_workspace;
-        square_workspace.create(w, h, c, 4u*elempack, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        square_workspace.create(w, h, c, 4u*elempack, elempack, opt.workspace_vkallocator);
         {
         std::vector<VkMat> bindings(3);
         bindings[0] = bottom_top_blob;
@@ -509,7 +509,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         int reduced_c = sqsum_workspace.c;
 
         VkMat sqsum_workspace_reduced;
-        sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+        sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
 
         {
         std::vector<VkMat> bindings(2);
@@ -557,7 +557,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
 
     // coeffs
     VkMat coeffs_workspace;
-    coeffs_workspace.create(c, elemsize * 2, elempack * 2, opt.workspace_vkallocator, opt.staging_vkallocator);
+    coeffs_workspace.create(c, elemsize * 2, elempack * 2, opt.workspace_vkallocator);
     {
     std::vector<VkMat> bindings(5);
     bindings[0] = coeffs_workspace;
