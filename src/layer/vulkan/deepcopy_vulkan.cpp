@@ -144,7 +144,7 @@ int DeepCopy_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComput
 {
     int elempack = bottom_blob.elempack;
 
-    top_blob.create_like(bottom_blob, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create_like(bottom_blob, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 

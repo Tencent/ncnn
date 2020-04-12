@@ -234,15 +234,15 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     if (dims == 1)
     {
-        top_blob.create(w, out_elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, out_elemsize, elempack, opt.blob_vkallocator);
     }
     else if (dims == 2)
     {
-        top_blob.create(w, h, out_elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, h, out_elemsize, elempack, opt.blob_vkallocator);
     }
     else if (dims == 3)
     {
-        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_vkallocator);
     }
     if (top_blob.empty())
         return -100;

@@ -267,7 +267,7 @@ int Pipeline::create_pipeline_layout(int push_constant_count)
     VkPushConstantRange pushConstantRange;
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(int) * push_constant_count;
+    pushConstantRange.size = sizeof(vk_constant_type) * push_constant_count;
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

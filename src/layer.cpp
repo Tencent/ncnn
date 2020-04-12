@@ -121,11 +121,7 @@ int Layer::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& t
     top_blobs.resize(bottom_blobs.size());
     for (int i = 0; i < (int)top_blobs.size(); i++)
     {
-        top_blobs[i].create_like(bottom_blobs[i], bottom_blobs[i].allocator, bottom_blobs[i].staging_allocator);
-        if (top_blobs[i].empty())
-            return -100;
-
-        cmd.record_clone(bottom_blobs[i], top_blobs[i]);
+        cmd.record_clone(bottom_blobs[i], top_blobs[i], opt);
     }
 
     return forward_inplace(top_blobs, cmd, opt);
@@ -136,11 +132,7 @@ int Layer::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, co
     if (!support_inplace)
         return -1;
 
-    top_blob.create_like(bottom_blob, bottom_blob.allocator, bottom_blob.staging_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    cmd.record_clone(bottom_blob, top_blob);
+    cmd.record_clone(bottom_blob, top_blob, opt);
 
     return forward_inplace(top_blob, cmd, opt);
 }
