@@ -643,6 +643,227 @@ void VkCompute::record_write_timestamp(uint32_t query)
 }
 #endif // NCNN_BENCHMARK
 
+#if __ANDROID_API__ >= 26
+void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkMat& dst)
+{
+    // image layout transform undefined @ null to general @ compute
+    {
+        VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
+        barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barriers[0].pNext = 0;
+        barriers[0].srcAccessMask = 0;
+        barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].image = src.image();
+        barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barriers[0].subresourceRange.baseMipLevel = 0;
+        barriers[0].subresourceRange.levelCount = 1;
+        barriers[0].subresourceRange.baseArrayLayer = 0;
+        barriers[0].subresourceRange.layerCount = 1;
+
+        VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+            delete[] barriers;
+        }
+        else
+        {
+            record r;
+            r.type = record::TYPE_image_barrers;
+            r.command_buffer = compute_command_buffer;
+            r.image_barrers.src_stage = src_stage;
+            r.image_barrers.dst_stage = dst_stage;
+            r.image_barrers.barrier_count = 1;
+            r.image_barrers.barriers = barriers;
+            delayed_records.push_back(r);
+        }
+    }
+
+    // record bind pipeline
+    {
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdBindPipeline(compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
+        }
+        else
+        {
+            record r;
+            r.type = record::TYPE_bind_pipeline;
+            r.command_buffer = compute_command_buffer;
+            r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+            r.bind_pipeline.pipeline = pipeline->pipeline;
+            delayed_records.push_back(r);
+        }
+    }
+
+    // record update bindings
+    {
+        VkDescriptorImageInfo descriptorImageInfo;
+        descriptorImageInfo.sampler = pipeline->sampler;
+        descriptorImageInfo.imageView = src.imageview();
+        descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        VkDescriptorBufferInfo descriptorBufferInfo;
+        descriptorBufferInfo.buffer = dst.buffer();
+        descriptorBufferInfo.offset = dst.buffer_offset();
+        descriptorBufferInfo.range = dst.total() * dst.elemsize;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            struct ImportAndroidHardwareBufferDescriptorInfo
+            {
+                VkDescriptorImageInfo imageInfo;
+                VkDescriptorBufferInfo bufferInfo;
+                VkDescriptorBufferInfo buffer4Info;
+            };
+
+            ImportAndroidHardwareBufferDescriptorInfo info;
+            info.imageInfo = descriptorImageInfo;
+            info.bufferInfo = descriptorBufferInfo;
+            info.buffer4Info = descriptorBufferInfo;
+
+            vkdev->vkCmdPushDescriptorSetWithTemplateKHR(compute_command_buffer, pipeline->descriptor_update_template, pipeline->pipeline_layout, 0, &info);
+        }
+        else
+        {
+            // create new descriptor_pool and descriptorset
+            VkDescriptorPool descriptor_pool;
+            {
+                VkDescriptorPoolSize poolSizes[2];
+                poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                poolSizes[0].descriptorCount = 1;
+                poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                poolSizes[1].descriptorCount = 1;
+
+                VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
+                descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+                descriptorPoolCreateInfo.pNext = 0;
+                descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+                descriptorPoolCreateInfo.maxSets = 1;
+                descriptorPoolCreateInfo.poolSizeCount = 2;
+                descriptorPoolCreateInfo.pPoolSizes = poolSizes;
+
+                VkResult ret = vkCreateDescriptorPool(vkdev->vkdevice(), &descriptorPoolCreateInfo, 0, &descriptor_pool);
+                if (ret != VK_SUCCESS)
+                {
+                    fprintf(stderr, "vkCreateDescriptorPool failed %d\n", ret);
+                    return;
+                }
+            }
+            descriptor_pools.push_back(descriptor_pool);
+
+            VkDescriptorSet descriptorset;
+            {
+                VkDescriptorSetAllocateInfo descriptorSetAllocateInfo;
+                descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+                descriptorSetAllocateInfo.pNext = 0;
+                descriptorSetAllocateInfo.descriptorPool = descriptor_pool;
+                descriptorSetAllocateInfo.descriptorSetCount = 1;
+                descriptorSetAllocateInfo.pSetLayouts = &pipeline->descriptorset_layout;
+
+                VkResult ret = vkAllocateDescriptorSets(vkdev->vkdevice(), &descriptorSetAllocateInfo, &descriptorset);
+                if (ret != VK_SUCCESS)
+                {
+                    fprintf(stderr, "vkAllocateDescriptorSets failed %d\n", ret);
+                    return;
+                }
+            }
+            descriptorsets.push_back(descriptorset);
+
+            if (vkdev->info.support_VK_KHR_descriptor_update_template)
+            {
+                struct ImportAndroidHardwareBufferDescriptorInfo
+                {
+                    VkDescriptorImageInfo imageInfo;
+                    VkDescriptorBufferInfo bufferInfo;
+                    VkDescriptorBufferInfo buffer4Info;
+                };
+
+                ImportAndroidHardwareBufferDescriptorInfo info;
+                info.imageInfo = descriptorImageInfo;
+                info.bufferInfo = descriptorBufferInfo;
+                info.buffer4Info = descriptorBufferInfo;
+
+                vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, pipeline->descriptor_update_template, &info);
+            }
+            else
+            {
+                VkWriteDescriptorSet writeDescriptorSets[3];
+                writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeDescriptorSets[0].pNext = 0;
+                writeDescriptorSets[0].dstSet = descriptorset;
+                writeDescriptorSets[0].dstBinding = 0;
+                writeDescriptorSets[0].dstArrayElement = 0;
+                writeDescriptorSets[0].descriptorCount = 1;
+                writeDescriptorSets[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                writeDescriptorSets[0].pImageInfo = &descriptorImageInfo;
+                writeDescriptorSets[0].pBufferInfo = 0;
+                writeDescriptorSets[0].pTexelBufferView = 0;
+                writeDescriptorSets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeDescriptorSets[1].pNext = 0;
+                writeDescriptorSets[1].dstSet = descriptorset;
+                writeDescriptorSets[1].dstBinding = 1;
+                writeDescriptorSets[1].dstArrayElement = 0;
+                writeDescriptorSets[1].descriptorCount = 1;
+                writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                writeDescriptorSets[1].pImageInfo = 0;
+                writeDescriptorSets[1].pBufferInfo = &descriptorBufferInfo;
+                writeDescriptorSets[1].pTexelBufferView = 0;
+                writeDescriptorSets[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeDescriptorSets[2].pNext = 0;
+                writeDescriptorSets[2].dstSet = descriptorset;
+                writeDescriptorSets[2].dstBinding = 2;
+                writeDescriptorSets[2].dstArrayElement = 0;
+                writeDescriptorSets[2].descriptorCount = 1;
+                writeDescriptorSets[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                writeDescriptorSets[2].pImageInfo = 0;
+                writeDescriptorSets[2].pBufferInfo = &descriptorBufferInfo;
+                writeDescriptorSets[2].pTexelBufferView = 0;
+
+                vkUpdateDescriptorSets(vkdev->vkdevice(), 3, writeDescriptorSets, 0, 0);
+            }
+
+            record r;
+            r.type = record::TYPE_bind_descriptorsets;
+            r.command_buffer = compute_command_buffer;
+            r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+            r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout;
+            r.bind_descriptorsets.descriptorset_count = 1;
+            r.bind_descriptorsets.descriptorset_offset = descriptorsets.size() - 1;
+            delayed_records.push_back(r);
+        }
+    }
+
+    // record dispatch
+    {
+        uint32_t group_count_x = (dst.w + pipeline->local_size_x - 1) / pipeline->local_size_x;
+        uint32_t group_count_y = (dst.h + pipeline->local_size_y - 1) / pipeline->local_size_y;
+        uint32_t group_count_z = (dst.c + pipeline->local_size_z - 1) / pipeline->local_size_z;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdDispatch(compute_command_buffer, group_count_x, group_count_y, group_count_z);
+        }
+        else
+        {
+            record r;
+            r.type = record::TYPE_dispatch;
+            r.command_buffer = compute_command_buffer;
+            r.dispatch.group_count_x = group_count_x;
+            r.dispatch.group_count_y = group_count_y;
+            r.dispatch.group_count_z = group_count_z;
+            delayed_records.push_back(r);
+        }
+    }
+}
+#endif // __ANDROID_API__ >= 26
+
 int VkCompute::submit_and_wait()
 {
 //     fprintf(stderr, "submit_and_wait\n");
