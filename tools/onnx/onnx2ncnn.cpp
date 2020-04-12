@@ -63,7 +63,7 @@ static std::vector<int> get_node_attr_ai(const onnx::NodeProto& node, const char
             v.resize(attr.ints_size());
             for (int j=0; j<attr.ints_size(); j++)
             {
-                v[j] = attr.ints(j);
+                v[j] = std::max(std::min(attr.ints(j), (::google::protobuf::int64)INT_MAX), (::google::protobuf::int64)INT_MIN);
             }
 
             break;
@@ -102,7 +102,7 @@ static int get_node_attr_i(const onnx::NodeProto& node, const char* key, int def
         const onnx::AttributeProto& attr = node.attribute(i);
         if (attr.name() == key)
         {
-            return attr.i();
+            return std::max(std::min(attr.i(), (::google::protobuf::int64)INT_MAX), (::google::protobuf::int64)INT_MIN);
         }
     }
 
