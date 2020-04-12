@@ -41,7 +41,7 @@ Option::Option()
     use_int8_storage = true;
     use_int8_arithmetic = false;
 
-    use_packing_layout = false;
+    use_packing_layout = true;
 
     use_shader_pack8 = false;
 
