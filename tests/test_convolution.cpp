@@ -38,11 +38,6 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
 
     int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, opt, a);
     if (ret != 0)
@@ -141,11 +136,6 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     opt.num_threads = 1;
     opt.use_vulkan_compute = false;
     opt.use_int8_inference = true;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
 
     int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, opt, a, 0.001f, requant ? set_param : 0);
     if (ret != 0)

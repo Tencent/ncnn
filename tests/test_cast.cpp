@@ -27,6 +27,7 @@ static int test_cast_cpu(const ncnn::Mat& a, int type_from, int type_to)
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_vulkan_compute = false;
+    opt.use_int8_inference = false;
     opt.use_packing_layout = false;
 
     ncnn::Layer* op = ncnn::create_layer("Cast");
