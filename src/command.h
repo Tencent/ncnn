@@ -45,6 +45,10 @@ public:
     void record_write_timestamp(uint32_t query);
 #endif // NCNN_BENCHMARK
 
+#if __ANDROID_API__ >= 26
+    void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkMat& dst);
+#endif // __ANDROID_API__ >= 26
+
     int submit_and_wait();
 
     int reset();
