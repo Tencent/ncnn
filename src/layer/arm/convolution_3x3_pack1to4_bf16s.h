@@ -1064,10 +1064,10 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "pld        [%1, #64]           \n"
                         "vld1.u16   {d1}, [%1]!         \n"
-                        "vld1.u16   {d2[0]}, [%1]       \n"
+                        "vld1.u32   {d2[0]}, [%1]       \n"
 
                         "vshll.u16  q0, d1, #16         \n"
-                        "vshl.u32   d2, d2, #16         \n"
+                        "vshll.u16  q1, d2, #16         \n"
 
                         "vmla.f32   q12, %q8, d0[0]     \n"
                         "vmla.f32   q13, %q8, d0[1]     \n"
@@ -1086,10 +1086,10 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "pld        [%2, #64]           \n"
                         "vld1.u16   {d5}, [%2]!         \n"
-                        "vld1.u16   {d3[0]}, [%2]       \n"
+                        "vld1.u32   {d3[0]}, [%2]       \n"
 
                         "vshll.u16  q2, d5, #16         \n"
-                        "vshl.u32   d3, d3, #16         \n"
+                        "vshll.u16  q1, d3, #16         \n"
 
                         "vmla.f32   q12, %q11, d4[0]    \n"
                         "vmla.f32   q13, %q11, d4[1]    \n"
@@ -1099,19 +1099,19 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q12, %q12, d4[1]    \n"
                         "vmla.f32   q13, %q12, d5[0]    \n"
                         "vmla.f32   q14, %q12, d5[1]    \n"
-                        "vmla.f32   q15, %q12, d3[0]    \n"
+                        "vmla.f32   q15, %q12, d2[0]    \n"
 
                         "vmla.f32   q12, %q13, d5[0]    \n"
                         "vmla.f32   q13, %q13, d5[1]    \n"
-                        "vmla.f32   q14, %q13, d3[0]    \n"
-                        "vmla.f32   q15, %q13, d3[1]    \n"
+                        "vmla.f32   q14, %q13, d2[0]    \n"
+                        "vmla.f32   q15, %q13, d2[1]    \n"
 
                         "pld        [%3, #64]           \n"
                         "vld1.u16   {d1}, [%3]!         \n"
-                        "vld1.u16   {d2[0]}, [%3]       \n"
+                        "vld1.u32   {d2[0]}, [%3]       \n"
 
                         "vshll.u16  q0, d1, #16         \n"
-                        "vshl.u32   d2, d2, #16         \n"
+                        "vshll.u16  q1, d2, #16         \n"
 
                         "vmla.f32   q12, %q14, d0[0]    \n"
                         "vmla.f32   q13, %q14, d0[1]    \n"
@@ -1199,17 +1199,17 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v28.4s, %16.4s, v0.s[2]     \n"
                         "fmla   v29.4s, %16.4s, v0.s[3]     \n"
 
-                        "add    %1, %1, #8                  \n"
+                        "add    %1, %1, #4                  \n"
 
                         "fadd   v24.4s, v24.4s, v26.4s      \n"
                         "fadd   v25.4s, v25.4s, v27.4s      \n"
 
-                        "add    %2, %2, #8                  \n"
+                        "add    %2, %2, #4                  \n"
 
                         "fadd   v28.4s, v28.4s, v24.4s      \n"
                         "fadd   v29.4s, v29.4s, v25.4s      \n"
 
-                        "add    %3, %3, #8                  \n"
+                        "add    %3, %3, #4                  \n"
 
                         "st1    {v28.4s, v29.4s}, [%0], #32 \n"
 
@@ -1275,17 +1275,17 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q12, %q15, d0[1]    \n"
                         "vmla.f32   q13, %q15, d1[0]    \n"
 
-                        "add        %1, %1, #8          \n"
+                        "add        %1, %1, #4          \n"
 
                         "vmla.f32   q14, %q16, d1[0]    \n"
                         "vmla.f32   q15, %q16, d1[1]    \n"
 
-                        "add        %2, %2, #8          \n"
+                        "add        %2, %2, #4          \n"
 
                         "vadd.f32   q12, q12, q14       \n"
                         "vadd.f32   q13, q13, q15       \n"
 
-                        "add        %3, %3, #8          \n"
+                        "add        %3, %3, #4          \n"
 
                         "vst1.f32   {d24-d27}, [%0 :128]! \n"
 
@@ -1654,10 +1654,10 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "pld        [%2, #64]           \n"
                         "vld1.u16   {d1}, [%2]!         \n"
-                        "vld1.u16   {d2[0]}, [%2]       \n"
+                        "vld1.u32   {d2[0]}, [%2]       \n"
 
                         "vshll.u16  q0, d1, #16         \n"
-                        "vshl.u32   d2, d2, #16         \n"
+                        "vshll.u16  q1, d2, #16         \n"
 
                         "vmla.f32   q12, %q10, d0[0]    \n"
                         "vmla.f32   q13, %q10, d0[1]    \n"
@@ -1676,10 +1676,10 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "pld        [%3, #64]           \n"
                         "vld1.u16   {d5}, [%3]!         \n"
-                        "vld1.u16   {d3[0]}, [%3]       \n"
+                        "vld1.u32   {d3[0]}, [%3]       \n"
 
                         "vshll.u16  q2, d5, #16         \n"
-                        "vshl.u32   d3, d3, #16         \n"
+                        "vshll.u16  q1, d3, #16         \n"
 
                         "vmla.f32   q12, %q13, d4[0]    \n"
                         "vmla.f32   q13, %q13, d4[1]    \n"
@@ -1689,19 +1689,19 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q12, %q14, d4[1]    \n"
                         "vmla.f32   q13, %q14, d5[0]    \n"
                         "vmla.f32   q14, %q14, d5[1]    \n"
-                        "vmla.f32   q15, %q14, d3[0]    \n"
+                        "vmla.f32   q15, %q14, d2[0]    \n"
 
                         "vmla.f32   q12, %q15, d5[0]    \n"
                         "vmla.f32   q13, %q15, d5[1]    \n"
-                        "vmla.f32   q14, %q15, d3[0]    \n"
-                        "vmla.f32   q15, %q15, d3[1]    \n"
+                        "vmla.f32   q14, %q15, d2[0]    \n"
+                        "vmla.f32   q15, %q15, d2[1]    \n"
 
                         "pld        [%4, #64]           \n"
                         "vld1.u16   {d1}, [%4]!         \n"
-                        "vld1.u16   {d2[0]}, [%4]       \n"
+                        "vld1.u32   {d2[0]}, [%4]       \n"
 
                         "vshll.u16  q0, d1, #16         \n"
-                        "vshl.u32   d2, d2, #16         \n"
+                        "vshll.u16  q1, d2, #16         \n"
 
                         "vmla.f32   q12, %q16, d0[0]    \n"
                         "vmla.f32   q13, %q16, d0[1]    \n"
@@ -1723,7 +1723,7 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vshrn.s32  d26, q14, #16       \n"
                         "vshrn.s32  d27, q15, #16       \n"
 
-                        "vstm       %0!, {d24-d27}      \n"
+                        "vst1.u16   {d24-d27}, [%0 :64]! \n"
 
                         : "=r"(outptr0_bf16), // %0
                           "=r"(outptr0),    // %1
@@ -1796,17 +1796,17 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v28.4s, %18.4s, v0.s[2]     \n"
                         "fmla   v29.4s, %18.4s, v0.s[3]     \n"
 
-                        "add    %1, %1, #8                  \n"
+                        "add    %1, %1, #4                  \n"
 
                         "fadd   v24.4s, v24.4s, v26.4s      \n"
                         "fadd   v25.4s, v25.4s, v27.4s      \n"
 
-                        "add    %2, %2, #8                  \n"
+                        "add    %2, %2, #4                  \n"
 
                         "fadd   v28.4s, v28.4s, v24.4s      \n"
                         "fadd   v29.4s, v29.4s, v25.4s      \n"
 
-                        "add    %3, %3, #8                  \n"
+                        "add    %3, %3, #4                  \n"
 
                         "shrn   v28.4h, v28.4s, #16         \n"
                         "shrn   v29.4h, v29.4s, #16         \n"
@@ -1840,7 +1840,7 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vld1.u16   {d1}, [%2]          \n"
 
                         "pld        [%1, #256]          \n"
-                        "vld1.f32   {d24-d27}, [%1 :128] \n"
+                        "vld1.f32   {d24-d27}, [%1 :128]! \n"
 
                         "vshll.u16  q0, d1, #16         \n"
 
@@ -1877,17 +1877,17 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q12, %q17, d0[1]    \n"
                         "vmla.f32   q13, %q17, d1[0]    \n"
 
-                        "add        %2, %2, #8          \n"
+                        "add        %2, %2, #4          \n"
 
                         "vmla.f32   q14, %q18, d1[0]    \n"
                         "vmla.f32   q15, %q18, d1[1]    \n"
 
-                        "add        %3, %3, #8          \n"
+                        "add        %3, %3, #4          \n"
 
                         "vadd.f32   q12, q12, q14       \n"
                         "vadd.f32   q13, q13, q15       \n"
 
-                        "add        %4, %4, #8          \n"
+                        "add        %4, %4, #4          \n"
 
                         "vshrn.s32  d24, q12, #16       \n"
                         "vshrn.s32  d25, q13, #16       \n"
