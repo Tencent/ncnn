@@ -18,10 +18,19 @@
 
 #define OP_TYPE_MAX 9
 
-static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int op_type)
+static int get_op_type()
+{
+    static int op_type = 0;
+    if (op_type == OP_TYPE_MAX)
+        op_type = 0;
+    return op_type++;
+}
+
+static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
 {
     ncnn::Mat a = _a;
     ncnn::Mat b = _b;
+    int op_type = get_op_type();
     if (op_type == 6)
     {
         // value must be positive for pow
@@ -54,9 +63,10 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int op_type)
     return ret;
 }
 
-static int test_binaryop(const ncnn::Mat& _a, float b, int op_type)
+static int test_binaryop(const ncnn::Mat& _a, float b)
 {
     ncnn::Mat a = _a;
+    int op_type = get_op_type();
     if (op_type == 6)
     {
         // value must be positive for pow
@@ -94,391 +104,207 @@ static int test_binaryop(const ncnn::Mat& _a, float b, int op_type)
 
 static int test_binaryop_1()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(1), 1.f, op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(1), 1.f)
+        ;
 }
 
 static int test_binaryop_2()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(1), RandomMat(1), op_type)
-            || test_binaryop(RandomMat(1), RandomMat(4), op_type)
-            || test_binaryop(RandomMat(1), RandomMat(8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(1), RandomMat(1))
+        || test_binaryop(RandomMat(1), RandomMat(4))
+        || test_binaryop(RandomMat(1), RandomMat(8))
+        ;
 }
 
 static int test_binaryop_3()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(1), RandomMat(2, 3), op_type)
-            || test_binaryop(RandomMat(1), RandomMat(2, 4), op_type)
-            || test_binaryop(RandomMat(1), RandomMat(2, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(1), RandomMat(2, 3))
+        || test_binaryop(RandomMat(1), RandomMat(2, 4))
+        || test_binaryop(RandomMat(1), RandomMat(2, 8))
+        ;
 }
 
 static int test_binaryop_4()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(1), RandomMat(2, 3, 2), op_type)
-            || test_binaryop(RandomMat(1), RandomMat(2, 3, 4), op_type)
-            || test_binaryop(RandomMat(1), RandomMat(2, 3, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(1), RandomMat(2, 3, 2))
+        || test_binaryop(RandomMat(1), RandomMat(2, 3, 4))
+        || test_binaryop(RandomMat(1), RandomMat(2, 3, 8))
+        ;
 }
 
 static int test_binaryop_5()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2), 1.f, op_type)
-            || test_binaryop(RandomMat(4), 1.f, op_type)
-            || test_binaryop(RandomMat(8), 1.f, op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2), 1.f)
+        || test_binaryop(RandomMat(4), 1.f)
+        || test_binaryop(RandomMat(8), 1.f)
+        ;
 }
 
 static int test_binaryop_6()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2), RandomMat(1), op_type)
-            || test_binaryop(RandomMat(4), RandomMat(1), op_type)
-            || test_binaryop(RandomMat(8), RandomMat(1), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2), RandomMat(1))
+        || test_binaryop(RandomMat(4), RandomMat(1))
+        || test_binaryop(RandomMat(8), RandomMat(1))
+        ;
 }
 
 static int test_binaryop_7()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2), RandomMat(2), op_type)
-            || test_binaryop(RandomMat(4), RandomMat(4), op_type)
-            || test_binaryop(RandomMat(8), RandomMat(8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2), RandomMat(2))
+        || test_binaryop(RandomMat(4), RandomMat(4))
+        || test_binaryop(RandomMat(8), RandomMat(8))
+        ;
 }
 
 static int test_binaryop_8()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(3), RandomMat(2, 3), op_type)
-            || test_binaryop(RandomMat(4), RandomMat(2, 4), op_type)
-            || test_binaryop(RandomMat(8), RandomMat(2, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(3), RandomMat(2, 3))
+        || test_binaryop(RandomMat(4), RandomMat(2, 4))
+        || test_binaryop(RandomMat(8), RandomMat(2, 8))
+        ;
 }
 
 static int test_binaryop_9()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2), RandomMat(2, 3, 2), op_type)
-            || test_binaryop(RandomMat(4), RandomMat(2, 3, 4), op_type)
-            || test_binaryop(RandomMat(8), RandomMat(2, 3, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2), RandomMat(2, 3, 2))
+        || test_binaryop(RandomMat(4), RandomMat(2, 3, 4))
+        || test_binaryop(RandomMat(8), RandomMat(2, 3, 8))
+        ;
 }
 
 static int test_binaryop_10()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3), 1.f, op_type)
-            || test_binaryop(RandomMat(2, 4), 1.f, op_type)
-            || test_binaryop(RandomMat(2, 8), 1.f, op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3), 1.f)
+        || test_binaryop(RandomMat(2, 4), 1.f)
+        || test_binaryop(RandomMat(2, 8), 1.f)
+        ;
 }
 
 static int test_binaryop_11()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3), RandomMat(1), op_type)
-            || test_binaryop(RandomMat(2, 4), RandomMat(1), op_type)
-            || test_binaryop(RandomMat(2, 8), RandomMat(1), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3), RandomMat(1))
+        || test_binaryop(RandomMat(2, 4), RandomMat(1))
+        || test_binaryop(RandomMat(2, 8), RandomMat(1))
+        ;
 }
 
 static int test_binaryop_12()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3), RandomMat(3), op_type)
-            || test_binaryop(RandomMat(2, 4), RandomMat(4), op_type)
-            || test_binaryop(RandomMat(2, 8), RandomMat(8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3), RandomMat(3))
+        || test_binaryop(RandomMat(2, 4), RandomMat(4))
+        || test_binaryop(RandomMat(2, 8), RandomMat(8))
+        ;
 }
 
 static int test_binaryop_13()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3), RandomMat(2, 3), op_type)
-            || test_binaryop(RandomMat(2, 4), RandomMat(2, 4), op_type)
-            || test_binaryop(RandomMat(2, 8), RandomMat(2, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3), RandomMat(2, 3))
+        || test_binaryop(RandomMat(2, 4), RandomMat(2, 4))
+        || test_binaryop(RandomMat(2, 8), RandomMat(2, 8))
+        ;
 }
 
 static int test_binaryop_14()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(3, 2), RandomMat(2, 3, 2), op_type)
-            || test_binaryop(RandomMat(3, 4), RandomMat(2, 3, 4), op_type)
-            || test_binaryop(RandomMat(3, 8), RandomMat(2, 3, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(3, 2), RandomMat(2, 3, 2))
+        || test_binaryop(RandomMat(3, 4), RandomMat(2, 3, 4))
+        || test_binaryop(RandomMat(3, 8), RandomMat(2, 3, 8))
+        ;
 }
 
 static int test_binaryop_15()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3, 2), 1.f, op_type)
-            || test_binaryop(RandomMat(2, 3, 4), 1.f, op_type)
-            || test_binaryop(RandomMat(2, 3, 8), 1.f, op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3, 2), 1.f)
+        || test_binaryop(RandomMat(2, 3, 4), 1.f)
+        || test_binaryop(RandomMat(2, 3, 8), 1.f)
+        ;
 }
 
 static int test_binaryop_16()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3, 2), RandomMat(1), op_type)
-            || test_binaryop(RandomMat(2, 3, 4), RandomMat(1), op_type)
-            || test_binaryop(RandomMat(2, 3, 8), RandomMat(1), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3, 2), RandomMat(1))
+        || test_binaryop(RandomMat(2, 3, 4), RandomMat(1))
+        || test_binaryop(RandomMat(2, 3, 8), RandomMat(1))
+        ;
 }
 
 static int test_binaryop_17()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3, 2), RandomMat(2), op_type)
-            || test_binaryop(RandomMat(2, 3, 4), RandomMat(4), op_type)
-            || test_binaryop(RandomMat(2, 3, 8), RandomMat(8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3, 2), RandomMat(2))
+        || test_binaryop(RandomMat(2, 3, 4), RandomMat(4))
+        || test_binaryop(RandomMat(2, 3, 8), RandomMat(8))
+        ;
 }
 
 static int test_binaryop_18()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3, 2), RandomMat(3, 2), op_type)
-            || test_binaryop(RandomMat(2, 3, 4), RandomMat(3, 4), op_type)
-            || test_binaryop(RandomMat(2, 3, 8), RandomMat(3, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3, 2), RandomMat(3, 2))
+        || test_binaryop(RandomMat(2, 3, 4), RandomMat(3, 4))
+        || test_binaryop(RandomMat(2, 3, 8), RandomMat(3, 8))
+        ;
 }
 
 static int test_binaryop_19()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3, 2), RandomMat(2, 3, 2), op_type)
-            || test_binaryop(RandomMat(2, 3, 4), RandomMat(2, 3, 4), op_type)
-            || test_binaryop(RandomMat(2, 3, 8), RandomMat(2, 3, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3, 2), RandomMat(2, 3, 2))
+        || test_binaryop(RandomMat(2, 3, 4), RandomMat(2, 3, 4))
+        || test_binaryop(RandomMat(2, 3, 8), RandomMat(2, 3, 8))
+        ;
 }
 
 static int test_binaryop_s1()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3, 2), RandomMat(1, 1, 2), op_type)
-            || test_binaryop(RandomMat(2, 3, 4), RandomMat(1, 1, 4), op_type)
-            || test_binaryop(RandomMat(2, 3, 8), RandomMat(1, 1, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3, 2), RandomMat(1, 1, 2))
+        || test_binaryop(RandomMat(2, 3, 4), RandomMat(1, 1, 4))
+        || test_binaryop(RandomMat(2, 3, 8), RandomMat(1, 1, 8))
+        ;
 }
 
 static int test_binaryop_s2()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3, 2), RandomMat(2, 3, 1), op_type)
-            || test_binaryop(RandomMat(2, 3, 4), RandomMat(2, 3, 1), op_type)
-            || test_binaryop(RandomMat(2, 3, 8), RandomMat(2, 3, 1), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3, 2), RandomMat(2, 3, 1))
+        || test_binaryop(RandomMat(2, 3, 4), RandomMat(2, 3, 1))
+        || test_binaryop(RandomMat(2, 3, 8), RandomMat(2, 3, 1))
+        ;
 }
 
 static int test_binaryop_s3()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(1, 1, 2), RandomMat(2, 3, 2), op_type)
-            || test_binaryop(RandomMat(1, 1, 4), RandomMat(2, 3, 4), op_type)
-            || test_binaryop(RandomMat(1, 1, 8), RandomMat(2, 3, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(1, 1, 2), RandomMat(2, 3, 2))
+        || test_binaryop(RandomMat(1, 1, 4), RandomMat(2, 3, 4))
+        || test_binaryop(RandomMat(1, 1, 8), RandomMat(2, 3, 8))
+        ;
 }
 
 static int test_binaryop_s4()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_binaryop(RandomMat(2, 3, 1), RandomMat(2, 3, 2), op_type)
-            || test_binaryop(RandomMat(2, 3, 1), RandomMat(2, 3, 4), op_type)
-            || test_binaryop(RandomMat(2, 3, 1), RandomMat(2, 3, 8), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_binaryop(RandomMat(2, 3, 1), RandomMat(2, 3, 2))
+        || test_binaryop(RandomMat(2, 3, 1), RandomMat(2, 3, 4))
+        || test_binaryop(RandomMat(2, 3, 1), RandomMat(2, 3, 8))
+        ;
 }
 
 int main()
