@@ -2387,7 +2387,8 @@ int main(int argc, char** argv)
             // skip N-dim
             begin.erase(begin.begin());
             end.erase(end.begin());
-            step.erase(step.begin());
+            if(step.size() != 0)
+                step.erase(step.begin());
 
             // assert step == 1
             for (int i=0; i<(int)step.size(); i++)
