@@ -18,9 +18,18 @@
 
 #define OP_TYPE_MAX 17
 
-static int test_unaryop(const ncnn::Mat& _a, int op_type)
+static int get_op_type()
+{
+    static int op_type = 0;
+    if (op_type == OP_TYPE_MAX)
+        op_type = 0;
+    return op_type++;
+}
+
+static int test_unaryop(const ncnn::Mat& _a)
 {
     ncnn::Mat a = _a;
+    int op_type = get_op_type();
     if (op_type == 5 || op_type == 6 || op_type == 8)
     {
         // value must be positive for sqrt rsqrt log
@@ -53,50 +62,29 @@ static int test_unaryop(const ncnn::Mat& _a, int op_type)
 
 static int test_unaryop_0()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_unaryop(RandomMat(6, 7, 16), op_type)
-            || test_unaryop(RandomMat(3, 5, 13), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_unaryop(RandomMat(6, 7, 16))
+        || test_unaryop(RandomMat(5, 4, 12))
+        || test_unaryop(RandomMat(3, 5, 13))
+        ;
 }
 
 static int test_unaryop_1()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_unaryop(RandomMat(6, 16), op_type)
-            || test_unaryop(RandomMat(7, 15), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_unaryop(RandomMat(6, 16))
+        || test_unaryop(RandomMat(5, 12))
+        || test_unaryop(RandomMat(7, 15))
+        ;
 }
 
 static int test_unaryop_2()
 {
-    for (int op_type=0; op_type<OP_TYPE_MAX; op_type++)
-    {
-        int ret = 0
-            || test_unaryop(RandomMat(128), op_type)
-            || test_unaryop(RandomMat(127), op_type)
-            ;
-
-        if (ret != 0)
-            return -1;
-    }
-
-    return 0;
+    return 0
+        || test_unaryop(RandomMat(128))
+        || test_unaryop(RandomMat(12))
+        || test_unaryop(RandomMat(15))
+        ;
 }
 
 int main()
@@ -104,6 +92,11 @@ int main()
     SRAND(7767517);
 
     return 0
+        || test_unaryop_0()
+        || test_unaryop_1()
+        || test_unaryop_2()
+
+        // iterate full OP_TYPE_MAX
         || test_unaryop_0()
         || test_unaryop_1()
         || test_unaryop_2()
