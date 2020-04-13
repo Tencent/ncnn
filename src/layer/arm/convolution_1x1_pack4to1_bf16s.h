@@ -135,9 +135,9 @@ static void conv1x1s1_sgemm_transform_kernel_pack4to1_bf16s_neon(const Mat& kern
         const float* k0 = (const float*)kernel + p*inch;
 
 #if __aarch64__
-        float* ktmp = kernel_tm_pack4.channel(p/8 + (p%8)/4 + p%4);
+        unsigned short* ktmp = kernel_tm_pack4.channel(p/8 + (p%8)/4 + p%4);
 #else
-        float* ktmp = kernel_tm_pack4.channel(p/4 + p%4);
+        unsigned short* ktmp = kernel_tm_pack4.channel(p/4 + p%4);
 #endif
 
         for (int q=0; q+3<inch; q+=4)
