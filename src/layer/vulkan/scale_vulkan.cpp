@@ -190,11 +190,19 @@ int Scale_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (scale_data_size == -233)
         return 0;
 
-    cmd.record_upload(scale_data, scale_data_gpu, opt);
+    int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
+
+    Mat scale_data_packed;
+    convert_packing(scale_data, scale_data_packed, elempack);
+
+    cmd.record_upload(scale_data_packed, scale_data_gpu, opt);
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data, bias_data_gpu, opt);
+        Mat bias_data_packed;
+        convert_packing(bias_data, bias_data_packed, elempack);
+
+        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
     }
 
     return 0;

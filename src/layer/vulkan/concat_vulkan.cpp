@@ -312,14 +312,14 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(top_w / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(top_w / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
         VkMat top_blob_unpacked = top_blob;
         if (elempack < out_elempack)
         {
-            top_blob_unpacked.create(top_w / elempack, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            top_blob_unpacked.create(top_w / elempack, elemsize, elempack, opt.workspace_vkallocator);
             if (top_blob_unpacked.empty())
                 return -100;
         }
@@ -415,14 +415,14 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(w, top_h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, top_h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
         VkMat top_blob_unpacked = top_blob;
         if (elempack < out_elempack)
         {
-            top_blob_unpacked.create(w, top_h / elempack, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            top_blob_unpacked.create(w, top_h / elempack, elemsize, elempack, opt.workspace_vkallocator);
             if (top_blob_unpacked.empty())
                 return -100;
         }
@@ -506,7 +506,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(top_w, h, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(top_w, h, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -573,14 +573,14 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(w, h, top_channels / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, h, top_channels / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
         VkMat top_blob_unpacked = top_blob;
         if (elempack < out_elempack)
         {
-            top_blob_unpacked.create(w, h, top_channels / elempack, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            top_blob_unpacked.create(w, h, top_channels / elempack, elemsize, elempack, opt.workspace_vkallocator);
             if (top_blob_unpacked.empty())
                 return -100;
         }
@@ -665,7 +665,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(w, top_h, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, top_h, channels, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -720,7 +720,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(top_w, h, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(top_w, h, channels, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 

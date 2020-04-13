@@ -163,7 +163,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(4 * w * h * num_prior / elempack, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(4 * w * h * num_prior / elempack, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -217,7 +217,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     }
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(4 * w * h * num_prior, 2, elemsize, 1, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(4 * w * h * num_prior, 2, elemsize, 1, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 

@@ -470,7 +470,8 @@ VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
             ptr->memory = buffer_blocks[i]->memory;
             ptr->capacity = aligned_size;
             ptr->mapped_ptr = buffer_blocks[i]->mapped_ptr;
-            ptr->state = 1;
+            ptr->access_flags = 0;
+            ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
             // adjust budgets
             if (budget_size == aligned_size)
@@ -540,7 +541,8 @@ VkBufferMemory* VkBlobBufferAllocator::fastMalloc(size_t size)
     ptr->memory = block->memory;
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
-    ptr->state = 1;
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
     // adjust budgets
     std::list< std::pair<size_t, size_t> > budget;
@@ -715,7 +717,8 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
         ptr->memory = buffer_blocks[block_index]->memory;
         ptr->capacity = aligned_size;
         ptr->mapped_ptr = buffer_blocks[block_index]->mapped_ptr;
-        ptr->state = 1;
+        ptr->access_flags = 0;
+        ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
         buffer_block_free_spaces[block_index] -= aligned_size;
 
@@ -790,7 +793,8 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
             ptr->memory = block->memory;
             ptr->capacity = new_block_size;
             ptr->mapped_ptr = block->mapped_ptr;
-            ptr->state = 1;
+            ptr->access_flags = 0;
+            ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
             return ptr;
         }
@@ -841,7 +845,8 @@ VkBufferMemory* VkWeightBufferAllocator::fastMalloc(size_t size)
     ptr->memory = block->memory;
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
-    ptr->state = 1;
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
     return ptr;
 }
@@ -940,7 +945,8 @@ VkBufferMemory* VkStagingBufferAllocator::fastMalloc(size_t size)
 
     vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
 
-    ptr->state = 1;
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
 //     fprintf(stderr, "VkStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
 
@@ -989,7 +995,8 @@ VkBufferMemory* VkWeightStagingBufferAllocator::fastMalloc(size_t size)
 
     vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
 
-    ptr->state = 1;
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
 //     fprintf(stderr, "VkWeightStagingBufferAllocator M %p %lu\n", ptr->buffer, size);
 
@@ -1137,7 +1144,8 @@ VkImageMemory* VkSimpleImageAllocator::fastMalloc(int width, int height, VkForma
 
     ptr->imageview = create_imageview(ptr->image, format);
 
-    ptr->state = 1;
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
     return ptr;
 }
@@ -1290,7 +1298,8 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*width*/, 
     ptr->image = image;
     ptr->memory = memory;
     ptr->imageview = imageview;
-    ptr->state = 1;
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
     return ptr;
 }
