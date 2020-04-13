@@ -457,7 +457,7 @@ int create_gpu_instance()
     applicationInfo.pApplicationName = "ncnn";
     applicationInfo.applicationVersion = 0;
     applicationInfo.pEngineName = "ncnn";
-    applicationInfo.engineVersion = 20200222;
+    applicationInfo.engineVersion = 20200413;
     applicationInfo.apiVersion = VK_MAKE_VERSION(1, 0, 0);
 
     VkInstanceCreateInfo instanceCreateInfo;
