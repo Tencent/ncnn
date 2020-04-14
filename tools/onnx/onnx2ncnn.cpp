@@ -404,7 +404,9 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
         // HardSwish <= Add(+3) - Clip(0,6) - Mul(X,) - Div(/6)
+        // HardSwish <= Add(+3) - Clip(0,6) - Mul(X,) - Mul(*(1/6))
         // HardSwish <= Add(+3) - Clip(0,6) - Mul(X,) - Constant - Div(/6)
+        // HardSwish <= Add(+3) - Clip(0,6) - Mul(X,) - Constant - Mul(*(1/6))
         //     out = x * F.relu6(x + 3, inplace=True) / 6
         if (node->op_type() == "Add")
         {
@@ -437,7 +439,7 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
                 node4 = mutable_graph->mutable_node(i+4);
             }
 
-            if (node2->op_type() != "Clip" || node3->op_type() != "Mul" || node4->op_type() != "Div")
+            if (node2->op_type() != "Clip" || node3->op_type() != "Mul" || (node4->op_type() != "Div" && node4->op_type() != "Mul"))
                 continue;
 
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
@@ -477,7 +479,9 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
                 continue;
 
             float constant_div_six = div_six.has_raw_data() ? ((const float*)div_six.raw_data().data())[0] : div_six.float_data().data()[0];
-            if (constant_div_six != 6.f)
+            if (node4->op_type() == "Div" && constant_div_six != 6.f)
+                continue;
+            if (node4->op_type() == "Mul" && constant_div_six != 1/6.f)
                 continue;
 
             // reduce
@@ -573,7 +577,9 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
         // HardSigmoid <= Add(+3) - Clip(0,6) - Div(/6)
+        // HardSigmoid <= Add(+3) - Clip(0,6) - Mul(*(1/6))
         // HardSigmoid <= Add(+3) - Clip(0,6) - Constant - Div(/6)
+        // HardSigmoid <= Add(+3) - Clip(0,6) - Constant - Mul(*(1/6))
         //     out = F.relu6(x + 3, inplace=True) / 6
         if (node->op_type() == "Add")
         {
@@ -605,7 +611,7 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
                 node3 = mutable_graph->mutable_node(i+3);
             }
 
-            if (node2->op_type() != "Clip" || node3->op_type() != "Div")
+            if (node2->op_type() != "Clip" || (node3->op_type() != "Div" && node3->op_type() != "Mul"))
                 continue;
 
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
@@ -639,7 +645,9 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
                 continue;
 
             float constant_div_six = div_six.has_raw_data() ? ((const float*)div_six.raw_data().data())[0] : div_six.float_data().data()[0];
-            if (constant_div_six != 6.f)
+            if (node3->op_type() == "Div" && constant_div_six != 6.f)
+                continue;
+            if (node3->op_type() == "Mul" && constant_div_six != 1/6.f)
                 continue;
 
             // reduce
