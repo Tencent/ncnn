@@ -738,8 +738,9 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
 {
     VkImageMemory* ptr = new VkImageMemory;
 
-    ptr->image = create_image(width, height, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    ptr->image = create_image(width, height, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
+    // TODO respect VK_KHR_dedicated_allocation ?
     VkMemoryRequirements memoryRequirements;
     vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
 
@@ -811,16 +812,10 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
     }
 
     // create new block
-    // TODO respect VK_KHR_dedicated_allocation ?
-
     size_t new_block_size = std::max(block_size, aligned_size);
 
-    VkDeviceMemory memory = allocate_memory(new_block_size);
-
-    image_memory_blocks.push_back(memory);
-
     // bind at memory offset
-    ptr->memory = memory;
+    ptr->memory = allocate_memory(new_block_size);
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
@@ -833,6 +828,8 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
     // adjust image_memory_budgets
+    image_memory_blocks.push_back(ptr->memory);
+
     std::list< std::pair<size_t, size_t> > budget;
     if (new_block_size > aligned_size)
     {
@@ -922,6 +919,7 @@ void VkBlobAllocator::fastFree(VkImageMemory* ptr)
 VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
 {
     buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
+    bind_memory_offset_alignment = vkdev->info.buffer_image_granularity;
 
     if (vkdev->info.type == 1)
     {
@@ -974,6 +972,24 @@ void VkWeightAllocator::clear()
         delete ptr;
     }
     dedicated_buffer_blocks.clear();
+
+    image_memory_block_free_spaces.clear();
+
+    for (size_t i=0; i<image_memory_blocks.size(); i++)
+    {
+        VkDeviceMemory memory = image_memory_blocks[i];
+
+        vkFreeMemory(vkdev->vkdevice(), memory, 0);
+    }
+    image_memory_blocks.clear();
+
+    for (size_t i=0; i<dedicated_image_memory_blocks.size(); i++)
+    {
+        VkDeviceMemory memory = dedicated_image_memory_blocks[i];
+
+        vkFreeMemory(vkdev->vkdevice(), memory, 0);
+    }
+    dedicated_image_memory_blocks.clear();
 }
 
 VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
@@ -1147,6 +1163,162 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
 {
 //     fprintf(stderr, "VkWeightAllocator F %p\n", ptr->buffer);
+
+    delete ptr;
+}
+
+VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat format)
+{
+    VkImageMemory* ptr = new VkImageMemory;
+
+    ptr->image = create_image(width, height, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+    if (vkdev->info.support_VK_KHR_get_memory_requirements2 && vkdev->info.support_VK_KHR_dedicated_allocation)
+    {
+        VkImageMemoryRequirementsInfo2KHR imageMemoryRequirementsInfo2;
+        imageMemoryRequirementsInfo2.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2;
+        imageMemoryRequirementsInfo2.pNext = 0;
+        imageMemoryRequirementsInfo2.image = ptr->image;
+
+        VkMemoryRequirements2KHR memoryRequirements2;
+        memoryRequirements2.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2_KHR;
+        memoryRequirements2.pNext = 0;
+
+        VkMemoryDedicatedRequirementsKHR memoryDedicatedRequirements;
+        memoryDedicatedRequirements.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS_KHR;
+        memoryDedicatedRequirements.pNext = 0;
+        memoryRequirements2.pNext = &memoryDedicatedRequirements;
+
+        vkdev->vkGetImageMemoryRequirements2KHR(vkdev->vkdevice(), &imageMemoryRequirementsInfo2, &memoryRequirements2);
+
+        bool dedicatedAllocation = memoryDedicatedRequirements.requiresDedicatedAllocation || memoryDedicatedRequirements.prefersDedicatedAllocation;
+
+        if (dedicatedAllocation)
+        {
+            // setup memory type and alignment
+            if (memory_type_index == (uint32_t)-1)
+            {
+                if (vkdev->info.type == 1)
+                {
+                    // integrated gpu, prefer unified memory
+                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+                }
+                else
+                {
+                    // discrete gpu, device local
+                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                }
+
+                mappable = vkdev->is_mappable(memory_type_index);
+                coherent = vkdev->is_coherent(memory_type_index);
+            }
+
+            // bind memory
+            ptr->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, ptr->image);
+            ptr->bind_offset = 0;
+            ptr->bind_capacity = memoryRequirements2.memoryRequirements.size;
+
+            // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
+            vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
+
+            ptr->imageview = create_imageview(ptr->image, format);
+
+            ptr->access_flags = 0;
+            ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+            ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+            dedicated_image_memory_blocks.push_back(ptr->memory);
+
+            return ptr;
+        }
+    }
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
+
+    const size_t size = memoryRequirements.size;
+
+    size_t aligned_size = alignSize(size, bind_memory_offset_alignment);
+
+    const int image_memory_block_count = image_memory_blocks.size();
+
+    // find first spare space in buffer_blocks
+    int block_index = -1;
+    size_t block_offset = 0;
+    for (int i=0; i<image_memory_block_count; i++)
+    {
+        size_t free_size = image_memory_block_free_spaces[i];
+        if (free_size >= aligned_size)
+        {
+            block_index = i;
+            block_offset = block_size - free_size;
+            break;
+        }
+    }
+
+    if (block_index != -1)
+    {
+        // bind at memory offset
+        ptr->memory = image_memory_blocks[block_index];
+        ptr->bind_offset = block_offset;
+        ptr->bind_capacity = aligned_size;
+
+        vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
+
+        ptr->imageview = create_imageview(ptr->image, format);
+
+        ptr->access_flags = 0;
+        ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+        buffer_block_free_spaces[block_index] -= aligned_size;
+
+        return ptr;
+    }
+
+    // setup memory type and alignment
+    if (memory_type_index == (uint32_t)-1)
+    {
+        if (vkdev->info.type == 1)
+        {
+            // integrated gpu, prefer unified memory
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+        }
+        else
+        {
+            // discrete gpu, device local
+            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+        }
+
+        mappable = vkdev->is_mappable(memory_type_index);
+        coherent = vkdev->is_coherent(memory_type_index);
+    }
+
+    // create new block
+    size_t new_block_size = std::max(block_size, aligned_size);
+
+    // bind at memory offset
+    ptr->memory = allocate_memory(new_block_size);
+    ptr->bind_offset = 0;
+    ptr->bind_capacity = aligned_size;
+
+    vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
+
+    ptr->imageview = create_imageview(ptr->image, format);
+
+    ptr->access_flags = 0;
+    ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+    image_memory_blocks.push_back(ptr->memory);
+    image_memory_block_free_spaces.push_back(new_block_size - aligned_size);
+
+    return ptr;
+}
+
+void VkWeightAllocator::fastFree(VkImageMemory* ptr)
+{
+//     fprintf(stderr, "VkWeightAllocator F %p\n", ptr->memory);
 
     delete ptr;
 }

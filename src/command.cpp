@@ -1893,17 +1893,11 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
 {
 //     fprintf(stderr, "record_upload src = %d | %d %d %d @ %d\n", src.dims, src.w, src.h, src.c, src.elempack);
 
-    if (src.dims != 2)
-    {
-        fprintf(stderr, "src dims must be 2 when dst is image\n");
-        return;
-    }
-
     int elempack = src.elempack;
 
-    if (elempack != 1 && elempack != 2 && elempack != 4 && elempack != 8)
+    if (elempack != 1 && elempack != 2 && elempack != 4 && elempack != 8 && elempack != 16 && elempack != 32 && elempack != 64)
     {
-        fprintf(stderr, "src elempack must be 1 2 4 8\n");
+        fprintf(stderr, "src elempack must be 1 2 4 8 16 32 64\n");
         return;
     }
 
@@ -1938,6 +1932,21 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
             image_width *= 2;
             format = VK_FORMAT_R32G32B32A32_SFLOAT;
         }
+        if (elempack == 16)
+        {
+            image_width *= 4;
+            format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        }
+        if (elempack == 32)
+        {
+            image_width *= 8;
+            format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        }
+        if (elempack == 64)
+        {
+            image_width *= 16;
+            format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        }
     }
     if (src.elemsize / elempack == 2)
     {
@@ -1948,6 +1957,21 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
         if (elempack == 8)
         {
             image_width *= 2;
+            format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        }
+        if (elempack == 16)
+        {
+            image_width *= 4;
+            format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        }
+        if (elempack == 32)
+        {
+            image_width *= 8;
+            format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        }
+        if (elempack == 64)
+        {
+            image_width *= 16;
             format = VK_FORMAT_R16G16B16A16_SFLOAT;
         }
     }

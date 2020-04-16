@@ -289,15 +289,19 @@ public:
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int /*width*/, int /*height*/, VkFormat /*format*/) { return 0; }
-    virtual void fastFree(VkImageMemory* /*ptr*/) {}
+    virtual VkImageMemory* fastMalloc(int width, int height, VkFormat format);
+    virtual void fastFree(VkImageMemory* ptr);
 
 private:
     size_t block_size;
     size_t buffer_offset_alignment;
+    size_t bind_memory_offset_alignment;
     std::vector<size_t> buffer_block_free_spaces;
     std::vector<VkBufferMemory*> buffer_blocks;
     std::vector<VkBufferMemory*> dedicated_buffer_blocks;
+    std::vector<size_t> image_memory_block_free_spaces;
+    std::vector<VkDeviceMemory> image_memory_blocks;
+    std::vector<VkDeviceMemory> dedicated_image_memory_blocks;
 };
 
 class VkStagingAllocator : public VkAllocator
