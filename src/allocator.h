@@ -216,6 +216,11 @@ public:
     mutable VkImageLayout image_layout;
     mutable VkPipelineStageFlags stage_flags;
 
+    // indicate image and imageview owner taken by command functions internally
+    // VkAllocator should not destroy this structure on fastFree
+    // though I do think this flag is a bit ugly :|
+    mutable bool external_destroy;
+
     // initialize and modified by mat
     int refcount;
 };

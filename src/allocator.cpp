@@ -775,6 +775,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            ptr->external_destroy = false;
 
             // adjust image_memory_budgets
             if (budget_size == aligned_size)
@@ -826,6 +827,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    ptr->external_destroy = false;
 
     // adjust image_memory_budgets
     image_memory_blocks.push_back(ptr->memory);
@@ -862,7 +864,13 @@ void VkBlobAllocator::fastFree(VkImageMemory* ptr)
     {
         fprintf(stderr, "FATAL ERROR! unlocked VkBlobAllocator get wild %p\n", ptr->memory);
 
-        delete ptr;
+        if (!ptr->external_destroy)
+        {
+            vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+            vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+
+            delete ptr;
+        }
 
         return;
     }
@@ -910,10 +918,13 @@ void VkBlobAllocator::fastFree(VkImageMemory* ptr)
         }
     }
 
-    vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
-    vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+    if (!ptr->external_destroy)
+    {
+        vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
 
-    delete ptr;
+        delete ptr;
+    }
 }
 
 VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
@@ -1226,6 +1237,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat for
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            ptr->external_destroy = false;
 
             dedicated_image_memory_blocks.push_back(ptr->memory);
 
@@ -1270,6 +1282,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat for
         ptr->access_flags = 0;
         ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
         ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        ptr->external_destroy = false;
 
         buffer_block_free_spaces[block_index] -= aligned_size;
 
@@ -1309,6 +1322,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat for
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    ptr->external_destroy = false;
 
     image_memory_blocks.push_back(ptr->memory);
     image_memory_block_free_spaces.push_back(new_block_size - aligned_size);
@@ -1320,10 +1334,13 @@ void VkWeightAllocator::fastFree(VkImageMemory* ptr)
 {
 //     fprintf(stderr, "VkWeightAllocator F %p\n", ptr->memory);
 
-    vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
-    vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+    if (!ptr->external_destroy)
+    {
+        vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
 
-    delete ptr;
+        delete ptr;
+    }
 }
 
 VkStagingAllocator::VkStagingAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)

@@ -39,6 +39,26 @@ VkCompute::VkCompute(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 
 VkCompute::~VkCompute()
 {
+    for (size_t i=0; i<image_blocks_to_destroy.size(); i++)
+    {
+        VkImageMemory* ptr = image_blocks_to_destroy[i];
+
+        if (ptr->external_destroy && ptr->refcount == 0)
+        {
+            // no reference, we can safely destroy it
+            vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+            vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+
+            delete ptr;
+        }
+        else
+        {
+            // reference exists in user code
+            ptr->external_destroy = false;
+        }
+    }
+    image_blocks_to_destroy.clear();
+
     if (!vkdev->info.support_VK_KHR_push_descriptor)
     {
         for (size_t i=0; i<descriptorsets.size(); i++)
@@ -585,6 +605,11 @@ void VkCompute::record_copy_to_image(const VkMat& src, VkImageMat& dst, const Op
     dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
     dst.data->image_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+    // mark external destroy
+    // image and imageview can not be destroyed until command execution ends
+    dst.data->external_destroy = true;
+    image_blocks_to_destroy.push_back(dst.data);
 }
 
 void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)

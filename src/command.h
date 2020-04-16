@@ -81,6 +81,8 @@ protected:
     std::vector<VkMat> download_post_buffers;
     std::vector<Mat> download_post_mats;
 
+    std::vector<VkImageMemory*> image_blocks_to_destroy;
+
     // the good-old path for device without VK_KHR_push_descriptor
     std::vector<VkDescriptorPool> descriptor_pools;
     std::vector<VkDescriptorSet> descriptorsets;
