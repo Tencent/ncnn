@@ -1320,6 +1320,9 @@ void VkWeightAllocator::fastFree(VkImageMemory* ptr)
 {
 //     fprintf(stderr, "VkWeightAllocator F %p\n", ptr->memory);
 
+    vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+    vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+
     delete ptr;
 }
 

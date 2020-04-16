@@ -939,8 +939,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             size_t descriptorInfo_size = sizeof(VkDescriptorBufferInfo) * buffer_binding_count + sizeof(VkDescriptorImageInfo) * image_binding_count;
             unsigned char* descriptorInfos = new unsigned char[descriptorInfo_size];
             memcpy(descriptorInfos, descriptorBufferInfos.data(), sizeof(VkDescriptorBufferInfo) * buffer_binding_count);
-            descriptorInfos += sizeof(VkDescriptorBufferInfo) * buffer_binding_count;
-            memcpy(descriptorInfos, descriptorImageInfos.data(), sizeof(VkDescriptorImageInfo) * image_binding_count);
+            memcpy(descriptorInfos + sizeof(VkDescriptorBufferInfo) * buffer_binding_count, descriptorImageInfos.data(), sizeof(VkDescriptorImageInfo) * image_binding_count);
 
             vkdev->vkCmdPushDescriptorSetWithTemplateKHR(compute_command_buffer, pipeline->descriptor_update_template, pipeline->pipeline_layout, 0, descriptorInfos);
             delete[] descriptorInfos;
@@ -996,8 +995,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
                 size_t descriptorInfo_size = sizeof(VkDescriptorBufferInfo) * buffer_binding_count + sizeof(VkDescriptorImageInfo) * image_binding_count;
                 unsigned char* descriptorInfos = new unsigned char[descriptorInfo_size];
                 memcpy(descriptorInfos, descriptorBufferInfos.data(), sizeof(VkDescriptorBufferInfo) * buffer_binding_count);
-                descriptorInfos += sizeof(VkDescriptorBufferInfo) * buffer_binding_count;
-                memcpy(descriptorInfos, descriptorImageInfos.data(), sizeof(VkDescriptorImageInfo) * image_binding_count);
+                memcpy(descriptorInfos + sizeof(VkDescriptorBufferInfo) * buffer_binding_count, descriptorImageInfos.data(), sizeof(VkDescriptorImageInfo) * image_binding_count);
 
                 vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, pipeline->descriptor_update_template, descriptorInfos);
                 delete[] descriptorInfos;
