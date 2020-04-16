@@ -100,6 +100,7 @@ public:
     size_t memory_map_alignment;
     size_t buffer_offset_alignment;
     size_t non_coherent_atom_size;
+    size_t buffer_image_granularity;
     float timestamp_period;
 
     // runtime
@@ -188,6 +189,9 @@ public:
     VkAllocator* acquire_staging_allocator() const;
     void reclaim_staging_allocator(VkAllocator* allocator) const;
 
+    // immutable sampler for texelfetch
+    const VkSampler* immutable_texelfetch_sampler() const;
+
     // VK_KHR_bind_memory2
     PFN_vkBindBufferMemory2KHR vkBindBufferMemory2KHR;
     PFN_vkBindImageMemory2KHR vkBindImageMemory2KHR;
@@ -251,6 +255,9 @@ private:
     // default staging allocator for each queue
     mutable std::vector<VkAllocator*> staging_allocators;
     mutable Mutex staging_allocator_lock;
+
+    // nearest sampler for texelfetch
+    VkSampler texelfetch_sampler;
 };
 
 VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
@@ -260,7 +267,8 @@ class ShaderInfo
 {
 public:
     int specialization_count;
-    int binding_count;
+    int buffer_binding_count;
+    int image_binding_count;
     int push_constant_count;
 };
 

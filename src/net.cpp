@@ -917,11 +917,11 @@ int Net::upload_model()
     // create gpu device allocator if null
     if (!weight_vkallocator)
     {
-        weight_vkallocator = new VkWeightBufferAllocator(vkdev);
+        weight_vkallocator = new VkWeightAllocator(vkdev);
     }
     if (!weight_staging_vkallocator)
     {
-        weight_staging_vkallocator = new VkWeightStagingBufferAllocator(vkdev);
+        weight_staging_vkallocator = new VkWeightStagingAllocator(vkdev);
     }
 
     Option opt_upload = opt;

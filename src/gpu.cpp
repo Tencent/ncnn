@@ -603,6 +603,7 @@ int create_gpu_instance()
         gpu_info.memory_map_alignment = physicalDeviceProperties.limits.minMemoryMapAlignment;
         gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
         gpu_info.non_coherent_atom_size = physicalDeviceProperties.limits.nonCoherentAtomSize;
+        gpu_info.buffer_image_granularity = physicalDeviceProperties.limits.bufferImageGranularity;
 
         gpu_info.timestamp_period = physicalDeviceProperties.limits.timestampPeriod;
 
@@ -1043,8 +1044,8 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     for (uint32_t i = 0; i < info.compute_queue_count; i++)
     {
         vkGetDeviceQueue(device, info.compute_queue_family_index, i, &compute_queues[i]);
-        blob_allocators[i] = new VkBlobBufferAllocator(this);
-        staging_allocators[i] = new VkStagingBufferAllocator(this);
+        blob_allocators[i] = new VkBlobAllocator(this);
+        staging_allocators[i] = new VkStagingAllocator(this);
     }
     if (info.compute_queue_family_index != info.graphics_queue_family_index)
     {
@@ -1062,10 +1063,44 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
             vkGetDeviceQueue(device, info.transfer_queue_family_index, i, &transfer_queues[i]);
         }
     }
+
+    // prepare immutable texelfetch sampler
+    {
+        VkSamplerCreateInfo samplerCreateInfo;
+        samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerCreateInfo.pNext = 0;
+        samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
+        samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
+        samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.mipLodBias = 0.0f;
+        samplerCreateInfo.anisotropyEnable = VK_FALSE;
+        samplerCreateInfo.maxAnisotropy = 1;
+        samplerCreateInfo.compareEnable = VK_FALSE;
+        samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
+        samplerCreateInfo.minLod = 0.0f;
+        samplerCreateInfo.maxLod = 0.0f;
+        samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+        samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;
+
+        texelfetch_sampler = 0;
+        ret = vkCreateSampler(device, &samplerCreateInfo, 0, &texelfetch_sampler);
+        if (ret != VK_SUCCESS)
+        {
+            fprintf(stderr, "vkCreateSampler failed %d\n", ret);
+        }
+    }
 }
 
 VulkanDevice::~VulkanDevice()
 {
+    if (texelfetch_sampler)
+    {
+        vkDestroySampler(device, texelfetch_sampler, 0);
+    }
+
     for (uint32_t i = 0; i < info.compute_queue_count; i++)
     {
         delete blob_allocators[i];
@@ -1436,6 +1471,11 @@ void VulkanDevice::reclaim_staging_allocator(VkAllocator* allocator) const
     fprintf(stderr, "FATAL ERROR! reclaim_staging_allocator get wild allocator %p\n", allocator);
 }
 
+const VkSampler* VulkanDevice::immutable_texelfetch_sampler() const
+{
+    return &texelfetch_sampler;
+}
+
 static inline bool string_ends_with_fp16p(const char* name)
 {
     int len = strlen(name);
@@ -1637,6 +1677,7 @@ ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size)
     int specialization_count = 0;
     int binding_count = 0;
     int push_constant_count = 0;
+    int buffer_block_count = 0;
 
     const uint32_t* p = spv_data;
 
@@ -1675,6 +1716,10 @@ ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size)
             {
                 specialization_count++;
             }
+            else if (decoration == 3) // BufferBlock
+            {
+                buffer_block_count++;
+            }
             else if (decoration == 33) // Binding
             {
                 binding_count++;
@@ -1686,7 +1731,8 @@ ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size)
 
     ShaderInfo si;
     si.specialization_count = specialization_count;
-    si.binding_count = binding_count;
+    si.buffer_binding_count = buffer_block_count;
+    si.image_binding_count = binding_count - buffer_block_count;
     si.push_constant_count = push_constant_count;
 
     return si;

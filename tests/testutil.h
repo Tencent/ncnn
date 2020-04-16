@@ -220,8 +220,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #if NCNN_VULKAN
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
-    ncnn::VkWeightBufferAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(vkdev);
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
 
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
@@ -454,8 +454,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #if NCNN_VULKAN
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
-    ncnn::VkWeightBufferAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(vkdev);
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
 
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();

@@ -188,8 +188,8 @@ int main(int argc, char** argv)
 
         g_vkdev = ncnn::get_gpu_device(gpu_device);
 
-        g_blob_vkallocator = new ncnn::VkBlobBufferAllocator(g_vkdev);
-        g_staging_vkallocator = new ncnn::VkStagingBufferAllocator(g_vkdev);
+        g_blob_vkallocator = new ncnn::VkBlobAllocator(g_vkdev);
+        g_staging_vkallocator = new ncnn::VkStagingAllocator(g_vkdev);
     }
 #endif // NCNN_VULKAN
 

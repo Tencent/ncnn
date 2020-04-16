@@ -366,17 +366,17 @@ public:
     // empty
     VkImageMat();
     // image
-    VkImageMat(int width, int height, VkFormat format, VkImageAllocator* allocator);
+    VkImageMat(int width, int height, VkFormat format, VkAllocator* allocator);
     // copy
     VkImageMat(const VkImageMat& m);
     // external image
-    VkImageMat(int width, int height, VkImageMemory* data, VkFormat format, VkImageAllocator* allocator);
+    VkImageMat(int width, int height, VkImageMemory* data, VkFormat format, VkAllocator* allocator);
     // release
     ~VkImageMat();
     // assign
     VkImageMat& operator=(const VkImageMat& m);
     // allocate image
-    void create(int width, int height, VkFormat format, VkImageAllocator* allocator);
+    void create(int width, int height, VkFormat format, VkAllocator* allocator);
 
     // refcount++
     void addref();
@@ -403,7 +403,7 @@ public:
     int* refcount;
 
     // the allocator
-    VkImageAllocator* allocator;
+    VkAllocator* allocator;
 
     int width;
     int height;
@@ -1630,7 +1630,7 @@ inline VkImageMat::VkImageMat()
 {
 }
 
-inline VkImageMat::VkImageMat(int _width, int _height, VkFormat _format, VkImageAllocator* _allocator)
+inline VkImageMat::VkImageMat(int _width, int _height, VkFormat _format, VkAllocator* _allocator)
     : data(0), refcount(0), allocator(0), width(0), height(0), format(VK_FORMAT_UNDEFINED)
 {
     create(_width, _height, _format, _allocator);
@@ -1643,7 +1643,7 @@ inline VkImageMat::VkImageMat(const VkImageMat& m)
         NCNN_XADD(refcount, 1);
 }
 
-inline VkImageMat::VkImageMat(int _width, int _height, VkImageMemory* _data, VkFormat _format, VkImageAllocator* _allocator)
+inline VkImageMat::VkImageMat(int _width, int _height, VkImageMemory* _data, VkFormat _format, VkAllocator* _allocator)
     : data(_data), refcount(0), allocator(_allocator), width(_width), height(_height), format(_format)
 {
 }
@@ -1674,7 +1674,7 @@ inline VkImageMat& VkImageMat::operator=(const VkImageMat& m)
     return *this;
 }
 
-inline void VkImageMat::create(int _width, int _height, VkFormat _format, VkImageAllocator* _allocator)
+inline void VkImageMat::create(int _width, int _height, VkFormat _format, VkAllocator* _allocator)
 {
     if (width == _width && height == _height && format == _format && allocator == _allocator)
         return;

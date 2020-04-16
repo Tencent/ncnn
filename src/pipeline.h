@@ -41,15 +41,15 @@ public:
 
     int create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations);
 
-    int create(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count);
+    int create(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations, int buffer_binding_count, int image_binding_count, int push_constant_count);
 
     void destroy();
 
 protected:
-    int create_descriptorset_layout(int binding_count);
+    int create_descriptorset_layout(int buffer_binding_count, int image_binding_count);
     int create_pipeline_layout(int push_constant_count);
     int create_pipeline(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations);
-    int create_descriptor_update_template(int binding_count);
+    int create_descriptor_update_template(int buffer_binding_count, int image_binding_count);
 
 public:
     const VulkanDevice* vkdev;

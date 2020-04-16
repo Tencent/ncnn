@@ -39,7 +39,11 @@ public:
 
     void record_clone(const VkMat& src, VkMat& dst, const Option& opt);
 
+    void record_copy_to_image(const VkMat& src, VkImageMat& dst, const Option& opt);
+
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher);
+
+    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher);
 
 #if NCNN_BENCHMARK
     void record_write_timestamp(uint32_t query);
@@ -86,6 +90,7 @@ protected:
         enum
         {
             TYPE_copy_buffer,
+            TYPE_copy_buffer_to_image,
             TYPE_bind_pipeline,
             TYPE_bind_descriptorsets,
             TYPE_push_constants,
@@ -107,6 +112,7 @@ protected:
         union
         {
         struct { VkBuffer src; VkBuffer dst; uint32_t region_count; const VkBufferCopy* regions; } copy_buffer;
+        struct { VkBuffer src; VkImage dst; VkImageLayout layout; uint32_t region_count; const VkBufferImageCopy* regions; } copy_buffer_to_image;
 
         struct { VkPipelineBindPoint bind_point; VkPipeline pipeline; } bind_pipeline;
         struct { VkPipelineBindPoint bind_point; VkPipelineLayout pipeline_layout; uint32_t descriptorset_count; uint32_t descriptorset_offset; } bind_descriptorsets;
@@ -142,6 +148,8 @@ public:
 
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt);
+
+    void record_upload(const Mat& src, VkImageMat& dst, const Option& opt);
 
     int submit_and_wait();
 

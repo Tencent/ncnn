@@ -199,16 +199,41 @@ public:
     int refcount;
 };
 
+class VkImageMemory
+{
+public:
+    VkImage image;
+    VkImageView imageview;
+
+    VkDeviceMemory memory;
+
+    // the base offset assigned by allocator
+    size_t bind_offset;
+    size_t bind_capacity;
+
+    // image state, modified by command functions internally
+    mutable VkAccessFlags access_flags;
+    mutable VkImageLayout image_layout;
+    mutable VkPipelineStageFlags stage_flags;
+
+    // initialize and modified by mat
+    int refcount;
+};
+
 class VkAllocator
 {
 public:
     VkAllocator(const VulkanDevice* _vkdev);
     virtual ~VkAllocator() { clear(); }
     virtual void clear() {}
+
     virtual VkBufferMemory* fastMalloc(size_t size) = 0;
     virtual void fastFree(VkBufferMemory* ptr) = 0;
     virtual int flush(VkBufferMemory* ptr);
     virtual int invalidate(VkBufferMemory* ptr);
+
+    virtual VkImageMemory* fastMalloc(int width, int height, VkFormat format) = 0;
+    virtual void fastFree(VkImageMemory* ptr) = 0;
 
 public:
     const VulkanDevice* vkdev;
@@ -220,13 +245,17 @@ protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
     VkDeviceMemory allocate_memory(size_t size);
     VkDeviceMemory allocate_dedicated_memory(size_t size, VkBuffer buffer);
+
+    VkImage create_image(int width, int height, VkFormat format, VkImageUsageFlags usage);
+    VkImageView create_imageview(VkImage image, VkFormat format);
+    VkDeviceMemory allocate_dedicated_memory(size_t size, VkImage image);
 };
 
-class VkBlobBufferAllocator : public VkAllocator
+class VkBlobAllocator : public VkAllocator
 {
 public:
-    VkBlobBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkBlobBufferAllocator();
+    VkBlobAllocator(const VulkanDevice* vkdev);
+    virtual ~VkBlobAllocator();
 
 public:
     // release all budgets immediately
@@ -234,19 +263,24 @@ public:
 
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
+    virtual VkImageMemory* fastMalloc(int width, int height, VkFormat format);
+    virtual void fastFree(VkImageMemory* ptr);
 
 private:
     size_t block_size;
     size_t buffer_offset_alignment;
-    std::vector< std::list< std::pair<size_t, size_t> > > budgets;
+    size_t bind_memory_offset_alignment;
+    std::vector< std::list< std::pair<size_t, size_t> > > buffer_budgets;
     std::vector<VkBufferMemory*> buffer_blocks;
+    std::vector< std::list< std::pair<size_t, size_t> > > image_memory_budgets;
+    std::vector<VkDeviceMemory> image_memory_blocks;
 };
 
-class VkWeightBufferAllocator : public VkAllocator
+class VkWeightAllocator : public VkAllocator
 {
 public:
-    VkWeightBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkWeightBufferAllocator();
+    VkWeightAllocator(const VulkanDevice* vkdev);
+    virtual ~VkWeightAllocator();
 
 public:
     // release all blocks immediately
@@ -255,6 +289,8 @@ public:
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
+    virtual VkImageMemory* fastMalloc(int /*width*/, int /*height*/, VkFormat /*format*/) { return 0; }
+    virtual void fastFree(VkImageMemory* /*ptr*/) {}
 
 private:
     size_t block_size;
@@ -264,11 +300,11 @@ private:
     std::vector<VkBufferMemory*> dedicated_buffer_blocks;
 };
 
-class VkStagingBufferAllocator : public VkAllocator
+class VkStagingAllocator : public VkAllocator
 {
 public:
-    VkStagingBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkStagingBufferAllocator();
+    VkStagingAllocator(const VulkanDevice* vkdev);
+    virtual ~VkStagingAllocator();
 
 public:
     // ratio range 0 ~ 1
@@ -280,74 +316,32 @@ public:
 
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
+    virtual VkImageMemory* fastMalloc(int /*width*/, int /*height*/, VkFormat /*format*/) { return 0; }
+    virtual void fastFree(VkImageMemory* /*ptr*/) {}
 
 private:
     unsigned int size_compare_ratio;// 0~256
     std::list<VkBufferMemory*> budgets;
 };
 
-class VkWeightStagingBufferAllocator : public VkAllocator
+class VkWeightStagingAllocator : public VkAllocator
 {
 public:
-    VkWeightStagingBufferAllocator(const VulkanDevice* vkdev);
-    virtual ~VkWeightStagingBufferAllocator();
+    VkWeightStagingAllocator(const VulkanDevice* vkdev);
+    virtual ~VkWeightStagingAllocator();
 
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
+    virtual VkImageMemory* fastMalloc(int /*width*/, int /*height*/, VkFormat /*format*/) { return 0; }
+    virtual void fastFree(VkImageMemory* /*ptr*/) {}
 
 private:
 };
 
-class VkImageMemory
-{
-public:
-    VkImage image;
-    VkImageView imageview;
-
-    VkDeviceMemory memory;
-
-    // image state, modified by command functions internally
-    mutable VkAccessFlags access_flags;
-    mutable VkPipelineStageFlags stage_flags;
-
-    // initialize and modified by mat
-    int refcount;
-};
-
-class VkImageAllocator : public VkAllocator
-{
-public:
-    VkImageAllocator(const VulkanDevice* _vkdev);
-    virtual ~VkImageAllocator() { clear(); }
-    virtual void clear() {}
-    virtual VkImageMemory* fastMalloc(int width, int height, VkFormat format) = 0;
-    virtual void fastFree(VkImageMemory* ptr) = 0;
-
-protected:
-    virtual VkBufferMemory* fastMalloc(size_t /*size*/) { return 0; }
-    virtual void fastFree(VkBufferMemory* /*ptr*/) {}
-
-protected:
-    VkImage create_image(int width, int height, VkFormat format, VkImageUsageFlags usage);
-    VkImageView create_imageview(VkImage image, VkFormat format);
-    VkDeviceMemory allocate_dedicated_memory(size_t size, VkImage image);
-};
-
-class VkSimpleImageAllocator : public VkImageAllocator
-{
-public:
-    VkSimpleImageAllocator(const VulkanDevice* vkdev);
-    virtual ~VkSimpleImageAllocator();
-
-public:
-    virtual VkImageMemory* fastMalloc(int width, int height, VkFormat format);
-    virtual void fastFree(VkImageMemory* ptr);
-};
-
 #if __ANDROID_API__ >= 26
 class ImportAndroidHardwareBufferPipeline;
-class VkAndroidHardwareBufferImageAllocator : public VkImageAllocator
+class VkAndroidHardwareBufferImageAllocator : public VkAllocator
 {
 public:
     VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, AHardwareBuffer* _hb);
@@ -356,6 +350,8 @@ public:
 public:
     virtual VkImageMemory* fastMalloc(int width, int height, VkFormat format);
     virtual void fastFree(VkImageMemory* ptr);
+    virtual VkBufferMemory* fastMalloc(size_t /*size*/) { return 0; }
+    virtual void fastFree(VkBufferMemory* /*ptr*/) {}
 
 public:
     int init();
