@@ -350,7 +350,7 @@ VkDeviceMemory VkAllocator::allocate_memory(size_t size)
     return memory;
 }
 
-VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, VkBuffer buffer)
+VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, VkImage image, VkBuffer buffer)
 {
     VkMemoryAllocateInfo memoryAllocateInfo;
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -361,7 +361,7 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, VkBuffer buff
     VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo;
     memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
     memoryDedicatedAllocateInfo.pNext = 0;
-    memoryDedicatedAllocateInfo.image = 0;
+    memoryDedicatedAllocateInfo.image = image;
     memoryDedicatedAllocateInfo.buffer = buffer;
     memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
 
@@ -436,31 +436,6 @@ VkImageView VkAllocator::create_imageview(VkImage image, VkFormat format)
     }
 
     return imageview;
-}
-
-VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, VkImage image)
-{
-    VkMemoryAllocateInfo memoryAllocateInfo;
-    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    memoryAllocateInfo.pNext = 0;
-    memoryAllocateInfo.allocationSize = size;
-    memoryAllocateInfo.memoryTypeIndex = memory_type_index;
-
-    VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo;
-    memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
-    memoryDedicatedAllocateInfo.pNext = 0;
-    memoryDedicatedAllocateInfo.image = image;
-    memoryDedicatedAllocateInfo.buffer = 0;
-    memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
-
-    VkDeviceMemory memory = 0;
-    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkAllocateMemory failed %d\n", ret);
-    }
-
-    return memory;
 }
 
 static inline size_t least_common_multiple(size_t a, size_t b)
@@ -1091,7 +1066,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 coherent = vkdev->is_coherent(memory_type_index);
             }
 
-            block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, block->buffer);
+            block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, 0, block->buffer);
 
             // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
             vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1225,7 +1200,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat for
             }
 
             // bind memory
-            ptr->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, ptr->image);
+            ptr->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, ptr->image, 0);
             ptr->bind_offset = 0;
             ptr->bind_capacity = memoryRequirements2.memoryRequirements.size;
 

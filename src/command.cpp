@@ -564,27 +564,53 @@ void VkCompute::record_copy_to_image(const VkMat& src, VkImageMat& dst, const Op
 
     // record staging to device
     {
-        VkBufferImageCopy* regions = new VkBufferImageCopy[channels];
-        for (int i = 0; i < channels; i++)
+        int region_count = 0;
+        VkBufferImageCopy* regions = 0;
+
+        if ((int)src.cstep == src.w * src.h)
         {
-            regions[i].bufferOffset = src.buffer_offset() + src.cstep * src.elemsize;
-            regions[i].bufferRowLength = 0;
-            regions[i].bufferImageHeight = 0;
-            regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            regions[i].imageSubresource.mipLevel = 0;
-            regions[i].imageSubresource.baseArrayLayer = 0;
-            regions[i].imageSubresource.layerCount = 1;
-            regions[i].imageOffset.x = 0;
-            regions[i].imageOffset.y = src.h * i;
-            regions[i].imageOffset.z = 0;
-            regions[i].imageExtent.width = image_width;
-            regions[i].imageExtent.height = src.h;
-            regions[i].imageExtent.depth = 1;
+            // no channel gap
+            region_count = 1;
+            regions = new VkBufferImageCopy[1];
+            regions[0].bufferOffset = src.buffer_offset();
+            regions[0].bufferRowLength = 0;
+            regions[0].bufferImageHeight = 0;
+            regions[0].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            regions[0].imageSubresource.mipLevel = 0;
+            regions[0].imageSubresource.baseArrayLayer = 0;
+            regions[0].imageSubresource.layerCount = 1;
+            regions[0].imageOffset.x = 0;
+            regions[0].imageOffset.y = 0;
+            regions[0].imageOffset.z = 0;
+            regions[0].imageExtent.width = image_width;
+            regions[0].imageExtent.height = image_height;
+            regions[0].imageExtent.depth = 1;
+        }
+        else
+        {
+            region_count = channels;
+            regions = new VkBufferImageCopy[channels];
+            for (int i = 0; i < channels; i++)
+            {
+                regions[i].bufferOffset = src.buffer_offset() + src.cstep * src.elemsize;
+                regions[i].bufferRowLength = 0;
+                regions[i].bufferImageHeight = 0;
+                regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                regions[i].imageSubresource.mipLevel = 0;
+                regions[i].imageSubresource.baseArrayLayer = 0;
+                regions[i].imageSubresource.layerCount = 1;
+                regions[i].imageOffset.x = 0;
+                regions[i].imageOffset.y = src.h * i;
+                regions[i].imageOffset.z = 0;
+                regions[i].imageExtent.width = image_width;
+                regions[i].imageExtent.height = src.h;
+                regions[i].imageExtent.depth = 1;
+            }
         }
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkCmdCopyBufferToImage(compute_command_buffer, src.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, channels, regions);
+            vkCmdCopyBufferToImage(compute_command_buffer, src.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region_count, regions);
             delete[] regions;
         }
         else
@@ -595,7 +621,7 @@ void VkCompute::record_copy_to_image(const VkMat& src, VkImageMat& dst, const Op
             r.copy_buffer_to_image.src = src.buffer();
             r.copy_buffer_to_image.dst = dst.image();
             r.copy_buffer_to_image.layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            r.copy_buffer_to_image.region_count = channels;
+            r.copy_buffer_to_image.region_count = region_count;
             r.copy_buffer_to_image.regions = regions;
             delayed_records.push_back(r);
         }
@@ -2065,26 +2091,49 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
 
     // record staging to device
     {
-        VkBufferImageCopy* regions = new VkBufferImageCopy[channels];
-        for (int i = 0; i < channels; i++)
+        if ((int)dst_staging.cstep == dst_staging.w * dst_staging.h)
         {
-            regions[i].bufferOffset = dst_staging.buffer_offset() + dst_staging.cstep * dst_staging.elemsize;
-            regions[i].bufferRowLength = 0;
-            regions[i].bufferImageHeight = 0;
-            regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            regions[i].imageSubresource.mipLevel = 0;
-            regions[i].imageSubresource.baseArrayLayer = 0;
-            regions[i].imageSubresource.layerCount = 1;
-            regions[i].imageOffset.x = 0;
-            regions[i].imageOffset.y = src.h * i;
-            regions[i].imageOffset.z = 0;
-            regions[i].imageExtent.width = image_width;
-            regions[i].imageExtent.height = src.h;
-            regions[i].imageExtent.depth = 1;
-        }
+            // no channel gap
+            VkBufferImageCopy region;
+            region.bufferOffset = dst_staging.buffer_offset();
+            region.bufferRowLength = 0;
+            region.bufferImageHeight = 0;
+            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            region.imageSubresource.mipLevel = 0;
+            region.imageSubresource.baseArrayLayer = 0;
+            region.imageSubresource.layerCount = 1;
+            region.imageOffset.x = 0;
+            region.imageOffset.y = 0;
+            region.imageOffset.z = 0;
+            region.imageExtent.width = image_width;
+            region.imageExtent.height = image_height;
+            region.imageExtent.depth = 1;
 
-        vkCmdCopyBufferToImage(command_buffer, dst_staging.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, channels, regions);
-        delete[] regions;
+            vkCmdCopyBufferToImage(command_buffer, dst_staging.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        }
+        else
+        {
+            VkBufferImageCopy* regions = new VkBufferImageCopy[channels];
+            for (int i = 0; i < channels; i++)
+            {
+                regions[i].bufferOffset = dst_staging.buffer_offset() + dst_staging.cstep * dst_staging.elemsize;
+                regions[i].bufferRowLength = 0;
+                regions[i].bufferImageHeight = 0;
+                regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                regions[i].imageSubresource.mipLevel = 0;
+                regions[i].imageSubresource.baseArrayLayer = 0;
+                regions[i].imageSubresource.layerCount = 1;
+                regions[i].imageOffset.x = 0;
+                regions[i].imageOffset.y = src.h * i;
+                regions[i].imageOffset.z = 0;
+                regions[i].imageExtent.width = image_width;
+                regions[i].imageExtent.height = src.h;
+                regions[i].imageExtent.depth = 1;
+            }
+
+            vkCmdCopyBufferToImage(command_buffer, dst_staging.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, channels, regions);
+            delete[] regions;
+        }
     }
 
     if (vkdev->info.unified_compute_transfer_queue)

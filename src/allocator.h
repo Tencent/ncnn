@@ -249,11 +249,10 @@ public:
 protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
     VkDeviceMemory allocate_memory(size_t size);
-    VkDeviceMemory allocate_dedicated_memory(size_t size, VkBuffer buffer);
+    VkDeviceMemory allocate_dedicated_memory(size_t size, VkImage image, VkBuffer buffer);
 
     VkImage create_image(int width, int height, VkFormat format, VkImageUsageFlags usage);
     VkImageView create_imageview(VkImage image, VkFormat format);
-    VkDeviceMemory allocate_dedicated_memory(size_t size, VkImage image);
 };
 
 class VkBlobAllocator : public VkAllocator
