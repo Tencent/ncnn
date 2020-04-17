@@ -27,6 +27,9 @@ Convolution_vulkan::Convolution_vulkan()
 
     padding = 0;
 
+    pipeline_convolution_pack4_adreno = 0;
+    pipeline_convolution_pack4_1x1s1d1_adreno = 0;
+
     pipeline_convolution = 0;
     pipeline_convolution_1x1s1d1 = 0;
     pipeline_convolution_pack4 = 0;
@@ -241,6 +244,13 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         if (is_conv1x1s1d1)
         {
+
+            {
+            pipeline_convolution_pack4_1x1s1d1_adreno = new Pipeline(vkdev);
+            pipeline_convolution_pack4_1x1s1d1_adreno->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_convolution_pack4_1x1s1d1_adreno->create(LayerShaderType::convolution_pack4_1x1s1d1_adreno, opt, specializations);
+            }
+
             pipeline_convolution_pack4_1x1s1d1 = new Pipeline(vkdev);
             pipeline_convolution_pack4_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output / 4));
 
@@ -394,6 +404,10 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             pipeline_convolution_pack4 = new Pipeline(vkdev);
             pipeline_convolution_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_convolution_pack4->create(LayerShaderType::convolution_pack4, opt, specializations);
+
+            pipeline_convolution_pack4_adreno = new Pipeline(vkdev);
+            pipeline_convolution_pack4_adreno->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_convolution_pack4_adreno->create(LayerShaderType::convolution_pack4_adreno, opt, specializations);
         }
     }
 
@@ -618,6 +632,12 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
         padding = 0;
     }
 
+    delete pipeline_convolution_pack4_adreno;
+    pipeline_convolution_pack4_adreno = 0;
+
+    delete pipeline_convolution_pack4_1x1s1d1_adreno;
+    pipeline_convolution_pack4_1x1s1d1_adreno = 0;
+
     delete pipeline_convolution;
     pipeline_convolution = 0;
 
@@ -740,6 +760,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
+    cmd.record_upload(weight_data_packed, weight_data_gpu_adreno, opt);
 
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
@@ -962,6 +983,8 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         convert_packing(bias_data, bias_data_packed, out_elempack);
 
         cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+
+        cmd.record_upload(bias_data_packed, bias_data_gpu_adreno, opt);
     }
 
     if (innerproduct)
@@ -1386,6 +1409,44 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     }
     else if (elempack == 4 && out_elempack == 4 && kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
     {
+        if (1)
+        {
+            std::vector<vk_constant_type> constants(10);
+            constants[0].i = bottom_blob_bordered.dims;
+            constants[1].i = bottom_blob_bordered.w;
+            constants[2].i = bottom_blob_bordered.h;
+            constants[3].i = bottom_blob_bordered.c;
+            constants[4].i = bottom_blob_bordered.cstep;
+            constants[5].i = top_blob.dims;
+            constants[6].i = top_blob.w;
+            constants[7].i = top_blob.h;
+            constants[8].i = top_blob.c;
+            constants[9].i = top_blob.cstep;
+
+            VkImageMat bottom_blob_bordered_adreno;
+            cmd.record_copy_to_image(bottom_blob_bordered, bottom_blob_bordered_adreno, opt);
+
+            if (!bottom_blob_bordered_adreno.empty() && !weight_data_gpu_adreno.empty() && (!bias_term || !bias_data_gpu_adreno.empty()))
+            {
+
+            std::vector<VkMat> bindings(1);
+            bindings[0] = top_blob;
+
+            std::vector<VkImageMat> image_bindings(3);
+            image_bindings[0] = bottom_blob_bordered_adreno;
+            image_bindings[1] = weight_data_gpu_adreno;
+            image_bindings[2] = bias_term ? bias_data_gpu_adreno : image_bindings[1];// TODO use dummy image
+
+            cmd.record_pipeline(pipeline_convolution_pack4_1x1s1d1_adreno, bindings, image_bindings, constants, top_blob);
+
+//             fprintf(stderr, "pipeline_convolution_pack4_1x1s1d1_adreno  %d %d %d -> %d %d %d  with k=%d d=%d s=%d\n", bottom_blob_bordered.w, bottom_blob_bordered.h, bottom_blob_bordered.c, top_blob.w, top_blob.h, top_blob.c, kernel_w, dilation_w, stride_w);
+
+//             fprintf(stderr, "weight_data_gpu_adreno  %d %d\n", weight_data_gpu_adreno.width, weight_data_gpu_adreno.height);
+
+            return 0;
+            }
+        }
+
         std::vector<vk_constant_type> constants(8);
         constants[0].i = bottom_blob_bordered.dims;
         constants[1].i = bottom_blob_bordered.w * bottom_blob_bordered.h;
@@ -1435,6 +1496,34 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
+
+        if (1 && elempack == 4 && out_elempack == 4)
+        {
+            VkImageMat bottom_blob_bordered_adreno;
+            cmd.record_copy_to_image(bottom_blob_bordered, bottom_blob_bordered_adreno, opt);
+
+            if (!bottom_blob_bordered_adreno.empty() && !weight_data_gpu_adreno.empty() && (!bias_term || !bias_data_gpu_adreno.empty()))
+            {
+
+            std::vector<VkMat> bindings(1);
+            bindings[0] = top_blob;
+
+            std::vector<VkImageMat> image_bindings(3);
+            image_bindings[0] = bottom_blob_bordered_adreno;
+            image_bindings[1] = weight_data_gpu_adreno;
+            image_bindings[2] = bias_term ? bias_data_gpu_adreno : image_bindings[1];// TODO use dummy image
+
+            const Pipeline* pipeline = pipeline_convolution_pack4_adreno;
+
+            cmd.record_pipeline(pipeline, bindings, image_bindings, constants, top_blob);
+
+//             fprintf(stderr, "pipeline_convolution_pack4_adreno  %d %d %d -> %d %d %d  with k=%d d=%d s=%d\n", bottom_blob_bordered.w, bottom_blob_bordered.h, bottom_blob_bordered.c, top_blob.w, top_blob.h, top_blob.c, kernel_w, dilation_w, stride_w);
+
+//             fprintf(stderr, "weight_data_gpu_adreno  %d %d\n", weight_data_gpu_adreno.width, weight_data_gpu_adreno.height);
+
+            return 0;
+            }
+        }
 
         const Pipeline* pipeline = 0;
         if (elempack == 1 && out_elempack == 1)

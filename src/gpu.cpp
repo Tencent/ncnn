@@ -604,6 +604,7 @@ int create_gpu_instance()
         gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
         gpu_info.non_coherent_atom_size = physicalDeviceProperties.limits.nonCoherentAtomSize;
         gpu_info.buffer_image_granularity = physicalDeviceProperties.limits.bufferImageGranularity;
+        gpu_info.max_image_dimension_2d = physicalDeviceProperties.limits.maxImageDimension2D;
 
         gpu_info.timestamp_period = physicalDeviceProperties.limits.timestampPeriod;
 

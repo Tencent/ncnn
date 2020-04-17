@@ -720,8 +720,9 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
     vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
 
     const size_t size = memoryRequirements.size;
+    const size_t alignment = std::max(memoryRequirements.alignment, bind_memory_offset_alignment);
 
-    size_t aligned_size = alignSize(size, bind_memory_offset_alignment);
+    size_t aligned_size = alignSize(size, alignment);
 
     const int image_memory_block_count = image_memory_blocks.size();
 
@@ -731,8 +732,11 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
         std::list< std::pair<size_t, size_t> >::iterator it = image_memory_budgets[i].begin();
         while (it != image_memory_budgets[i].end())
         {
+            // we cannot use it->first directly for base offset alignment
+            size_t bind_base_offset = it->first;
+            size_t bind_offset = alignSize(bind_base_offset, alignment);
             size_t budget_size = it->second;
-            if (budget_size < aligned_size)
+            if (budget_size < aligned_size + (bind_offset - bind_base_offset))
             {
                 it++;
                 continue;
@@ -740,7 +744,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
 
             // bind at memory offset
             ptr->memory = image_memory_blocks[i];
-            ptr->bind_offset = it->first;
+            ptr->bind_offset = bind_offset;
             ptr->bind_capacity = aligned_size;
 
             vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
@@ -751,6 +755,17 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             ptr->external_destroy = false;
+
+            if (bind_base_offset != bind_offset)
+            {
+                // NOTE there is small offset inside bind_base_offset and bind_offset
+                // adjust ptr->bind_offset and ptr->bind_capacity after vkBindImageMemory
+                // so that memory management could be easier
+                aligned_size += (bind_offset - bind_base_offset);
+
+                ptr->bind_offset = bind_base_offset;
+                ptr->bind_capacity = aligned_size;
+            }
 
             // adjust image_memory_budgets
             if (budget_size == aligned_size)
@@ -795,6 +810,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
+    // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
     vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
 
     ptr->imageview = create_imageview(ptr->image, format);
@@ -987,35 +1003,28 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     const int buffer_block_count = buffer_blocks.size();
 
     // find first spare space in buffer_blocks
-    int block_index = -1;
-    size_t block_offset = 0;
     for (int i=0; i<buffer_block_count; i++)
     {
         size_t free_size = buffer_block_free_spaces[i];
         if (free_size >= aligned_size)
         {
-            block_index = i;
-            block_offset = block_size - free_size;
-            break;
+            size_t block_offset = block_size - free_size;
+
+            // return sub buffer
+            VkBufferMemory* ptr = new VkBufferMemory;
+
+            ptr->buffer = buffer_blocks[i]->buffer;
+            ptr->offset = block_offset;
+            ptr->memory = buffer_blocks[i]->memory;
+            ptr->capacity = aligned_size;
+            ptr->mapped_ptr = buffer_blocks[i]->mapped_ptr;
+            ptr->access_flags = 0;
+            ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+            buffer_block_free_spaces[i] -= aligned_size;
+
+            return ptr;
         }
-    }
-
-    if (block_index != -1)
-    {
-        // return sub buffer
-        VkBufferMemory* ptr = new VkBufferMemory;
-
-        ptr->buffer = buffer_blocks[block_index]->buffer;
-        ptr->offset = block_offset;
-        ptr->memory = buffer_blocks[block_index]->memory;
-        ptr->capacity = aligned_size;
-        ptr->mapped_ptr = buffer_blocks[block_index]->mapped_ptr;
-        ptr->access_flags = 0;
-        ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-
-        buffer_block_free_spaces[block_index] -= aligned_size;
-
-        return ptr;
     }
 
     size_t new_block_size = std::max(block_size, aligned_size);
@@ -1224,44 +1233,49 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat for
     vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
 
     const size_t size = memoryRequirements.size;
+    const size_t alignment = std::max(memoryRequirements.alignment, bind_memory_offset_alignment);
 
-    size_t aligned_size = alignSize(size, bind_memory_offset_alignment);
+    size_t aligned_size = alignSize(size, alignment);
 
     const int image_memory_block_count = image_memory_blocks.size();
 
     // find first spare space in buffer_blocks
-    int block_index = -1;
-    size_t block_offset = 0;
     for (int i=0; i<image_memory_block_count; i++)
     {
-        size_t free_size = image_memory_block_free_spaces[i];
-        if (free_size >= aligned_size)
+        // we cannot use image_memory_block_free_spaces[i] directly for base offset alignment
+        size_t bind_base_offset = block_size - image_memory_block_free_spaces[i];
+        size_t bind_offset = alignSize(bind_base_offset, alignment);
+        if (image_memory_block_free_spaces[i] >= aligned_size + (bind_offset - bind_base_offset))
         {
-            block_index = i;
-            block_offset = block_size - free_size;
-            break;
+            // bind at memory offset
+            ptr->memory = image_memory_blocks[i];
+            ptr->bind_offset = bind_offset;
+            ptr->bind_capacity = aligned_size;
+
+            vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
+
+            ptr->imageview = create_imageview(ptr->image, format);
+
+            ptr->access_flags = 0;
+            ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+            ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            ptr->external_destroy = false;
+
+            if (bind_base_offset != bind_offset)
+            {
+                // NOTE there is small offset inside bind_base_offset and bind_offset
+                // adjust ptr->bind_offset and ptr->bind_capacity after vkBindImageMemory
+                // so that memory management could be easier
+                aligned_size += (bind_offset - bind_base_offset);
+
+                ptr->bind_offset = bind_base_offset;
+                ptr->bind_capacity = aligned_size;
+            }
+
+            image_memory_block_free_spaces[i] -= aligned_size;
+
+            return ptr;
         }
-    }
-
-    if (block_index != -1)
-    {
-        // bind at memory offset
-        ptr->memory = image_memory_blocks[block_index];
-        ptr->bind_offset = block_offset;
-        ptr->bind_capacity = aligned_size;
-
-        vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
-
-        ptr->imageview = create_imageview(ptr->image, format);
-
-        ptr->access_flags = 0;
-        ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-        ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        ptr->external_destroy = false;
-
-        buffer_block_free_spaces[block_index] -= aligned_size;
-
-        return ptr;
     }
 
     // setup memory type and alignment
@@ -1290,6 +1304,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat for
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
+    // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
     vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
 
     ptr->imageview = create_imageview(ptr->image, format);

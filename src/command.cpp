@@ -45,7 +45,7 @@ VkCompute::~VkCompute()
 
         if (ptr->external_destroy && ptr->refcount == 0)
         {
-            fprintf(stderr, "no reference, we can safely destroy it\n");
+//             fprintf(stderr, "no reference, we can safely destroy it\n");
             // no reference, we can safely destroy it
             vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
             vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
@@ -54,7 +54,7 @@ VkCompute::~VkCompute()
         }
         else
         {
-            fprintf(stderr, "reference exists in user code\n");
+//             fprintf(stderr, "reference exists in user code\n");
             // reference exists in user code
             ptr->external_destroy = false;
         }
@@ -487,6 +487,11 @@ void VkCompute::record_copy_to_image(const VkMat& src, VkImageMat& dst, const Op
     }
 
     // TODO check device limit
+    if (image_width > vkdev->info.max_image_dimension_2d || image_height > vkdev->info.max_image_dimension_2d)
+    {
+        fprintf(stderr, "image dimension too large  %d %d\n", image_width, image_height);
+        return;
+    }
 
     dst.create(image_width, image_height, format, opt.blob_vkallocator);
 
@@ -1948,7 +1953,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
 void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& opt)
 {
-//     fprintf(stderr, "record_upload src = %d | %d %d %d @ %d\n", src.dims, src.w, src.h, src.c, src.elempack);
+//     fprintf(stderr, "record_upload image src = %d | %d %d %d @ %d\n", src.dims, src.w, src.h, src.c, src.elempack);
 
     int elempack = src.elempack;
 
@@ -1975,8 +1980,8 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
     int channels = src.c;
 
     // create dst
-    int image_width = src.w;
-    int image_height = src.h * channels;
+    int image_width = src.w * src.h;
+    int image_height = channels;
     VkFormat format = VK_FORMAT_UNDEFINED;
     if (src.elemsize / elempack == 4)
     {
@@ -2034,6 +2039,11 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
     }
 
     // TODO check device limit
+    if (image_width > vkdev->info.max_image_dimension_2d || image_height > vkdev->info.max_image_dimension_2d)
+    {
+        fprintf(stderr, "image dimension too large  %d %d\n", image_width, image_height);
+        return;
+    }
 
     dst.create(image_width, image_height, format, opt.blob_vkallocator);
 
@@ -2100,49 +2110,26 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
 
     // record staging to image
     {
-        if ((int)dst_staging.cstep == dst_staging.w * dst_staging.h)
+        VkBufferImageCopy* regions = new VkBufferImageCopy[channels];
+        for (int i = 0; i < channels; i++)
         {
-            // no channel gap
-            VkBufferImageCopy region;
-            region.bufferOffset = dst_staging.buffer_offset();
-            region.bufferRowLength = 0;
-            region.bufferImageHeight = 0;
-            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            region.imageSubresource.mipLevel = 0;
-            region.imageSubresource.baseArrayLayer = 0;
-            region.imageSubresource.layerCount = 1;
-            region.imageOffset.x = 0;
-            region.imageOffset.y = 0;
-            region.imageOffset.z = 0;
-            region.imageExtent.width = image_width;
-            region.imageExtent.height = image_height;
-            region.imageExtent.depth = 1;
-
-            vkCmdCopyBufferToImage(command_buffer, dst_staging.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+            regions[i].bufferOffset = dst_staging.buffer_offset() + dst_staging.cstep * dst_staging.elemsize * i;
+            regions[i].bufferRowLength = 0;
+            regions[i].bufferImageHeight = 0;
+            regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            regions[i].imageSubresource.mipLevel = 0;
+            regions[i].imageSubresource.baseArrayLayer = 0;
+            regions[i].imageSubresource.layerCount = 1;
+            regions[i].imageOffset.x = 0;
+            regions[i].imageOffset.y = i;
+            regions[i].imageOffset.z = 0;
+            regions[i].imageExtent.width = image_width;
+            regions[i].imageExtent.height = 1;
+            regions[i].imageExtent.depth = 1;
         }
-        else
-        {
-            VkBufferImageCopy* regions = new VkBufferImageCopy[channels];
-            for (int i = 0; i < channels; i++)
-            {
-                regions[i].bufferOffset = dst_staging.buffer_offset() + dst_staging.cstep * dst_staging.elemsize * i;
-                regions[i].bufferRowLength = 0;
-                regions[i].bufferImageHeight = 0;
-                regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                regions[i].imageSubresource.mipLevel = 0;
-                regions[i].imageSubresource.baseArrayLayer = 0;
-                regions[i].imageSubresource.layerCount = 1;
-                regions[i].imageOffset.x = 0;
-                regions[i].imageOffset.y = src.h * i;
-                regions[i].imageOffset.z = 0;
-                regions[i].imageExtent.width = image_width;
-                regions[i].imageExtent.height = src.h;
-                regions[i].imageExtent.depth = 1;
-            }
 
-            vkCmdCopyBufferToImage(command_buffer, dst_staging.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, channels, regions);
-            delete[] regions;
-        }
+        vkCmdCopyBufferToImage(command_buffer, dst_staging.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, channels, regions);
+        delete[] regions;
     }
 
     if (vkdev->info.unified_compute_transfer_queue)
