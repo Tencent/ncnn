@@ -35,7 +35,11 @@ public:
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt);
 
+    void record_upload(const Mat& src, VkImageMat& dst, const Option& opt);
+
     void record_download(const VkMat& src, Mat& dst, const Option& opt);
+
+    void record_download(const VkImageMat& src, Mat& dst, const Option& opt);
 
     void record_clone(const VkMat& src, VkMat& dst, const Option& opt);
 
