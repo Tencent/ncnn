@@ -137,6 +137,62 @@ int Layer::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, co
     return forward_inplace(top_blob, cmd, opt);
 }
 
+int Layer::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    if (!support_inplace)
+    {
+        // fallback to buffer implementation
+        std::vector<VkMat> bottom_blob_buffers(bottom_blobs.size());
+        for (int i = 0; i < (int)bottom_blobs.size(); i++)
+        {
+            cmd.record_image_to_buffer(bottom_blobs[i], bottom_blob_buffers[i], opt);
+        }
+
+        std::vector<VkMat> top_blob_buffers(top_blobs.size());
+        int ret = forward(bottom_blob_buffers, top_blob_buffers, cmd, opt);
+        if (ret != 0)
+            return ret;
+
+        for (int i = 0; i < (int)top_blobs.size(); i++)
+        {
+            cmd.record_buffer_to_image(top_blob_buffers[i], top_blobs[i], opt);
+        }
+
+        return 0;
+    }
+
+    top_blobs.resize(bottom_blobs.size());
+    for (int i = 0; i < (int)top_blobs.size(); i++)
+    {
+        cmd.record_clone(bottom_blobs[i], top_blobs[i], opt);
+    }
+
+    return forward_inplace(top_blobs, cmd, opt);
+}
+
+int Layer::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    if (!support_inplace)
+    {
+        // fallback to buffer implementation
+        VkMat bottom_blob_buffer;
+        cmd.record_image_to_buffer(bottom_blob, bottom_blob_buffer, opt);
+
+        VkMat top_blob_buffer;
+        int ret = forward(bottom_blob_buffer, top_blob_buffer, cmd, opt);
+        if (ret != 0)
+            return ret;
+
+        cmd.record_buffer_to_image(top_blob_buffer, top_blob, opt);
+
+        return 0;
+    }
+
+    cmd.record_clone(bottom_blob, top_blob, opt);
+
+    return forward_inplace(top_blob, cmd, opt);
+}
+
 int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
@@ -145,6 +201,42 @@ int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, VkCompute& 
 int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
+}
+
+int Layer::forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    // fallback to buffer implementation
+    std::vector<VkMat> bottom_top_blob_buffers(bottom_top_blobs.size());
+    for (int i = 0; i < (int)bottom_top_blobs.size(); i++)
+    {
+        cmd.record_image_to_buffer(bottom_top_blobs[i], bottom_top_blob_buffers[i], opt);
+    }
+
+    int ret = forward_inplace(bottom_top_blob_buffers, cmd, opt);
+    if (ret != 0)
+        return ret;
+
+    for (int i = 0; i < (int)bottom_top_blobs.size(); i++)
+    {
+        cmd.record_buffer_to_image(bottom_top_blob_buffers[i], bottom_top_blobs[i], opt);
+    }
+
+    return 0;
+}
+
+int Layer::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+{
+    // fallback to buffer implementation
+    VkMat bottom_top_blob_buffer;
+    cmd.record_image_to_buffer(bottom_top_blob, bottom_top_blob_buffer, opt);
+
+    int ret = forward_inplace(bottom_top_blob_buffer, cmd, opt);
+    if (ret != 0)
+        return ret;
+
+    cmd.record_buffer_to_image(bottom_top_blob_buffer, bottom_top_blob, opt);
+
+    return 0;
 }
 #endif // NCNN_VULKAN
 

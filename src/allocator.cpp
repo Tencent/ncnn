@@ -756,7 +756,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int width, int height, int 
     vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
 
     const size_t size = memoryRequirements.size;
-    const size_t alignment = std::max(memoryRequirements.alignment, bind_memory_offset_alignment);
+    const size_t alignment = std::max((size_t)memoryRequirements.alignment, bind_memory_offset_alignment);
 
     size_t aligned_size = alignSize(size, alignment);
 
@@ -1305,7 +1305,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, in
     vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
 
     const size_t size = memoryRequirements.size;
-    const size_t alignment = std::max(memoryRequirements.alignment, bind_memory_offset_alignment);
+    const size_t alignment = std::max((size_t)memoryRequirements.alignment, bind_memory_offset_alignment);
 
     size_t aligned_size = alignSize(size, alignment);
 
