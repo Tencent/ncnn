@@ -751,6 +751,13 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int width, int height, int 
 
     ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
+    ptr->image_type = image_type;
+    ptr->imageview_type = imageview_type;
+    ptr->width = width;
+    ptr->height = height;
+    ptr->depth = depth;
+    ptr->format = format;
+
     // TODO respect VK_KHR_dedicated_allocation ?
     VkMemoryRequirements memoryRequirements;
     vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
@@ -1239,6 +1246,13 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, in
     VkImageMemory* ptr = new VkImageMemory;
 
     ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+    ptr->image_type = image_type;
+    ptr->imageview_type = imageview_type;
+    ptr->width = width;
+    ptr->height = height;
+    ptr->depth = depth;
+    ptr->format = format;
 
     if (vkdev->info.support_VK_KHR_get_memory_requirements2 && vkdev->info.support_VK_KHR_dedicated_allocation)
     {

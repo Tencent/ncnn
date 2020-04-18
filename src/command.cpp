@@ -313,11 +313,8 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
 
     // create dst
     dst.create_like(src, opt.blob_vkallocator);
-
     if (dst.empty())
-    {
         return;
-    }
 
     // image layout transform any @ any to transfer-src-optimal @ compute
     if (src.data->access_flags != VK_ACCESS_TRANSFER_READ_BIT || src.data->image_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
@@ -415,9 +412,9 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
         regions[0].dstOffset.x = 0;
         regions[0].dstOffset.y = 0;
         regions[0].dstOffset.z = 0;
-        regions[0].extent.width = src.width * src.widthpack;
-        regions[0].extent.height = src.height;
-        regions[0].extent.depth = src.depth;
+        regions[0].extent.width = src.data->width;
+        regions[0].extent.height = src.data->height;
+        regions[0].extent.depth = src.data->depth;
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
@@ -470,21 +467,16 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
 
     // create dst
     int dims = src.dims;
-    int width = src.w;
-    int height = src.h;
-    int depth = src.c;
+    int w = src.w;
+    int h = src.h;
+    int channels = src.c;
     VkFormat format = VK_FORMAT_UNDEFINED;
-    int widthpack = 1;
     if (opt.use_fp16_storage)
     {
         if (elempack == 1) format = VK_FORMAT_R16_SFLOAT;
         if (elempack == 2) format = VK_FORMAT_R16G16_SFLOAT;
         if (elempack == 4) format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        if (elempack == 8)
-        {
-            widthpack = 2;
-            format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        }
+        if (elempack == 8) format = VK_FORMAT_R16G16B16A16_SFLOAT;
     }
     else if (opt.use_fp16_packed)
     {
@@ -499,24 +491,18 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
         if (elempack == 1) format = VK_FORMAT_R32_SFLOAT;
         if (elempack == 2) format = VK_FORMAT_R32G32_SFLOAT;
         if (elempack == 4) format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        if (elempack == 8)
-        {
-            widthpack = 2;
-            format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        }
+        if (elempack == 8) format = VK_FORMAT_R32G32B32A32_SFLOAT;
     }
 
     if (dims == 1)
-        dst.create(width, format, widthpack, opt.blob_vkallocator);
+        dst.create(w, format, elempack, opt.blob_vkallocator);
     if (dims == 2)
-        dst.create(width, height, format, widthpack, opt.blob_vkallocator);
+        dst.create(w, h, format, elempack, opt.blob_vkallocator);
     if (dims == 3)
-        dst.create(width, height, depth, format, widthpack, opt.blob_vkallocator);
+        dst.create(w, h, channels, format, elempack, opt.blob_vkallocator);
 
     if (dst.empty())
-    {
         return;
-    }
 
     // barrier device any @ any to transfer-read @ compute
     if (src.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
@@ -598,8 +584,8 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
 
     // record device to image
     {
-        VkBufferImageCopy* regions = new VkBufferImageCopy[depth];
-        for (int i = 0; i < depth; i++)
+        VkBufferImageCopy* regions = new VkBufferImageCopy[channels];
+        for (int i = 0; i < channels; i++)
         {
             regions[i].bufferOffset = src.buffer_offset() + src.cstep * src.elemsize * i;
             regions[i].bufferRowLength = 0;
@@ -611,14 +597,14 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
             regions[i].imageOffset.x = 0;
             regions[i].imageOffset.y = 0;
             regions[i].imageOffset.z = i;
-            regions[i].imageExtent.width = width * widthpack;
-            regions[i].imageExtent.height = height;
+            regions[i].imageExtent.width = dst.data->width;
+            regions[i].imageExtent.height = dst.data->height;
             regions[i].imageExtent.depth = 1;
         }
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkCmdCopyBufferToImage(compute_command_buffer, src.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, depth, regions);
+            vkCmdCopyBufferToImage(compute_command_buffer, src.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, channels, regions);
             delete[] regions;
         }
         else
@@ -629,7 +615,7 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
             r.copy_buffer_to_image.src = src.buffer();
             r.copy_buffer_to_image.dst = dst.image();
             r.copy_buffer_to_image.layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            r.copy_buffer_to_image.region_count = depth;
+            r.copy_buffer_to_image.region_count = channels;
             r.copy_buffer_to_image.regions = regions;
             delayed_records.push_back(r);
         }
@@ -651,41 +637,23 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
 
     // create dst
     int dims = src.dims;
-    int w = src.width;
-    int h = src.height;
-    int channels = src.depth;
+    int w = src.w;
+    int h = src.h;
+    int channels = src.c;
     size_t elemsize = 4u;
-    int elempack = src.widthpack;
+    int elempack = src.elempack;
     if (opt.use_fp16_storage)
     {
-        if (src.format == VK_FORMAT_R16G16_SFLOAT)
-            elempack *= 2;
-        if (src.format == VK_FORMAT_R16G16B16A16_SFLOAT)
-            elempack *= 4;
-
         elemsize = 2u * elempack;
     }
     else if (opt.use_fp16_packed)
     {
-        if (src.format == VK_FORMAT_R32_UINT)
-            elempack *= 2;
-        if (src.format == VK_FORMAT_R32G32_UINT)
-            elempack *= 4;
-        if (src.format == VK_FORMAT_R32G32B32A32_UINT)
-            elempack *= 8;
-
         elemsize = 2u * elempack;
-
         if (elempack == 1)
             elemsize = 4u;
     }
     else
     {
-        if (src.format == VK_FORMAT_R32G32_SFLOAT)
-            elempack *= 2;
-        if (src.format == VK_FORMAT_R32G32B32A32_SFLOAT)
-            elempack *= 4;
-
         elemsize = 4u * elempack;
     }
 
@@ -697,9 +665,7 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
         dst.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator);
 
     if (dst.empty())
-    {
         return;
-    }
 
     // image layout transform any @ any to transfer-src-optimal @ compute
     if (src.data->access_flags != VK_ACCESS_TRANSFER_READ_BIT || src.data->image_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
@@ -761,8 +727,8 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
             regions[i].imageOffset.x = 0;
             regions[i].imageOffset.y = 0;
             regions[i].imageOffset.z = i;
-            regions[i].imageExtent.width = src.width * src.widthpack;
-            regions[i].imageExtent.height = src.height;
+            regions[i].imageExtent.width = src.data->width;
+            regions[i].imageExtent.height = src.data->height;
             regions[i].imageExtent.depth = 1;
         }
 
@@ -2131,37 +2097,20 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
 
     // create dst
     int dims = src.dims;
-    int width = src.w;
-    int height = src.h;
-    int depth = src.c;
+    int w = src.w;
+    int h = src.h;
+    int channels = src.c;
     VkFormat format = VK_FORMAT_UNDEFINED;
-    int widthpack = 1;
     if (src.elemsize / elempack == 4)
     {
         // fp32
         if (elempack == 1) format = VK_FORMAT_R32_SFLOAT;
         if (elempack == 2) format = VK_FORMAT_R32G32_SFLOAT;
         if (elempack == 4) format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        if (elempack == 8)
-        {
-            widthpack = 2;
-            format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        }
-        if (elempack == 16)
-        {
-            widthpack = 4;
-            format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        }
-        if (elempack == 32)
-        {
-            widthpack = 8;
-            format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        }
-        if (elempack == 64)
-        {
-            widthpack = 16;
-            format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        }
+        if (elempack == 8) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 16) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 32) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 64) format = VK_FORMAT_R32G32B32A32_SFLOAT;
     }
     if (src.elemsize / elempack == 2)
     {
@@ -2169,39 +2118,21 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
         if (elempack == 1) format = VK_FORMAT_R16_SFLOAT;
         if (elempack == 2) format = VK_FORMAT_R16G16_SFLOAT;
         if (elempack == 4) format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        if (elempack == 8)
-        {
-            widthpack = 2;
-            format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        }
-        if (elempack == 16)
-        {
-            widthpack = 4;
-            format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        }
-        if (elempack == 32)
-        {
-            widthpack = 8;
-            format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        }
-        if (elempack == 64)
-        {
-            widthpack = 16;
-            format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        }
+        if (elempack == 8) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 16) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 32) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 64) format = VK_FORMAT_R16G16B16A16_SFLOAT;
     }
 
     if (dims == 1)
-        dst.create(width, format, widthpack, opt.blob_vkallocator);
+        dst.create(w, format, elempack, opt.blob_vkallocator);
     if (dims == 2)
-        dst.create(width, height, format, widthpack, opt.blob_vkallocator);
+        dst.create(w, h, format, elempack, opt.blob_vkallocator);
     if (dims == 3)
-        dst.create(width, height, depth, format, widthpack, opt.blob_vkallocator);
+        dst.create(w, h, channels, format, elempack, opt.blob_vkallocator);
 
     if (dst.empty())
-    {
         return;
-    }
 
     // create staging
     VkMat dst_staging;
@@ -2266,8 +2197,8 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
 
     // record staging to image
     {
-        VkBufferImageCopy* regions = new VkBufferImageCopy[depth];
-        for (int i = 0; i < depth; i++)
+        VkBufferImageCopy* regions = new VkBufferImageCopy[channels];
+        for (int i = 0; i < channels; i++)
         {
             regions[i].bufferOffset = dst_staging.buffer_offset() + dst_staging.cstep * dst_staging.elemsize * i;
             regions[i].bufferRowLength = 0;
@@ -2279,12 +2210,12 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
             regions[i].imageOffset.x = 0;
             regions[i].imageOffset.y = 0;
             regions[i].imageOffset.z = i;
-            regions[i].imageExtent.width = width * widthpack;
-            regions[i].imageExtent.height = height;
+            regions[i].imageExtent.width = dst.data->width;
+            regions[i].imageExtent.height = dst.data->height;
             regions[i].imageExtent.depth = 1;
         }
 
-        vkCmdCopyBufferToImage(command_buffer, dst_staging.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, depth, regions);
+        vkCmdCopyBufferToImage(command_buffer, dst_staging.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, channels, regions);
         delete[] regions;
     }
 

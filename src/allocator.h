@@ -205,6 +205,14 @@ public:
     VkImage image;
     VkImageView imageview;
 
+    // underlying info assigned by allocator
+    VkImageType image_type;
+    VkImageViewType imageview_type;
+    int width;
+    int height;
+    int depth;
+    VkFormat format;
+
     VkDeviceMemory memory;
 
     // the base offset assigned by allocator
