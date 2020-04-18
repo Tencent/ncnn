@@ -407,6 +407,8 @@ public:
     void create(int width, int height, VkFormat format, int widthpack, VkAllocator* allocator);
     // allocate packed dim
     void create(int width, int height, int depth, VkFormat format, int widthpack, VkAllocator* allocator);
+    // allocate like
+    void create_like(const VkImageMat& im, VkAllocator* allocator);
 
     // refcount++
     void addref();
@@ -1917,6 +1919,17 @@ inline void VkImageMat::create(int _width, int _height, int _depth, VkFormat _fo
         refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
         *refcount = 1;
     }
+}
+
+inline void VkImageMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
+{
+    int _dims = im.dims;
+    if (_dims == 1)
+        create(im.width, im.format, im.widthpack, _allocator);
+    if (_dims == 2)
+        create(im.width, im.height, im.format, im.widthpack, _allocator);
+    if (_dims == 3)
+        create(im.width, im.height, im.depth, im.format, im.widthpack, _allocator);
 }
 
 inline void VkImageMat::addref()

@@ -39,6 +39,8 @@ public:
 
     void record_clone(const VkMat& src, VkMat& dst, const Option& opt);
 
+    void record_clone(const VkImageMat& src, VkImageMat& dst, const Option& opt);
+
     void record_buffer_to_image(const VkMat& src, VkImageMat& dst, const Option& opt);
 
     void record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt);
@@ -94,6 +96,7 @@ protected:
         enum
         {
             TYPE_copy_buffer,
+            TYPE_copy_image,
             TYPE_copy_buffer_to_image,
             TYPE_copy_image_to_buffer,
             TYPE_bind_pipeline,
@@ -117,6 +120,7 @@ protected:
         union
         {
         struct { VkBuffer src; VkBuffer dst; uint32_t region_count; const VkBufferCopy* regions; } copy_buffer;
+        struct { VkImage src; VkImageLayout src_layout; VkImage dst; VkImageLayout dst_layout; uint32_t region_count; const VkImageCopy* regions; } copy_image;
         struct { VkBuffer src; VkImage dst; VkImageLayout layout; uint32_t region_count; const VkBufferImageCopy* regions; } copy_buffer_to_image;
         struct { VkImage src; VkImageLayout layout; VkBuffer dst; uint32_t region_count; const VkBufferImageCopy* regions; } copy_image_to_buffer;
 

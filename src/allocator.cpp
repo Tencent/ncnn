@@ -790,7 +790,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int width, int height, int 
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            ptr->external_destroy = false;
+            ptr->command_refcount = 0;
 
             if (bind_base_offset != bind_offset)
             {
@@ -854,7 +854,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int width, int height, int 
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    ptr->external_destroy = false;
+    ptr->command_refcount = 0;
 
     // adjust image_memory_budgets
     image_memory_blocks.push_back(ptr->memory);
@@ -891,7 +891,7 @@ void VkBlobAllocator::fastFree(VkImageMemory* ptr)
     {
         fprintf(stderr, "FATAL ERROR! unlocked VkBlobAllocator get wild %p\n", ptr->memory);
 
-        if (!ptr->external_destroy)
+        if (!ptr->command_refcount)
         {
             vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
             vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
@@ -945,7 +945,7 @@ void VkBlobAllocator::fastFree(VkImageMemory* ptr)
         }
     }
 
-    if (!ptr->external_destroy)
+    if (!ptr->command_refcount)
     {
         vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
         vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
@@ -1293,7 +1293,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, in
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            ptr->external_destroy = false;
+            ptr->command_refcount = 0;
 
             dedicated_image_memory_blocks.push_back(ptr->memory);
 
@@ -1331,7 +1331,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, in
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            ptr->external_destroy = false;
+            ptr->command_refcount = 0;
 
             if (bind_base_offset != bind_offset)
             {
@@ -1384,7 +1384,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, in
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    ptr->external_destroy = false;
+    ptr->command_refcount = 0;
 
     image_memory_blocks.push_back(ptr->memory);
     image_memory_block_free_spaces.push_back(new_block_size - aligned_size);
@@ -1396,7 +1396,7 @@ void VkWeightAllocator::fastFree(VkImageMemory* ptr)
 {
 //     fprintf(stderr, "VkWeightAllocator F %p\n", ptr->memory);
 
-    if (!ptr->external_destroy)
+    if (!ptr->command_refcount)
     {
         vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
         vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
