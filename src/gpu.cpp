@@ -604,7 +604,9 @@ int create_gpu_instance()
         gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
         gpu_info.non_coherent_atom_size = physicalDeviceProperties.limits.nonCoherentAtomSize;
         gpu_info.buffer_image_granularity = physicalDeviceProperties.limits.bufferImageGranularity;
+        gpu_info.max_image_dimension_1d = physicalDeviceProperties.limits.maxImageDimension1D;
         gpu_info.max_image_dimension_2d = physicalDeviceProperties.limits.maxImageDimension2D;
+        gpu_info.max_image_dimension_3d = physicalDeviceProperties.limits.maxImageDimension3D;
 
         gpu_info.timestamp_period = physicalDeviceProperties.limits.timestampPeriod;
 
@@ -1070,6 +1072,7 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         VkSamplerCreateInfo samplerCreateInfo;
         samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
         samplerCreateInfo.pNext = 0;
+        samplerCreateInfo.flags = 0;
         samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
         samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
         samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;

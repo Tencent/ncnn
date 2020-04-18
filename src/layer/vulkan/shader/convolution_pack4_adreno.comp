@@ -52,9 +52,9 @@ layout (local_size_z_id = 235) in;
 #define image_ld4(tex,p) afpvec4(texelFetch(tex,p,0))
 
 layout (binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-layout (binding = 1) uniform sampler2D bottom_blob;
-layout (binding = 2) uniform sampler2D weight_blob;
-layout (binding = 3) uniform sampler2D bias_blob;
+layout (binding = 1) uniform sampler3D bottom_blob;
+layout (binding = 2) uniform sampler3D weight_blob;
+layout (binding = 3) uniform sampler1D bias_blob;
 
 layout (push_constant) uniform parameter
 {
@@ -84,7 +84,7 @@ void main()
 
     if (bias_term == 1)
     {
-        sum = image_ld4(bias_blob, ivec2(gz, 0));
+        sum = image_ld4(bias_blob, gz);
     }
     else
     {
@@ -93,9 +93,8 @@ void main()
 
     for (int z = 0; z < psc(c); z++)
     {
-        int sy = z * psc(h) + gy * stride_h;
-//         int wy = gz * psc(c) + z;
-        int wx = z * kernel_w * kernel_h * 4;
+        int sy = gy * stride_h;
+        int wx = 0;
 
         for (int y = 0; y < kernel_h; y++)
         {
@@ -103,14 +102,13 @@ void main()
 
             for (int x = 0; x < kernel_w; x++)
             {
-                afpvec4 v = image_ld4(bottom_blob, ivec2(sx, sy));
+                afpvec4 v = image_ld4(bottom_blob, ivec3(sx, sy, z));
 
-                // 4 * maxk * num_input, num_output
                 afpmat4 k = afpmat4(
-                    image_ld4(weight_blob, ivec2(wx + 0, gz)),
-                    image_ld4(weight_blob, ivec2(wx + 1, gz)),
-                    image_ld4(weight_blob, ivec2(wx + 2, gz)),
-                    image_ld4(weight_blob, ivec2(wx + 3, gz))
+                    image_ld4(weight_blob, ivec3(wx + 0, z, gz)),
+                    image_ld4(weight_blob, ivec3(wx + 1, z, gz)),
+                    image_ld4(weight_blob, ivec3(wx + 2, z, gz)),
+                    image_ld4(weight_blob, ivec3(wx + 3, z, gz))
                 );
 
                 sum += v * k;

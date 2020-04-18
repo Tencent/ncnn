@@ -376,17 +376,17 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, VkImage image
     return memory;
 }
 
-VkImage VkAllocator::create_image(int width, int height, VkFormat format, VkImageUsageFlags usage)
+VkImage VkAllocator::create_image(VkImageType type, int width, int height, int depth, VkFormat format, VkImageUsageFlags usage)
 {
     VkImageCreateInfo imageCreateInfo;
     imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     imageCreateInfo.pNext = 0;
     imageCreateInfo.flags = 0;
-    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageCreateInfo.imageType = type;
     imageCreateInfo.format = format;
     imageCreateInfo.extent.width = width;
     imageCreateInfo.extent.height = height;
-    imageCreateInfo.extent.depth = 1;
+    imageCreateInfo.extent.depth = depth;
     imageCreateInfo.mipLevels = 1;
     imageCreateInfo.arrayLayers = 1;
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -408,14 +408,14 @@ VkImage VkAllocator::create_image(int width, int height, VkFormat format, VkImag
     return image;
 }
 
-VkImageView VkAllocator::create_imageview(VkImage image, VkFormat format)
+VkImageView VkAllocator::create_imageview(VkImageViewType type, VkImage image, VkFormat format)
 {
     VkImageViewCreateInfo imageViewCreateInfo;
     imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     imageViewCreateInfo.pNext = 0;
     imageViewCreateInfo.flags = 0;
     imageViewCreateInfo.image = image;
-    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCreateInfo.viewType = type;
     imageViewCreateInfo.format = format;
     imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
     imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -709,11 +709,47 @@ void VkBlobAllocator::fastFree(VkBufferMemory* ptr)
     delete ptr;
 }
 
-VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat format)
+VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int width, int height, int depth, VkFormat format)
 {
+    VkImageType image_type;
+    VkImageViewType imageview_type;
+    if (dims == 1)
+    {
+        image_type = VK_IMAGE_TYPE_1D;
+        imageview_type = VK_IMAGE_VIEW_TYPE_1D;
+
+        if (width > (int)vkdev->info.max_image_dimension_1d)
+        {
+            fprintf(stderr, "image dimension too large %d\n", width);
+            return 0;
+        }
+    }
+    else if (dims == 2)
+    {
+        image_type = VK_IMAGE_TYPE_2D;
+        imageview_type = VK_IMAGE_VIEW_TYPE_2D;
+
+        if (width > (int)vkdev->info.max_image_dimension_2d || height > (int)vkdev->info.max_image_dimension_2d)
+        {
+            fprintf(stderr, "image dimension too large %d %d\n", width, height);
+            return 0;
+        }
+    }
+    else // if (dims == 3)
+    {
+        image_type = VK_IMAGE_TYPE_3D;
+        imageview_type = VK_IMAGE_VIEW_TYPE_3D;
+
+        if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
+        {
+            fprintf(stderr, "image dimension too large %d %d %d\n", width, height, depth);
+            return 0;
+        }
+    }
+
     VkImageMemory* ptr = new VkImageMemory;
 
-    ptr->image = create_image(width, height, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     // TODO respect VK_KHR_dedicated_allocation ?
     VkMemoryRequirements memoryRequirements;
@@ -749,7 +785,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
 
             vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
 
-            ptr->imageview = create_imageview(ptr->image, format);
+            ptr->imageview = create_imageview(imageview_type, ptr->image, format);
 
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -813,7 +849,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int width, int height, VkFormat forma
     // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
     vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
 
-    ptr->imageview = create_imageview(ptr->image, format);
+    ptr->imageview = create_imageview(imageview_type, ptr->image, format);
 
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1162,11 +1198,47 @@ void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
     delete ptr;
 }
 
-VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat format)
+VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, int depth, VkFormat format)
 {
+    VkImageType image_type;
+    VkImageViewType imageview_type;
+    if (dims == 1)
+    {
+        image_type = VK_IMAGE_TYPE_1D;
+        imageview_type = VK_IMAGE_VIEW_TYPE_1D;
+
+        if (width > (int)vkdev->info.max_image_dimension_1d)
+        {
+            fprintf(stderr, "image dimension too large %d\n", width);
+            return 0;
+        }
+    }
+    else if (dims == 2)
+    {
+        image_type = VK_IMAGE_TYPE_2D;
+        imageview_type = VK_IMAGE_VIEW_TYPE_2D;
+
+        if (width > (int)vkdev->info.max_image_dimension_2d || height > (int)vkdev->info.max_image_dimension_2d)
+        {
+            fprintf(stderr, "image dimension too large %d %d\n", width, height);
+            return 0;
+        }
+    }
+    else // if (dims == 3)
+    {
+        image_type = VK_IMAGE_TYPE_3D;
+        imageview_type = VK_IMAGE_VIEW_TYPE_3D;
+
+        if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
+        {
+            fprintf(stderr, "image dimension too large %d %d %d\n", width, height, depth);
+            return 0;
+        }
+    }
+
     VkImageMemory* ptr = new VkImageMemory;
 
-    ptr->image = create_image(width, height, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     if (vkdev->info.support_VK_KHR_get_memory_requirements2 && vkdev->info.support_VK_KHR_dedicated_allocation)
     {
@@ -1216,7 +1288,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat for
             // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
             vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
 
-            ptr->imageview = create_imageview(ptr->image, format);
+            ptr->imageview = create_imageview(imageview_type, ptr->image, format);
 
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1254,7 +1326,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat for
 
             vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
 
-            ptr->imageview = create_imageview(ptr->image, format);
+            ptr->imageview = create_imageview(imageview_type, ptr->image, format);
 
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1307,7 +1379,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int width, int height, VkFormat for
     // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
     vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
 
-    ptr->imageview = create_imageview(ptr->image, format);
+    ptr->imageview = create_imageview(imageview_type, ptr->image, format);
 
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;

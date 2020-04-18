@@ -39,7 +39,9 @@ public:
 
     void record_clone(const VkMat& src, VkMat& dst, const Option& opt);
 
-    void record_copy_to_image(const VkMat& src, VkImageMat& dst, const Option& opt);
+    void record_buffer_to_image(const VkMat& src, VkImageMat& dst, const Option& opt);
+
+    void record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt);
 
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher);
 
@@ -93,6 +95,7 @@ protected:
         {
             TYPE_copy_buffer,
             TYPE_copy_buffer_to_image,
+            TYPE_copy_image_to_buffer,
             TYPE_bind_pipeline,
             TYPE_bind_descriptorsets,
             TYPE_push_constants,
@@ -115,6 +118,7 @@ protected:
         {
         struct { VkBuffer src; VkBuffer dst; uint32_t region_count; const VkBufferCopy* regions; } copy_buffer;
         struct { VkBuffer src; VkImage dst; VkImageLayout layout; uint32_t region_count; const VkBufferImageCopy* regions; } copy_buffer_to_image;
+        struct { VkImage src; VkImageLayout layout; VkBuffer dst; uint32_t region_count; const VkBufferImageCopy* regions; } copy_image_to_buffer;
 
         struct { VkPipelineBindPoint bind_point; VkPipeline pipeline; } bind_pipeline;
         struct { VkPipelineBindPoint bind_point; VkPipelineLayout pipeline_layout; uint32_t descriptorset_count; uint32_t descriptorset_offset; } bind_descriptorsets;

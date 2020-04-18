@@ -101,7 +101,9 @@ public:
     size_t buffer_offset_alignment;
     size_t non_coherent_atom_size;
     size_t buffer_image_granularity;
+    uint32_t max_image_dimension_1d;
     uint32_t max_image_dimension_2d;
+    uint32_t max_image_dimension_3d;
     float timestamp_period;
 
     // runtime

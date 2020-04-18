@@ -1424,7 +1424,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             constants[9].i = top_blob.cstep;
 
             VkImageMat bottom_blob_bordered_adreno;
-            cmd.record_copy_to_image(bottom_blob_bordered, bottom_blob_bordered_adreno, opt);
+            cmd.record_buffer_to_image(bottom_blob_bordered, bottom_blob_bordered_adreno, opt);
 
             if (!bottom_blob_bordered_adreno.empty() && !weight_data_gpu_adreno.empty() && (!bias_term || !bias_data_gpu_adreno.empty()))
             {
@@ -1441,7 +1441,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
 //             fprintf(stderr, "pipeline_convolution_pack4_1x1s1d1_adreno  %d %d %d -> %d %d %d  with k=%d d=%d s=%d\n", bottom_blob_bordered.w, bottom_blob_bordered.h, bottom_blob_bordered.c, top_blob.w, top_blob.h, top_blob.c, kernel_w, dilation_w, stride_w);
 
-//             fprintf(stderr, "weight_data_gpu_adreno  %d %d\n", weight_data_gpu_adreno.width, weight_data_gpu_adreno.height);
+//             fprintf(stderr, "weight_data_gpu_adreno %d  %d %d %d\n", weight_data_gpu_adreno.dims, weight_data_gpu_adreno.width, weight_data_gpu_adreno.height, weight_data_gpu_adreno.depth);
 
             return 0;
             }
@@ -1500,7 +1500,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         if (1 && elempack == 4 && out_elempack == 4)
         {
             VkImageMat bottom_blob_bordered_adreno;
-            cmd.record_copy_to_image(bottom_blob_bordered, bottom_blob_bordered_adreno, opt);
+            cmd.record_buffer_to_image(bottom_blob_bordered, bottom_blob_bordered_adreno, opt);
 
             if (!bottom_blob_bordered_adreno.empty() && !weight_data_gpu_adreno.empty() && (!bias_term || !bias_data_gpu_adreno.empty()))
             {
@@ -1519,7 +1519,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
 //             fprintf(stderr, "pipeline_convolution_pack4_adreno  %d %d %d -> %d %d %d  with k=%d d=%d s=%d\n", bottom_blob_bordered.w, bottom_blob_bordered.h, bottom_blob_bordered.c, top_blob.w, top_blob.h, top_blob.c, kernel_w, dilation_w, stride_w);
 
-//             fprintf(stderr, "weight_data_gpu_adreno  %d %d\n", weight_data_gpu_adreno.width, weight_data_gpu_adreno.height);
+//             fprintf(stderr, "weight_data_gpu_adreno  %d %d %d\n", weight_data_gpu_adreno.width, weight_data_gpu_adreno.height, weight_data_gpu_adreno.depth);
 
             return 0;
             }
