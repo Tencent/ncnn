@@ -709,8 +709,40 @@ void VkBlobAllocator::fastFree(VkBufferMemory* ptr)
     delete ptr;
 }
 
-VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int width, int height, int depth, VkFormat format)
+VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack)
 {
+    if (elempack != 1 && elempack != 4 && elempack != 8)
+    {
+        fprintf(stderr, "elempack must be 1 4 8\n");
+        return 0;
+    }
+
+    // resolve format
+    VkFormat format = VK_FORMAT_UNDEFINED;
+
+    if (elemsize / elempack == 4)
+    {
+        // fp32
+        if (elempack == 1) format = VK_FORMAT_R32_SFLOAT;
+        if (elempack == 4) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 8) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    }
+    if (elemsize / elempack == 2)
+    {
+        // fp16
+        if (elempack == 1) format = VK_FORMAT_R16_SFLOAT;
+        if (elempack == 4) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 8) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    }
+
+    // resolve image width height depth
+    int width = w;
+    int height = h;
+    int depth = c;
+
+    // large elempack spills on image w
+    if (elempack == 8) width *= 2;
+
     VkImageType image_type;
     VkImageViewType imageview_type;
     if (dims == 1)
@@ -1211,8 +1243,49 @@ void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
     delete ptr;
 }
 
-VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, int depth, VkFormat format)
+VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack)
 {
+    if (elempack != 1 && elempack != 4 && elempack != 8 && elempack != 16 && elempack != 32 && elempack != 64)
+    {
+        fprintf(stderr, "elempack must be 1 4 8 16 32 64\n");
+        return 0;
+    }
+
+    // resolve format
+    VkFormat format = VK_FORMAT_UNDEFINED;
+
+    if (elemsize / elempack == 4)
+    {
+        // fp32
+        if (elempack == 1) format = VK_FORMAT_R32_SFLOAT;
+        if (elempack == 4) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 8) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 16) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 32) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 64) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    }
+    if (elemsize / elempack == 2)
+    {
+        // fp16
+        if (elempack == 1) format = VK_FORMAT_R16_SFLOAT;
+        if (elempack == 4) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 8) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 16) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 32) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 64) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    }
+
+    // resolve image width height depth
+    int width = w;
+    int height = h;
+    int depth = c;
+
+    // large elempack spills on image w
+    if (elempack == 8) width *= 2;
+    if (elempack == 16) width *= 4;
+    if (elempack == 32) width *= 8;
+    if (elempack == 64) width *= 16;
+
     VkImageType image_type;
     VkImageViewType imageview_type;
     if (dims == 1)
@@ -1554,8 +1627,49 @@ void VkStagingAllocator::fastFree(VkBufferMemory* ptr)
     buffer_budgets.push_back(ptr);
 }
 
-VkImageMemory* VkStagingAllocator::fastMalloc(int dims, int width, int height, int depth, VkFormat format)
+VkImageMemory* VkStagingAllocator::fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack)
 {
+    if (elempack != 1 && elempack != 4 && elempack != 8 && elempack != 16 && elempack != 32 && elempack != 64)
+    {
+        fprintf(stderr, "elempack must be 1 4 8 16 32 64\n");
+        return 0;
+    }
+
+    // resolve format
+    VkFormat format = VK_FORMAT_UNDEFINED;
+
+    if (elemsize / elempack == 4)
+    {
+        // fp32
+        if (elempack == 1) format = VK_FORMAT_R32_SFLOAT;
+        if (elempack == 4) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 8) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 16) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 32) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 64) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    }
+    if (elemsize / elempack == 2)
+    {
+        // fp16
+        if (elempack == 1) format = VK_FORMAT_R16_SFLOAT;
+        if (elempack == 4) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 8) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 16) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 32) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 64) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    }
+
+    // resolve image width height depth
+    int width = w;
+    int height = h;
+    int depth = c;
+
+    // large elempack spills on image w
+    if (elempack == 8) width *= 2;
+    if (elempack == 16) width *= 4;
+    if (elempack == 32) width *= 8;
+    if (elempack == 64) width *= 16;
+
     VkImageType image_type;
     VkImageViewType imageview_type;
     if (dims == 1)
@@ -1610,7 +1724,7 @@ VkImageMemory* VkStagingAllocator::fastMalloc(int dims, int width, int height, i
 
     VkImageMemory* ptr = new VkImageMemory;
 
-    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_TILING_LINEAR, VK_IMAGE_USAGE_STORAGE_BIT);
 
     ptr->image_type = image_type;
     ptr->imageview_type = imageview_type;

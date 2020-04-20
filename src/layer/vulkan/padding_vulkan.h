@@ -40,7 +40,7 @@ public:
 
 public:
     VkMat per_channel_pad_data_gpu;
-    VkImageMat per_channel_pad_data_image_gpu;
+    VkImageMat per_channel_pad_data_gpu_image;
     Pipeline* pipeline_padding;
     Pipeline* pipeline_padding_pack4;
     Pipeline* pipeline_padding_pack8;

@@ -39,11 +39,8 @@ public:
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
 
-    VkImageMat weight_data_gpu_adreno;
-    VkImageMat bias_data_gpu_adreno;
-
-    Pipeline* pipeline_convolution_pack4_adreno;
-    Pipeline* pipeline_convolution_pack4_1x1s1d1_adreno;
+    VkImageMat weight_data_gpu_image;
+    VkImageMat bias_data_gpu_image;
 
     Pipeline* pipeline_convolution;
     Pipeline* pipeline_convolution_1x1s1d1;

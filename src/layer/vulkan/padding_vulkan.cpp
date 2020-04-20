@@ -148,7 +148,7 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu, opt);
 
-    cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_image_gpu, opt);
+    cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu_image, opt);
 
     return 0;
 }
@@ -284,7 +284,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    VkFormat format = bottom_blob.format;
+    size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     // TODO vec and image padding
@@ -292,14 +292,14 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     int outw = w + left + right;
     int outh = h + top + bottom;
 
-    top_blob.create(outw, outh, channels, format, elempack, opt.blob_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
     std::vector<VkImageMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_image_gpu : top_blob;// TODO use dummy buffer
+    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_gpu_image : top_blob;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
@@ -353,7 +353,7 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    VkFormat format = bottom_blob.format;
+    size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     // TODO vec and image padding
@@ -361,14 +361,14 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     int outw = w + _left + _right;
     int outh = h + _top + _bottom;
 
-    top_blob.create(outw, outh, channels, format, elempack, opt.blob_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
     std::vector<VkImageMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_image_gpu : top_blob;// TODO use dummy buffer
+    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_gpu_image : top_blob;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;

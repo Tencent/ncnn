@@ -54,7 +54,7 @@ layout (binding = 0) uniform sampler3D bottom_blob;
 layout (binding = 1, rgba32f) writeonly uniform image3D top_blob;
 layout (binding = 2) uniform sampler3D weight_blob;
 layout (binding = 3) uniform sampler1D bias_blob;
-#else
+#else // NCNN_image_shader
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 #if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
@@ -64,7 +64,7 @@ layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpmat4 weight_data[]; };
 #endif
 layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
-#endif
+#endif // NCNN_image_shader
 
 layout (push_constant) uniform parameter
 {
