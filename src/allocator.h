@@ -337,7 +337,6 @@ public:
 private:
     unsigned int size_compare_ratio;// 0~256
     std::list<VkBufferMemory*> buffer_budgets;
-    std::list<VkImageMemory*> image_budgets;
 };
 
 class VkWeightStagingAllocator : public VkAllocator
