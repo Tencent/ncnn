@@ -969,82 +969,37 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     }
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkImageMat>& bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher)
 {
 //     fprintf(stderr, "record_pipeline %p\n", pipeline);
 
-    const int buffer_binding_count = (int)buffer_bindings.size();
-    const int image_binding_count = (int)image_bindings.size();
+    const int binding_count = (int)bindings.size();
     const int constant_count = (int)constants.size();
 
-    for (int i=0; i<buffer_binding_count; i++)
+    for (int i=0; i<binding_count; i++)
     {
-        const VkMat& buffer_binding = buffer_bindings[i];
+        const VkImageMat& binding = bindings[i];
 
-        if (buffer_binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || buffer_binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
-        {
-            // barrier device any @ compute/null to shader-readwrite @ compute
-            VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
-            barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-            barriers[0].pNext = 0;
-            barriers[0].srcAccessMask = buffer_binding.data->access_flags;
-            barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-            barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barriers[0].buffer = buffer_binding.buffer();
-            barriers[0].offset = buffer_binding.buffer_offset();
-            barriers[0].size = buffer_binding.buffer_capacity();
-
-            VkPipelineStageFlags src_stage = buffer_binding.data->stage_flags;
-            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-
-            if (vkdev->info.support_VK_KHR_push_descriptor)
-            {
-                vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
-                delete[] barriers;
-            }
-            else
-            {
-                record r;
-                r.type = record::TYPE_buffer_barrers;
-                r.command_buffer = compute_command_buffer;
-                r.buffer_barrers.src_stage = src_stage;
-                r.buffer_barrers.dst_stage = dst_stage;
-                r.buffer_barrers.barrier_count = 1;
-                r.buffer_barrers.barriers = barriers;
-                delayed_records.push_back(r);
-            }
-
-            // mark device shader-readwrite @ compute
-            buffer_binding.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-            buffer_binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-        }
-    }
-
-    for (int i=0; i<image_binding_count; i++)
-    {
-        const VkImageMat& image_binding = image_bindings[i];
-
-        if (image_binding.data->access_flags == VK_ACCESS_TRANSFER_WRITE_BIT || image_binding.data->image_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || image_binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+        if (binding.data->access_flags == VK_ACCESS_TRANSFER_WRITE_BIT || binding.data->image_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
         {
             // image layout transform transfer-dst-optimal @ compute to shader-readonly-optimal @ compute
             VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
             barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             barriers[0].pNext = 0;
-            barriers[0].srcAccessMask = image_binding.data->access_flags;
+            barriers[0].srcAccessMask = binding.data->access_flags;
             barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            barriers[0].oldLayout = image_binding.data->image_layout;
+            barriers[0].oldLayout = binding.data->image_layout;
             barriers[0].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barriers[0].image = image_binding.image();
+            barriers[0].image = binding.image();
             barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             barriers[0].subresourceRange.baseMipLevel = 0;
             barriers[0].subresourceRange.levelCount = 1;
             barriers[0].subresourceRange.baseArrayLayer = 0;
             barriers[0].subresourceRange.layerCount = 1;
 
-            VkPipelineStageFlags src_stage = image_binding.data->stage_flags;
+            VkPipelineStageFlags src_stage = binding.data->stage_flags;
             VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
             if (vkdev->info.support_VK_KHR_push_descriptor)
@@ -1065,9 +1020,9 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             }
 
             // mark image shader-readonly-optimal @ compute
-            image_binding.data->access_flags = VK_ACCESS_SHADER_READ_BIT;
-            image_binding.data->image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            image_binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            binding.data->access_flags = VK_ACCESS_SHADER_READ_BIT;
+            binding.data->image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
         }
     }
 
@@ -1089,34 +1044,20 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     }
 
     // record update bindings
-    if (buffer_binding_count > 0 || image_binding_count > 0)
+    if (binding_count > 0)
     {
-        std::vector<VkDescriptorBufferInfo> descriptorBufferInfos(buffer_binding_count);
-        for (int i=0; i<buffer_binding_count; i++)
-        {
-            descriptorBufferInfos[i].buffer = buffer_bindings[i].buffer();
-            descriptorBufferInfos[i].offset = buffer_bindings[i].buffer_offset();
-            descriptorBufferInfos[i].range = buffer_bindings[i].total() * buffer_bindings[i].elemsize;
-        }
-
-        std::vector<VkDescriptorImageInfo> descriptorImageInfos(image_binding_count);
-        for (int i=0; i<image_binding_count; i++)
+        std::vector<VkDescriptorImageInfo> descriptorImageInfos(binding_count);
+        for (int i=0; i<binding_count; i++)
         {
             // we always use immutable nearest sampler set in descroptor layout during pipeline creation
             descriptorImageInfos[i].sampler = 0;
-            descriptorImageInfos[i].imageView = image_bindings[i].imageview();
-            descriptorImageInfos[i].imageLayout = image_bindings[i].data->image_layout;
+            descriptorImageInfos[i].imageView = bindings[i].imageview();
+            descriptorImageInfos[i].imageLayout = bindings[i].data->image_layout;
         }
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            size_t descriptorInfo_size = sizeof(VkDescriptorBufferInfo) * buffer_binding_count + sizeof(VkDescriptorImageInfo) * image_binding_count;
-            unsigned char* descriptorInfos = new unsigned char[descriptorInfo_size];
-            memcpy(descriptorInfos, descriptorBufferInfos.data(), sizeof(VkDescriptorBufferInfo) * buffer_binding_count);
-            memcpy(descriptorInfos + sizeof(VkDescriptorBufferInfo) * buffer_binding_count, descriptorImageInfos.data(), sizeof(VkDescriptorImageInfo) * image_binding_count);
-
-            vkdev->vkCmdPushDescriptorSetWithTemplateKHR(compute_command_buffer, pipeline->descriptor_update_template, pipeline->pipeline_layout, 0, descriptorInfos);
-            delete[] descriptorInfos;
+            vkdev->vkCmdPushDescriptorSetWithTemplateKHR(compute_command_buffer, pipeline->descriptor_update_template, pipeline->pipeline_layout, 0, descriptorImageInfos.data());
         }
         else
         {
@@ -1124,10 +1065,10 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             VkDescriptorPool descriptor_pool;
             {
                 VkDescriptorPoolSize poolSizes[2];
-                poolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                poolSizes[0].descriptorCount = buffer_binding_count;
-                poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                poolSizes[1].descriptorCount = image_binding_count;
+                poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                poolSizes[0].descriptorCount = binding_count;
+                poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                poolSizes[1].descriptorCount = 1;
 
                 VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
                 descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1166,20 +1107,12 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
             if (vkdev->info.support_VK_KHR_descriptor_update_template)
             {
-                size_t descriptorInfo_size = sizeof(VkDescriptorBufferInfo) * buffer_binding_count + sizeof(VkDescriptorImageInfo) * image_binding_count;
-                unsigned char* descriptorInfos = new unsigned char[descriptorInfo_size];
-                memcpy(descriptorInfos, descriptorBufferInfos.data(), sizeof(VkDescriptorBufferInfo) * buffer_binding_count);
-                memcpy(descriptorInfos + sizeof(VkDescriptorBufferInfo) * buffer_binding_count, descriptorImageInfos.data(), sizeof(VkDescriptorImageInfo) * image_binding_count);
-
-                vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, pipeline->descriptor_update_template, descriptorInfos);
-                delete[] descriptorInfos;
+                vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, pipeline->descriptor_update_template, descriptorImageInfos.data());
             }
             else
             {
-                const int binding_count = buffer_binding_count + image_binding_count;
-
-                VkWriteDescriptorSet* writeDescriptorSets = new VkWriteDescriptorSet[binding_count];
-                for (int i=0; i<buffer_binding_count; i++)
+                std::vector<VkWriteDescriptorSet> writeDescriptorSets(binding_count);
+                for (int i=0; i<binding_count; i++)
                 {
                     writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                     writeDescriptorSets[i].pNext = 0;
@@ -1187,28 +1120,13 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
                     writeDescriptorSets[i].dstBinding = i;
                     writeDescriptorSets[i].dstArrayElement = 0;
                     writeDescriptorSets[i].descriptorCount = 1;
-                    writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                    writeDescriptorSets[i].pImageInfo = 0;
-                    writeDescriptorSets[i].pBufferInfo = &descriptorBufferInfos[i];
+                    writeDescriptorSets[i].descriptorType = i == 1 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;// FIXME hardcode
+                    writeDescriptorSets[i].pImageInfo = &descriptorImageInfos[i];
+                    writeDescriptorSets[i].pBufferInfo = 0;
                     writeDescriptorSets[i].pTexelBufferView = 0;
                 }
-                for (int i=0; i<image_binding_count; i++)
-                {
-                    int ii = buffer_binding_count + i;
-                    writeDescriptorSets[ii].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    writeDescriptorSets[ii].pNext = 0;
-                    writeDescriptorSets[ii].dstSet = descriptorset;
-                    writeDescriptorSets[ii].dstBinding = ii;
-                    writeDescriptorSets[ii].dstArrayElement = 0;
-                    writeDescriptorSets[ii].descriptorCount = 1;
-                    writeDescriptorSets[ii].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                    writeDescriptorSets[ii].pImageInfo = &descriptorImageInfos[i];
-                    writeDescriptorSets[ii].pBufferInfo = 0;
-                    writeDescriptorSets[ii].pTexelBufferView = 0;
-                }
 
-                vkUpdateDescriptorSets(vkdev->vkdevice(), binding_count, writeDescriptorSets, 0, 0);
-                delete[] writeDescriptorSets;
+                vkUpdateDescriptorSets(vkdev->vkdevice(), binding_count, writeDescriptorSets.data(), 0, 0);
             }
 
             record r;

@@ -214,6 +214,7 @@ public:
     VkFormat format;
 
     VkDeviceMemory memory;
+    void* mapped_ptr;
 
     // the base offset assigned by allocator
     size_t bind_offset;
@@ -257,7 +258,7 @@ protected:
     VkDeviceMemory allocate_memory(size_t size);
     VkDeviceMemory allocate_dedicated_memory(size_t size, VkImage image, VkBuffer buffer);
 
-    VkImage create_image(VkImageType type, int width, int height, int depth, VkFormat format, VkImageUsageFlags usage);
+    VkImage create_image(VkImageType type, int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
     VkImageView create_imageview(VkImageViewType type, VkImage image, VkFormat format);
 };
 
@@ -330,12 +331,13 @@ public:
 
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int /*dims*/, int /*width*/, int /*height*/, int /*depth*/, VkFormat /*format*/) { return 0; }
-    virtual void fastFree(VkImageMemory* /*ptr*/) {}
+    virtual VkImageMemory* fastMalloc(int dims, int width, int height, int depth, VkFormat format);
+    virtual void fastFree(VkImageMemory* ptr);
 
 private:
     unsigned int size_compare_ratio;// 0~256
-    std::list<VkBufferMemory*> budgets;
+    std::list<VkBufferMemory*> buffer_budgets;
+    std::list<VkImageMemory*> image_budgets;
 };
 
 class VkWeightStagingAllocator : public VkAllocator

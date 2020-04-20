@@ -1534,28 +1534,29 @@ int VulkanDevice::create_shader_module()
         // 2 = fp16pa
         // 3 = fp16s
         // 4 = fp16sa
+        // 5 = image
 
         if (!info.support_fp16_packed)
         {
-            if (i % 5 == 1)
+            if (i % 6 == 1)
                 continue;
         }
 
         if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
         {
-            if (i % 5 == 2)
+            if (i % 6 == 2)
                 continue;
         }
 
         if (!info.support_fp16_storage)
         {
-            if (i % 5 == 3)
+            if (i % 6 == 3)
                 continue;
         }
 
         if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
         {
-            if (i % 5 == 4)
+            if (i % 6 == 4)
                 continue;
         }
 

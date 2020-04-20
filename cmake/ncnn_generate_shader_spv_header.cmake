@@ -184,6 +184,76 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
     )
     set_source_files_properties(${SHADER_fp16sa_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
 
+    # fp32 + image
+    set(SHADER_image_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_image")
+
+    set(SHADER_image_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_image_SRC_NAME_WE}.spv.hex.h)
+    add_custom_command(
+        OUTPUT ${SHADER_image_SPV_HEX_FILE}
+        COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
+        ARGS -Dsfp=float -Dsfpvec2=vec2 -Dsfpvec4=vec4 -Dsfpvec8=mat2x4 -Dsfpmat4=mat4
+             -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpvec8=mat2x4 -Dafpmat4=mat4
+
+             "-D image1d_ld1(tex,p)=texelFetch(tex,p,0).r"
+             "-D image2d_ld1(tex,p)=texelFetch(tex,p,0).r"
+             "-D image3d_ld1(tex,p)=texelFetch(tex,p,0).r"
+             "-D image1d_st1(img,p,v)={vec4 _v;_v.r=v;imageStore(img,p,_v);}"
+             "-D image2d_st1(img,p,v)={vec4 _v;_v.r=v;imageStore(img,p,_v);}"
+             "-D image3d_st1(img,p,v)={vec4 _v;_v.r=v;imageStore(img,p,_v);}"
+             "-D image1d_cp1(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+             "-D image2d_cp1(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+             "-D image3d_cp1(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+
+             "-D image1d_ld4(tex,p)=texelFetch(tex,p,0)"
+             "-D image2d_ld4(tex,p)=texelFetch(tex,p,0)"
+             "-D image3d_ld4(tex,p)=texelFetch(tex,p,0)"
+             "-D image1d_st4(img,p,v)={imageStore(img,p,v);}"
+             "-D image2d_st4(img,p,v)={imageStore(img,p,v);}"
+             "-D image3d_st4(img,p,v)={imageStore(img,p,v);}"
+             "-D image1d_cp4(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+             "-D image2d_cp4(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+             "-D image3d_cp4(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+
+             "-D image1d_ld8(tex,p)=mat2x4(texelFetch(tex,p*2,0),texelFetch(tex,p*2+1,0))"
+             "-D image2d_ld8(tex,p)=mat2x4(texelFetch(tex,ivec2(p.x*2,p.y),0),texelFetch(tex,ivec2(p.x*2+1,p.y),0))"
+             "-D image3d_ld8(tex,p)=mat2x4(texelFetch(tex,ivec3(p.x*2,p.y,p.z),0),texelFetch(tex,ivec3(p.x*2+1,p.y,p.z),0))"
+             "-D image1d_st8(img,p,v)={imageStore(img,p*2,v[0]);imageStore(img,p*2+1,v[1]);}"
+             "-D image2d_st8(img,p,v)={imageStore(img,ivec2(p.x*2,p.y),v[0]);imageStore(img,ivec2(p.x*2+1,p.y),v[1]);}"
+             "-D image3d_st8(img,p,v)={imageStore(img,ivec3(p.x*2,p.y,p.z),v[0]);imageStore(img,ivec3(p.x*2+1,p.y,p.z),v[1]);}"
+             "-D image1d_cp8(img,p,tex,sp)={imageStore(img,p*2,texelFetch(tex,sp*2,0));imageStore(img,p*2+1,texelFetch(tex,sp*2+1,0));}"
+             "-D image2d_cp8(img,p,tex,sp)={imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}"
+             "-D image3d_cp8(img,p,tex,sp)={imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}"
+
+             "-D buffer_ld1(buf,i)=buf[i]"
+             "-D buffer_st1(buf,i,v)={buf[i]=v;}"
+             "-D buffer_cp1(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_cp1to4(buf,i,sbuf,si4)={buf[i]=vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a]);}"
+             "-D buffer_cp1to8(buf,i,sbuf,si4,sii4)={buf[i]=mat2x4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a],sbuf[sii4.r],sbuf[sii4.g],sbuf[sii4.b],sbuf[sii4.a]);}"
+             "-D buffer_ld2(buf,i)=buf[i]"
+             "-D buffer_st2(buf,i,v)={buf[i]=v;}"
+             "-D buffer_cp2(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_ld4(buf,i)=buf[i]"
+             "-D buffer_st4(buf,i,v)={buf[i]=v;}"
+             "-D buffer_cp4(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_cp4to1(buf,i4,sbuf,si)={vec4 _v=sbuf[si]; buf[i4.r]=_v.r;buf[i4.g]=_v.g;buf[i4.b]=_v.b;buf[i4.a]=_v.a;}"
+             "-D buffer_cp4to8(buf,i,sbuf,si2)={buf[i]=mat2x4(sbuf[si2.r],sbuf[si2.g]);}"
+             "-D buffer_ld8(buf,i)=buf[i]"
+             "-D buffer_st8(buf,i,v)={buf[i]=v;}"
+             "-D buffer_cp8(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_cp8to1(buf,i4,ii4,sbuf,si)={mat2x4 _v=sbuf[si]; buf[i4.r]=_v[0].r;buf[i4.g]=_v[0].g;buf[i4.b]=_v[0].b;buf[i4.a]=_v[0].a; buf[ii4.r]=_v[1].r;buf[ii4.g]=_v[1].g;buf[ii4.b]=_v[1].b;buf[ii4.a]=_v[1].a;}"
+             "-D buffer_cp8to4(buf,i2,sbuf,si)={mat2x4 _v=sbuf[si]; buf[i2.r]=_v[0];buf[i2.g]=_v[1];}"
+
+             "-D sfp2afpmat4(v)=v"
+             "-D afp2sfpmat4(v)=v"
+             "-D psc(x)=(x==0?p.x:x)"
+             -DNCNN_image_shader=1
+             -V -x -o ${SHADER_image_SPV_HEX_FILE} ${SHADER_SRC}
+        DEPENDS ${SHADER_SRC}
+        COMMENT "Building SPIR-V module ${SHADER_image_SRC_NAME_WE}.spv"
+        VERBATIM
+    )
+    set_source_files_properties(${SHADER_image_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+
     set(LOCAL_SHADER_SPV_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.spv.h)
 
     file(WRITE ${LOCAL_SHADER_SPV_HEADER}
@@ -192,6 +262,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
         "static const uint32_t ${SHADER_fp16pa_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16pa_SRC_NAME_WE}.spv.hex.h\"\n};\n"
         "static const uint32_t ${SHADER_fp16s_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16s_SRC_NAME_WE}.spv.hex.h\"\n};\n"
         "static const uint32_t ${SHADER_fp16sa_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16sa_SRC_NAME_WE}.spv.hex.h\"\n};\n"
+        "static const uint32_t ${SHADER_image_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_image_SRC_NAME_WE}.spv.hex.h\"\n};\n"
     )
 
     set_source_files_properties(${LOCAL_SHADER_SPV_HEADER} PROPERTIES GENERATED TRUE)
@@ -202,6 +273,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
         ${SHADER_fp16pa_SPV_HEX_FILE}
         ${SHADER_fp16s_SPV_HEX_FILE}
         ${SHADER_fp16sa_SPV_HEX_FILE}
+        ${SHADER_image_SPV_HEX_FILE}
     )
 
     set(${SHADER_SPV_HEADER} ${LOCAL_SHADER_SPV_HEADER} PARENT_SCOPE)

@@ -410,6 +410,10 @@ public:
     // allocate like
     void create_like(const VkImageMat& im, VkAllocator* allocator);
 
+    // mapped
+    Mat mapped() const;
+    void* mapped_ptr() const;
+
     // refcount++
     void addref();
     // refcount--
@@ -1963,6 +1967,32 @@ inline void VkImageMat::create_like(const VkImageMat& im, VkAllocator* _allocato
         create(im.w, im.h, im.format, im.elempack, _allocator);
     if (_dims == 3)
         create(im.w, im.h, im.c, im.format, im.elempack, _allocator);
+}
+
+inline Mat VkImageMat::mapped() const
+{
+    if (!allocator->mappable || !data->mapped_ptr)
+        return Mat();
+
+    // TODO hardcode float type
+    if (dims == 1)
+        return Mat(w, mapped_ptr(), (size_t)4u * elempack, elempack, 0);
+
+    if (dims == 2)
+        return Mat(w, h, mapped_ptr(), (size_t)4u * elempack, elempack, 0);
+
+    if (dims == 3)
+        return Mat(w, h, c, mapped_ptr(), (size_t)4u * elempack, elempack, 0);
+
+    return Mat();
+}
+
+inline void* VkImageMat::mapped_ptr() const
+{
+    if (!allocator->mappable || !data->mapped_ptr)
+        return 0;
+
+    return (unsigned char*)data->mapped_ptr + data->bind_offset;
 }
 
 inline void VkImageMat::addref()

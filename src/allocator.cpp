@@ -376,7 +376,7 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, VkImage image
     return memory;
 }
 
-VkImage VkAllocator::create_image(VkImageType type, int width, int height, int depth, VkFormat format, VkImageUsageFlags usage)
+VkImage VkAllocator::create_image(VkImageType type, int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage)
 {
     VkImageCreateInfo imageCreateInfo;
     imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -390,7 +390,7 @@ VkImage VkAllocator::create_image(VkImageType type, int width, int height, int d
     imageCreateInfo.mipLevels = 1;
     imageCreateInfo.arrayLayers = 1;
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageCreateInfo.tiling = tiling;//VK_IMAGE_TILING_OPTIMAL;
     imageCreateInfo.usage = usage;
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageCreateInfo.queueFamilyIndexCount = 0;
@@ -749,7 +749,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int width, int height, int 
 
     VkImageMemory* ptr = new VkImageMemory;
 
-    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     ptr->image_type = image_type;
     ptr->imageview_type = imageview_type;
@@ -791,6 +791,9 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int width, int height, int 
             ptr->bind_capacity = aligned_size;
 
             vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
+
+            // do not allow host access to optimal tiling image
+            ptr->mapped_ptr = 0;
 
             ptr->imageview = create_imageview(imageview_type, ptr->image, format);
 
@@ -855,6 +858,9 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int width, int height, int 
 
     // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
     vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
+
+    // do not allow host access to optimal tiling image
+    ptr->mapped_ptr = 0;
 
     ptr->imageview = create_imageview(imageview_type, ptr->image, format);
 
@@ -1245,7 +1251,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, in
 
     VkImageMemory* ptr = new VkImageMemory;
 
-    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     ptr->image_type = image_type;
     ptr->imageview_type = imageview_type;
@@ -1302,6 +1308,9 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, in
             // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
             vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
 
+            // do not allow host access to optimal tiling image
+            ptr->mapped_ptr = 0;
+
             ptr->imageview = create_imageview(imageview_type, ptr->image, format);
 
             ptr->access_flags = 0;
@@ -1339,6 +1348,9 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, in
             ptr->bind_capacity = aligned_size;
 
             vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
+
+            // do not allow host access to optimal tiling image
+            ptr->mapped_ptr = 0;
 
             ptr->imageview = create_imageview(imageview_type, ptr->image, format);
 
@@ -1393,6 +1405,9 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int width, int height, in
     // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
     vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
 
+    // do not allow host access to optimal tiling image
+    ptr->mapped_ptr = 0;
+
     ptr->imageview = create_imageview(imageview_type, ptr->image, format);
 
     ptr->access_flags = 0;
@@ -1445,10 +1460,9 @@ void VkStagingAllocator::set_size_compare_ratio(float scr)
 
 void VkStagingAllocator::clear()
 {
-//     fprintf(stderr, "VkStagingAllocator %lu\n", budgets.size());
+//     fprintf(stderr, "VkStagingAllocator %lu\n", buffer_budgets.size());
 
-    std::list<VkBufferMemory*>::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
+    for (std::list<VkBufferMemory*>::iterator it = buffer_budgets.begin(); it != buffer_budgets.end(); it++)
     {
         VkBufferMemory* ptr = *it;
 
@@ -1460,14 +1474,31 @@ void VkStagingAllocator::clear()
 
         delete ptr;
     }
-    budgets.clear();
+    buffer_budgets.clear();
+
+//     fprintf(stderr, "VkStagingAllocator %lu\n", image_budgets.size());
+
+    for (std::list<VkImageMemory*>::iterator it = image_budgets.begin(); it != image_budgets.end(); it++)
+    {
+        VkImageMemory* ptr = *it;
+
+//         fprintf(stderr, "VkStagingAllocator F %p\n", ptr->image);
+
+        vkUnmapMemory(vkdev->vkdevice(), ptr->memory);
+        vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+        delete ptr;
+    }
+    image_budgets.clear();
 }
 
 VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
 {
     // find free budget
-    std::list<VkBufferMemory*>::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
+    std::list<VkBufferMemory*>::iterator it = buffer_budgets.begin();
+    for (; it != buffer_budgets.end(); it++)
     {
         VkBufferMemory* ptr = *it;
 
@@ -1476,7 +1507,7 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
         // size_compare_ratio ~ 100%
         if (capacity >= size && ((capacity * size_compare_ratio) >> 8) <= size)
         {
-            budgets.erase(it);
+            buffer_budgets.erase(it);
 
 //             fprintf(stderr, "VkStagingAllocator M %p %lu reused %lu\n", ptr->buffer, size, capacity);
 
@@ -1519,8 +1550,116 @@ void VkStagingAllocator::fastFree(VkBufferMemory* ptr)
 {
 //     fprintf(stderr, "VkStagingAllocator F %p\n", ptr->buffer);
 
-    // return to budgets
-    budgets.push_back(ptr);
+    // return to buffer_budgets
+    buffer_budgets.push_back(ptr);
+}
+
+VkImageMemory* VkStagingAllocator::fastMalloc(int dims, int width, int height, int depth, VkFormat format)
+{
+    VkImageType image_type;
+    VkImageViewType imageview_type;
+    if (dims == 1)
+    {
+        image_type = VK_IMAGE_TYPE_1D;
+        imageview_type = VK_IMAGE_VIEW_TYPE_1D;
+
+        if (width > (int)vkdev->info.max_image_dimension_1d)
+        {
+            fprintf(stderr, "image dimension too large %d\n", width);
+            return 0;
+        }
+    }
+    else if (dims == 2)
+    {
+        image_type = VK_IMAGE_TYPE_2D;
+        imageview_type = VK_IMAGE_VIEW_TYPE_2D;
+
+        if (width > (int)vkdev->info.max_image_dimension_2d || height > (int)vkdev->info.max_image_dimension_2d)
+        {
+            fprintf(stderr, "image dimension too large %d %d\n", width, height);
+            return 0;
+        }
+    }
+    else // if (dims == 3)
+    {
+        image_type = VK_IMAGE_TYPE_3D;
+        imageview_type = VK_IMAGE_VIEW_TYPE_3D;
+
+        if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
+        {
+            fprintf(stderr, "image dimension too large %d %d %d\n", width, height, depth);
+            return 0;
+        }
+    }
+
+    // find free budget
+    std::list<VkImageMemory*>::iterator it = image_budgets.begin();
+    for (; it != image_budgets.end(); it++)
+    {
+        VkImageMemory* ptr = *it;
+
+        if (ptr->image_type == image_type && ptr->imageview_type == imageview_type && ptr->width == width && ptr->height == height && ptr->depth == depth && ptr->format == format)
+        {
+            image_budgets.erase(it);
+
+//             fprintf(stderr, "VkStagingAllocator M %p %d %d %d %d %d reused\n", ptr->image, dims, width, height, depth, format);
+
+            return ptr;
+        }
+    }
+
+    VkImageMemory* ptr = new VkImageMemory;
+
+    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+    ptr->image_type = image_type;
+    ptr->imageview_type = imageview_type;
+    ptr->width = width;
+    ptr->height = height;
+    ptr->depth = depth;
+    ptr->format = format;
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
+
+    const size_t size = memoryRequirements.size;
+
+    size_t aligned_size = alignSize(size, memoryRequirements.alignment);
+
+    // setup memory type
+    if (memory_type_index == (uint32_t)-1)
+    {
+        memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    }
+
+    // bind at memory offset
+    ptr->memory = allocate_memory(aligned_size);
+    ptr->bind_offset = 0;
+    ptr->bind_capacity = aligned_size;
+
+    // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
+    vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
+
+    vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, aligned_size, 0, &ptr->mapped_ptr);
+
+    ptr->imageview = create_imageview(imageview_type, ptr->image, format);
+
+    ptr->access_flags = 0;
+    ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    ptr->command_refcount = 0;
+
+//     fprintf(stderr, "VkStagingAllocator M %p %d %d %d %d %d\n", ptr->image, dims, width, height, depth, format);
+
+    return ptr;
+}
+
+void VkStagingAllocator::fastFree(VkImageMemory* ptr)
+{
+//     fprintf(stderr, "VkStagingAllocator F %p\n", ptr->image);
+
+    // return to image_budgets
+    image_budgets.push_back(ptr);
 }
 
 VkWeightStagingAllocator::VkWeightStagingAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)

@@ -75,24 +75,19 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
 
 int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
 {
-    const ShaderInfo& si = get_shader_info(shader_type_index);
-
-    // -3 for local_size_xyz
-    int specialization_count_expected = si.specialization_count - 3;
-    if ((int)specializations.size() != specialization_count_expected)
-    {
-        fprintf(stderr, "pipeline %d specialization count mismatch, expect %d but got %d\n", shader_type_index, specialization_count_expected, (int)specializations.size());
-        return -1;
-    }
-
     // ncnn_add_shader cmake macro
     // 0 = fp32
     // 1 = fp16p
     // 2 = fp16pa
     // 3 = fp16s
     // 4 = fp16sa
+    // 5 = image
 
-    if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    if (opt.use_image_shader)
+    {
+        shader_type_index += 5;
+    }
+    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 4;
     }
@@ -107,6 +102,16 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed)
     {
         shader_type_index += 1;
+    }
+
+    const ShaderInfo& si = get_shader_info(shader_type_index);
+
+    // -3 for local_size_xyz
+    int specialization_count_expected = si.specialization_count - 3;
+    if ((int)specializations.size() != specialization_count_expected)
+    {
+        fprintf(stderr, "pipeline %d specialization count mismatch, expect %d but got %d\n", shader_type_index, specialization_count_expected, (int)specializations.size());
+        return -1;
     }
 
     if (vkdev->info.bug_local_size_spec_const)
@@ -245,10 +250,10 @@ int Pipeline::create_descriptorset_layout(int buffer_binding_count, int image_bi
     {
         int ii = buffer_binding_count + i;
         descriptorSetLayoutBindings[ii].binding = ii;
-        descriptorSetLayoutBindings[ii].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorSetLayoutBindings[ii].descriptorType = i == 1 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;// FIXME hardcode
         descriptorSetLayoutBindings[ii].descriptorCount = 1;
         descriptorSetLayoutBindings[ii].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        descriptorSetLayoutBindings[ii].pImmutableSamplers = vkdev->immutable_texelfetch_sampler();// we always use texelfetch
+        descriptorSetLayoutBindings[ii].pImmutableSamplers = i == 1 ? 0 : vkdev->immutable_texelfetch_sampler();// we always use texelfetch FIXME hardcode
     }
 
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
@@ -417,7 +422,7 @@ int Pipeline::create_descriptor_update_template(int buffer_binding_count, int im
         descriptorUpdateTemplateEntries[ii].dstBinding = ii;
         descriptorUpdateTemplateEntries[ii].dstArrayElement = 0;
         descriptorUpdateTemplateEntries[ii].descriptorCount = 1;
-        descriptorUpdateTemplateEntries[ii].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorUpdateTemplateEntries[ii].descriptorType = i == 1 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;// FIXME hardcode
         descriptorUpdateTemplateEntries[ii].offset = buffer_binding_count * sizeof(VkDescriptorBufferInfo) + i * sizeof(VkDescriptorImageInfo);
         descriptorUpdateTemplateEntries[ii].stride = sizeof(VkDescriptorImageInfo);
     }
