@@ -1862,7 +1862,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu_image;
-    bindings[3] = bias_term ? bias_data_gpu_image : bindings[2];// TODO use dummy buffer
+    bindings[3] = bias_term ? bias_data_gpu_image : weight_data_gpu_image;// TODO use dummy buffer
 
     // record
 //     if (elempack == 1 && out_elempack == 1 && kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)

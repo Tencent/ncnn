@@ -299,7 +299,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     std::vector<VkImageMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_gpu_image : top_blob;// TODO use dummy buffer
+    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_gpu_image : bottom_blob;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
@@ -368,7 +368,7 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     std::vector<VkImageMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_gpu_image : top_blob;// TODO use dummy buffer
+    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_gpu_image : bottom_blob;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;

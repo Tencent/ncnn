@@ -939,7 +939,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
     {
         const VkImageMat& binding = bindings[i];
 
-//         if (binding.data->access_flags == VK_ACCESS_TRANSFER_WRITE_BIT || binding.data->image_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+        if (binding.data->access_flags == VK_ACCESS_TRANSFER_WRITE_BIT || binding.data->image_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
         {
             // image layout transform transfer-dst-optimal @ compute to shader-readonly-optimal @ compute
             VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
