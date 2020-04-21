@@ -2660,7 +2660,7 @@ int Extractor::extract(int blob_index, Mat& feat)
 #endif // NCNN_BENCHMARK
 
             // TODO vkimagemat for adreno
-            if (1)
+            if (opt.use_image_shader)
             {
             VkImageMat feat_gpu;
             ret = extract(blob_index, feat_gpu, cmd);
