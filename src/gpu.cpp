@@ -1740,9 +1740,9 @@ ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size)
     si.image_binding_count = binding_count - buffer_block_count;
     si.push_constant_count = push_constant_count;
 
-    // HACK
-    si.buffer_binding_count = 0;
-    si.image_binding_count = 2;
+//     // HACK
+//     si.buffer_binding_count = 0;
+//     si.image_binding_count = 2;
 
     return si;
 }

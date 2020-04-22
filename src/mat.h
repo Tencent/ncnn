@@ -431,6 +431,9 @@ public:
     bool empty() const;
     size_t total() const;
 
+    // shape only
+    Mat shape() const;
+
     // low-level reference
     VkImage image() const;
     VkImageView imageview() const;
@@ -2060,6 +2063,18 @@ inline bool VkImageMat::empty() const
 inline size_t VkImageMat::total() const
 {
     return w * h * c;
+}
+
+inline Mat VkImageMat::shape() const
+{
+    if (dims == 1)
+        return Mat(w * elempack, (void*)0);
+    if (dims == 2)
+        return Mat(w, h * elempack, (void*)0);
+    if (dims == 3)
+        return Mat(w, h, c * elempack, (void*)0);
+
+    return Mat();
 }
 
 inline VkImage VkImageMat::image() const
