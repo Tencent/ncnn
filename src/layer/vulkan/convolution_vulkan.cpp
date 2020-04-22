@@ -210,7 +210,21 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         if (is_conv1x1s1d1)
         {
             pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
+            if (opt.use_image_storage)
+            {
+            Mat local_size_xyz_local(4, 4, std::min(4, num_output / out_elempack), (void*)0);
+            if (out_shape_packed.dims != 0)
+            {
+                local_size_xyz_local.w = std::min(4, (out_shape_packed.w + 1) / 2);
+                local_size_xyz_local.h = std::min(4, (out_shape_packed.h + 1) / 2);
+                local_size_xyz_local.c = std::min(4, (out_shape_packed.c + 1) / 2);
+            }
+            pipeline_convolution_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
+            }
+            else
+            {
             pipeline_convolution_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output));
+            }
             pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1, opt, specializations);
         }
         else
@@ -229,7 +243,13 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             pipeline_convolution_pack4_1x1s1d1 = new Pipeline(vkdev);
             if (opt.use_image_storage)
             {
-            Mat local_size_xyz_local((local_size_xyz.w + 1) / 2, (local_size_xyz.h + 1) / 2, local_size_xyz.c);
+            Mat local_size_xyz_local(4, 4, std::min(4, num_output / out_elempack), (void*)0);
+            if (out_shape_packed.dims != 0)
+            {
+                local_size_xyz_local.w = std::min(4, (out_shape_packed.w + 1) / 2);
+                local_size_xyz_local.h = std::min(4, (out_shape_packed.h + 1) / 2);
+                local_size_xyz_local.c = std::min(4, (out_shape_packed.c + 1) / 2);
+            }
             pipeline_convolution_pack4_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
             }
             else
@@ -397,7 +417,21 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         if (is_conv1x1s1d1)
         {
             pipeline_convolution_pack8_1x1s1d1 = new Pipeline(vkdev);
+            if (opt.use_image_storage)
+            {
+            Mat local_size_xyz_local(4, 4, std::min(4, num_output / out_elempack), (void*)0);
+            if (out_shape_packed.dims != 0)
+            {
+                local_size_xyz_local.w = std::min(4, (out_shape_packed.w + 1) / 2);
+                local_size_xyz_local.h = std::min(4, (out_shape_packed.h + 1) / 2);
+                local_size_xyz_local.c = std::min(4, (out_shape_packed.c + 1) / 2);
+            }
+            pipeline_convolution_pack8_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
+            }
+            else
+            {
             pipeline_convolution_pack8_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output / 8));
+            }
             pipeline_convolution_pack8_1x1s1d1->create(LayerShaderType::convolution_pack8_1x1s1d1, opt, specializations);
         }
 //         else if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
