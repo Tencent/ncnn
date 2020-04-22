@@ -53,7 +53,7 @@ layout (local_size_z_id = 235) in;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform sampler3D bottom_blob;
-layout (binding = 1, rgba32f) writeonly uniform image3D top_blob;
+layout (binding = 1, imfmtc4) writeonly uniform image3D top_blob;
 layout (binding = 2) uniform sampler3D weight_blob;
 layout (binding = 3) uniform sampler1D bias_blob;
 #else // NCNN_image_shader

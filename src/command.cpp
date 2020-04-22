@@ -598,15 +598,9 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
     int channels = src.c;
     size_t elemsize = 4u;
     int elempack = src.elempack;
-    if (opt.use_fp16_storage)
+    if (opt.use_image_fp16_storage)
     {
         elemsize = 2u * elempack;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = 2u * elempack;
-        if (elempack == 1)
-            elemsize = 4u;
     }
     else
     {
@@ -2059,7 +2053,7 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
     // NOTE keep the hack here ?
     if (src.elemsize / src.elempack == 4)
     {
-        if (opt.use_fp16_storage || opt.use_fp16_packed)
+        if (opt.use_image_fp16_storage)
         {
             Mat src_fp16;
             cast_float32_to_float16(src, src_fp16);

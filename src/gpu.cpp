@@ -31,7 +31,7 @@
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
 #else
-#define ENABLE_VALIDATION_LAYER 1
+#define ENABLE_VALIDATION_LAYER 0
 #endif
 
 namespace ncnn {
@@ -695,7 +695,7 @@ int create_gpu_instance()
             else if (strcmp(exp.extensionName, "VK_KHR_maintenance1") == 0)
                 gpu_info.support_VK_KHR_maintenance1 = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_push_descriptor") == 0)
-                gpu_info.support_VK_KHR_push_descriptor = 0;//exp.specVersion;
+                gpu_info.support_VK_KHR_push_descriptor = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_sampler_ycbcr_conversion") == 0)
                 gpu_info.support_VK_KHR_sampler_ycbcr_conversion = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_shader_float16_int8") == 0)
@@ -1535,28 +1535,30 @@ int VulkanDevice::create_shader_module()
         // 3 = fp16s
         // 4 = fp16sa
         // 5 = image
+        // 6 = image_fp16
+        // 7 = image_fp16a
 
         if (!info.support_fp16_packed)
         {
-            if (i % 6 == 1)
+            if (i % 8 == 1)
                 continue;
         }
 
         if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
         {
-            if (i % 6 == 2)
+            if (i % 8 == 2)
                 continue;
         }
 
         if (!info.support_fp16_storage)
         {
-            if (i % 6 == 3)
+            if (i % 8 == 3)
                 continue;
         }
 
         if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
         {
-            if (i % 6 == 4)
+            if (i % 8 == 4)
                 continue;
         }
 

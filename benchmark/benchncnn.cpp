@@ -209,12 +209,15 @@ int main(int argc, char** argv)
     opt.use_int8_inference = true;
     opt.use_vulkan_compute = use_vulkan_compute;
     opt.use_fp16_packed = true;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
+    opt.use_fp16_storage = true;
+    opt.use_fp16_arithmetic = true;
+    opt.use_int8_storage = true;
+    opt.use_int8_arithmetic = true;
     opt.use_packing_layout = true;
-    opt.use_image_shader = false;
+    opt.use_shader_pack8 = true;
+    opt.use_image_storage = true;
+    opt.use_image_fp16_storage = true;
+    opt.use_image_fp16_arithmetic = true;
 
     ncnn::set_cpu_powersave(powersave);
 
