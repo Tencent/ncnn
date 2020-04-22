@@ -706,6 +706,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = true;// TODO
     opts[0].use_image_fp16_storage = true;// TODO
+    opts[0].use_shader_pack8 = true;
     opts[1] = _opt;
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;
@@ -791,6 +792,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = true;// TODO
     opts[0].use_image_fp16_storage = true;// TODO
+    opts[0].use_shader_pack8 = true;
     opts[1] = _opt;
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;

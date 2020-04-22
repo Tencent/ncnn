@@ -41,7 +41,7 @@ layout (local_size_z_id = 235) in;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform sampler3D bottom_blob;
-layout (binding = 1, rgba32f) writeonly uniform image3D top_blob;
+layout (binding = 1, imfmtc4) writeonly uniform image3D top_blob;
 #else
 #if NCNN_fp16_packed
 layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
