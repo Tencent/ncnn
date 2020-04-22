@@ -232,11 +232,8 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
 
     // create dst
     dst.create_like(src, opt.blob_vkallocator);
-
     if (dst.empty())
-    {
         return;
-    }
 
     if (src.data->access_flags != VK_ACCESS_TRANSFER_READ_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
     {
@@ -726,6 +723,16 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     const int binding_count = (int)bindings.size();
     const int constant_count = (int)constants.size();
 
+    if (binding_count != pipeline->shader_info.binding_count)
+    {
+        fprintf(stderr, "binding_count not match, expect %d but got %d\n", pipeline->shader_info.binding_count, binding_count);
+    }
+
+    if (constant_count != pipeline->shader_info.push_constant_count)
+    {
+        fprintf(stderr, "push_constant_count not match, expect %d but got %d\n", pipeline->shader_info.push_constant_count, constant_count);
+    }
+
     for (int i=0; i<binding_count; i++)
     {
         const VkMat& binding = bindings[i];
@@ -935,54 +942,131 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
     const int binding_count = (int)bindings.size();
     const int constant_count = (int)constants.size();
 
+    if (binding_count != pipeline->shader_info.binding_count)
+    {
+        fprintf(stderr, "binding_count not match, expect %d but got %d\n", pipeline->shader_info.binding_count, binding_count);
+    }
+
+    if (constant_count != pipeline->shader_info.push_constant_count)
+    {
+        fprintf(stderr, "push_constant_count not match, expect %d but got %d\n", pipeline->shader_info.push_constant_count, constant_count);
+    }
+
+    // if the same image used for both storage image and combined image sampler
+    // only apply image layout transition to general
     for (int i=0; i<binding_count; i++)
     {
         const VkImageMat& binding = bindings[i];
 
-        if (binding.data->access_flags == VK_ACCESS_TRANSFER_WRITE_BIT || binding.data->image_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+        int binding_type = pipeline->shader_info.binding_types[i];
+
+        if (binding_type == 2)
         {
-            // image layout transform transfer-dst-optimal @ compute to shader-readonly-optimal @ compute
-            VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
-            barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            barriers[0].pNext = 0;
-            barriers[0].srcAccessMask = binding.data->access_flags;
-            barriers[0].dstAccessMask = i == 1 ? VK_ACCESS_SHADER_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;// FIXME hardcode
-            barriers[0].oldLayout = binding.data->image_layout;
-            barriers[0].newLayout = i == 1 ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;// FIXME hardcode
-            barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barriers[0].image = binding.image();
-            barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            barriers[0].subresourceRange.baseMipLevel = 0;
-            barriers[0].subresourceRange.levelCount = 1;
-            barriers[0].subresourceRange.baseArrayLayer = 0;
-            barriers[0].subresourceRange.layerCount = 1;
-
-            VkPipelineStageFlags src_stage = binding.data->stage_flags;
-            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-
-            if (vkdev->info.support_VK_KHR_push_descriptor)
+            if (binding.data->access_flags != (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT) || binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_GENERAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
             {
-                vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
-                delete[] barriers;
-            }
-            else
-            {
-                record r;
-                r.type = record::TYPE_image_barrers;
-                r.command_buffer = compute_command_buffer;
-                r.image_barrers.src_stage = src_stage;
-                r.image_barrers.dst_stage = dst_stage;
-                r.image_barrers.barrier_count = 1;
-                r.image_barrers.barriers = barriers;
-                delayed_records.push_back(r);
-            }
+                // image layout transform any @ any to shader-write @ compute
+                VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
+                barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                barriers[0].pNext = 0;
+                barriers[0].srcAccessMask = binding.data->access_flags;
+                barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+                barriers[0].oldLayout = binding.data->image_layout;
+                barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+                barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barriers[0].image = binding.image();
+                barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                barriers[0].subresourceRange.baseMipLevel = 0;
+                barriers[0].subresourceRange.levelCount = 1;
+                barriers[0].subresourceRange.baseArrayLayer = 0;
+                barriers[0].subresourceRange.layerCount = 1;
 
-            // mark image shader-readonly-optimal @ compute
-            binding.data->access_flags = i == 1 ? VK_ACCESS_SHADER_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;// FIXME hardcode
-            binding.data->image_layout = i == 1 ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;// FIXME hardcode
-            binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+                VkPipelineStageFlags src_stage = binding.data->stage_flags;
+                VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+                if (vkdev->info.support_VK_KHR_push_descriptor)
+                {
+                    vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+                    delete[] barriers;
+                }
+                else
+                {
+                    record r;
+                    r.type = record::TYPE_image_barrers;
+                    r.command_buffer = compute_command_buffer;
+                    r.image_barrers.src_stage = src_stage;
+                    r.image_barrers.dst_stage = dst_stage;
+                    r.image_barrers.barrier_count = 1;
+                    r.image_barrers.barriers = barriers;
+                    delayed_records.push_back(r);
+                }
+
+                // mark image shader-write @ compute
+                binding.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+                binding.data->image_layout = VK_IMAGE_LAYOUT_GENERAL;
+                binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            }
         }
+        else // if (binding_type == 3)
+        {
+            for (int j=0; j<binding_count; j++)
+            {
+                if (pipeline->shader_info.binding_types[j] == 2 && bindings[i].data == bindings[j].data)
+                {
+                    // the same image is used as storage image, skip it
+                    continue;
+                }
+            }
+
+            if (binding.data->access_flags != VK_ACCESS_SHADER_READ_BIT || binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+            {
+                // image layout transform any @ any to shader-readonly-optimal @ compute
+                VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
+                barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                barriers[0].pNext = 0;
+                barriers[0].srcAccessMask = binding.data->access_flags;
+                barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+                barriers[0].oldLayout = binding.data->image_layout;
+                barriers[0].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barriers[0].image = binding.image();
+                barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                barriers[0].subresourceRange.baseMipLevel = 0;
+                barriers[0].subresourceRange.levelCount = 1;
+                barriers[0].subresourceRange.baseArrayLayer = 0;
+                barriers[0].subresourceRange.layerCount = 1;
+
+                VkPipelineStageFlags src_stage = binding.data->stage_flags;
+                VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+                if (vkdev->info.support_VK_KHR_push_descriptor)
+                {
+                    vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+                    delete[] barriers;
+                }
+                else
+                {
+                    record r;
+                    r.type = record::TYPE_image_barrers;
+                    r.command_buffer = compute_command_buffer;
+                    r.image_barrers.src_stage = src_stage;
+                    r.image_barrers.dst_stage = dst_stage;
+                    r.image_barrers.barrier_count = 1;
+                    r.image_barrers.barriers = barriers;
+                    delayed_records.push_back(r);
+                }
+
+                // mark image shader-readonly-optimal @ compute
+                binding.data->access_flags = VK_ACCESS_SHADER_READ_BIT;
+                binding.data->image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            }
+        }
+
+        // image and imageview can not be destroyed until command execution ends
+        NCNN_XADD(&binding.data->command_refcount, 1);
+        image_blocks_to_destroy.push_back(binding.data);
     }
 
     // record bind pipeline
@@ -1023,11 +1107,23 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
             // create new descriptor_pool and descriptorset
             VkDescriptorPool descriptor_pool;
             {
+                int image_binding_count = 0;
+                int sampler_binding_count = 0;
+                for (int i=0; i<binding_count; i++)
+                {
+                    int binding_type = pipeline->shader_info.binding_types[i];
+
+                    if (binding_type == 2)
+                        image_binding_count++;
+                    else // if (binding_type == 3)
+                        sampler_binding_count++;
+                }
+
                 VkDescriptorPoolSize poolSizes[2];
-                poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                poolSizes[0].descriptorCount = binding_count;
-                poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                poolSizes[1].descriptorCount = 1;
+                poolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                poolSizes[0].descriptorCount = image_binding_count;
+                poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                poolSizes[1].descriptorCount = sampler_binding_count;
 
                 VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
                 descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1073,16 +1169,26 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
                 std::vector<VkWriteDescriptorSet> writeDescriptorSets(binding_count);
                 for (int i=0; i<binding_count; i++)
                 {
+                    int binding_type = pipeline->shader_info.binding_types[i];
+
                     writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                     writeDescriptorSets[i].pNext = 0;
                     writeDescriptorSets[i].dstSet = descriptorset;
                     writeDescriptorSets[i].dstBinding = i;
                     writeDescriptorSets[i].dstArrayElement = 0;
                     writeDescriptorSets[i].descriptorCount = 1;
-                    writeDescriptorSets[i].descriptorType = i == 1 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;// FIXME hardcode
                     writeDescriptorSets[i].pImageInfo = &descriptorImageInfos[i];
                     writeDescriptorSets[i].pBufferInfo = 0;
                     writeDescriptorSets[i].pTexelBufferView = 0;
+
+                    if (binding_type == 2)
+                    {
+                        writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                    }
+                    else // if (binding_type == 3)
+                    {
+                        writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                    }
                 }
 
                 vkUpdateDescriptorSets(vkdev->vkdevice(), binding_count, writeDescriptorSets.data(), 0, 0);

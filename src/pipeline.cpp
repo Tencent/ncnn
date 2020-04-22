@@ -49,7 +49,13 @@ Pipeline::~Pipeline()
 
 int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations)
 {
-    ShaderInfo si = resolve_shader_info(spv_data, spv_data_size);
+    ShaderInfo si;
+    int ret = resolve_shader_info(spv_data, spv_data_size, si);
+    if (ret != 0)
+    {
+        fprintf(stderr, "resolve_shader_info failed %d\n", ret);
+        return -1;
+    }
 
     // -3 for local_size_xyz
     int specialization_count_expected = si.specialization_count - 3;
@@ -70,7 +76,7 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
 
 //     fprintf(stderr, "local_shader_module %p created\n", local_shader_module);
 
-    return create(local_shader_module, specializations, si.buffer_binding_count, si.image_binding_count, si.push_constant_count);
+    return create(local_shader_module, si, specializations);
 }
 
 int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
@@ -118,25 +124,27 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     {
         local_shader_module = vkdev->create_shader_module(shader_type_index, local_size_x, local_size_y, local_size_z);
 
-        return create(local_shader_module, specializations, si.buffer_binding_count, si.image_binding_count, si.push_constant_count);
+        return create(local_shader_module, si, specializations);
     }
 
     VkShaderModule shader_module = vkdev->get_shader_module(shader_type_index);
 
-    return create(shader_module, specializations, si.buffer_binding_count, si.image_binding_count, si.push_constant_count);
+    return create(shader_module, si, specializations);
 }
 
-int Pipeline::create(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations, int buffer_binding_count, int image_binding_count, int push_constant_count)
+int Pipeline::create(VkShaderModule shader_module, const ShaderInfo& _shader_info, const std::vector<vk_specialization_type>& specializations)
 {
-    create_descriptorset_layout(buffer_binding_count, image_binding_count);
+    shader_info = _shader_info;
 
-    create_pipeline_layout(push_constant_count);
+    create_descriptorset_layout();
+
+    create_pipeline_layout();
 
     create_pipeline(shader_module, specializations);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
-        create_descriptor_update_template(buffer_binding_count, image_binding_count);
+        create_descriptor_update_template();
     }
 
     return 0;
@@ -227,9 +235,9 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
 //     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
 }
 
-int Pipeline::create_descriptorset_layout(int buffer_binding_count, int image_binding_count)
+int Pipeline::create_descriptorset_layout()
 {
-    const int binding_count = buffer_binding_count + image_binding_count;
+    const int binding_count = shader_info.binding_count;
 
     if (binding_count == 0)
     {
@@ -238,22 +246,29 @@ int Pipeline::create_descriptorset_layout(int buffer_binding_count, int image_bi
     }
 
     std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(binding_count);
-    for (int i=0; i<buffer_binding_count; i++)
+    for (int i=0; i<binding_count; i++)
     {
+        int binding_type = shader_info.binding_types[i];
+
         descriptorSetLayoutBindings[i].binding = i;
-        descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptorSetLayoutBindings[i].descriptorCount = 1;
         descriptorSetLayoutBindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
-    }
-    for (int i=0; i<image_binding_count; i++)
-    {
-        int ii = buffer_binding_count + i;
-        descriptorSetLayoutBindings[ii].binding = ii;
-        descriptorSetLayoutBindings[ii].descriptorType = i == 1 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;// FIXME hardcode
-        descriptorSetLayoutBindings[ii].descriptorCount = 1;
-        descriptorSetLayoutBindings[ii].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        descriptorSetLayoutBindings[ii].pImmutableSamplers = i == 1 ? 0 : vkdev->immutable_texelfetch_sampler();// we always use texelfetch FIXME hardcode
+
+        if (binding_type == 1)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+        }
+        else if (binding_type == 2)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+        }
+        else // if (binding_type == 3)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = vkdev->immutable_texelfetch_sampler();// we always use texelfetch
+        }
     }
 
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
@@ -278,8 +293,10 @@ int Pipeline::create_descriptorset_layout(int buffer_binding_count, int image_bi
     return 0;
 }
 
-int Pipeline::create_pipeline_layout(int push_constant_count)
+int Pipeline::create_pipeline_layout()
 {
+    const int push_constant_count = shader_info.push_constant_count;
+
     VkPushConstantRange pushConstantRange;
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
@@ -396,9 +413,9 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk
     return 0;
 }
 
-int Pipeline::create_descriptor_update_template(int buffer_binding_count, int image_binding_count)
+int Pipeline::create_descriptor_update_template()
 {
-    const int binding_count = buffer_binding_count + image_binding_count;
+    const int binding_count = shader_info.binding_count;
 
     if (binding_count == 0)
     {
@@ -407,24 +424,33 @@ int Pipeline::create_descriptor_update_template(int buffer_binding_count, int im
     }
 
     std::vector<VkDescriptorUpdateTemplateEntryKHR> descriptorUpdateTemplateEntries(binding_count);
-    for (int i=0; i<buffer_binding_count; i++)// TODO do not update weights
+    size_t offset = 0;
+    for (int i=0; i<binding_count; i++)// TODO do not update weights
     {
+        int binding_type = shader_info.binding_types[i];
+
         descriptorUpdateTemplateEntries[i].dstBinding = i;
         descriptorUpdateTemplateEntries[i].dstArrayElement = 0;
         descriptorUpdateTemplateEntries[i].descriptorCount = 1;
-        descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorUpdateTemplateEntries[i].offset = i * sizeof(VkDescriptorBufferInfo);
-        descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorBufferInfo);
-    }
-    for (int i=0; i<image_binding_count; i++)
-    {
-        int ii = buffer_binding_count + i;
-        descriptorUpdateTemplateEntries[ii].dstBinding = ii;
-        descriptorUpdateTemplateEntries[ii].dstArrayElement = 0;
-        descriptorUpdateTemplateEntries[ii].descriptorCount = 1;
-        descriptorUpdateTemplateEntries[ii].descriptorType = i == 1 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;// FIXME hardcode
-        descriptorUpdateTemplateEntries[ii].offset = buffer_binding_count * sizeof(VkDescriptorBufferInfo) + i * sizeof(VkDescriptorImageInfo);
-        descriptorUpdateTemplateEntries[ii].stride = sizeof(VkDescriptorImageInfo);
+        descriptorUpdateTemplateEntries[i].offset = offset;
+
+        if (binding_type == 1)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorBufferInfo);
+        }
+        else if (binding_type == 2)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorImageInfo);
+        }
+        else // if (binding_type == 3)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorImageInfo);
+        }
+
+        offset += descriptorUpdateTemplateEntries[i].stride;
     }
 
     VkDescriptorUpdateTemplateCreateInfoKHR descriptorUpdateTemplateCreateInfo;

@@ -415,6 +415,21 @@ int ConvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
 
 int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
+    if (padding)
+    {
+        padding->upload_model(cmd, opt);
+    }
+
+    if (packing_unpack)
+    {
+        packing_unpack->upload_model(cmd, opt);
+    }
+
+    if (packing_pack)
+    {
+        packing_pack->upload_model(cmd, opt);
+    }
+
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
@@ -440,6 +455,10 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
             cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
 
             cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(Mat(1), bias_data_gpu_image, opt);
         }
 
         return 0;
@@ -509,6 +528,10 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
         cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
 
         cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
+    }
+    else
+    {
+        cmd.record_upload(Mat(1), bias_data_gpu_image, opt);
     }
 
     return 0;
@@ -836,7 +859,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
         bindings[0] = bottom_blob_bordered;
         bindings[1] = top_blob;
         bindings[2] = weight_data_gpu_image;
-        bindings[3] = bias_term ? bias_data_gpu_image : weight_data_gpu_image;// TODO use dummy buffer
+        bindings[3] = bias_data_gpu_image;// TODO use dummy buffer
 
         std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob_bordered.dims;
@@ -895,7 +918,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
     bindings[0] = bottom_blob_bordered_unpacked;
     bindings[1] = top_blob_unpacked;
     bindings[2] = weight_data_gpu_image;
-    bindings[3] = bias_term ? bias_data_gpu_image : weight_data_gpu_image;// TODO use dummy buffer
+    bindings[3] = bias_data_gpu_image;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered_unpacked.dims;

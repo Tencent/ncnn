@@ -270,13 +270,18 @@ class ShaderInfo
 {
 public:
     int specialization_count;
-    int buffer_binding_count;
-    int image_binding_count;
+    int binding_count;
     int push_constant_count;
+
+    // 0 = null
+    // 1 = storage buffer
+    // 2 = storage image
+    // 3 = combined image sampler
+    int binding_types[16];// 16 is large enough I think ...
 };
 
 const ShaderInfo& get_shader_info(int shader_type_index);
-ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size);
+int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info);
 
 } // namespace ncnn
 

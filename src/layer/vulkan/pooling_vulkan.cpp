@@ -277,6 +277,16 @@ int Pooling_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
+int Pooling_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
+{
+    if (padding)
+    {
+        padding->upload_model(cmd, opt);
+    }
+
+    return 0;
+}
+
 int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int w = bottom_blob.w;

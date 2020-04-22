@@ -31,7 +31,7 @@
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
 #else
-#define ENABLE_VALIDATION_LAYER 0
+#define ENABLE_VALIDATION_LAYER 1
 #endif
 
 namespace ncnn {
@@ -695,7 +695,7 @@ int create_gpu_instance()
             else if (strcmp(exp.extensionName, "VK_KHR_maintenance1") == 0)
                 gpu_info.support_VK_KHR_maintenance1 = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_push_descriptor") == 0)
-                gpu_info.support_VK_KHR_push_descriptor = exp.specVersion;
+                gpu_info.support_VK_KHR_push_descriptor = 0;//exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_sampler_ycbcr_conversion") == 0)
                 gpu_info.support_VK_KHR_sampler_ycbcr_conversion = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_shader_float16_int8") == 0)
@@ -837,7 +837,7 @@ int create_gpu_instance()
     // resolve shader info
     for (int i=0; i<layer_shader_registry_entry_count; i++)
     {
-        layer_shader_infos[i] = resolve_shader_info(layer_shader_registry[i].spv_data, layer_shader_registry[i].spv_data_size);
+        resolve_shader_info(layer_shader_registry[i].spv_data, layer_shader_registry[i].spv_data_size, layer_shader_infos[i]);
     }
 
     return 0;
@@ -1675,16 +1675,29 @@ const ShaderInfo& get_shader_info(int shader_type_index)
     return layer_shader_infos[shader_type_index];
 }
 
-ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size)
+int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info)
 {
+    shader_info.specialization_count = 0;
+    shader_info.binding_count = 0;
+    shader_info.push_constant_count = 0;
+
     uint32_t parameter_id = -233;
 
     int specialization_count = 0;
     int binding_count = 0;
     int push_constant_count = 0;
-    int buffer_block_count = 0;
+
+    // id -> binding_type
+    std::vector<int> id_types;
+
+    // binding_id -> binding_type
+    std::vector<int> binding_types;
 
     const uint32_t* p = spv_data;
+
+    int bound = p[3];
+
+    id_types.resize(bound);
 
     // skip magic version generator bound schema
     p += 5;
@@ -1714,37 +1727,86 @@ ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size)
                 push_constant_count++;
             }
         }
+        else if (op == 25) // OpTypeImage
+        {
+            uint32_t id = p[1];
+            id_types[id] = 2;
+        }
+        else if (op == 27) // OpTypeSampledImage
+        {
+            uint32_t id = p[1];
+            id_types[id] = 3;
+        }
+        else if (op == 32) // OpTypePointer
+        {
+            uint32_t id = p[1];
+            uint32_t storage_class = p[2];
+            uint32_t type = p[3];
+            if (storage_class == 0) // UniformConstant
+            {
+                id_types[id] = id_types[type];
+            }
+            if (storage_class == 2) // Uniform
+            {
+                id_types[id] = id_types[type];
+            }
+        }
+        else if (op == 59) // OpVariable
+        {
+            uint32_t id = p[1];
+            uint32_t var_id = p[2];
+            uint32_t storage_class = p[3];
+            if (storage_class == 0) // UniformConstant
+            {
+                id_types[var_id] = id_types[id];
+            }
+            if (storage_class == 2) // Uniform
+            {
+                id_types[var_id] = id_types[id];
+            }
+        }
         else if (op == 71) // OpDecorate
         {
+            uint32_t id = p[1];
             uint32_t decoration = p[2];
+            uint32_t binding_id = p[3];
             if (decoration == 1) // SpecId
             {
                 specialization_count++;
             }
-            else if (decoration == 3) // BufferBlock
+            if (decoration == 3) // BufferBlock
             {
-                buffer_block_count++;
+                id_types[id] = 1;
             }
             else if (decoration == 33) // Binding
             {
-                binding_count++;
+                binding_count = std::max(binding_count, (int)binding_id + 1);
+
+                binding_types.resize(binding_count);
+                binding_types[binding_id] = id;
             }
         }
 
         p += wordcount;
     }
 
-    ShaderInfo si;
-    si.specialization_count = specialization_count;
-    si.buffer_binding_count = buffer_block_count;
-    si.image_binding_count = binding_count - buffer_block_count;
-    si.push_constant_count = push_constant_count;
+    if (binding_count > 16)
+    {
+        fprintf(stderr, "too many binding %d\n", binding_count);
+        return -1;
+    }
 
-//     // HACK
-//     si.buffer_binding_count = 0;
-//     si.image_binding_count = 2;
+    shader_info.specialization_count = specialization_count;
+    shader_info.binding_count = binding_count;
+    shader_info.push_constant_count = push_constant_count;
 
-    return si;
+    // resolve binding_types
+    for (int i=0; i<binding_count; i++)
+    {
+        shader_info.binding_types[i] = id_types[ binding_types[i] ];
+    }
+
+    return 0;
 }
 
 } // namespace ncnn

@@ -316,6 +316,21 @@ int Deconvolution_vulkan::destroy_pipeline(const Option& opt)
 
 int Deconvolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
+    if (crop)
+    {
+        crop->upload_model(cmd, opt);
+    }
+
+    if (output_pad)
+    {
+        output_pad->upload_model(cmd, opt);
+    }
+
+    if (output_crop)
+    {
+        output_crop->upload_model(cmd, opt);
+    }
+
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
@@ -388,6 +403,10 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
 
         cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
+    }
+    else
+    {
+        cmd.record_upload(Mat(1), bias_data_gpu_image, opt);
     }
 
     return 0;
@@ -624,7 +643,7 @@ int Deconvolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
     bindings[0] = bottom_blob;
     bindings[1] = top_blob_bordered;
     bindings[2] = weight_data_gpu_image;
-    bindings[3] = bias_term ? bias_data_gpu_image : weight_data_gpu_image;// TODO use dummy buffer
+    bindings[3] = bias_data_gpu_image;// TODO use dummy buffer
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
