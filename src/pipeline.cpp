@@ -93,7 +93,7 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
 
     if (opt.use_image_storage && opt.use_image_fp16_storage && opt.use_image_fp16_arithmetic)
     {
-        shader_type_index += 6;
+        shader_type_index += 7;
     }
     else if (opt.use_image_storage && opt.use_image_fp16_storage)
     {

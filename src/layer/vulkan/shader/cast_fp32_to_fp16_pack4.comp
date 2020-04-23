@@ -39,12 +39,12 @@ layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform sampler1D bottom_blob_1d;
-layout (binding = 0) uniform sampler2D bottom_blob_2d;
-layout (binding = 0) uniform sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform image1D top_blob_1d;
-layout (binding = 1, imfmtc4) writeonly uniform image2D top_blob_2d;
-layout (binding = 1, imfmtc4) writeonly uniform image3D top_blob_3d;
+layout (binding = 0) uniform highp sampler1D bottom_blob_1d;
+layout (binding = 0) uniform highp sampler2D bottom_blob_2d;
+layout (binding = 0) uniform highp sampler3D bottom_blob_3d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 #else
 layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };

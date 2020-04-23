@@ -195,6 +195,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4 -Dafpvec8=mat2x4 -Dafpmat4=mat4
 
              -Dimfmtc1=r32f -Dimfmtc4=rgba32f
+             -Dunfp=highp
 
              "-D image1d_ld1(tex,p)=texelFetch(tex,p,0).r"
              "-D image2d_ld1(tex,p)=texelFetch(tex,p,0).r"
@@ -267,6 +268,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              -Dafp=float     -Dafpvec2=vec2    -Dafpvec4=vec4    -Dafpvec8=mat2x4 -Dafpmat4=mat4
 
              -Dimfmtc1=r16f -Dimfmtc4=rgba16f
+             -Dunfp=mediump
 
              "-D image1d_ld1(tex,p)=texelFetch(tex,p,0).r"
              "-D image2d_ld1(tex,p)=texelFetch(tex,p,0).r"
@@ -339,6 +341,7 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              -Dafp=float16_t -Dafpvec2=f16vec2 -Dafpvec4=f16vec4 -Dafpvec8=f16mat2x4 -Dafpmat4=f16mat4
 
              -Dimfmtc1=r16f -Dimfmtc4=rgba16f
+             -Dunfp=mediump
 
              "-D image1d_ld1(tex,p)=float16_t(texelFetch(tex,p,0).r)"
              "-D image2d_ld1(tex,p)=float16_t(texelFetch(tex,p,0).r)"
