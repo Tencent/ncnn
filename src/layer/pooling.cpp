@@ -272,7 +272,7 @@ void Pooling::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, co
     float pad_value = 0.f;
     if (pooling_type == PoolMethod_MAX)
     {
-        pad_value = -FLT_MAX;
+        pad_value = bottom_blob.elemsize == 1 ? -128.f : -FLT_MAX;
     }
     else if (pooling_type == PoolMethod_AVE)
     {

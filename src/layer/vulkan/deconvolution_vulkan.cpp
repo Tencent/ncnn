@@ -165,7 +165,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     specializations[5].i = stride_h;
     specializations[6].i = bias_term;
     specializations[7].i = activation_type;
-    specializations[8].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+    specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
     specializations[10 + 0].i = shape_packed.dims;
     specializations[10 + 1].i = shape_packed.w;

@@ -23,6 +23,13 @@ static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
     pd.set(1, bias);// bias_term
     pd.set(2, outch*a.w*a.h*a.c);
 
+    int activation_type = RAND() % 5;// 0 1 2 3 4
+    ncnn::Mat activation_params(2);
+    activation_params[0] = RandomFloat(-1, 0);// alpha
+    activation_params[1] = RandomFloat(0, 1);// beta
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
     std::vector<ncnn::Mat> weights(bias ? 2 : 1);
     weights[0] = RandomMat(outch*a.w*a.h*a.c);
     if (bias)
@@ -36,7 +43,7 @@ static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
     int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_innerproduct failed a.dims=%d a=(%d %d %d) outch=%d bias=%d\n", a.dims, a.w, a.h, a.c, outch, bias);
+        fprintf(stderr, "test_innerproduct failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
     }
 
     return ret;
