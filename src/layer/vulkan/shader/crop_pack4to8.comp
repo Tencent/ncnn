@@ -98,13 +98,13 @@ void main()
 
     afpvec8 v;
     v[0].r = v0[z4.r % 4];
-    v[0].g = v1[z4.r % 4];
-    v[0].b = v2[z4.r % 4];
-    v[0].a = v3[z4.r % 4];
+    v[0].g = v1[z4.g % 4];
+    v[0].b = v2[z4.b % 4];
+    v[0].a = v3[z4.a % 4];
     v[1].r = v4[zz4.r % 4];
-    v[1].g = v5[zz4.r % 4];
-    v[1].b = v6[zz4.r % 4];
-    v[1].a = v7[zz4.r % 4];
+    v[1].g = v5[zz4.g % 4];
+    v[1].b = v6[zz4.b % 4];
+    v[1].a = v7[zz4.a % 4];
 
     image3d_st8(top_blob, ivec3(gx, gy, gz), v);
 #else

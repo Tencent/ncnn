@@ -93,9 +93,9 @@ void main()
 
     afpvec4 v;
     v.r = v0[(z4.r % 8) / 4][z4.r % 4];
-    v.g = v1[(z4.r % 8) / 4][z4.r % 4];
-    v.b = v2[(z4.r % 8) / 4][z4.r % 4];
-    v.a = v3[(z4.r % 8) / 4][z4.r % 4];
+    v.g = v1[(z4.g % 8) / 4][z4.g % 4];
+    v.b = v2[(z4.b % 8) / 4][z4.b % 4];
+    v.a = v3[(z4.a % 8) / 4][z4.a % 4];
 
     image3d_st4(top_blob, ivec3(gx, gy, gz), v);
 #else
