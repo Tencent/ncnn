@@ -153,25 +153,49 @@ static onnx::TensorProto get_node_attr_tensor(const onnx::NodeProto& node, const
 
 static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
 {
-    const int64_t* shape_data = 0;
     int size = 0;
 
-    // int64
-    if (tp.has_raw_data())
-    {
-        shape_data = (const int64_t*)tp.raw_data().data();
-        size = tp.raw_data().size() / 8;
-    }
-    else if (tp.data_type() == 7)
-    {
-        shape_data = tp.int64_data().data();
-        size = tp.int64_data_size();
-    }
+    std::vector<int> v;
 
-    std::vector<int> v(size);
-    for (int j=0; j<size; j++)
+    // int64
+    if (tp.data_type() == 7) 
     {
-        v[j] = shape_data[j];
+        const int64_t* shape_data = 0;
+        if (tp.has_raw_data())
+        {
+            shape_data = (const int64_t*)tp.raw_data().data();
+            size = tp.raw_data().size() / 8;
+        }
+        else 
+        {
+            shape_data = tp.int64_data().data();
+            size = tp.int64_data_size();
+        }
+        for (int j=0; j<size; j++)
+        {
+            v.push_back(shape_data[j]);
+        }
+    } 
+    // int32
+    else if (tp.data_type() == 6) 
+    {
+        const int32_t* shape_data = 0;
+        if (tp.has_raw_data())
+        {
+            shape_data = (const int32_t*)tp.raw_data().data();
+            size = tp.raw_data().size() / 4;
+        } 
+        else 
+        {
+            shape_data = tp.int32_data().data();
+            size = tp.int32_data_size();
+        }
+        for (int j=0; j<size; j++)
+        {
+            v.push_back(shape_data[j]);
+        }
+    } else {
+        fprintf(stderr, "Unknown data type %d\n", tp.data_type());
     }
 
     return v;

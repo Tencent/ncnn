@@ -228,6 +228,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
+        if (outw < dilation_w || outh < dilation_h)
+        {
+            return Convolution::forward(bottom_blob, top_blob, opt);
+        }
+
         return forwardDilation_x86(bottom_blob_bordered, top_blob, opt);
     }
 

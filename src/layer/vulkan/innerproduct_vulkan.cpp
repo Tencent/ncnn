@@ -97,7 +97,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     std::vector<vk_specialization_type> specializations(4 + 10);
     specializations[0].i = bias_term;
     specializations[1].i = activation_type;
-    specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+    specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
     specializations[4 + 0].i = shape_flatten_packed.dims;
     specializations[4 + 1].i = shape_flatten_packed.w;

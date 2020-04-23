@@ -46,7 +46,7 @@ if(ANDROID)
     list(APPEND ncnn_SRCS mat_pixel_android.cpp)
 endif()
 
-include(${CMAKE_SOURCE_DIR}/cmake/ncnn_generate_shader_spv_header.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_shader_spv_header.cmake)
 
 macro(ncnn_add_shader SHADER_SRC)
     ncnn_generate_shader_spv_header(SHADER_SPV_HEADER SHADER_SPV_HEX_HEADERS ${SHADER_SRC})
