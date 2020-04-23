@@ -491,7 +491,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (opt.use_packing_layout == false && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
+        if (outw >= dilation_w && outh >= dilation_h)
+        {
         return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
+        }
     }
 
     const int maxk = kernel_w * kernel_h;

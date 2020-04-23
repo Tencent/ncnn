@@ -180,7 +180,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     specializations[5].i = stride_h;
     specializations[6].i = bias_term;
     specializations[7].i = activation_type;
-    specializations[8].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+    specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
     specializations[10 + 0].i = shape_bordered_packed.dims;
     specializations[10 + 1].i = shape_bordered_packed.w;
@@ -215,7 +215,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
-            specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+            specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
             specializations[4 + 0].i = shape_bordered_packed.dims;
             specializations[4 + 1].i = shape_bordered_packed.cstep / 4;
@@ -247,7 +247,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
-            specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+            specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
             specializations[4 + 0].i = shape_bordered_packed.dims;
             specializations[4 + 1].i = shape_bordered_packed.w * shape_bordered_packed.h;
@@ -374,7 +374,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 std::vector<vk_specialization_type> specializations(4 + 7);
                 specializations[0].i = bias_term;
                 specializations[1].i = activation_type;
-                specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+                specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
                 specializations[4 + 0].i = shape_winograd_gemm_packed.c;
                 specializations[4 + 1].i = shape_winograd_gemm_packed.cstep;
@@ -424,7 +424,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
-            specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+            specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
             specializations[4 + 0].i = shape_bordered_packed.dims;
             specializations[4 + 1].i = shape_bordered_packed.w * shape_bordered_packed.h;
@@ -551,7 +551,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 std::vector<vk_specialization_type> specializations(4 + 7);
                 specializations[0].i = bias_term;
                 specializations[1].i = activation_type;
-                specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+                specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
                 specializations[4 + 0].i = shape_winograd_gemm_packed.c;
                 specializations[4 + 1].i = shape_winograd_gemm_packed.cstep;

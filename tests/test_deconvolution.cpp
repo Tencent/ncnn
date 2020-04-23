@@ -29,6 +29,13 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     pd.set(5, bias);// bias_term
     pd.set(6, outch*c*kernel*kernel);
 
+    int activation_type = RAND() % 5;// 0 1 2 3 4
+    ncnn::Mat activation_params(2);
+    activation_params[0] = RandomFloat(-1, 0);// alpha
+    activation_params[1] = RandomFloat(0, 1);// beta
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
     std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(outch*c*kernel*kernel);
     weights[1] = RandomMat(outch);
@@ -41,7 +48,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     int ret = test_layer<ncnn::Deconvolution>("Deconvolution", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias);
+        fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
     }
 
     return ret;
