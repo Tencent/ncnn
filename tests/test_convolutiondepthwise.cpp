@@ -30,6 +30,13 @@ static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel,
     pd.set(6, outch/group*c/group*kernel*kernel*group);
     pd.set(7, group);
 
+    int activation_type = RAND() % 5;// 0 1 2 3 4
+    ncnn::Mat activation_params(2);
+    activation_params[0] = RandomFloat(-1, 0);// alpha
+    activation_params[1] = RandomFloat(0, 1);// beta
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
     std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(outch/group*c/group*kernel*kernel*group);
     weights[1] = RandomMat(outch);
@@ -42,7 +49,7 @@ static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel,
     int ret = test_layer<ncnn::ConvolutionDepthWise>("ConvolutionDepthWise", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_convolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group);
+        fprintf(stderr, "test_convolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1]);
     }
 
     return ret;
