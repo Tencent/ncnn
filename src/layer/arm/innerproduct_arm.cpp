@@ -250,6 +250,13 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             if (sum3 < min) sum3 = min;
             if (sum3 > max) sum3 = max;
         }
+        else if (activation_type == 4)
+        {
+            sum0 = static_cast<float>(1.f / (1.f + exp(-sum0)));
+            sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
+            sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
+            sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
+        }
 
         top_blob[p] = sum0;
         top_blob[p+1] = sum1;
@@ -531,6 +538,13 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
             if (sum2 > max) sum2 = max;
             if (sum3 < min) sum3 = min;
             if (sum3 > max) sum3 = max;
+        }
+        else if (activation_type == 4)
+        {
+            sum0 = static_cast<float>(1.f / (1.f + exp(-sum0)));
+            sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
+            sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
+            sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
         }
 
         unsigned short* outptr = (unsigned short*)top_blob + p;
