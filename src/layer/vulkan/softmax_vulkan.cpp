@@ -415,6 +415,7 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     return 0;
 }
 
+#if 0
 int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     return 0;
@@ -561,5 +562,6 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
 
     return 0;
 }
+#endif
 
 } // namespace ncnn
