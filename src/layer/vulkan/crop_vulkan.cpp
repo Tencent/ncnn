@@ -24,6 +24,7 @@ DEFINE_LAYER_CREATOR(Crop_vulkan)
 Crop_vulkan::Crop_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     packing_pack1 = 0;
     packing_pack4 = 0;

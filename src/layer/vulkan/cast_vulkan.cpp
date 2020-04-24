@@ -23,6 +23,7 @@ DEFINE_LAYER_CREATOR(Cast_vulkan)
 Cast_vulkan::Cast_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_cast_fp32_to_fp16 = 0;
     pipeline_cast_fp32_to_fp16_pack4 = 0;

@@ -152,7 +152,10 @@ protected:
 
 #if NCNN_VULKAN
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, Option& opt) const;
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkImageMat>& blob_mats_gpu, VkCompute& cmd, Option& opt) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, Option& opt) const;
+
+    int buffer_to_image(const VkMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
+    int image_to_buffer(const VkImageMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
 protected:
@@ -167,11 +170,18 @@ protected:
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
 
+    // TODO move these to device routine
     ncnn::Layer* cast_float32_to_float16;
     ncnn::Layer* cast_float16_to_float32;
     ncnn::Layer* packing_pack1;
     ncnn::Layer* packing_pack4;
     ncnn::Layer* packing_pack8;
+
+    ncnn::Layer* cast_float32_to_float16_image;
+    ncnn::Layer* cast_float16_to_float32_image;
+    ncnn::Layer* packing_pack1_image;
+    ncnn::Layer* packing_pack4_image;
+    ncnn::Layer* packing_pack8_image;
 #endif // NCNN_VULKAN
 };
 
@@ -274,7 +284,7 @@ private:
     VkAllocator* local_staging_vkallocator;
 
     std::vector<VkMat> blob_mats_gpu;
-    std::vector<VkImageMat> blob_imagemats_gpu;
+    std::vector<VkImageMat> blob_mats_gpu_image;
 #endif // NCNN_VULKAN
 };
 

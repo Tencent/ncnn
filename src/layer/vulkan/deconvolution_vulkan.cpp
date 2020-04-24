@@ -24,6 +24,7 @@ DEFINE_LAYER_CREATOR(Deconvolution_vulkan)
 Deconvolution_vulkan::Deconvolution_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     crop = 0;
     output_pad = 0;

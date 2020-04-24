@@ -48,6 +48,12 @@ Net::Net()
     packing_pack1 = 0;
     packing_pack4 = 0;
     packing_pack8 = 0;
+
+    cast_float32_to_float16_image = 0;
+    cast_float16_to_float32_image = 0;
+    packing_pack1_image = 0;
+    packing_pack4_image = 0;
+    packing_pack8_image = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -61,6 +67,12 @@ Net::~Net()
     delete packing_pack1;
     delete packing_pack4;
     delete packing_pack8;
+
+    delete cast_float32_to_float16_image;
+    delete cast_float16_to_float32_image;
+    delete packing_pack1_image;
+    delete packing_pack4_image;
+    delete packing_pack8_image;
 #endif // NCNN_VULKAN
 }
 
@@ -949,7 +961,11 @@ int Net::upload_model()
 
 int Net::create_pipeline()
 {
-    if ((opt.use_image_fp16_storage || opt.use_fp16_storage) && vkdev->info.type != 0)
+    Option opt_buffer = opt;
+    opt_buffer.use_image_storage = false;
+
+    // TODO proper condition
+//     if ((opt.use_image_fp16_storage || opt.use_fp16_storage) && vkdev->info.type != 0)
     {
         {
         cast_float32_to_float16 = ncnn::create_layer(ncnn::LayerType::Cast);
@@ -973,9 +989,9 @@ int Net::create_pipeline()
         cast_float16_to_float32->load_param(pd);
         }
 
-        cast_float32_to_float16->create_pipeline(opt);
+        cast_float32_to_float16->create_pipeline(opt_buffer);
 
-        cast_float16_to_float32->create_pipeline(opt);
+        cast_float16_to_float32->create_pipeline(opt_buffer);
     }
 
     {
@@ -1008,29 +1024,121 @@ int Net::create_pipeline()
     packing_pack8->load_param(pd);
     }
 
-    packing_pack1->create_pipeline(opt);
-    packing_pack4->create_pipeline(opt);
-    packing_pack8->create_pipeline(opt);
+    packing_pack1->create_pipeline(opt_buffer);
+    packing_pack4->create_pipeline(opt_buffer);
+    packing_pack8->create_pipeline(opt_buffer);
+
+
+
+    Option opt_image = opt;
+    opt_image.use_image_storage = true;
+
+    // TODO proper condition
+//     if ((opt.use_image_fp16_storage || opt.use_fp16_storage) && vkdev->info.type != 0)
+    {
+        {
+        cast_float32_to_float16_image = ncnn::create_layer(ncnn::LayerType::Cast);
+        cast_float32_to_float16_image->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        pd.set(1, 2);
+
+        cast_float32_to_float16_image->load_param(pd);
+        }
+
+        {
+        cast_float16_to_float32_image = ncnn::create_layer(ncnn::LayerType::Cast);
+        cast_float16_to_float32_image->vkdev = vkdev;
+
+        ncnn::ParamDict pd;
+        pd.set(0, 2);
+        pd.set(1, 1);
+
+        cast_float16_to_float32_image->load_param(pd);
+        }
+
+        cast_float32_to_float16_image->create_pipeline(opt_image);
+
+        cast_float16_to_float32_image->create_pipeline(opt_image);
+    }
+
+    {
+    packing_pack1_image = ncnn::create_layer(ncnn::LayerType::Packing);
+    packing_pack1_image->vkdev = vkdev;
+
+    ncnn::ParamDict pd;
+    pd.set(0, 1);
+
+    packing_pack1_image->load_param(pd);
+    }
+
+    {
+    packing_pack4_image = ncnn::create_layer(ncnn::LayerType::Packing);
+    packing_pack4_image->vkdev = vkdev;
+
+    ncnn::ParamDict pd;
+    pd.set(0, 4);
+
+    packing_pack4_image->load_param(pd);
+    }
+
+    {
+    packing_pack8_image = ncnn::create_layer(ncnn::LayerType::Packing);
+    packing_pack8_image->vkdev = vkdev;
+
+    ncnn::ParamDict pd;
+    pd.set(0, 8);
+
+    packing_pack8_image->load_param(pd);
+    }
+
+    packing_pack1_image->create_pipeline(opt_image);
+    packing_pack4_image->create_pipeline(opt_image);
+    packing_pack8_image->create_pipeline(opt_image);
 
     return 0;
 }
 
 int Net::destroy_pipeline()
 {
+    Option opt_buffer = opt;
+    opt_buffer.use_image_storage = false;
+
     if (cast_float32_to_float16)
-        cast_float32_to_float16->destroy_pipeline(opt);
+        cast_float32_to_float16->destroy_pipeline(opt_buffer);
 
     if (cast_float16_to_float32)
-        cast_float16_to_float32->destroy_pipeline(opt);
+        cast_float16_to_float32->destroy_pipeline(opt_buffer);
 
     if (packing_pack1)
-        packing_pack1->destroy_pipeline(opt);
+        packing_pack1->destroy_pipeline(opt_buffer);
 
     if (packing_pack4)
-        packing_pack4->destroy_pipeline(opt);
+        packing_pack4->destroy_pipeline(opt_buffer);
 
     if (packing_pack8)
-        packing_pack8->destroy_pipeline(opt);
+        packing_pack8->destroy_pipeline(opt_buffer);
+
+
+
+    Option opt_image = opt;
+    opt_image.use_image_storage = true;
+
+    if (cast_float32_to_float16_image)
+        cast_float32_to_float16_image->destroy_pipeline(opt_image);
+
+    if (cast_float16_to_float32_image)
+        cast_float16_to_float32_image->destroy_pipeline(opt_image);
+
+    if (packing_pack1_image)
+        packing_pack1_image->destroy_pipeline(opt_image);
+
+    if (packing_pack4_image)
+        packing_pack4_image->destroy_pipeline(opt_image);
+
+    if (packing_pack8_image)
+        packing_pack8_image->destroy_pipeline(opt_image);
 
     return 0;
 }
@@ -1554,7 +1662,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                 }
             }
         }
-
     }
     else
     {
@@ -1905,7 +2012,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
     return 0;
 }
 
-int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkImageMat>& blob_mats_gpu, VkCompute& cmd, Option& opt) const
+int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, Option& opt) const
 {
     const Layer* layer = layers[layer_index];
 
@@ -1913,240 +2020,568 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
     if (layer->support_vulkan)
     {
-        if (layer->one_blob_only)
+        if (layer->support_image_storage)
         {
-            // load bottom blob
-            int bottom_blob_index = layer->bottoms[0];
-            int top_blob_index = layer->tops[0];
-
-            if (blob_mats_gpu[bottom_blob_index].dims == 0)
+            if (layer->one_blob_only)
             {
-                if (blob_mats[bottom_blob_index].dims == 0)
-                {
-                    int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, cmd, opt);
-                    if (ret != 0)
-                        return ret;
-                }
+                // load bottom blob
+                int bottom_blob_index = layer->bottoms[0];
+                int top_blob_index = layer->tops[0];
 
-                if (blob_mats_gpu[bottom_blob_index].dims == 0)
-                {
-                    const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
-
-                    // cpu cast to fp16 (discrete gpu)
-                    Mat bottom_blob_cpu_fp16;
-                    if (opt.use_image_fp16_storage && vkdev->info.type == 0)
-                    {
-                        ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
-                    }
-                    else
-                    {
-                        bottom_blob_cpu_fp16 = bottom_blob_cpu;
-                    }
-
-                    // upload
-                    VkImageMat bottom_blob_unpacked;
-                    cmd.record_upload(bottom_blob_cpu_fp16, bottom_blob_unpacked, opt);
-
-                    // cast to fp16 (integrated gpu)
-                    VkImageMat bottom_blob_unpacked_fp16;
-                    if (opt.use_image_fp16_storage && vkdev->info.type != 0)
-                    {
-                        cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
-                    }
-                    else
-                    {
-                        bottom_blob_unpacked_fp16 = bottom_blob_unpacked;
-                    }
-
-                    // packing
-                    VkImageMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
-                    if (opt.use_shader_pack8)
-                    {
-                        packing_pack8->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
-                        if (bottom_blob.elempack != 8)
-                            packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
-                    }
-                    else
-                        packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
-
-//                     fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
-                }
-            }
-
-            VkImageMat bottom_blob = blob_mats_gpu[bottom_blob_index];
-
-            if (opt.lightmode)
-            {
-                // delete after taken in light mode
-                blob_mats_gpu[bottom_blob_index].release();
-                // deep copy for inplace forward if data is shared
-                if (layer->support_inplace && *bottom_blob.refcount != 1)
-                {
-                    VkImageMat bottom_blob_copy;
-                    cmd.record_clone(bottom_blob, bottom_blob_copy, opt);
-//                     fprintf(stderr, "clone %p[+%lu] %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
-                    bottom_blob = bottom_blob_copy;
-                }
-            }
-
-            // forward
-            if (opt.lightmode && layer->support_inplace)
-            {
-                VkImageMat& bottom_top_blob = bottom_blob;
-#if NCNN_BENCHMARK
-                cmd.record_write_timestamp(layer_index * 2);
-                int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
-                cmd.record_write_timestamp(layer_index * 2 + 1);
-#else
-                int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
-#endif // NCNN_BENCHMARK
-                if (ret != 0)
-                    return ret;
-
-                // store top blob
-                blob_mats_gpu[top_blob_index] = bottom_top_blob;
-            }
-            else
-            {
-                VkImageMat top_blob;
-#if NCNN_BENCHMARK
-                cmd.record_write_timestamp(layer_index * 2);
-                int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
-                cmd.record_write_timestamp(layer_index * 2 + 1);
-#else
-                int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
-#endif // NCNN_BENCHMARK
-                if (ret != 0)
-                    return ret;
-
-                // store top blob
-                blob_mats_gpu[top_blob_index] = top_blob;
-            }
-        }
-        else
-        {
-            // load bottom blobs
-            std::vector<VkImageMat> bottom_blobs(layer->bottoms.size());
-            for (size_t i=0; i<layer->bottoms.size(); i++)
-            {
-                int bottom_blob_index = layer->bottoms[i];
-
-                if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
                 {
                     if (blob_mats[bottom_blob_index].dims == 0)
                     {
-                        int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, cmd, opt);
+                        int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, blob_mats_gpu_image, cmd, opt);
                         if (ret != 0)
                             return ret;
                     }
 
-                    if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                    if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
                     {
-                        const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
-
-                        // cast to fp16 (discrete gpu)
-                        Mat bottom_blob_cpu_fp16;
-                        if (opt.use_image_fp16_storage && vkdev->info.type == 0)
+                        if (blob_mats_gpu[bottom_blob_index].dims == 0)
                         {
-                            ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
+                            const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+
+                            // cpu cast to fp16 (discrete gpu)
+                            Mat bottom_blob_cpu_fp16;
+                            if (opt.use_image_fp16_storage && vkdev->info.type == 0)
+                            {
+                                ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
+                            }
+                            else
+                            {
+                                bottom_blob_cpu_fp16 = bottom_blob_cpu;
+                            }
+
+                            // upload
+                            VkImageMat bottom_blob_unpacked;
+                            cmd.record_upload(bottom_blob_cpu_fp16, bottom_blob_unpacked, opt);
+
+                            // cast to fp16 (integrated gpu)
+                            VkImageMat bottom_blob_unpacked_fp16;
+                            if (opt.use_image_fp16_storage && vkdev->info.type != 0)
+                            {
+                                cast_float32_to_float16_image->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
+                            }
+                            else
+                            {
+                                bottom_blob_unpacked_fp16 = bottom_blob_unpacked;
+                            }
+
+                            // packing
+                            VkImageMat& bottom_blob = blob_mats_gpu_image[bottom_blob_index];
+                            if (opt.use_shader_pack8)
+                            {
+                                packing_pack8_image->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+                                if (bottom_blob.elempack != 8)
+                                    packing_pack4_image->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+                            }
+                            else
+                                packing_pack4_image->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+
+//                             fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
                         }
                         else
                         {
-                            bottom_blob_cpu_fp16 = bottom_blob_cpu;
-                        }
+                            // buffer to image
+                            const VkMat& bottom_blob_buffer = blob_mats_gpu[bottom_blob_index];
+                            VkImageMat& bottom_blob = blob_mats_gpu_image[bottom_blob_index];
 
-                        // upload
-                        VkImageMat bottom_blob_unpacked;
-                        cmd.record_upload(bottom_blob_cpu_fp16, bottom_blob_unpacked, opt);
+                            buffer_to_image(bottom_blob_buffer, bottom_blob, cmd, opt);
+                            if (bottom_blob.empty())
+                            {
+                                return -100;
+                            }
 
-                        // cast to fp16 (integrated gpu)
-                        VkImageMat bottom_blob_unpacked_fp16;
-                        if (opt.use_image_fp16_storage && vkdev->info.type != 0)
-                        {
-                            cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
+                            if (opt.lightmode)
+                            {
+                                // delete after taken in light mode
+                                blob_mats_gpu[bottom_blob_index].release();
+                            }
                         }
-                        else
-                        {
-                            bottom_blob_unpacked_fp16 = bottom_blob_unpacked;
-                        }
-
-                        // packing
-                        VkImageMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
-                        if (opt.use_shader_pack8)
-                        {
-                            packing_pack8->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
-                            if (bottom_blob.elempack != 8)
-                                packing_pack4->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
-                        }
-                        else
-                            packing_pack4->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
-
-//                         fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
                     }
                 }
 
-                bottom_blobs[i] = blob_mats_gpu[bottom_blob_index];
+                VkImageMat bottom_blob = blob_mats_gpu_image[bottom_blob_index];
+
+                if (opt.lightmode)
+                {
+                    // delete after taken in light mode
+                    blob_mats_gpu_image[bottom_blob_index].release();
+                    // deep copy for inplace forward if data is shared
+                    if (layer->support_inplace && *bottom_blob.refcount != 1)
+                    {
+                        VkImageMat bottom_blob_copy;
+                        cmd.record_clone(bottom_blob, bottom_blob_copy, opt);
+//                         fprintf(stderr, "clone %p[+%lu] %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
+                        bottom_blob = bottom_blob_copy;
+                    }
+                }
+
+                // forward
+                if (opt.lightmode && layer->support_inplace)
+                {
+                    VkImageMat& bottom_top_blob = bottom_blob;
+#if NCNN_BENCHMARK
+                    cmd.record_write_timestamp(layer_index * 2);
+                    int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
+                    cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                    int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
+#endif // NCNN_BENCHMARK
+                    if (ret != 0)
+                        return ret;
+
+                    // store top blob
+                    blob_mats_gpu_image[top_blob_index] = bottom_top_blob;
+                }
+                else
+                {
+                    VkImageMat top_blob;
+#if NCNN_BENCHMARK
+                    cmd.record_write_timestamp(layer_index * 2);
+                    int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
+                    cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                    int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
+#endif // NCNN_BENCHMARK
+                    if (ret != 0)
+                        return ret;
+
+                    // store top blob
+                    blob_mats_gpu_image[top_blob_index] = top_blob;
+                }
+            }
+            else
+            {
+                // load bottom blobs
+                std::vector<VkImageMat> bottom_blobs(layer->bottoms.size());
+                for (size_t i=0; i<layer->bottoms.size(); i++)
+                {
+                    int bottom_blob_index = layer->bottoms[i];
+
+                    if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
+                    {
+                        if (blob_mats[bottom_blob_index].dims == 0)
+                        {
+                            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, blob_mats_gpu_image, cmd, opt);
+                            if (ret != 0)
+                                return ret;
+                        }
+
+                        if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
+                        {
+                            if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                            {
+                                const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+
+                                // cast to fp16 (discrete gpu)
+                                Mat bottom_blob_cpu_fp16;
+                                if (opt.use_image_fp16_storage && vkdev->info.type == 0)
+                                {
+                                    ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
+                                }
+                                else
+                                {
+                                    bottom_blob_cpu_fp16 = bottom_blob_cpu;
+                                }
+
+                                // upload
+                                VkImageMat bottom_blob_unpacked;
+                                cmd.record_upload(bottom_blob_cpu_fp16, bottom_blob_unpacked, opt);
+
+                                // cast to fp16 (integrated gpu)
+                                VkImageMat bottom_blob_unpacked_fp16;
+                                if (opt.use_image_fp16_storage && vkdev->info.type != 0)
+                                {
+                                    cast_float32_to_float16_image->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
+                                }
+                                else
+                                {
+                                    bottom_blob_unpacked_fp16 = bottom_blob_unpacked;
+                                }
+
+                                // packing
+                                VkImageMat& bottom_blob = blob_mats_gpu_image[bottom_blob_index];
+                                if (opt.use_shader_pack8)
+                                {
+                                    packing_pack8_image->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+                                    if (bottom_blob.elempack != 8)
+                                        packing_pack4_image->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+                                }
+                                else
+                                    packing_pack4_image->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+
+//                                 fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
+                            }
+                            else
+                            {
+                                // buffer to image
+                                const VkMat& bottom_blob_buffer = blob_mats_gpu[bottom_blob_index];
+                                VkImageMat& bottom_blob = blob_mats_gpu_image[bottom_blob_index];
+
+                                buffer_to_image(bottom_blob_buffer, bottom_blob, cmd, opt);
+                                if (bottom_blob.empty())
+                                {
+                                    return -100;
+                                }
+
+                                if (opt.lightmode)
+                                {
+                                    // delete after taken in light mode
+                                    blob_mats_gpu[bottom_blob_index].release();
+                                }
+                            }
+                        }
+                    }
+
+                    bottom_blobs[i] = blob_mats_gpu_image[bottom_blob_index];
+
+                    if (opt.lightmode)
+                    {
+                        // delete after taken in light mode
+                        blob_mats_gpu_image[bottom_blob_index].release();
+                        // deep copy for inplace forward if data is shared
+                        if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                        {
+                            VkImageMat bottom_blob_copy;
+                            cmd.record_clone(bottom_blobs[i], bottom_blob_copy, opt);
+    //                         fprintf(stderr, "clone %p[+%lu] %p[+%lu]\n", bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
+                            bottom_blobs[i] = bottom_blob_copy;
+                        }
+                    }
+                }
+
+                // forward
+                if (opt.lightmode && layer->support_inplace)
+                {
+                    std::vector<VkImageMat>& bottom_top_blobs = bottom_blobs;
+#if NCNN_BENCHMARK
+                    cmd.record_write_timestamp(layer_index * 2);
+                    int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
+                    cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                    int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
+#endif // NCNN_BENCHMARK
+                    if (ret != 0)
+                        return ret;
+
+                    // store top blobs
+                    for (size_t i=0; i<layer->tops.size(); i++)
+                    {
+                        int top_blob_index = layer->tops[i];
+
+                        blob_mats_gpu_image[top_blob_index] = bottom_top_blobs[i];
+                    }
+                }
+                else
+                {
+                    std::vector<VkImageMat> top_blobs(layer->tops.size());
+#if NCNN_BENCHMARK
+                    cmd.record_write_timestamp(layer_index * 2);
+                    int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
+                    cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                    int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
+#endif // NCNN_BENCHMARK
+                    if (ret != 0)
+                        return ret;
+
+                    // store top blobs
+                    for (size_t i=0; i<layer->tops.size(); i++)
+                    {
+                        int top_blob_index = layer->tops[i];
+
+                        blob_mats_gpu_image[top_blob_index] = top_blobs[i];
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (layer->one_blob_only)
+            {
+                // load bottom blob
+                int bottom_blob_index = layer->bottoms[0];
+                int top_blob_index = layer->tops[0];
+
+                if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                {
+                    if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
+                    {
+                        if (blob_mats[bottom_blob_index].dims == 0)
+                        {
+                            int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, blob_mats_gpu_image, cmd, opt);
+                            if (ret != 0)
+                                return ret;
+                        }
+
+                        if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                        {
+                            if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
+                            {
+                                const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+
+                                // cpu cast to fp16 (discrete gpu)
+                                Mat bottom_blob_cpu_fp16;
+                                if (opt.use_fp16_storage && vkdev->info.type == 0)
+                                {
+                                    ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
+                                }
+                                else if (bottom_blob_cpu.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage && vkdev->info.type == 0)
+                                {
+                                    ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
+                                }
+                                else
+                                {
+                                    bottom_blob_cpu_fp16 = bottom_blob_cpu;
+                                }
+
+                                // upload
+                                VkMat bottom_blob_unpacked;
+                                cmd.record_upload(bottom_blob_cpu_fp16, bottom_blob_unpacked, opt);
+
+                                // cast to fp16 (integrated gpu)
+                                VkMat bottom_blob_unpacked_fp16;
+                                if (opt.use_fp16_storage && vkdev->info.type != 0)
+                                {
+                                    cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
+                                }
+                                else
+                                {
+                                    bottom_blob_unpacked_fp16 = bottom_blob_unpacked;
+                                }
+
+                                // packing
+                                VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
+                                if (opt.use_shader_pack8)
+                                {
+                                    packing_pack8->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+                                    if (bottom_blob.elempack != 8)
+                                        packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+                                }
+                                else
+                                    packing_pack4->forward(bottom_blob_unpacked_fp16, bottom_blob, cmd, opt);
+
+//                                 fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
+                            }
+                            else
+                            {
+                                // image to buffer
+                                const VkImageMat& bottom_blob_image = blob_mats_gpu_image[bottom_blob_index];
+                                VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
+
+                                image_to_buffer(bottom_blob_image, bottom_blob, cmd, opt);
+
+                                if (opt.lightmode)
+                                {
+                                    // delete after taken in light mode
+                                    blob_mats_gpu_image[bottom_blob_index].release();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                VkMat bottom_blob = blob_mats_gpu[bottom_blob_index];
 
                 if (opt.lightmode)
                 {
                     // delete after taken in light mode
                     blob_mats_gpu[bottom_blob_index].release();
                     // deep copy for inplace forward if data is shared
-                    if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                    if (layer->support_inplace && *bottom_blob.refcount != 1)
                     {
-                        VkImageMat bottom_blob_copy;
-                        cmd.record_clone(bottom_blobs[i], bottom_blob_copy, opt);
-//                         fprintf(stderr, "clone %p[+%lu] %p[+%lu]\n", bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
-                        bottom_blobs[i] = bottom_blob_copy;
+                        VkMat bottom_blob_copy;
+                        cmd.record_clone(bottom_blob, bottom_blob_copy, opt);
+//                         fprintf(stderr, "clone %p[+%lu] %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
+                        bottom_blob = bottom_blob_copy;
                     }
                 }
-            }
 
-            // forward
-            if (opt.lightmode && layer->support_inplace)
-            {
-                std::vector<VkImageMat>& bottom_top_blobs = bottom_blobs;
-#if NCNN_BENCHMARK
-                cmd.record_write_timestamp(layer_index * 2);
-                int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
-                cmd.record_write_timestamp(layer_index * 2 + 1);
-#else
-                int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
-#endif // NCNN_BENCHMARK
-                if (ret != 0)
-                    return ret;
-
-                // store top blobs
-                for (size_t i=0; i<layer->tops.size(); i++)
+                // forward
+                if (opt.lightmode && layer->support_inplace)
                 {
-                    int top_blob_index = layer->tops[i];
+                    VkMat& bottom_top_blob = bottom_blob;
+#if NCNN_BENCHMARK
+                    cmd.record_write_timestamp(layer_index * 2);
+                    int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
+                    cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                    int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
+#endif // NCNN_BENCHMARK
+                    if (ret != 0)
+                        return ret;
 
-                    blob_mats_gpu[top_blob_index] = bottom_top_blobs[i];
+                    // store top blob
+                    blob_mats_gpu[top_blob_index] = bottom_top_blob;
+                }
+                else
+                {
+                    VkMat top_blob;
+#if NCNN_BENCHMARK
+                    cmd.record_write_timestamp(layer_index * 2);
+                    int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
+                    cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                    int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
+#endif // NCNN_BENCHMARK
+                    if (ret != 0)
+                        return ret;
+
+                    // store top blob
+                    blob_mats_gpu[top_blob_index] = top_blob;
                 }
             }
             else
             {
-                std::vector<VkImageMat> top_blobs(layer->tops.size());
-#if NCNN_BENCHMARK
-                cmd.record_write_timestamp(layer_index * 2);
-                int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
-                cmd.record_write_timestamp(layer_index * 2 + 1);
-#else
-                int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
-#endif // NCNN_BENCHMARK
-                if (ret != 0)
-                    return ret;
-
-                // store top blobs
-                for (size_t i=0; i<layer->tops.size(); i++)
+                // load bottom blobs
+                std::vector<VkMat> bottom_blobs(layer->bottoms.size());
+                for (size_t i=0; i<layer->bottoms.size(); i++)
                 {
-                    int top_blob_index = layer->tops[i];
+                    int bottom_blob_index = layer->bottoms[i];
 
-                    blob_mats_gpu[top_blob_index] = top_blobs[i];
+                    if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                    {
+                        if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
+                        {
+                            if (blob_mats[bottom_blob_index].dims == 0)
+                            {
+                                int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, blob_mats_gpu_image, cmd, opt);
+                                if (ret != 0)
+                                    return ret;
+                            }
+
+                            if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                            {
+                                if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
+                                {
+                                    const Mat& bottom_blob_cpu = blob_mats[bottom_blob_index];
+
+                                    // cast to fp16 (discrete gpu)
+                                    Mat bottom_blob_cpu_fp16;
+                                    if (opt.use_fp16_storage && vkdev->info.type == 0)
+                                    {
+                                        ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
+                                    }
+                                    else if (bottom_blob_cpu.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage && vkdev->info.type == 0)
+                                    {
+                                        ncnn::cast_float32_to_float16(bottom_blob_cpu, bottom_blob_cpu_fp16, opt);
+                                    }
+                                    else
+                                    {
+                                        bottom_blob_cpu_fp16 = bottom_blob_cpu;
+                                    }
+
+                                    // upload
+                                    VkMat bottom_blob_unpacked;
+                                    cmd.record_upload(bottom_blob_cpu_fp16, bottom_blob_unpacked, opt);
+
+                                    // cast to fp16 (integrated gpu)
+                                    VkMat bottom_blob_unpacked_fp16;
+                                    if (opt.use_fp16_storage && vkdev->info.type != 0)
+                                    {
+                                        cast_float32_to_float16->forward(bottom_blob_unpacked, bottom_blob_unpacked_fp16, cmd, opt);
+                                    }
+                                    else
+                                    {
+                                        bottom_blob_unpacked_fp16 = bottom_blob_unpacked;
+                                    }
+
+                                    // packing
+                                    VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
+                                    if (opt.use_shader_pack8)
+                                    {
+                                        packing_pack8->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+                                        if (bottom_blob.elempack != 8)
+                                            packing_pack4->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+                                    }
+                                    else
+                                        packing_pack4->forward(bottom_blob_unpacked, bottom_blob, cmd, opt);
+
+//                                     fprintf(stderr, "upload %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
+                                }
+                                else
+                                {
+                                    // image to buffer
+                                    const VkImageMat& bottom_blob_image = blob_mats_gpu_image[bottom_blob_index];
+                                    VkMat& bottom_blob = blob_mats_gpu[bottom_blob_index];
+
+                                    image_to_buffer(bottom_blob_image, bottom_blob, cmd, opt);
+
+                                    if (opt.lightmode)
+                                    {
+                                        // delete after taken in light mode
+                                        blob_mats_gpu_image[bottom_blob_index].release();
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    bottom_blobs[i] = blob_mats_gpu[bottom_blob_index];
+
+                    if (opt.lightmode)
+                    {
+                        // delete after taken in light mode
+                        blob_mats_gpu[bottom_blob_index].release();
+                        // deep copy for inplace forward if data is shared
+                        if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                        {
+                            VkMat bottom_blob_copy;
+                            cmd.record_clone(bottom_blobs[i], bottom_blob_copy, opt);
+//                             fprintf(stderr, "clone %p[+%lu] %p[+%lu]\n", bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
+                            bottom_blobs[i] = bottom_blob_copy;
+                        }
+                    }
+                }
+
+                // forward
+                if (opt.lightmode && layer->support_inplace)
+                {
+                    std::vector<VkMat>& bottom_top_blobs = bottom_blobs;
+#if NCNN_BENCHMARK
+                    cmd.record_write_timestamp(layer_index * 2);
+                    int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
+                    cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                    int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
+#endif // NCNN_BENCHMARK
+                    if (ret != 0)
+                        return ret;
+
+                    // store top blobs
+                    for (size_t i=0; i<layer->tops.size(); i++)
+                    {
+                        int top_blob_index = layer->tops[i];
+
+                        blob_mats_gpu[top_blob_index] = bottom_top_blobs[i];
+                    }
+                }
+                else
+                {
+                    std::vector<VkMat> top_blobs(layer->tops.size());
+#if NCNN_BENCHMARK
+                    cmd.record_write_timestamp(layer_index * 2);
+                    int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
+                    cmd.record_write_timestamp(layer_index * 2 + 1);
+#else
+                    int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
+#endif // NCNN_BENCHMARK
+                    if (ret != 0)
+                        return ret;
+
+                    // store top blobs
+                    for (size_t i=0; i<layer->tops.size(); i++)
+                    {
+                        int top_blob_index = layer->tops[i];
+
+                        blob_mats_gpu[top_blob_index] = top_blobs[i];
+                    }
                 }
             }
         }
-
     }
     else
     {
@@ -2158,23 +2593,23 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
             if (blob_mats[bottom_blob_index].dims == 0)
             {
-                if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
                 {
-                    int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, cmd, opt);
+                    int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, blob_mats_gpu_image, cmd, opt);
                     if (ret != 0)
                         return ret;
                 }
 
                 if (blob_mats[bottom_blob_index].dims == 0)
                 {
-                    VkImageMat bottom_blob = blob_mats_gpu[bottom_blob_index];
+                    VkImageMat bottom_blob = blob_mats_gpu_image[bottom_blob_index];
 
 //                     fprintf(stderr, "download %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
 
                     if (opt.lightmode)
                     {
                         // delete after taken in light mode
-                        blob_mats_gpu[bottom_blob_index].release();
+                        blob_mats_gpu_image[bottom_blob_index].release();
                         // deep copy for inplace forward if data is shared
                         if (layer->support_inplace && *bottom_blob.refcount != 1)
                         {
@@ -2188,19 +2623,19 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     VkImageMat bottom_blob_unpacked_fp16;
                     if (opt.use_packing_layout && layer->support_packing)
                     {
-                        packing_pack4->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
+                        packing_pack4_image->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
                     }
                     else
                     {
                         // unpacking
-                        packing_pack1->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
+                        packing_pack1_image->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
                     }
 
                     // cast to fp32 (integrated gpu)
                     VkImageMat bottom_blob_unpacked;
                     if (opt.use_image_fp16_storage && vkdev->info.type != 0)
                     {
-                        cast_float16_to_float32->forward(bottom_blob_unpacked_fp16, bottom_blob_unpacked, cmd, opt);
+                        cast_float16_to_float32_image->forward(bottom_blob_unpacked_fp16, bottom_blob_unpacked, cmd, opt);
                     }
                     else
                     {
@@ -2312,23 +2747,23 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                 if (blob_mats[bottom_blob_index].dims == 0)
                 {
-                    if (blob_mats_gpu[bottom_blob_index].dims == 0)
+                    if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
                     {
-                        int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, cmd, opt);
+                        int ret = forward_layer(blobs[bottom_blob_index].producer, blob_mats, blob_mats_gpu, blob_mats_gpu_image, cmd, opt);
                         if (ret != 0)
                             return ret;
                     }
 
                     if (blob_mats[bottom_blob_index].dims == 0)
                     {
-                        VkImageMat bottom_blob = blob_mats_gpu[bottom_blob_index];
+                        VkImageMat bottom_blob = blob_mats_gpu_image[bottom_blob_index];
 
 //                         fprintf(stderr, "download %p[+%lu]\n", bottom_blob.buffer(), bottom_blob.buffer_offset());
 
                         if (opt.lightmode)
                         {
                             // delete after taken in light mode
-                            blob_mats_gpu[bottom_blob_index].release();
+                            blob_mats_gpu_image[bottom_blob_index].release();
                             // deep copy for inplace forward if data is shared
                             if (layer->support_inplace && *bottom_blob.refcount != 1)
                             {
@@ -2342,19 +2777,19 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                         VkImageMat bottom_blob_unpacked_fp16;
                         if (opt.use_packing_layout && layer->support_packing)
                         {
-                            packing_pack4->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
+                            packing_pack4_image->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
                         }
                         else
                         {
                             // unpacking
-                            packing_pack1->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
+                            packing_pack1_image->forward(bottom_blob, bottom_blob_unpacked_fp16, cmd, opt);
                         }
 
                         // cast to fp32 (integrated gpu)
                         VkImageMat bottom_blob_unpacked;
                         if (opt.use_image_fp16_storage && vkdev->info.type != 0)
                         {
-                            cast_float16_to_float32->forward(bottom_blob_unpacked_fp16, bottom_blob_unpacked, cmd, opt);
+                            cast_float16_to_float32_image->forward(bottom_blob_unpacked_fp16, bottom_blob_unpacked, cmd, opt);
                         }
                         else
                         {
@@ -2488,6 +2923,129 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
     return 0;
 }
+
+
+int Net::buffer_to_image(const VkMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    fprintf(stderr, "buffer_to_image\n");
+
+    if ((opt.use_image_fp16_storage && opt.use_fp16_storage)
+        || (!opt.use_image_fp16_storage && !opt.use_fp16_storage && !opt.use_fp16_packed))
+    {
+        // fp16 to fp16s copy or fp32 to fp32 copy
+        cmd.record_buffer_to_image(src, dst, opt);
+    }
+    else if (opt.use_image_fp16_storage && !opt.use_fp16_storage && !opt.use_fp16_packed)
+    {
+        // fp32 to fp16
+        VkImageMat src_fp32;
+        cmd.record_buffer_to_image(src, src_fp32, opt);
+        if (src_fp32.empty())
+            return -100;
+
+        cast_float32_to_float16_image->forward(src_fp32, dst, cmd, opt);
+    }
+    else if (opt.use_image_fp16_storage && !opt.use_fp16_storage && opt.use_fp16_packed)
+    {
+        // fp16p to fp32 to fp16
+        VkMat src_fp32;
+        cast_float16_to_float32->forward(src, src_fp32, cmd, opt);
+        if (src_fp32.empty())
+            return -100;
+
+        VkImageMat dst_fp32;
+        cmd.record_buffer_to_image(src_fp32, dst_fp32, opt);
+        if (dst_fp32.empty())
+            return -100;
+
+        cast_float32_to_float16_image->forward(dst_fp32, dst, cmd, opt);
+    }
+    else if (!opt.use_image_fp16_storage && opt.use_fp16_storage)
+    {
+        // fp16s to fp32
+        VkImageMat dst_fp16;
+        cmd.record_buffer_to_image(src, dst_fp16, opt);
+        if (dst_fp16.empty())
+            return -100;
+
+        cast_float16_to_float32_image->forward(dst_fp16, dst, cmd, opt);
+    }
+    else if (!opt.use_image_fp16_storage && !opt.use_fp16_storage && opt.use_fp16_packed)
+    {
+        // fp16p to fp32
+        VkMat src_fp32;
+        cast_float32_to_float16->forward(src, src_fp32, cmd, opt);
+
+        cmd.record_buffer_to_image(src_fp32, dst, opt);
+    }
+
+    if (dst.empty())
+        return -100;
+
+    return 0;
+}
+
+int Net::image_to_buffer(const VkImageMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    fprintf(stderr, "image_to_buffer\n");
+
+    if ((opt.use_image_fp16_storage && opt.use_fp16_storage)
+        || (!opt.use_image_fp16_storage && !opt.use_fp16_storage && !opt.use_fp16_packed))
+    {
+        // fp16 to fp16s copy or fp32 to fp32 copy
+        cmd.record_image_to_buffer(src, dst, opt);
+    }
+    else if (opt.use_image_fp16_storage && !opt.use_fp16_storage && !opt.use_fp16_packed)
+    {
+        // fp16 to fp32
+        VkImageMat src_fp32;
+        cast_float16_to_float32_image->forward(src, src_fp32, cmd, opt);
+        if (src_fp32.empty())
+            return -100;
+
+        cmd.record_image_to_buffer(src_fp32, dst, opt);
+    }
+    else if (opt.use_image_fp16_storage && !opt.use_fp16_storage && opt.use_fp16_packed)
+    {
+        // fp16 to fp32 to fp16p
+        VkImageMat src_fp32;
+        cast_float16_to_float32_image->forward(src, src_fp32, cmd, opt);
+        if (src_fp32.empty())
+            return -100;
+
+        VkMat dst_fp32;
+        cmd.record_image_to_buffer(src_fp32, dst_fp32, opt);
+        if (dst_fp32.empty())
+            return -100;
+
+        cast_float32_to_float16->forward(dst_fp32, dst, cmd, opt);
+    }
+    else if (!opt.use_image_fp16_storage && opt.use_fp16_storage)
+    {
+        // fp32 to fp16s
+        VkImageMat src_fp16;
+        cast_float32_to_float16_image->forward(src, src_fp16, cmd, opt);
+        if (src_fp16.empty())
+            return -100;
+
+        cmd.record_image_to_buffer(src_fp16, dst, opt);
+    }
+    else if (!opt.use_image_fp16_storage && !opt.use_fp16_storage && opt.use_fp16_packed)
+    {
+        // fp32 to fp16p
+        VkMat dst_fp32;
+        cmd.record_image_to_buffer(src, dst_fp32, opt);
+        if (dst_fp32.empty())
+            return -100;
+
+        cast_float32_to_float16->forward(dst_fp32, dst, cmd, opt);
+    }
+
+    if (dst.empty())
+        return -100;
+
+    return 0;
+}
 #endif // NCNN_VULKAN
 
 Extractor::Extractor(const Net* _net, size_t blob_count) : net(_net)
@@ -2502,7 +3060,7 @@ Extractor::Extractor(const Net* _net, size_t blob_count) : net(_net)
         local_staging_vkallocator = 0;
 
         blob_mats_gpu.resize(blob_count);
-        blob_imagemats_gpu.resize(blob_count);
+        blob_mats_gpu_image.resize(blob_count);
     }
 #endif // NCNN_VULKAN
 }
@@ -2515,7 +3073,7 @@ Extractor::~Extractor()
     if (net->opt.use_vulkan_compute)
     {
         blob_mats_gpu.clear();
-        blob_imagemats_gpu.clear();
+        blob_mats_gpu_image.clear();
 
         if (local_blob_vkallocator)
         {
@@ -2646,117 +3204,117 @@ int Extractor::extract(int blob_index, Mat& feat)
             // TODO vkimagemat for adreno
             if (opt.use_image_storage)
             {
-            VkImageMat feat_gpu;
-            ret = extract(blob_index, feat_gpu, cmd);
+                VkImageMat feat_gpu;
+                ret = extract(blob_index, feat_gpu, cmd);
 
-            if (blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
-            {
-                // unpacking
-                VkImageMat feat_gpu_unpacked_fp16;
-                net->packing_pack1->forward(feat_gpu, feat_gpu_unpacked_fp16, cmd, opt);
-
-                // cast to fp32 (integrated gpu)
-                VkImageMat feat_gpu_unpacked;
-                if (opt.use_image_fp16_storage && net->vkdev->info.type != 0)
+                if (blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
                 {
-                    net->cast_float16_to_float32->forward(feat_gpu_unpacked_fp16, feat_gpu_unpacked, cmd, opt);
-                }
-                else
-                {
-                    feat_gpu_unpacked = feat_gpu_unpacked_fp16;
-                }
+                    // unpacking
+                    VkImageMat feat_gpu_unpacked_fp16;
+                    net->packing_pack1_image->forward(feat_gpu, feat_gpu_unpacked_fp16, cmd, opt);
 
-                // download
-                Mat feat_cpu_fp16;
-                cmd.record_download(feat_gpu_unpacked, feat_cpu_fp16, opt);
+                    // cast to fp32 (integrated gpu)
+                    VkImageMat feat_gpu_unpacked;
+                    if (opt.use_image_fp16_storage && net->vkdev->info.type != 0)
+                    {
+                        net->cast_float16_to_float32_image->forward(feat_gpu_unpacked_fp16, feat_gpu_unpacked, cmd, opt);
+                    }
+                    else
+                    {
+                        feat_gpu_unpacked = feat_gpu_unpacked_fp16;
+                    }
 
-                cmd.submit_and_wait();
+                    // download
+                    Mat feat_cpu_fp16;
+                    cmd.record_download(feat_gpu_unpacked, feat_cpu_fp16, opt);
+
+                    cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
-                std::vector<uint64_t> results(net->layers.size() * 2);
-                cmd.get_query_pool_results(0, net->layers.size() * 2, results);
-                for (size_t i=0; i<net->layers.size(); i++)
-                {
-                    uint64_t start = results[i*2];
-                    uint64_t end = results[i*2+1];
-                    if (start == 0 || end == 0)
-                        continue;
+                    std::vector<uint64_t> results(net->layers.size() * 2);
+                    cmd.get_query_pool_results(0, net->layers.size() * 2, results);
+                    for (size_t i=0; i<net->layers.size(); i++)
+                    {
+                        uint64_t start = results[i*2];
+                        uint64_t end = results[i*2+1];
+                        if (start == 0 || end == 0)
+                            continue;
 
-                    double duration_us = (end - start) * net->vkdev->info.timestamp_period / 1000;
-                    fprintf(stderr, "%-24s %-30s %8.2lfus    |\n", net->layers[i]->type.c_str(), net->layers[i]->name.c_str(), duration_us);
-                }
+                        double duration_us = (end - start) * net->vkdev->info.timestamp_period / 1000;
+                        fprintf(stderr, "%-24s %-30s %8.2lfus    |\n", net->layers[i]->type.c_str(), net->layers[i]->name.c_str(), duration_us);
+                    }
 #endif // NCNN_BENCHMARK
 
-                // cast to fp32 (discrete gpu)
-                Mat& feat_cpu = blob_mats[blob_index];
-                if (opt.use_image_fp16_storage && net->vkdev->info.type == 0)
-                {
-                    ncnn::cast_float16_to_float32(feat_cpu_fp16, feat_cpu, opt);
+                    // cast to fp32 (discrete gpu)
+                    Mat& feat_cpu = blob_mats[blob_index];
+                    if (opt.use_image_fp16_storage && net->vkdev->info.type == 0)
+                    {
+                        ncnn::cast_float16_to_float32(feat_cpu_fp16, feat_cpu, opt);
+                    }
+                    else
+                    {
+                        feat_cpu = feat_cpu_fp16;
+                    }
                 }
-                else
-                {
-                    feat_cpu = feat_cpu_fp16;
-                }
-            }
             }
             else
             {
-            VkMat feat_gpu;
-            ret = extract(blob_index, feat_gpu, cmd);
+                VkMat feat_gpu;
+                ret = extract(blob_index, feat_gpu, cmd);
 
-            if (blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
-            {
-                // unpacking
-                VkMat feat_gpu_unpacked_fp16;
-                net->packing_pack1->forward(feat_gpu, feat_gpu_unpacked_fp16, cmd, opt);
-
-                // cast to fp32 (integrated gpu)
-                VkMat feat_gpu_unpacked;
-                if (opt.use_fp16_storage && net->vkdev->info.type != 0)
+                if (blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
                 {
-                    net->cast_float16_to_float32->forward(feat_gpu_unpacked_fp16, feat_gpu_unpacked, cmd, opt);
-                }
-                else
-                {
-                    feat_gpu_unpacked = feat_gpu_unpacked_fp16;
-                }
+                    // unpacking
+                    VkMat feat_gpu_unpacked_fp16;
+                    net->packing_pack1->forward(feat_gpu, feat_gpu_unpacked_fp16, cmd, opt);
 
-                // download
-                Mat feat_cpu_fp16;
-                cmd.record_download(feat_gpu_unpacked, feat_cpu_fp16, opt);
+                    // cast to fp32 (integrated gpu)
+                    VkMat feat_gpu_unpacked;
+                    if (opt.use_fp16_storage && net->vkdev->info.type != 0)
+                    {
+                        net->cast_float16_to_float32->forward(feat_gpu_unpacked_fp16, feat_gpu_unpacked, cmd, opt);
+                    }
+                    else
+                    {
+                        feat_gpu_unpacked = feat_gpu_unpacked_fp16;
+                    }
 
-                cmd.submit_and_wait();
+                    // download
+                    Mat feat_cpu_fp16;
+                    cmd.record_download(feat_gpu_unpacked, feat_cpu_fp16, opt);
+
+                    cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
-                std::vector<uint64_t> results(net->layers.size() * 2);
-                cmd.get_query_pool_results(0, net->layers.size() * 2, results);
-                for (size_t i=0; i<net->layers.size(); i++)
-                {
-                    uint64_t start = results[i*2];
-                    uint64_t end = results[i*2+1];
-                    if (start == 0 || end == 0)
-                        continue;
+                    std::vector<uint64_t> results(net->layers.size() * 2);
+                    cmd.get_query_pool_results(0, net->layers.size() * 2, results);
+                    for (size_t i=0; i<net->layers.size(); i++)
+                    {
+                        uint64_t start = results[i*2];
+                        uint64_t end = results[i*2+1];
+                        if (start == 0 || end == 0)
+                            continue;
 
-                    double duration_us = (end - start) * net->vkdev->info.timestamp_period / 1000;
-                    fprintf(stderr, "%-24s %-30s %8.2lfus    |\n", net->layers[i]->type.c_str(), net->layers[i]->name.c_str(), duration_us);
-                }
+                        double duration_us = (end - start) * net->vkdev->info.timestamp_period / 1000;
+                        fprintf(stderr, "%-24s %-30s %8.2lfus    |\n", net->layers[i]->type.c_str(), net->layers[i]->name.c_str(), duration_us);
+                    }
 #endif // NCNN_BENCHMARK
 
-                // cast to fp32 (discrete gpu)
-                Mat& feat_cpu = blob_mats[blob_index];
-                if (opt.use_fp16_storage && net->vkdev->info.type == 0)
-                {
-                    ncnn::cast_float16_to_float32(feat_cpu_fp16, feat_cpu, opt);
+                    // cast to fp32 (discrete gpu)
+                    Mat& feat_cpu = blob_mats[blob_index];
+                    if (opt.use_fp16_storage && net->vkdev->info.type == 0)
+                    {
+                        ncnn::cast_float16_to_float32(feat_cpu_fp16, feat_cpu, opt);
+                    }
+                    else if (feat_cpu_fp16.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage && net->vkdev->info.type == 0)
+                    {
+                        ncnn::cast_float16_to_float32(feat_cpu_fp16, feat_cpu, opt);
+                    }
+                    else
+                    {
+                        feat_cpu = feat_cpu_fp16;
+                    }
                 }
-                else if (feat_cpu_fp16.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage && net->vkdev->info.type == 0)
-                {
-                    ncnn::cast_float16_to_float32(feat_cpu_fp16, feat_cpu, opt);
-                }
-                else
-                {
-                    feat_cpu = feat_cpu_fp16;
-                }
-            }
             }
         }
         else
@@ -2843,6 +3401,15 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
         ret = net->forward_layer(layer_index, blob_mats, blob_mats_gpu, cmd, opt);
     }
 
+    if (opt.use_image_storage && blob_mats_gpu[blob_index].dims == 0)
+    {
+        // image to buffer
+        const VkImageMat& bottom_blob_image = blob_mats_gpu_image[blob_index];
+        VkMat& bottom_blob = blob_mats_gpu[blob_index];
+
+        net->image_to_buffer(bottom_blob_image, bottom_blob, cmd, opt);
+    }
+
     feat = blob_mats_gpu[blob_index];
 
     return ret;
@@ -2853,7 +3420,7 @@ int Extractor::input(int blob_index, const VkImageMat& in)
     if (blob_index < 0 || blob_index >= (int)blob_mats.size())
         return -1;
 
-    blob_imagemats_gpu[blob_index] = in;
+    blob_mats_gpu_image[blob_index] = in;
 
     return 0;
 }
@@ -2865,13 +3432,26 @@ int Extractor::extract(int blob_index, VkImageMat& feat, VkCompute& cmd)
 
     int ret = 0;
 
-    if (blob_imagemats_gpu[blob_index].dims == 0)
+    if (blob_mats_gpu_image[blob_index].dims == 0)
     {
         int layer_index = net->blobs[blob_index].producer;
-        ret = net->forward_layer(layer_index, blob_mats, blob_imagemats_gpu, cmd, opt);
+        ret = net->forward_layer(layer_index, blob_mats, blob_mats_gpu, blob_mats_gpu_image, cmd, opt);
     }
 
-    feat = blob_imagemats_gpu[blob_index];
+    if (blob_mats_gpu_image[blob_index].dims == 0)
+    {
+        // buffer to image
+        const VkMat& bottom_blob_buffer = blob_mats_gpu[blob_index];
+        VkImageMat& bottom_blob = blob_mats_gpu_image[blob_index];
+
+        net->buffer_to_image(bottom_blob_buffer, bottom_blob, cmd, opt);
+        if (bottom_blob.empty())
+        {
+            return -100;
+        }
+    }
+
+    feat = blob_mats_gpu_image[blob_index];
 
     return ret;
 }

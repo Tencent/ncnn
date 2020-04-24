@@ -592,28 +592,7 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
 //     fprintf(stderr, "record_image_to_buffer\n");
 
     // create dst
-    int dims = src.dims;
-    int w = src.w;
-    int h = src.h;
-    int channels = src.c;
-    size_t elemsize = 4u;
-    int elempack = src.elempack;
-    if (opt.use_image_fp16_storage)
-    {
-        elemsize = 2u * elempack;
-    }
-    else
-    {
-        elemsize = 4u * elempack;
-    }
-
-    if (dims == 1)
-        dst.create(w, elemsize, elempack, opt.blob_vkallocator);
-    if (dims == 2)
-        dst.create(w, h, elemsize, elempack, opt.blob_vkallocator);
-    if (dims == 3)
-        dst.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator);
-
+    dst.create_like(src, opt.blob_vkallocator);
     if (dst.empty())
         return;
 
@@ -664,6 +643,7 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
 
     // record image to device
     {
+        const int channels = src.c;
         VkBufferImageCopy* regions = new VkBufferImageCopy[channels];
         for (int i = 0; i < channels; i++)
         {

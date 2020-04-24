@@ -73,6 +73,9 @@ public:
     // accept bf16
     bool support_bf16_storage;
 
+    // shader image storage
+    bool support_image_storage;
+
 public:
     // implement inference
     // return 0 if success

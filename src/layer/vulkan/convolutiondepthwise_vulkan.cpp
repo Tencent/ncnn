@@ -24,6 +24,7 @@ DEFINE_LAYER_CREATOR(ConvolutionDepthWise_vulkan)
 ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     padding = 0;
     packing_unpack = 0;

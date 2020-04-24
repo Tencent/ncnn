@@ -24,6 +24,7 @@ DEFINE_LAYER_CREATOR(Convolution_vulkan)
 Convolution_vulkan::Convolution_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     padding = 0;
 

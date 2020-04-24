@@ -25,6 +25,7 @@ DEFINE_LAYER_CREATOR(Pooling_vulkan)
 Pooling_vulkan::Pooling_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     padding = 0;
     pipeline_pooling = 0;

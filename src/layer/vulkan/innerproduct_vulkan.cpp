@@ -24,6 +24,7 @@ DEFINE_LAYER_CREATOR(InnerProduct_vulkan)
 InnerProduct_vulkan::InnerProduct_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     flatten = 0;
 

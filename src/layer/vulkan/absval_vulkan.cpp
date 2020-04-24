@@ -23,6 +23,7 @@ DEFINE_LAYER_CREATOR(AbsVal_vulkan)
 AbsVal_vulkan::AbsVal_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_absval = 0;
     pipeline_absval_pack4 = 0;

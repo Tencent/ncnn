@@ -23,6 +23,7 @@ DEFINE_LAYER_CREATOR(Padding_vulkan)
 Padding_vulkan::Padding_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_padding = 0;
     pipeline_padding_pack4 = 0;

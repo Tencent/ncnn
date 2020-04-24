@@ -1837,6 +1837,8 @@ inline void VkImageMat::create(int _w, size_t _elemsize, VkAllocator* _allocator
     if (total() > 0)
     {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
+        if (!data)
+            return;
 
         refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
         *refcount = 1;
@@ -1862,6 +1864,8 @@ inline void VkImageMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _a
     if (total() > 0)
     {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
+        if (!data)
+            return;
 
         refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
         *refcount = 1;
@@ -1887,6 +1891,8 @@ inline void VkImageMat::create(int _w, int _h, int _c, size_t _elemsize, VkAlloc
     if (total() > 0)
     {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
+        if (!data)
+            return;
 
         refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
         *refcount = 1;
@@ -1912,6 +1918,8 @@ inline void VkImageMat::create(int _w, size_t _elemsize, int _elempack, VkAlloca
     if (total() > 0)
     {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
+        if (!data)
+            return;
 
         refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
         *refcount = 1;
@@ -1937,6 +1945,8 @@ inline void VkImageMat::create(int _w, int _h, size_t _elemsize, int _elempack, 
     if (total() > 0)
     {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
+        if (!data)
+            return;
 
         refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
         *refcount = 1;
@@ -1962,6 +1972,8 @@ inline void VkImageMat::create(int _w, int _h, int _c, size_t _elemsize, int _el
     if (total() > 0)
     {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
+        if (!data)
+            return;
 
         refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
         *refcount = 1;

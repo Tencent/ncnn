@@ -23,6 +23,7 @@ Noop::Noop()
     support_inplace = true;
     support_vulkan = true;
     support_packing = true;
+    support_image_storage = true;
 }
 
 int Noop::forward_inplace(std::vector<Mat>& /*bottom_top_blobs*/, const Option& /*opt*/) const

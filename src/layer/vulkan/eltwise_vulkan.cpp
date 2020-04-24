@@ -23,6 +23,7 @@ DEFINE_LAYER_CREATOR(Eltwise_vulkan)
 Eltwise_vulkan::Eltwise_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_eltwise[0] = 0;
     pipeline_eltwise[1] = 0;
