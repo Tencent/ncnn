@@ -169,19 +169,6 @@ protected:
 
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
-
-    // TODO move these to device routine
-    ncnn::Layer* cast_float32_to_float16;
-    ncnn::Layer* cast_float16_to_float32;
-    ncnn::Layer* packing_pack1;
-    ncnn::Layer* packing_pack4;
-    ncnn::Layer* packing_pack8;
-
-    ncnn::Layer* cast_float32_to_float16_image;
-    ncnn::Layer* cast_float16_to_float32_image;
-    ncnn::Layer* packing_pack1_image;
-    ncnn::Layer* packing_pack4_image;
-    ncnn::Layer* packing_pack8_image;
 #endif // NCNN_VULKAN
 };
 

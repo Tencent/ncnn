@@ -37,16 +37,16 @@ Option::Option()
 
     use_fp16_packed = true;
     use_fp16_storage = true;
-    use_fp16_arithmetic = true;
+    use_fp16_arithmetic = false;
     use_int8_storage = true;
-    use_int8_arithmetic = true;
+    use_int8_arithmetic = false;
 
     use_packing_layout = true;
 
     use_shader_pack8 = false;
 
-    use_image_storage = true;
-    use_image_fp16_storage = true;
+    use_image_storage = false;
+    use_image_fp16_storage = false;
     use_image_fp16_arithmetic = false;
 
     use_bf16_storage = false;

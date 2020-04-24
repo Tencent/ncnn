@@ -27,6 +27,9 @@
 #include <vector>
 
 #include "mat.h"
+#include "command.h"
+#include "layer_type.h"
+#include "layer.h"
 
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
@@ -1096,10 +1099,14 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
             fprintf(stderr, "vkCreateSampler failed %d\n", ret);
         }
     }
+
+    create_utility_operator();
 }
 
 VulkanDevice::~VulkanDevice()
 {
+    destroy_utility_operator();
+
     if (texelfetch_sampler)
     {
         vkDestroySampler(device, texelfetch_sampler, 0);
@@ -1480,6 +1487,66 @@ const VkSampler* VulkanDevice::immutable_texelfetch_sampler() const
     return &texelfetch_sampler;
 }
 
+void VulkanDevice::cast_float32_to_float16(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    uop_cast_float32_to_float16[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::cast_float32_to_float16(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_image_fp16_storage ? 4 : 3;
+    uop_cast_float32_to_float16[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::cast_float16_to_float32(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    uop_cast_float16_to_float32[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::cast_float16_to_float32(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_image_fp16_storage ? 4 : 3;
+    uop_cast_float16_to_float32[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack1(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    uop_packing_pack1[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack1(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_image_fp16_storage ? 4 : 3;
+    uop_packing_pack1[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack4(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    uop_packing_pack4[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack4(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_image_fp16_storage ? 4 : 3;
+    uop_packing_pack4[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack8(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    uop_packing_pack8[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack8(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_image_fp16_storage ? 4 : 3;
+    uop_packing_pack8[uoi]->forward(src, dst, cmd, opt);
+}
+
 static inline bool string_ends_with_fp16p(const char* name)
 {
     int len = strlen(name);
@@ -1651,6 +1718,144 @@ int VulkanDevice::init_device_extension()
 #endif // __ANDROID_API__ >= 26
 
     return 0;
+}
+
+int VulkanDevice::create_utility_operator()
+{
+    Option opt[5];
+
+    opt[0].use_fp16_packed = false;
+    opt[0].use_fp16_storage = false;
+    opt[0].use_image_storage = false;
+    opt[0].use_image_fp16_storage = false;
+
+    opt[1].use_fp16_packed = true;
+    opt[1].use_fp16_storage = false;
+    opt[1].use_image_storage = false;
+    opt[1].use_image_fp16_storage = false;
+
+    opt[2].use_fp16_packed = true;
+    opt[2].use_fp16_storage = true;
+    opt[2].use_image_storage = false;
+    opt[2].use_image_fp16_storage = false;
+
+    opt[3].use_fp16_packed = false;
+    opt[3].use_fp16_storage = false;
+    opt[3].use_image_storage = true;
+    opt[3].use_image_fp16_storage = false;
+
+    opt[4].use_fp16_packed = false;
+    opt[4].use_fp16_storage = false;
+    opt[4].use_image_storage = true;
+    opt[4].use_image_fp16_storage = true;
+
+    for (int i = 0; i < 5; i++)
+    {
+        {
+            uop_cast_float32_to_float16[i] = ncnn::create_layer(ncnn::LayerType::Cast);
+            uop_cast_float32_to_float16[i]->vkdev = this;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 1);
+            pd.set(1, 2);
+
+            uop_cast_float32_to_float16[i]->load_param(pd);
+        }
+
+        {
+            uop_cast_float16_to_float32[i] = ncnn::create_layer(ncnn::LayerType::Cast);
+            uop_cast_float16_to_float32[i]->vkdev = this;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 2);
+            pd.set(1, 1);
+
+            uop_cast_float16_to_float32[i]->load_param(pd);
+        }
+
+        {
+            uop_packing_pack1[i] = ncnn::create_layer(ncnn::LayerType::Packing);
+            uop_packing_pack1[i]->vkdev = this;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 1);
+
+            uop_packing_pack1[i]->load_param(pd);
+        }
+
+        {
+            uop_packing_pack4[i] = ncnn::create_layer(ncnn::LayerType::Packing);
+            uop_packing_pack4[i]->vkdev = this;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 4);
+
+            uop_packing_pack4[i]->load_param(pd);
+        }
+
+        {
+            uop_packing_pack8[i] = ncnn::create_layer(ncnn::LayerType::Packing);
+            uop_packing_pack8[i]->vkdev = this;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 8);
+
+            uop_packing_pack8[i]->load_param(pd);
+        }
+
+        uop_cast_float32_to_float16[i]->create_pipeline(opt[i]);
+        uop_cast_float16_to_float32[i]->create_pipeline(opt[i]);
+        uop_packing_pack1[i]->create_pipeline(opt[i]);
+        uop_packing_pack4[i]->create_pipeline(opt[i]);
+        uop_packing_pack8[i]->create_pipeline(opt[i]);
+    }
+
+    return 0;
+}
+
+void VulkanDevice::destroy_utility_operator()
+{
+    Option opt[5];
+
+    opt[0].use_fp16_packed = false;
+    opt[0].use_fp16_storage = false;
+    opt[0].use_image_storage = false;
+    opt[0].use_image_fp16_storage = false;
+
+    opt[1].use_fp16_packed = true;
+    opt[1].use_fp16_storage = false;
+    opt[1].use_image_storage = false;
+    opt[1].use_image_fp16_storage = false;
+
+    opt[2].use_fp16_packed = true;
+    opt[2].use_fp16_storage = true;
+    opt[2].use_image_storage = false;
+    opt[2].use_image_fp16_storage = false;
+
+    opt[3].use_fp16_packed = false;
+    opt[3].use_fp16_storage = false;
+    opt[3].use_image_storage = true;
+    opt[3].use_image_fp16_storage = false;
+
+    opt[4].use_fp16_packed = false;
+    opt[4].use_fp16_storage = false;
+    opt[4].use_image_storage = true;
+    opt[4].use_image_fp16_storage = true;
+
+    for (int i = 0; i < 5; i++)
+    {
+        uop_cast_float32_to_float16[i]->destroy_pipeline(opt[i]);
+        uop_cast_float16_to_float32[i]->destroy_pipeline(opt[i]);
+        uop_packing_pack1[i]->destroy_pipeline(opt[i]);
+        uop_packing_pack4[i]->destroy_pipeline(opt[i]);
+        uop_packing_pack8[i]->destroy_pipeline(opt[i]);
+
+        delete uop_cast_float32_to_float16[i];
+        delete uop_cast_float16_to_float32[i];
+        delete uop_packing_pack1[i];
+        delete uop_packing_pack4[i];
+        delete uop_packing_pack8[i];
+    }
 }
 
 VulkanDevice* get_gpu_device(int device_index)
