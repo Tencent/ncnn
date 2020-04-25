@@ -752,7 +752,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t
 
         if (width > (int)vkdev->info.max_image_dimension_1d)
         {
-            fprintf(stderr, "image dimension too large %d\n", width);
+            fprintf(stderr, "image dimension too large %d > %d\n", width, (int)vkdev->info.max_image_dimension_1d);
             return 0;
         }
     }
@@ -763,7 +763,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t
 
         if (width > (int)vkdev->info.max_image_dimension_2d || height > (int)vkdev->info.max_image_dimension_2d)
         {
-            fprintf(stderr, "image dimension too large %d %d\n", width, height);
+            fprintf(stderr, "image dimension too large %d %d > %d\n", width, height, (int)vkdev->info.max_image_dimension_2d);
             return 0;
         }
     }
@@ -774,7 +774,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t
 
         if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
         {
-            fprintf(stderr, "image dimension too large %d %d %d\n", width, height, depth);
+            fprintf(stderr, "image dimension too large %d %d %d > %d\n", width, height, depth, (int)vkdev->info.max_image_dimension_3d);
             return 0;
         }
     }
@@ -1295,7 +1295,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
 
         if (width > (int)vkdev->info.max_image_dimension_1d)
         {
-            fprintf(stderr, "image dimension too large %d\n", width);
+            fprintf(stderr, "image dimension too large %d > %d\n", width, (int)vkdev->info.max_image_dimension_1d);
             return 0;
         }
     }
@@ -1306,7 +1306,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
 
         if (width > (int)vkdev->info.max_image_dimension_2d || height > (int)vkdev->info.max_image_dimension_2d)
         {
-            fprintf(stderr, "image dimension too large %d %d\n", width, height);
+            fprintf(stderr, "image dimension too large %d %d > %d\n", width, height, (int)vkdev->info.max_image_dimension_2d);
             return 0;
         }
     }
@@ -1317,7 +1317,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
 
         if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
         {
-            fprintf(stderr, "image dimension too large %d %d %d\n", width, height, depth);
+            fprintf(stderr, "image dimension too large %d %d %d > %d\n", width, height, depth, (int)vkdev->info.max_image_dimension_3d);
             return 0;
         }
     }

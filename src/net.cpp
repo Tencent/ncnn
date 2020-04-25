@@ -1683,6 +1683,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                 VkImageMat bottom_blob = blob_mats_gpu_image[bottom_blob_index];
 
+                if (bottom_blob.empty())
+                {
+                    goto IMAGE_ALLOCATION_FAILED;
+                }
+
                 if (opt.lightmode)
                 {
                     // delete after taken in light mode
@@ -1708,6 +1713,10 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 #else
                     int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
 #endif // NCNN_BENCHMARK
+                    if (ret == -100)
+                    {
+                        goto IMAGE_ALLOCATION_FAILED;
+                    }
                     if (ret != 0)
                         return ret;
 
@@ -1724,6 +1733,10 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 #else
                     int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
 #endif // NCNN_BENCHMARK
+                    if (ret == -100)
+                    {
+                        goto IMAGE_ALLOCATION_FAILED;
+                    }
                     if (ret != 0)
                         return ret;
 
@@ -1785,6 +1798,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     bottom_blobs[i] = blob_mats_gpu_image[bottom_blob_index];
 
+                    if (bottom_blobs[i].empty())
+                    {
+                        goto IMAGE_ALLOCATION_FAILED;
+                    }
+
                     if (opt.lightmode)
                     {
                         // delete after taken in light mode
@@ -1811,6 +1829,10 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 #else
                     int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
 #endif // NCNN_BENCHMARK
+                    if (ret == -100)
+                    {
+                        goto IMAGE_ALLOCATION_FAILED;
+                    }
                     if (ret != 0)
                         return ret;
 
@@ -1832,6 +1854,10 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 #else
                     int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
 #endif // NCNN_BENCHMARK
+                    if (ret == -100)
+                    {
+                        goto IMAGE_ALLOCATION_FAILED;
+                    }
                     if (ret != 0)
                         return ret;
 
@@ -2064,6 +2090,8 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
     }
     else
     {
+IMAGE_ALLOCATION_FAILED:
+
         if (layer->one_blob_only)
         {
             // load bottom blob
