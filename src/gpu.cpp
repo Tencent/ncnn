@@ -1728,26 +1728,31 @@ int VulkanDevice::create_utility_operator()
     opt[0].use_fp16_storage = false;
     opt[0].use_image_storage = false;
     opt[0].use_image_fp16_storage = false;
+    opt[0].use_shader_pack8 = true;
 
     opt[1].use_fp16_packed = true;
     opt[1].use_fp16_storage = false;
     opt[1].use_image_storage = false;
     opt[1].use_image_fp16_storage = false;
+    opt[1].use_shader_pack8 = true;
 
     opt[2].use_fp16_packed = true;
     opt[2].use_fp16_storage = true;
     opt[2].use_image_storage = false;
     opt[2].use_image_fp16_storage = false;
+    opt[2].use_shader_pack8 = true;
 
     opt[3].use_fp16_packed = false;
     opt[3].use_fp16_storage = false;
     opt[3].use_image_storage = true;
     opt[3].use_image_fp16_storage = false;
+    opt[3].use_shader_pack8 = true;
 
     opt[4].use_fp16_packed = false;
     opt[4].use_fp16_storage = false;
     opt[4].use_image_storage = true;
     opt[4].use_image_fp16_storage = true;
+    opt[4].use_shader_pack8 = true;
 
     for (int i = 0; i < 5; i++)
     {
@@ -1821,26 +1826,31 @@ void VulkanDevice::destroy_utility_operator()
     opt[0].use_fp16_storage = false;
     opt[0].use_image_storage = false;
     opt[0].use_image_fp16_storage = false;
+    opt[0].use_shader_pack8 = true;
 
     opt[1].use_fp16_packed = true;
     opt[1].use_fp16_storage = false;
     opt[1].use_image_storage = false;
     opt[1].use_image_fp16_storage = false;
+    opt[1].use_shader_pack8 = true;
 
     opt[2].use_fp16_packed = true;
     opt[2].use_fp16_storage = true;
     opt[2].use_image_storage = false;
     opt[2].use_image_fp16_storage = false;
+    opt[2].use_shader_pack8 = true;
 
     opt[3].use_fp16_packed = false;
     opt[3].use_fp16_storage = false;
     opt[3].use_image_storage = true;
     opt[3].use_image_fp16_storage = false;
+    opt[3].use_shader_pack8 = true;
 
     opt[4].use_fp16_packed = false;
     opt[4].use_fp16_storage = false;
     opt[4].use_image_storage = true;
     opt[4].use_image_fp16_storage = true;
+    opt[4].use_shader_pack8 = true;
 
     for (int i = 0; i < 5; i++)
     {

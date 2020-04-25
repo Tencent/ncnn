@@ -172,12 +172,12 @@ int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const
     return -1;
 }
 
-int Layer::forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
+int Layer::forward_inplace(std::vector<VkImageMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
 
-int Layer::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int Layer::forward_inplace(VkImageMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }

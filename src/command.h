@@ -41,13 +41,25 @@ public:
 
     void record_download(const VkImageMat& src, Mat& dst, const Option& opt);
 
+    void record_buffer_to_image(const VkMat& src, VkImageMat& dst, const Option& opt);
+
+    void record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt);
+
+    void record_clone(const Mat& src, VkMat& dst, const Option& opt);
+
+    void record_clone(const Mat& src, VkImageMat& dst, const Option& opt);
+
+    void record_clone(const VkMat& src, Mat& dst, const Option& opt);
+
+    void record_clone(const VkImageMat& src, Mat& dst, const Option& opt);
+
     void record_clone(const VkMat& src, VkMat& dst, const Option& opt);
 
     void record_clone(const VkImageMat& src, VkImageMat& dst, const Option& opt);
 
-    void record_buffer_to_image(const VkMat& src, VkImageMat& dst, const Option& opt);
+    void record_clone(const VkMat& src, VkImageMat& dst, const Option& opt);
 
-    void record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt);
+    void record_clone(const VkImageMat& src, VkMat& dst, const Option& opt);
 
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher);
 
@@ -87,6 +99,7 @@ protected:
 
     std::vector<VkMat> upload_staging_buffers;
     std::vector<VkMat> download_post_buffers;
+    std::vector<Mat> download_post_mats_fp16;
     std::vector<Mat> download_post_mats;
 
     std::vector<VkImageMemory*> image_blocks_to_destroy;
@@ -116,6 +129,7 @@ protected:
 #endif // NCNN_BENCHMARK
 
             TYPE_post_download,
+            TYPE_post_cast_float16_to_float32,
         };
 
         int type;
@@ -142,7 +156,8 @@ protected:
         struct { uint32_t query; } write_timestamp;
 #endif // NCNN_BENCHMARK
 
-        struct { uint32_t download_post_buffer_mat_offset; } post_download;
+        struct { uint32_t download_post_buffer_mat_offset; uint32_t download_post_mat_fp16_offset; } post_download;
+        struct { uint32_t download_post_mat_fp16_offset; uint32_t download_post_mat_offset; } post_cast_float16_to_float32;
         };
     };
 

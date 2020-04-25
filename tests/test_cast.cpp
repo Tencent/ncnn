@@ -154,6 +154,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
+    opt.use_image_storage = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -213,7 +214,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
 
     // upload
     ncnn::VkMat a4_gpu;
-    cmd.record_upload(a4_fp16, a4_gpu, opt);
+    cmd.record_clone(a4_fp16, a4_gpu, opt);
 
     ncnn::VkMat d4_gpu;
     if (op->support_inplace)
@@ -228,7 +229,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     }
 
     // download
-    cmd.record_download(d4_gpu, d, opt);
+    cmd.record_clone(d4_gpu, d, opt);
 
     cmd.submit_and_wait();
 
@@ -267,6 +268,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = true;
+    opt.use_image_storage = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -328,7 +330,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
 
     // upload
     ncnn::VkMat a4_gpu;
-    cmd.record_upload(a4_fp16, a4_gpu, opt);
+    cmd.record_clone(a4_fp16, a4_gpu, opt);
 
     ncnn::VkMat d4_gpu;
     if (op->support_inplace)
@@ -343,7 +345,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     }
 
     // download
-    cmd.record_download(d4_gpu, d, opt);
+    cmd.record_clone(d4_gpu, d, opt);
 
     cmd.submit_and_wait();
 

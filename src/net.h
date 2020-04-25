@@ -148,14 +148,11 @@ protected:
     Layer* create_custom_layer(const char* type);
 #endif // NCNN_STRING
     Layer* create_custom_layer(int index);
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const;
 
 #if NCNN_VULKAN
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, Option& opt) const;
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, Option& opt) const;
-
-    int buffer_to_image(const VkMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
-    int image_to_buffer(const VkImageMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
 protected:

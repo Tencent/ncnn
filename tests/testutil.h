@@ -342,93 +342,61 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     std::vector<ncnn::Mat> d(top_blob_count);
     if (opt.use_vulkan_compute)
     {
-        // pack
-        std::vector<ncnn::Mat> a4(a.size());
-        for (size_t i=0; i<a.size(); i++)
-        {
-            if (opt.use_shader_pack8)
-            {
-                ncnn::convert_packing(a[i], a4[i], 8, opt);
-                if (a4[i].elempack == 1)
-                    ncnn::convert_packing(a[i], a4[i], 4, opt);
-            }
-            else
-                ncnn::convert_packing(a[i], a4[i], 4, opt);
-        }
-
-        // fp16
-        std::vector<ncnn::Mat> a4_fp16(a4.size());
-        for (size_t i=0; i<a4.size(); i++)
-        {
-            if (opt.use_image_storage && opt.use_image_fp16_storage)
-            {
-                ncnn::cast_float32_to_float16(a4[i], a4_fp16[i], opt);
-            }
-            else if (opt.use_fp16_storage || ((a4[i].elempack == 4 || a4[i].elempack == 8) && opt.use_fp16_packed))
-            {
-                ncnn::cast_float32_to_float16(a4[i], a4_fp16[i], opt);
-            }
-            else
-            {
-                a4_fp16[i] = a4[i];
-            }
-        }
-
         // forward
         ncnn::VkCompute cmd(vkdev);
 
         if (opt.use_image_storage)
         {
             // upload
-            std::vector<ncnn::VkImageMat> a4_fp16_gpu(a4_fp16.size());
-            for (size_t i=0; i<a4_fp16_gpu.size(); i++)
+            std::vector<ncnn::VkImageMat> a_gpu(a.size());
+            for (size_t i=0; i<a_gpu.size(); i++)
             {
-                cmd.record_upload(a4_fp16[i], a4_fp16_gpu[i], opt);
+                cmd.record_upload(a[i], a_gpu[i], opt);
             }
 
-            std::vector<ncnn::VkImageMat> d4_fp16_gpu(top_blob_count);
+            std::vector<ncnn::VkImageMat> d_gpu(top_blob_count);
             if (op->support_inplace)
             {
-                op->forward_inplace(a4_fp16_gpu, cmd, opt);
+                op->forward_inplace(a_gpu, cmd, opt);
 
-                d4_fp16_gpu = a4_fp16_gpu;
+                d_gpu = a_gpu;
             }
             else
             {
-                op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
+                op->forward(a_gpu, d_gpu, cmd, opt);
             }
 
             // download
-            for (size_t i=0; i<d4_fp16_gpu.size(); i++)
+            for (size_t i=0; i<d_gpu.size(); i++)
             {
-                cmd.record_download(d4_fp16_gpu[i], d[i], opt);
+                cmd.record_download(d_gpu[i], d[i], opt);
             }
         }
         else
         {
             // upload
-            std::vector<ncnn::VkMat> a4_fp16_gpu(a4_fp16.size());
-            for (size_t i=0; i<a4_fp16_gpu.size(); i++)
+            std::vector<ncnn::VkMat> a_gpu(a.size());
+            for (size_t i=0; i<a_gpu.size(); i++)
             {
-                cmd.record_upload(a4_fp16[i], a4_fp16_gpu[i], opt);
+                cmd.record_upload(a[i], a_gpu[i], opt);
             }
 
-            std::vector<ncnn::VkMat> d4_fp16_gpu(top_blob_count);
+            std::vector<ncnn::VkMat> d_gpu(top_blob_count);
             if (op->support_inplace)
             {
-                op->forward_inplace(a4_fp16_gpu, cmd, opt);
+                op->forward_inplace(a_gpu, cmd, opt);
 
-                d4_fp16_gpu = a4_fp16_gpu;
+                d_gpu = a_gpu;
             }
             else
             {
-                op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
+                op->forward(a_gpu, d_gpu, cmd, opt);
             }
 
             // download
-            for (size_t i=0; i<d4_fp16_gpu.size(); i++)
+            for (size_t i=0; i<d_gpu.size(); i++)
             {
-                cmd.record_download(d4_fp16_gpu[i], d[i], opt);
+                cmd.record_download(d_gpu[i], d[i], opt);
             }
         }
 
@@ -588,76 +556,50 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     ncnn::Mat d;
     if (opt.use_vulkan_compute)
     {
-        // pack
-        ncnn::Mat a4;
-        if (opt.use_shader_pack8)
-        {
-            ncnn::convert_packing(a, a4, 8, opt);
-            if (a4.elempack != 8)
-                ncnn::convert_packing(a, a4, 4, opt);
-        }
-        else
-            ncnn::convert_packing(a, a4, 4, opt);
-
-        // fp16
-        ncnn::Mat a4_fp16;
-        if (opt.use_image_storage && opt.use_image_fp16_storage)
-        {
-            ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
-        }
-        else if (opt.use_fp16_storage || ((a4.elempack == 4 || a4.elempack == 8) && opt.use_fp16_packed))
-        {
-            ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
-        }
-        else
-        {
-            a4_fp16 = a4;
-        }
-
         // forward
         ncnn::VkCompute cmd(vkdev);
 
         if (opt.use_image_storage)
         {
             // upload
-            ncnn::VkImageMat a4_fp16_gpu;
-            cmd.record_upload(a4_fp16, a4_fp16_gpu, opt);
+            ncnn::VkImageMat a_gpu;
+            cmd.record_upload(a, a_gpu, opt);
 
-            ncnn::VkImageMat d4_fp16_gpu;
+            ncnn::VkImageMat d_gpu;
             if (op->support_inplace)
             {
-                op->forward_inplace(a4_fp16_gpu, cmd, opt);
+                op->forward_inplace(a_gpu, cmd, opt);
 
-                d4_fp16_gpu = a4_fp16_gpu;
+                d_gpu = a_gpu;
             }
             else
             {
-                op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
+                op->forward(a_gpu, d_gpu, cmd, opt);
             }
 
             // download
-            cmd.record_download(d4_fp16_gpu, d, opt);
+            cmd.record_download(d_gpu, d, opt);
         }
         else
         {
             // upload
-            ncnn::VkMat a4_fp16_gpu;
-            cmd.record_upload(a4_fp16, a4_fp16_gpu, opt);
+            ncnn::VkMat a_gpu;
+            cmd.record_upload(a, a_gpu, opt);
 
-            ncnn::VkMat d4_fp16_gpu;
+            ncnn::VkMat d_gpu;
             if (op->support_inplace)
             {
-                op->forward_inplace(a4_fp16_gpu, cmd, opt);
+                op->forward_inplace(a_gpu, cmd, opt);
 
-                d4_fp16_gpu = a4_fp16_gpu;
+                d_gpu = a_gpu;
             }
             else
             {
-                op->forward(a4_fp16_gpu, d4_fp16_gpu, cmd, opt);
+                op->forward(a_gpu, d_gpu, cmd, opt);
             }
 
             // download
-            cmd.record_download(d4_fp16_gpu, d, opt);
+            cmd.record_download(d_gpu, d, opt);
         }
 
         cmd.submit_and_wait();
@@ -704,9 +646,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_fp16_packed = false;
     opts[0].use_fp16_storage = false;
     opts[0].use_shader_pack8 = false;
-    opts[0].use_image_storage = true;// TODO
+    opts[0].use_image_storage = false;// TODO
     opts[0].use_image_fp16_storage = true;// TODO
-    opts[0].use_shader_pack8 = true;
+    opts[0].use_shader_pack8 = false;
     opts[1] = _opt;
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;
@@ -790,9 +732,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_fp16_packed = false;
     opts[0].use_fp16_storage = false;
     opts[0].use_shader_pack8 = false;
-    opts[0].use_image_storage = true;// TODO
+    opts[0].use_image_storage = false;// TODO
     opts[0].use_image_fp16_storage = true;// TODO
-    opts[0].use_shader_pack8 = true;
+    opts[0].use_shader_pack8 = false;
     opts[1] = _opt;
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;
