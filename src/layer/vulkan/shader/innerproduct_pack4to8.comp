@@ -121,7 +121,7 @@ void main()
         sum[1].b += dot(v, k6);
         sum[1].a += dot(v, k7);
 
-        wx += 4;
+        wx += 8;
     }
 #else // NCNN_image_shader
     int w_offset = gx * psc(w);

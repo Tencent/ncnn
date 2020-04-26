@@ -114,7 +114,7 @@ void main()
 #endif
         }
     }
-    else if (type == 1)
+    if (type == 1)
     {
         x = clamp(x, 0, psc(w) - 1);
         y = clamp(y, 0, psc(h) - 1);
@@ -126,7 +126,7 @@ void main()
         buffer_cp4(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif
     }
-    else if (type == 2)
+    if (type == 2)
     {
         x = abs(x);
         y = abs(y);

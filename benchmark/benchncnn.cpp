@@ -286,7 +286,7 @@ int main(int argc, char** argv)
 
     benchmark("alexnet", ncnn::Mat(227, 227, 3), opt);
 
-    benchmark("vgg16", ncnn::Mat(224, 224, 3), opt);
+//     benchmark("vgg16", ncnn::Mat(224, 224, 3), opt);
 
 #if NCNN_VULKAN
     if (!use_vulkan_compute)

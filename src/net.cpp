@@ -518,7 +518,13 @@ int Net::load_model(const DataReader& dr)
             break;
         }
 
-        int cret = layer->create_pipeline(opt);
+        Option opt1 = opt;
+        if (!layer->support_image_storage)
+        {
+            opt1.use_image_storage = false;
+        }
+
+        int cret = layer->create_pipeline(opt1);
         if (cret != 0)
         {
             fprintf(stderr, "layer create_pipeline %d failed\n", (int)i);
@@ -853,14 +859,22 @@ void Net::clear()
     blobs.clear();
     for (size_t i=0; i<layers.size(); i++)
     {
-        int dret = layers[i]->destroy_pipeline(opt);
+        Layer* layer = layers[i];
+
+        Option opt1 = opt;
+        if (!layer->support_image_storage)
+        {
+            opt1.use_image_storage = false;
+        }
+
+        int dret = layer->destroy_pipeline(opt1);
         if (dret != 0)
         {
             fprintf(stderr, "layer destroy_pipeline failed\n");
             // ignore anyway
         }
 
-        delete layers[i];
+        delete layer;
     }
     layers.clear();
 
