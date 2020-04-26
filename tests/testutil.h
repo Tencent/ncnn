@@ -231,8 +231,12 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_image_storage) opt.use_image_storage = false;
+    if (!vkdev->info.support_image_fp16_storage) opt.use_image_fp16_storage = false;
+    if (!vkdev->info.support_image_fp16_arithmetic) opt.use_image_fp16_arithmetic = false;
 
     op->vkdev = vkdev;
 #endif // NCNN_VULKAN
@@ -475,8 +479,12 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_image_storage) opt.use_image_storage = false;
+    if (!vkdev->info.support_image_fp16_storage) opt.use_image_fp16_storage = false;
+    if (!vkdev->info.support_image_fp16_arithmetic) opt.use_image_fp16_arithmetic = false;
 
     op->vkdev = vkdev;
 #endif // NCNN_VULKAN

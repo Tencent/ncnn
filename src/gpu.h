@@ -131,6 +131,11 @@ public:
     bool support_int8_storage;
     bool support_int8_arithmetic;
 
+    // image feature
+    bool support_image_storage;
+    bool support_image_fp16_storage;
+    bool support_image_fp16_arithmetic;
+
     // ycbcr conversion feature
     bool support_ycbcr_conversion;
 
