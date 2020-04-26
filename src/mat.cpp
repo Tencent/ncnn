@@ -188,7 +188,7 @@ VkImageMat VkImageMat::from_android_hardware_buffer(VkAndroidHardwareBufferImage
     int width = allocator->width();
     int height = allocator->height();
 
-    return VkImageMat(width, height, VK_FORMAT_UNDEFINED, allocator);
+    return VkImageMat(width, height, allocator);
 }
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_VULKAN

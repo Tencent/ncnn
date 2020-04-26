@@ -678,7 +678,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
-    opts[2].use_image_fp16_storage = true;
+    opts[2].use_image_fp16_storage = false;
 
     for (int i = 0; i < 3; i++)
     {
@@ -688,25 +688,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         std::vector<ncnn::Mat> a_fp16;
         std::vector<ncnn::Mat> weights_fp16;
         float epsilon_fp16;
-        if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_image_fp16_storage)
-        {
-            a_fp16.resize(a.size());
-            for (size_t j = 0; j < a.size(); j++)
-            {
-                ncnn::Mat tmp;
-                ncnn::cast_float32_to_float16(a[j], tmp, opt);
-                ncnn::cast_float16_to_float32(tmp, a_fp16[j], opt);
-            }
-            weights_fp16.resize(weights.size());
-            for (size_t j = 0; j < weights.size(); j++)
-            {
-                ncnn::Mat tmp;
-                ncnn::cast_float32_to_float16(weights[j], tmp, opt);
-                ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
-            }
-            epsilon_fp16 = epsilon * 100;// 0.1
-        }
-        else if (opt.use_bf16_storage)
+        if (opt.use_bf16_storage)
         {
             a_fp16.resize(a.size());
             for (size_t j = 0; j < a.size(); j++)
@@ -721,6 +703,24 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
                 ncnn::Mat tmp;
                 ncnn::cast_float32_to_bfloat16(weights[j], tmp, opt);
                 ncnn::cast_bfloat16_to_float32(tmp, weights_fp16[j], opt);
+            }
+            epsilon_fp16 = epsilon * 100;// 0.1
+        }
+        else if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_image_fp16_storage)
+        {
+            a_fp16.resize(a.size());
+            for (size_t j = 0; j < a.size(); j++)
+            {
+                ncnn::Mat tmp;
+                ncnn::cast_float32_to_float16(a[j], tmp, opt);
+                ncnn::cast_float16_to_float32(tmp, a_fp16[j], opt);
+            }
+            weights_fp16.resize(weights.size());
+            for (size_t j = 0; j < weights.size(); j++)
+            {
+                ncnn::Mat tmp;
+                ncnn::cast_float32_to_float16(weights[j], tmp, opt);
+                ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
             }
             epsilon_fp16 = epsilon * 100;// 0.1
         }
@@ -767,7 +767,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
-    opts[2].use_image_fp16_storage = true;
+    opts[2].use_image_fp16_storage = false;
 
     for (int i = 0; i < 3; i++)
     {
@@ -777,23 +777,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         ncnn::Mat a_fp16;
         std::vector<ncnn::Mat> weights_fp16;
         float epsilon_fp16;
-        if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_image_fp16_storage)
-        {
-            {
-                ncnn::Mat tmp;
-                ncnn::cast_float32_to_float16(a, tmp, opt);
-                ncnn::cast_float16_to_float32(tmp, a_fp16, opt);
-            }
-            weights_fp16.resize(weights.size());
-            for (size_t j = 0; j < weights.size(); j++)
-            {
-                ncnn::Mat tmp;
-                ncnn::cast_float32_to_float16(weights[j], tmp, opt);
-                ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
-            }
-            epsilon_fp16 = epsilon * 100;// 0.1
-        }
-        else if (opt.use_bf16_storage)
+        if (opt.use_bf16_storage)
         {
             {
                 ncnn::Mat tmp;
@@ -806,6 +790,22 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
                 ncnn::Mat tmp;
                 ncnn::cast_float32_to_bfloat16(weights[j], tmp, opt);
                 ncnn::cast_bfloat16_to_float32(tmp, weights_fp16[j], opt);
+            }
+            epsilon_fp16 = epsilon * 100;// 0.1
+        }
+        else if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_image_fp16_storage)
+        {
+            {
+                ncnn::Mat tmp;
+                ncnn::cast_float32_to_float16(a, tmp, opt);
+                ncnn::cast_float16_to_float32(tmp, a_fp16, opt);
+            }
+            weights_fp16.resize(weights.size());
+            for (size_t j = 0; j < weights.size(); j++)
+            {
+                ncnn::Mat tmp;
+                ncnn::cast_float32_to_float16(weights[j], tmp, opt);
+                ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
             }
             epsilon_fp16 = epsilon * 100;// 0.1
         }

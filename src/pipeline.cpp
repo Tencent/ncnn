@@ -578,7 +578,7 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
 
     create_descriptorset_layout();
 
-    create_pipeline_layout(0);
+    create_pipeline_layout();
 
     int shader_type_index = LayerShaderType::convert_ycbcr;
 

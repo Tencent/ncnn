@@ -1742,7 +1742,7 @@ VkAndroidHardwareBufferImageAllocator::~VkAndroidHardwareBufferImageAllocator()
     }
 }
 
-VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*width*/, int /*height*/, VkFormat /*format*/)
+VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*dims*/, int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/)
 {
     VkResult ret;
 
