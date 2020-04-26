@@ -226,8 +226,8 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             Mat local_size_xyz_local(4, 4, std::min(4, num_output / out_elempack), (void*)0);
             if (out_shape_packed.dims != 0)
             {
-                local_size_xyz_local.w = std::min(4, (out_shape_packed.w + 1) / 2);
-                local_size_xyz_local.h = std::min(4, (out_shape_packed.h + 1) / 2);
+                local_size_xyz_local.w = std::max(1, std::min(4, (out_shape_packed.w + 1) / 2));
+                local_size_xyz_local.h = std::max(1, std::min(4, (out_shape_packed.h + 1) / 2));
                 local_size_xyz_local.c = std::min(4, out_shape_packed.c);
             }
             pipeline_convolution_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
@@ -257,8 +257,8 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             Mat local_size_xyz_local(4, 4, std::min(4, num_output / out_elempack), (void*)0);
             if (out_shape_packed.dims != 0)
             {
-                local_size_xyz_local.w = std::min(4, (out_shape_packed.w + 1) / 2);
-                local_size_xyz_local.h = std::min(4, (out_shape_packed.h + 1) / 2);
+                local_size_xyz_local.w = std::max(1, std::min(4, (out_shape_packed.w + 1) / 2));
+                local_size_xyz_local.h = std::max(1, std::min(4, (out_shape_packed.h + 1) / 2));
                 local_size_xyz_local.c = std::min(4, out_shape_packed.c);
             }
             pipeline_convolution_pack4_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
@@ -433,8 +433,8 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             Mat local_size_xyz_local(4, 4, std::min(4, num_output / out_elempack), (void*)0);
             if (out_shape_packed.dims != 0)
             {
-                local_size_xyz_local.w = std::min(4, (out_shape_packed.w + 1) / 2);
-                local_size_xyz_local.h = std::min(4, (out_shape_packed.h + 1) / 2);
+                local_size_xyz_local.w = std::max(1, std::min(4, (out_shape_packed.w + 1) / 2));
+                local_size_xyz_local.h = std::max(1, std::min(4, (out_shape_packed.h + 1) / 2));
                 local_size_xyz_local.c = std::min(4, out_shape_packed.c);
             }
             pipeline_convolution_pack8_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
