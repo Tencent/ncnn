@@ -827,8 +827,10 @@ int create_gpu_instance()
             vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R32_SFLOAT, &r32f_formatProperties);
             vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R32G32B32A32_SFLOAT, &rgba32f_formatProperties);
 
-            if ((r32f_formatProperties.optimalTilingFeatures & (VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
-                && (rgba32f_formatProperties.optimalTilingFeatures & (VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)))
+            if ((r32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
+                && (r32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)
+                && (rgba32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
+                && (rgba32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
                 gpu_info.support_image_storage = true;
         }
         {
@@ -837,8 +839,10 @@ int create_gpu_instance()
             vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R16_SFLOAT, &r16f_formatProperties);
             vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R16G16B16A16_SFLOAT, &rgba16f_formatProperties);
 
-            if ((r16f_formatProperties.optimalTilingFeatures & (VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
-                && (rgba16f_formatProperties.optimalTilingFeatures & (VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)))
+            if ((r16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
+                && (r16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)
+                && (rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
+                && (rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
                 gpu_info.support_image_fp16_storage = true;
         }
         if (gpu_info.support_fp16_arithmetic)
@@ -1810,6 +1814,12 @@ int VulkanDevice::create_utility_operator()
 
     for (int i = 0; i < 5; i++)
     {
+        uop_cast_float32_to_float16[i] = 0;
+        uop_cast_float16_to_float32[i] = 0;
+        uop_packing_pack1[i] = 0;
+        uop_packing_pack4[i] = 0;
+        uop_packing_pack8[i] = 0;
+
         if (i == 1 && !info.support_fp16_packed)
             continue;
 

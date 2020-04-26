@@ -228,7 +228,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             {
                 local_size_xyz_local.w = std::min(4, (out_shape_packed.w + 1) / 2);
                 local_size_xyz_local.h = std::min(4, (out_shape_packed.h + 1) / 2);
-                local_size_xyz_local.c = std::min(4, (out_shape_packed.c + 1) / 2);
+                local_size_xyz_local.c = std::min(4, out_shape_packed.c);
             }
             pipeline_convolution_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
             }
@@ -259,7 +259,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             {
                 local_size_xyz_local.w = std::min(4, (out_shape_packed.w + 1) / 2);
                 local_size_xyz_local.h = std::min(4, (out_shape_packed.h + 1) / 2);
-                local_size_xyz_local.c = std::min(4, (out_shape_packed.c + 1) / 2);
+                local_size_xyz_local.c = std::min(4, out_shape_packed.c);
             }
             pipeline_convolution_pack4_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
             }
@@ -435,7 +435,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             {
                 local_size_xyz_local.w = std::min(4, (out_shape_packed.w + 1) / 2);
                 local_size_xyz_local.h = std::min(4, (out_shape_packed.h + 1) / 2);
-                local_size_xyz_local.c = std::min(4, (out_shape_packed.c + 1) / 2);
+                local_size_xyz_local.c = std::min(4, out_shape_packed.c);
             }
             pipeline_convolution_pack8_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
             }
