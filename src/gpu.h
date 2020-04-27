@@ -133,6 +133,7 @@ public:
 
     // image feature
     bool support_image_storage;
+    bool support_image_fp16_packed;
     bool support_image_fp16_storage;
     bool support_image_fp16_arithmetic;
 
@@ -293,12 +294,13 @@ private:
     // 1 = fp16p
     // 2 = fp16s
     // 3 = image
-    // 4 = image_fp16
-    ncnn::Layer* uop_cast_float32_to_float16[5];
-    ncnn::Layer* uop_cast_float16_to_float32[5];
-    ncnn::Layer* uop_packing_pack1[5];
-    ncnn::Layer* uop_packing_pack4[5];
-    ncnn::Layer* uop_packing_pack8[5];
+    // 4 = image_fp16p
+    // 5 = image_fp16s
+    ncnn::Layer* uop_cast_float32_to_float16[6];
+    ncnn::Layer* uop_cast_float16_to_float32[6];
+    ncnn::Layer* uop_packing_pack1[6];
+    ncnn::Layer* uop_packing_pack4[6];
+    ncnn::Layer* uop_packing_pack8[6];
 };
 
 VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());

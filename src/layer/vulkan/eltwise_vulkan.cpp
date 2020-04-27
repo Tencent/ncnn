@@ -47,6 +47,10 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     {
         elemsize = elempack * 2u;
     }
+    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+    }
     else if (opt.use_image_storage)
     {
         elemsize = elempack * 4u;

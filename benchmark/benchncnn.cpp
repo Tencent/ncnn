@@ -216,6 +216,7 @@ int main(int argc, char** argv)
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = true;
     opt.use_image_storage = true;
+    opt.use_image_fp16_packed = true;
     opt.use_image_fp16_storage = true;
     opt.use_image_fp16_arithmetic = true;
 

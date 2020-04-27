@@ -257,12 +257,83 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
     )
     set_source_files_properties(${SHADER_image_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
 
-    # image + fp16
-    set(SHADER_image_fp16_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_image_fp16")
+    # image + fp16p
+    set(SHADER_image_fp16p_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_image_fp16p")
 
-    set(SHADER_image_fp16_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_image_fp16_SRC_NAME_WE}.spv.hex.h)
+    set(SHADER_image_fp16p_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_image_fp16p_SRC_NAME_WE}.spv.hex.h)
     add_custom_command(
-        OUTPUT ${SHADER_image_fp16_SPV_HEX_FILE}
+        OUTPUT ${SHADER_image_fp16p_SPV_HEX_FILE}
+        COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
+        ARGS -Dsfp=float -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4
+             -Dafp=float -Dafpvec2=vec2    -Dafpvec4=vec4    -Dafpvec8=mat2x4 -Dafpmat4=mat4
+
+             -Dimfmtc1=r32f -Dimfmtc4=rgba16f
+             -Dunfp=mediump
+
+             "-D image1d_ld1(tex,p)=texelFetch(tex,p,0).r"
+             "-D image2d_ld1(tex,p)=texelFetch(tex,p,0).r"
+             "-D image3d_ld1(tex,p)=texelFetch(tex,p,0).r"
+             "-D image1d_st1(img,p,v)={vec4 _v;_v.r=v;imageStore(img,p,_v);}"
+             "-D image2d_st1(img,p,v)={vec4 _v;_v.r=v;imageStore(img,p,_v);}"
+             "-D image3d_st1(img,p,v)={vec4 _v;_v.r=v;imageStore(img,p,_v);}"
+             "-D image1d_cp1(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+             "-D image2d_cp1(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+             "-D image3d_cp1(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+
+             "-D image1d_ld4(tex,p)=texelFetch(tex,p,0)"
+             "-D image2d_ld4(tex,p)=texelFetch(tex,p,0)"
+             "-D image3d_ld4(tex,p)=texelFetch(tex,p,0)"
+             "-D image1d_st4(img,p,v)={imageStore(img,p,v);}"
+             "-D image2d_st4(img,p,v)={imageStore(img,p,v);}"
+             "-D image3d_st4(img,p,v)={imageStore(img,p,v);}"
+             "-D image1d_cp4(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+             "-D image2d_cp4(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+             "-D image3d_cp4(img,p,tex,sp)={imageStore(img,p,texelFetch(tex,sp,0));}"
+
+             "-D image1d_ld8(tex,p)=mat2x4(texelFetch(tex,p*2,0),texelFetch(tex,p*2+1,0))"
+             "-D image2d_ld8(tex,p)=mat2x4(texelFetch(tex,ivec2(p.x*2,p.y),0),texelFetch(tex,ivec2(p.x*2+1,p.y),0))"
+             "-D image3d_ld8(tex,p)=mat2x4(texelFetch(tex,ivec3(p.x*2,p.y,p.z),0),texelFetch(tex,ivec3(p.x*2+1,p.y,p.z),0))"
+             "-D image1d_st8(img,p,v)={imageStore(img,p*2,v[0]);imageStore(img,p*2+1,v[1]);}"
+             "-D image2d_st8(img,p,v)={imageStore(img,ivec2(p.x*2,p.y),v[0]);imageStore(img,ivec2(p.x*2+1,p.y),v[1]);}"
+             "-D image3d_st8(img,p,v)={imageStore(img,ivec3(p.x*2,p.y,p.z),v[0]);imageStore(img,ivec3(p.x*2+1,p.y,p.z),v[1]);}"
+             "-D image1d_cp8(img,p,tex,sp)={imageStore(img,p*2,texelFetch(tex,sp*2,0));imageStore(img,p*2+1,texelFetch(tex,sp*2+1,0));}"
+             "-D image2d_cp8(img,p,tex,sp)={imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}"
+             "-D image3d_cp8(img,p,tex,sp)={imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}"
+
+             "-D buffer_ld1(buf,i)=buf[i]"
+             "-D buffer_st1(buf,i,v)={buf[i]=v;}"
+             "-D buffer_cp1(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_cp1to4(buf,i,sbuf,si4)={buf[i].r=float16_t(sbuf[si4.r]);buf[i].g=float16_t(sbuf[si4.g]);buf[i].b=float16_t(sbuf[si4.b]);buf[i].a=float16_t(sbuf[si4.a]);}"
+             "-D buffer_cp1to8(buf,i,sbuf,si4,sii4)={buf[i].abcd.r=float16_t(sbuf[si4.r]);buf[i].abcd.g=float16_t(sbuf[si4.g]);buf[i].abcd.b=float16_t(sbuf[si4.b]);buf[i].abcd.a=float16_t(sbuf[si4.a]);buf[i].efgh.r=float16_t(sbuf[sii4.r]);buf[i].efgh.g=float16_t(sbuf[sii4.g]);buf[i].efgh.b=float16_t(sbuf[sii4.b]);buf[i].efgh.a=float16_t(sbuf[sii4.a]);}"
+             "-D buffer_ld2(buf,i)=vec2(buf[i])"
+             "-D buffer_st2(buf,i,v)={buf[i]=f16vec2(v);}"
+             "-D buffer_cp2(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_ld4(buf,i)=vec4(buf[i])"
+             "-D buffer_st4(buf,i,v)={buf[i]=f16vec4(v);}"
+             "-D buffer_cp4(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_cp4to1(buf,i4,sbuf,si)={buf[i4.r]=float(sbuf[si].r);buf[i4.g]=float(sbuf[si].g);buf[i4.b]=float(sbuf[si].b);buf[i4.a]=float(sbuf[si].a);}"
+             "-D buffer_cp4to8(buf,i,sbuf,si2)={buf[i].abcd=sbuf[si2.r];buf[i].efgh=sbuf[si2.g];}"
+             "-D buffer_ld8(buf,i)=mat2x4(vec4(buf[i].abcd),vec4(buf[i].efgh))"
+             "-D buffer_st8(buf,i,v)={buf[i].abcd=f16vec4(v[0]);buf[i].efgh=f16vec4(v[1]);}"
+             "-D buffer_cp8(buf,i,sbuf,si)={buf[i].abcd=sbuf[si].abcd;buf[i].efgh=sbuf[si].efgh;}"
+             "-D buffer_cp8to1(buf,i4,ii4,sbuf,si)={buf[i4.r]=float(sbuf[si].abcd.r);buf[i4.g]=float(sbuf[si].abcd.g);buf[i4.b]=float(sbuf[si].abcd.b);buf[i4.a]=float(sbuf[si].abcd.a); buf[ii4.r]=float(sbuf[si].efgh.r);buf[ii4.g]=float(sbuf[si].efgh.g);buf[ii4.b]=float(sbuf[si].efgh.b);buf[ii4.a]=float(sbuf[si].efgh.a);}"
+             "-D buffer_cp8to4(buf,i2,sbuf,si)={buf[i2.r]=sbuf[si].abcd;buf[i2.g]=sbuf[si].efgh;}"
+
+             "-D psc(x)=(x==0?p.x:x)"
+             -DNCNN_image_shader=1 -DNCNN_fp16_storage=1
+             -V -x -o ${SHADER_image_fp16p_SPV_HEX_FILE} ${SHADER_SRC}
+        DEPENDS ${SHADER_SRC}
+        COMMENT "Building SPIR-V module ${SHADER_image_fp16p_SRC_NAME_WE}.spv"
+        VERBATIM
+    )
+    set_source_files_properties(${SHADER_image_fp16p_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+
+    # image + fp16s
+    set(SHADER_image_fp16s_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_image_fp16s")
+
+    set(SHADER_image_fp16s_SPV_HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_image_fp16s_SRC_NAME_WE}.spv.hex.h)
+    add_custom_command(
+        OUTPUT ${SHADER_image_fp16s_SPV_HEX_FILE}
         COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
         ARGS -Dsfp=float16_t -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4
              -Dafp=float     -Dafpvec2=vec2    -Dafpvec4=vec4    -Dafpvec8=mat2x4 -Dafpmat4=mat4
@@ -323,12 +394,12 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D afp2sfpmat4(v)=v"
              "-D psc(x)=(x==0?p.x:x)"
              -DNCNN_image_shader=1 -DNCNN_fp16_storage=1
-             -V -x -o ${SHADER_image_fp16_SPV_HEX_FILE} ${SHADER_SRC}
+             -V -x -o ${SHADER_image_fp16s_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
-        COMMENT "Building SPIR-V module ${SHADER_image_fp16_SRC_NAME_WE}.spv"
+        COMMENT "Building SPIR-V module ${SHADER_image_fp16s_SRC_NAME_WE}.spv"
         VERBATIM
     )
-    set_source_files_properties(${SHADER_image_fp16_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
+    set_source_files_properties(${SHADER_image_fp16s_SPV_HEX_FILE} PROPERTIES GENERATED TRUE)
 
     # image + fp16a
     set(SHADER_image_fp16a_SRC_NAME_WE "${SHADER_SRC_NAME_WE}_image_fp16a")
@@ -412,7 +483,8 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
         "static const uint32_t ${SHADER_fp16s_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16s_SRC_NAME_WE}.spv.hex.h\"\n};\n"
         "static const uint32_t ${SHADER_fp16sa_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_fp16sa_SRC_NAME_WE}.spv.hex.h\"\n};\n"
         "static const uint32_t ${SHADER_image_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_image_SRC_NAME_WE}.spv.hex.h\"\n};\n"
-        "static const uint32_t ${SHADER_image_fp16_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_image_fp16_SRC_NAME_WE}.spv.hex.h\"\n};\n"
+        "static const uint32_t ${SHADER_image_fp16p_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_image_fp16p_SRC_NAME_WE}.spv.hex.h\"\n};\n"
+        "static const uint32_t ${SHADER_image_fp16s_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_image_fp16s_SRC_NAME_WE}.spv.hex.h\"\n};\n"
         "static const uint32_t ${SHADER_image_fp16a_SRC_NAME_WE}_spv_data[] = {\n#include \"${SHADER_image_fp16a_SRC_NAME_WE}.spv.hex.h\"\n};\n"
     )
 
@@ -425,7 +497,8 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
         ${SHADER_fp16s_SPV_HEX_FILE}
         ${SHADER_fp16sa_SPV_HEX_FILE}
         ${SHADER_image_SPV_HEX_FILE}
-        ${SHADER_image_fp16_SPV_HEX_FILE}
+        ${SHADER_image_fp16p_SPV_HEX_FILE}
+        ${SHADER_image_fp16s_SPV_HEX_FILE}
         ${SHADER_image_fp16a_SPV_HEX_FILE}
     )
 

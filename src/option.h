@@ -95,6 +95,7 @@ public:
 
     // turn on for adreno
     bool use_image_storage;
+    bool use_image_fp16_packed;
     bool use_image_fp16_storage;
     bool use_image_fp16_arithmetic;
 

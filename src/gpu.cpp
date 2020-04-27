@@ -819,6 +819,7 @@ int create_gpu_instance()
 
         // check format
         gpu_info.support_image_storage = false;
+        gpu_info.support_image_fp16_packed = false;
         gpu_info.support_image_fp16_storage = false;
         gpu_info.support_image_fp16_arithmetic = false;
         {
@@ -832,6 +833,14 @@ int create_gpu_instance()
                 && (rgba32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
                 && (rgba32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
                 gpu_info.support_image_storage = true;
+        }
+        {
+            VkFormatProperties rgba16f_formatProperties;
+            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R16G16B16A16_SFLOAT, &rgba16f_formatProperties);
+
+            if ((rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
+                && (rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
+                gpu_info.support_image_fp16_packed = true;
         }
         {
             VkFormatProperties r16f_formatProperties;
@@ -864,10 +873,10 @@ int create_gpu_instance()
         fprintf(stderr, "[%u %s]  buglssc=%d  bugihfa=%d\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.bug_local_size_spec_const, gpu_info.bug_implicit_fp16_arithmetic);
 
-        fprintf(stderr, "[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d  imgfp32=%d  imgfp16s=%d  imgfp16a=%d\n", i, physicalDeviceProperties.deviceName,
+        fprintf(stderr, "[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d  imgfp32=%d  imgfp16p=%d  imgfp16s=%d  imgfp16a=%d\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
                 gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic,
-                gpu_info.support_image_storage, gpu_info.support_image_fp16_storage, gpu_info.support_image_fp16_arithmetic);
+                gpu_info.support_image_storage, gpu_info.support_image_fp16_packed, gpu_info.support_image_fp16_storage, gpu_info.support_image_fp16_arithmetic);
 
         gpu_info_index++;
     }
@@ -1535,7 +1544,7 @@ void VulkanDevice::cast_float32_to_float16(const VkMat& src, VkMat& dst, VkCompu
 
 void VulkanDevice::cast_float32_to_float16(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
 {
-    int uoi = opt.use_image_fp16_storage ? 4 : 3;
+    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
     uop_cast_float32_to_float16[uoi]->forward(src, dst, cmd, opt);
 }
 
@@ -1547,7 +1556,7 @@ void VulkanDevice::cast_float16_to_float32(const VkMat& src, VkMat& dst, VkCompu
 
 void VulkanDevice::cast_float16_to_float32(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
 {
-    int uoi = opt.use_image_fp16_storage ? 4 : 3;
+    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
     uop_cast_float16_to_float32[uoi]->forward(src, dst, cmd, opt);
 }
 
@@ -1559,7 +1568,7 @@ void VulkanDevice::packing_pack1(const VkMat& src, VkMat& dst, VkCompute& cmd, c
 
 void VulkanDevice::packing_pack1(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
 {
-    int uoi = opt.use_image_fp16_storage ? 4 : 3;
+    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
     uop_packing_pack1[uoi]->forward(src, dst, cmd, opt);
 }
 
@@ -1571,7 +1580,7 @@ void VulkanDevice::packing_pack4(const VkMat& src, VkMat& dst, VkCompute& cmd, c
 
 void VulkanDevice::packing_pack4(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
 {
-    int uoi = opt.use_image_fp16_storage ? 4 : 3;
+    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
     uop_packing_pack4[uoi]->forward(src, dst, cmd, opt);
 }
 
@@ -1583,44 +1592,8 @@ void VulkanDevice::packing_pack8(const VkMat& src, VkMat& dst, VkCompute& cmd, c
 
 void VulkanDevice::packing_pack8(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
 {
-    int uoi = opt.use_image_fp16_storage ? 4 : 3;
+    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
     uop_packing_pack8[uoi]->forward(src, dst, cmd, opt);
-}
-
-static inline bool string_ends_with_fp16p(const char* name)
-{
-    int len = strlen(name);
-    if (len < 6)
-        return false;
-
-    return memcmp(name + len - 6, "_fp16p", 6) == 0;
-}
-
-static inline bool string_ends_with_fp16pa(const char* name)
-{
-    int len = strlen(name);
-    if (len < 7)
-        return false;
-
-    return memcmp(name + len - 7, "_fp16pa", 7) == 0;
-}
-
-static inline bool string_ends_with_fp16s(const char* name)
-{
-    int len = strlen(name);
-    if (len < 6)
-        return false;
-
-    return memcmp(name + len - 6, "_fp16s", 6) == 0;
-}
-
-static inline bool string_ends_with_fp16sa(const char* name)
-{
-    int len = strlen(name);
-    if (len < 7)
-        return false;
-
-    return memcmp(name + len - 7, "_fp16sa", 7) == 0;
 }
 
 int VulkanDevice::create_shader_module()
@@ -1642,48 +1615,55 @@ int VulkanDevice::create_shader_module()
         // 3 = fp16s
         // 4 = fp16sa
         // 5 = image
-        // 6 = image_fp16
-        // 7 = image_fp16a
+        // 6 = image_fp16p
+        // 7 = image_fp16s
+        // 8 = image_fp16a
 
         if (!info.support_fp16_packed)
         {
-            if (i % 8 == 1)
+            if (i % 9 == 1)
                 continue;
         }
 
         if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
         {
-            if (i % 8 == 2)
+            if (i % 9 == 2)
                 continue;
         }
 
         if (!info.support_fp16_storage)
         {
-            if (i % 8 == 3)
+            if (i % 9 == 3)
                 continue;
         }
 
         if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
         {
-            if (i % 8 == 4)
+            if (i % 9 == 4)
                 continue;
         }
 
         if (!info.support_image_storage)
         {
-            if (i % 8 == 5)
+            if (i % 9 == 5)
+                continue;
+        }
+
+        if (!info.support_image_storage || !info.support_image_fp16_packed)
+        {
+            if (i % 9 == 6)
                 continue;
         }
 
         if (!info.support_image_storage || !info.support_image_fp16_storage)
         {
-            if (i % 8 == 6)
+            if (i % 9 == 7)
                 continue;
         }
 
         if (!info.support_image_storage || !info.support_image_fp16_storage || !info.support_image_fp16_arithmetic)
         {
-            if (i % 8 == 7)
+            if (i % 9 == 8)
                 continue;
         }
 
@@ -1780,39 +1760,51 @@ int VulkanDevice::init_device_extension()
 
 int VulkanDevice::create_utility_operator()
 {
-    Option opt[5];
+    Option opt[6];
 
     opt[0].use_fp16_packed = false;
     opt[0].use_fp16_storage = false;
     opt[0].use_image_storage = false;
+    opt[0].use_image_fp16_packed = false;
     opt[0].use_image_fp16_storage = false;
     opt[0].use_shader_pack8 = true;
 
     opt[1].use_fp16_packed = true;
     opt[1].use_fp16_storage = false;
     opt[1].use_image_storage = false;
+    opt[1].use_image_fp16_packed = false;
     opt[1].use_image_fp16_storage = false;
     opt[1].use_shader_pack8 = true;
 
     opt[2].use_fp16_packed = true;
     opt[2].use_fp16_storage = true;
     opt[2].use_image_storage = false;
+    opt[2].use_image_fp16_packed = false;
     opt[2].use_image_fp16_storage = false;
     opt[2].use_shader_pack8 = true;
 
     opt[3].use_fp16_packed = false;
     opt[3].use_fp16_storage = false;
     opt[3].use_image_storage = true;
+    opt[3].use_image_fp16_packed = false;
     opt[3].use_image_fp16_storage = false;
     opt[3].use_shader_pack8 = true;
 
     opt[4].use_fp16_packed = false;
     opt[4].use_fp16_storage = false;
     opt[4].use_image_storage = true;
-    opt[4].use_image_fp16_storage = true;
+    opt[4].use_image_fp16_packed = true;
+    opt[4].use_image_fp16_storage = false;
     opt[4].use_shader_pack8 = true;
 
-    for (int i = 0; i < 5; i++)
+    opt[5].use_fp16_packed = false;
+    opt[5].use_fp16_storage = false;
+    opt[5].use_image_storage = true;
+    opt[5].use_image_fp16_packed = true;
+    opt[5].use_image_fp16_storage = true;
+    opt[5].use_shader_pack8 = true;
+
+    for (int i = 0; i < 6; i++)
     {
         uop_cast_float32_to_float16[i] = 0;
         uop_cast_float16_to_float32[i] = 0;
@@ -1829,7 +1821,10 @@ int VulkanDevice::create_utility_operator()
         if (i == 3 && !info.support_image_storage)
             continue;
 
-        if (i == 4 && (!info.support_image_storage || !info.support_image_fp16_storage))
+        if (i == 4 && (!info.support_image_storage || !info.support_image_fp16_packed))
+            continue;
+
+        if (i == 5 && (!info.support_image_storage || !info.support_image_fp16_storage))
             continue;
 
         {
@@ -1896,39 +1891,51 @@ int VulkanDevice::create_utility_operator()
 
 void VulkanDevice::destroy_utility_operator()
 {
-    Option opt[5];
+    Option opt[6];
 
     opt[0].use_fp16_packed = false;
     opt[0].use_fp16_storage = false;
     opt[0].use_image_storage = false;
+    opt[0].use_image_fp16_packed = false;
     opt[0].use_image_fp16_storage = false;
     opt[0].use_shader_pack8 = true;
 
     opt[1].use_fp16_packed = true;
     opt[1].use_fp16_storage = false;
     opt[1].use_image_storage = false;
+    opt[1].use_image_fp16_packed = false;
     opt[1].use_image_fp16_storage = false;
     opt[1].use_shader_pack8 = true;
 
     opt[2].use_fp16_packed = true;
     opt[2].use_fp16_storage = true;
     opt[2].use_image_storage = false;
+    opt[2].use_image_fp16_packed = false;
     opt[2].use_image_fp16_storage = false;
     opt[2].use_shader_pack8 = true;
 
     opt[3].use_fp16_packed = false;
     opt[3].use_fp16_storage = false;
     opt[3].use_image_storage = true;
+    opt[3].use_image_fp16_packed = false;
     opt[3].use_image_fp16_storage = false;
     opt[3].use_shader_pack8 = true;
 
     opt[4].use_fp16_packed = false;
     opt[4].use_fp16_storage = false;
     opt[4].use_image_storage = true;
-    opt[4].use_image_fp16_storage = true;
+    opt[4].use_image_fp16_packed = true;
+    opt[4].use_image_fp16_storage = false;
     opt[4].use_shader_pack8 = true;
 
-    for (int i = 0; i < 5; i++)
+    opt[5].use_fp16_packed = false;
+    opt[5].use_fp16_storage = false;
+    opt[5].use_image_storage = true;
+    opt[5].use_image_fp16_packed = true;
+    opt[5].use_image_fp16_storage = true;
+    opt[5].use_shader_pack8 = true;
+
+    for (int i = 0; i < 6; i++)
     {
         if (i == 1 && !info.support_fp16_packed)
             continue;
@@ -1939,7 +1946,10 @@ void VulkanDevice::destroy_utility_operator()
         if (i == 3 && !info.support_image_storage)
             continue;
 
-        if (i == 4 && (!info.support_image_storage || !info.support_image_fp16_storage))
+        if (i == 4 && (!info.support_image_storage || !info.support_image_fp16_packed))
+            continue;
+
+        if (i == 5 && (!info.support_image_storage || !info.support_image_fp16_storage))
             continue;
 
         uop_cast_float32_to_float16[i]->destroy_pipeline(opt[i]);

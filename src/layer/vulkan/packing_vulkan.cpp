@@ -42,6 +42,10 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     {
         out_elemsize = out_elempack * 2u;
     }
+    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    {
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
+    }
     else if (opt.use_image_storage)
     {
         out_elemsize = out_elempack * 4u;
@@ -333,6 +337,12 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     {
         int outw = (w * elempack + out_elempack - 1) / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
+        if (opt.use_image_fp16_packed && !opt.use_image_fp16_storage)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
 
         top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -343,6 +353,12 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     {
         int outh = (h * elempack + out_elempack - 1) / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
+        if (opt.use_image_fp16_packed && !opt.use_image_fp16_storage)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
 
         top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -353,6 +369,12 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     {
         int outc = (channels * elempack + out_elempack - 1) / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
+        if (opt.use_image_fp16_packed && !opt.use_image_fp16_storage)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
 
         top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
