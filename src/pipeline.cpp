@@ -593,8 +593,28 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
     // 2 = fp16pa
     // 3 = fp16s
     // 4 = fp16sa
+    // 5 = image
+    // 6 = image_fp16p
+    // 7 = image_fp16s
+    // 8 = image_fp16a
 
-    if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    if (opt.use_image_storage && opt.use_image_fp16_storage && opt.use_image_fp16_arithmetic)
+    {
+        shader_type_index += 8;
+    }
+    else if (opt.use_image_storage && opt.use_image_fp16_storage)
+    {
+        shader_type_index += 7;
+    }
+    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    {
+        shader_type_index += 6;
+    }
+    else if (opt.use_image_storage)
+    {
+        shader_type_index += 5;
+    }
+    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 4;
     }
