@@ -156,7 +156,11 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (per_channel_pad_data_size == 0)
     {
-        cmd.record_upload(Mat(1), per_channel_pad_data_gpu_image, opt);
+        if (opt.use_image_storage)
+        {
+            cmd.record_upload(Mat(1), per_channel_pad_data_gpu_image, opt);
+        }
+
         return 0;
     }
 
@@ -165,9 +169,14 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     Mat per_channel_pad_data_packed;
     convert_packing(per_channel_pad_data, per_channel_pad_data_packed, elempack);
 
-    cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu, opt);
-
-    cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu_image, opt);
+    if (opt.use_image_storage)
+    {
+        cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu_image, opt);
+    }
+    else
+    {
+        cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu, opt);
+    }
 
     return 0;
 }

@@ -558,11 +558,16 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
             Mat bias_data_packed;
             convert_packing(bias_data, bias_data_packed, out_elempack);
 
-            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
-
-            cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
+            if (opt.use_image_storage)
+            {
+                cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
+            }
+            else
+            {
+                cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+            }
         }
-        else
+        else if (opt.use_image_storage)
         {
             cmd.record_upload(Mat(1), bias_data_gpu_image, opt);
         }
@@ -622,20 +627,30 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
         }
     }
 
-    cmd.record_upload(weight_data_packed_groups, weight_data_gpu, opt);
-
-    cmd.record_upload(weight_data_packed_groups, weight_data_gpu_image, opt);
+    if (opt.use_image_storage)
+    {
+        cmd.record_upload(weight_data_packed_groups, weight_data_gpu_image, opt);
+    }
+    else
+    {
+        cmd.record_upload(weight_data_packed_groups, weight_data_gpu, opt);
+    }
 
     if (bias_term)
     {
         Mat bias_data_packed;
         convert_packing(bias_data, bias_data_packed, out_elempack_g);
 
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
-
-        cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
+        if (opt.use_image_storage)
+        {
+            cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        }
     }
-    else
+    else if (opt.use_image_storage)
     {
         cmd.record_upload(Mat(1), bias_data_gpu_image, opt);
     }

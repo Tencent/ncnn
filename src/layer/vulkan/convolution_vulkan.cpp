@@ -388,7 +388,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 std::vector<vk_specialization_type> specializations(4 + 7);
                 specializations[0].i = bias_term;
                 specializations[1].i = activation_type;
-                specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+                specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
                 specializations[4 + 0].i = shape_winograd_gemm_packed.c;
                 specializations[4 + 1].i = shape_winograd_gemm_packed.cstep;
@@ -564,7 +564,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 std::vector<vk_specialization_type> specializations(4 + 7);
                 specializations[0].i = bias_term;
                 specializations[1].i = activation_type;
-                specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+                specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
                 specializations[4 + 0].i = shape_winograd_gemm_packed.c;
                 specializations[4 + 1].i = shape_winograd_gemm_packed.cstep;
@@ -766,9 +766,14 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         }
     }
 
-    cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
-
-    cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
+    if (opt.use_image_storage)
+    {
+        cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
+    }
+    else
+    {
+        cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
+    }
 
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
@@ -891,9 +896,14 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                 }
             }
 
-            cmd.record_upload(weight_data_pack4_tm, weight_data_gpu_pack4_tm, opt);
-
-            cmd.record_upload(weight_data_pack4_tm, weight_data_gpu_pack4_tm_image, opt);
+            if (opt.use_image_storage)
+            {
+                cmd.record_upload(weight_data_pack4_tm, weight_data_gpu_pack4_tm_image, opt);
+            }
+            else
+            {
+                cmd.record_upload(weight_data_pack4_tm, weight_data_gpu_pack4_tm, opt);
+            }
         }
     }
 
@@ -983,9 +993,14 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                 }
             }
 
-            cmd.record_upload(weight_data_pack8_tm, weight_data_gpu_pack8_tm, opt);
-
-            cmd.record_upload(weight_data_pack8_tm, weight_data_gpu_pack8_tm_image, opt);
+            if (opt.use_image_storage)
+            {
+                cmd.record_upload(weight_data_pack8_tm, weight_data_gpu_pack8_tm_image, opt);
+            }
+            else
+            {
+                cmd.record_upload(weight_data_pack8_tm, weight_data_gpu_pack8_tm, opt);
+            }
         }
     }
 
@@ -994,11 +1009,16 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         Mat bias_data_packed;
         convert_packing(bias_data, bias_data_packed, out_elempack);
 
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
-
-        cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
+        if (opt.use_image_storage)
+        {
+            cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        }
     }
-    else
+    else if (opt.use_image_storage)
     {
         cmd.record_upload(Mat(1), bias_data_gpu_image, opt);
     }
