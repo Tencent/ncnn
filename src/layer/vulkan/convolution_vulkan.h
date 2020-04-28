@@ -59,12 +59,14 @@ public:
     ncnn::Layer* winograd_padding;
     ncnn::Layer* winograd_crop;
     VkMat weight_data_gpu_pack4_tm;
+    VkImageMat weight_data_gpu_pack4_tm_image;
     Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input;
     Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_gemm;
     Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output;
 
     // pack8 winograd23
     VkMat weight_data_gpu_pack8_tm;
+    VkImageMat weight_data_gpu_pack8_tm_image;
     Pipeline* pipeline_convolution_pack8_3x3s1d1_winograd23_transform_input;
     Pipeline* pipeline_convolution_pack8_3x3s1d1_winograd23_gemm;
     Pipeline* pipeline_convolution_pack8_3x3s1d1_winograd23_transform_output;
