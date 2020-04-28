@@ -256,7 +256,7 @@ VkAllocator::VkAllocator(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 
 static inline size_t round_up(size_t n, size_t multiple)
 {
-    return (n + n - 1) / multiple * multiple;
+    return (n + multiple - 1) / multiple * multiple;
 }
 
 static inline size_t round_down(size_t n, size_t multiple)

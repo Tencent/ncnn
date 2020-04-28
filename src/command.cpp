@@ -92,7 +92,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     if (src.elemsize == src.elempack * 4u)
     {
         // cpu cast to fp16 (discrete gpu)
-        if (vkdev->info.type == 0 && (opt.use_fp16_storage || (src.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage)))
+        if (vkdev->info.type == 0 && (opt.use_fp16_storage || ((src.elempack == 4 || src.elempack == 8) && opt.use_fp16_packed && !opt.use_fp16_storage)))
         {
             ncnn::cast_float32_to_float16(src, src_fp16, opt);
         }
@@ -114,7 +114,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     if (dst_unpacked.elemsize == dst_unpacked.elempack * 4u)
     {
         // cast to fp16 (integrated gpu)
-        if (opt.use_fp16_storage && vkdev->info.type != 0)
+        if (vkdev->info.type != 0 && opt.use_fp16_storage)
         {
             vkdev->cast_float32_to_float16(dst_unpacked, dst_unpacked_fp16, *this, opt);
         }
@@ -147,7 +147,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
     if (src.elemsize == src.elempack * 4u)
     {
         // cpu cast to fp16 (discrete gpu)
-        if (vkdev->info.type == 0 && (opt.use_fp16_storage || (src.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage)))
+        if (vkdev->info.type == 0 && (opt.use_fp16_storage || ((src.elempack == 4 || src.elempack == 8) && opt.use_fp16_packed && !opt.use_fp16_storage)))
         {
             ncnn::cast_float32_to_float16(src, src_fp16, opt);
         }
@@ -173,7 +173,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
     if (dst_unpacked.elemsize == dst_unpacked.elempack * 4u)
     {
         // cast to fp16 (integrated gpu)
-        if (opt.use_fp16_storage && vkdev->info.type != 0)
+        if (vkdev->info.type != 0 && opt.use_fp16_storage)
         {
             vkdev->cast_float32_to_float16(dst_unpacked, dst_unpacked_fp16, *this, opt);
         }
@@ -217,7 +217,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     VkMat src_unpacked;
     if (src_unpacked_fp16.elemsize == src_unpacked_fp16.elempack * 2u)
     {
-        if (opt.use_fp16_storage && vkdev->info.type != 0)
+        if (vkdev->info.type != 0 && opt.use_fp16_storage)
         {
             vkdev->cast_float16_to_float32(src_unpacked_fp16, src_unpacked, *this, opt);
         }
@@ -235,10 +235,10 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     Mat dst_fp16;
     record_clone(src_unpacked, dst_fp16, opt);
 
-    // post cast_float16_to_float32
+    // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
     {
-        if (vkdev->info.type == 0 && (opt.use_fp16_storage || (dst_fp16.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage)))
+        if (vkdev->info.type == 0 && (opt.use_fp16_storage || ((dst_fp16.elempack == 4 || dst_fp16.elempack == 8) && opt.use_fp16_packed && !opt.use_fp16_storage)))
         {
             int dims = dst_fp16.dims;
             if (dims == 1)
@@ -288,7 +288,7 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
     VkImageMat src_unpacked;
     if (src_unpacked_fp16.elemsize == src_unpacked_fp16.elempack * 2u)
     {
-        if (opt.use_image_fp16_storage && vkdev->info.type != 0)
+        if (vkdev->info.type != 0 && opt.use_image_fp16_storage)
         {
             vkdev->cast_float16_to_float32(src_unpacked_fp16, src_unpacked, *this, opt);
         }
@@ -310,10 +310,10 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
     Mat dst_fp16;
     record_clone(src_staging, dst_fp16, opt);
 
-    // post cast_float16_to_float32
+    // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
     {
-        if (vkdev->info.type == 0 && (opt.use_fp16_storage || (dst_fp16.elempack == 4 && opt.use_fp16_packed && !opt.use_fp16_storage)))
+        if (vkdev->info.type == 0 && (opt.use_fp16_storage || ((dst_fp16.elempack == 4 || dst_fp16.elempack == 8) && opt.use_fp16_packed && !opt.use_fp16_storage)))
         {
             int dims = dst_fp16.dims;
             if (dims == 1)
@@ -397,6 +397,10 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
 
         record_clone(src_fp32, dst, opt);
     }
+    else
+    {
+        fprintf(stderr, "FATAL ERROR! unsupported record_buffer_to_image option\n");
+    }
 }
 
 void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt)
@@ -453,6 +457,10 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
             return;
 
         vkdev->cast_float32_to_float16(dst_fp32, dst, *this, opt);
+    }
+    else
+    {
+        fprintf(stderr, "FATAL ERROR! unsupported record_image_to_buffer option\n");
     }
 }
 
@@ -912,28 +920,51 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
 
     // record device to image
     {
-        const int channels = dst.c;
-        VkBufferImageCopy* regions = new VkBufferImageCopy[channels];
-        for (int i = 0; i < channels; i++)
+        int region_count;
+        VkBufferImageCopy* regions;
+        if (dst.elemsize * dst.w * dst.h % 16 == 0)
         {
-            regions[i].bufferOffset = src.buffer_offset() + src.cstep * src.elemsize * i;
-            regions[i].bufferRowLength = 0;
-            regions[i].bufferImageHeight = 0;
-            regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            regions[i].imageSubresource.mipLevel = 0;
-            regions[i].imageSubresource.baseArrayLayer = 0;
-            regions[i].imageSubresource.layerCount = 1;
-            regions[i].imageOffset.x = 0;
-            regions[i].imageOffset.y = 0;
-            regions[i].imageOffset.z = i;
-            regions[i].imageExtent.width = dst.data->width;
-            regions[i].imageExtent.height = dst.data->height;
-            regions[i].imageExtent.depth = 1;
+            region_count = 1;
+            regions = new VkBufferImageCopy[1];
+            regions[0].bufferOffset = src.buffer_offset();
+            regions[0].bufferRowLength = 0;
+            regions[0].bufferImageHeight = 0;
+            regions[0].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            regions[0].imageSubresource.mipLevel = 0;
+            regions[0].imageSubresource.baseArrayLayer = 0;
+            regions[0].imageSubresource.layerCount = 1;
+            regions[0].imageOffset.x = 0;
+            regions[0].imageOffset.y = 0;
+            regions[0].imageOffset.z = 0;
+            regions[0].imageExtent.width = dst.data->width;
+            regions[0].imageExtent.height = dst.data->height;
+            regions[0].imageExtent.depth = dst.data->depth;
+        }
+        else
+        {
+            region_count = dst.c;
+            regions = new VkBufferImageCopy[region_count];
+            for (int i = 0; i < region_count; i++)
+            {
+                regions[i].bufferOffset = src.buffer_offset() + src.cstep * src.elemsize * i;
+                regions[i].bufferRowLength = 0;
+                regions[i].bufferImageHeight = 0;
+                regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                regions[i].imageSubresource.mipLevel = 0;
+                regions[i].imageSubresource.baseArrayLayer = 0;
+                regions[i].imageSubresource.layerCount = 1;
+                regions[i].imageOffset.x = 0;
+                regions[i].imageOffset.y = 0;
+                regions[i].imageOffset.z = i;
+                regions[i].imageExtent.width = dst.data->width;
+                regions[i].imageExtent.height = dst.data->height;
+                regions[i].imageExtent.depth = 1;
+            }
         }
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkCmdCopyBufferToImage(compute_command_buffer, src.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, channels, regions);
+            vkCmdCopyBufferToImage(compute_command_buffer, src.buffer(), dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region_count, regions);
             delete[] regions;
         }
         else
@@ -944,7 +975,7 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
             r.copy_buffer_to_image.src = src.buffer();
             r.copy_buffer_to_image.dst = dst.image();
             r.copy_buffer_to_image.layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            r.copy_buffer_to_image.region_count = channels;
+            r.copy_buffer_to_image.region_count = region_count;
             r.copy_buffer_to_image.regions = regions;
             delayed_records.push_back(r);
         }
@@ -1016,28 +1047,51 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
 
     // record image to device
     {
-        const int channels = src.c;
-        VkBufferImageCopy* regions = new VkBufferImageCopy[channels];
-        for (int i = 0; i < channels; i++)
+        int region_count;
+        VkBufferImageCopy* regions;
+        if (src.elemsize * src.w * src.h % 16 == 0)
         {
-            regions[i].bufferOffset = dst.buffer_offset() + dst.cstep * dst.elemsize * i;
-            regions[i].bufferRowLength = 0;
-            regions[i].bufferImageHeight = 0;
-            regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            regions[i].imageSubresource.mipLevel = 0;
-            regions[i].imageSubresource.baseArrayLayer = 0;
-            regions[i].imageSubresource.layerCount = 1;
-            regions[i].imageOffset.x = 0;
-            regions[i].imageOffset.y = 0;
-            regions[i].imageOffset.z = i;
-            regions[i].imageExtent.width = src.data->width;
-            regions[i].imageExtent.height = src.data->height;
-            regions[i].imageExtent.depth = 1;
+            region_count = 1;
+            regions = new VkBufferImageCopy[1];
+            regions[0].bufferOffset = dst.buffer_offset();
+            regions[0].bufferRowLength = 0;
+            regions[0].bufferImageHeight = 0;
+            regions[0].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            regions[0].imageSubresource.mipLevel = 0;
+            regions[0].imageSubresource.baseArrayLayer = 0;
+            regions[0].imageSubresource.layerCount = 1;
+            regions[0].imageOffset.x = 0;
+            regions[0].imageOffset.y = 0;
+            regions[0].imageOffset.z = 0;
+            regions[0].imageExtent.width = src.data->width;
+            regions[0].imageExtent.height = src.data->height;
+            regions[0].imageExtent.depth = src.data->depth;
+        }
+        else
+        {
+            region_count = src.c;
+            regions = new VkBufferImageCopy[region_count];
+            for (int i = 0; i < region_count; i++)
+            {
+                regions[i].bufferOffset = dst.buffer_offset() + dst.cstep * dst.elemsize * i;
+                regions[i].bufferRowLength = 0;
+                regions[i].bufferImageHeight = 0;
+                regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                regions[i].imageSubresource.mipLevel = 0;
+                regions[i].imageSubresource.baseArrayLayer = 0;
+                regions[i].imageSubresource.layerCount = 1;
+                regions[i].imageOffset.x = 0;
+                regions[i].imageOffset.y = 0;
+                regions[i].imageOffset.z = i;
+                regions[i].imageExtent.width = src.data->width;
+                regions[i].imageExtent.height = src.data->height;
+                regions[i].imageExtent.depth = 1;
+            }
         }
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkCmdCopyImageToBuffer(compute_command_buffer, src.image(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst.buffer(), channels, regions);
+            vkCmdCopyImageToBuffer(compute_command_buffer, src.image(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst.buffer(), region_count, regions);
             delete[] regions;
         }
         else
@@ -1048,7 +1102,7 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
             r.copy_image_to_buffer.src = src.image();
             r.copy_image_to_buffer.layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
             r.copy_image_to_buffer.dst = dst.buffer();
-            r.copy_image_to_buffer.region_count = channels;
+            r.copy_image_to_buffer.region_count = region_count;
             r.copy_image_to_buffer.regions = regions;
             delayed_records.push_back(r);
         }
