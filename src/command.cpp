@@ -1138,7 +1138,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     {
         const VkMat& binding = bindings[i];
 
-        if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+        if (binding.data->access_flags & (VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT) || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
         {
             // barrier device any @ compute/null to shader-readwrite @ compute
             VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
@@ -1363,7 +1363,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
 
         if (binding_type == 2)
         {
-            if (binding.data->access_flags != (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT) || binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_GENERAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+            if (binding.data->access_flags & (VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT) || binding.data->image_layout != VK_IMAGE_LAYOUT_GENERAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
             {
                 // image layout transform any @ any to shader-write @ compute
                 VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
@@ -1419,7 +1419,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
                 }
             }
 
-            if (binding.data->access_flags != VK_ACCESS_SHADER_READ_BIT || binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+            if (binding.data->access_flags & (VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT) || binding.data->image_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
             {
                 // image layout transform any @ any to shader-readonly-optimal @ compute
                 VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
