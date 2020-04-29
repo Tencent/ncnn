@@ -540,7 +540,7 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
         return;
 
     // barrier device any @ compute to host-read @ compute
-    if (src.data->access_flags != VK_ACCESS_HOST_READ_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
+    if (src.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
     {
         VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -616,7 +616,7 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
     if (dst.empty())
         return;
 
-    if (src.data->access_flags != VK_ACCESS_TRANSFER_READ_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
+    if (src.data->access_flags & VK_ACCESS_TRANSFER_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
     {
         // barrier device any @ compute to transfer-read @ compute
         VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
@@ -655,6 +655,14 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
         src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
+    {
+        // barrier device any @ null to transfer-write @ compute
+
+        // mark device transfer-write @ transfer
+        dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
+        dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+
     // record device to staging
     {
         VkBufferCopy* regions = new VkBufferCopy[1];
@@ -679,10 +687,6 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
             delayed_records.push_back(r);
         }
     }
-
-    // mark device transfer-write @ transfer
-    dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
-    dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 }
 
 void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Option& opt)
@@ -695,7 +699,7 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
         return;
 
     // image layout transform any @ any to transfer-src-optimal @ compute
-    if (src.data->access_flags != VK_ACCESS_TRANSFER_READ_BIT || src.data->image_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
+    if (src.data->access_flags & VK_ACCESS_TRANSFER_WRITE_BIT || src.data->image_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
     {
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -732,6 +736,11 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
             r.image_barrers.barriers = barriers;
             delayed_records.push_back(r);
         }
+
+        // mark image transfer-src-optimal @ compute
+        src.data->access_flags = VK_ACCESS_TRANSFER_READ_BIT;
+        src.data->image_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
     // image layout transform undefined @ null to transfer-dst-optimal @ compute
@@ -771,6 +780,11 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
             r.image_barrers.barriers = barriers;
             delayed_records.push_back(r);
         }
+
+        // mark image transfer-dst-optimal @ compute
+        dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
+        dst.data->image_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
     // record device to staging
@@ -813,16 +827,6 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
             delayed_records.push_back(r);
         }
     }
-
-    // mark image transfer-src-optimal @ compute
-    src.data->access_flags = VK_ACCESS_TRANSFER_READ_BIT;
-    src.data->image_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
-    // mark image transfer-dst-optimal @ compute
-    dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
-    dst.data->image_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
     // image and imageview can not be destroyed until command execution ends
     NCNN_XADD(&src.data->command_refcount, 1);
@@ -916,6 +920,11 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
             r.image_barrers.barriers = barriers;
             delayed_records.push_back(r);
         }
+
+        // mark image transfer-dst-optimal @ compute
+        dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
+        dst.data->image_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
     // record device to image
@@ -981,11 +990,6 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
         }
     }
 
-    // mark image transfer-dst-optimal @ compute
-    dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
-    dst.data->image_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-
     // image and imageview can not be destroyed until command execution ends
     NCNN_XADD(&dst.data->command_refcount, 1);
     image_blocks_to_destroy.push_back(dst.data);
@@ -1001,7 +1005,7 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
         return;
 
     // image layout transform any @ any to transfer-src-optimal @ compute
-    if (src.data->access_flags != VK_ACCESS_TRANSFER_READ_BIT || src.data->image_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
+    if (src.data->access_flags & VK_ACCESS_TRANSFER_WRITE_BIT || src.data->image_layout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
     {
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1043,6 +1047,14 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
         src.data->access_flags = VK_ACCESS_TRANSFER_READ_BIT;
         src.data->image_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+
+    {
+        // barrier device any @ null to transfer-write @ compute
+
+        // mark device transfer-write @ transfer
+        dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
+        dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
     // record image to device
@@ -1107,10 +1119,6 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
             delayed_records.push_back(r);
         }
     }
-
-    // mark device transfer-write @ compute
-    dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
-    dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
     // image and imageview can not be destroyed until command execution ends
     NCNN_XADD(&src.data->command_refcount, 1);
