@@ -264,8 +264,8 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
     add_custom_command(
         OUTPUT ${SHADER_image_fp16p_SPV_HEX_FILE}
         COMMAND ${GLSLANGVALIDATOR_EXECUTABLE}
-        ARGS -Dsfp=float -Dsfpvec2=f16vec2 -Dsfpvec4=f16vec4
-             -Dafp=float -Dafpvec2=vec2    -Dafpvec4=vec4    -Dafpvec8=mat2x4 -Dafpmat4=mat4
+        ARGS -Dsfp=float -Dsfpvec2=uint -Dsfpvec4=uvec2 -Dsfpvec8=uvec4
+             -Dafp=float -Dafpvec2=vec2 -Dafpvec4=vec4  -Dafpvec8=mat2x4 -Dafpmat4=mat4
 
              -Dimfmtc1=r32f -Dimfmtc4=rgba16f
              -Dunfp=mediump
@@ -303,24 +303,24 @@ function(ncnn_generate_shader_spv_header SHADER_SPV_HEADER SHADER_SPV_HEX_HEADER
              "-D buffer_ld1(buf,i)=buf[i]"
              "-D buffer_st1(buf,i,v)={buf[i]=v;}"
              "-D buffer_cp1(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
-             "-D buffer_cp1to4(buf,i,sbuf,si4)={buf[i].r=float16_t(sbuf[si4.r]);buf[i].g=float16_t(sbuf[si4.g]);buf[i].b=float16_t(sbuf[si4.b]);buf[i].a=float16_t(sbuf[si4.a]);}"
-             "-D buffer_cp1to8(buf,i,sbuf,si4,sii4)={buf[i].abcd.r=float16_t(sbuf[si4.r]);buf[i].abcd.g=float16_t(sbuf[si4.g]);buf[i].abcd.b=float16_t(sbuf[si4.b]);buf[i].abcd.a=float16_t(sbuf[si4.a]);buf[i].efgh.r=float16_t(sbuf[sii4.r]);buf[i].efgh.g=float16_t(sbuf[sii4.g]);buf[i].efgh.b=float16_t(sbuf[sii4.b]);buf[i].efgh.a=float16_t(sbuf[sii4.a]);}"
-             "-D buffer_ld2(buf,i)=vec2(buf[i])"
-             "-D buffer_st2(buf,i,v)={buf[i]=f16vec2(v);}"
+             "-D buffer_cp1to4(buf,i,sbuf,si4)={buf[i]=uvec2(packHalf2x16(vec2(sbuf[si4.r],sbuf[si4.g])),packHalf2x16(vec2(sbuf[si4.b],sbuf[si4.a])));}"
+             "-D buffer_cp1to8(buf,i,sbuf,si4,sii4)={buf[i]=uvec4(packHalf2x16(vec2(sbuf[si4.r],sbuf[si4.g])),packHalf2x16(vec2(sbuf[si4.b],sbuf[si4.a])),packHalf2x16(vec2(sbuf[sii4.r],sbuf[sii4.g])),packHalf2x16(vec2(sbuf[sii4.b],sbuf[sii4.a])));}"
+             "-D buffer_ld2(buf,i)=unpackHalf2x16(buf[i])"
+             "-D buffer_st2(buf,i,v)={buf[i]=packHalf2x16(v)}"
              "-D buffer_cp2(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
-             "-D buffer_ld4(buf,i)=vec4(buf[i])"
-             "-D buffer_st4(buf,i,v)={buf[i]=f16vec4(v);}"
+             "-D buffer_ld4(buf,i)=vec4(unpackHalf2x16(buf[i].x),unpackHalf2x16(buf[i].y))"
+             "-D buffer_st4(buf,i,v)={buf[i]=uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba));}"
              "-D buffer_cp4(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
-             "-D buffer_cp4to1(buf,i4,sbuf,si)={buf[i4.r]=float(sbuf[si].r);buf[i4.g]=float(sbuf[si].g);buf[i4.b]=float(sbuf[si].b);buf[i4.a]=float(sbuf[si].a);}"
-             "-D buffer_cp4to8(buf,i,sbuf,si2)={buf[i].abcd=sbuf[si2.r];buf[i].efgh=sbuf[si2.g];}"
-             "-D buffer_ld8(buf,i)=mat2x4(vec4(buf[i].abcd),vec4(buf[i].efgh))"
-             "-D buffer_st8(buf,i,v)={buf[i].abcd=f16vec4(v[0]);buf[i].efgh=f16vec4(v[1]);}"
-             "-D buffer_cp8(buf,i,sbuf,si)={buf[i].abcd=sbuf[si].abcd;buf[i].efgh=sbuf[si].efgh;}"
-             "-D buffer_cp8to1(buf,i4,ii4,sbuf,si)={buf[i4.r]=float(sbuf[si].abcd.r);buf[i4.g]=float(sbuf[si].abcd.g);buf[i4.b]=float(sbuf[si].abcd.b);buf[i4.a]=float(sbuf[si].abcd.a); buf[ii4.r]=float(sbuf[si].efgh.r);buf[ii4.g]=float(sbuf[si].efgh.g);buf[ii4.b]=float(sbuf[si].efgh.b);buf[ii4.a]=float(sbuf[si].efgh.a);}"
-             "-D buffer_cp8to4(buf,i2,sbuf,si)={buf[i2.r]=sbuf[si].abcd;buf[i2.g]=sbuf[si].efgh;}"
+             "-D buffer_cp4to1(buf,i4,sbuf,si)={uvec2 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g;}"
+             "-D buffer_cp4to8(buf,i,sbuf,si2)={buf[i]=uvec4(sbuf[si2.r],sbuf[si2.g]);}"
+             "-D buffer_ld8(buf,i)=mat2x4(vec4(unpackHalf2x16(buf[i].r),unpackHalf2x16(buf[i].g)),vec4(unpackHalf2x16(buf[i].b),unpackHalf2x16(buf[i].a)))"
+             "-D buffer_st8(buf,i,v)={buf[i]=uvec4(uvec2(packHalf2x16(v[0].rg),packHalf2x16(v[0].ba)),uvec2(packHalf2x16(v[1].rg),packHalf2x16(v[1].ba)));}"
+             "-D buffer_cp8(buf,i,sbuf,si)={buf[i]=sbuf[si];}"
+             "-D buffer_cp8to1(buf,i4,ii4,sbuf,si)={uvec4 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.r);vec2 _v1=unpackHalf2x16(_v.g);vec2 _v2=unpackHalf2x16(_v.b);vec2 _v3=unpackHalf2x16(_v.a); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g; buf[ii4.r]=_v2.r;buf[ii4.g]=_v2.g;buf[ii4.b]=_v3.r;buf[ii4.a]=_v3.g;}"
+             "-D buffer_cp8to4(buf,i2,sbuf,si)={uvec4 _v=sbuf[si]; buf[i2.r]=_v.rg;buf[i2.g]=_v.ba;}"
 
              "-D psc(x)=(x==0?p.x:x)"
-             -DNCNN_image_shader=1 -DNCNN_fp16_storage=1
+             -DNCNN_image_shader=1 -DNCNN_fp16_packed=1
              -V -x -o ${SHADER_image_fp16p_SPV_HEX_FILE} ${SHADER_SRC}
         DEPENDS ${SHADER_SRC}
         COMMENT "Building SPIR-V module ${SHADER_image_fp16p_SRC_NAME_WE}.spv"
