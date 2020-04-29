@@ -167,7 +167,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
 
     // staging to image
     VkImageMat dst_unpacked;
-    record_buffer_to_image(dst_staging, dst_unpacked, opt);
+    record_clone(dst_staging, dst_unpacked, opt);
 
     VkImageMat dst_unpacked_fp16;
     if (dst_unpacked.elemsize == dst_unpacked.elempack * 4u)
@@ -304,7 +304,7 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
 
     // image to staging
     VkMat src_staging;
-    record_image_to_buffer(src_unpacked, src_staging, opt);
+    record_clone(src_unpacked, src_staging, opt);
 
     // download
     Mat dst_fp16;
