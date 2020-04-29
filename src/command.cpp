@@ -510,7 +510,7 @@ void VkCompute::record_clone(const Mat& src, VkImageMat& dst, const Option& opt)
     record_clone(src, dst_staging, opt_staging);
 
     // staging to image
-    record_buffer_to_image(dst_staging, dst, opt);
+    record_clone(dst_staging, dst, opt);
 
     // stash staging
     upload_staging_buffers.push_back(dst_staging);
@@ -601,7 +601,7 @@ void VkCompute::record_clone(const VkImageMat& src, Mat& dst, const Option& opt)
     VkMat src_staging;
     Option opt_staging = opt;
     opt_staging.blob_vkallocator = opt.staging_vkallocator;
-    record_image_to_buffer(src, src_staging, opt_staging);
+    record_clone(src, src_staging, opt_staging);
 
     // staging to host
     record_clone(src_staging, dst, opt);

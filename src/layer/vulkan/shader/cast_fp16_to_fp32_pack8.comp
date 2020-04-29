@@ -78,15 +78,15 @@ void main()
 #if NCNN_image_shader
     if (psc(dims) == 1)
     {
-        image1d_cp1(top_blob_1d, gx, bottom_blob_1d, gx);
+        image1d_cp8(top_blob_1d, gx, bottom_blob_1d, gx);
     }
     else if (psc(dims) == 2)
     {
-        image2d_cp1(top_blob_2d, ivec2(gx, gy), bottom_blob_2d, ivec2(gx, gy));
+        image2d_cp8(top_blob_2d, ivec2(gx, gy), bottom_blob_2d, ivec2(gx, gy));
     }
     else // if (psc(dims) == 3)
     {
-        image3d_cp1(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gx, gy, gz));
+        image3d_cp8(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gx, gy, gz));
     }
 #else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
