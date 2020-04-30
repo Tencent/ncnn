@@ -685,6 +685,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_image_fp16_storage = false;
     opts[2] = _opt;
     opts[2].use_packing_layout = true;
+    opts[2].use_vulkan_compute = false;//TODO enable me
     opts[2].use_fp16_packed = false;
     opts[2].use_fp16_storage = false;
     opts[2].use_bf16_storage = true;
@@ -777,6 +778,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_image_fp16_storage = false;
     opts[2] = _opt;
     opts[2].use_packing_layout = true;
+    opts[2].use_vulkan_compute = false;//TODO enable me
     opts[2].use_fp16_packed = false;
     opts[2].use_fp16_storage = false;
     opts[2].use_bf16_storage = true;
