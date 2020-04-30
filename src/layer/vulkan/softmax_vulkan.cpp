@@ -23,6 +23,7 @@ DEFINE_LAYER_CREATOR(Softmax_vulkan)
 Softmax_vulkan::Softmax_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_softmax_reduce_max = 0;
     pipeline_softmax_exp_sub_max = 0;
@@ -415,10 +416,8 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     return 0;
 }
 
-#if 0
 int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    return 0;
     int dims = bottom_top_blob.dims;
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -487,9 +486,10 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
 
     // exp( v - max )
     {
-    std::vector<VkImageMat> bindings(2);
+    std::vector<VkImageMat> bindings(3);
     bindings[0] = bottom_top_blob;
-    bindings[1] = max_workspace;
+    bindings[1] = bottom_top_blob;
+    bindings[2] = max_workspace;
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
@@ -537,9 +537,10 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
 
     // div sum
     {
-    std::vector<VkImageMat> bindings(2);
+    std::vector<VkImageMat> bindings(3);
     bindings[0] = bottom_top_blob;
-    bindings[1] = sum_workspace;
+    bindings[1] = bottom_top_blob;
+    bindings[2] = sum_workspace;
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
@@ -562,6 +563,5 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
 
     return 0;
 }
-#endif
 
 } // namespace ncnn
