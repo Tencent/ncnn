@@ -873,10 +873,13 @@ int create_gpu_instance()
         fprintf(stderr, "[%u %s]  buglssc=%d  bugihfa=%d\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.bug_local_size_spec_const, gpu_info.bug_implicit_fp16_arithmetic);
 
-        fprintf(stderr, "[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d  imgfp32=%d  imgfp16p=%d  imgfp16s=%d  imgfp16a=%d\n", i, physicalDeviceProperties.deviceName,
+        fprintf(stderr, "[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
-                gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic,
-                gpu_info.support_image_storage, gpu_info.support_image_fp16_packed, gpu_info.support_image_fp16_storage, gpu_info.support_image_fp16_arithmetic);
+                gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
+
+        fprintf(stderr, "[%u %s]  imgfp32=%d  imgfp16p=%d  imgfp16s=%d  imgfp16a=%d\n", i, physicalDeviceProperties.deviceName,
+                gpu_info.support_image_storage, gpu_info.support_image_fp16_packed,
+                gpu_info.support_image_fp16_storage, gpu_info.support_image_fp16_arithmetic);
 
         gpu_info_index++;
     }
