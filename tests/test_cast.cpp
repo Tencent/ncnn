@@ -154,6 +154,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     opt.use_int8_storage = false;
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
+    opt.use_image_storage = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -164,8 +165,8 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
 
     ncnn::Layer* op = ncnn::create_layer("Cast");
 
@@ -213,7 +214,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
 
     // upload
     ncnn::VkMat a4_gpu;
-    cmd.record_upload(a4_fp16, a4_gpu, opt);
+    cmd.record_clone(a4_fp16, a4_gpu, opt);
 
     ncnn::VkMat d4_gpu;
     if (op->support_inplace)
@@ -228,7 +229,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     }
 
     // download
-    cmd.record_download(d4_gpu, d, opt);
+    cmd.record_clone(d4_gpu, d, opt);
 
     cmd.submit_and_wait();
 
@@ -267,6 +268,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = true;
+    opt.use_image_storage = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -277,8 +279,8 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
 
     ncnn::Layer* op = ncnn::create_layer("Cast");
 
@@ -328,7 +330,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
 
     // upload
     ncnn::VkMat a4_gpu;
-    cmd.record_upload(a4_fp16, a4_gpu, opt);
+    cmd.record_clone(a4_fp16, a4_gpu, opt);
 
     ncnn::VkMat d4_gpu;
     if (op->support_inplace)
@@ -343,7 +345,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     }
 
     // download
-    cmd.record_download(d4_gpu, d, opt);
+    cmd.record_clone(d4_gpu, d, opt);
 
     cmd.submit_and_wait();
 
@@ -362,6 +364,247 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
 
     return 0;
 }
+
+static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type_to)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, type_from);
+    pd.set(1, type_to);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = true;
+    opt.use_int8_inference = false;
+    opt.use_fp16_packed = true;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_int8_storage = false;
+    opt.use_int8_arithmetic = false;
+    opt.use_packing_layout = true;
+    opt.use_image_storage = true;
+    opt.use_image_fp16_packed = true;
+    opt.use_image_fp16_storage = false;
+    opt.use_image_fp16_arithmetic = false;
+
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
+    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_image_storage) opt.use_image_storage = false;
+    if (!vkdev->info.support_image_fp16_packed) opt.use_image_fp16_packed = false;
+    if (!vkdev->info.support_image_fp16_storage) opt.use_image_fp16_storage = false;
+
+    ncnn::Layer* op = ncnn::create_layer("Cast");
+
+    op->vkdev = vkdev;
+
+    op->load_param(pd);
+
+    ncnn::ModelBinFromMatArray mb(weights.data());
+
+    op->load_model(mb);
+
+    op->create_pipeline(opt);
+
+    ncnn::Mat a_fp16;
+    if (type_from == 2)
+    {
+        ncnn::cast_float32_to_float16(a, a_fp16, opt);
+    }
+    else
+    {
+        a_fp16 = a;
+    }
+
+    ncnn::Mat b;
+    ((ncnn::Cast*)op)->ncnn::Cast::forward(a_fp16, b, opt);
+
+    ncnn::Mat d;
+
+    // pack
+    ncnn::Mat a4;
+    ncnn::convert_packing(a, a4, 4, opt);
+
+    ncnn::Mat a4_fp16;
+    if (type_from == 2 && a4.elempack == 4)
+    {
+        ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
+    }
+    else
+    {
+        a4_fp16 = a4;
+    }
+
+    // forward
+    ncnn::VkCompute cmd(vkdev);
+
+    // upload
+    ncnn::VkImageMat a4_gpu;
+    cmd.record_clone(a4_fp16, a4_gpu, opt);
+
+    ncnn::VkImageMat d4_gpu;
+    if (op->support_inplace)
+    {
+        op->forward_inplace(a4_gpu, cmd, opt);
+
+        d4_gpu = a4_gpu;
+    }
+    else
+    {
+        op->forward(a4_gpu, d4_gpu, cmd, opt);
+    }
+
+    // download
+    cmd.record_clone(d4_gpu, d, opt);
+
+    cmd.submit_and_wait();
+
+    op->destroy_pipeline(opt);
+
+    delete op;
+
+    vkdev->reclaim_blob_allocator(blob_vkallocator);
+    vkdev->reclaim_staging_allocator(staging_vkallocator);
+
+    if (CompareMat(b, d, 0.001) != 0)
+    {
+        fprintf(stderr, "test_cast_gpu_image_fp16p failed a.dims=%d a=(%d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.c, type_from, type_to);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, int type_to)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, type_from);
+    pd.set(1, type_to);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = true;
+    opt.use_int8_inference = false;
+    opt.use_fp16_packed = true;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_int8_storage = false;
+    opt.use_int8_arithmetic = false;
+    opt.use_packing_layout = true;
+    opt.use_shader_pack8 = true;
+    opt.use_image_storage = true;
+    opt.use_image_fp16_packed = true;
+    opt.use_image_fp16_storage = false;
+    opt.use_image_fp16_arithmetic = false;
+
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
+    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_image_storage) opt.use_image_storage = false;
+    if (!vkdev->info.support_image_fp16_packed) opt.use_image_fp16_packed = false;
+    if (!vkdev->info.support_image_fp16_storage) opt.use_image_fp16_storage = false;
+
+    ncnn::Layer* op = ncnn::create_layer("Cast");
+
+    op->vkdev = vkdev;
+
+    op->load_param(pd);
+
+    ncnn::ModelBinFromMatArray mb(weights.data());
+
+    op->load_model(mb);
+
+    op->create_pipeline(opt);
+
+    ncnn::Mat a_fp16;
+    if (type_from == 2)
+    {
+        ncnn::cast_float32_to_float16(a, a_fp16, opt);
+    }
+    else
+    {
+        a_fp16 = a;
+    }
+
+    ncnn::Mat b;
+    ((ncnn::Cast*)op)->ncnn::Cast::forward(a_fp16, b, opt);
+
+    ncnn::Mat d;
+
+    // pack
+    ncnn::Mat a4;
+    ncnn::convert_packing(a, a4, 8, opt);
+    if (a4.elempack != 8)
+        ncnn::convert_packing(a, a4, 4, opt);
+
+    ncnn::Mat a4_fp16;
+    if (type_from == 2 && (a4.elempack == 4 || a4.elempack == 8))
+    {
+        ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
+    }
+    else
+    {
+        a4_fp16 = a4;
+    }
+
+    // forward
+    ncnn::VkCompute cmd(vkdev);
+
+    // upload
+    ncnn::VkImageMat a4_gpu;
+    cmd.record_clone(a4_fp16, a4_gpu, opt);
+
+    ncnn::VkImageMat d4_gpu;
+    if (op->support_inplace)
+    {
+        op->forward_inplace(a4_gpu, cmd, opt);
+
+        d4_gpu = a4_gpu;
+    }
+    else
+    {
+        op->forward(a4_gpu, d4_gpu, cmd, opt);
+    }
+
+    // download
+    cmd.record_clone(d4_gpu, d, opt);
+
+    cmd.submit_and_wait();
+
+    op->destroy_pipeline(opt);
+
+    delete op;
+
+    vkdev->reclaim_blob_allocator(blob_vkallocator);
+    vkdev->reclaim_staging_allocator(staging_vkallocator);
+
+    if (CompareMat(b, d, 0.001) != 0)
+    {
+        fprintf(stderr, "test_cast_gpu_image_fp16p_pack8 failed a.dims=%d a=(%d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.c, type_from, type_to);
+        return -1;
+    }
+
+    return 0;
+}
 #endif // NCNN_VULKAN
 
 static int test_cast(const ncnn::Mat& a, int type_from, int type_to)
@@ -372,6 +615,8 @@ static int test_cast(const ncnn::Mat& a, int type_from, int type_to)
 #if NCNN_VULKAN
         || test_cast_gpu_fp16p(a, type_from, type_to)
         || test_cast_gpu_fp16p_pack8(a, type_from, type_to)
+        || test_cast_gpu_image_fp16p(a, type_from, type_to)
+        || test_cast_gpu_image_fp16p_pack8(a, type_from, type_to)
 #endif // NCNN_VULKAN
         ;
 }

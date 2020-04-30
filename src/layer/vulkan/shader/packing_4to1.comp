@@ -38,8 +38,17 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
+layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
+layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image1D top_blob_1d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image2D top_blob_2d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -65,6 +74,43 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
+#if NCNN_image_shader
+    afpvec4 v;
+
+    if (psc(dims) == 1)
+    {
+        v = image1d_ld4(bottom_blob_1d, gx);
+
+        int x4 = gx * 4;
+
+        image1d_st1(top_blob_1d, x4 + 0, v.r);
+        image1d_st1(top_blob_1d, x4 + 1, v.g);
+        image1d_st1(top_blob_1d, x4 + 2, v.b);
+        image1d_st1(top_blob_1d, x4 + 3, v.a);
+    }
+    else if (psc(dims) == 2)
+    {
+        v = image2d_ld4(bottom_blob_2d, ivec2(gx, gy));
+
+        int y4 = gy * 4;
+
+        image2d_st1(top_blob_2d, ivec2(gx, y4 + 0), v.r);
+        image2d_st1(top_blob_2d, ivec2(gx, y4 + 1), v.g);
+        image2d_st1(top_blob_2d, ivec2(gx, y4 + 2), v.b);
+        image2d_st1(top_blob_2d, ivec2(gx, y4 + 3), v.a);
+    }
+    else // if (psc(dims) == 3)
+    {
+        v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
+
+        int z4 = gz * 4;
+
+        image3d_st1(top_blob_3d, ivec3(gx, gy, z4 + 0), v.r);
+        image3d_st1(top_blob_3d, ivec3(gx, gy, z4 + 1), v.g);
+        image3d_st1(top_blob_3d, ivec3(gx, gy, z4 + 2), v.b);
+        image3d_st1(top_blob_3d, ivec3(gx, gy, z4 + 3), v.a);
+    }
+#else // NCNN_image_shader
     ivec4 v_offset;
 
     if (psc(dims) == 1)
@@ -89,4 +135,5 @@ void main()
     int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     buffer_cp4to1(top_blob_data, v_offset, bottom_blob_data, gi);
+#endif // NCNN_image_shader
 }

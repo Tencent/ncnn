@@ -24,6 +24,7 @@ DEFINE_LAYER_CREATOR(InnerProduct_vulkan)
 InnerProduct_vulkan::InnerProduct_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     flatten = 0;
 
@@ -72,7 +73,17 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_image_storage && opt.use_image_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+        out_elemsize = out_elempack * 2u;
+    }
+    else if (opt.use_image_storage)
+    {
+        elemsize = elempack * 4u;
+        out_elemsize = out_elempack * 4u;
+    }
+    else if (opt.use_fp16_storage)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -269,14 +280,32 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         }
     }
 
-    cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
+    if (opt.use_image_storage)
+    {
+        cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
+    }
+    else
+    {
+        cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
+    }
 
     if (bias_term)
     {
         Mat bias_data_packed;
         convert_packing(bias_data, bias_data_packed, out_elempack);
 
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        if (opt.use_image_storage)
+        {
+            cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        }
+    }
+    else if (opt.use_image_storage)
+    {
+        cmd.record_upload(Mat(1), bias_data_gpu_image, opt);
     }
 
     return 0;
@@ -327,6 +356,95 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
+
+    const Pipeline* pipeline = 0;
+    if (elempack == 1 && out_elempack == 1)
+    {
+        pipeline = pipeline_innerproduct;
+    }
+    else if (elempack == 4 && out_elempack == 4)
+    {
+        pipeline = pipeline_innerproduct_pack4;
+    }
+    else if (elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_innerproduct_pack1to4;
+    }
+    else if (elempack == 4 && out_elempack == 1)
+    {
+        pipeline = pipeline_innerproduct_pack4to1;
+    }
+    else if (elempack == 8 && out_elempack == 8)
+    {
+        pipeline = pipeline_innerproduct_pack8;
+    }
+    else if (elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_innerproduct_pack1to8;
+    }
+    else if (elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_innerproduct_pack4to8;
+    }
+    else if (elempack == 8 && out_elempack == 4)
+    {
+        pipeline = pipeline_innerproduct_pack8to4;
+    }
+    else if (elempack == 8 && out_elempack == 1)
+    {
+        pipeline = pipeline_innerproduct_pack8to1;
+    }
+
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+    return 0;
+}
+
+int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    // flatten
+    VkImageMat bottom_blob_flattened = bottom_blob;
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_vkallocator = opt.workspace_vkallocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, cmd, opt_flatten);
+    }
+
+    size_t elemsize = bottom_blob_flattened.elemsize;
+    int elempack = bottom_blob_flattened.elempack;
+
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (opt.use_image_fp16_packed && !opt.use_image_fp16_storage)
+    {
+        if (out_elempack == 8) out_elemsize = 8*2u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+
+    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    std::vector<VkImageMat> bindings(4);
+    bindings[0] = bottom_blob_flattened;
+    bindings[1] = top_blob;
+    bindings[2] = weight_data_gpu_image;
+    bindings[3] = bias_data_gpu_image;// TODO use dummy buffer
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_blob_flattened.dims;
+    constants[1].i = bottom_blob_flattened.w;
+    constants[2].i = bottom_blob_flattened.h;
+    constants[3].i = bottom_blob_flattened.c;
+    constants[4].i = 0;//bottom_blob_flattened.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = 0;//top_blob.cstep;
 
     const Pipeline* pipeline = 0;
     if (elempack == 1 && out_elempack == 1)

@@ -43,8 +43,13 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob;
+#else // NCNN_image_shader
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
+#endif // NCNN_image_shader
 
 layout (push_constant) uniform parameter
 {
@@ -67,7 +72,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gx >= psc(outw) || gy >= 1 || gz >= 1)
         return;
 
     int size = psc(w) * psc(h);
@@ -79,28 +84,56 @@ void main()
     {
         res = afpvec8(afpvec4(-FLT_MAX), afpvec4(-FLT_MAX));
 
+#if NCNN_image_shader
+        for (int y = 0; y < psc(h); y++)
+        {
+            for (int x = 0; x < psc(w); x++)
+            {
+                afpvec8 v = image3d_ld8(bottom_blob, ivec3(x, y, gx));
+                res[0] = max(res[0], v[0]);
+                res[1] = max(res[1], v[1]);
+            }
+        }
+#else
         for (int i = 0; i < size; i++)
         {
             afpvec8 v = buffer_ld8(bottom_blob_data, v_offset + i);
             res[0] = max(res[0], v[0]);
             res[1] = max(res[1], v[1]);
         }
+#endif
     }
-    else if (pooling_type == 1)
+    if (pooling_type == 1)
     {
         res = afpvec8(afpvec4(0.f), afpvec4(0.f));
 
+#if NCNN_image_shader
+        for (int y = 0; y < psc(h); y++)
+        {
+            for (int x = 0; x < psc(w); x++)
+            {
+                afpvec8 v = image3d_ld8(bottom_blob, ivec3(x, y, gx));
+                res[0] += v[0];
+                res[1] += v[1];
+            }
+        }
+#else
         for (int i = 0; i < size; i++)
         {
             afpvec8 v = buffer_ld8(bottom_blob_data, v_offset + i);
             res[0] += v[0];
             res[1] += v[1];
         }
+#endif
 
         afp area = afp(size);
         res[0] /= area;
         res[1] /= area;
     }
 
+#if NCNN_image_shader
+    image1d_st8(top_blob, gx, res);
+#else
     buffer_st8(top_blob_data, gx, res);
+#endif
 }

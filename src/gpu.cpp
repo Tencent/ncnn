@@ -27,6 +27,9 @@
 #include <vector>
 
 #include "mat.h"
+#include "command.h"
+#include "layer_type.h"
+#include "layer.h"
 
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
@@ -603,6 +606,10 @@ int create_gpu_instance()
         gpu_info.memory_map_alignment = physicalDeviceProperties.limits.minMemoryMapAlignment;
         gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
         gpu_info.non_coherent_atom_size = physicalDeviceProperties.limits.nonCoherentAtomSize;
+        gpu_info.buffer_image_granularity = physicalDeviceProperties.limits.bufferImageGranularity;
+        gpu_info.max_image_dimension_1d = physicalDeviceProperties.limits.maxImageDimension1D;
+        gpu_info.max_image_dimension_2d = physicalDeviceProperties.limits.maxImageDimension2D;
+        gpu_info.max_image_dimension_3d = physicalDeviceProperties.limits.maxImageDimension3D;
 
         gpu_info.timestamp_period = physicalDeviceProperties.limits.timestampPeriod;
 
@@ -810,6 +817,54 @@ int create_gpu_instance()
             gpu_info.support_fp16_arithmetic = true;
         }
 
+        // check format
+        gpu_info.support_image_storage = false;
+        gpu_info.support_image_fp16_packed = false;
+        gpu_info.support_image_fp16_storage = false;
+        gpu_info.support_image_fp16_arithmetic = false;
+        {
+            VkFormatProperties r32f_formatProperties;
+            VkFormatProperties rgba32f_formatProperties;
+            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R32_SFLOAT, &r32f_formatProperties);
+            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R32G32B32A32_SFLOAT, &rgba32f_formatProperties);
+
+            if ((r32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
+                && (r32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)
+                && (rgba32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
+                && (rgba32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
+                gpu_info.support_image_storage = true;
+        }
+        {
+            VkFormatProperties rgba16f_formatProperties;
+            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R16G16B16A16_SFLOAT, &rgba16f_formatProperties);
+
+            if ((rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
+                && (rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
+                gpu_info.support_image_fp16_packed = true;
+        }
+        {
+            VkFormatProperties r16f_formatProperties;
+            VkFormatProperties rgba16f_formatProperties;
+            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R16_SFLOAT, &r16f_formatProperties);
+            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R16G16B16A16_SFLOAT, &rgba16f_formatProperties);
+
+            if ((r16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
+                && (r16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)
+                && (rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
+                && (rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
+                gpu_info.support_image_fp16_storage = true;
+        }
+        if (gpu_info.support_fp16_arithmetic)
+        {
+            gpu_info.support_image_fp16_arithmetic = true;
+        }
+
+        if (physicalDeviceProperties.vendorID == 0x1ae0 && physicalDeviceProperties.deviceID == 0xc0de)
+        {
+            // swiftshader image r16f is not supported
+            gpu_info.support_image_fp16_storage = false;
+        }
+
         fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueG=%u[%u]  queueT=%u[%u]\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_family_index, gpu_info.compute_queue_count,
                 gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
@@ -822,6 +877,10 @@ int create_gpu_instance()
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
                 gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
 
+        fprintf(stderr, "[%u %s]  imgfp32=%d  imgfp16p=%d  imgfp16s=%d  imgfp16a=%d\n", i, physicalDeviceProperties.deviceName,
+                gpu_info.support_image_storage, gpu_info.support_image_fp16_packed,
+                gpu_info.support_image_fp16_storage, gpu_info.support_image_fp16_arithmetic);
+
         gpu_info_index++;
     }
 
@@ -833,7 +892,7 @@ int create_gpu_instance()
     // resolve shader info
     for (int i=0; i<layer_shader_registry_entry_count; i++)
     {
-        layer_shader_infos[i] = resolve_shader_info(layer_shader_registry[i].spv_data, layer_shader_registry[i].spv_data_size);
+        resolve_shader_info(layer_shader_registry[i].spv_data, layer_shader_registry[i].spv_data_size, layer_shader_infos[i]);
     }
 
     return 0;
@@ -1043,8 +1102,8 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     for (uint32_t i = 0; i < info.compute_queue_count; i++)
     {
         vkGetDeviceQueue(device, info.compute_queue_family_index, i, &compute_queues[i]);
-        blob_allocators[i] = new VkBlobBufferAllocator(this);
-        staging_allocators[i] = new VkStagingBufferAllocator(this);
+        blob_allocators[i] = new VkBlobAllocator(this);
+        staging_allocators[i] = new VkStagingAllocator(this);
     }
     if (info.compute_queue_family_index != info.graphics_queue_family_index)
     {
@@ -1062,10 +1121,49 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
             vkGetDeviceQueue(device, info.transfer_queue_family_index, i, &transfer_queues[i]);
         }
     }
+
+    // prepare immutable texelfetch sampler
+    {
+        VkSamplerCreateInfo samplerCreateInfo;
+        samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerCreateInfo.pNext = 0;
+        samplerCreateInfo.flags = 0;
+        samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
+        samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
+        samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.mipLodBias = 0.0f;
+        samplerCreateInfo.anisotropyEnable = VK_FALSE;
+        samplerCreateInfo.maxAnisotropy = 1;
+        samplerCreateInfo.compareEnable = VK_FALSE;
+        samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
+        samplerCreateInfo.minLod = 0.0f;
+        samplerCreateInfo.maxLod = 0.0f;
+        samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+        samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;
+
+        texelfetch_sampler = 0;
+        ret = vkCreateSampler(device, &samplerCreateInfo, 0, &texelfetch_sampler);
+        if (ret != VK_SUCCESS)
+        {
+            fprintf(stderr, "vkCreateSampler failed %d\n", ret);
+        }
+    }
+
+    create_utility_operator();
 }
 
 VulkanDevice::~VulkanDevice()
 {
+    destroy_utility_operator();
+
+    if (texelfetch_sampler)
+    {
+        vkDestroySampler(device, texelfetch_sampler, 0);
+    }
+
     for (uint32_t i = 0; i < info.compute_queue_count; i++)
     {
         delete blob_allocators[i];
@@ -1436,40 +1534,69 @@ void VulkanDevice::reclaim_staging_allocator(VkAllocator* allocator) const
     fprintf(stderr, "FATAL ERROR! reclaim_staging_allocator get wild allocator %p\n", allocator);
 }
 
-static inline bool string_ends_with_fp16p(const char* name)
+const VkSampler* VulkanDevice::immutable_texelfetch_sampler() const
 {
-    int len = strlen(name);
-    if (len < 6)
-        return false;
-
-    return memcmp(name + len - 6, "_fp16p", 6) == 0;
+    return &texelfetch_sampler;
 }
 
-static inline bool string_ends_with_fp16pa(const char* name)
+void VulkanDevice::cast_float32_to_float16(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
 {
-    int len = strlen(name);
-    if (len < 7)
-        return false;
-
-    return memcmp(name + len - 7, "_fp16pa", 7) == 0;
+    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    uop_cast_float32_to_float16[uoi]->forward(src, dst, cmd, opt);
 }
 
-static inline bool string_ends_with_fp16s(const char* name)
+void VulkanDevice::cast_float32_to_float16(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
 {
-    int len = strlen(name);
-    if (len < 6)
-        return false;
-
-    return memcmp(name + len - 6, "_fp16s", 6) == 0;
+    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
+    uop_cast_float32_to_float16[uoi]->forward(src, dst, cmd, opt);
 }
 
-static inline bool string_ends_with_fp16sa(const char* name)
+void VulkanDevice::cast_float16_to_float32(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
 {
-    int len = strlen(name);
-    if (len < 7)
-        return false;
+    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    uop_cast_float16_to_float32[uoi]->forward(src, dst, cmd, opt);
+}
 
-    return memcmp(name + len - 7, "_fp16sa", 7) == 0;
+void VulkanDevice::cast_float16_to_float32(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
+    uop_cast_float16_to_float32[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack1(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    uop_packing_pack1[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack1(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
+    uop_packing_pack1[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack4(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    uop_packing_pack4[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack4(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
+    uop_packing_pack4[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack8(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
+    uop_packing_pack8[uoi]->forward(src, dst, cmd, opt);
+}
+
+void VulkanDevice::packing_pack8(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+{
+    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
+    uop_packing_pack8[uoi]->forward(src, dst, cmd, opt);
 }
 
 int VulkanDevice::create_shader_module()
@@ -1490,28 +1617,56 @@ int VulkanDevice::create_shader_module()
         // 2 = fp16pa
         // 3 = fp16s
         // 4 = fp16sa
+        // 5 = image
+        // 6 = image_fp16p
+        // 7 = image_fp16s
+        // 8 = image_fp16a
 
         if (!info.support_fp16_packed)
         {
-            if (i % 5 == 1)
+            if (i % 9 == 1)
                 continue;
         }
 
         if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
         {
-            if (i % 5 == 2)
+            if (i % 9 == 2)
                 continue;
         }
 
         if (!info.support_fp16_storage)
         {
-            if (i % 5 == 3)
+            if (i % 9 == 3)
                 continue;
         }
 
         if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
         {
-            if (i % 5 == 4)
+            if (i % 9 == 4)
+                continue;
+        }
+
+        if (!info.support_image_storage)
+        {
+            if (i % 9 == 5)
+                continue;
+        }
+
+        if (!info.support_image_storage || !info.support_image_fp16_packed)
+        {
+            if (i % 9 == 6)
+                continue;
+        }
+
+        if (!info.support_image_storage || !info.support_image_fp16_storage)
+        {
+            if (i % 9 == 7)
+                continue;
+        }
+
+        if (!info.support_image_storage || !info.support_image_fp16_storage || !info.support_image_fp16_arithmetic)
+        {
+            if (i % 9 == 8)
                 continue;
         }
 
@@ -1606,6 +1761,214 @@ int VulkanDevice::init_device_extension()
     return 0;
 }
 
+int VulkanDevice::create_utility_operator()
+{
+    Option opt[6];
+
+    opt[0].use_fp16_packed = false;
+    opt[0].use_fp16_storage = false;
+    opt[0].use_image_storage = false;
+    opt[0].use_image_fp16_packed = false;
+    opt[0].use_image_fp16_storage = false;
+    opt[0].use_shader_pack8 = true;
+
+    opt[1].use_fp16_packed = true;
+    opt[1].use_fp16_storage = false;
+    opt[1].use_image_storage = false;
+    opt[1].use_image_fp16_packed = false;
+    opt[1].use_image_fp16_storage = false;
+    opt[1].use_shader_pack8 = true;
+
+    opt[2].use_fp16_packed = true;
+    opt[2].use_fp16_storage = true;
+    opt[2].use_image_storage = false;
+    opt[2].use_image_fp16_packed = false;
+    opt[2].use_image_fp16_storage = false;
+    opt[2].use_shader_pack8 = true;
+
+    opt[3].use_fp16_packed = false;
+    opt[3].use_fp16_storage = false;
+    opt[3].use_image_storage = true;
+    opt[3].use_image_fp16_packed = false;
+    opt[3].use_image_fp16_storage = false;
+    opt[3].use_shader_pack8 = true;
+
+    opt[4].use_fp16_packed = false;
+    opt[4].use_fp16_storage = false;
+    opt[4].use_image_storage = true;
+    opt[4].use_image_fp16_packed = true;
+    opt[4].use_image_fp16_storage = false;
+    opt[4].use_shader_pack8 = true;
+
+    opt[5].use_fp16_packed = false;
+    opt[5].use_fp16_storage = false;
+    opt[5].use_image_storage = true;
+    opt[5].use_image_fp16_packed = true;
+    opt[5].use_image_fp16_storage = true;
+    opt[5].use_shader_pack8 = true;
+
+    for (int i = 0; i < 6; i++)
+    {
+        uop_cast_float32_to_float16[i] = 0;
+        uop_cast_float16_to_float32[i] = 0;
+        uop_packing_pack1[i] = 0;
+        uop_packing_pack4[i] = 0;
+        uop_packing_pack8[i] = 0;
+
+        if (i == 1 && !info.support_fp16_packed)
+            continue;
+
+        if (i == 2 && !info.support_fp16_storage)
+            continue;
+
+        if (i == 3 && !info.support_image_storage)
+            continue;
+
+        if (i == 4 && (!info.support_image_storage || !info.support_image_fp16_packed))
+            continue;
+
+        if (i == 5 && (!info.support_image_storage || !info.support_image_fp16_storage))
+            continue;
+
+        {
+            uop_cast_float32_to_float16[i] = ncnn::create_layer(ncnn::LayerType::Cast);
+            uop_cast_float32_to_float16[i]->vkdev = this;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 1);
+            pd.set(1, 2);
+
+            uop_cast_float32_to_float16[i]->load_param(pd);
+        }
+
+        {
+            uop_cast_float16_to_float32[i] = ncnn::create_layer(ncnn::LayerType::Cast);
+            uop_cast_float16_to_float32[i]->vkdev = this;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 2);
+            pd.set(1, 1);
+
+            uop_cast_float16_to_float32[i]->load_param(pd);
+        }
+
+        {
+            uop_packing_pack1[i] = ncnn::create_layer(ncnn::LayerType::Packing);
+            uop_packing_pack1[i]->vkdev = this;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 1);
+
+            uop_packing_pack1[i]->load_param(pd);
+        }
+
+        {
+            uop_packing_pack4[i] = ncnn::create_layer(ncnn::LayerType::Packing);
+            uop_packing_pack4[i]->vkdev = this;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 4);
+
+            uop_packing_pack4[i]->load_param(pd);
+        }
+
+        {
+            uop_packing_pack8[i] = ncnn::create_layer(ncnn::LayerType::Packing);
+            uop_packing_pack8[i]->vkdev = this;
+
+            ncnn::ParamDict pd;
+            pd.set(0, 8);
+
+            uop_packing_pack8[i]->load_param(pd);
+        }
+
+        uop_cast_float32_to_float16[i]->create_pipeline(opt[i]);
+        uop_cast_float16_to_float32[i]->create_pipeline(opt[i]);
+        uop_packing_pack1[i]->create_pipeline(opt[i]);
+        uop_packing_pack4[i]->create_pipeline(opt[i]);
+        uop_packing_pack8[i]->create_pipeline(opt[i]);
+    }
+
+    return 0;
+}
+
+void VulkanDevice::destroy_utility_operator()
+{
+    Option opt[6];
+
+    opt[0].use_fp16_packed = false;
+    opt[0].use_fp16_storage = false;
+    opt[0].use_image_storage = false;
+    opt[0].use_image_fp16_packed = false;
+    opt[0].use_image_fp16_storage = false;
+    opt[0].use_shader_pack8 = true;
+
+    opt[1].use_fp16_packed = true;
+    opt[1].use_fp16_storage = false;
+    opt[1].use_image_storage = false;
+    opt[1].use_image_fp16_packed = false;
+    opt[1].use_image_fp16_storage = false;
+    opt[1].use_shader_pack8 = true;
+
+    opt[2].use_fp16_packed = true;
+    opt[2].use_fp16_storage = true;
+    opt[2].use_image_storage = false;
+    opt[2].use_image_fp16_packed = false;
+    opt[2].use_image_fp16_storage = false;
+    opt[2].use_shader_pack8 = true;
+
+    opt[3].use_fp16_packed = false;
+    opt[3].use_fp16_storage = false;
+    opt[3].use_image_storage = true;
+    opt[3].use_image_fp16_packed = false;
+    opt[3].use_image_fp16_storage = false;
+    opt[3].use_shader_pack8 = true;
+
+    opt[4].use_fp16_packed = false;
+    opt[4].use_fp16_storage = false;
+    opt[4].use_image_storage = true;
+    opt[4].use_image_fp16_packed = true;
+    opt[4].use_image_fp16_storage = false;
+    opt[4].use_shader_pack8 = true;
+
+    opt[5].use_fp16_packed = false;
+    opt[5].use_fp16_storage = false;
+    opt[5].use_image_storage = true;
+    opt[5].use_image_fp16_packed = true;
+    opt[5].use_image_fp16_storage = true;
+    opt[5].use_shader_pack8 = true;
+
+    for (int i = 0; i < 6; i++)
+    {
+        if (i == 1 && !info.support_fp16_packed)
+            continue;
+
+        if (i == 2 && !info.support_fp16_storage)
+            continue;
+
+        if (i == 3 && !info.support_image_storage)
+            continue;
+
+        if (i == 4 && (!info.support_image_storage || !info.support_image_fp16_packed))
+            continue;
+
+        if (i == 5 && (!info.support_image_storage || !info.support_image_fp16_storage))
+            continue;
+
+        uop_cast_float32_to_float16[i]->destroy_pipeline(opt[i]);
+        uop_cast_float16_to_float32[i]->destroy_pipeline(opt[i]);
+        uop_packing_pack1[i]->destroy_pipeline(opt[i]);
+        uop_packing_pack4[i]->destroy_pipeline(opt[i]);
+        uop_packing_pack8[i]->destroy_pipeline(opt[i]);
+
+        delete uop_cast_float32_to_float16[i];
+        delete uop_cast_float16_to_float32[i];
+        delete uop_packing_pack1[i];
+        delete uop_packing_pack4[i];
+        delete uop_packing_pack8[i];
+    }
+}
+
 VulkanDevice* get_gpu_device(int device_index)
 {
     if (device_index < 0 || device_index >= g_gpu_count)
@@ -1630,15 +1993,29 @@ const ShaderInfo& get_shader_info(int shader_type_index)
     return layer_shader_infos[shader_type_index];
 }
 
-ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size)
+int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info)
 {
+    shader_info.specialization_count = 0;
+    shader_info.binding_count = 0;
+    shader_info.push_constant_count = 0;
+
     uint32_t parameter_id = -233;
 
     int specialization_count = 0;
     int binding_count = 0;
     int push_constant_count = 0;
 
+    // id -> binding_type
+    std::vector<int> id_types;
+
+    // binding_id -> binding_type
+    std::vector<int> binding_types;
+
     const uint32_t* p = spv_data;
+
+    int bound = p[3];
+
+    id_types.resize(bound);
 
     // skip magic version generator bound schema
     p += 5;
@@ -1668,28 +2045,86 @@ ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size)
                 push_constant_count++;
             }
         }
+        else if (op == 25) // OpTypeImage
+        {
+            uint32_t id = p[1];
+            id_types[id] = 2;
+        }
+        else if (op == 27) // OpTypeSampledImage
+        {
+            uint32_t id = p[1];
+            id_types[id] = 3;
+        }
+        else if (op == 32) // OpTypePointer
+        {
+            uint32_t id = p[1];
+            uint32_t storage_class = p[2];
+            uint32_t type = p[3];
+            if (storage_class == 0) // UniformConstant
+            {
+                id_types[id] = id_types[type];
+            }
+            if (storage_class == 2) // Uniform
+            {
+                id_types[id] = id_types[type];
+            }
+        }
+        else if (op == 59) // OpVariable
+        {
+            uint32_t id = p[1];
+            uint32_t var_id = p[2];
+            uint32_t storage_class = p[3];
+            if (storage_class == 0) // UniformConstant
+            {
+                id_types[var_id] = id_types[id];
+            }
+            if (storage_class == 2) // Uniform
+            {
+                id_types[var_id] = id_types[id];
+            }
+        }
         else if (op == 71) // OpDecorate
         {
+            uint32_t id = p[1];
             uint32_t decoration = p[2];
+            uint32_t binding_id = p[3];
             if (decoration == 1) // SpecId
             {
                 specialization_count++;
             }
+            if (decoration == 3) // BufferBlock
+            {
+                id_types[id] = 1;
+            }
             else if (decoration == 33) // Binding
             {
-                binding_count++;
+                binding_count = std::max(binding_count, (int)binding_id + 1);
+
+                binding_types.resize(binding_count);
+                binding_types[binding_id] = id;
             }
         }
 
         p += wordcount;
     }
 
-    ShaderInfo si;
-    si.specialization_count = specialization_count;
-    si.binding_count = binding_count;
-    si.push_constant_count = push_constant_count;
+    if (binding_count > 16)
+    {
+        fprintf(stderr, "too many binding %d\n", binding_count);
+        return -1;
+    }
 
-    return si;
+    shader_info.specialization_count = specialization_count;
+    shader_info.binding_count = binding_count;
+    shader_info.push_constant_count = push_constant_count;
+
+    // resolve binding_types
+    for (int i=0; i<binding_count; i++)
+    {
+        shader_info.binding_types[i] = id_types[ binding_types[i] ];
+    }
+
+    return 0;
 }
 
 } // namespace ncnn

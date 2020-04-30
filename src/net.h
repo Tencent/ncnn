@@ -148,10 +148,11 @@ protected:
     Layer* create_custom_layer(const char* type);
 #endif // NCNN_STRING
     Layer* create_custom_layer(int index);
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, Option& opt) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const;
 
 #if NCNN_VULKAN
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, Option& opt) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
+    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
 protected:
@@ -165,12 +166,6 @@ protected:
 
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
-
-    ncnn::Layer* cast_float32_to_float16;
-    ncnn::Layer* cast_float16_to_float32;
-    ncnn::Layer* packing_pack1;
-    ncnn::Layer* packing_pack4;
-    ncnn::Layer* packing_pack8;
 #endif // NCNN_VULKAN
 };
 
@@ -232,6 +227,14 @@ public:
     // get result by blob name
     // return 0 if success
     int extract(const char* blob_name, VkMat& feat, VkCompute& cmd);
+
+    // set input by blob name
+    // return 0 if success
+    int input(const char* blob_name, const VkImageMat& in);
+
+    // get result by blob name
+    // return 0 if success
+    int extract(const char* blob_name, VkImageMat& feat, VkCompute& cmd);
 #endif // NCNN_STRING
 
     // set input by blob index
@@ -241,6 +244,14 @@ public:
     // get result by blob index
     // return 0 if success
     int extract(int blob_index, VkMat& feat, VkCompute& cmd);
+
+    // set input by blob index
+    // return 0 if success
+    int input(int blob_index, const VkImageMat& in);
+
+    // get result by blob index
+    // return 0 if success
+    int extract(int blob_index, VkImageMat& feat, VkCompute& cmd);
 #endif // NCNN_VULKAN
 
 protected:
@@ -257,6 +268,7 @@ private:
     VkAllocator* local_staging_vkallocator;
 
     std::vector<VkMat> blob_mats_gpu;
+    std::vector<VkImageMat> blob_mats_gpu_image;
 #endif // NCNN_VULKAN
 };
 

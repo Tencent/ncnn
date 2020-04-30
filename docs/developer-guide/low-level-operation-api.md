@@ -141,10 +141,10 @@ ncnn::create_gpu_instance();
 {
 ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
-ncnn::VkWeightBufferAllocator g_weight_vkallocator(vkdev);
-ncnn::VkBlobBufferAllocator g_blob_vkallocator(vkdev);
-ncnn::VkStagingBufferAllocator g_staging_vkallocator(vkdev);
-ncnn::VkWeightStagingBufferAllocator g_weight_staging_vkallocator(vkdev);
+ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+ncnn::VkBlobAllocator g_blob_vkallocator(vkdev);
+ncnn::VkStagingAllocator g_staging_vkallocator(vkdev);
+ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
 
 // create layer
 ncnn::Layer* convolution = ncnn::create_layer("Convolution");

@@ -50,10 +50,17 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
+layout (binding = 2) uniform unfp sampler3D weight_blob;
+layout (binding = 3) uniform unfp sampler1D bias_blob;
+#else // NCNN_image_shader
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfpvec8 bias_data[]; };
+#endif // NCNN_image_shader
 
 layout (push_constant) uniform parameter
 {
@@ -83,7 +90,11 @@ void main()
 
     if (bias_term == 1)
     {
+#if NCNN_image_shader
+        sum = image1d_ld8(bias_blob, gz);
+#else
         sum = buffer_ld8(bias_data, gz);
+#endif
     }
     else
     {
@@ -93,6 +104,55 @@ void main()
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
+#if NCNN_image_shader
+    for (int y = 0; y < kernel_h; y++)
+    {
+        int sys = (gy + y * dilation_h - (kernel_extent_h - 1));
+        if (sys < 0 || sys % stride_h != 0)
+            continue;
+
+        int sy = sys / stride_h;
+        if (sy >= psc(h))
+            continue;
+
+        for (int x = 0; x < kernel_w; x++)
+        {
+            int sxs = (gx + x * dilation_w - (kernel_extent_w - 1));
+            if (sxs < 0 || sxs % stride_w != 0)
+                continue;
+
+            int sx = sxs / stride_w;
+            if (sx >= psc(w))
+                continue;
+
+            int wx = (y * kernel_w + x) * 8;
+
+            for (int z = 0; z < psc(c); z++)
+            {
+                afpvec4 v = image3d_ld4(bottom_blob, ivec3(sx, sy, z));
+
+                afpvec4 k0 = image3d_ld4(weight_blob, ivec3(wx + 0, z, gz));
+                afpvec4 k1 = image3d_ld4(weight_blob, ivec3(wx + 1, z, gz));
+                afpvec4 k2 = image3d_ld4(weight_blob, ivec3(wx + 2, z, gz));
+                afpvec4 k3 = image3d_ld4(weight_blob, ivec3(wx + 3, z, gz));
+                afpvec4 k4 = image3d_ld4(weight_blob, ivec3(wx + 4, z, gz));
+                afpvec4 k5 = image3d_ld4(weight_blob, ivec3(wx + 5, z, gz));
+                afpvec4 k6 = image3d_ld4(weight_blob, ivec3(wx + 6, z, gz));
+                afpvec4 k7 = image3d_ld4(weight_blob, ivec3(wx + 7, z, gz));
+
+                // sum += v * k;
+                sum[0].r += dot(v, k0);
+                sum[0].g += dot(v, k1);
+                sum[0].b += dot(v, k2);
+                sum[0].a += dot(v, k3);
+                sum[1].r += dot(v, k4);
+                sum[1].g += dot(v, k5);
+                sum[1].b += dot(v, k6);
+                sum[1].a += dot(v, k7);
+            }
+        }
+    }
+#else // NCNN_image_shader
     int w_offset_0 = gz * psc(c) * kernel_w * kernel_h;
 
     for (int y = 0; y < kernel_h; y++)
@@ -146,6 +206,7 @@ void main()
             }
         }
     }
+#endif // NCNN_image_shader
 
     if (activation_type == 1)
     {
@@ -171,7 +232,11 @@ void main()
         sum[1] = afp(1.f) / (afp(1.f) + exp(-sum[1]));
     }
 
+#if NCNN_image_shader
+    image3d_st8(top_blob, ivec3(gx, gy, gz), sum);
+#else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st8(top_blob_data, gi, sum);
+#endif
 }
