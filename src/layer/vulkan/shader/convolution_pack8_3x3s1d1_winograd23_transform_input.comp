@@ -37,8 +37,13 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D bottom_tm_blob;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer bottom_tm_blob { sfpvec8 bottom_tm_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -63,6 +68,30 @@ void main()
         return;
 
     // load 4x4
+#if NCNN_image_shader
+    int sx = gx * 2;
+    int sy = gy * 2;
+
+    afpvec8 v00 = image3d_ld8(bottom_blob, ivec3(sx + 0, sy + 0, gz));
+    afpvec8 v01 = image3d_ld8(bottom_blob, ivec3(sx + 1, sy + 0, gz));
+    afpvec8 v02 = image3d_ld8(bottom_blob, ivec3(sx + 2, sy + 0, gz));
+    afpvec8 v03 = image3d_ld8(bottom_blob, ivec3(sx + 3, sy + 0, gz));
+
+    afpvec8 v10 = image3d_ld8(bottom_blob, ivec3(sx + 0, sy + 1, gz));
+    afpvec8 v11 = image3d_ld8(bottom_blob, ivec3(sx + 1, sy + 1, gz));
+    afpvec8 v12 = image3d_ld8(bottom_blob, ivec3(sx + 2, sy + 1, gz));
+    afpvec8 v13 = image3d_ld8(bottom_blob, ivec3(sx + 3, sy + 1, gz));
+
+    afpvec8 v20 = image3d_ld8(bottom_blob, ivec3(sx + 0, sy + 2, gz));
+    afpvec8 v21 = image3d_ld8(bottom_blob, ivec3(sx + 1, sy + 2, gz));
+    afpvec8 v22 = image3d_ld8(bottom_blob, ivec3(sx + 2, sy + 2, gz));
+    afpvec8 v23 = image3d_ld8(bottom_blob, ivec3(sx + 3, sy + 2, gz));
+
+    afpvec8 v30 = image3d_ld8(bottom_blob, ivec3(sx + 0, sy + 3, gz));
+    afpvec8 v31 = image3d_ld8(bottom_blob, ivec3(sx + 1, sy + 3, gz));
+    afpvec8 v32 = image3d_ld8(bottom_blob, ivec3(sx + 2, sy + 3, gz));
+    afpvec8 v33 = image3d_ld8(bottom_blob, ivec3(sx + 3, sy + 3, gz));
+#else
     int v_offset_0 = gz * psc(cstep) + gy * 2 * psc(w) + gx * 2;
     ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * psc(w);
 
@@ -85,6 +114,7 @@ void main()
     afpvec8 v31 = buffer_ld8(bottom_blob_data, v_offset.a + 1);
     afpvec8 v32 = buffer_ld8(bottom_blob_data, v_offset.a + 2);
     afpvec8 v33 = buffer_ld8(bottom_blob_data, v_offset.a + 3);
+#endif
 
     // const float itm[4][4] = {
     //     {1.0f,  0.0f, -1.0f,  0.0f},
@@ -135,6 +165,26 @@ void main()
     v33 = m33 - m31;
 
     // store 16
+#if NCNN_image_shader
+    int y = gy * p.block_x + gx;
+
+    image3d_st8(bottom_tm_blob, ivec3(0, y, gz), v00);
+    image3d_st8(bottom_tm_blob, ivec3(1, y, gz), v01);
+    image3d_st8(bottom_tm_blob, ivec3(2, y, gz), v02);
+    image3d_st8(bottom_tm_blob, ivec3(3, y, gz), v03);
+    image3d_st8(bottom_tm_blob, ivec3(4, y, gz), v10);
+    image3d_st8(bottom_tm_blob, ivec3(5, y, gz), v11);
+    image3d_st8(bottom_tm_blob, ivec3(6, y, gz), v12);
+    image3d_st8(bottom_tm_blob, ivec3(7, y, gz), v13);
+    image3d_st8(bottom_tm_blob, ivec3(8, y, gz), v20);
+    image3d_st8(bottom_tm_blob, ivec3(9, y, gz), v21);
+    image3d_st8(bottom_tm_blob, ivec3(10, y, gz), v22);
+    image3d_st8(bottom_tm_blob, ivec3(11, y, gz), v23);
+    image3d_st8(bottom_tm_blob, ivec3(12, y, gz), v30);
+    image3d_st8(bottom_tm_blob, ivec3(13, y, gz), v31);
+    image3d_st8(bottom_tm_blob, ivec3(14, y, gz), v32);
+    image3d_st8(bottom_tm_blob, ivec3(15, y, gz), v33);
+#else
     int v_tm_offset = gz * psc(outcstep) + (gy * p.block_x + gx) * 16;
 
     buffer_st8(bottom_tm_blob_data, v_tm_offset + 0, v00);
@@ -153,4 +203,5 @@ void main()
     buffer_st8(bottom_tm_blob_data, v_tm_offset + 13, v31);
     buffer_st8(bottom_tm_blob_data, v_tm_offset + 14, v32);
     buffer_st8(bottom_tm_blob_data, v_tm_offset + 15, v33);
+#endif
 }

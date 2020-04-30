@@ -22,7 +22,10 @@ Input::Input()
 {
     one_blob_only = true;
     support_inplace = true;
-    support_vulkan = false;
+    support_vulkan = true;
+    support_packing = true;
+    support_bf16_storage = true;
+    support_image_storage = true;
 }
 
 int Input::load_param(const ParamDict& pd)
@@ -38,5 +41,17 @@ int Input::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) cons
 {
     return 0;
 }
+
+#if NCNN_VULKAN
+int Input::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
+{
+    return 0;
+}
+
+int Input::forward_inplace(VkImageMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
+{
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 } // namespace ncnn

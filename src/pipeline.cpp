@@ -49,7 +49,13 @@ Pipeline::~Pipeline()
 
 int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations)
 {
-    ShaderInfo si = resolve_shader_info(spv_data, spv_data_size);
+    ShaderInfo si;
+    int ret = resolve_shader_info(spv_data, spv_data_size, si);
+    if (ret != 0)
+    {
+        fprintf(stderr, "resolve_shader_info failed %d\n", ret);
+        return -1;
+    }
 
     // -3 for local_size_xyz
     int specialization_count_expected = si.specialization_count - 3;
@@ -70,29 +76,39 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
 
 //     fprintf(stderr, "local_shader_module %p created\n", local_shader_module);
 
-    return create(local_shader_module, specializations, si.binding_count, si.push_constant_count);
+    return create(local_shader_module, si, specializations);
 }
 
 int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
 {
-    const ShaderInfo& si = get_shader_info(shader_type_index);
-
-    // -3 for local_size_xyz
-    int specialization_count_expected = si.specialization_count - 3;
-    if ((int)specializations.size() != specialization_count_expected)
-    {
-        fprintf(stderr, "pipeline %d specialization count mismatch, expect %d but got %d\n", shader_type_index, specialization_count_expected, (int)specializations.size());
-        return -1;
-    }
-
     // ncnn_add_shader cmake macro
     // 0 = fp32
     // 1 = fp16p
     // 2 = fp16pa
     // 3 = fp16s
     // 4 = fp16sa
+    // 5 = image
+    // 6 = image_fp16p
+    // 7 = image_fp16s
+    // 8 = image_fp16a
 
-    if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    if (opt.use_image_storage && opt.use_image_fp16_storage && opt.use_image_fp16_arithmetic)
+    {
+        shader_type_index += 8;
+    }
+    else if (opt.use_image_storage && opt.use_image_fp16_storage)
+    {
+        shader_type_index += 7;
+    }
+    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    {
+        shader_type_index += 6;
+    }
+    else if (opt.use_image_storage)
+    {
+        shader_type_index += 5;
+    }
+    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 4;
     }
@@ -109,29 +125,41 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
         shader_type_index += 1;
     }
 
+    const ShaderInfo& si = get_shader_info(shader_type_index);
+
+    // -3 for local_size_xyz
+    int specialization_count_expected = si.specialization_count - 3;
+    if ((int)specializations.size() != specialization_count_expected)
+    {
+        fprintf(stderr, "pipeline %d specialization count mismatch, expect %d but got %d\n", shader_type_index, specialization_count_expected, (int)specializations.size());
+        return -1;
+    }
+
     if (vkdev->info.bug_local_size_spec_const)
     {
         local_shader_module = vkdev->create_shader_module(shader_type_index, local_size_x, local_size_y, local_size_z);
 
-        return create(local_shader_module, specializations, si.binding_count, si.push_constant_count);
+        return create(local_shader_module, si, specializations);
     }
 
     VkShaderModule shader_module = vkdev->get_shader_module(shader_type_index);
 
-    return create(shader_module, specializations, si.binding_count, si.push_constant_count);
+    return create(shader_module, si, specializations);
 }
 
-int Pipeline::create(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+int Pipeline::create(VkShaderModule shader_module, const ShaderInfo& _shader_info, const std::vector<vk_specialization_type>& specializations)
 {
-    create_descriptorset_layout(binding_count);
+    shader_info = _shader_info;
 
-    create_pipeline_layout(push_constant_count);
+    create_descriptorset_layout();
+
+    create_pipeline_layout();
 
     create_pipeline(shader_module, specializations);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
-        create_descriptor_update_template(binding_count);
+        create_descriptor_update_template();
     }
 
     return 0;
@@ -222,8 +250,10 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
 //     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
 }
 
-int Pipeline::create_descriptorset_layout(int binding_count)
+int Pipeline::create_descriptorset_layout()
 {
+    const int binding_count = shader_info.binding_count;
+
     if (binding_count == 0)
     {
         descriptorset_layout = 0;
@@ -233,11 +263,27 @@ int Pipeline::create_descriptorset_layout(int binding_count)
     std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(binding_count);
     for (int i=0; i<binding_count; i++)
     {
+        int binding_type = shader_info.binding_types[i];
+
         descriptorSetLayoutBindings[i].binding = i;
-        descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptorSetLayoutBindings[i].descriptorCount = 1;
         descriptorSetLayoutBindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+
+        if (binding_type == 1)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+        }
+        else if (binding_type == 2)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+        }
+        else // if (binding_type == 3)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = vkdev->immutable_texelfetch_sampler();// we always use texelfetch
+        }
     }
 
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
@@ -262,8 +308,10 @@ int Pipeline::create_descriptorset_layout(int binding_count)
     return 0;
 }
 
-int Pipeline::create_pipeline_layout(int push_constant_count)
+int Pipeline::create_pipeline_layout()
 {
+    const int push_constant_count = shader_info.push_constant_count;
+
     VkPushConstantRange pushConstantRange;
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
@@ -380,8 +428,10 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk
     return 0;
 }
 
-int Pipeline::create_descriptor_update_template(int binding_count)
+int Pipeline::create_descriptor_update_template()
 {
+    const int binding_count = shader_info.binding_count;
+
     if (binding_count == 0)
     {
         descriptor_update_template = 0;
@@ -389,14 +439,33 @@ int Pipeline::create_descriptor_update_template(int binding_count)
     }
 
     std::vector<VkDescriptorUpdateTemplateEntryKHR> descriptorUpdateTemplateEntries(binding_count);
+    size_t offset = 0;
     for (int i=0; i<binding_count; i++)// TODO do not update weights
     {
+        int binding_type = shader_info.binding_types[i];
+
         descriptorUpdateTemplateEntries[i].dstBinding = i;
         descriptorUpdateTemplateEntries[i].dstArrayElement = 0;
         descriptorUpdateTemplateEntries[i].descriptorCount = 1;
-        descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorUpdateTemplateEntries[i].offset = i * sizeof(VkDescriptorBufferInfo);
-        descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorBufferInfo);
+        descriptorUpdateTemplateEntries[i].offset = offset;
+
+        if (binding_type == 1)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorBufferInfo);
+        }
+        else if (binding_type == 2)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorImageInfo);
+        }
+        else // if (binding_type == 3)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorImageInfo);
+        }
+
+        offset += descriptorUpdateTemplateEntries[i].stride;
     }
 
     VkDescriptorUpdateTemplateCreateInfoKHR descriptorUpdateTemplateCreateInfo;
@@ -514,7 +583,7 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
 
     create_descriptorset_layout();
 
-    create_pipeline_layout(0);
+    create_pipeline_layout();
 
     int shader_type_index = LayerShaderType::convert_ycbcr;
 
@@ -524,8 +593,28 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
     // 2 = fp16pa
     // 3 = fp16s
     // 4 = fp16sa
+    // 5 = image
+    // 6 = image_fp16p
+    // 7 = image_fp16s
+    // 8 = image_fp16a
 
-    if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    if (opt.use_image_storage && opt.use_image_fp16_storage && opt.use_image_fp16_arithmetic)
+    {
+        shader_type_index += 8;
+    }
+    else if (opt.use_image_storage && opt.use_image_fp16_storage)
+    {
+        shader_type_index += 7;
+    }
+    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    {
+        shader_type_index += 6;
+    }
+    else if (opt.use_image_storage)
+    {
+        shader_type_index += 5;
+    }
+    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 4;
     }

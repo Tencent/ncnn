@@ -31,10 +31,14 @@ public:
 
     using ConvolutionDepthWise::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
+
+    VkImageMat weight_data_gpu_image;
+    VkImageMat bias_data_gpu_image;
 
     ncnn::Layer* padding;
     ncnn::Layer* packing_unpack;

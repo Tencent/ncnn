@@ -43,6 +43,12 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler1D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob;
+layout (binding = 2) uniform unfp sampler2D weight_blob;
+layout (binding = 3) uniform unfp sampler1D bias_blob;
+#else // NCNN_image_shader
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 #if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
@@ -52,6 +58,7 @@ layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpmat4 weight_data[]; };
 #endif
 layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+#endif // NCNN_image_shader
 
 layout (push_constant) uniform parameter
 {
@@ -81,13 +88,35 @@ void main()
 
     if (bias_term == 1)
     {
+#if NCNN_image_shader
+        sum = image1d_ld4(bias_blob, gx);
+#else
         sum = buffer_ld4(bias_data, gx);
+#endif
     }
     else
     {
         sum = afpvec4(0.f);
     }
 
+#if NCNN_image_shader
+    int wx = 0;
+
+    for (int i = 0; i < psc(w); i++)
+    {
+        afpvec4 v = image1d_ld4(bottom_blob, i);
+        afpmat4 k = afpmat4(
+            image2d_ld4(weight_blob, ivec2(wx + 0, gx)),
+            image2d_ld4(weight_blob, ivec2(wx + 1, gx)),
+            image2d_ld4(weight_blob, ivec2(wx + 2, gx)),
+            image2d_ld4(weight_blob, ivec2(wx + 3, gx))
+        );
+
+        sum += v * k;
+
+        wx += 4;
+    }
+#else // NCNN_image_shader
     int w_offset = gx * psc(w);
 
     for (int i = 0; i < psc(w); i++)
@@ -108,6 +137,7 @@ void main()
 
         sum += v * k;
     }
+#endif // NCNN_image_shader
 
     if (activation_type == 1)
     {
@@ -129,5 +159,9 @@ void main()
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
 
+#if NCNN_image_shader
+    image1d_st4(top_blob, gx, sum);
+#else
     buffer_st4(top_blob_data, gx, sum);
+#endif
 }

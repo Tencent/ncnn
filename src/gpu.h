@@ -100,6 +100,10 @@ public:
     size_t memory_map_alignment;
     size_t buffer_offset_alignment;
     size_t non_coherent_atom_size;
+    size_t buffer_image_granularity;
+    uint32_t max_image_dimension_1d;
+    uint32_t max_image_dimension_2d;
+    uint32_t max_image_dimension_3d;
     float timestamp_period;
 
     // runtime
@@ -126,6 +130,12 @@ public:
     bool support_fp16_arithmetic;
     bool support_int8_storage;
     bool support_int8_arithmetic;
+
+    // image feature
+    bool support_image_storage;
+    bool support_image_fp16_packed;
+    bool support_image_fp16_storage;
+    bool support_image_fp16_arithmetic;
 
     // ycbcr conversion feature
     bool support_ycbcr_conversion;
@@ -154,6 +164,11 @@ public:
 const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());
 
 class VkAllocator;
+class VkCompute;
+class VkMat;
+class VkImageMat;
+class Layer;
+class Option;
 class VulkanDevice
 {
 public:
@@ -187,6 +202,21 @@ public:
 
     VkAllocator* acquire_staging_allocator() const;
     void reclaim_staging_allocator(VkAllocator* allocator) const;
+
+    // immutable sampler for texelfetch
+    const VkSampler* immutable_texelfetch_sampler() const;
+
+    // utility operator
+    void cast_float32_to_float16(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
+    void cast_float32_to_float16(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
+    void cast_float16_to_float32(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
+    void cast_float16_to_float32(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
+    void packing_pack1(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
+    void packing_pack1(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
+    void packing_pack4(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
+    void packing_pack4(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
+    void packing_pack8(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
+    void packing_pack8(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
 
     // VK_KHR_bind_memory2
     PFN_vkBindBufferMemory2KHR vkBindBufferMemory2KHR;
@@ -234,6 +264,10 @@ protected:
     // device extension
     int init_device_extension();
 
+    // utility operator
+    int create_utility_operator();
+    void destroy_utility_operator();
+
 private:
     VkDevice device;
     std::vector<VkShaderModule> shader_modules;
@@ -251,6 +285,22 @@ private:
     // default staging allocator for each queue
     mutable std::vector<VkAllocator*> staging_allocators;
     mutable Mutex staging_allocator_lock;
+
+    // nearest sampler for texelfetch
+    VkSampler texelfetch_sampler;
+
+    // utility operator
+    // 0 = fp32
+    // 1 = fp16p
+    // 2 = fp16s
+    // 3 = image
+    // 4 = image_fp16p
+    // 5 = image_fp16s
+    ncnn::Layer* uop_cast_float32_to_float16[6];
+    ncnn::Layer* uop_cast_float16_to_float32[6];
+    ncnn::Layer* uop_packing_pack1[6];
+    ncnn::Layer* uop_packing_pack4[6];
+    ncnn::Layer* uop_packing_pack8[6];
 };
 
 VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
@@ -262,10 +312,16 @@ public:
     int specialization_count;
     int binding_count;
     int push_constant_count;
+
+    // 0 = null
+    // 1 = storage buffer
+    // 2 = storage image
+    // 3 = combined image sampler
+    int binding_types[16];// 16 is large enough I think ...
 };
 
 const ShaderInfo& get_shader_info(int shader_type_index);
-ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size);
+int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info);
 
 } // namespace ncnn
 

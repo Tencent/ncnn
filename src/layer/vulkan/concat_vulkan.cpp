@@ -24,6 +24,7 @@ DEFINE_LAYER_CREATOR(Concat_vulkan)
 Concat_vulkan::Concat_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     packing_pack4 = 0;
     packing_pack8 = 0;
@@ -77,7 +78,19 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     }
 
     size_t elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_image_storage && opt.use_image_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+    }
+    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+    }
+    else if (opt.use_image_storage)
+    {
+        elemsize = elempack * 4u;
+    }
+    else if (opt.use_fp16_storage)
     {
         elemsize = elempack * 2u;
     }
@@ -744,6 +757,485 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[7].i = top_blob.h;
             constants[8].i = top_blob.c;
             constants[9].i = top_blob.cstep;
+            constants[10].i = woffset;
+
+            const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
+                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                     : pipeline_concat[b%2];
+
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
+
+            woffset += bottom_blob.w;
+        }
+
+        return 0;
+    }
+
+    return 0;
+}
+
+int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    int dims = bottom_blobs[0].dims;
+
+    if (dims == 1) // axis == 0
+    {
+        // concat vector
+        // total length
+        size_t elemsize = bottom_blobs[0].elemsize;
+        int elempack = bottom_blobs[0].elempack;
+        int top_w = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+            elemsize = std::min(elemsize, bottom_blob.elemsize);
+            elempack = std::min(elempack, bottom_blob.elempack);
+            top_w += bottom_blob.w * bottom_blob.elempack;
+        }
+
+        int out_elempack = opt.use_shader_pack8 && top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
+        size_t out_elemsize = elemsize / elempack * out_elempack;
+
+        if (opt.use_image_fp16_packed && !opt.use_image_fp16_storage)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
+
+        VkImageMat& top_blob = top_blobs[0];
+        top_blob.create(top_w / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        VkImageMat top_blob_unpacked = top_blob;
+        if (elempack < out_elempack)
+        {
+            top_blob_unpacked.create(top_w / elempack, elemsize, elempack, opt.workspace_vkallocator);
+            if (top_blob_unpacked.empty())
+                return -100;
+        }
+
+        int woffset = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+
+            std::vector<VkImageMat> bindings(2);
+            bindings[0] = bottom_blob;
+            bindings[1] = top_blob_unpacked;
+
+            std::vector<vk_constant_type> constants(11);
+            constants[0].i = bottom_blob.dims;
+            constants[1].i = bottom_blob.w;
+            constants[2].i = bottom_blob.h;
+            constants[3].i = bottom_blob.c;
+            constants[4].i = 0;//bottom_blob.cstep;
+            constants[5].i = top_blob_unpacked.dims;
+            constants[6].i = top_blob_unpacked.w;
+            constants[7].i = top_blob_unpacked.h;
+            constants[8].i = top_blob_unpacked.c;
+            constants[9].i = 0;//top_blob_unpacked.cstep;
+            constants[10].i = woffset;
+
+            const Pipeline* pipeline = 0;
+            if (bottom_blob.elempack == 1 && elempack == 1)
+            {
+                pipeline = pipeline_concat[b%2];
+            }
+            else if (bottom_blob.elempack == 4 && elempack == 4)
+            {
+                pipeline = pipeline_concat_pack4[b%2];
+            }
+            else if (bottom_blob.elempack == 4 && elempack == 1)
+            {
+                pipeline = pipeline_concat_pack4to1[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 8)
+            {
+                pipeline = pipeline_concat_pack8[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 4)
+            {
+                pipeline = pipeline_concat_pack8to4[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 1)
+            {
+                pipeline = pipeline_concat_pack8to1[b%2];
+            }
+
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
+
+            woffset += bottom_blob.w * bottom_blob.elempack / elempack;
+        }
+
+        // packing
+        if (elempack < out_elempack)
+        {
+            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
+            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
+        }
+
+        return 0;
+    }
+
+    if (dims == 2 && axis == 0)
+    {
+        // concat image
+        int w = bottom_blobs[0].w;
+
+        // total height
+        size_t elemsize = bottom_blobs[0].elemsize;
+        int elempack = bottom_blobs[0].elempack;
+        int top_h = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+            elemsize = std::min(elemsize, bottom_blob.elemsize);
+            elempack = std::min(elempack, bottom_blob.elempack);
+            top_h += bottom_blob.h * bottom_blob.elempack;
+        }
+
+        int out_elempack = opt.use_shader_pack8 && top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
+        size_t out_elemsize = elemsize / elempack * out_elempack;
+
+        if (opt.use_image_fp16_packed && !opt.use_image_fp16_storage)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
+
+        VkImageMat& top_blob = top_blobs[0];
+        top_blob.create(w, top_h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        VkImageMat top_blob_unpacked = top_blob;
+        if (elempack < out_elempack)
+        {
+            top_blob_unpacked.create(w, top_h / elempack, elemsize, elempack, opt.workspace_vkallocator);
+            if (top_blob_unpacked.empty())
+                return -100;
+        }
+
+        int hoffset = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+
+            std::vector<VkImageMat> bindings(2);
+            bindings[0] = bottom_blob;
+            bindings[1] = top_blob_unpacked;
+
+            std::vector<vk_constant_type> constants(11);
+            constants[0].i = bottom_blob.dims;
+            constants[1].i = bottom_blob.w;
+            constants[2].i = bottom_blob.h;
+            constants[3].i = bottom_blob.c;
+            constants[4].i = 0;//bottom_blob.cstep;
+            constants[5].i = top_blob_unpacked.dims;
+            constants[6].i = top_blob_unpacked.w;
+            constants[7].i = top_blob_unpacked.h;
+            constants[8].i = top_blob_unpacked.c;
+            constants[9].i = 0;//top_blob_unpacked.cstep;
+            constants[10].i = hoffset;
+
+            const Pipeline* pipeline = 0;
+            if (bottom_blob.elempack == 1 && elempack == 1)
+            {
+                pipeline = pipeline_concat[b%2];
+            }
+            else if (bottom_blob.elempack == 4 && elempack == 4)
+            {
+                pipeline = pipeline_concat_pack4[b%2];
+            }
+            else if (bottom_blob.elempack == 4 && elempack == 1)
+            {
+                pipeline = pipeline_concat_pack4to1[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 8)
+            {
+                pipeline = pipeline_concat_pack8[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 4)
+            {
+                pipeline = pipeline_concat_pack8to4[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 1)
+            {
+                pipeline = pipeline_concat_pack8to1[b%2];
+            }
+
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
+
+            hoffset += bottom_blob.h * bottom_blob.elempack / elempack;
+        }
+
+        // packing
+        if (elempack < out_elempack)
+        {
+            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
+            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
+        }
+
+        return 0;
+    }
+
+    if (dims == 2 && axis == 1)
+    {
+        // interleave image row
+        int h = bottom_blobs[0].h;
+        size_t elemsize = bottom_blobs[0].elemsize;
+        int elempack = bottom_blobs[0].elempack;
+
+        // total width
+        int top_w = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+            top_w += bottom_blob.w;
+        }
+
+        VkImageMat& top_blob = top_blobs[0];
+        top_blob.create(top_w, h, elemsize, elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        int woffset = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+
+            std::vector<VkImageMat> bindings(2);
+            bindings[0] = bottom_blob;
+            bindings[1] = top_blob;
+
+            std::vector<vk_constant_type> constants(11);
+            constants[0].i = bottom_blob.dims;
+            constants[1].i = bottom_blob.w;
+            constants[2].i = bottom_blob.h;
+            constants[3].i = bottom_blob.c;
+            constants[4].i = 0;//bottom_blob.cstep;
+            constants[5].i = top_blob.dims;
+            constants[6].i = top_blob.w;
+            constants[7].i = top_blob.h;
+            constants[8].i = top_blob.c;
+            constants[9].i = 0;//top_blob.cstep;
+            constants[10].i = woffset;
+
+            const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
+                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                     : pipeline_concat[b%2];
+
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
+
+            woffset += bottom_blob.w;
+        }
+
+        return 0;
+    }
+
+    if (dims == 3 && axis == 0)
+    {
+        // concat dim
+        int w = bottom_blobs[0].w;
+        int h = bottom_blobs[0].h;
+
+        // total channels
+        size_t elemsize = bottom_blobs[0].elemsize;
+        int elempack = bottom_blobs[0].elempack;
+        int top_channels = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+            elemsize = std::min(elemsize, bottom_blob.elemsize);
+            elempack = std::min(elempack, bottom_blob.elempack);
+            top_channels += bottom_blob.c * bottom_blob.elempack;
+        }
+
+        int out_elempack = opt.use_shader_pack8 && top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
+        size_t out_elemsize = elemsize / elempack * out_elempack;
+
+        if (opt.use_image_fp16_packed && !opt.use_image_fp16_storage)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
+
+        VkImageMat& top_blob = top_blobs[0];
+        top_blob.create(w, h, top_channels / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        VkImageMat top_blob_unpacked = top_blob;
+        if (elempack < out_elempack)
+        {
+            top_blob_unpacked.create(w, h, top_channels / elempack, elemsize, elempack, opt.workspace_vkallocator);
+            if (top_blob_unpacked.empty())
+                return -100;
+        }
+
+        int coffset = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+
+            std::vector<VkImageMat> bindings(2);
+            bindings[0] = bottom_blob;
+            bindings[1] = top_blob_unpacked;
+
+            std::vector<vk_constant_type> constants(11);
+            constants[0].i = bottom_blob.dims;
+            constants[1].i = bottom_blob.w;
+            constants[2].i = bottom_blob.h;
+            constants[3].i = bottom_blob.c;
+            constants[4].i = 0;//bottom_blob.cstep;
+            constants[5].i = top_blob_unpacked.dims;
+            constants[6].i = top_blob_unpacked.w;
+            constants[7].i = top_blob_unpacked.h;
+            constants[8].i = top_blob_unpacked.c;
+            constants[9].i = 0;//top_blob_unpacked.cstep;
+            constants[10].i = coffset;
+
+            const Pipeline* pipeline = 0;
+            if (bottom_blob.elempack == 1 && elempack == 1)
+            {
+                pipeline = pipeline_concat[b%2];
+            }
+            else if (bottom_blob.elempack == 4 && elempack == 4)
+            {
+                pipeline = pipeline_concat_pack4[b%2];
+            }
+            else if (bottom_blob.elempack == 4 && elempack == 1)
+            {
+                pipeline = pipeline_concat_pack4to1[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 8)
+            {
+                pipeline = pipeline_concat_pack8[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 4)
+            {
+                pipeline = pipeline_concat_pack8to4[b%2];
+            }
+            else if (bottom_blob.elempack == 8 && elempack == 1)
+            {
+                pipeline = pipeline_concat_pack8to1[b%2];
+            }
+
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
+
+            coffset += bottom_blob.c * bottom_blob.elempack / elempack;
+        }
+
+        // packing
+        if (elempack < out_elempack)
+        {
+            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
+            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
+        }
+
+        return 0;
+    }
+
+    if (dims == 3 && axis == 1)
+    {
+        // interleave dim height
+        int w = bottom_blobs[0].w;
+        int channels = bottom_blobs[0].c;
+        size_t elemsize = bottom_blobs[0].elemsize;
+        int elempack = bottom_blobs[0].elempack;
+
+        // total height
+        int top_h = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+            top_h += bottom_blob.h;
+        }
+
+        VkImageMat& top_blob = top_blobs[0];
+        top_blob.create(w, top_h, channels, elemsize, elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        int hoffset = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+
+            std::vector<VkImageMat> bindings(2);
+            bindings[0] = bottom_blob;
+            bindings[1] = top_blob;
+
+            std::vector<vk_constant_type> constants(11);
+            constants[0].i = bottom_blob.dims;
+            constants[1].i = bottom_blob.w;
+            constants[2].i = bottom_blob.h;
+            constants[3].i = bottom_blob.c;
+            constants[4].i = 0;//bottom_blob.cstep;
+            constants[5].i = top_blob.dims;
+            constants[6].i = top_blob.w;
+            constants[7].i = top_blob.h;
+            constants[8].i = top_blob.c;
+            constants[9].i = 0;//top_blob.cstep;
+            constants[10].i = hoffset;
+
+            const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
+                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                     : pipeline_concat[b%2];
+
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
+
+            hoffset += bottom_blob.h;
+        }
+
+        return 0;
+    }
+
+    if (dims == 3 && axis == 2)
+    {
+        // interleave dim width
+        int h = bottom_blobs[0].h;
+        int channels = bottom_blobs[0].c;
+        size_t elemsize = bottom_blobs[0].elemsize;
+        int elempack = bottom_blobs[0].elempack;
+
+        // total height
+        int top_w = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+            top_w += bottom_blob.w;
+        }
+
+        VkImageMat& top_blob = top_blobs[0];
+        top_blob.create(top_w, h, channels, elemsize, elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        int woffset = 0;
+        for (size_t b=0; b<bottom_blobs.size(); b++)
+        {
+            const VkImageMat& bottom_blob = bottom_blobs[b];
+
+            std::vector<VkImageMat> bindings(2);
+            bindings[0] = bottom_blob;
+            bindings[1] = top_blob;
+
+            std::vector<vk_constant_type> constants(11);
+            constants[0].i = bottom_blob.dims;
+            constants[1].i = bottom_blob.w;
+            constants[2].i = bottom_blob.h;
+            constants[3].i = bottom_blob.c;
+            constants[4].i = 0;//bottom_blob.cstep;
+            constants[5].i = top_blob.dims;
+            constants[6].i = top_blob.w;
+            constants[7].i = top_blob.h;
+            constants[8].i = top_blob.c;
+            constants[9].i = 0;//top_blob.cstep;
             constants[10].i = woffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]

@@ -38,8 +38,14 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
+layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image1D top_blob;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -71,7 +77,22 @@ void main()
     int y = gx % size / psc(w);
     int x = gx % size % psc(w);
 
+#if NCNN_image_shader
+    afp v;
+
+    if (psc(dims) == 2)
+    {
+        v = image2d_ld1(bottom_blob_2d, ivec2(x, y));
+    }
+    else // if (psc(dims) == 3)
+    {
+        v = image3d_ld1(bottom_blob_3d, ivec3(x, y, z));
+    }
+
+    image1d_st1(top_blob, gx, v);
+#else
     int v_offset = z * psc(cstep) + y * psc(w) + x;
 
     buffer_cp1(top_blob_data, gx, bottom_blob_data, v_offset);
+#endif
 }
