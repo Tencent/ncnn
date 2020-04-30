@@ -38,12 +38,17 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
+#else
 #if NCNN_fp16_packed
 layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 #endif
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -73,11 +78,16 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
-
     int x = gx + p.woffset;
     int y = gy + p.hoffset;
     int z = gz + p.coffset;
+
+#if NCNN_image_shader
+    afpvec4 v = image3d_ld4(bottom_blob, ivec3(x, y, z / 4));
+
+    image3d_st1(top_blob, ivec3(gx, gy, gz), v[z % 4]);
+#else
+    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
 #if NCNN_fp16_packed
     int v_offset = ((z / 4) * psc(cstep) + y * psc(w) + x) * 2 + (z % 4) / 2;
@@ -90,5 +100,6 @@ void main()
     int v_offset = ((z / 4) * psc(cstep) + y * psc(w) + x) * 4 + z % 4;
 
     buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
 #endif
 }

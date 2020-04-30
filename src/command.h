@@ -35,11 +35,35 @@ public:
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt);
 
+    void record_upload(const Mat& src, VkImageMat& dst, const Option& opt);
+
     void record_download(const VkMat& src, Mat& dst, const Option& opt);
+
+    void record_download(const VkImageMat& src, Mat& dst, const Option& opt);
+
+    void record_buffer_to_image(const VkMat& src, VkImageMat& dst, const Option& opt);
+
+    void record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt);
+
+    void record_clone(const Mat& src, VkMat& dst, const Option& opt);
+
+    void record_clone(const Mat& src, VkImageMat& dst, const Option& opt);
+
+    void record_clone(const VkMat& src, Mat& dst, const Option& opt);
+
+    void record_clone(const VkImageMat& src, Mat& dst, const Option& opt);
 
     void record_clone(const VkMat& src, VkMat& dst, const Option& opt);
 
+    void record_clone(const VkImageMat& src, VkImageMat& dst, const Option& opt);
+
+    void record_clone(const VkMat& src, VkImageMat& dst, const Option& opt);
+
+    void record_clone(const VkImageMat& src, VkMat& dst, const Option& opt);
+
     void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher);
+
+    void record_pipeline(const Pipeline* pipeline, const std::vector<VkImageMat>& bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher);
 
 #if NCNN_BENCHMARK
     void record_write_timestamp(uint32_t query);
@@ -47,6 +71,8 @@ public:
 
 #if __ANDROID_API__ >= 26
     void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkMat& dst);
+
+    void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkImageMat& dst);
 #endif // __ANDROID_API__ >= 26
 
     int submit_and_wait();
@@ -75,7 +101,10 @@ protected:
 
     std::vector<VkMat> upload_staging_buffers;
     std::vector<VkMat> download_post_buffers;
+    std::vector<Mat> download_post_mats_fp16;
     std::vector<Mat> download_post_mats;
+
+    std::vector<VkImageMemory*> image_blocks_to_destroy;
 
     // the good-old path for device without VK_KHR_push_descriptor
     std::vector<VkDescriptorPool> descriptor_pools;
@@ -86,6 +115,9 @@ protected:
         enum
         {
             TYPE_copy_buffer,
+            TYPE_copy_image,
+            TYPE_copy_buffer_to_image,
+            TYPE_copy_image_to_buffer,
             TYPE_bind_pipeline,
             TYPE_bind_descriptorsets,
             TYPE_push_constants,
@@ -99,6 +131,7 @@ protected:
 #endif // NCNN_BENCHMARK
 
             TYPE_post_download,
+            TYPE_post_cast_float16_to_float32,
         };
 
         int type;
@@ -107,6 +140,9 @@ protected:
         union
         {
         struct { VkBuffer src; VkBuffer dst; uint32_t region_count; const VkBufferCopy* regions; } copy_buffer;
+        struct { VkImage src; VkImageLayout src_layout; VkImage dst; VkImageLayout dst_layout; uint32_t region_count; const VkImageCopy* regions; } copy_image;
+        struct { VkBuffer src; VkImage dst; VkImageLayout layout; uint32_t region_count; const VkBufferImageCopy* regions; } copy_buffer_to_image;
+        struct { VkImage src; VkImageLayout layout; VkBuffer dst; uint32_t region_count; const VkBufferImageCopy* regions; } copy_image_to_buffer;
 
         struct { VkPipelineBindPoint bind_point; VkPipeline pipeline; } bind_pipeline;
         struct { VkPipelineBindPoint bind_point; VkPipelineLayout pipeline_layout; uint32_t descriptorset_count; uint32_t descriptorset_offset; } bind_descriptorsets;
@@ -122,7 +158,8 @@ protected:
         struct { uint32_t query; } write_timestamp;
 #endif // NCNN_BENCHMARK
 
-        struct { uint32_t download_post_buffer_mat_offset; } post_download;
+        struct { uint32_t download_post_buffer_mat_offset; uint32_t download_post_mat_fp16_offset; } post_download;
+        struct { uint32_t download_post_mat_fp16_offset; uint32_t download_post_mat_offset; } post_cast_float16_to_float32;
         };
     };
 
@@ -142,6 +179,8 @@ public:
 
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt);
+
+    void record_upload(const Mat& src, VkImageMat& dst, const Option& opt);
 
     int submit_and_wait();
 

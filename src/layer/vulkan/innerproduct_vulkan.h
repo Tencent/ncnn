@@ -31,12 +31,16 @@ public:
 
     using InnerProduct::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     ncnn::Layer* flatten;
 
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
+
+    VkImageMat weight_data_gpu_image;
+    VkImageMat bias_data_gpu_image;
 
     Pipeline* pipeline_innerproduct;
     Pipeline* pipeline_innerproduct_pack4;

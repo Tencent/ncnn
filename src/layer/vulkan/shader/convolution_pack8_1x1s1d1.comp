@@ -22,52 +22,78 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-layout (constant_id = 0) const int bias_term = 0;
-layout (constant_id = 1) const int activation_type = 0;
-layout (constant_id = 2) const float activation_param_0 = 0;
-layout (constant_id = 3) const float activation_param_1 = 0;
+layout (constant_id = 0) const int kernel_w = 1;
+layout (constant_id = 1) const int kernel_h = 1;
+layout (constant_id = 2) const int dilation_w = 1;
+layout (constant_id = 3) const int dilation_h = 1;
+layout (constant_id = 4) const int stride_w = 1;
+layout (constant_id = 5) const int stride_h = 1;
+layout (constant_id = 6) const int bias_term = 0;
+layout (constant_id = 7) const int activation_type = 0;
+layout (constant_id = 8) const float activation_param_0 = 0;
+layout (constant_id = 9) const float activation_param_1 = 0;
 
-#define shape_constant_id_offset 4
+#define shape_constant_id_offset 10
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int size = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 4) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int outsize = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
+layout (binding = 2) uniform unfp sampler3D weight_blob;
+layout (binding = 3) uniform unfp sampler1D bias_blob;
+#else // NCNN_image_shader
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpvec8 weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfpvec8 bias_data[]; };
+#endif // NCNN_image_shader
 
 layout (push_constant) uniform parameter
 {
     int dims;
-    int size;
+    int w;
+    int h;
     int c;
     int cstep;
 
     int outdims;
-    int outsize;
+    int outw;
+    int outh;
     int outc;
     int outcstep;
 } p;
 
 void main()
 {
+#if NCNN_image_shader
+    int gx = int(gl_GlobalInvocationID.x) * 2;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+        return;
+#else
     int gx = int(gl_GlobalInvocationID.x) * 4;
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outsize) || gy >= 1 || gz >= psc(outc))
+    if (gx >= psc(outcstep) || gy >= 1 || gz >= psc(outc))
         return;
+#endif
 
     afpvec8 sum0;
     afpvec8 sum1;
@@ -76,7 +102,11 @@ void main()
 
     if (bias_term == 1)
     {
+#if NCNN_image_shader
+        afpvec8 b = image1d_ld8(bias_blob, gz);
+#else
         afpvec8 b = buffer_ld8(bias_data, gz);
+#endif
         sum0 = b;
         sum1 = b;
         sum2 = b;
@@ -90,6 +120,61 @@ void main()
         sum3 = afpvec8(afpvec4(0.f), afpvec4(0.f));
     }
 
+#if NCNN_image_shader
+    for (int z = 0; z < psc(c); z++)
+    {
+        afpvec8 v0 = image3d_ld8(bottom_blob, ivec3(gx, gy, z));
+        afpvec8 v1 = image3d_ld8(bottom_blob, ivec3(gx+1, gy, z));
+        afpvec8 v2 = image3d_ld8(bottom_blob, ivec3(gx, gy+1, z));
+        afpvec8 v3 = image3d_ld8(bottom_blob, ivec3(gx+1, gy+1, z));
+
+        afpvec8 k0 = image3d_ld8(weight_blob, ivec3(0, z, gz));
+        afpvec8 k1 = image3d_ld8(weight_blob, ivec3(1, z, gz));
+        afpvec8 k2 = image3d_ld8(weight_blob, ivec3(2, z, gz));
+        afpvec8 k3 = image3d_ld8(weight_blob, ivec3(3, z, gz));
+        afpvec8 k4 = image3d_ld8(weight_blob, ivec3(4, z, gz));
+        afpvec8 k5 = image3d_ld8(weight_blob, ivec3(5, z, gz));
+        afpvec8 k6 = image3d_ld8(weight_blob, ivec3(6, z, gz));
+        afpvec8 k7 = image3d_ld8(weight_blob, ivec3(7, z, gz));
+
+        // sum += v * k
+        sum0[0].r += dot(v0[0], k0[0]) + dot(v0[1], k0[1]);
+        sum0[0].g += dot(v0[0], k1[0]) + dot(v0[1], k1[1]);
+        sum0[0].b += dot(v0[0], k2[0]) + dot(v0[1], k2[1]);
+        sum0[0].a += dot(v0[0], k3[0]) + dot(v0[1], k3[1]);
+        sum0[1].r += dot(v0[0], k4[0]) + dot(v0[1], k4[1]);
+        sum0[1].g += dot(v0[0], k5[0]) + dot(v0[1], k5[1]);
+        sum0[1].b += dot(v0[0], k6[0]) + dot(v0[1], k6[1]);
+        sum0[1].a += dot(v0[0], k7[0]) + dot(v0[1], k7[1]);
+
+        sum1[0].r += dot(v1[0], k0[0]) + dot(v1[1], k0[1]);
+        sum1[0].g += dot(v1[0], k1[0]) + dot(v1[1], k1[1]);
+        sum1[0].b += dot(v1[0], k2[0]) + dot(v1[1], k2[1]);
+        sum1[0].a += dot(v1[0], k3[0]) + dot(v1[1], k3[1]);
+        sum1[1].r += dot(v1[0], k4[0]) + dot(v1[1], k4[1]);
+        sum1[1].g += dot(v1[0], k5[0]) + dot(v1[1], k5[1]);
+        sum1[1].b += dot(v1[0], k6[0]) + dot(v1[1], k6[1]);
+        sum1[1].a += dot(v1[0], k7[0]) + dot(v1[1], k7[1]);
+
+        sum2[0].r += dot(v2[0], k0[0]) + dot(v2[1], k0[1]);
+        sum2[0].g += dot(v2[0], k1[0]) + dot(v2[1], k1[1]);
+        sum2[0].b += dot(v2[0], k2[0]) + dot(v2[1], k2[1]);
+        sum2[0].a += dot(v2[0], k3[0]) + dot(v2[1], k3[1]);
+        sum2[1].r += dot(v2[0], k4[0]) + dot(v2[1], k4[1]);
+        sum2[1].g += dot(v2[0], k5[0]) + dot(v2[1], k5[1]);
+        sum2[1].b += dot(v2[0], k6[0]) + dot(v2[1], k6[1]);
+        sum2[1].a += dot(v2[0], k7[0]) + dot(v2[1], k7[1]);
+
+        sum3[0].r += dot(v3[0], k0[0]) + dot(v3[1], k0[1]);
+        sum3[0].g += dot(v3[0], k1[0]) + dot(v3[1], k1[1]);
+        sum3[0].b += dot(v3[0], k2[0]) + dot(v3[1], k2[1]);
+        sum3[0].a += dot(v3[0], k3[0]) + dot(v3[1], k3[1]);
+        sum3[1].r += dot(v3[0], k4[0]) + dot(v3[1], k4[1]);
+        sum3[1].g += dot(v3[0], k5[0]) + dot(v3[1], k5[1]);
+        sum3[1].b += dot(v3[0], k6[0]) + dot(v3[1], k6[1]);
+        sum3[1].a += dot(v3[0], k7[0]) + dot(v3[1], k7[1]);
+    }
+#else // NCNN_image_shader
     int w_offset = gz * psc(c) * 8;
     int v_offset = gx;
 
@@ -149,6 +234,7 @@ void main()
         w_offset += 8;
         v_offset += psc(cstep);
     }
+#endif // NCNN_image_shader
 
     if (activation_type == 1)
     {
@@ -198,10 +284,17 @@ void main()
         sum3[1] = afp(1.f) / (afp(1.f) + exp(-sum3[1]));
     }
 
+#if NCNN_image_shader
+    image3d_st8(top_blob, ivec3(gx, gy, gz), sum0);
+    image3d_st8(top_blob, ivec3(gx+1, gy, gz), sum1);
+    image3d_st8(top_blob, ivec3(gx, gy+1, gz), sum2);
+    image3d_st8(top_blob, ivec3(gx+1, gy+1, gz), sum3);
+#else
     int gi = gz * psc(outcstep) + gx;
 
     buffer_st8(top_blob_data, gi + 0, sum0);
     if (gx + 1 < psc(outcstep)) buffer_st8(top_blob_data, gi + 1, sum1);
     if (gx + 2 < psc(outcstep)) buffer_st8(top_blob_data, gi + 2, sum2);
     if (gx + 3 < psc(outcstep)) buffer_st8(top_blob_data, gi + 3, sum3);
+#endif
 }

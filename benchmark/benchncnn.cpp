@@ -188,8 +188,8 @@ int main(int argc, char** argv)
 
         g_vkdev = ncnn::get_gpu_device(gpu_device);
 
-        g_blob_vkallocator = new ncnn::VkBlobBufferAllocator(g_vkdev);
-        g_staging_vkallocator = new ncnn::VkStagingBufferAllocator(g_vkdev);
+        g_blob_vkallocator = new ncnn::VkBlobAllocator(g_vkdev);
+        g_staging_vkallocator = new ncnn::VkStagingAllocator(g_vkdev);
     }
 #endif // NCNN_VULKAN
 
@@ -214,6 +214,11 @@ int main(int argc, char** argv)
     opt.use_int8_storage = true;
     opt.use_int8_arithmetic = true;
     opt.use_packing_layout = true;
+    opt.use_shader_pack8 = false;
+    opt.use_image_storage = false;
+    opt.use_image_fp16_packed = true;
+    opt.use_image_fp16_storage = true;
+    opt.use_image_fp16_arithmetic = true;
 
     ncnn::set_cpu_powersave(powersave);
 
