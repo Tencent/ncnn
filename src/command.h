@@ -71,6 +71,8 @@ public:
 
 #if __ANDROID_API__ >= 26
     void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkMat& dst);
+
+    void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkImageMat& dst);
 #endif // __ANDROID_API__ >= 26
 
     int submit_and_wait();

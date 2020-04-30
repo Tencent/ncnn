@@ -214,8 +214,8 @@ int main(int argc, char** argv)
     opt.use_int8_storage = true;
     opt.use_int8_arithmetic = true;
     opt.use_packing_layout = true;
-    opt.use_shader_pack8 = true;
-    opt.use_image_storage = true;
+    opt.use_shader_pack8 = false;
+    opt.use_image_storage = false;
     opt.use_image_fp16_packed = true;
     opt.use_image_fp16_storage = true;
     opt.use_image_fp16_arithmetic = true;
@@ -287,7 +287,7 @@ int main(int argc, char** argv)
 
     benchmark("alexnet", ncnn::Mat(227, 227, 3), opt);
 
-//     benchmark("vgg16", ncnn::Mat(224, 224, 3), opt);
+    benchmark("vgg16", ncnn::Mat(224, 224, 3), opt);
 
 #if NCNN_VULKAN
     if (!use_vulkan_compute)

@@ -1146,7 +1146,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     {
         const VkMat& binding = bindings[i];
 
-        if (binding.data->access_flags & (VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT) || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+        if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
         {
             // barrier device any @ compute/null to shader-readwrite @ compute
             VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
@@ -1371,7 +1371,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
 
         if (binding_type == 2)
         {
-            if (binding.data->access_flags & (VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT) || binding.data->image_layout != VK_IMAGE_LAYOUT_GENERAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+            if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_GENERAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
             {
                 // image layout transform any @ any to shader-write @ compute
                 VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
@@ -1427,7 +1427,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
                 }
             }
 
-            if (binding.data->access_flags & (VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT) || binding.data->image_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+            if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
             {
                 // image layout transform any @ any to shader-readonly-optimal @ compute
                 VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
@@ -1691,7 +1691,7 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
         barriers[0].srcAccessMask = 0;
         barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
         barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barriers[0].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barriers[0].image = src.image();
@@ -1744,7 +1744,7 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
         VkDescriptorImageInfo descriptorImageInfo;
         descriptorImageInfo.sampler = pipeline->sampler;
         descriptorImageInfo.imageView = src.imageview();
-        descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         VkDescriptorBufferInfo descriptorBufferInfo;
         descriptorBufferInfo.buffer = dst.buffer();
@@ -1861,6 +1861,216 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
                 writeDescriptorSets[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 writeDescriptorSets[2].pImageInfo = 0;
                 writeDescriptorSets[2].pBufferInfo = &descriptorBufferInfo;
+                writeDescriptorSets[2].pTexelBufferView = 0;
+
+                vkUpdateDescriptorSets(vkdev->vkdevice(), 3, writeDescriptorSets, 0, 0);
+            }
+
+            record r;
+            r.type = record::TYPE_bind_descriptorsets;
+            r.command_buffer = compute_command_buffer;
+            r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+            r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout;
+            r.bind_descriptorsets.descriptorset_count = 1;
+            r.bind_descriptorsets.descriptorset_offset = descriptorsets.size() - 1;
+            delayed_records.push_back(r);
+        }
+    }
+
+    // record dispatch
+    {
+        uint32_t group_count_x = (dst.w + pipeline->local_size_x - 1) / pipeline->local_size_x;
+        uint32_t group_count_y = (dst.h + pipeline->local_size_y - 1) / pipeline->local_size_y;
+        uint32_t group_count_z = (dst.c + pipeline->local_size_z - 1) / pipeline->local_size_z;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdDispatch(compute_command_buffer, group_count_x, group_count_y, group_count_z);
+        }
+        else
+        {
+            record r;
+            r.type = record::TYPE_dispatch;
+            r.command_buffer = compute_command_buffer;
+            r.dispatch.group_count_x = group_count_x;
+            r.dispatch.group_count_y = group_count_y;
+            r.dispatch.group_count_z = group_count_z;
+            delayed_records.push_back(r);
+        }
+    }
+}
+
+void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkImageMat& dst)
+{
+    // image layout transform undefined @ null to general @ compute
+    {
+        VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[2];
+        barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barriers[0].pNext = 0;
+        barriers[0].srcAccessMask = 0;
+        barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barriers[0].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].image = src.image();
+        barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barriers[0].subresourceRange.baseMipLevel = 0;
+        barriers[0].subresourceRange.levelCount = 1;
+        barriers[0].subresourceRange.baseArrayLayer = 0;
+        barriers[0].subresourceRange.layerCount = 1;
+        barriers[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barriers[1].pNext = 0;
+        barriers[1].srcAccessMask = 0;
+        barriers[1].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        barriers[1].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barriers[1].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[1].image = dst.image();
+        barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barriers[1].subresourceRange.baseMipLevel = 0;
+        barriers[1].subresourceRange.levelCount = 1;
+        barriers[1].subresourceRange.baseArrayLayer = 0;
+        barriers[1].subresourceRange.layerCount = 1;
+
+        VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 2, barriers);
+            delete[] barriers;
+        }
+        else
+        {
+            record r;
+            r.type = record::TYPE_image_barrers;
+            r.command_buffer = compute_command_buffer;
+            r.image_barrers.src_stage = src_stage;
+            r.image_barrers.dst_stage = dst_stage;
+            r.image_barrers.barrier_count = 2;
+            r.image_barrers.barriers = barriers;
+            delayed_records.push_back(r);
+        }
+    }
+
+    // record bind pipeline
+    {
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdBindPipeline(compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
+        }
+        else
+        {
+            record r;
+            r.type = record::TYPE_bind_pipeline;
+            r.command_buffer = compute_command_buffer;
+            r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+            r.bind_pipeline.pipeline = pipeline->pipeline;
+            delayed_records.push_back(r);
+        }
+    }
+
+    // record update bindings
+    {
+        VkDescriptorImageInfo descriptorImageInfos[3];
+        descriptorImageInfos[0].sampler = pipeline->sampler;
+        descriptorImageInfos[0].imageView = src.imageview();
+        descriptorImageInfos[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        descriptorImageInfos[1].sampler = 0;
+        descriptorImageInfos[1].imageView = dst.imageview();
+        descriptorImageInfos[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        descriptorImageInfos[2].sampler = 0;
+        descriptorImageInfos[2].imageView = dst.imageview();
+        descriptorImageInfos[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkdev->vkCmdPushDescriptorSetWithTemplateKHR(compute_command_buffer, pipeline->descriptor_update_template, pipeline->pipeline_layout, 0, descriptorImageInfos);
+        }
+        else
+        {
+            // create new descriptor_pool and descriptorset
+            VkDescriptorPool descriptor_pool;
+            {
+                VkDescriptorPoolSize poolSizes[2];
+                poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                poolSizes[0].descriptorCount = 1;
+                poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                poolSizes[1].descriptorCount = 2;
+
+                VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
+                descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+                descriptorPoolCreateInfo.pNext = 0;
+                descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+                descriptorPoolCreateInfo.maxSets = 1;
+                descriptorPoolCreateInfo.poolSizeCount = 2;
+                descriptorPoolCreateInfo.pPoolSizes = poolSizes;
+
+                VkResult ret = vkCreateDescriptorPool(vkdev->vkdevice(), &descriptorPoolCreateInfo, 0, &descriptor_pool);
+                if (ret != VK_SUCCESS)
+                {
+                    fprintf(stderr, "vkCreateDescriptorPool failed %d\n", ret);
+                    return;
+                }
+            }
+            descriptor_pools.push_back(descriptor_pool);
+
+            VkDescriptorSet descriptorset;
+            {
+                VkDescriptorSetAllocateInfo descriptorSetAllocateInfo;
+                descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+                descriptorSetAllocateInfo.pNext = 0;
+                descriptorSetAllocateInfo.descriptorPool = descriptor_pool;
+                descriptorSetAllocateInfo.descriptorSetCount = 1;
+                descriptorSetAllocateInfo.pSetLayouts = &pipeline->descriptorset_layout;
+
+                VkResult ret = vkAllocateDescriptorSets(vkdev->vkdevice(), &descriptorSetAllocateInfo, &descriptorset);
+                if (ret != VK_SUCCESS)
+                {
+                    fprintf(stderr, "vkAllocateDescriptorSets failed %d\n", ret);
+                    return;
+                }
+            }
+            descriptorsets.push_back(descriptorset);
+
+            if (vkdev->info.support_VK_KHR_descriptor_update_template)
+            {
+                vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, pipeline->descriptor_update_template, descriptorImageInfos);
+            }
+            else
+            {
+                VkWriteDescriptorSet writeDescriptorSets[3];
+                writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeDescriptorSets[0].pNext = 0;
+                writeDescriptorSets[0].dstSet = descriptorset;
+                writeDescriptorSets[0].dstBinding = 0;
+                writeDescriptorSets[0].dstArrayElement = 0;
+                writeDescriptorSets[0].descriptorCount = 1;
+                writeDescriptorSets[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                writeDescriptorSets[0].pImageInfo = &descriptorImageInfos[0];
+                writeDescriptorSets[0].pBufferInfo = 0;
+                writeDescriptorSets[0].pTexelBufferView = 0;
+                writeDescriptorSets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeDescriptorSets[1].pNext = 0;
+                writeDescriptorSets[1].dstSet = descriptorset;
+                writeDescriptorSets[1].dstBinding = 1;
+                writeDescriptorSets[1].dstArrayElement = 0;
+                writeDescriptorSets[1].descriptorCount = 1;
+                writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                writeDescriptorSets[1].pImageInfo = &descriptorImageInfos[1];
+                writeDescriptorSets[1].pBufferInfo = 0;
+                writeDescriptorSets[1].pTexelBufferView = 0;
+                writeDescriptorSets[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeDescriptorSets[2].pNext = 0;
+                writeDescriptorSets[2].dstSet = descriptorset;
+                writeDescriptorSets[2].dstBinding = 2;
+                writeDescriptorSets[2].dstArrayElement = 0;
+                writeDescriptorSets[2].descriptorCount = 1;
+                writeDescriptorSets[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                writeDescriptorSets[2].pImageInfo = &descriptorImageInfos[2];
+                writeDescriptorSets[2].pBufferInfo = 0;
                 writeDescriptorSets[2].pTexelBufferView = 0;
 
                 vkUpdateDescriptorSets(vkdev->vkdevice(), 3, writeDescriptorSets, 0, 0);
