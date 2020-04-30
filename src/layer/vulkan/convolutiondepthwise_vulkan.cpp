@@ -15,6 +15,7 @@
 #include "convolutiondepthwise_vulkan.h"
 #include <algorithm>
 #include "layer_type.h"
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -137,7 +138,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     specializations[6].i = bias_term;
     specializations[7].i = group;
     specializations[8].i = activation_type;
-    specializations[9].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+    specializations[9].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
 
     // depth-wise
@@ -167,7 +168,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_convolutiondepthwise = new Pipeline(vkdev);
             pipeline_convolutiondepthwise->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolutiondepthwise->create("convolutiondepthwise", opt, specializations, 4, 10);
+            pipeline_convolutiondepthwise->create(LayerShaderType::convolutiondepthwise, opt, specializations);
         }
 
         // pack4
@@ -175,7 +176,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_convolutiondepthwise_pack4 = new Pipeline(vkdev);
             pipeline_convolutiondepthwise_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolutiondepthwise_pack4->create("convolutiondepthwise_pack4", opt, specializations, 4, 10);
+            pipeline_convolutiondepthwise_pack4->create(LayerShaderType::convolutiondepthwise_pack4, opt, specializations);
         }
 
         // pack8
@@ -183,7 +184,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_convolutiondepthwise_pack8 = new Pipeline(vkdev);
             pipeline_convolutiondepthwise_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolutiondepthwise_pack8->create("convolutiondepthwise_pack8", opt, specializations, 4, 10);
+            pipeline_convolutiondepthwise_pack8->create(LayerShaderType::convolutiondepthwise_pack8, opt, specializations);
         }
 
         return 0;
@@ -280,7 +281,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolutiondepthwise_group = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group->create("convolutiondepthwise_group", opt, specializations, 4, 10);
+        pipeline_convolutiondepthwise_group->create(LayerShaderType::convolutiondepthwise_group, opt, specializations);
     }
 
     // pack4
@@ -288,7 +289,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolutiondepthwise_group_pack4 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack4->create("convolutiondepthwise_group_pack4", opt, specializations, 4, 10);
+        pipeline_convolutiondepthwise_group_pack4->create(LayerShaderType::convolutiondepthwise_group_pack4, opt, specializations);
     }
 
     // pack1to4
@@ -296,7 +297,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolutiondepthwise_group_pack1to4 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack1to4->create("convolutiondepthwise_group_pack1to4", opt, specializations, 4, 10);
+        pipeline_convolutiondepthwise_group_pack1to4->create(LayerShaderType::convolutiondepthwise_group_pack1to4, opt, specializations);
     }
 
     // pack4to1
@@ -304,7 +305,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolutiondepthwise_group_pack4to1 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack4to1->create("convolutiondepthwise_group_pack4to1", opt, specializations, 4, 10);
+        pipeline_convolutiondepthwise_group_pack4to1->create(LayerShaderType::convolutiondepthwise_group_pack4to1, opt, specializations);
     }
 
     // pack8
@@ -312,7 +313,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolutiondepthwise_group_pack8 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack8->create("convolutiondepthwise_group_pack8", opt, specializations, 4, 10);
+        pipeline_convolutiondepthwise_group_pack8->create(LayerShaderType::convolutiondepthwise_group_pack8, opt, specializations);
     }
 
     // pack1to8
@@ -320,7 +321,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolutiondepthwise_group_pack1to8 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack1to8->create("convolutiondepthwise_group_pack1to8", opt, specializations, 4, 10);
+        pipeline_convolutiondepthwise_group_pack1to8->create(LayerShaderType::convolutiondepthwise_group_pack1to8, opt, specializations);
     }
 
     // pack4to8
@@ -328,7 +329,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolutiondepthwise_group_pack4to8 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack4to8->create("convolutiondepthwise_group_pack4to8", opt, specializations, 4, 10);
+        pipeline_convolutiondepthwise_group_pack4to8->create(LayerShaderType::convolutiondepthwise_group_pack4to8, opt, specializations);
     }
 
     // pack8to4
@@ -336,7 +337,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolutiondepthwise_group_pack8to4 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack8to4->create("convolutiondepthwise_group_pack8to4", opt, specializations, 4, 10);
+        pipeline_convolutiondepthwise_group_pack8to4->create(LayerShaderType::convolutiondepthwise_group_pack8to4, opt, specializations);
     }
 
     // pack8to1
@@ -344,7 +345,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolutiondepthwise_group_pack8to1 = new Pipeline(vkdev);
         pipeline_convolutiondepthwise_group_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack8to1->create("convolutiondepthwise_group_pack8to1", opt, specializations, 4, 10);
+        pipeline_convolutiondepthwise_group_pack8to1->create(LayerShaderType::convolutiondepthwise_group_pack8to1, opt, specializations);
     }
 
     return 0;
@@ -533,8 +534,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            padding_param_blob.prepare_staging_buffer();
+            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = hpad / 2;
@@ -560,8 +560,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            padding_param_blob.prepare_staging_buffer();
+            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = hpad - hpad / 2;
@@ -594,7 +593,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
-    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -655,7 +654,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     VkMat top_blob_unpacked = top_blob;
     if (out_elempack_g < out_elempack)
     {
-        top_blob_unpacked.create(outw, outh, num_output / out_elempack_g, out_elemsize_g, out_elempack_g, opt.workspace_vkallocator, opt.staging_vkallocator);
+        top_blob_unpacked.create(outw, outh, num_output / out_elempack_g, out_elemsize_g, out_elempack_g, opt.workspace_vkallocator);
         if (top_blob_unpacked.empty())
             return -100;
     }

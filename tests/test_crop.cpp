@@ -35,11 +35,6 @@ static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int coffset, 
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
 
     int ret = test_layer<ncnn::Crop>("Crop", pd, weights, opt, a);
     if (ret != 0)
@@ -102,11 +97,6 @@ static int test_crop(const ncnn::Mat& a, const ncnn::Mat& starts, const ncnn::Ma
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
 
     int ret = test_layer<ncnn::Crop>("Crop", pd, weights, opt, a);
     if (ret != 0)
@@ -176,12 +166,12 @@ static int test_crop_3()
     ncnn::Mat a = RandomMat(13, 11, 16);
 
     return 0
-        || test_crop(a, IntArrayMat(0, 0, 0), IntArrayMat(100, 100, 100), IntArrayMat(1, 2, 3))
-        || test_crop(a, IntArrayMat(4), IntArrayMat(8), IntArrayMat(1))
-        || test_crop(a, IntArrayMat(2), IntArrayMat(7), IntArrayMat(2))
-        || test_crop(a, IntArrayMat(3), IntArrayMat(5), IntArrayMat(3))
-        || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(1, 2))
-        || test_crop(a, IntArrayMat(1, 4), IntArrayMat(-5, 7), IntArrayMat(2, -3))
+        || test_crop(a, IntArrayMat(0, 0, 0), IntArrayMat(100, 100, 100), IntArrayMat(0, 1, 2))
+        || test_crop(a, IntArrayMat(4), IntArrayMat(8), IntArrayMat(0))
+        || test_crop(a, IntArrayMat(2), IntArrayMat(7), IntArrayMat(1))
+        || test_crop(a, IntArrayMat(3), IntArrayMat(5), IntArrayMat(2))
+        || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(0, 1))
+        || test_crop(a, IntArrayMat(1, 4), IntArrayMat(-5, 7), IntArrayMat(1, -3))
         || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(-1, -2))
         || test_crop(a, IntArrayMat(1, 2, 3), IntArrayMat(-3, -2, -1), IntArrayMat(-3, -2, -1))
         ;
@@ -192,12 +182,12 @@ static int test_crop_4()
     ncnn::Mat a = RandomMat(13, 11, 17);
 
     return 0
-        || test_crop(a, IntArrayMat(0, 0, 0), IntArrayMat(100, 100, 100), IntArrayMat(1, 2, 3))
-        || test_crop(a, IntArrayMat(4), IntArrayMat(8), IntArrayMat(1))
-        || test_crop(a, IntArrayMat(2), IntArrayMat(7), IntArrayMat(2))
-        || test_crop(a, IntArrayMat(3), IntArrayMat(5), IntArrayMat(3))
-        || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(1, 2))
-        || test_crop(a, IntArrayMat(1, 4), IntArrayMat(-5, 7), IntArrayMat(2, -3))
+        || test_crop(a, IntArrayMat(0, 0, 0), IntArrayMat(100, 100, 100), IntArrayMat(0, 1, 2))
+        || test_crop(a, IntArrayMat(4), IntArrayMat(8), IntArrayMat(0))
+        || test_crop(a, IntArrayMat(2), IntArrayMat(7), IntArrayMat(1))
+        || test_crop(a, IntArrayMat(3), IntArrayMat(5), IntArrayMat(2))
+        || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(0, 1))
+        || test_crop(a, IntArrayMat(1, 4), IntArrayMat(-5, 7), IntArrayMat(1, -3))
         || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(-1, -2))
         || test_crop(a, IntArrayMat(1, 2, 3), IntArrayMat(-3, -2, -1), IntArrayMat(-3, -2, -1))
         ;

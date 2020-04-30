@@ -29,11 +29,6 @@ static int test_shufflechannel(int w, int h, int c, int group)
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
 
     int ret = test_layer<ncnn::ShuffleChannel>("ShuffleChannel", pd, weights, opt, a);
     if (ret != 0)
@@ -52,8 +47,13 @@ static int test_shufflechannel_0()
         || test_shufflechannel(3, 7, 3, 3)
         || test_shufflechannel(3, 7, 4, 2)
         || test_shufflechannel(3, 7, 12, 3)
+        || test_shufflechannel(3, 7, 12, 4)
+        || test_shufflechannel(3, 7, 12, 6)
         || test_shufflechannel(3, 7, 15, 3)
+        || test_shufflechannel(3, 7, 15, 5)
         || test_shufflechannel(3, 7, 16, 2)
+        || test_shufflechannel(3, 7, 16, 4)
+        || test_shufflechannel(3, 7, 16, 8)
         ;
 }
 

@@ -111,6 +111,9 @@ public:
     uint32_t graphics_queue_count;
     uint32_t transfer_queue_count;
 
+    // property
+    bool unified_compute_transfer_queue;
+
     // bug is not feature
     bool bug_local_size_spec_const;
 
@@ -161,10 +164,10 @@ public:
 
     VkDevice vkdevice() const { return device; }
 
-    VkShaderModule get_shader_module(const char* name) const;
+    VkShaderModule get_shader_module(int shader_type_index) const;
 
     // with fixed workgroup size
-    VkShaderModule create_shader_module(const char* name, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const;
+    VkShaderModule create_shader_module(int shader_type_index, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const;
 
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
 
@@ -251,6 +254,18 @@ private:
 };
 
 VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
+
+// info from spirv
+class ShaderInfo
+{
+public:
+    int specialization_count;
+    int binding_count;
+    int push_constant_count;
+};
+
+const ShaderInfo& get_shader_info(int shader_type_index);
+ShaderInfo resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size);
 
 } // namespace ncnn
 

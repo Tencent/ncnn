@@ -102,6 +102,20 @@ void main()
                 ai = gi;
                 bi = gy * psc(bw) + gx;
             }
+
+            if (psc(aw) == 1 && psc(ah) == 1)
+            {
+                // special type 3
+                ai = gz * psc(acstep);
+                bi = gi;
+            }
+
+            if (psc(bw) == psc(aw) && psc(bh) == psc(ah) && psc(ac) == 1)
+            {
+                // special type 4
+                ai = gy * psc(aw) + gx;
+                bi = gi;
+            }
         }
 
         if (psc(bdims) == 2)

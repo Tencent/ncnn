@@ -77,7 +77,7 @@ void main()
 
     if (bias_term == 1)
     {
-        sum = buffer_ld4(bias_data, gz);
+        sum = buffer_ld4(bias_data, gx);
     }
     else
     {

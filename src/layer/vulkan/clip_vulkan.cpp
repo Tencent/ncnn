@@ -14,6 +14,7 @@
 
 #include "clip_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -90,7 +91,7 @@ int Clip_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_clip = new Pipeline(vkdev);
         pipeline_clip->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_clip->create("clip", opt, specializations, 1, 5);
+        pipeline_clip->create(LayerShaderType::clip, opt, specializations);
     }
 
     // pack4
@@ -98,7 +99,7 @@ int Clip_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_clip_pack4 = new Pipeline(vkdev);
         pipeline_clip_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_clip_pack4->create("clip_pack4", opt, specializations, 1, 5);
+        pipeline_clip_pack4->create(LayerShaderType::clip_pack4, opt, specializations);
     }
 
     // pack8
@@ -106,7 +107,7 @@ int Clip_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_clip_pack8 = new Pipeline(vkdev);
         pipeline_clip_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_clip_pack8->create("clip_pack8", opt, specializations, 1, 5);
+        pipeline_clip_pack8->create(LayerShaderType::clip_pack8, opt, specializations);
     }
 
     return 0;

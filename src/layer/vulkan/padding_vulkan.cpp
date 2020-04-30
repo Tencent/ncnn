@@ -14,6 +14,7 @@
 
 #include "padding_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -99,7 +100,7 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_padding = new Pipeline(vkdev);
         pipeline_padding->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_padding->create("padding", opt, specializations, 3, 12);
+        pipeline_padding->create(LayerShaderType::padding, opt, specializations);
     }
 
     // pack4
@@ -107,7 +108,7 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_padding_pack4 = new Pipeline(vkdev);
         pipeline_padding_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_padding_pack4->create("padding_pack4", opt, specializations, 3, 12);
+        pipeline_padding_pack4->create(LayerShaderType::padding_pack4, opt, specializations);
     }
 
     // pack8
@@ -115,7 +116,7 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_padding_pack8 = new Pipeline(vkdev);
         pipeline_padding_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_padding_pack8->create("padding_pack8", opt, specializations, 3, 12);
+        pipeline_padding_pack8->create(LayerShaderType::padding_pack8, opt, specializations);
     }
 
     return 0;
@@ -169,7 +170,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int outw = w + left + right;
     int outh = h + top + bottom;
 
-    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -238,7 +239,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int outw = w + _left + _right;
     int outh = h + _top + _bottom;
 
-    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 

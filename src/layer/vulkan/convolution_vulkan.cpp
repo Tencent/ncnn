@@ -15,6 +15,7 @@
 #include "convolution_vulkan.h"
 #include <algorithm>
 #include "layer_type.h"
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -179,7 +180,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     specializations[5].i = stride_h;
     specializations[6].i = bias_term;
     specializations[7].i = activation_type;
-    specializations[8].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+    specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
     specializations[10 + 0].i = shape_bordered_packed.dims;
     specializations[10 + 1].i = shape_bordered_packed.w;
@@ -214,7 +215,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
-            specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+            specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
             specializations[4 + 0].i = shape_bordered_packed.dims;
             specializations[4 + 1].i = shape_bordered_packed.cstep / 4;
@@ -225,13 +226,13 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             specializations[4 + 6].i = out_shape_packed.c;
             specializations[4 + 7].i = out_shape_packed.cstep / 4;
 
-            pipeline_convolution_1x1s1d1->create("convolution_1x1s1d1", opt, specializations, 4, 8);
+            pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1, opt, specializations);
         }
         else
         {
             pipeline_convolution = new Pipeline(vkdev);
             pipeline_convolution->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolution->create("convolution", opt, specializations, 4, 10);
+            pipeline_convolution->create(LayerShaderType::convolution, opt, specializations);
         }
     }
 
@@ -246,7 +247,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
-            specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+            specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
             specializations[4 + 0].i = shape_bordered_packed.dims;
             specializations[4 + 1].i = shape_bordered_packed.w * shape_bordered_packed.h;
@@ -257,7 +258,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             specializations[4 + 6].i = out_shape_packed.c;
             specializations[4 + 7].i = out_shape_packed.cstep;
 
-            pipeline_convolution_pack4_1x1s1d1->create("convolution_pack4_1x1s1d1", opt, specializations, 4, 8);
+            pipeline_convolution_pack4_1x1s1d1->create(LayerShaderType::convolution_pack4_1x1s1d1, opt, specializations);
         }
         else if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
         {
@@ -353,7 +354,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input->create("convolution_pack4_3x3s1d1_winograd23_transform_input", opt, specializations, 2, 7);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input->create(LayerShaderType::convolution_pack4_3x3s1d1_winograd23_transform_input, opt, specializations);
             }
 
             {
@@ -366,14 +367,14 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, std::min(4, num_output / 4));
-                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create("convolution_pack4_3x3s1d1_winograd23_gemm", opt, specializations, 3, 5);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_pack4_3x3s1d1_winograd23_gemm, opt, specializations);
             }
 
             {
                 std::vector<vk_specialization_type> specializations(4 + 7);
                 specializations[0].i = bias_term;
                 specializations[1].i = activation_type;
-                specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+                specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
                 specializations[4 + 0].i = shape_winograd_gemm_packed.c;
                 specializations[4 + 1].i = shape_winograd_gemm_packed.cstep;
@@ -385,14 +386,14 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->create("convolution_pack4_3x3s1d1_winograd23_transform_output", opt, specializations, 3, 7);
+                pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output->create(LayerShaderType::convolution_pack4_3x3s1d1_winograd23_transform_output, opt, specializations);
             }
         }
         else
         {
             pipeline_convolution_pack4 = new Pipeline(vkdev);
             pipeline_convolution_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolution_pack4->create("convolution_pack4", opt, specializations, 4, 10);
+            pipeline_convolution_pack4->create(LayerShaderType::convolution_pack4, opt, specializations);
         }
     }
 
@@ -401,7 +402,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack1to4 = new Pipeline(vkdev);
         pipeline_convolution_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack1to4->create("convolution_pack1to4", opt, specializations, 4, 10);
+        pipeline_convolution_pack1to4->create(LayerShaderType::convolution_pack1to4, opt, specializations);
     }
 
     // pack4to1
@@ -409,7 +410,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack4to1 = new Pipeline(vkdev);
         pipeline_convolution_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack4to1->create("convolution_pack4to1", opt, specializations, 4, 10);
+        pipeline_convolution_pack4to1->create(LayerShaderType::convolution_pack4to1, opt, specializations);
     }
 
     // pack8
@@ -423,7 +424,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             std::vector<vk_specialization_type> specializations(4 + 8);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
-            specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+            specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
             specializations[4 + 0].i = shape_bordered_packed.dims;
             specializations[4 + 1].i = shape_bordered_packed.w * shape_bordered_packed.h;
@@ -434,7 +435,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             specializations[4 + 6].i = out_shape_packed.c;
             specializations[4 + 7].i = out_shape_packed.cstep;
 
-            pipeline_convolution_pack8_1x1s1d1->create("convolution_pack8_1x1s1d1", opt, specializations, 4, 8);
+            pipeline_convolution_pack8_1x1s1d1->create(LayerShaderType::convolution_pack8_1x1s1d1, opt, specializations);
         }
         else if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
         {
@@ -530,7 +531,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack8_3x3s1d1_winograd23_transform_input = new Pipeline(vkdev);
                 pipeline_convolution_pack8_3x3s1d1_winograd23_transform_input->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack8_3x3s1d1_winograd23_transform_input->create("convolution_pack8_3x3s1d1_winograd23_transform_input", opt, specializations, 2, 7);
+                pipeline_convolution_pack8_3x3s1d1_winograd23_transform_input->create(LayerShaderType::convolution_pack8_3x3s1d1_winograd23_transform_input, opt, specializations);
             }
 
             {
@@ -543,14 +544,14 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack8_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
                 pipeline_convolution_pack8_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, std::min(4, num_output / 8));
-                pipeline_convolution_pack8_3x3s1d1_winograd23_gemm->create("convolution_pack8_3x3s1d1_winograd23_gemm", opt, specializations, 3, 5);
+                pipeline_convolution_pack8_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_pack8_3x3s1d1_winograd23_gemm, opt, specializations);
             }
 
             {
                 std::vector<vk_specialization_type> specializations(4 + 7);
                 specializations[0].i = bias_term;
                 specializations[1].i = activation_type;
-                specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+                specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
                 specializations[4 + 0].i = shape_winograd_gemm_packed.c;
                 specializations[4 + 1].i = shape_winograd_gemm_packed.cstep;
@@ -562,14 +563,14 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_convolution_pack8_3x3s1d1_winograd23_transform_output = new Pipeline(vkdev);
                 pipeline_convolution_pack8_3x3s1d1_winograd23_transform_output->set_local_size_xyz(8, 8, 1);
-                pipeline_convolution_pack8_3x3s1d1_winograd23_transform_output->create("convolution_pack8_3x3s1d1_winograd23_transform_output", opt, specializations, 3, 7);
+                pipeline_convolution_pack8_3x3s1d1_winograd23_transform_output->create(LayerShaderType::convolution_pack8_3x3s1d1_winograd23_transform_output, opt, specializations);
             }
         }
         else
         {
             pipeline_convolution_pack8 = new Pipeline(vkdev);
             pipeline_convolution_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolution_pack8->create("convolution_pack8", opt, specializations, 4, 10);
+            pipeline_convolution_pack8->create(LayerShaderType::convolution_pack8, opt, specializations);
         }
     }
 
@@ -578,7 +579,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack1to8 = new Pipeline(vkdev);
         pipeline_convolution_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack1to8->create("convolution_pack1to8", opt, specializations, 4, 10);
+        pipeline_convolution_pack1to8->create(LayerShaderType::convolution_pack1to8, opt, specializations);
     }
 
     // pack4to8
@@ -586,7 +587,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack4to8 = new Pipeline(vkdev);
         pipeline_convolution_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack4to8->create("convolution_pack4to8", opt, specializations, 4, 10);
+        pipeline_convolution_pack4to8->create(LayerShaderType::convolution_pack4to8, opt, specializations);
     }
 
     // pack8to4
@@ -594,7 +595,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack8to4 = new Pipeline(vkdev);
         pipeline_convolution_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack8to4->create("convolution_pack8to4", opt, specializations, 4, 10);
+        pipeline_convolution_pack8to4->create(LayerShaderType::convolution_pack8to4, opt, specializations);
     }
 
     // pack8to1
@@ -602,7 +603,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_convolution_pack8to1 = new Pipeline(vkdev);
         pipeline_convolution_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolution_pack8to1->create("convolution_pack8to1", opt, specializations, 4, 10);
+        pipeline_convolution_pack8to1->create(LayerShaderType::convolution_pack8to1, opt, specializations);
     }
 
     return 0;
@@ -1009,8 +1010,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            padding_param_blob.prepare_staging_buffer();
+            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = hpad / 2;
@@ -1036,8 +1036,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            padding_param_blob.prepare_staging_buffer();
+            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = hpad - hpad / 2;
@@ -1088,8 +1087,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            padding_param_blob.prepare_staging_buffer();
+            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = 0;
@@ -1109,7 +1107,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // transform input
         VkMat bottom_tm_blob;
         {
-            bottom_tm_blob.create(16, block_x * block_y, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            bottom_tm_blob.create(16, block_x * block_y, channels, elemsize, elempack, opt.workspace_vkallocator);
             if (bottom_tm_blob.empty())
                 return -100;
 
@@ -1137,7 +1135,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // gemm
         VkMat top_tm_blob;
         {
-            top_tm_blob.create(16, block_x * block_y, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            top_tm_blob.create(16, block_x * block_y, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
             if (top_tm_blob.empty())
                 return -100;
 
@@ -1164,7 +1162,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // transform output
         VkMat top_blob_bordered;
         {
-            top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
             if (top_blob_bordered.empty())
                 return -100;
 
@@ -1192,8 +1190,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         // crop top_blob
         {
-            VkMat crop_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            crop_param_blob.prepare_staging_buffer();
+            VkMat crop_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
             int* crop_params = crop_param_blob.mapped();
 
             crop_params[0] = 0;
@@ -1231,8 +1228,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            padding_param_blob.prepare_staging_buffer();
+            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = 0;
@@ -1252,7 +1248,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // transform input
         VkMat bottom_tm_blob;
         {
-            bottom_tm_blob.create(16, block_x * block_y, channels, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            bottom_tm_blob.create(16, block_x * block_y, channels, elemsize, elempack, opt.workspace_vkallocator);
             if (bottom_tm_blob.empty())
                 return -100;
 
@@ -1280,7 +1276,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // gemm
         VkMat top_tm_blob;
         {
-            top_tm_blob.create(16, block_x * block_y, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            top_tm_blob.create(16, block_x * block_y, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
             if (top_tm_blob.empty())
                 return -100;
 
@@ -1307,7 +1303,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // transform output
         VkMat top_blob_bordered;
         {
-            top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+            top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
             if (top_blob_bordered.empty())
                 return -100;
 
@@ -1335,8 +1331,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         // crop top_blob
         {
-            VkMat crop_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator, opt.staging_vkallocator);
-            crop_param_blob.prepare_staging_buffer();
+            VkMat crop_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
             int* crop_params = crop_param_blob.mapped();
 
             crop_params[0] = 0;
@@ -1359,7 +1354,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     }
 
 
-    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 

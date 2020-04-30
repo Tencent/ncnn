@@ -63,7 +63,7 @@ static std::vector<int> get_node_attr_ai(const onnx::NodeProto& node, const char
             v.resize(attr.ints_size());
             for (int j=0; j<attr.ints_size(); j++)
             {
-                v[j] = attr.ints(j);
+                v[j] = std::max(std::min(attr.ints(j), (::google::protobuf::int64)INT_MAX), (::google::protobuf::int64)INT_MIN);
             }
 
             break;
@@ -102,7 +102,7 @@ static int get_node_attr_i(const onnx::NodeProto& node, const char* key, int def
         const onnx::AttributeProto& attr = node.attribute(i);
         if (attr.name() == key)
         {
-            return attr.i();
+            return std::max(std::min(attr.i(), (::google::protobuf::int64)INT_MAX), (::google::protobuf::int64)INT_MIN);
         }
     }
 
@@ -151,30 +151,54 @@ static onnx::TensorProto get_node_attr_tensor(const onnx::NodeProto& node, const
     return onnx::TensorProto();
 }
 
-static std::vector<int> get_tensor_proto_reshape_shape(const onnx::TensorProto& tp)
+static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
 {
-    const int64_t* shape_data = 0;
     int size = 0;
 
+    std::vector<int> v;
+
     // int64
-    if (tp.has_raw_data())
+    if (tp.data_type() == 7) 
     {
-        shape_data = (const int64_t*)tp.raw_data().data();
-        size = tp.raw_data().size() / 8;
-    }
-    else if (tp.data_type() == 7)
+        const int64_t* shape_data = 0;
+        if (tp.has_raw_data())
+        {
+            shape_data = (const int64_t*)tp.raw_data().data();
+            size = tp.raw_data().size() / 8;
+        }
+        else 
+        {
+            shape_data = tp.int64_data().data();
+            size = tp.int64_data_size();
+        }
+        for (int j=0; j<size; j++)
+        {
+            v.push_back(shape_data[j]);
+        }
+    } 
+    // int32
+    else if (tp.data_type() == 6) 
     {
-        shape_data = tp.int64_data().data();
-        size = tp.int64_data_size();
+        const int32_t* shape_data = 0;
+        if (tp.has_raw_data())
+        {
+            shape_data = (const int32_t*)tp.raw_data().data();
+            size = tp.raw_data().size() / 4;
+        } 
+        else 
+        {
+            shape_data = tp.int32_data().data();
+            size = tp.int32_data_size();
+        }
+        for (int j=0; j<size; j++)
+        {
+            v.push_back(shape_data[j]);
+        }
+    } else {
+        fprintf(stderr, "Unknown data type %d\n", tp.data_type());
     }
 
-    std::vector<int> shape;
-    for (int j=0; j<size; j++)
-    {
-        shape.push_back(shape_data[j]);
-    }
-
-    return shape;
+    return v;
 }
 
 static int get_tensor_proto_data_size(const onnx::TensorProto& tp)
@@ -315,7 +339,7 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
                 if (weights.find(node->input(1)) == weights.end())
                     continue;
 
-                shape = get_tensor_proto_reshape_shape(weights[node->input(1)]);
+                shape = get_node_attr_from_input_ai(weights[node->input(1)]);
             }
 
             // 1 groups channels_per_group, height, width
@@ -364,7 +388,7 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
                 if (weights.find(node3->input(1)) == weights.end())
                     continue;
 
-                shape3 = get_tensor_proto_reshape_shape(weights[node3->input(1)]);
+                shape3 = get_node_attr_from_input_ai(weights[node3->input(1)]);
             }
 
             // 1, -1, height, width
@@ -404,6 +428,9 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
         // HardSwish <= Add(+3) - Clip(0,6) - Mul(X,) - Div(/6)
+        // HardSwish <= Add(+3) - Clip(0,6) - Mul(X,) - Mul(*(1/6))
+        // HardSwish <= Add(+3) - Clip(0,6) - Mul(X,) - Constant - Div(/6)
+        // HardSwish <= Add(+3) - Clip(0,6) - Mul(X,) - Constant - Mul(*(1/6))
         //     out = x * F.relu6(x + 3, inplace=True) / 6
         if (node->op_type() == "Add")
         {
@@ -428,14 +455,37 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
             onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
             onnx::NodeProto* node4 = mutable_graph->mutable_node(i+3);
 
-            if (node2->op_type() != "Clip" || node3->op_type() != "Mul" || node4->op_type() != "Div")
+            if (node4->op_type() == "Constant")
+            {
+                if (i+4 >= node_count)
+                    continue;
+
+                node4 = mutable_graph->mutable_node(i+4);
+            }
+
+            if (node2->op_type() != "Clip" || node3->op_type() != "Mul" || (node4->op_type() != "Div" && node4->op_type() != "Mul"))
                 continue;
 
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
                 continue;
 
-            float relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
-            float relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            float relu6_min;
+            float relu6_max;
+            if (node2->input_size() == 1)
+            {
+                relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
+                relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node2->input(1)];
+                const onnx::TensorProto& max_tp = weights[node2->input(2)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+                const float* max_data = max_tp.has_raw_data() ? (const float*)max_tp.raw_data().data() : max_tp.float_data().data();
+
+                relu6_min = min_data[0];
+                relu6_max = max_data[0];
+            }
             if (relu6_min != 0.f || relu6_max != 6.f)
                 continue;
 
@@ -453,7 +503,9 @@ static void fuse_hardswish(onnx::GraphProto* mutable_graph, std::map<std::string
                 continue;
 
             float constant_div_six = div_six.has_raw_data() ? ((const float*)div_six.raw_data().data())[0] : div_six.float_data().data()[0];
-            if (constant_div_six != 6.f)
+            if (node4->op_type() == "Div" && constant_div_six != 6.f)
+                continue;
+            if (node4->op_type() == "Mul" && constant_div_six != 1/6.f)
                 continue;
 
             // reduce
@@ -549,6 +601,9 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
         // HardSigmoid <= Add(+3) - Clip(0,6) - Div(/6)
+        // HardSigmoid <= Add(+3) - Clip(0,6) - Mul(*(1/6))
+        // HardSigmoid <= Add(+3) - Clip(0,6) - Constant - Div(/6)
+        // HardSigmoid <= Add(+3) - Clip(0,6) - Constant - Mul(*(1/6))
         //     out = F.relu6(x + 3, inplace=True) / 6
         if (node->op_type() == "Add")
         {
@@ -572,14 +627,37 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
             onnx::NodeProto* node2 = mutable_graph->mutable_node(i+1);
             onnx::NodeProto* node3 = mutable_graph->mutable_node(i+2);
 
-            if (node2->op_type() != "Clip" || node3->op_type() != "Div")
+            if (node3->op_type() == "Constant")
+            {
+                if (i+3 >= node_count)
+                    continue;
+
+                node3 = mutable_graph->mutable_node(i+3);
+            }
+
+            if (node2->op_type() != "Clip" || (node3->op_type() != "Div" && node3->op_type() != "Mul"))
                 continue;
 
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
                 continue;
 
-            float relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
-            float relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            float relu6_min;
+            float relu6_max;
+            if (node2->input_size() == 1)
+            {
+                relu6_min = get_node_attr_f(*node2, "min", -FLT_MAX);
+                relu6_max = get_node_attr_f(*node2, "max", FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node2->input(1)];
+                const onnx::TensorProto& max_tp = weights[node2->input(2)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+                const float* max_data = max_tp.has_raw_data() ? (const float*)max_tp.raw_data().data() : max_tp.float_data().data();
+
+                relu6_min = min_data[0];
+                relu6_max = max_data[0];
+            }
             if (relu6_min != 0.f || relu6_max != 6.f)
                 continue;
 
@@ -591,7 +669,9 @@ static void fuse_hardsigmoid(onnx::GraphProto* mutable_graph, std::map<std::stri
                 continue;
 
             float constant_div_six = div_six.has_raw_data() ? ((const float*)div_six.raw_data().data())[0] : div_six.float_data().data()[0];
-            if (constant_div_six != 6.f)
+            if (node3->op_type() == "Div" && constant_div_six != 6.f)
+                continue;
+            if (node3->op_type() == "Mul" && constant_div_six != 1/6.f)
                 continue;
 
             // reduce
@@ -769,7 +849,18 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
                 continue;
 
             // +eps
-            float clip_min = get_node_attr_f(*node2, "min", 0.f);
+            float clip_min;
+            if (node2->input_size() == 1)
+            {
+                clip_min = get_node_attr_f(*node2, "min", -FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node2->input(1)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+
+                clip_min = min_data[0];
+            }
 
             // reduce
             node->set_op_type("noop_reducedncnn");
@@ -858,7 +949,7 @@ static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, 
             if (weights.find(node2->input(1)) == weights.end())
                 continue;
 
-            std::vector<int> gather_indices = get_tensor_proto_reshape_shape(weights[node2->input(1)]);
+            std::vector<int> gather_indices = get_node_attr_from_input_ai(weights[node2->input(1)]);
             if (gather_indices.size() != 1 || gather_indices[0] != 0)
                 continue;
 
@@ -880,7 +971,7 @@ static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, 
             if (weights.find(node5->input(0)) == weights.end())
                 continue;
 
-            std::vector<int> unsqueeze2_data = get_tensor_proto_reshape_shape(weights[node5->input(0)]);
+            std::vector<int> unsqueeze2_data = get_node_attr_from_input_ai(weights[node5->input(0)]);
             if (unsqueeze2_data.size() != 1 || unsqueeze2_data[0] != -1)
                 continue;
 
@@ -947,7 +1038,7 @@ static void fuse_pixelshuffle(onnx::GraphProto* mutable_graph, std::map<std::str
                 if (weights.find(node->input(1)) == weights.end())
                     continue;
 
-                shape = get_tensor_proto_reshape_shape(weights[node->input(1)]);
+                shape = get_node_attr_from_input_ai(weights[node->input(1)]);
             }
 
             // -1, 3, upscale_factor, upscale_factor, height, width
@@ -999,7 +1090,7 @@ static void fuse_pixelshuffle(onnx::GraphProto* mutable_graph, std::map<std::str
                 if (weights.find(node3->input(1)) == weights.end())
                     continue;
 
-                shape3 = get_tensor_proto_reshape_shape(weights[node3->input(1)]);
+                shape3 = get_node_attr_from_input_ai(weights[node3->input(1)]);
             }
 
             // -1, 3, height, width
@@ -1183,9 +1274,22 @@ int main(int argc, char** argv)
             {
                 node_reference[input_name] = node_reference[input_name] + 1;
             }
+
+            if (op == "LSTM")
+            {
+                // ignore all optional input blobs
+                break;
+            }
         }
 
         if (op == "Dropout")
+        {
+            const std::string& output_name = node.output(0);
+            blob_names.insert(output_name);
+            continue;
+        }
+
+        if (op == "LSTM")
         {
             const std::string& output_name = node.output(0);
             blob_names.insert(output_name);
@@ -1290,13 +1394,9 @@ int main(int argc, char** argv)
     }
 
     // place MemoryData next
-    for (int j=0; j<graph.input_size(); j++)
+    for (std::map<std::string, onnx::TensorProto>::iterator it = binaryop_weights.begin(); it != binaryop_weights.end(); it++)
     {
-        const std::string& input_name = graph.input(j).name();
-
-        // check weight before BinaryOp
-        if (binaryop_weights.find(input_name) == binaryop_weights.end())
-            continue;
+        const std::string& input_name = it->first;
 
         if (std::find(reduced_binaryop_weights.begin(), reduced_binaryop_weights.end(), input_name) != reduced_binaryop_weights.end())
             continue;
@@ -1347,7 +1447,6 @@ int main(int argc, char** argv)
         fprintf(pp, "\n");
 
         internal_split++;
-
     }
 
     for (int i=0; i<node_count; i++)
@@ -1437,6 +1536,9 @@ int main(int argc, char** argv)
             // check weight before BinaryOp
             if (binaryop_weights.find(node.output(0)) != binaryop_weights.end())
             {
+                if (std::find(reduced_binaryop_weights.begin(), reduced_binaryop_weights.end(), node.output(0)) != reduced_binaryop_weights.end())
+                    continue;
+
                 fprintf(pp, "%-16s", "MemoryData");
             }
             else
@@ -1548,6 +1650,13 @@ int main(int argc, char** argv)
         else if (op == "LRN")
         {
             fprintf(pp, "%-16s", "LRN");
+        }
+        else if (op == "LSTM")
+        {
+            fprintf(pp, "%-16s", "LSTM");
+            // force no output hidden and cell blob
+            input_size = 1;
+            output_size = 1;
         }
         else if (op == "MatMul")
         {
@@ -1686,7 +1795,7 @@ int main(int argc, char** argv)
 
         fprintf(pp, " %-24s %d %d", name.c_str(), input_size, output_size);
 
-        for (int j=0; j<node.input_size(); j++)
+        for (int j=0; j<input_size; j++)
         {
             std::string input_name = node.input(j);
 
@@ -1836,8 +1945,24 @@ int main(int argc, char** argv)
         }
         else if (op == "Clip")
         {
-            float min = get_node_attr_f(node, "min", -FLT_MAX);
-            float max = get_node_attr_f(node, "max", FLT_MAX);
+            float min;
+            float max;
+            if (node.input_size() == 1)
+            {
+                min = get_node_attr_f(node, "min", -FLT_MAX);
+                max = get_node_attr_f(node, "max", FLT_MAX);
+            }
+            else
+            {
+                const onnx::TensorProto& min_tp = weights[node.input(1)];
+                const onnx::TensorProto& max_tp = weights[node.input(2)];
+                const float* min_data = min_tp.has_raw_data() ? (const float*)min_tp.raw_data().data() : min_tp.float_data().data();
+                const float* max_data = max_tp.has_raw_data() ? (const float*)max_tp.raw_data().data() : max_tp.float_data().data();
+
+                min = min_data[0];
+                max = max_data[0];
+            }
+
             fprintf(pp, " 0=%e", min);
             fprintf(pp, " 1=%e", max);
         }
@@ -2245,6 +2370,168 @@ int main(int argc, char** argv)
             fprintf(pp, " 3=%e", beta);
             fprintf(pp, " 4=%e", bias);
         }
+        else if (op == "LSTM")
+        {
+            const onnx::TensorProto& W = weights[node.input(1)];
+            const onnx::TensorProto& R = weights[node.input(2)];
+            const onnx::TensorProto& B = weights[node.input(3)];
+
+            int hidden_size = get_node_attr_i(node, "hidden_size", 0);
+            std::string direction = get_node_attr_s(node, "direction");
+
+            int direction_type = 0;
+            if (direction == "forward")
+            {
+                direction_type = 0;
+            }
+            else if (direction == "reverse")
+            {
+                direction_type = 1;
+            }
+            else if (direction == "bidirectional")
+            {
+                direction_type = 2;
+            }
+
+            int weight_data_size = get_tensor_proto_data_size(W);
+
+            fprintf(pp, " 0=%d", hidden_size);
+            fprintf(pp, " 1=%d", weight_data_size);
+            fprintf(pp, " 2=%d", direction_type);
+
+            int num_directions = direction_type == 2 ? 2 : 1;
+
+            int quantize_tag = 0;
+
+            // reorder num_directions-IOFG-hidden-size to num_directions-IFOG-hidden-size
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int weight_data_size_g = get_tensor_proto_data_size(W) / 4 / num_directions;
+                const float* wptr = W.has_raw_data() ? (const float*)W.raw_data().data() : W.float_data().data();
+
+                const float* iptr = wptr;
+                const float* optr = wptr + weight_data_size_g;
+                const float* fptr = wptr + weight_data_size_g * 2;
+                const float* gptr = wptr + weight_data_size_g * 3;
+                fwrite(iptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(fptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(optr, sizeof(float), weight_data_size_g, bp);
+                fwrite(gptr, sizeof(float), weight_data_size_g, bp);
+
+                if (direction_type == 2)
+                {
+                    iptr += weight_data_size_g * 4;
+                    optr += weight_data_size_g * 4;
+                    fptr += weight_data_size_g * 4;
+                    gptr += weight_data_size_g * 4;
+                    fwrite(iptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(fptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(optr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(gptr, sizeof(float), weight_data_size_g, bp);
+                }
+            }
+
+            // reduce xc and hc bias
+            // reorder num_directions-IOFG-hidden to num_directions-IFOG-hidden
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int bias_data_size_g = get_tensor_proto_data_size(B) / 2 / 4 / num_directions;
+                const float* xcbptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+                const float* xiptr = xcbptr;
+                const float* xoptr = xcbptr + bias_data_size_g;
+                const float* xfptr = xcbptr + bias_data_size_g * 2;
+                const float* xgptr = xcbptr + bias_data_size_g * 3;
+                const float* hiptr = xcbptr + bias_data_size_g * 4;
+                const float* hoptr = xcbptr + bias_data_size_g * 5;
+                const float* hfptr = xcbptr + bias_data_size_g * 6;
+                const float* hgptr = xcbptr + bias_data_size_g * 7;
+
+                for (int j=0; j<bias_data_size_g; j++)
+                {
+                    float vb = xiptr[j] + hiptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+                for (int j=0; j<bias_data_size_g; j++)
+                {
+                    float vb = xfptr[j] + hfptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+                for (int j=0; j<bias_data_size_g; j++)
+                {
+                    float vb = xoptr[j] + hoptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+                for (int j=0; j<bias_data_size_g; j++)
+                {
+                    float vb = xgptr[j] + hgptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+
+                if (direction_type == 2)
+                {
+                    xiptr += bias_data_size_g * 8;
+                    xoptr += bias_data_size_g * 8;
+                    xfptr += bias_data_size_g * 8;
+                    xgptr += bias_data_size_g * 8;
+                    hiptr += bias_data_size_g * 8;
+                    hoptr += bias_data_size_g * 8;
+                    hfptr += bias_data_size_g * 8;
+                    hgptr += bias_data_size_g * 8;
+
+                    for (int j=0; j<bias_data_size_g; j++)
+                    {
+                        float vb = xiptr[j] + hiptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                    for (int j=0; j<bias_data_size_g; j++)
+                    {
+                        float vb = xfptr[j] + hfptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                    for (int j=0; j<bias_data_size_g; j++)
+                    {
+                        float vb = xoptr[j] + hoptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                    for (int j=0; j<bias_data_size_g; j++)
+                    {
+                        float vb = xgptr[j] + hgptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                }
+            }
+
+            // reorder num_directions-IOFG-hidden-hidden to num_directions-IFOG-hidden-hidden
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int weight_data_size_g = get_tensor_proto_data_size(R) / 4 / num_directions;
+                const float* rptr = R.has_raw_data() ? (const float*)R.raw_data().data() : R.float_data().data();
+
+                const float* iptr = rptr;
+                const float* optr = rptr + weight_data_size_g;
+                const float* fptr = rptr + weight_data_size_g * 2;
+                const float* gptr = rptr + weight_data_size_g * 3;
+                fwrite(iptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(fptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(optr, sizeof(float), weight_data_size_g, bp);
+                fwrite(gptr, sizeof(float), weight_data_size_g, bp);
+
+                if (direction_type == 2)
+                {
+                    iptr += weight_data_size_g * 4;
+                    optr += weight_data_size_g * 4;
+                    fptr += weight_data_size_g * 4;
+                    gptr += weight_data_size_g * 4;
+                    fwrite(iptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(fptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(optr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(gptr, sizeof(float), weight_data_size_g, bp);
+                }
+            }
+        }
         else if (op == "MatMul")
         {
             const onnx::TensorProto& B = weights[node.input(1)];
@@ -2313,8 +2600,17 @@ int main(int argc, char** argv)
         else if (op == "Pad")
         {
             std::string mode = get_node_attr_s(node, "mode");
-            std::vector<int> pads = get_node_attr_ai(node, "pads");
             float value = get_node_attr_f(node, "value", 0.f);
+
+            std::vector<int> pads;
+            if (node.input_size() == 1)
+            {
+                pads = get_node_attr_ai(node, "pads");
+            }
+            else
+            {
+                pads = get_node_attr_from_input_ai(weights[node.input(1)]);
+            }
 
             int type = 0;
             if (mode == "constant")
@@ -2448,7 +2744,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                shape = get_tensor_proto_reshape_shape(weights[node.input(1)]);
+                shape = get_node_attr_from_input_ai(weights[node.input(1)]);
             }
 
             if (shape.size() == 1) {
@@ -2468,6 +2764,94 @@ int main(int argc, char** argv)
                 fprintf(pp, " 2=%d", shape[1]);
             }
         }
+        else if (op == "Resize")
+        {
+            std::string mode = get_node_attr_s(node, "mode");
+
+            std::vector<float> scales;
+            {
+                const onnx::TensorProto& scales_tp = weights[node.input(2)];
+                const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
+
+                int float_data_size = scales_tp.float_data_size();
+                //float data is None, use raw data instead
+                if (float_data_size == 0) {
+                    float_data_size = scales_tp.dims().Get(0);
+                }
+
+                for (int j=0; j<float_data_size; j++)
+                {
+                    scales.push_back(shape_data[j]);
+                }
+            }
+
+            std::vector<int> sizes;
+            {
+                sizes = get_node_attr_from_input_ai(weights[node.input(3)]);
+            }
+
+            int resize_type = 1;
+            if (mode == "nearest")
+            {
+                resize_type = 1;
+            }
+            else if (mode == "linear")
+            {
+                resize_type = 2;
+            }
+            else if (mode == "cubic")
+            {
+                resize_type = 3;
+            }
+
+            if (scales.empty() && sizes.empty())
+            {
+                fprintf(stderr, "Unsupported Resize scales and sizes are all empty!\n");
+            }
+
+            float h_scale = 1.f;
+            float w_scale = 1.f;
+            if (scales.size() == 2)
+            {
+                w_scale = scales[1];
+            }
+            else if (scales.size() == 3)
+            {
+                h_scale = scales[1];
+                w_scale = scales[2];
+            }
+            else if (scales.size() == 4)
+            {
+                h_scale = scales[2];
+                w_scale = scales[3];
+
+                if (scales[1] != 1.f)
+                    fprintf(stderr, "Unsupported Resize scales !\n");
+            }
+
+            int output_height = 0;
+            int output_width = 0;
+            if (sizes.size() == 2)
+            {
+                output_width = sizes[1];
+            }
+            else if (sizes.size() == 3)
+            {
+                output_height = sizes[1];
+                output_width = sizes[2];
+            }
+            else if (sizes.size() == 4)
+            {
+                output_height = sizes[2];
+                output_width = sizes[3];
+            }
+
+            fprintf(pp, " 0=%d", resize_type);
+            fprintf(pp, " 1=%e", h_scale);
+            fprintf(pp, " 2=%e", w_scale);
+            fprintf(pp, " 3=%d", output_height);
+            fprintf(pp, " 4=%d", output_width);
+        }
         else if (op == "ShuffleChannel")
         {
             int group = get_node_attr_i(node, "group", 1);
@@ -2483,10 +2867,24 @@ int main(int argc, char** argv)
         }
         else if (op == "Slice")
         {
-            std::vector<int> starts = get_node_attr_ai(node, "starts");
-            std::vector<int> ends = get_node_attr_ai(node, "ends");
-            std::vector<int> axes = get_node_attr_ai(node, "axes");
-            std::vector<int> steps = get_node_attr_ai(node, "steps");// TODO
+            std::vector<int> starts;
+            std::vector<int> ends;
+            std::vector<int> axes;
+            std::vector<int> steps;
+            if (node.input_size() == 1)
+            {
+                starts = get_node_attr_ai(node, "starts");
+                ends = get_node_attr_ai(node, "ends");
+                axes = get_node_attr_ai(node, "axes");
+                steps = get_node_attr_ai(node, "steps");// TODO
+            }
+            else
+            {
+                starts = get_node_attr_from_input_ai(weights[node.input(1)]);
+                ends = get_node_attr_from_input_ai(weights[node.input(2)]);
+                axes = get_node_attr_from_input_ai(weights[node.input(3)]);
+                steps = get_node_attr_from_input_ai(weights[node.input(4)]);
+            }
 
             // assert step == 1
             for (int i=0; i<(int)steps.size(); i++)
@@ -2495,24 +2893,45 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
-            fprintf(pp, " -23309=%zu", starts.size());
+            // filter out N-dim axis
+            if (!axes.empty())
+            {
+                for (int i=0; i<(int)axes.size(); i++)
+                {
+                    int axis = axes[i];
+                    if (axis == 0)
+                    {
+                        starts.erase(starts.begin() + i);
+                        ends.erase(ends.begin() + i);
+                        axes.erase(axes.begin() + i);
+                        break;
+                    }
+                }
+            }
+
+            fprintf(pp, " -23309=%d", (int)starts.size());
             for (int i=0; i<(int)starts.size(); i++)
             {
                 fprintf(pp, ",%d", starts[i]);
             }
-            fprintf(pp, " -23310=%zu", ends.size());
+            fprintf(pp, " -23310=%d", (int)ends.size());
             for (int i=0; i<(int)ends.size(); i++)
             {
                 fprintf(pp, ",%d", ends[i]);
             }
             if (!axes.empty())
             {
-                fprintf(pp, " -23311=%zu", axes.size());
+                fprintf(pp, " -23311=%d", (int)axes.size());
                 for (int i=0; i<(int)axes.size(); i++)
                 {
-                    if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
-                        fprintf(stderr, "Unsupported reduction axes !\n");
-                    fprintf(pp, ",%d", axes[i]);
+                    int axis = axes[i];
+                    if (axis == 0 || axis > 3 || axis < -3)
+                        fprintf(stderr, "Unsupported slice axes !\n");
+
+                    if (axis > 0)
+                        axis = axis - 1;// -1 for skip N-dim
+
+                    fprintf(pp, ",%d", axis);
                 }
             }
         }
@@ -2627,7 +3046,7 @@ int main(int argc, char** argv)
                     fprintf(stderr, "Unsupported transpose type !\n");
             }
         }
-        else if (op == "Upsample" || op == "Resize")
+        else if (op == "Upsample")
         {
             std::string mode = get_node_attr_s(node, "mode");
 
@@ -2665,7 +3084,7 @@ int main(int argc, char** argv)
             }
             else if (mode == "trilinear")
             {
-                fprintf(stderr, "Unsupported Upsample/Resize mode !\n");
+                fprintf(stderr, "Unsupported Upsample mode !\n");
             }
 
             float h_scale = 1.f;
@@ -2685,11 +3104,11 @@ int main(int argc, char** argv)
                 w_scale = scales[3];
 
                 if (scales[1] != 1.f)
-                    fprintf(stderr, "Unsupported Upsample/Resize scales !\n");
+                    fprintf(stderr, "Unsupported Upsample scales !\n");
             }
             else
             {
-                fprintf(stderr, "Unsupported Upsample/Resize scales !\n");
+                fprintf(stderr, "Unsupported Upsample scales !\n");
             }
 
             fprintf(pp, " 0=%d", resize_type);

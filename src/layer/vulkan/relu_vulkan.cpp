@@ -14,6 +14,7 @@
 
 #include "relu_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -89,7 +90,7 @@ int ReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_relu = new Pipeline(vkdev);
         pipeline_relu->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_relu->create("relu", opt, specializations, 1, 5);
+        pipeline_relu->create(LayerShaderType::relu, opt, specializations);
     }
 
     // pack4
@@ -97,7 +98,7 @@ int ReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_relu_pack4 = new Pipeline(vkdev);
         pipeline_relu_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_relu_pack4->create("relu_pack4", opt, specializations, 1, 5);
+        pipeline_relu_pack4->create(LayerShaderType::relu_pack4, opt, specializations);
     }
 
     // pack8
@@ -105,7 +106,7 @@ int ReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_relu_pack8 = new Pipeline(vkdev);
         pipeline_relu_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_relu_pack8->create("relu_pack8", opt, specializations, 1, 5);
+        pipeline_relu_pack8->create(LayerShaderType::relu_pack8, opt, specializations);
     }
 
     return 0;

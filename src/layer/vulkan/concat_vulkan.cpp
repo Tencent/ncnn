@@ -15,6 +15,7 @@
 #include "concat_vulkan.h"
 #include <algorithm>
 #include "layer_type.h"
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -132,10 +133,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_concat[0] = new Pipeline(vkdev);
         pipeline_concat[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat[0]->create("concat", opt, specializations, 2, 11);
+        pipeline_concat[0]->create(LayerShaderType::concat, opt, specializations);
         pipeline_concat[1] = new Pipeline(vkdev);
         pipeline_concat[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat[1]->create("concat", opt, specializations, 2, 11);
+        pipeline_concat[1]->create(LayerShaderType::concat, opt, specializations);
     }
 
     // pack4
@@ -143,10 +144,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_concat_pack4[0] = new Pipeline(vkdev);
         pipeline_concat_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat_pack4[0]->create("concat_pack4", opt, specializations, 2, 11);
+        pipeline_concat_pack4[0]->create(LayerShaderType::concat_pack4, opt, specializations);
         pipeline_concat_pack4[1] = new Pipeline(vkdev);
         pipeline_concat_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat_pack4[1]->create("concat_pack4", opt, specializations, 2, 11);
+        pipeline_concat_pack4[1]->create(LayerShaderType::concat_pack4, opt, specializations);
     }
 
     // pack4to1
@@ -154,10 +155,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_concat_pack4to1[0] = new Pipeline(vkdev);
         pipeline_concat_pack4to1[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat_pack4to1[0]->create("concat_pack4to1", opt, specializations, 2, 11);
+        pipeline_concat_pack4to1[0]->create(LayerShaderType::concat_pack4to1, opt, specializations);
         pipeline_concat_pack4to1[1] = new Pipeline(vkdev);
         pipeline_concat_pack4to1[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat_pack4to1[1]->create("concat_pack4to1", opt, specializations, 2, 11);
+        pipeline_concat_pack4to1[1]->create(LayerShaderType::concat_pack4to1, opt, specializations);
     }
 
     // pack8
@@ -165,10 +166,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_concat_pack8[0] = new Pipeline(vkdev);
         pipeline_concat_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat_pack8[0]->create("concat_pack8", opt, specializations, 2, 11);
+        pipeline_concat_pack8[0]->create(LayerShaderType::concat_pack8, opt, specializations);
         pipeline_concat_pack8[1] = new Pipeline(vkdev);
         pipeline_concat_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat_pack8[1]->create("concat_pack8", opt, specializations, 2, 11);
+        pipeline_concat_pack8[1]->create(LayerShaderType::concat_pack8, opt, specializations);
     }
 
     // pack8to4
@@ -176,10 +177,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_concat_pack8to4[0] = new Pipeline(vkdev);
         pipeline_concat_pack8to4[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat_pack8to4[0]->create("concat_pack8to4", opt, specializations, 2, 11);
+        pipeline_concat_pack8to4[0]->create(LayerShaderType::concat_pack8to4, opt, specializations);
         pipeline_concat_pack8to4[1] = new Pipeline(vkdev);
         pipeline_concat_pack8to4[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat_pack8to4[1]->create("concat_pack8to4", opt, specializations, 2, 11);
+        pipeline_concat_pack8to4[1]->create(LayerShaderType::concat_pack8to4, opt, specializations);
     }
 
     // pack8to1
@@ -187,10 +188,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_concat_pack8to1[0] = new Pipeline(vkdev);
         pipeline_concat_pack8to1[0]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat_pack8to1[0]->create("concat_pack8to1", opt, specializations, 2, 11);
+        pipeline_concat_pack8to1[0]->create(LayerShaderType::concat_pack8to1, opt, specializations);
         pipeline_concat_pack8to1[1] = new Pipeline(vkdev);
         pipeline_concat_pack8to1[1]->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_concat_pack8to1[1]->create("concat_pack8to1", opt, specializations, 2, 11);
+        pipeline_concat_pack8to1[1]->create(LayerShaderType::concat_pack8to1, opt, specializations);
     }
 
     if ((axis == 0 && shape.dims == 0) || (elempack < out_elempack && out_elempack == 4))
@@ -311,14 +312,14 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(top_w / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(top_w / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
         VkMat top_blob_unpacked = top_blob;
         if (elempack < out_elempack)
         {
-            top_blob_unpacked.create(top_w / elempack, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            top_blob_unpacked.create(top_w / elempack, elemsize, elempack, opt.workspace_vkallocator);
             if (top_blob_unpacked.empty())
                 return -100;
         }
@@ -414,14 +415,14 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(w, top_h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, top_h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
         VkMat top_blob_unpacked = top_blob;
         if (elempack < out_elempack)
         {
-            top_blob_unpacked.create(w, top_h / elempack, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            top_blob_unpacked.create(w, top_h / elempack, elemsize, elempack, opt.workspace_vkallocator);
             if (top_blob_unpacked.empty())
                 return -100;
         }
@@ -505,7 +506,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(top_w, h, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(top_w, h, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -572,14 +573,14 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(w, h, top_channels / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, h, top_channels / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
         VkMat top_blob_unpacked = top_blob;
         if (elempack < out_elempack)
         {
-            top_blob_unpacked.create(w, h, top_channels / elempack, elemsize, elempack, opt.workspace_vkallocator, opt.staging_vkallocator);
+            top_blob_unpacked.create(w, h, top_channels / elempack, elemsize, elempack, opt.workspace_vkallocator);
             if (top_blob_unpacked.empty())
                 return -100;
         }
@@ -664,7 +665,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(w, top_h, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(w, top_h, channels, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -719,7 +720,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         }
 
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(top_w, h, channels, elemsize, elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(top_w, h, channels, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 

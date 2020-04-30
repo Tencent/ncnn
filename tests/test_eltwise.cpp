@@ -37,11 +37,7 @@ static int test_eltwise(const std::vector<ncnn::Mat>& a, int op_type, const ncnn
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
+    opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Eltwise>("Eltwise", pd, weights, opt, a);
     if (ret != 0)

@@ -14,6 +14,7 @@
 
 #include "scale_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -91,7 +92,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_scale = new Pipeline(vkdev);
             pipeline_scale->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_scale->create("scale", opt, specializations, 3, 5);
+            pipeline_scale->create(LayerShaderType::scale, opt, specializations);
         }
 
         // pack4
@@ -99,7 +100,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_scale_pack4 = new Pipeline(vkdev);
             pipeline_scale_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_scale_pack4->create("scale_pack4", opt, specializations, 3, 5);
+            pipeline_scale_pack4->create(LayerShaderType::scale_pack4, opt, specializations);
         }
 
         // pack8
@@ -107,7 +108,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_scale_pack8 = new Pipeline(vkdev);
             pipeline_scale_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_scale_pack8->create("scale_pack8", opt, specializations, 3, 5);
+            pipeline_scale_pack8->create(LayerShaderType::scale_pack8, opt, specializations);
         }
 
         return 0;
@@ -148,7 +149,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_scale = new Pipeline(vkdev);
         pipeline_scale->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_scale->create("scale", opt, specializations, 3, 5);
+        pipeline_scale->create(LayerShaderType::scale, opt, specializations);
     }
 
     // pack4
@@ -156,7 +157,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_scale_pack4 = new Pipeline(vkdev);
         pipeline_scale_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_scale_pack4->create("scale_pack4", opt, specializations, 3, 5);
+        pipeline_scale_pack4->create(LayerShaderType::scale_pack4, opt, specializations);
     }
 
     // pack8
@@ -164,7 +165,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_scale_pack8 = new Pipeline(vkdev);
         pipeline_scale_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_scale_pack8->create("scale_pack8", opt, specializations, 3, 5);
+        pipeline_scale_pack8->create(LayerShaderType::scale_pack8, opt, specializations);
     }
 
     return 0;
@@ -189,11 +190,19 @@ int Scale_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (scale_data_size == -233)
         return 0;
 
-    cmd.record_upload(scale_data, scale_data_gpu, opt);
+    int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
+
+    Mat scale_data_packed;
+    convert_packing(scale_data, scale_data_packed, elempack);
+
+    cmd.record_upload(scale_data_packed, scale_data_gpu, opt);
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data, bias_data_gpu, opt);
+        Mat bias_data_packed;
+        convert_packing(bias_data, bias_data_packed, elempack);
+
+        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
     }
 
     return 0;

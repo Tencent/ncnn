@@ -163,37 +163,8 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    Mat bottom_blob_bordered = bottom_blob;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
-    {
-        Option opt_b = opt;
-        opt_b.blob_allocator = opt.workspace_allocator;
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
-    }
-    else if (pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
-    {
-        // tensorflow padding=SAME or onnx padding=SAME_UPPER
-        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-        }
-    }
-    else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
-    {
-        // onnx padding=SAME_LOWER
-        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-        }
-    }
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
     if (bottom_blob_bordered.empty())
         return -100;
 
@@ -295,6 +266,47 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     return 0;
 }
 
+void Convolution::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    bottom_blob_bordered = bottom_blob;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
+    {
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
+    }
+    else if (pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
+    {
+        // tensorflow padding=SAME or onnx padding=SAME_UPPER
+        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+        }
+    }
+    else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
+    {
+        // onnx padding=SAME_LOWER
+        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+        }
+    }
+}
+
 static inline signed char float2int8(float v)
 {
     int int32 = static_cast<int>(round(v));
@@ -324,37 +336,8 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         quantize_float32_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scale, opt_g);
     }
 
-    Mat bottom_blob_bordered = bottom_blob_unbordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
-    {
-        Option opt_b = opt;
-        opt_b.blob_allocator = opt.workspace_allocator;
-        copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
-    }
-    else if (pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
-    {
-        // tensorflow padding=SAME or onnx padding=SAME_UPPER
-        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-        }
-    }
-    else if (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234)
-    {
-        // onnx padding=SAME_LOWER
-        int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(bottom_blob_unbordered, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-        }
-    }
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob_unbordered, bottom_blob_bordered, opt);
     if (bottom_blob_bordered.empty())
         return -100;
 

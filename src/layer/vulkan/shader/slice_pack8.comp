@@ -70,7 +70,7 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     ivec3 gxyz = ivec3(gx, gy, gz);
 

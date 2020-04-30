@@ -57,6 +57,8 @@ You shall call Net::load_param() first, then Net::load_model().
 
 This error may also happens when Net::load_param() failed, but not properly handled.
 
+For more information about the ncnn model load api, see [ncnn-load-model](ncnn-load-model)
+
 ### memory not 32-bit aligned at XYZ
 
 The pointer passed to Net::load_param() or Net::load_model() is not 32bit aligned.
@@ -65,13 +67,6 @@ In practice, the head pointer of std::vector<unsigned char> is not guaranteed to
 
 you can store your binary buffer in ncnn::Mat structure, its internal memory is aligned.
 
-### Why I get so many XYZ unsupported yet errors when converting tensorflow model
-
-~~Sorry, I decided to give up maintaining this tool after struggling quite lots time.~~
-I have given up maintaining this tool!
-
-The tensorflow model usually contains huge amount of operations which are not implemented in ncnn, and the operations are too tiny and piecemeal that makes big runtime overhead which is not suitable for deploying on devices.
-
 ### undefined reference to '__kmpc_XYZ_XYZ'
 
 use clang for building android shared library
@@ -79,4 +74,22 @@ use clang for building android shared library
 comment the following line in your Application.mk
 ```
 NDK_TOOLCHAIN_VERSION := 4.9
+```
+
+### crash on android with '__kmp_abort_process'
+
+This usually happens if you bundle multiple shared library with openmp linked
+
+It is actually an issue of the android ndk https://github.com/android/ndk/issues/1028
+
+On old android ndk, modify the link flags as
+
+```
+-Wl,-Bstatic -lomp -Wl,-Bdynamic
+```
+
+For recent ndk >= 21
+
+```
+-fstatic-openmp
 ```

@@ -14,6 +14,7 @@
 
 #include "tanh_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -88,7 +89,7 @@ int TanH_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_tanh = new Pipeline(vkdev);
         pipeline_tanh->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_tanh->create("tanh", opt, specializations, 1, 5);
+        pipeline_tanh->create(LayerShaderType::tanh, opt, specializations);
     }
 
     // pack4
@@ -96,7 +97,7 @@ int TanH_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_tanh_pack4 = new Pipeline(vkdev);
         pipeline_tanh_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_tanh_pack4->create("tanh_pack4", opt, specializations, 1, 5);
+        pipeline_tanh_pack4->create(LayerShaderType::tanh_pack4, opt, specializations);
     }
 
     // pack8
@@ -104,7 +105,7 @@ int TanH_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_tanh_pack8 = new Pipeline(vkdev);
         pipeline_tanh_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_tanh_pack8->create("tanh_pack8", opt, specializations, 1, 5);
+        pipeline_tanh_pack8->create(LayerShaderType::tanh_pack8, opt, specializations);
     }
 
     return 0;

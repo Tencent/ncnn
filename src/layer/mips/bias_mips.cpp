@@ -16,6 +16,7 @@
 
 #if __MIPS_MSA
 #include <msa.h>
+#include "mips_common.h"
 #endif // __MIPS_MSA
 
 namespace ncnn {
@@ -45,7 +46,7 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __MIPS_MSA
 
 #if __MIPS_MSA
-        v4f32 _bias = (v4f32)__msa_fill_w(bias);
+        v4f32 _bias = (v4f32)__msa_fill_w_f32(bias);
         for (; nn>0; nn--)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);

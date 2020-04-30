@@ -15,6 +15,7 @@
 #include "innerproduct_vulkan.h"
 #include <algorithm>
 #include "layer_type.h"
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -96,7 +97,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     std::vector<vk_specialization_type> specializations(4 + 10);
     specializations[0].i = bias_term;
     specializations[1].i = activation_type;
-    specializations[2].f = activation_params.w == 1 ? activation_params[0] : 0.f;
+    specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
     specializations[4 + 0].i = shape_flatten_packed.dims;
     specializations[4 + 1].i = shape_flatten_packed.w;
@@ -122,7 +123,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct = new Pipeline(vkdev);
         pipeline_innerproduct->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct->create("innerproduct", opt, specializations, 4, 10);
+        pipeline_innerproduct->create(LayerShaderType::innerproduct, opt, specializations);
     }
 
     // pack4
@@ -130,7 +131,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack4->create("innerproduct_pack4", opt, specializations, 4, 10);
+        pipeline_innerproduct_pack4->create(LayerShaderType::innerproduct_pack4, opt, specializations);
     }
 
     // pack1to4
@@ -138,7 +139,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack1to4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack1to4->create("innerproduct_pack1to4", opt, specializations, 4, 10);
+        pipeline_innerproduct_pack1to4->create(LayerShaderType::innerproduct_pack1to4, opt, specializations);
     }
 
     // pack4to1
@@ -146,7 +147,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack4to1 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack4to1->create("innerproduct_pack4to1", opt, specializations, 4, 10);
+        pipeline_innerproduct_pack4to1->create(LayerShaderType::innerproduct_pack4to1, opt, specializations);
     }
 
     // pack8
@@ -154,7 +155,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack8 = new Pipeline(vkdev);
         pipeline_innerproduct_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack8->create("innerproduct_pack8", opt, specializations, 4, 10);
+        pipeline_innerproduct_pack8->create(LayerShaderType::innerproduct_pack8, opt, specializations);
     }
 
     // pack1to8
@@ -162,7 +163,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack1to8 = new Pipeline(vkdev);
         pipeline_innerproduct_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack1to8->create("innerproduct_pack1to8", opt, specializations, 4, 10);
+        pipeline_innerproduct_pack1to8->create(LayerShaderType::innerproduct_pack1to8, opt, specializations);
     }
 
     // pack4to8
@@ -170,7 +171,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack4to8 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack4to8->create("innerproduct_pack4to8", opt, specializations, 4, 10);
+        pipeline_innerproduct_pack4to8->create(LayerShaderType::innerproduct_pack4to8, opt, specializations);
     }
 
     // pack8to4
@@ -178,7 +179,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack8to4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack8to4->create("innerproduct_pack8to4", opt, specializations, 4, 10);
+        pipeline_innerproduct_pack8to4->create(LayerShaderType::innerproduct_pack8to4, opt, specializations);
     }
 
     // pack8to1
@@ -186,7 +187,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_innerproduct_pack8to1 = new Pipeline(vkdev);
         pipeline_innerproduct_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack8to1->create("innerproduct_pack8to1", opt, specializations, 4, 10);
+        pipeline_innerproduct_pack8to1->create(LayerShaderType::innerproduct_pack8to1, opt, specializations);
     }
 
     return 0;
@@ -305,7 +306,7 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
-    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 

@@ -14,6 +14,7 @@
 
 #include "hardsigmoid_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -90,7 +91,7 @@ int HardSigmoid_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_hardsigmoid = new Pipeline(vkdev);
         pipeline_hardsigmoid->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardsigmoid->create("hardsigmoid", opt, specializations, 1, 5);
+        pipeline_hardsigmoid->create(LayerShaderType::hardsigmoid, opt, specializations);
     }
 
     // pack4
@@ -98,7 +99,7 @@ int HardSigmoid_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_hardsigmoid_pack4 = new Pipeline(vkdev);
         pipeline_hardsigmoid_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardsigmoid_pack4->create("hardsigmoid_pack4", opt, specializations, 1, 5);
+        pipeline_hardsigmoid_pack4->create(LayerShaderType::hardsigmoid_pack4, opt, specializations);
     }
 
     // pack8
@@ -106,7 +107,7 @@ int HardSigmoid_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_hardsigmoid_pack8 = new Pipeline(vkdev);
         pipeline_hardsigmoid_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardsigmoid_pack8->create("hardsigmoid_pack8", opt, specializations, 1, 5);
+        pipeline_hardsigmoid_pack8->create(LayerShaderType::hardsigmoid_pack8, opt, specializations);
     }
 
     return 0;
