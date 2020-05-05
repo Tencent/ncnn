@@ -21,6 +21,7 @@
 
 #include <vulkan/vulkan.h>
 #include <vector>
+#include "mat.h"
 
 namespace ncnn {
 
@@ -165,9 +166,8 @@ const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());
 
 class VkAllocator;
 class VkCompute;
-class VkMat;
-class VkImageMat;
 class Layer;
+class Packing_vulkan;
 class Option;
 class VulkanDevice
 {
@@ -206,17 +206,15 @@ public:
     // immutable sampler for texelfetch
     const VkSampler* immutable_texelfetch_sampler() const;
 
+    // dummy buffer image
+    VkMat get_dummy_buffer() const;
+    VkImageMat get_dummy_image() const;
+
     // utility operator
-    void cast_float32_to_float16(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
-    void cast_float32_to_float16(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
-    void cast_float16_to_float32(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
-    void cast_float16_to_float32(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
-    void packing_pack1(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
-    void packing_pack1(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
-    void packing_pack4(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
-    void packing_pack4(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
-    void packing_pack8(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const;
-    void packing_pack8(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const;
+    void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
+    void convert_packing(const VkImageMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
+    void convert_packing(const VkMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
+    void convert_packing(const VkImageMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
 
     // VK_KHR_bind_memory2
     PFN_vkBindBufferMemory2KHR vkBindBufferMemory2KHR;
@@ -264,6 +262,10 @@ protected:
     // device extension
     int init_device_extension();
 
+    // dummy buffer and image
+    int create_dummy_buffer_image();
+    void destroy_dummy_buffer_image();
+
     // utility operator
     int create_utility_operator();
     void destroy_utility_operator();
@@ -289,18 +291,18 @@ private:
     // nearest sampler for texelfetch
     VkSampler texelfetch_sampler;
 
+    // dummy buffer and image
+    VkAllocator* dummy_allocator;
+    VkMat dummy_buffer;
+    VkImageMat dummy_image;
+
     // utility operator
-    // 0 = fp32
-    // 1 = fp16p
-    // 2 = fp16s
-    // 3 = image
-    // 4 = image_fp16p
-    // 5 = image_fp16s
-    ncnn::Layer* uop_cast_float32_to_float16[6];
-    ncnn::Layer* uop_cast_float16_to_float32[6];
-    ncnn::Layer* uop_packing_pack1[6];
-    ncnn::Layer* uop_packing_pack4[6];
-    ncnn::Layer* uop_packing_pack8[6];
+    // from buffer | image
+    // to buffer | image
+    // from fp32-b/i | fp16p-b/i | fp16s-b/i
+    // to fp32-b/i | fp16p-b/i | fp16s-b/i
+    // to pack1 | pack4 | pack8
+    ncnn::Packing_vulkan* uop_packing[2][2][3][3][3];
 };
 
 VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());

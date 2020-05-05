@@ -107,36 +107,45 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     }
 
     // upload
-    VkMat dst_unpacked;
-    record_clone(src_fp16, dst_unpacked, opt);
-
-    VkMat dst_unpacked_fp16;
-    if (dst_unpacked.elemsize == dst_unpacked.elempack * 4u)
+    VkMat dst_staging;
+    if (opt.blob_vkallocator->mappable)
     {
-        // cast to fp16 (integrated gpu)
-        if (vkdev->info.type != 0 && (opt.use_fp16_storage || (opt.use_fp16_packed && dst_unpacked.elempack % 4 == 0)))
-        {
-            vkdev->cast_float32_to_float16(dst_unpacked, dst_unpacked_fp16, *this, opt);
-        }
-        else
-        {
-            dst_unpacked_fp16 = dst_unpacked;
-        }
+        dst_staging.create_like(src_fp16, opt.blob_vkallocator);
     }
     else
     {
-        dst_unpacked_fp16 = dst_unpacked;
+        dst_staging.create_like(src_fp16, opt.staging_vkallocator);
     }
+    if (dst_staging.empty())
+        return;
 
-    // packing
+    // stash staging
+    upload_staging_buffers.push_back(dst_staging);
+
+//     fprintf(stderr, "upload_staging_buffer %p  ->   %p +%d ~%d\n", src_fp16.data, dst_staging.buffer(), dst_staging.buffer_offset(), dst_staging.buffer_capacity());
+
+    // memcpy src to device
+    memcpy(dst_staging.mapped_ptr(), src_fp16.data, src_fp16.total() * src_fp16.elemsize);
+    dst_staging.allocator->flush(dst_staging.data);
+
+    // mark device host-write @ null
+    dst_staging.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
+    dst_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
+
+    // resolve dst_elempack
+    int dims = src_fp16.dims;
+    int elemcount = 0;
+    if (dims == 1) elemcount = src_fp16.elempack * src_fp16.w;
+    if (dims == 2) elemcount = src_fp16.elempack * src_fp16.h;
+    if (dims == 3) elemcount = src_fp16.elempack * src_fp16.c;
+
+    int dst_elempack = 1;
     if (opt.use_shader_pack8)
-    {
-        vkdev->packing_pack8(dst_unpacked_fp16, dst, *this, opt);
-        if (dst.elempack != 8)
-            vkdev->packing_pack4(dst_unpacked_fp16, dst, *this, opt);
-    }
+        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
     else
-        vkdev->packing_pack4(dst_unpacked_fp16, dst, *this, opt);
+        dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+
+    vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
 }
 
 void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt)
@@ -163,77 +172,131 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
 
     // upload
     VkMat dst_staging;
-    record_clone(src_fp16, dst_staging, opt);
-
-    // staging to image
-    VkImageMat dst_unpacked;
-    record_clone(dst_staging, dst_unpacked, opt);
-
-    VkImageMat dst_unpacked_fp16;
-    if (dst_unpacked.elemsize == dst_unpacked.elempack * 4u)
+    if (opt.blob_vkallocator->mappable)
     {
-        // cast to fp16 (integrated gpu)
-        if (vkdev->info.type != 0 && (opt.use_image_fp16_storage || (opt.use_image_fp16_packed && dst_unpacked.elempack % 4 == 0)))
-        {
-            vkdev->cast_float32_to_float16(dst_unpacked, dst_unpacked_fp16, *this, opt);
-        }
-        else
-        {
-            dst_unpacked_fp16 = dst_unpacked;
-        }
+        dst_staging.create_like(src_fp16, opt.blob_vkallocator);
     }
     else
     {
-        dst_unpacked_fp16 = dst_unpacked;
+        dst_staging.create_like(src_fp16, opt.staging_vkallocator);
     }
+    if (dst_staging.empty())
+        return;
 
-    // packing
+    // stash staging
+    upload_staging_buffers.push_back(dst_staging);
+
+    // memcpy src to device
+    memcpy(dst_staging.mapped_ptr(), src_fp16.data, src_fp16.total() * src_fp16.elemsize);
+    dst_staging.allocator->flush(dst_staging.data);
+
+    // mark device host-write @ null
+    dst_staging.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
+    dst_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
+
+    // resolve dst_elempack
+    int dims = src_fp16.dims;
+    int elemcount = 0;
+    if (dims == 1) elemcount = src_fp16.elempack * src_fp16.w;
+    if (dims == 2) elemcount = src_fp16.elempack * src_fp16.h;
+    if (dims == 3) elemcount = src_fp16.elempack * src_fp16.c;
+
+    int dst_elempack = 1;
     if (opt.use_shader_pack8)
-    {
-        vkdev->packing_pack8(dst_unpacked_fp16, dst, *this, opt);
-        if (dst.elempack != 8)
-            vkdev->packing_pack4(dst_unpacked_fp16, dst, *this, opt);
-    }
+        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
     else
-        vkdev->packing_pack4(dst_unpacked_fp16, dst, *this, opt);
+        dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+
+    vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
 }
 
 void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 {
 //     fprintf(stderr, "record_download buffer\n");
 
-    VkMat src_unpacked_fp16;
+    // resolve dst_elempack
+    int dims = src.dims;
+    int elemcount = 0;
+    if (dims == 1) elemcount = src.elempack * src.w;
+    if (dims == 2) elemcount = src.elempack * src.h;
+    if (dims == 3) elemcount = src.elempack * src.c;
+
+    int dst_elempack = 1;
     if (opt.use_packing_layout)
+        dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+    else
+        dst_elempack = 1;
+
+    VkMat dst_staging;
+    if (opt.blob_vkallocator->mappable)
     {
-        vkdev->packing_pack4(src, src_unpacked_fp16, *this, opt);
+        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt);
     }
     else
     {
-        // unpacking
-        vkdev->packing_pack1(src, src_unpacked_fp16, *this, opt);
+        Option opt_staging = opt;
+        opt_staging.blob_vkallocator = opt.staging_vkallocator;
+        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
 
-    // cast to fp32 (integrated gpu)
-    VkMat src_unpacked;
-    if (src_unpacked_fp16.elemsize == src_unpacked_fp16.elempack * 2u)
+    // barrier device any @ compute to host-read @ compute
+    if (dst_staging.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || dst_staging.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
     {
-        if (vkdev->info.type != 0 && (opt.use_fp16_storage || (opt.use_fp16_packed && src_unpacked_fp16.elempack % 4 == 0 )))
+        VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barriers[0].pNext = 0;
+        barriers[0].srcAccessMask = dst_staging.data->access_flags;
+        barriers[0].dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].buffer = dst_staging.buffer();
+        barriers[0].offset = dst_staging.buffer_offset();
+        barriers[0].size = dst_staging.buffer_capacity();
+
+        VkPipelineStageFlags src_stage = dst_staging.data->stage_flags;
+        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_HOST_BIT;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkdev->cast_float16_to_float32(src_unpacked_fp16, src_unpacked, *this, opt);
+            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            delete[] barriers;
         }
         else
         {
-            src_unpacked = src_unpacked_fp16;
+            record r;
+            r.type = record::TYPE_buffer_barrers;
+            r.command_buffer = compute_command_buffer;
+            r.buffer_barrers.src_stage = src_stage;
+            r.buffer_barrers.dst_stage = dst_stage;
+            r.buffer_barrers.barrier_count = 1;
+            r.buffer_barrers.barriers = barriers;
+            delayed_records.push_back(r);
         }
-    }
-    else
-    {
-        src_unpacked = src_unpacked_fp16;
+
+        // mark device host-read @ any
+        dst_staging.data->access_flags = VK_ACCESS_HOST_READ_BIT;
+        dst_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
     }
 
-    // download
+    // create dst
     Mat dst_fp16;
-    record_clone(src_unpacked, dst_fp16, opt);
+    dst_fp16.create_like(dst_staging, opt.blob_allocator);
+    if (dst_fp16.empty())
+        return;
+
+    // download
+    download_post_buffers.push_back(dst_staging);
+    download_post_mats_fp16.push_back(dst_fp16);
+
+    // post memcpy device to dst
+    {
+        record r;
+        r.type = record::TYPE_post_download;
+        r.command_buffer = 0;
+        r.post_download.download_post_buffer_mat_offset = download_post_buffers.size() - 1;
+        r.post_download.download_post_mat_fp16_offset = download_post_mats_fp16.size() - 1;
+        delayed_records.push_back(r);
+    }
 
     // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
@@ -273,42 +336,89 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
 {
 //     fprintf(stderr, "record_download image\n");
 
-    VkImageMat src_unpacked_fp16;
+    // resolve dst_elempack
+    int dims = src.dims;
+    int elemcount = 0;
+    if (dims == 1) elemcount = src.elempack * src.w;
+    if (dims == 2) elemcount = src.elempack * src.h;
+    if (dims == 3) elemcount = src.elempack * src.c;
+
+    int dst_elempack = 1;
     if (opt.use_packing_layout)
+        dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+    else
+        dst_elempack = 1;
+
+    VkMat dst_staging;
+    if (opt.blob_vkallocator->mappable)
     {
-        vkdev->packing_pack4(src, src_unpacked_fp16, *this, opt);
+        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt);
     }
     else
     {
-        // unpacking
-        vkdev->packing_pack1(src, src_unpacked_fp16, *this, opt);
+        Option opt_staging = opt;
+        opt_staging.blob_vkallocator = opt.staging_vkallocator;
+        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
 
-    // cast to fp32 (integrated gpu)
-    VkImageMat src_unpacked;
-    if (src_unpacked_fp16.elemsize == src_unpacked_fp16.elempack * 2u)
+    // barrier device any @ compute to host-read @ compute
+    if (dst_staging.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || dst_staging.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
     {
-        if (vkdev->info.type != 0 && (opt.use_image_fp16_storage || (opt.use_image_fp16_packed && src_unpacked_fp16.elempack % 4 == 0)))
+        VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barriers[0].pNext = 0;
+        barriers[0].srcAccessMask = dst_staging.data->access_flags;
+        barriers[0].dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].buffer = dst_staging.buffer();
+        barriers[0].offset = dst_staging.buffer_offset();
+        barriers[0].size = dst_staging.buffer_capacity();
+
+        VkPipelineStageFlags src_stage = dst_staging.data->stage_flags;
+        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_HOST_BIT;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkdev->cast_float16_to_float32(src_unpacked_fp16, src_unpacked, *this, opt);
+            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            delete[] barriers;
         }
         else
         {
-            src_unpacked = src_unpacked_fp16;
+            record r;
+            r.type = record::TYPE_buffer_barrers;
+            r.command_buffer = compute_command_buffer;
+            r.buffer_barrers.src_stage = src_stage;
+            r.buffer_barrers.dst_stage = dst_stage;
+            r.buffer_barrers.barrier_count = 1;
+            r.buffer_barrers.barriers = barriers;
+            delayed_records.push_back(r);
         }
-    }
-    else
-    {
-        src_unpacked = src_unpacked_fp16;
+
+        // mark device host-read @ any
+        dst_staging.data->access_flags = VK_ACCESS_HOST_READ_BIT;
+        dst_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
     }
 
-    // image to staging
-    VkMat src_staging;
-    record_clone(src_unpacked, src_staging, opt);
+    // create dst
+    Mat dst_fp16;
+    dst_fp16.create_like(dst_staging, opt.blob_allocator);
+    if (dst_fp16.empty())
+        return;
 
     // download
-    Mat dst_fp16;
-    record_clone(src_staging, dst_fp16, opt);
+    download_post_buffers.push_back(dst_staging);
+    download_post_mats_fp16.push_back(dst_fp16);
+
+    // post memcpy device to dst
+    {
+        record r;
+        r.type = record::TYPE_post_download;
+        r.command_buffer = 0;
+        r.post_download.download_post_buffer_mat_offset = download_post_buffers.size() - 1;
+        r.post_download.download_post_mat_fp16_offset = download_post_mats_fp16.size() - 1;
+        delayed_records.push_back(r);
+    }
 
     // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
@@ -346,122 +456,42 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
 
 void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const Option& opt)
 {
-//     fprintf(stderr, "record_buffer_to_image\n");
+    fprintf(stderr, "record_buffer_to_image\n");
 
-    if ((opt.use_image_fp16_storage && opt.use_fp16_storage)
-        || (!opt.use_image_fp16_storage && !opt.use_fp16_storage && !opt.use_fp16_packed))
-    {
-        // fp16 to fp16s copy or fp32 to fp32 copy
-        record_clone(src, dst, opt);
-    }
-    else if (opt.use_image_fp16_storage && !opt.use_fp16_storage && !opt.use_fp16_packed)
-    {
-        // fp32 to fp16
-        VkImageMat src_fp32;
-        record_clone(src, src_fp32, opt);
-        if (src_fp32.empty())
-            return;
+    // resolve dst_elempack
+    int dims = src.dims;
+    int elemcount = 0;
+    if (dims == 1) elemcount = src.elempack * src.w;
+    if (dims == 2) elemcount = src.elempack * src.h;
+    if (dims == 3) elemcount = src.elempack * src.c;
 
-        vkdev->cast_float32_to_float16(src_fp32, dst, *this, opt);
-    }
-    else if (opt.use_image_fp16_storage && !opt.use_fp16_storage && opt.use_fp16_packed)
-    {
-        // fp16p to fp32 to fp16
-        VkMat src_fp32;
-        vkdev->cast_float16_to_float32(src, src_fp32, *this, opt);
-        if (src_fp32.empty())
-            return;
-
-        VkImageMat dst_fp32;
-        record_clone(src_fp32, dst_fp32, opt);
-        if (dst_fp32.empty())
-            return;
-
-        vkdev->cast_float32_to_float16(dst_fp32, dst, *this, opt);
-    }
-    else if (!opt.use_image_fp16_storage && opt.use_fp16_storage)
-    {
-        // fp16s to fp32
-        VkImageMat dst_fp16;
-        record_clone(src, dst_fp16, opt);
-        if (dst_fp16.empty())
-            return;
-
-        vkdev->cast_float16_to_float32(dst_fp16, dst, *this, opt);
-    }
-    else if (!opt.use_image_fp16_storage && !opt.use_fp16_storage && opt.use_fp16_packed)
-    {
-        // fp16p to fp32
-        VkMat src_fp32;
-        vkdev->cast_float32_to_float16(src, src_fp32, *this, opt);
-
-        record_clone(src_fp32, dst, opt);
-    }
+    int dst_elempack = 1;
+    if (opt.use_shader_pack8)
+        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
     else
-    {
-        fprintf(stderr, "FATAL ERROR! unsupported record_buffer_to_image option\n");
-    }
+        dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+
+    vkdev->convert_packing(src, dst, dst_elempack, *this, opt);
 }
 
 void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt)
 {
-//     fprintf(stderr, "record_image_to_buffer\n");
+    fprintf(stderr, "record_image_to_buffer\n");
 
-    if ((opt.use_image_fp16_storage && opt.use_fp16_storage)
-        || (!opt.use_image_fp16_storage && !opt.use_fp16_storage && !opt.use_fp16_packed))
-    {
-        // fp16 to fp16s copy or fp32 to fp32 copy
-        record_clone(src, dst, opt);
-    }
-    else if (opt.use_image_fp16_storage && !opt.use_fp16_storage && !opt.use_fp16_packed)
-    {
-        // fp16 to fp32
-        VkImageMat src_fp32;
-        vkdev->cast_float16_to_float32(src, src_fp32, *this, opt);
-        if (src_fp32.empty())
-            return;
+    // resolve dst_elempack
+    int dims = src.dims;
+    int elemcount = 0;
+    if (dims == 1) elemcount = src.elempack * src.w;
+    if (dims == 2) elemcount = src.elempack * src.h;
+    if (dims == 3) elemcount = src.elempack * src.c;
 
-        record_clone(src_fp32, dst, opt);
-    }
-    else if (opt.use_image_fp16_storage && !opt.use_fp16_storage && opt.use_fp16_packed)
-    {
-        // fp16 to fp32 to fp16p
-        VkImageMat src_fp32;
-        vkdev->cast_float16_to_float32(src, src_fp32, *this, opt);
-        if (src_fp32.empty())
-            return;
-
-        VkMat dst_fp32;
-        record_clone(src_fp32, dst_fp32, opt);
-        if (dst_fp32.empty())
-            return;
-
-        vkdev->cast_float32_to_float16(dst_fp32, dst, *this, opt);
-    }
-    else if (!opt.use_image_fp16_storage && opt.use_fp16_storage)
-    {
-        // fp32 to fp16s
-        VkImageMat src_fp16;
-        vkdev->cast_float32_to_float16(src, src_fp16, *this, opt);
-        if (src_fp16.empty())
-            return;
-
-        record_clone(src_fp16, dst, opt);
-    }
-    else if (!opt.use_image_fp16_storage && !opt.use_fp16_storage && opt.use_fp16_packed)
-    {
-        // fp32 to fp16p
-        VkMat dst_fp32;
-        record_clone(src, dst_fp32, opt);
-        if (dst_fp32.empty())
-            return;
-
-        vkdev->cast_float32_to_float16(dst_fp32, dst, *this, opt);
-    }
+    int dst_elempack = 1;
+    if (opt.use_shader_pack8)
+        dst_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
     else
-    {
-        fprintf(stderr, "FATAL ERROR! unsupported record_image_to_buffer option\n");
-    }
+        dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+
+    vkdev->convert_packing(src, dst, dst_elempack, *this, opt);
 }
 
 void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
@@ -1127,233 +1157,41 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
 
 void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
 {
-//     fprintf(stderr, "record_pipeline %p\n", pipeline);
-
-    const int binding_count = (int)bindings.size();
-    const int constant_count = (int)constants.size();
-
-    if (binding_count != pipeline->shader_info.binding_count)
-    {
-        fprintf(stderr, "binding_count not match, expect %d but got %d\n", pipeline->shader_info.binding_count, binding_count);
-    }
-
-    if (constant_count != pipeline->shader_info.push_constant_count)
-    {
-        fprintf(stderr, "push_constant_count not match, expect %d but got %d\n", pipeline->shader_info.push_constant_count, constant_count);
-    }
-
-    for (int i=0; i<binding_count; i++)
-    {
-        const VkMat& binding = bindings[i];
-
-        if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
-        {
-            // barrier device any @ compute/null to shader-readwrite @ compute
-            VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
-            barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-            barriers[0].pNext = 0;
-            barriers[0].srcAccessMask = binding.data->access_flags;
-            barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-            barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barriers[0].buffer = binding.buffer();
-            barriers[0].offset = binding.buffer_offset();
-            barriers[0].size = binding.buffer_capacity();
-
-            VkPipelineStageFlags src_stage = binding.data->stage_flags;
-            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-
-            if (vkdev->info.support_VK_KHR_push_descriptor)
-            {
-                vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
-                delete[] barriers;
-            }
-            else
-            {
-                record r;
-                r.type = record::TYPE_buffer_barrers;
-                r.command_buffer = compute_command_buffer;
-                r.buffer_barrers.src_stage = src_stage;
-                r.buffer_barrers.dst_stage = dst_stage;
-                r.buffer_barrers.barrier_count = 1;
-                r.buffer_barrers.barriers = barriers;
-                delayed_records.push_back(r);
-            }
-
-            // mark device shader-readwrite @ compute
-            binding.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-            binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-        }
-    }
-
-    // record bind pipeline
-    {
-        if (vkdev->info.support_VK_KHR_push_descriptor)
-        {
-            vkCmdBindPipeline(compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
-        }
-        else
-        {
-            record r;
-            r.type = record::TYPE_bind_pipeline;
-            r.command_buffer = compute_command_buffer;
-            r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
-            r.bind_pipeline.pipeline = pipeline->pipeline;
-            delayed_records.push_back(r);
-        }
-    }
-
-    // record update bindings
-    if (binding_count > 0)
-    {
-        std::vector<VkDescriptorBufferInfo> descriptorBufferInfos(binding_count);
-        for (int i=0; i<binding_count; i++)
-        {
-            descriptorBufferInfos[i].buffer = bindings[i].buffer();
-            descriptorBufferInfos[i].offset = bindings[i].buffer_offset();
-            descriptorBufferInfos[i].range = bindings[i].total() * bindings[i].elemsize;
-        }
-
-        if (vkdev->info.support_VK_KHR_push_descriptor)
-        {
-            vkdev->vkCmdPushDescriptorSetWithTemplateKHR(compute_command_buffer, pipeline->descriptor_update_template, pipeline->pipeline_layout, 0, descriptorBufferInfos.data());
-        }
-        else
-        {
-            // create new descriptor_pool and descriptorset
-            VkDescriptorPool descriptor_pool;
-            {
-                VkDescriptorPoolSize poolSize;
-                poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                poolSize.descriptorCount = binding_count;
-
-                VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
-                descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-                descriptorPoolCreateInfo.pNext = 0;
-                descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-                descriptorPoolCreateInfo.maxSets = 1;
-                descriptorPoolCreateInfo.poolSizeCount = 1;
-                descriptorPoolCreateInfo.pPoolSizes = &poolSize;
-
-                VkResult ret = vkCreateDescriptorPool(vkdev->vkdevice(), &descriptorPoolCreateInfo, 0, &descriptor_pool);
-                if (ret != VK_SUCCESS)
-                {
-                    fprintf(stderr, "vkCreateDescriptorPool failed %d\n", ret);
-                    return;
-                }
-            }
-            descriptor_pools.push_back(descriptor_pool);
-
-            VkDescriptorSet descriptorset;
-            {
-                VkDescriptorSetAllocateInfo descriptorSetAllocateInfo;
-                descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-                descriptorSetAllocateInfo.pNext = 0;
-                descriptorSetAllocateInfo.descriptorPool = descriptor_pool;
-                descriptorSetAllocateInfo.descriptorSetCount = 1;
-                descriptorSetAllocateInfo.pSetLayouts = &pipeline->descriptorset_layout;
-
-                VkResult ret = vkAllocateDescriptorSets(vkdev->vkdevice(), &descriptorSetAllocateInfo, &descriptorset);
-                if (ret != VK_SUCCESS)
-                {
-                    fprintf(stderr, "vkAllocateDescriptorSets failed %d\n", ret);
-                    return;
-                }
-            }
-            descriptorsets.push_back(descriptorset);
-
-            if (vkdev->info.support_VK_KHR_descriptor_update_template)
-            {
-                vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, pipeline->descriptor_update_template, descriptorBufferInfos.data());
-            }
-            else
-            {
-                std::vector<VkWriteDescriptorSet> writeDescriptorSets(binding_count);
-                for (int i=0; i<binding_count; i++)
-                {
-                    writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    writeDescriptorSets[i].pNext = 0;
-                    writeDescriptorSets[i].dstSet = descriptorset;
-                    writeDescriptorSets[i].dstBinding = i;
-                    writeDescriptorSets[i].dstArrayElement = 0;
-                    writeDescriptorSets[i].descriptorCount = 1;
-                    writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                    writeDescriptorSets[i].pImageInfo = 0;
-                    writeDescriptorSets[i].pBufferInfo = &descriptorBufferInfos[i];
-                    writeDescriptorSets[i].pTexelBufferView = 0;
-                }
-
-                vkUpdateDescriptorSets(vkdev->vkdevice(), binding_count, writeDescriptorSets.data(), 0, 0);
-            }
-
-            record r;
-            r.type = record::TYPE_bind_descriptorsets;
-            r.command_buffer = compute_command_buffer;
-            r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
-            r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout;
-            r.bind_descriptorsets.descriptorset_count = 1;
-            r.bind_descriptorsets.descriptorset_offset = descriptorsets.size() - 1;
-            delayed_records.push_back(r);
-        }
-    }
-
-    // record push constants
-    if (constant_count > 0)
-    {
-        if (vkdev->info.support_VK_KHR_push_descriptor)
-        {
-            vkCmdPushConstants(compute_command_buffer, pipeline->pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, constant_count * sizeof(vk_constant_type), constants.data());
-        }
-        else
-        {
-            uint32_t size = constant_count * sizeof(vk_constant_type);
-            unsigned char* constant_values = new unsigned char[size];
-            memcpy(constant_values, constants.data(), size);
-
-            record r;
-            r.type = record::TYPE_push_constants;
-            r.command_buffer = compute_command_buffer;
-            r.push_constants.pipeline_layout = pipeline->pipeline_layout;
-            r.push_constants.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-            r.push_constants.size = size;
-            r.push_constants.values = constant_values;
-            delayed_records.push_back(r);
-        }
-    }
-
-    // record dispatch
-    {
-        uint32_t group_count_x = (dispatcher.w + pipeline->local_size_x - 1) / pipeline->local_size_x;
-        uint32_t group_count_y = (dispatcher.h + pipeline->local_size_y - 1) / pipeline->local_size_y;
-        uint32_t group_count_z = (dispatcher.c + pipeline->local_size_z - 1) / pipeline->local_size_z;
-
-        if (vkdev->info.support_VK_KHR_push_descriptor)
-        {
-            vkCmdDispatch(compute_command_buffer, group_count_x, group_count_y, group_count_z);
-        }
-        else
-        {
-            record r;
-            r.type = record::TYPE_dispatch;
-            r.command_buffer = compute_command_buffer;
-            r.dispatch.group_count_x = group_count_x;
-            r.dispatch.group_count_y = group_count_y;
-            r.dispatch.group_count_z = group_count_z;
-            delayed_records.push_back(r);
-        }
-    }
+    record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, dispatcher);
 }
 
 void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkImageMat>& bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher)
 {
+    record_pipeline(pipeline, std::vector<VkMat>(), bindings, constants, dispatcher);
+}
+
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
+{
+    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.c, (void*)0);
+
+    record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
+}
+
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher)
+{
+    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.c, (void*)0);
+
+    record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
+}
+
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const Mat& dispatcher)
+{
 //     fprintf(stderr, "record_pipeline %p\n", pipeline);
 
-    const int binding_count = (int)bindings.size();
+    const int buffer_binding_count = (int)buffer_bindings.size();
+    const int image_binding_count = (int)image_bindings.size();
     const int constant_count = (int)constants.size();
+
+    const int binding_count = buffer_binding_count + image_binding_count;
 
     if (binding_count != pipeline->shader_info.binding_count)
     {
-        fprintf(stderr, "binding_count not match, expect %d but got %d\n", pipeline->shader_info.binding_count, binding_count);
+        fprintf(stderr, "binding_count not match, expect %d but got %d + %d\n", pipeline->shader_info.binding_count, buffer_binding_count, image_binding_count);
     }
 
     if (constant_count != pipeline->shader_info.push_constant_count)
@@ -1361,16 +1199,65 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
         fprintf(stderr, "push_constant_count not match, expect %d but got %d\n", pipeline->shader_info.push_constant_count, constant_count);
     }
 
-    // if the same image used for both storage image and combined image sampler
-    // only apply image layout transition to general
+    int buffer_index = 0;
+    int image_index = 0;
     for (int i=0; i<binding_count; i++)
     {
-        const VkImageMat& binding = bindings[i];
-
         int binding_type = pipeline->shader_info.binding_types[i];
 
-        if (binding_type == 2)
+        if (binding_type == 1)
         {
+            const VkMat& binding = buffer_bindings[buffer_index].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[buffer_index];
+            buffer_index++;
+
+//             fprintf(stderr, "binding #%d buffer = %d %d %d %d @ %lu %d = %p +%ld ~%ld\n", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.buffer(), binding.buffer_offset(), binding.buffer_capacity());
+
+            if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+            {
+                // barrier device any @ compute/null to shader-readwrite @ compute
+                VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+                barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+                barriers[0].pNext = 0;
+                barriers[0].srcAccessMask = binding.data->access_flags;
+                barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+                barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barriers[0].buffer = binding.buffer();
+                barriers[0].offset = binding.buffer_offset();
+                barriers[0].size = binding.buffer_capacity();
+
+                VkPipelineStageFlags src_stage = binding.data->stage_flags;
+                VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+                if (vkdev->info.support_VK_KHR_push_descriptor)
+                {
+                    vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+                    delete[] barriers;
+                }
+                else
+                {
+                    record r;
+                    r.type = record::TYPE_buffer_barrers;
+                    r.command_buffer = compute_command_buffer;
+                    r.buffer_barrers.src_stage = src_stage;
+                    r.buffer_barrers.dst_stage = dst_stage;
+                    r.buffer_barrers.barrier_count = 1;
+                    r.buffer_barrers.barriers = barriers;
+                    delayed_records.push_back(r);
+                }
+
+                // mark device shader-readwrite @ compute
+                binding.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+                binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            }
+        }
+        else if (binding_type == 2)
+        {
+            const VkImageMat& binding = image_bindings[image_index].empty() ? vkdev->get_dummy_image() : image_bindings[image_index];
+            image_index++;
+
+//             fprintf(stderr, "binding #%d image = %d %d %d %d @ %lu %d = %p +%ld ~%ld %p\n", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.image(), binding.data->bind_offset, binding.data->bind_capacity, binding.imageview());
+
             if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_GENERAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
             {
                 // image layout transform any @ any to shader-write @ compute
@@ -1415,12 +1302,23 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
                 binding.data->image_layout = VK_IMAGE_LAYOUT_GENERAL;
                 binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
             }
+
+            // image and imageview can not be destroyed until command execution ends
+            NCNN_XADD(&binding.data->command_refcount, 1);
+            image_blocks_to_destroy.push_back(binding.data);
         }
         else // if (binding_type == 3)
         {
-            for (int j=0; j<binding_count; j++)
+            const VkImageMat& binding = image_bindings[image_index].empty() ? vkdev->get_dummy_image() : image_bindings[image_index];
+            image_index++;
+
+//             fprintf(stderr, "binding #%d sampler = %d %d %d %d @ %lu %d = %p +%ld ~%ld %p\n", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.image(), binding.data->bind_offset, binding.data->bind_capacity, binding.imageview());
+
+            // if the same image used for both storage image and combined image sampler
+            // only apply image layout transition to general
+            for (int j=0; j<image_binding_count; j++)
             {
-                if (pipeline->shader_info.binding_types[j] == 2 && bindings[i].data == bindings[j].data)
+                if (pipeline->shader_info.binding_types[j] == 2 && binding.data == image_bindings[j].data)
                 {
                     // the same image is used as storage image, skip it
                     continue;
@@ -1471,11 +1369,11 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
                 binding.data->image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 binding.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
             }
-        }
 
-        // image and imageview can not be destroyed until command execution ends
-        NCNN_XADD(&binding.data->command_refcount, 1);
-        image_blocks_to_destroy.push_back(binding.data);
+            // image and imageview can not be destroyed until command execution ends
+            NCNN_XADD(&binding.data->command_refcount, 1);
+            image_blocks_to_destroy.push_back(binding.data);
+        }
     }
 
     // record bind pipeline
@@ -1498,18 +1396,50 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
     // record update bindings
     if (binding_count > 0)
     {
-        std::vector<VkDescriptorImageInfo> descriptorImageInfos(binding_count);
-        for (int i=0; i<binding_count; i++)
+        std::vector<unsigned char> descriptorInfos;
         {
-            // we always use immutable nearest sampler set in descroptor layout during pipeline creation
-            descriptorImageInfos[i].sampler = 0;
-            descriptorImageInfos[i].imageView = bindings[i].imageview();
-            descriptorImageInfos[i].imageLayout = bindings[i].data->image_layout;
+            descriptorInfos.resize(sizeof(VkDescriptorBufferInfo) * buffer_binding_count + sizeof(VkDescriptorImageInfo) * image_binding_count);
+
+            unsigned char* p_descriptorInfos = descriptorInfos.data();
+            int descriptorBufferInfo_index = 0;
+            int descriptorImageInfo_index = 0;
+            for (int i=0; i<binding_count; i++)
+            {
+                int binding_type = pipeline->shader_info.binding_types[i];
+
+                if (binding_type == 1)
+                {
+                    const VkMat& binding = buffer_bindings[descriptorBufferInfo_index].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[descriptorBufferInfo_index];
+                    descriptorBufferInfo_index++;
+
+                    VkDescriptorBufferInfo descriptorBufferInfo;
+                    descriptorBufferInfo.buffer = binding.buffer();
+                    descriptorBufferInfo.offset = binding.buffer_offset();
+                    descriptorBufferInfo.range = binding.total() * binding.elemsize;
+
+                    memcpy(p_descriptorInfos, &descriptorBufferInfo, sizeof(VkDescriptorBufferInfo));
+                    p_descriptorInfos += sizeof(VkDescriptorBufferInfo);
+                }
+                else //if (binding_type == 2 || binding_type == 3)
+                {
+                    const VkImageMat& binding = image_bindings[descriptorImageInfo_index].empty() ? vkdev->get_dummy_image() : image_bindings[descriptorImageInfo_index];
+                    descriptorImageInfo_index++;
+
+                    // we always use immutable nearest sampler set in descroptor layout during pipeline creation
+                    VkDescriptorImageInfo descriptorImageInfo;
+                    descriptorImageInfo.sampler = 0;
+                    descriptorImageInfo.imageView = binding.imageview();
+                    descriptorImageInfo.imageLayout = binding.data->image_layout;
+
+                    memcpy(p_descriptorInfos, &descriptorImageInfo, sizeof(VkDescriptorImageInfo));
+                    p_descriptorInfos += sizeof(VkDescriptorImageInfo);
+                }
+            }
         }
 
         if (vkdev->info.support_VK_KHR_push_descriptor)
         {
-            vkdev->vkCmdPushDescriptorSetWithTemplateKHR(compute_command_buffer, pipeline->descriptor_update_template, pipeline->pipeline_layout, 0, descriptorImageInfos.data());
+            vkdev->vkCmdPushDescriptorSetWithTemplateKHR(compute_command_buffer, pipeline->descriptor_update_template, pipeline->pipeline_layout, 0, descriptorInfos.data());
         }
         else
         {
@@ -1528,18 +1458,20 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
                         sampler_binding_count++;
                 }
 
-                VkDescriptorPoolSize poolSizes[2];
-                poolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                poolSizes[0].descriptorCount = image_binding_count;
-                poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                poolSizes[1].descriptorCount = sampler_binding_count;
+                VkDescriptorPoolSize poolSizes[3];
+                poolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                poolSizes[0].descriptorCount = buffer_binding_count;
+                poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                poolSizes[1].descriptorCount = image_binding_count;
+                poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                poolSizes[2].descriptorCount = sampler_binding_count;
 
                 VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
                 descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
                 descriptorPoolCreateInfo.pNext = 0;
                 descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
                 descriptorPoolCreateInfo.maxSets = 1;
-                descriptorPoolCreateInfo.poolSizeCount = 2;
+                descriptorPoolCreateInfo.poolSizeCount = 3;
                 descriptorPoolCreateInfo.pPoolSizes = poolSizes;
 
                 VkResult ret = vkCreateDescriptorPool(vkdev->vkdevice(), &descriptorPoolCreateInfo, 0, &descriptor_pool);
@@ -1571,32 +1503,49 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
 
             if (vkdev->info.support_VK_KHR_descriptor_update_template)
             {
-                vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, pipeline->descriptor_update_template, descriptorImageInfos.data());
+                vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, pipeline->descriptor_update_template, descriptorInfos.data());
             }
             else
             {
                 std::vector<VkWriteDescriptorSet> writeDescriptorSets(binding_count);
-                for (int i=0; i<binding_count; i++)
                 {
-                    int binding_type = pipeline->shader_info.binding_types[i];
-
-                    writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    writeDescriptorSets[i].pNext = 0;
-                    writeDescriptorSets[i].dstSet = descriptorset;
-                    writeDescriptorSets[i].dstBinding = i;
-                    writeDescriptorSets[i].dstArrayElement = 0;
-                    writeDescriptorSets[i].descriptorCount = 1;
-                    writeDescriptorSets[i].pImageInfo = &descriptorImageInfos[i];
-                    writeDescriptorSets[i].pBufferInfo = 0;
-                    writeDescriptorSets[i].pTexelBufferView = 0;
-
-                    if (binding_type == 2)
+                    const unsigned char* p_descriptorInfos = descriptorInfos.data();
+                    for (int i=0; i<binding_count; i++)
                     {
-                        writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                    }
-                    else // if (binding_type == 3)
-                    {
-                        writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                        int binding_type = pipeline->shader_info.binding_types[i];
+
+                        writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                        writeDescriptorSets[i].pNext = 0;
+                        writeDescriptorSets[i].dstSet = descriptorset;
+                        writeDescriptorSets[i].dstBinding = i;
+                        writeDescriptorSets[i].dstArrayElement = 0;
+                        writeDescriptorSets[i].descriptorCount = 1;
+                        writeDescriptorSets[i].pTexelBufferView = 0;
+
+                        if (binding_type == 1)
+                        {
+                            writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                            writeDescriptorSets[i].pImageInfo = 0;
+                            writeDescriptorSets[i].pBufferInfo = (const VkDescriptorBufferInfo*)p_descriptorInfos;
+
+                            p_descriptorInfos += sizeof(VkDescriptorBufferInfo);
+                        }
+                        else if (binding_type == 2)
+                        {
+                            writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                            writeDescriptorSets[i].pImageInfo = (const VkDescriptorImageInfo*)p_descriptorInfos;
+                            writeDescriptorSets[i].pBufferInfo = 0;
+
+                            p_descriptorInfos += sizeof(VkDescriptorImageInfo);
+                        }
+                        else // if (binding_type == 3)
+                        {
+                            writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                            writeDescriptorSets[i].pImageInfo = (const VkDescriptorImageInfo*)p_descriptorInfos;
+                            writeDescriptorSets[i].pBufferInfo = 0;
+
+                            p_descriptorInfos += sizeof(VkDescriptorImageInfo);
+                        }
                     }
                 }
 
@@ -2270,12 +2219,16 @@ int VkCompute::submit_and_wait()
             const VkMat& src = download_post_buffers[r.post_download.download_post_buffer_mat_offset];
             Mat& dst = download_post_mats_fp16[r.post_download.download_post_mat_fp16_offset];
 
+//             fprintf(stderr, "post_download  %p +%d ~%d  -> %p\n", src.buffer(), src.buffer_offset(), src.buffer_capacity(), dst.data);
+
             src.allocator->invalidate(src.data);
             memcpy(dst.data, src.mapped_ptr(), dst.total() * dst.elemsize);
             break;
         }
         case record::TYPE_post_cast_float16_to_float32:
         {
+//             fprintf(stderr, "post_cast_float16_to_float32\n");
+
             const Mat& src = download_post_mats_fp16[r.post_cast_float16_to_float32.download_post_mat_fp16_offset];
             Mat& dst = download_post_mats[r.post_cast_float16_to_float32.download_post_mat_offset];
 

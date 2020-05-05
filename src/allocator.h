@@ -29,7 +29,6 @@
 
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>
-#include "gpu.h"
 #endif // NCNN_VULKAN
 
 #if __ANDROID_API__ >= 26
@@ -179,6 +178,8 @@ private:
 
 #if NCNN_VULKAN
 
+class VulkanDevice;
+
 class VkBufferMemory
 {
 public:
@@ -277,7 +278,7 @@ public:
     virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
 
-private:
+protected:
     size_t block_size;
     size_t buffer_offset_alignment;
     size_t bind_memory_offset_alignment;
@@ -303,7 +304,7 @@ public:
     virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
 
-private:
+protected:
     size_t block_size;
     size_t buffer_offset_alignment;
     size_t bind_memory_offset_alignment;
@@ -334,7 +335,7 @@ public:
     virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
 
-private:
+protected:
     unsigned int size_compare_ratio;// 0~256
     std::list<VkBufferMemory*> buffer_budgets;
 };
@@ -351,7 +352,7 @@ public:
     virtual VkImageMemory* fastMalloc(int /*dims*/, int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/) { return 0; }
     virtual void fastFree(VkImageMemory* /*ptr*/) {}
 
-private:
+protected:
 };
 
 #if __ANDROID_API__ >= 26

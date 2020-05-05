@@ -31,6 +31,10 @@
 #include "layer_type.h"
 #include "layer.h"
 
+#include "command.h"
+
+#include "layer/vulkan/packing_vulkan.h"
+
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
 #else
@@ -1152,12 +1156,16 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         }
     }
 
+    create_dummy_buffer_image();
+
     create_utility_operator();
 }
 
 VulkanDevice::~VulkanDevice()
 {
     destroy_utility_operator();
+
+    destroy_dummy_buffer_image();
 
     if (texelfetch_sampler)
     {
@@ -1539,64 +1547,62 @@ const VkSampler* VulkanDevice::immutable_texelfetch_sampler() const
     return &texelfetch_sampler;
 }
 
-void VulkanDevice::cast_float32_to_float16(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+VkMat VulkanDevice::get_dummy_buffer() const
 {
-    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    uop_cast_float32_to_float16[uoi]->forward(src, dst, cmd, opt);
+    return dummy_buffer;
 }
 
-void VulkanDevice::cast_float32_to_float16(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+VkImageMat VulkanDevice::get_dummy_image() const
 {
-    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
-    uop_cast_float32_to_float16[uoi]->forward(src, dst, cmd, opt);
+    return dummy_image;
 }
 
-void VulkanDevice::cast_float16_to_float32(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    uop_cast_float16_to_float32[uoi]->forward(src, dst, cmd, opt);
+    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+//     fprintf(stderr, "convert_packing b2b %d %d %d\n", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+
+    const ncnn::Packing_vulkan* uop = uop_packing[0][0][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    uop->forward(src, dst, cmd, opt);
 }
 
-void VulkanDevice::cast_float16_to_float32(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
-    uop_cast_float16_to_float32[uoi]->forward(src, dst, cmd, opt);
+    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_image_fp16_storage ? 2 : 1;
+    int cast_type_to_index = opt.use_image_fp16_storage ? 2 : opt.use_image_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+//     fprintf(stderr, "convert_packing i2i %d %d %d\n", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+
+    const ncnn::Packing_vulkan* uop = uop_packing[1][1][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    uop->forward(src, dst, cmd, opt);
 }
 
-void VulkanDevice::packing_pack1(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
+void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    uop_packing_pack1[uoi]->forward(src, dst, cmd, opt);
+    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
+    int cast_type_to_index = opt.use_image_fp16_storage ? 2 : opt.use_image_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+//     fprintf(stderr, "convert_packing b2i %d %d %d\n", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+
+    const ncnn::Packing_vulkan* uop = uop_packing[0][1][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    uop->forward(src, dst, cmd, opt);
 }
 
-void VulkanDevice::packing_pack1(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
+void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
-    uop_packing_pack1[uoi]->forward(src, dst, cmd, opt);
-}
+    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_image_fp16_storage ? 2 : 1;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
-void VulkanDevice::packing_pack4(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
-{
-    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    uop_packing_pack4[uoi]->forward(src, dst, cmd, opt);
-}
+//     fprintf(stderr, "convert_packing i2b %d %d %d\n", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-void VulkanDevice::packing_pack4(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
-{
-    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
-    uop_packing_pack4[uoi]->forward(src, dst, cmd, opt);
-}
-
-void VulkanDevice::packing_pack8(const VkMat& src, VkMat& dst, VkCompute& cmd, const Option& opt) const
-{
-    int uoi = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
-    uop_packing_pack8[uoi]->forward(src, dst, cmd, opt);
-}
-
-void VulkanDevice::packing_pack8(const VkImageMat& src, VkImageMat& dst, VkCompute& cmd, const Option& opt) const
-{
-    int uoi = opt.use_image_fp16_storage ? 5 : opt.use_image_fp16_packed ? 4 : 3;
-    uop_packing_pack8[uoi]->forward(src, dst, cmd, opt);
+    const ncnn::Packing_vulkan* uop = uop_packing[1][0][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    uop->forward(src, dst, cmd, opt);
 }
 
 int VulkanDevice::create_shader_module()
@@ -1761,132 +1767,200 @@ int VulkanDevice::init_device_extension()
     return 0;
 }
 
+class VkDummyAllocator : public VkBlobAllocator
+{
+public:
+    VkDummyAllocator(const VulkanDevice* _vkdev) : VkBlobAllocator(_vkdev)
+    {
+        // NOTE 16k is large enough I think ...
+        block_size = alignSize(16 * 1024, buffer_offset_alignment);
+    }
+};
+
+class VkDummyCompute : public VkCompute
+{
+public:
+    VkDummyCompute(const VulkanDevice* _vkdev) : VkCompute(_vkdev) {}
+
+    void record_dummy(const VkMat& buffer)
+    {
+//         fprintf(stderr, "xxx barrier buffer %p +%d ~%d\n", buffer.buffer(), buffer.buffer_offset(), buffer.buffer_capacity());
+
+        // barrier device any @ compute/null to shader-readwrite @ compute
+        VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barriers[0].pNext = 0;
+        barriers[0].srcAccessMask = buffer.data->access_flags;
+        barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].buffer = buffer.buffer();
+        barriers[0].offset = buffer.buffer_offset();
+        barriers[0].size = buffer.buffer_capacity();
+
+        VkPipelineStageFlags src_stage = buffer.data->stage_flags;
+        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            delete[] barriers;
+        }
+        else
+        {
+            record r;
+            r.type = record::TYPE_buffer_barrers;
+            r.command_buffer = compute_command_buffer;
+            r.buffer_barrers.src_stage = src_stage;
+            r.buffer_barrers.dst_stage = dst_stage;
+            r.buffer_barrers.barrier_count = 1;
+            r.buffer_barrers.barriers = barriers;
+            delayed_records.push_back(r);
+        }
+
+        // mark device shader-readwrite @ compute
+        buffer.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+        buffer.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    }
+
+    void record_dummy(const VkImageMat& image)
+    {
+//         fprintf(stderr, "xxx barrier image %p +%d ~%d %p\n", image.image(), image.data->bind_offset, image.data->bind_capacity, image.imageview());
+
+        // image layout transform any @ any to shader-write @ compute
+        VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
+        barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barriers[0].pNext = 0;
+        barriers[0].srcAccessMask = image.data->access_flags;
+        barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+        barriers[0].oldLayout = image.data->image_layout;
+        barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].image = image.image();
+        barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barriers[0].subresourceRange.baseMipLevel = 0;
+        barriers[0].subresourceRange.levelCount = 1;
+        barriers[0].subresourceRange.baseArrayLayer = 0;
+        barriers[0].subresourceRange.layerCount = 1;
+
+        VkPipelineStageFlags src_stage = image.data->stage_flags;
+        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor)
+        {
+            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+            delete[] barriers;
+        }
+        else
+        {
+            record r;
+            r.type = record::TYPE_image_barrers;
+            r.command_buffer = compute_command_buffer;
+            r.image_barrers.src_stage = src_stage;
+            r.image_barrers.dst_stage = dst_stage;
+            r.image_barrers.barrier_count = 1;
+            r.image_barrers.barriers = barriers;
+            delayed_records.push_back(r);
+        }
+
+        // mark image shader-write @ compute
+        image.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+        image.data->image_layout = VK_IMAGE_LAYOUT_GENERAL;
+        image.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    }
+};
+
+int VulkanDevice::create_dummy_buffer_image()
+{
+    dummy_allocator = new VkDummyAllocator(this);
+
+    dummy_buffer.create(1, 4u, dummy_allocator);
+    dummy_image.create(1, 4u, dummy_allocator);
+
+    VkDummyCompute cmd(this);
+
+    cmd.record_dummy(dummy_buffer);
+    cmd.record_dummy(dummy_image);
+
+    cmd.submit_and_wait();
+
+    return 0;
+}
+
+void VulkanDevice::destroy_dummy_buffer_image()
+{
+    dummy_buffer.release();
+    dummy_image.release();
+
+    delete dummy_allocator;
+}
+
 int VulkanDevice::create_utility_operator()
 {
-    Option opt[6];
+    memset(uop_packing, 0, sizeof(uop_packing));
 
-    opt[0].use_fp16_packed = false;
-    opt[0].use_fp16_storage = false;
-    opt[0].use_image_storage = false;
-    opt[0].use_image_fp16_packed = false;
-    opt[0].use_image_fp16_storage = false;
-    opt[0].use_shader_pack8 = true;
+    Option opt;
 
-    opt[1].use_fp16_packed = true;
-    opt[1].use_fp16_storage = false;
-    opt[1].use_image_storage = false;
-    opt[1].use_image_fp16_packed = false;
-    opt[1].use_image_fp16_storage = false;
-    opt[1].use_shader_pack8 = true;
-
-    opt[2].use_fp16_packed = true;
-    opt[2].use_fp16_storage = true;
-    opt[2].use_image_storage = false;
-    opt[2].use_image_fp16_packed = false;
-    opt[2].use_image_fp16_storage = false;
-    opt[2].use_shader_pack8 = true;
-
-    opt[3].use_fp16_packed = false;
-    opt[3].use_fp16_storage = false;
-    opt[3].use_image_storage = true;
-    opt[3].use_image_fp16_packed = false;
-    opt[3].use_image_fp16_storage = false;
-    opt[3].use_shader_pack8 = true;
-
-    opt[4].use_fp16_packed = false;
-    opt[4].use_fp16_storage = false;
-    opt[4].use_image_storage = true;
-    opt[4].use_image_fp16_packed = true;
-    opt[4].use_image_fp16_storage = false;
-    opt[4].use_shader_pack8 = true;
-
-    opt[5].use_fp16_packed = false;
-    opt[5].use_fp16_storage = false;
-    opt[5].use_image_storage = true;
-    opt[5].use_image_fp16_packed = true;
-    opt[5].use_image_fp16_storage = true;
-    opt[5].use_shader_pack8 = true;
-
-    for (int i = 0; i < 6; i++)
+    // from buffer | image
+    // to buffer | image
+    for (int i0=0; i0<2; i0++)
     {
-        uop_cast_float32_to_float16[i] = 0;
-        uop_cast_float16_to_float32[i] = 0;
-        uop_packing_pack1[i] = 0;
-        uop_packing_pack4[i] = 0;
-        uop_packing_pack8[i] = 0;
+    for (int i1=0; i1<2; i1++)
+    {
+        opt.use_image_storage = (i0 == 1 || i1 == 1);
 
-        if (i == 1 && !info.support_fp16_packed)
+        if (!info.support_image_storage && opt.use_image_storage)
             continue;
 
-        if (i == 2 && !info.support_fp16_storage)
-            continue;
-
-        if (i == 3 && !info.support_image_storage)
-            continue;
-
-        if (i == 4 && (!info.support_image_storage || !info.support_image_fp16_packed))
-            continue;
-
-        if (i == 5 && (!info.support_image_storage || !info.support_image_fp16_storage))
-            continue;
-
+        // from fp32-b/i | fp16p-b/i | fp16s-b/i
+        // to fp32-b/i | fp16p-b/i | fp16s-b/i
+        for (int j0=0; j0<3; j0++)
         {
-            uop_cast_float32_to_float16[i] = ncnn::create_layer(ncnn::LayerType::Cast);
-            uop_cast_float32_to_float16[i]->vkdev = this;
-
-            ncnn::ParamDict pd;
-            pd.set(0, 1);
-            pd.set(1, 2);
-
-            uop_cast_float32_to_float16[i]->load_param(pd);
-        }
-
+        for (int j1=0; j1<3; j1++)
         {
-            uop_cast_float16_to_float32[i] = ncnn::create_layer(ncnn::LayerType::Cast);
-            uop_cast_float16_to_float32[i]->vkdev = this;
+            opt.use_fp16_packed = (j0 == 1 || j1 == 1);
+            opt.use_fp16_storage = (j0 == 2 || j1 == 2);
+            opt.use_image_fp16_packed = (j0 == 1 || j1 == 1);
+            opt.use_image_fp16_storage = (j0 == 2 || j1 == 2);
 
-            ncnn::ParamDict pd;
-            pd.set(0, 2);
-            pd.set(1, 1);
+            if (!info.support_fp16_packed && opt.use_fp16_packed)
+                continue;
 
-            uop_cast_float16_to_float32[i]->load_param(pd);
+            if (!info.support_fp16_storage && opt.use_fp16_storage)
+                continue;
+
+            if (!info.support_image_fp16_packed && opt.use_image_fp16_packed)
+                continue;
+
+            if (!info.support_image_fp16_storage && opt.use_image_fp16_storage)
+                continue;
+
+            // from pack1 | pack4 | pack8
+            for (int k=0; k<3; k++)
+            {
+                // enable pack8 for pack8to1/pack8to4
+                opt.use_shader_pack8 = true;
+
+                ncnn::Packing_vulkan* uop = new ncnn::Packing_vulkan;
+                uop->vkdev = this;
+
+                ncnn::ParamDict pd;
+                pd.set(0, k == 0 ? 1 : k == 1 ? 4 : 8);// out_elempack
+                pd.set(2, j0 + 1);// cast_type_from  0=auto 1=fp32 2=fp16p 3=fp16s
+                pd.set(3, j1 + 1);// cast_type_to
+                pd.set(4, i0);// storage_type_from  0=buffer 1=image
+                pd.set(5, i1);// storage_type_to
+
+                uop->load_param(pd);
+
+                uop->create_pipeline(opt);
+
+                uop_packing[i0][i1][j0][j1][k] = uop;
+            }
         }
-
-        {
-            uop_packing_pack1[i] = ncnn::create_layer(ncnn::LayerType::Packing);
-            uop_packing_pack1[i]->vkdev = this;
-
-            ncnn::ParamDict pd;
-            pd.set(0, 1);
-
-            uop_packing_pack1[i]->load_param(pd);
         }
-
-        {
-            uop_packing_pack4[i] = ncnn::create_layer(ncnn::LayerType::Packing);
-            uop_packing_pack4[i]->vkdev = this;
-
-            ncnn::ParamDict pd;
-            pd.set(0, 4);
-
-            uop_packing_pack4[i]->load_param(pd);
-        }
-
-        {
-            uop_packing_pack8[i] = ncnn::create_layer(ncnn::LayerType::Packing);
-            uop_packing_pack8[i]->vkdev = this;
-
-            ncnn::ParamDict pd;
-            pd.set(0, 8);
-
-            uop_packing_pack8[i]->load_param(pd);
-        }
-
-        uop_cast_float32_to_float16[i]->create_pipeline(opt[i]);
-        uop_cast_float16_to_float32[i]->create_pipeline(opt[i]);
-        uop_packing_pack1[i]->create_pipeline(opt[i]);
-        uop_packing_pack4[i]->create_pipeline(opt[i]);
-        uop_packing_pack8[i]->create_pipeline(opt[i]);
+    }
     }
 
     return 0;
@@ -1894,78 +1968,58 @@ int VulkanDevice::create_utility_operator()
 
 void VulkanDevice::destroy_utility_operator()
 {
-    Option opt[6];
+    Option opt;
 
-    opt[0].use_fp16_packed = false;
-    opt[0].use_fp16_storage = false;
-    opt[0].use_image_storage = false;
-    opt[0].use_image_fp16_packed = false;
-    opt[0].use_image_fp16_storage = false;
-    opt[0].use_shader_pack8 = true;
-
-    opt[1].use_fp16_packed = true;
-    opt[1].use_fp16_storage = false;
-    opt[1].use_image_storage = false;
-    opt[1].use_image_fp16_packed = false;
-    opt[1].use_image_fp16_storage = false;
-    opt[1].use_shader_pack8 = true;
-
-    opt[2].use_fp16_packed = true;
-    opt[2].use_fp16_storage = true;
-    opt[2].use_image_storage = false;
-    opt[2].use_image_fp16_packed = false;
-    opt[2].use_image_fp16_storage = false;
-    opt[2].use_shader_pack8 = true;
-
-    opt[3].use_fp16_packed = false;
-    opt[3].use_fp16_storage = false;
-    opt[3].use_image_storage = true;
-    opt[3].use_image_fp16_packed = false;
-    opt[3].use_image_fp16_storage = false;
-    opt[3].use_shader_pack8 = true;
-
-    opt[4].use_fp16_packed = false;
-    opt[4].use_fp16_storage = false;
-    opt[4].use_image_storage = true;
-    opt[4].use_image_fp16_packed = true;
-    opt[4].use_image_fp16_storage = false;
-    opt[4].use_shader_pack8 = true;
-
-    opt[5].use_fp16_packed = false;
-    opt[5].use_fp16_storage = false;
-    opt[5].use_image_storage = true;
-    opt[5].use_image_fp16_packed = true;
-    opt[5].use_image_fp16_storage = true;
-    opt[5].use_shader_pack8 = true;
-
-    for (int i = 0; i < 6; i++)
+    // from buffer | image
+    // to buffer | image
+    for (int i0=0; i0<2; i0++)
     {
-        if (i == 1 && !info.support_fp16_packed)
+    for (int i1=0; i1<2; i1++)
+    {
+        opt.use_image_storage = (i0 == 1 || i1 == 1);
+
+        if (!info.support_image_storage && opt.use_image_storage)
             continue;
 
-        if (i == 2 && !info.support_fp16_storage)
-            continue;
+        // from fp32-b/i | fp16p-b/i | fp16s-b/i
+        // to fp32-b/i | fp16p-b/i | fp16s-b/i
+        for (int j0=0; j0<3; j0++)
+        {
+        for (int j1=0; j1<3; j1++)
+        {
+            opt.use_fp16_packed = (j0 == 1 || j1 == 1);
+            opt.use_fp16_storage = (j0 == 2 || j1 == 2);
+            opt.use_image_fp16_packed = (j0 == 1 || j1 == 1);
+            opt.use_image_fp16_storage = (j0 == 2 || j1 == 2);
 
-        if (i == 3 && !info.support_image_storage)
-            continue;
+            if (!info.support_fp16_packed && opt.use_fp16_packed)
+                continue;
 
-        if (i == 4 && (!info.support_image_storage || !info.support_image_fp16_packed))
-            continue;
+            if (!info.support_fp16_storage && opt.use_fp16_storage)
+                continue;
 
-        if (i == 5 && (!info.support_image_storage || !info.support_image_fp16_storage))
-            continue;
+            if (!info.support_image_fp16_packed && opt.use_image_fp16_packed)
+                continue;
 
-        uop_cast_float32_to_float16[i]->destroy_pipeline(opt[i]);
-        uop_cast_float16_to_float32[i]->destroy_pipeline(opt[i]);
-        uop_packing_pack1[i]->destroy_pipeline(opt[i]);
-        uop_packing_pack4[i]->destroy_pipeline(opt[i]);
-        uop_packing_pack8[i]->destroy_pipeline(opt[i]);
+            if (!info.support_image_fp16_storage && opt.use_image_fp16_storage)
+                continue;
 
-        delete uop_cast_float32_to_float16[i];
-        delete uop_cast_float16_to_float32[i];
-        delete uop_packing_pack1[i];
-        delete uop_packing_pack4[i];
-        delete uop_packing_pack8[i];
+            // from pack1 | pack4 | pack8
+            for (int k=0; k<3; k++)
+            {
+                opt.use_shader_pack8 = (k == 2 || k == 2);
+
+                ncnn::Layer* uop = uop_packing[i0][i1][j0][j1][k];
+
+                uop->destroy_pipeline(opt);
+
+                delete uop;
+
+                uop_packing[i0][i1][j0][j1][k] = 0;
+            }
+        }
+        }
+    }
     }
 }
 

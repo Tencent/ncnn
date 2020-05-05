@@ -24,7 +24,6 @@
 #include "platform.h"
 #include "allocator.h"
 #include "option.h"
-#include "gpu.h"
 
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>
