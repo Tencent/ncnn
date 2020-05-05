@@ -750,6 +750,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         if (ret != 0)
         {
             fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_image_fp16_packed=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_image_fp16_packed);
+            return ret;
         }
     }
 
