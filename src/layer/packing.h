@@ -31,6 +31,20 @@ public:
 public:
     int out_elempack;
     int use_padding;
+
+    // element type
+    // 0 = auto
+    // 1 = fp32
+    // 2 = fp16p
+    // 3 = fp16s
+    int cast_type_from;
+    int cast_type_to;
+
+    // storage type
+    // 0 = buffer
+    // 1 = image
+    int storage_type_from;
+    int storage_type_to;
 };
 
 } // namespace ncnn
