@@ -92,7 +92,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     if (src.elemsize == src.elempack * 4u)
     {
         // cpu cast to fp16 (discrete gpu)
-        if (vkdev->info.type == 0 && (opt.use_fp16_storage || (opt.use_fp16_packed && src.elempack % 4 == 0)))
+        if (vkdev->info.type == 0 && opt.use_fp16_storage)
         {
             ncnn::cast_float32_to_float16(src, src_fp16, opt);
         }
@@ -156,7 +156,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
     if (src.elemsize == src.elempack * 4u)
     {
         // cpu cast to fp16 (discrete gpu)
-        if (vkdev->info.type == 0 && (opt.use_image_fp16_storage || (opt.use_image_fp16_packed && src.elempack % 4 == 0)))
+        if (vkdev->info.type == 0 && opt.use_fp16_storage)
         {
             ncnn::cast_float32_to_float16(src, src_fp16, opt);
         }
@@ -228,13 +228,14 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         dst_elempack = 1;
 
     VkMat dst_staging;
-    if (opt.blob_vkallocator->mappable)
+    Option opt_staging = opt;
+    opt_staging.use_fp16_packed = false;
+    if (opt_staging.blob_vkallocator->mappable)
     {
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt);
+        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
     else
     {
-        Option opt_staging = opt;
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
         vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
@@ -301,7 +302,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
     {
-        if (vkdev->info.type == 0 && (opt.use_fp16_storage || (opt.use_fp16_packed && dst_fp16.elempack % 4 == 0)))
+        if (vkdev->info.type == 0 && opt.use_fp16_storage)
         {
             int dims = dst_fp16.dims;
             if (dims == 1)
@@ -350,13 +351,14 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
         dst_elempack = 1;
 
     VkMat dst_staging;
-    if (opt.blob_vkallocator->mappable)
+    Option opt_staging = opt;
+    opt_staging.use_fp16_packed = false;
+    if (opt_staging.blob_vkallocator->mappable)
     {
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt);
+        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
     else
     {
-        Option opt_staging = opt;
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
         vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
@@ -423,7 +425,7 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
     // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
     {
-        if (vkdev->info.type == 0 && (opt.use_image_fp16_storage || (opt.use_image_fp16_packed && dst_fp16.elempack % 4 == 0)))
+        if (vkdev->info.type == 0 && opt.use_fp16_storage)
         {
             int dims = dst_fp16.dims;
             if (dims == 1)
@@ -456,7 +458,7 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
 
 void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const Option& opt)
 {
-    fprintf(stderr, "record_buffer_to_image\n");
+//     fprintf(stderr, "record_buffer_to_image\n");
 
     // resolve dst_elempack
     int dims = src.dims;
@@ -476,7 +478,7 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
 
 void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt)
 {
-    fprintf(stderr, "record_image_to_buffer\n");
+//     fprintf(stderr, "record_image_to_buffer\n");
 
     // resolve dst_elempack
     int dims = src.dims;

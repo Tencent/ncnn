@@ -1423,8 +1423,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                 if (blob_mats[bottom_blob_index].dims == 0)
                 {
+                    Option opt_download = opt;
+                    opt_download.use_packing_layout = layer->support_packing;
+
                     // buffer to host
-                    cmd.record_download(blob_mats_gpu[bottom_blob_index], blob_mats[bottom_blob_index], opt);
+                    cmd.record_download(blob_mats_gpu[bottom_blob_index], blob_mats[bottom_blob_index], opt_download);
 
                     if (opt.lightmode)
                     {
@@ -1464,15 +1467,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                 {
                     bottom_blob = bottom_blob.clone();
                 }
-            }
-
-            if (opt.use_packing_layout)
-            {
-                int elempack = layer->support_packing ? 4 : 1;
-
-                Mat bottom_blob_packed;
-                convert_packing(bottom_blob, bottom_blob_packed, elempack, opt);
-                bottom_blob = bottom_blob_packed;
             }
 
             // forward
@@ -1529,8 +1523,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
 
                     if (blob_mats[bottom_blob_index].dims == 0)
                     {
+                        Option opt_download = opt;
+                        opt_download.use_packing_layout = layer->support_packing;
+
                         // buffer to host
-                        cmd.record_download(blob_mats_gpu[bottom_blob_index], blob_mats[bottom_blob_index], opt);
+                        cmd.record_download(blob_mats_gpu[bottom_blob_index], blob_mats[bottom_blob_index], opt_download);
 
                         if (opt.lightmode)
                         {
@@ -1578,15 +1575,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector
                     {
                         bottom_blobs[i] = bottom_blobs[i].clone();
                     }
-                }
-
-                if (opt.use_packing_layout)
-                {
-                    int elempack = layer->support_packing ? 4 : 1;
-
-                    Mat bottom_blob_packed;
-                    convert_packing(bottom_blobs[i], bottom_blob_packed, elempack, opt);
-                    bottom_blobs[i] = bottom_blob_packed;
                 }
             }
 
@@ -2202,15 +2190,6 @@ IMAGE_ALLOCATION_FAILED:
                 }
             }
 
-            if (opt.use_packing_layout)
-            {
-                int elempack = layer->support_packing ? 4 : 1;
-
-                Mat bottom_blob_packed;
-                convert_packing(bottom_blob, bottom_blob_packed, elempack, opt);
-                bottom_blob = bottom_blob_packed;
-            }
-
             // forward
             if (opt.lightmode && layer->support_inplace)
             {
@@ -2342,15 +2321,6 @@ IMAGE_ALLOCATION_FAILED:
                     {
                         bottom_blobs[i] = bottom_blobs[i].clone();
                     }
-                }
-
-                if (opt.use_packing_layout)
-                {
-                    int elempack = layer->support_packing ? 4 : 1;
-
-                    Mat bottom_blob_packed;
-                    convert_packing(bottom_blobs[i], bottom_blob_packed, elempack, opt);
-                    bottom_blobs[i] = bottom_blob_packed;
                 }
             }
 

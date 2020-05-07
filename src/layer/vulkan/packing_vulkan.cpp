@@ -77,21 +77,19 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    std::vector<vk_specialization_type> specializations(4 + 10);
-    specializations[0].i = cast_type_from;
-    specializations[1].i = cast_type_to;
+    std::vector<vk_specialization_type> specializations(2 + 10);
     specializations[0].i = storage_type_from;
     specializations[1].i = storage_type_to;
-    specializations[4 + 0].i = 0;// FIXME shape elempack may be dynamic
-    specializations[4 + 1].i = 0;
-    specializations[4 + 2].i = 0;
-    specializations[4 + 3].i = 0;
-    specializations[4 + 4].i = 0;
-    specializations[4 + 5].i = out_shape_packed.dims;
-    specializations[4 + 6].i = out_shape_packed.w;
-    specializations[4 + 7].i = out_shape_packed.h;
-    specializations[4 + 8].i = out_shape_packed.c;
-    specializations[4 + 9].i = out_shape_packed.cstep;
+    specializations[2 + 0].i = 0;// FIXME shape elempack may be dynamic
+    specializations[2 + 1].i = 0;
+    specializations[2 + 2].i = 0;
+    specializations[2 + 3].i = 0;
+    specializations[2 + 4].i = 0;
+    specializations[2 + 5].i = out_shape_packed.dims;
+    specializations[2 + 6].i = out_shape_packed.w;
+    specializations[2 + 7].i = out_shape_packed.h;
+    specializations[2 + 8].i = out_shape_packed.c;
+    specializations[2 + 9].i = out_shape_packed.cstep;
 
     Mat local_size_xyz;// TODO more precise group size guessed from out_shape_packed
     if (out_shape_packed.dims == 1)
@@ -117,45 +115,93 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_packing_pack8 = new Pipeline(vkdev);
         pipeline_packing_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_packing_pack8->create(LayerShaderType::packing_pack8, opt, specializations);
 
         pipeline_packing_pack1to8 = new Pipeline(vkdev);
         pipeline_packing_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8, opt, specializations);
 
         pipeline_packing_pack4to8 = new Pipeline(vkdev);
         pipeline_packing_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8, opt, specializations);
+
+        if (cast_type_from == cast_type_to)
+        {
+            pipeline_packing_pack8->create(LayerShaderType::packing_pack8, opt, specializations);
+            pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8, opt, specializations);
+            pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8, opt, specializations);
+        }
+        else if (cast_type_from == 1)
+        {
+            pipeline_packing_pack8->create(LayerShaderType::packing_pack8_fp32_to_fp16, opt, specializations);
+            pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8_fp32_to_fp16, opt, specializations);
+            pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8_fp32_to_fp16, opt, specializations);
+        }
+        else if (cast_type_to == 1)
+        {
+            pipeline_packing_pack8->create(LayerShaderType::packing_pack8_fp16_to_fp32, opt, specializations);
+            pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8_fp16_to_fp32, opt, specializations);
+            pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8_fp16_to_fp32, opt, specializations);
+        }
     }
 
     if (out_elempack == 4)
     {
         pipeline_packing_pack4 = new Pipeline(vkdev);
         pipeline_packing_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_packing_pack4->create(LayerShaderType::packing_pack4, opt, specializations);
 
         pipeline_packing_pack1to4 = new Pipeline(vkdev);
         pipeline_packing_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4, opt, specializations);
 
         pipeline_packing_pack8to4 = new Pipeline(vkdev);
         pipeline_packing_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4, opt, specializations);
+
+        if (cast_type_from == cast_type_to)
+        {
+            pipeline_packing_pack4->create(LayerShaderType::packing_pack4, opt, specializations);
+            pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4, opt, specializations);
+            pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4, opt, specializations);
+        }
+        else if (cast_type_from == 1)
+        {
+            pipeline_packing_pack4->create(LayerShaderType::packing_pack4_fp32_to_fp16, opt, specializations);
+            pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4_fp32_to_fp16, opt, specializations);
+            pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_fp32_to_fp16, opt, specializations);
+        }
+        else if (cast_type_to == 1)
+        {
+            pipeline_packing_pack4->create(LayerShaderType::packing_pack4_fp16_to_fp32, opt, specializations);
+            pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4_fp16_to_fp32, opt, specializations);
+            pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_fp16_to_fp32, opt, specializations);
+        }
     }
 
     if (out_elempack == 1)
     {
         pipeline_packing = new Pipeline(vkdev);
         pipeline_packing->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_packing->create(LayerShaderType::packing, opt, specializations);
 
         pipeline_packing_pack4to1 = new Pipeline(vkdev);
         pipeline_packing_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1, opt, specializations);
 
         pipeline_packing_pack8to1 = new Pipeline(vkdev);
         pipeline_packing_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1, opt, specializations);
+
+        if (cast_type_from == cast_type_to)
+        {
+            pipeline_packing->create(LayerShaderType::packing, opt, specializations);
+            pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1, opt, specializations);
+            pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1, opt, specializations);
+        }
+        else if (cast_type_from == 1)
+        {
+            pipeline_packing->create(LayerShaderType::packing_fp32_to_fp16, opt, specializations);
+            pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1_fp32_to_fp16, opt, specializations);
+            pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_fp32_to_fp16, opt, specializations);
+        }
+        else if (cast_type_to == 1)
+        {
+            pipeline_packing->create(LayerShaderType::packing_fp16_to_fp32, opt, specializations);
+            pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1_fp16_to_fp32, opt, specializations);
+            pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_fp16_to_fp32, opt, specializations);
+        }
     }
 
     return 0;
@@ -196,7 +242,7 @@ int Packing_vulkan::destroy_pipeline(const Option& /*opt*/)
 int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int elempack = bottom_blob.elempack;
-//     fprintf(stderr, "Packing_vulkan %d %d   %d %d   %d %d\n", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
+//     fprintf(stderr, "Packing_vulkan b2b %d %d   %d %d   %d %d\n", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
 
     if (elempack == out_elempack && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
     {
@@ -370,7 +416,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int elempack = bottom_blob.elempack;
-//     fprintf(stderr, "Packing_vulkan %d %d   %d %d   %d %d\n", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
+//     fprintf(stderr, "Packing_vulkan i2i %d %d   %d %d   %d %d\n", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
 
     if (elempack == out_elempack && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
     {
@@ -531,7 +577,7 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 int Packing_vulkan::forward(const VkMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int elempack = bottom_blob.elempack;
-//     fprintf(stderr, "Packing_vulkan %d %d   %d %d   %d %d\n", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
+//     fprintf(stderr, "Packing_vulkan b2i %d %d   %d %d   %d %d\n", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -673,7 +719,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkImageMat& top_blob, VkCo
 int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int elempack = bottom_blob.elempack;
-//     fprintf(stderr, "Packing_vulkan %d %d   %d %d   %d %d\n", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
+//     fprintf(stderr, "Packing_vulkan i2b %d %d   %d %d   %d %d\n", elempack, out_elempack, cast_type_from, cast_type_to, storage_type_from, storage_type_to);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
