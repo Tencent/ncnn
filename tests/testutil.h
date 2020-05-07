@@ -234,10 +234,6 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
-    if (!vkdev->info.support_image_storage) opt.use_image_storage = false;
-    if (!vkdev->info.support_image_fp16_packed) opt.use_image_fp16_packed = false;
-    if (!vkdev->info.support_image_fp16_storage) opt.use_image_fp16_storage = false;
-    if (!vkdev->info.support_image_fp16_arithmetic) opt.use_image_fp16_arithmetic = false;
 
     op->vkdev = vkdev;
 #endif // NCNN_VULKAN
@@ -483,10 +479,6 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
-    if (!vkdev->info.support_image_storage) opt.use_image_storage = false;
-    if (!vkdev->info.support_image_fp16_packed) opt.use_image_fp16_packed = false;
-    if (!vkdev->info.support_image_fp16_storage) opt.use_image_fp16_storage = false;
-    if (!vkdev->info.support_image_fp16_arithmetic) opt.use_image_fp16_arithmetic = false;
 
     op->vkdev = vkdev;
 #endif // NCNN_VULKAN
@@ -673,16 +665,12 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_fp16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
-    opts[0].use_image_fp16_packed = false;
-    opts[0].use_image_fp16_storage = false;
     opts[1] = _opt;
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;
     opts[1].use_fp16_storage = false;
     opts[1].use_shader_pack8 = true;
     opts[1].use_image_storage = false;
-    opts[1].use_image_fp16_packed = false;
-    opts[1].use_image_fp16_storage = false;
     opts[2] = _opt;
     opts[2].use_packing_layout = true;
     opts[2].use_vulkan_compute = false;//TODO enable me
@@ -691,8 +679,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
-    opts[2].use_image_fp16_packed = true;
-    opts[2].use_image_fp16_storage = false;
 
     for (int i = 0; i < 3; i++)
     {
@@ -720,7 +706,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             }
             epsilon_fp16 = epsilon * 100;// 0.1
         }
-        else if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_image_fp16_storage)
+        else if (opt.use_fp16_packed || opt.use_fp16_storage)
         {
             a_fp16.resize(a.size());
             for (size_t j = 0; j < a.size(); j++)
@@ -749,7 +735,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_blob_count, top_shapes, epsilon_fp16, func);
         if (ret != 0)
         {
-            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_image_fp16_packed=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_image_fp16_packed);
+            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
             return ret;
         }
     }
@@ -767,16 +753,12 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_fp16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
-    opts[0].use_image_fp16_packed = false;
-    opts[0].use_image_fp16_storage = false;
     opts[1] = _opt;
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;
     opts[1].use_fp16_storage = false;
     opts[1].use_shader_pack8 = true;
     opts[1].use_image_storage = false;
-    opts[1].use_image_fp16_packed = false;
-    opts[1].use_image_fp16_storage = false;
     opts[2] = _opt;
     opts[2].use_packing_layout = true;
     opts[2].use_vulkan_compute = false;//TODO enable me
@@ -785,8 +767,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
-    opts[2].use_image_fp16_packed = true;
-    opts[2].use_image_fp16_storage = false;
 
     for (int i = 0; i < 3; i++)
     {
@@ -812,7 +792,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             }
             epsilon_fp16 = epsilon * 100;// 0.1
         }
-        else if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_image_fp16_storage)
+        else if (opt.use_fp16_packed || opt.use_fp16_storage)
         {
             {
                 ncnn::Mat tmp;
@@ -839,7 +819,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_shape, epsilon_fp16, func);
         if (ret != 0)
         {
-            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_image_fp16_packed=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_image_fp16_packed);
+            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
             return ret;
         }
     }

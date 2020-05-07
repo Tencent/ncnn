@@ -43,11 +43,11 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_image_storage && opt.use_image_fp16_storage)
+    if (opt.use_image_storage && opt.use_fp16_storage)
     {
         elemsize = elempack * 2u;
     }
-    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    else if (opt.use_image_storage && opt.use_fp16_packed)
     {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
     }

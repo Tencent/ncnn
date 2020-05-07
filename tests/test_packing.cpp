@@ -156,11 +156,10 @@ static int test_packing_gpu(const ncnn::Mat& a, int in_elempack, int out_elempac
 
 static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_elempack)
 {
-    // FIXME
-    return 0;
-
     ncnn::ParamDict pd;
     pd.set(0, out_elempack);
+    pd.set(4, 1);// storage_type_from
+    pd.set(5, 1);// storage_type_to
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -176,7 +175,6 @@ static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_e
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = true;
     opt.use_image_storage = true;
-    opt.use_image_fp16_packed = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 

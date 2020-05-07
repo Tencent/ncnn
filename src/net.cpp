@@ -154,10 +154,6 @@ int Net::load_param(const DataReader& dr)
         if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
         if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
         if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
-        if (!vkdev->info.support_image_storage) opt.use_image_storage = false;
-        if (!vkdev->info.support_image_fp16_packed) opt.use_image_fp16_packed = false;
-        if (!vkdev->info.support_image_fp16_storage) opt.use_image_fp16_storage = false;
-        if (!vkdev->info.support_image_fp16_arithmetic) opt.use_image_fp16_arithmetic = false;
     }
 #endif // NCNN_VULKAN
 
@@ -348,10 +344,6 @@ int Net::load_param_bin(const DataReader& dr)
         if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
         if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
         if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
-        if (!vkdev->info.support_image_storage) opt.use_image_storage = false;
-        if (!vkdev->info.support_image_fp16_packed) opt.use_image_fp16_packed = false;
-        if (!vkdev->info.support_image_fp16_storage) opt.use_image_fp16_storage = false;
-        if (!vkdev->info.support_image_fp16_arithmetic) opt.use_image_fp16_arithmetic = false;
     }
 #endif // NCNN_VULKAN
 

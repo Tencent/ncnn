@@ -92,15 +92,15 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     // 7 = image_fp16s
     // 8 = image_fp16a
 
-    if (opt.use_image_storage && opt.use_image_fp16_storage && opt.use_image_fp16_arithmetic)
+    if (opt.use_image_storage && opt.use_fp16_storage && opt.use_fp16_arithmetic)
     {
         shader_type_index += 8;
     }
-    else if (opt.use_image_storage && opt.use_image_fp16_storage)
+    else if (opt.use_image_storage && opt.use_fp16_storage)
     {
         shader_type_index += 7;
     }
-    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    else if (opt.use_image_storage && opt.use_fp16_packed)
     {
         shader_type_index += 6;
     }
@@ -598,15 +598,15 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
     // 7 = image_fp16s
     // 8 = image_fp16a
 
-    if (opt.use_image_storage && opt.use_image_fp16_storage && opt.use_image_fp16_arithmetic)
+    if (opt.use_image_storage && opt.use_fp16_storage && opt.use_fp16_arithmetic)
     {
         shader_type_index += 8;
     }
-    else if (opt.use_image_storage && opt.use_image_fp16_storage)
+    else if (opt.use_image_storage && opt.use_fp16_storage)
     {
         shader_type_index += 7;
     }
-    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    else if (opt.use_image_storage && opt.use_fp16_packed)
     {
         shader_type_index += 6;
     }
