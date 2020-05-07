@@ -232,7 +232,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     if (dims == 1)
     {
-        if (opt.use_fp16_storage && out_elempack == 1 && cast_type_from == cast_type_to)
+        if (opt.use_fp16_storage && out_elempack == 1 && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
         {
             top_blob = bottom_blob;
             top_blob.w = w * elempack;
