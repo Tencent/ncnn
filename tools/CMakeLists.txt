@@ -2,6 +2,7 @@
 add_subdirectory(caffe)
 add_subdirectory(mxnet)
 add_subdirectory(onnx)
+add_subdirectory(darknet)
 
 add_subdirectory(quantize)
 
