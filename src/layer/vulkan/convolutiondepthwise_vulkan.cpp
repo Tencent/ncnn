@@ -107,12 +107,12 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_image_storage && opt.use_image_fp16_storage)
+    if (opt.use_image_storage && opt.use_fp16_storage)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
     }
-    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    else if (opt.use_image_storage && opt.use_fp16_packed)
     {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
         out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
@@ -215,12 +215,12 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize_g;
     size_t out_elemsize_g;
-    if (opt.use_image_storage && opt.use_image_fp16_storage)
+    if (opt.use_image_storage && opt.use_fp16_storage)
     {
         elemsize_g = elempack_g * 2u;
         out_elemsize_g = out_elempack_g * 2u;
     }
-    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    else if (opt.use_image_storage && opt.use_fp16_packed)
     {
         elemsize_g = elempack_g == 1 ? 4u : elempack_g * 2u;
         out_elemsize_g = out_elempack_g == 1 ? 4u : out_elempack_g * 2u;
@@ -887,7 +887,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    if (opt.use_image_fp16_packed && !opt.use_image_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_elempack == 8) out_elemsize = 8*2u;
         if (out_elempack == 4) out_elemsize = 4*2u;
@@ -935,7 +935,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
     int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
     size_t out_elemsize_g = elemsize / elempack * out_elempack_g;
 
-    if (opt.use_image_fp16_packed && !opt.use_image_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_elempack_g == 8) out_elemsize_g = 8*2u;
         if (out_elempack_g == 4) out_elemsize_g = 4*2u;

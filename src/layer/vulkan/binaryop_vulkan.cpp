@@ -64,13 +64,13 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
     size_t elemsize;
     size_t elemsize1;
     size_t out_elemsize;
-    if (opt.use_image_storage && opt.use_image_fp16_storage)
+    if (opt.use_image_storage && opt.use_fp16_storage)
     {
         elemsize = elempack * 2u;
         elemsize1 = elempack1 * 2u;
         out_elemsize = out_elempack * 2u;
     }
-    else if (opt.use_image_storage && opt.use_image_fp16_packed)
+    else if (opt.use_image_storage && opt.use_fp16_packed)
     {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
         elemsize1 = elempack1 == 1 ? 4u : elempack1 * 2u;

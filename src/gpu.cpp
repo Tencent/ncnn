@@ -782,8 +782,9 @@ int create_gpu_instance()
             {
                 gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess && query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
             }
-            if (gpu_info.support_VK_KHR_16bit_storage)
+            if (gpu_info.support_VK_KHR_16bit_storage && queryFeatures.features.shaderStorageImageExtendedFormats)
             {
+                // shaderStorageImageExtendedFormats enables r16f format in storage image
                 gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
             }
             if (gpu_info.support_VK_KHR_shader_float16_int8)
@@ -821,54 +822,6 @@ int create_gpu_instance()
             gpu_info.support_fp16_arithmetic = true;
         }
 
-        // check format
-        gpu_info.support_image_storage = false;
-        gpu_info.support_image_fp16_packed = false;
-        gpu_info.support_image_fp16_storage = false;
-        gpu_info.support_image_fp16_arithmetic = false;
-        {
-            VkFormatProperties r32f_formatProperties;
-            VkFormatProperties rgba32f_formatProperties;
-            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R32_SFLOAT, &r32f_formatProperties);
-            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R32G32B32A32_SFLOAT, &rgba32f_formatProperties);
-
-            if ((r32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
-                && (r32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)
-                && (rgba32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
-                && (rgba32f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
-                gpu_info.support_image_storage = true;
-        }
-        {
-            VkFormatProperties rgba16f_formatProperties;
-            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R16G16B16A16_SFLOAT, &rgba16f_formatProperties);
-
-            if ((rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
-                && (rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
-                gpu_info.support_image_fp16_packed = true;
-        }
-        {
-            VkFormatProperties r16f_formatProperties;
-            VkFormatProperties rgba16f_formatProperties;
-            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R16_SFLOAT, &r16f_formatProperties);
-            vkGetPhysicalDeviceFormatProperties(physicalDevice, VK_FORMAT_R16G16B16A16_SFLOAT, &rgba16f_formatProperties);
-
-            if ((r16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
-                && (r16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)
-                && (rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
-                && (rgba16f_formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
-                gpu_info.support_image_fp16_storage = true;
-        }
-        if (gpu_info.support_fp16_arithmetic)
-        {
-            gpu_info.support_image_fp16_arithmetic = true;
-        }
-
-        if (physicalDeviceProperties.vendorID == 0x1ae0 && physicalDeviceProperties.deviceID == 0xc0de)
-        {
-            // swiftshader image r16f is not supported
-            gpu_info.support_image_fp16_storage = false;
-        }
-
         fprintf(stderr, "[%u %s]  queueC=%u[%u]  queueG=%u[%u]  queueT=%u[%u]\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.compute_queue_family_index, gpu_info.compute_queue_count,
                 gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
@@ -880,10 +833,6 @@ int create_gpu_instance()
         fprintf(stderr, "[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d\n", i, physicalDeviceProperties.deviceName,
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
                 gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
-
-        fprintf(stderr, "[%u %s]  imgfp32=%d  imgfp16p=%d  imgfp16s=%d  imgfp16a=%d\n", i, physicalDeviceProperties.deviceName,
-                gpu_info.support_image_storage, gpu_info.support_image_fp16_packed,
-                gpu_info.support_image_fp16_storage, gpu_info.support_image_fp16_arithmetic);
 
         gpu_info_index++;
     }
@@ -1571,8 +1520,8 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
 void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_image_fp16_storage ? 2 : 1;
-    int cast_type_to_index = opt.use_image_fp16_storage ? 2 : opt.use_image_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
 //     fprintf(stderr, "convert_packing i2i %d %d %d\n", cast_type_from_index, cast_type_to_index, packing_type_to_index);
@@ -1584,7 +1533,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
 void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
     int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
-    int cast_type_to_index = opt.use_image_fp16_storage ? 2 : opt.use_image_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
 //     fprintf(stderr, "convert_packing b2i %d %d %d\n", cast_type_from_index, cast_type_to_index, packing_type_to_index);
@@ -1595,7 +1544,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
 
 void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_image_fp16_storage ? 2 : 1;
+    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
@@ -1652,25 +1601,25 @@ int VulkanDevice::create_shader_module()
                 continue;
         }
 
-        if (!info.support_image_storage)
-        {
-            if (i % 9 == 5)
-                continue;
-        }
+//         if (!info.support_image_storage)
+//         {
+//             if (i % 9 == 5)
+//                 continue;
+//         }
 
-        if (!info.support_image_storage || !info.support_image_fp16_packed)
+        if (!info.support_fp16_packed)
         {
             if (i % 9 == 6)
                 continue;
         }
 
-        if (!info.support_image_storage || !info.support_image_fp16_storage)
+        if (!info.support_fp16_storage)
         {
             if (i % 9 == 7)
                 continue;
         }
 
-        if (!info.support_image_storage || !info.support_image_fp16_storage || !info.support_image_fp16_arithmetic)
+        if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
         {
             if (i % 9 == 8)
                 continue;
@@ -1910,9 +1859,6 @@ int VulkanDevice::create_utility_operator()
     {
         opt.use_image_storage = (i0 == 1 || i1 == 1);
 
-        if (!info.support_image_storage && opt.use_image_storage)
-            continue;
-
         // from fp32-b/i | fp16p-b/i | fp16s-b/i
         // to fp32-b/i | fp16p-b/i | fp16s-b/i
         for (int j0=0; j0<3; j0++)
@@ -1921,19 +1867,11 @@ int VulkanDevice::create_utility_operator()
         {
             opt.use_fp16_packed = (j0 == 1 || j1 == 1);
             opt.use_fp16_storage = (j0 == 2 || j1 == 2);
-            opt.use_image_fp16_packed = (j0 == 1 || j1 == 1);
-            opt.use_image_fp16_storage = (j0 == 2 || j1 == 2);
 
             if (!info.support_fp16_packed && opt.use_fp16_packed)
                 continue;
 
             if (!info.support_fp16_storage && opt.use_fp16_storage)
-                continue;
-
-            if (!info.support_image_fp16_packed && opt.use_image_fp16_packed)
-                continue;
-
-            if (!info.support_image_fp16_storage && opt.use_image_fp16_storage)
                 continue;
 
             // from pack1 | pack4 | pack8
@@ -1978,9 +1916,6 @@ void VulkanDevice::destroy_utility_operator()
     {
         opt.use_image_storage = (i0 == 1 || i1 == 1);
 
-        if (!info.support_image_storage && opt.use_image_storage)
-            continue;
-
         // from fp32-b/i | fp16p-b/i | fp16s-b/i
         // to fp32-b/i | fp16p-b/i | fp16s-b/i
         for (int j0=0; j0<3; j0++)
@@ -1989,19 +1924,11 @@ void VulkanDevice::destroy_utility_operator()
         {
             opt.use_fp16_packed = (j0 == 1 || j1 == 1);
             opt.use_fp16_storage = (j0 == 2 || j1 == 2);
-            opt.use_image_fp16_packed = (j0 == 1 || j1 == 1);
-            opt.use_image_fp16_storage = (j0 == 2 || j1 == 2);
 
             if (!info.support_fp16_packed && opt.use_fp16_packed)
                 continue;
 
             if (!info.support_fp16_storage && opt.use_fp16_storage)
-                continue;
-
-            if (!info.support_image_fp16_packed && opt.use_image_fp16_packed)
-                continue;
-
-            if (!info.support_image_fp16_storage && opt.use_image_fp16_storage)
                 continue;
 
             // from pack1 | pack4 | pack8
