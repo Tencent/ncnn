@@ -81,7 +81,7 @@ typedef enum FIELD_TYPE {
 typedef struct Section_Field {
     const char *name;
     FIELD_TYPE type;
-    int offset;
+    size_t offset;
 } Section_Field;
 
 #define FIELD_OFFSET(c)     ((size_t)&(((Section *)0)->c)) 
@@ -451,10 +451,14 @@ void parse_cfg(std::deque<Section *> &dnet)
         }
         else if (s->name == "yolo")
         {
+#if OUTPUT_LAYER_MAP
+            printf("yolo%d\n", yolo_count);
+#endif
+
             if (s->ignore_thresh > 0.25)
             {
-                fprintf(stderr, "WARNING: The ignore_thresh=%f of in the cfg file is too high. "
-                    "An alternative value 0.25 is written instead.\n", s->ignore_thresh);
+                fprintf(stderr, "WARNING: The ignore_thresh=%f of yolo%d is too high. "
+                    "An alternative value 0.25 is written instead.\n", s->ignore_thresh, yolo_count);
                 s->ignore_thresh = 0.25;
             }
 
@@ -594,8 +598,11 @@ int main(int argc, char** argv)
 
     std::deque<Section *> dnet;
 
+    printf("Loading cfg...\n");
     load_cfg(darknetcfg, dnet);
     parse_cfg(dnet);
+
+    printf("Loading weights...\n");
     load_weights(darknetweights, dnet);
 
     FILE *pp = fopen(ncnn_param, "wb");
@@ -606,12 +613,10 @@ int main(int argc, char** argv)
     if (bp == NULL)
         file_error(ncnn_bin);
 
+    printf("Converting model...\n");
+
     fprintf(pp, "7767517\n");
     fprintf(pp, "%d %d\n", (int)dnet.size(), count_output_blob(dnet));
-
-    printf("NOTE: Generated %d layer, %d blob generated.\n", (int)dnet.size(), count_output_blob(dnet));
-    printf("NOTE: There %s %d yolo output layer. Make sure all outputs are processed with nms.\n", yolo_layer_count > 1 ? "are" : "is", yolo_layer_count);
-    printf("NOTE: Remeber to use ncnnoptimize for better performance.\n");
 
     for (auto s : dnet)
     {
@@ -640,6 +645,11 @@ int main(int argc, char** argv)
         }
     }
     fclose(pp);
+
+    printf("NOTE: %d layers, %d blobs generated.\n", (int)dnet.size(), count_output_blob(dnet));
+    printf("NOTE: The input of darknet uses: mean_vals=0 and norm_vals=1/255.f.\n");
+    printf("NOTE: There are %d yolo output layer. Make sure all outputs are processed with nms.\n", yolo_layer_count);
+    printf("NOTE: Remeber to use ncnnoptimize for better performance.\n");
 
     return 0;
 }
