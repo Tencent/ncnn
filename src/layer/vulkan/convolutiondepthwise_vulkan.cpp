@@ -27,8 +27,6 @@ ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
     support_image_storage = true;
 
     padding = 0;
-    packing_unpack = 0;
-    packing_pack = 0;
 
     pipeline_convolutiondepthwise = 0;
     pipeline_convolutiondepthwise_pack4 = 0;
@@ -252,42 +250,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
     Mat out_shape_g_packed;
     if (out_shape.dims == 3) out_shape_g_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack_g, (void*)0, out_elemsize_g, out_elempack_g);
 
-    if (elempack > elempack_g)
-    {
-        packing_unpack = ncnn::create_layer(ncnn::LayerType::Packing);
-        packing_unpack->vkdev = vkdev;
-
-        packing_unpack->bottom_shapes.resize(1);
-        packing_unpack->bottom_shapes[0] = shape_bordered_packed;
-        packing_unpack->top_shapes.resize(1);
-        packing_unpack->top_shapes[0] = shape_bordered_g_packed;
-
-        ncnn::ParamDict pd;
-        pd.set(0, elempack_g);
-
-        packing_unpack->load_param(pd);
-
-        packing_unpack->create_pipeline(opt);
-    }
-
-    if (out_elempack_g < out_elempack)
-    {
-        packing_pack = ncnn::create_layer(ncnn::LayerType::Packing);
-        packing_pack->vkdev = vkdev;
-
-        packing_pack->bottom_shapes.resize(1);
-        packing_pack->bottom_shapes[0] = out_shape_g_packed;
-        packing_pack->top_shapes.resize(1);
-        packing_pack->top_shapes[0] = out_shape;
-
-        ncnn::ParamDict pd;
-        pd.set(0, out_elempack);
-
-        packing_pack->load_param(pd);
-
-        packing_pack->create_pipeline(opt);
-    }
-
     specializations[11 + 0].i = shape_bordered_g_packed.dims;
     specializations[11 + 1].i = shape_bordered_g_packed.w;
     specializations[11 + 2].i = shape_bordered_g_packed.h;
@@ -391,20 +353,6 @@ int ConvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
         padding = 0;
     }
 
-    if (packing_unpack)
-    {
-        packing_unpack->destroy_pipeline(opt);
-        delete packing_unpack;
-        packing_unpack = 0;
-    }
-
-    if (packing_pack)
-    {
-        packing_pack->destroy_pipeline(opt);
-        delete packing_pack;
-        packing_pack = 0;
-    }
-
     delete pipeline_convolutiondepthwise;
     pipeline_convolutiondepthwise = 0;
 
@@ -449,16 +397,6 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
     if (padding)
     {
         padding->upload_model(cmd, opt);
-    }
-
-    if (packing_unpack)
-    {
-        packing_unpack->upload_model(cmd, opt);
-    }
-
-    if (packing_pack)
-    {
-        packing_pack->upload_model(cmd, opt);
     }
 
     const int maxk = kernel_w * kernel_h;
@@ -725,7 +663,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
-        packing_unpack->forward(bottom_blob_bordered, bottom_blob_bordered_unpacked, cmd, opt_pack1);
+        vkdev->convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, elempack_g, cmd, opt_pack1);
     }
 
     VkMat top_blob_unpacked = top_blob;
@@ -797,7 +735,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     // packing
     if (out_elempack_g < out_elempack)
     {
-        packing_pack->forward(top_blob_unpacked, top_blob, cmd, opt);
+        vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
     }
     else
     {
@@ -949,7 +887,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
-        packing_unpack->forward(bottom_blob_bordered, bottom_blob_bordered_unpacked, cmd, opt_pack1);
+        vkdev->convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, elempack_g, cmd, opt_pack1);
     }
 
     VkImageMat top_blob_unpacked = top_blob;
@@ -1021,7 +959,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
     // packing
     if (out_elempack_g < out_elempack)
     {
-        packing_pack->forward(top_blob_unpacked, top_blob, cmd, opt);
+        vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
     }
     else
     {

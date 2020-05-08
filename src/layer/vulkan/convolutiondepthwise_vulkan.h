@@ -41,8 +41,6 @@ public:
     VkImageMat bias_data_gpu_image;
 
     ncnn::Layer* padding;
-    ncnn::Layer* packing_unpack;
-    ncnn::Layer* packing_pack;
 
     Pipeline* pipeline_convolutiondepthwise;
     Pipeline* pipeline_convolutiondepthwise_pack4;

@@ -26,9 +26,6 @@ Concat_vulkan::Concat_vulkan()
     support_vulkan = true;
     support_image_storage = true;
 
-    packing_pack4 = 0;
-    packing_pack8 = 0;
-
     pipeline_concat[0] = 0;
     pipeline_concat[1] = 0;
     pipeline_concat_pack4[0] = 0;
@@ -207,61 +204,11 @@ int Concat_vulkan::create_pipeline(const Option& opt)
         pipeline_concat_pack8to1[1]->create(LayerShaderType::concat_pack8to1, opt, specializations);
     }
 
-    if ((axis == 0 && shape.dims == 0) || (elempack < out_elempack && out_elempack == 4))
-    {
-        packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
-        packing_pack4->vkdev = vkdev;
-
-        packing_pack4->bottom_shapes.resize(1);
-        packing_pack4->bottom_shapes[0] = out_shape_unpacked;
-        packing_pack4->top_shapes.resize(1);
-        packing_pack4->top_shapes[0] = out_shape;
-
-        ncnn::ParamDict pd;
-        pd.set(0, 4);
-
-        packing_pack4->load_param(pd);
-
-        packing_pack4->create_pipeline(opt);
-    }
-
-    if ((opt.use_shader_pack8 && axis == 0 && shape.dims == 0) || (elempack < out_elempack && out_elempack == 8))
-    {
-        packing_pack8 = ncnn::create_layer(ncnn::LayerType::Packing);
-        packing_pack8->vkdev = vkdev;
-
-        packing_pack8->bottom_shapes.resize(1);
-        packing_pack8->bottom_shapes[0] = out_shape_unpacked;
-        packing_pack8->top_shapes.resize(1);
-        packing_pack8->top_shapes[0] = out_shape;
-
-        ncnn::ParamDict pd;
-        pd.set(0, 8);
-
-        packing_pack8->load_param(pd);
-
-        packing_pack8->create_pipeline(opt);
-    }
-
     return 0;
 }
 
 int Concat_vulkan::destroy_pipeline(const Option& opt)
 {
-    if (packing_pack4)
-    {
-        packing_pack4->destroy_pipeline(opt);
-        delete packing_pack4;
-        packing_pack4 = 0;
-    }
-
-    if (packing_pack8)
-    {
-        packing_pack8->destroy_pipeline(opt);
-        delete packing_pack8;
-        packing_pack8 = 0;
-    }
-
     delete pipeline_concat[0];
     delete pipeline_concat[1];
     pipeline_concat[0] = 0;
@@ -393,8 +340,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         // packing
         if (elempack < out_elempack)
         {
-            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
-            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
+            vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
         }
 
         return 0;
@@ -496,8 +442,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         // packing
         if (elempack < out_elempack)
         {
-            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
-            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
+            vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
         }
 
         return 0;
@@ -654,8 +599,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         // packing
         if (elempack < out_elempack)
         {
-            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
-            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
+            vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
         }
 
         return 0;
@@ -872,8 +816,7 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         // packing
         if (elempack < out_elempack)
         {
-            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
-            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
+            vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
         }
 
         return 0;
@@ -975,8 +918,7 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         // packing
         if (elempack < out_elempack)
         {
-            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
-            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
+            vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
         }
 
         return 0;
@@ -1133,8 +1075,7 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         // packing
         if (elempack < out_elempack)
         {
-            const Layer* packing = out_elempack == 8 ? packing_pack8 : packing_pack4;
-            packing->forward(top_blob_unpacked, top_blob, cmd, opt);
+            vkdev->convert_packing(top_blob_unpacked, top_blob, out_elempack, cmd, opt);
         }
 
         return 0;
