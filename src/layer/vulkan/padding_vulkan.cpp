@@ -155,14 +155,7 @@ int Padding_vulkan::destroy_pipeline(const Option& /*opt*/)
 int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (per_channel_pad_data_size == 0)
-    {
-        if (opt.use_image_storage)
-        {
-            cmd.record_upload(Mat(1), per_channel_pad_data_gpu_image, opt);
-        }
-
         return 0;
-    }
 
     int elempack = opt.use_shader_pack8 && per_channel_pad_data_size % 8 == 0 ? 8 : per_channel_pad_data_size % 4 == 0 ? 4 : 1;
 
@@ -207,7 +200,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_gpu : top_blob;// TODO use dummy buffer
+    bindings[2] = per_channel_pad_data_gpu;
 
     std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
@@ -276,7 +269,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_size ? per_channel_pad_data_gpu : top_blob;// TODO use dummy buffer
+    bindings[2] = per_channel_pad_data_gpu;
 
     std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
@@ -327,7 +320,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     std::vector<VkImageMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_gpu_image;// TODO use dummy buffer
+    bindings[2] = per_channel_pad_data_gpu_image;
 
     std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
@@ -396,7 +389,7 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     std::vector<VkImageMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = per_channel_pad_data_gpu_image;// TODO use dummy buffer
+    bindings[2] = per_channel_pad_data_gpu_image;
 
     std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
