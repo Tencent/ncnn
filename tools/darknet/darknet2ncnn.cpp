@@ -86,7 +86,6 @@ typedef struct Section_Field {
 
 #define FIELD_OFFSET(c)     ((size_t)&(((Section *)0)->c)) 
 
-int input_w = 416, input_h = 416;
 int yolo_layer_count = 0;
 
 std::vector<std::string> split(const std::string& s, char delimiter)
@@ -258,9 +257,11 @@ std::vector<Section *> get_sections_by_input_blob(std::deque<Section *> &dnet, s
     return ret;
 }
 
-void parse_cfg(std::deque<Section *> &dnet)
+void parse_cfg(std::deque<Section *> &dnet, int merge_output)
 {
+    int input_w = 416, input_h = 416;
     int yolo_count = 0;
+    std::vector<Section *> yolo_layers;
 
 #if OUTPUT_LAYER_MAP
     printf("   layer   filters  size/strd(dil)      input                output\n");
@@ -472,9 +473,10 @@ void parse_cfg(std::deque<Section *> &dnet)
             s->param.push_back(format("2=%f", s->ignore_thresh));   //confidence_threshold
             s->param.push_back(format("-23304=%d%s", s->anchors.size(), array_to_float_string(s->anchors).c_str()));    //biases
             s->param.push_back(format("-23305=%d%s", s->mask.size(), array_to_float_string(s->mask).c_str()));       //mask
-            s->param.push_back(format("-23306=2,%f,%f", input_w * s->scale_x_y / s->w, input_h * s->scale_x_y / s->h));       //for Yolov3DetectionOutput scale compatibility
+            s->param.push_back(format("-23306=2,%f,%f", input_w * s->scale_x_y / s->w, input_h * s->scale_x_y / s->h));       //biases_index
 
             yolo_layer_count++;
+            yolo_layers.push_back(s);
         }
         else
         {
@@ -496,9 +498,11 @@ void parse_cfg(std::deque<Section *> &dnet)
         }
     }
 
-    for (auto it = dnet.begin(); it != dnet.end(); it++)
+    for (auto it = dnet.begin(); it != dnet.end(); )
         if ((*it)->layer_type == "Noop")
             it = dnet.erase(it);
+        else
+            it++;
 
     for (auto it = dnet.begin(); it != dnet.end(); it++)
     {
@@ -525,6 +529,57 @@ void parse_cfg(std::deque<Section *> &dnet)
             }
             it = dnet.insert(it + 1, p);
         }
+    }
+
+    if (merge_output && yolo_layer_count > 0)
+    {
+        std::vector<int> masks;
+        std::vector<float> scale_x_y;
+
+        Section *s = new Section;
+        s->classes = yolo_layers[0]->classes;
+        s->anchors = yolo_layers[0]->anchors;
+        s->mask = yolo_layers[0]->mask;
+
+        for (auto p : yolo_layers)
+        {
+            if (s->classes != p->classes)
+                error("yolo object classes number not match, output cannot be merged.");
+
+            if (s->anchors.size() != p->anchors.size())
+                error("yolo layer anchor count not match, output cannot be merged.");
+            
+            for (int i = 0; i < s->anchors.size(); i++)
+                if (s->anchors[i] != p->anchors[i])
+                    error("yolo anchor size not match, output cannot be merged.");
+
+            if (s->ignore_thresh > p->ignore_thresh)
+                s->ignore_thresh = p->ignore_thresh;
+
+            for (int m : p->mask)
+                masks.push_back(m);
+
+            scale_x_y.push_back(input_w * p->scale_x_y / p->w);
+            s->input_blobs.push_back(p->input_blobs[0]);
+        }
+
+        for (auto it = dnet.begin(); it != dnet.end(); )
+            if ((*it)->name == "yolo")
+                it = dnet.erase(it);
+            else
+                it++;
+
+        s->layer_type = "Yolov3DetectionOutput";
+        s->layer_name = "detection_out";
+        s->output_blobs.push_back("output");
+        s->param.push_back(format("0=%d", s->classes));         //num_class
+        s->param.push_back(format("1=%d", s->mask.size()));             //num_box
+        s->param.push_back(format("2=%f", s->ignore_thresh));   //confidence_threshold
+        s->param.push_back(format("-23304=%d%s", s->anchors.size(), array_to_float_string(s->anchors).c_str()));    //biases
+        s->param.push_back(format("-23305=%d%s", masks.size(), array_to_float_string(masks).c_str()));       //mask
+        s->param.push_back(format("-23306=%d%s", scale_x_y.size(), array_to_float_string(scale_x_y).c_str()));       //biases_index
+
+        dnet.push_back(s);
     }
 }
 
@@ -585,9 +640,15 @@ int count_output_blob(std::deque<Section *> &dnet)
 
 int main(int argc, char** argv)
 {
-    if (!(argc == 3 || argc == 5 || argc == 6 || argc == 7))
+    if (!(argc == 3 || argc == 5 || argc == 6))
     {
-        fprintf(stderr, "Usage: %s [darknetcfg] [darknetweights] [ncnnparam] [ncnnbin]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [darknetcfg] [darknetweights] [ncnnparam] [ncnnbin] [merge_output]\n"
+            "\t[darknetcfg]     .cfg file of input darknet model.\n"
+            "\t[darknetweights] .weights file of input darknet model.\n"
+            "\t[cnnparam]       .param file of output ncnn model.\n"
+            "\t[ncnnbin]        .bin file of output ncnn model.\n"
+            "\t[merge_output]   merge all output yolo layers into one, enabled by default.\n"
+            , argv[0]);
         return -1;
     }
 
@@ -595,12 +656,13 @@ int main(int argc, char** argv)
     const char* darknetweights = argv[2];
     const char* ncnn_param = argc >= 5 ? argv[3] : "ncnn.param";
     const char* ncnn_bin = argc >= 5 ? argv[4] : "ncnn.bin";
+    int merge_output = argc >= 6 ? atoi(argv[5]) : 1;
 
     std::deque<Section *> dnet;
 
     printf("Loading cfg...\n");
     load_cfg(darknetcfg, dnet);
-    parse_cfg(dnet);
+    parse_cfg(dnet, merge_output);
 
     printf("Loading weights...\n");
     load_weights(darknetweights, dnet);
@@ -620,7 +682,7 @@ int main(int argc, char** argv)
 
     for (auto s : dnet)
     {
-        fprintf(pp, "%-22s %-16s %d %d", s->layer_type.c_str(), s->layer_name.c_str(), (int)s->input_blobs.size(), (int)s->output_blobs.size());
+        fprintf(pp, "%-22s %-20s %d %d", s->layer_type.c_str(), s->layer_name.c_str(), (int)s->input_blobs.size(), (int)s->output_blobs.size());
         for (auto b : s->input_blobs)
             fprintf(pp, " %s", b.c_str());
         for (auto b : s->output_blobs)
@@ -648,7 +710,8 @@ int main(int argc, char** argv)
 
     printf("NOTE: %d layers, %d blobs generated.\n", (int)dnet.size(), count_output_blob(dnet));
     printf("NOTE: The input of darknet uses: mean_vals=0 and norm_vals=1/255.f.\n");
-    printf("NOTE: There are %d yolo output layer. Make sure all outputs are processed with nms.\n", yolo_layer_count);
+    if (!merge_output)
+        printf("NOTE: There are %d unmerged yolo output layer. Make sure all outputs are processed with nms.\n", yolo_layer_count);
     printf("NOTE: Remeber to use ncnnoptimize for better performance.\n");
 
     return 0;
