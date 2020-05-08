@@ -1018,10 +1018,6 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
             cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
         }
     }
-    else if (opt.use_image_storage)
-    {
-        cmd.record_upload(Mat(1), bias_data_gpu_image, opt);
-    }
 
     if (innerproduct)
     {
@@ -1229,7 +1225,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             std::vector<VkMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
-            bindings[2] = bias_term ? bias_data_gpu : bindings[1];
+            bindings[2] = bias_data_gpu;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
@@ -1370,7 +1366,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             std::vector<VkMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
-            bindings[2] = bias_term ? bias_data_gpu : bindings[1];
+            bindings[2] = bias_data_gpu;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
@@ -1421,7 +1417,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu;
-    bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
+    bindings[3] = bias_data_gpu;
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered.dims;
@@ -1707,7 +1703,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             std::vector<VkImageMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
-            bindings[2] = bias_data_gpu_image;// TODO use dummy buffer
+            bindings[2] = bias_data_gpu_image;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
@@ -1848,7 +1844,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             std::vector<VkImageMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
-            bindings[2] = bias_data_gpu_image;// TODO use dummy buffer
+            bindings[2] = bias_data_gpu_image;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
@@ -1899,7 +1895,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu_image;
-    bindings[3] = bias_data_gpu_image;// TODO use dummy buffer
+    bindings[3] = bias_data_gpu_image;
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered.dims;

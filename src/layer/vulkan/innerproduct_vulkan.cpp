@@ -303,10 +303,6 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
             cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
         }
     }
-    else if (opt.use_image_storage)
-    {
-        cmd.record_upload(Mat(1), bias_data_gpu_image, opt);
-    }
 
     return 0;
 }
@@ -343,7 +339,7 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     bindings[0] = bottom_blob_flattened;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu;
-    bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
+    bindings[3] = bias_data_gpu;
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_flattened.dims;
@@ -432,7 +428,7 @@ int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
     bindings[0] = bottom_blob_flattened;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu_image;
-    bindings[3] = bias_data_gpu_image;// TODO use dummy buffer
+    bindings[3] = bias_data_gpu_image;
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_flattened.dims;
