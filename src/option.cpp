@@ -46,9 +46,6 @@ Option::Option()
     use_shader_pack8 = false;
 
     use_image_storage = false;
-    use_image_fp16_packed = false;
-    use_image_fp16_storage = false;
-    use_image_fp16_arithmetic = false;
 
     use_bf16_storage = false;
 }

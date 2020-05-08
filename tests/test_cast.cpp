@@ -384,9 +384,6 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
     opt.use_int8_arithmetic = false;
     opt.use_packing_layout = true;
     opt.use_image_storage = true;
-    opt.use_image_fp16_packed = true;
-    opt.use_image_fp16_storage = false;
-    opt.use_image_fp16_arithmetic = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -399,9 +396,6 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
 
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_image_storage) opt.use_image_storage = false;
-    if (!vkdev->info.support_image_fp16_packed) opt.use_image_fp16_packed = false;
-    if (!vkdev->info.support_image_fp16_storage) opt.use_image_fp16_storage = false;
 
     ncnn::Layer* op = ncnn::create_layer("Cast");
 
@@ -504,9 +498,6 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = true;
     opt.use_image_storage = true;
-    opt.use_image_fp16_packed = true;
-    opt.use_image_fp16_storage = false;
-    opt.use_image_fp16_arithmetic = false;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -519,9 +510,6 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
 
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_image_storage) opt.use_image_storage = false;
-    if (!vkdev->info.support_image_fp16_packed) opt.use_image_fp16_packed = false;
-    if (!vkdev->info.support_image_fp16_storage) opt.use_image_fp16_storage = false;
 
     ncnn::Layer* op = ncnn::create_layer("Cast");
 

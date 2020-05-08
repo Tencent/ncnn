@@ -24,12 +24,10 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-layout (constant_id = 0) const int cast_type_from = 0;
-layout (constant_id = 1) const int cast_type_to = 0;
-layout (constant_id = 2) const int storage_type_from = 0;
-layout (constant_id = 3) const int storage_type_to = 0;
+layout (constant_id = 0) const int storage_type_from = 0;
+layout (constant_id = 1) const int storage_type_to = 0;
 
-#define shape_constant_id_offset 4
+#define shape_constant_id_offset 2
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -47,46 +45,14 @@ layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
-layout (binding = 0) readonly buffer bottom_blob_fp32 { mat2x4 bottom_blob_fp32_data[]; };
-layout (binding = 0) readonly buffer bottom_blob_fp16p { uvec4 bottom_blob_fp16p_data[]; };
-#if NCNN_fp16_storage
-layout (binding = 0) readonly buffer bottom_blob_fp16s { sfpvec8 bottom_blob_fp16s_data[]; };
-#endif
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob_fp32 { mat2x4 top_blob_fp32_data[]; };
-layout (binding = 1) writeonly buffer top_blob_fp16p { uvec4 top_blob_fp16p_data[]; };
-#if NCNN_fp16_storage
-layout (binding = 1) writeonly buffer top_blob_fp16s { sfpvec8 top_blob_fp16s_data[]; };
-#endif
 #if NCNN_image_shader
 layout (binding = 2) uniform unfp sampler1D bottom_blob_1d;
 layout (binding = 2) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 2) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 2) uniform highp sampler1D bottom_blob_1d_fp32;
-layout (binding = 2) uniform highp sampler2D bottom_blob_2d_fp32;
-layout (binding = 2) uniform highp sampler3D bottom_blob_3d_fp32;
-layout (binding = 2) uniform mediump sampler1D bottom_blob_1d_fp16p;
-layout (binding = 2) uniform mediump sampler2D bottom_blob_2d_fp16p;
-layout (binding = 2) uniform mediump sampler3D bottom_blob_3d_fp16p;
-#if NCNN_fp16_storage
-layout (binding = 2) uniform mediump sampler1D bottom_blob_1d_fp16s;
-layout (binding = 2) uniform mediump sampler2D bottom_blob_2d_fp16s;
-layout (binding = 2) uniform mediump sampler3D bottom_blob_3d_fp16s;
-#endif
 layout (binding = 3, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
 layout (binding = 3, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 3, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
-layout (binding = 3, rgba32f) writeonly uniform highp image1D top_blob_1d_fp32;
-layout (binding = 3, rgba32f) writeonly uniform highp image2D top_blob_2d_fp32;
-layout (binding = 3, rgba32f) writeonly uniform highp image3D top_blob_3d_fp32;
-layout (binding = 3, rgba16f) writeonly uniform mediump image1D top_blob_1d_fp16p;
-layout (binding = 3, rgba16f) writeonly uniform mediump image2D top_blob_2d_fp16p;
-layout (binding = 3, rgba16f) writeonly uniform mediump image3D top_blob_3d_fp16p;
-#if NCNN_fp16_storage
-layout (binding = 3, rgba16f) writeonly uniform mediump image1D top_blob_1d_fp16s;
-layout (binding = 3, rgba16f) writeonly uniform mediump image2D top_blob_2d_fp16s;
-layout (binding = 3, rgba16f) writeonly uniform mediump image3D top_blob_3d_fp16s;
-#endif
 #endif
 
 layout (push_constant) uniform parameter
@@ -121,51 +87,12 @@ void main()
         {
             int gi = gx;
 
-            if (cast_type_from == 0)
-            {
-                v = buffer_ld8(bottom_blob_data, gi);
-            }
-            if (cast_type_from == 1)
-            {
-                v = afpvec8(bottom_blob_fp32_data[gi]);
-            }
-            if (cast_type_from == 2)
-            {
-                v = afpvec8(mat2x4(vec4(unpackHalf2x16(bottom_blob_fp16p_data[gi].r),unpackHalf2x16(bottom_blob_fp16p_data[gi].g)),vec4(unpackHalf2x16(bottom_blob_fp16p_data[gi].b),unpackHalf2x16(bottom_blob_fp16p_data[gi].a))));
-            }
-#if NCNN_fp16_storage
-            if (cast_type_from == 3)
-            {
-#if NCNN_fp16_arithmetic
-                v = afpvec8(bottom_blob_fp16s_data[gi]);
-#else
-                v[0] = afpvec4(bottom_blob_fp16s_data[gi].abcd);
-                v[1] = afpvec4(bottom_blob_fp16s_data[gi].efgh);
-#endif
-            }
-#endif
+            v = buffer_ld8(bottom_blob_data, gi);
         }
 #if NCNN_image_shader
         if (storage_type_from == 1)
         {
-            if (cast_type_from == 0)
-            {
-                v = image1d_ld8(bottom_blob_1d, gx);
-            }
-            if (cast_type_from == 1)
-            {
-                v = afpvec8(texelFetch(bottom_blob_1d_fp32, gx * 2, 0), texelFetch(bottom_blob_1d_fp32, gx * 2 + 1, 0));
-            }
-            if (cast_type_from == 2)
-            {
-                v = afpvec8(texelFetch(bottom_blob_1d_fp16p, gx * 2, 0), texelFetch(bottom_blob_1d_fp16p, gx * 2 + 1, 0));
-            }
-#if NCNN_fp16_storage
-            if (cast_type_from == 3)
-            {
-                v = afpvec8(texelFetch(bottom_blob_1d_fp16s, gx * 2, 0), texelFetch(bottom_blob_1d_fp16s, gx * 2 + 1, 0));
-            }
-#endif
+            v = image1d_ld8(bottom_blob_1d, gx);
         }
 #endif
 
@@ -173,54 +100,12 @@ void main()
         {
             int gi = gx;
 
-            if (cast_type_to == 0)
-            {
-                buffer_st8(top_blob_data, gi, v);
-            }
-            if (cast_type_to == 1)
-            {
-                top_blob_fp32_data[gi] = mat2x4(v);
-            }
-            if (cast_type_to == 2)
-            {
-                top_blob_fp16p_data[gi] = uvec4(uvec2(packHalf2x16(v[0].rg),packHalf2x16(v[0].ba)),uvec2(packHalf2x16(v[1].rg),packHalf2x16(v[1].ba)));
-            }
-#if NCNN_fp16_storage
-            if (cast_type_to == 3)
-            {
-#if NCNN_fp16_arithmetic
-                top_blob_fp16s_data[gi] = v;
-#else
-                top_blob_fp16s_data[gi].abcd = f16vec4(v[0]);
-                top_blob_fp16s_data[gi].efgh = f16vec4(v[1]);
-#endif
-            }
-#endif
+            buffer_st8(top_blob_data, gi, v);
         }
 #if NCNN_image_shader
         if (storage_type_to == 1)
         {
-            if (cast_type_to == 0)
-            {
-                image1d_st8(top_blob_1d, gx, v);
-            }
-            if (cast_type_to == 1)
-            {
-                imageStore(top_blob_1d_fp32, gx * 2, v[0]);
-                imageStore(top_blob_1d_fp32, gx * 2 + 1, v[1]);
-            }
-            if (cast_type_to == 2)
-            {
-                imageStore(top_blob_1d_fp16p, gx * 2, v[0]);
-                imageStore(top_blob_1d_fp16p, gx * 2 + 1, v[1]);
-            }
-#if NCNN_fp16_storage
-            if (cast_type_to == 3)
-            {
-                imageStore(top_blob_1d_fp16s, gx * 2, v[0]);
-                imageStore(top_blob_1d_fp16s, gx * 2 + 1, v[1]);
-            }
-#endif
+            image1d_st8(top_blob_1d, gx, v);
         }
 #endif
     }
@@ -230,51 +115,12 @@ void main()
         {
             int gi = gy * psc(outw) + gx;
 
-            if (cast_type_from == 0)
-            {
-                v = buffer_ld8(bottom_blob_data, gi);
-            }
-            if (cast_type_from == 1)
-            {
-                v = afpvec8(bottom_blob_fp32_data[gi]);
-            }
-            if (cast_type_from == 2)
-            {
-                v = afpvec8(mat2x4(vec4(unpackHalf2x16(bottom_blob_fp16p_data[gi].r),unpackHalf2x16(bottom_blob_fp16p_data[gi].g)),vec4(unpackHalf2x16(bottom_blob_fp16p_data[gi].b),unpackHalf2x16(bottom_blob_fp16p_data[gi].a))));
-            }
-#if NCNN_fp16_storage
-            if (cast_type_from == 3)
-            {
-#if NCNN_fp16_arithmetic
-                v = afpvec8(bottom_blob_fp16s_data[gi]);
-#else
-                v[0] = afpvec4(bottom_blob_fp16s_data[gi].abcd);
-                v[1] = afpvec4(bottom_blob_fp16s_data[gi].efgh);
-#endif
-            }
-#endif
+            v = buffer_ld8(bottom_blob_data, gi);
         }
 #if NCNN_image_shader
         if (storage_type_from == 1)
         {
-            if (cast_type_from == 0)
-            {
-                v = image2d_ld8(bottom_blob_2d, ivec2(gx, gy));
-            }
-            if (cast_type_from == 1)
-            {
-                v = afpvec8(texelFetch(bottom_blob_2d_fp32, ivec2(gx * 2, gy), 0), texelFetch(bottom_blob_2d_fp32, ivec2(gx * 2 + 1, gy), 0));
-            }
-            if (cast_type_from == 2)
-            {
-                v = afpvec8(texelFetch(bottom_blob_2d_fp16p, ivec2(gx * 2, gy), 0), texelFetch(bottom_blob_2d_fp16p, ivec2(gx * 2 + 1, gy), 0));
-            }
-#if NCNN_fp16_storage
-            if (cast_type_from == 3)
-            {
-                v = afpvec8(texelFetch(bottom_blob_2d_fp16s, ivec2(gx * 2, gy), 0), texelFetch(bottom_blob_2d_fp16s, ivec2(gx * 2 + 1, gy), 0));
-            }
-#endif
+            v = image2d_ld8(bottom_blob_2d, ivec2(gx, gy));
         }
 #endif
 
@@ -282,54 +128,12 @@ void main()
         {
             int gi = gy * psc(outw) + gx;
 
-            if (cast_type_to == 0)
-            {
-                buffer_st8(top_blob_data, gi, v);
-            }
-            if (cast_type_to == 1)
-            {
-                top_blob_fp32_data[gi] = mat2x4(v);
-            }
-            if (cast_type_to == 2)
-            {
-                top_blob_fp16p_data[gi] = uvec4(uvec2(packHalf2x16(v[0].rg),packHalf2x16(v[0].ba)),uvec2(packHalf2x16(v[1].rg),packHalf2x16(v[1].ba)));
-            }
-#if NCNN_fp16_storage
-            if (cast_type_to == 3)
-            {
-#if NCNN_fp16_arithmetic
-                top_blob_fp16s_data[gi] = v;
-#else
-                top_blob_fp16s_data[gi].abcd = f16vec4(v[0]);
-                top_blob_fp16s_data[gi].efgh = f16vec4(v[1]);
-#endif
-            }
-#endif
+            buffer_st8(top_blob_data, gi, v);
         }
 #if NCNN_image_shader
         if (storage_type_to == 1)
         {
-            if (cast_type_to == 0)
-            {
-                image2d_st8(top_blob_2d, ivec2(gx, gy), v);
-            }
-            if (cast_type_to == 1)
-            {
-                imageStore(top_blob_2d_fp32, ivec2(gx * 2, gy), v[0]);
-                imageStore(top_blob_2d_fp32, ivec2(gx * 2 + 1, gy), v[1]);
-            }
-            if (cast_type_to == 2)
-            {
-                imageStore(top_blob_2d_fp16p, ivec2(gx * 2, gy), v[0]);
-                imageStore(top_blob_2d_fp16p, ivec2(gx * 2 + 1, gy), v[1]);
-            }
-#if NCNN_fp16_storage
-            if (cast_type_to == 3)
-            {
-                imageStore(top_blob_2d_fp16s, ivec2(gx * 2, gy), v[0]);
-                imageStore(top_blob_2d_fp16s, ivec2(gx * 2 + 1, gy), v[1]);
-            }
-#endif
+            image2d_st8(top_blob_2d, ivec2(gx, gy), v);
         }
 #endif
     }
@@ -339,51 +143,12 @@ void main()
         {
             int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
-            if (cast_type_from == 0)
-            {
-                v = buffer_ld8(bottom_blob_data, gi);
-            }
-            if (cast_type_from == 1)
-            {
-                v = afpvec8(bottom_blob_fp32_data[gi]);
-            }
-            if (cast_type_from == 2)
-            {
-                v = afpvec8(mat2x4(vec4(unpackHalf2x16(bottom_blob_fp16p_data[gi].r),unpackHalf2x16(bottom_blob_fp16p_data[gi].g)),vec4(unpackHalf2x16(bottom_blob_fp16p_data[gi].b),unpackHalf2x16(bottom_blob_fp16p_data[gi].a))));
-            }
-#if NCNN_fp16_storage
-            if (cast_type_from == 3)
-            {
-#if NCNN_fp16_arithmetic
-                v = afpvec8(bottom_blob_fp16s_data[gi]);
-#else
-                v[0] = afpvec4(bottom_blob_fp16s_data[gi].abcd);
-                v[1] = afpvec4(bottom_blob_fp16s_data[gi].efgh);
-#endif
-            }
-#endif
+            v = buffer_ld8(bottom_blob_data, gi);
         }
 #if NCNN_image_shader
         if (storage_type_from == 1)
         {
-            if (cast_type_from == 0)
-            {
-                v = image3d_ld8(bottom_blob_3d, ivec3(gx, gy, gz));
-            }
-            if (cast_type_from == 1)
-            {
-                v = afpvec8(texelFetch(bottom_blob_3d_fp32, ivec3(gx * 2, gy, gz), 0), texelFetch(bottom_blob_3d_fp32, ivec3(gx * 2 + 1, gy, gz), 0));
-            }
-            if (cast_type_from == 2)
-            {
-                v = afpvec8(texelFetch(bottom_blob_3d_fp16p, ivec3(gx * 2, gy, gz), 0), texelFetch(bottom_blob_3d_fp16p, ivec3(gx * 2 + 1, gy, gz), 0));
-            }
-#if NCNN_fp16_storage
-            if (cast_type_from == 3)
-            {
-                v = afpvec8(texelFetch(bottom_blob_3d_fp16s, ivec3(gx * 2, gy, gz), 0), texelFetch(bottom_blob_3d_fp16s, ivec3(gx * 2 + 1, gy, gz), 0));
-            }
-#endif
+            v = image3d_ld8(bottom_blob_3d, ivec3(gx, gy, gz));
         }
 #endif
 
@@ -391,54 +156,12 @@ void main()
         {
             int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
-            if (cast_type_to == 0)
-            {
-                buffer_st8(top_blob_data, gi, v);
-            }
-            if (cast_type_to == 1)
-            {
-                top_blob_fp32_data[gi] = mat2x4(v);
-            }
-            if (cast_type_to == 2)
-            {
-                top_blob_fp16p_data[gi] = uvec4(uvec2(packHalf2x16(v[0].rg),packHalf2x16(v[0].ba)),uvec2(packHalf2x16(v[1].rg),packHalf2x16(v[1].ba)));
-            }
-#if NCNN_fp16_storage
-            if (cast_type_to == 3)
-            {
-#if NCNN_fp16_arithmetic
-                top_blob_fp16s_data[gi] = v;
-#else
-                top_blob_fp16s_data[gi].abcd = f16vec4(v[0]);
-                top_blob_fp16s_data[gi].efgh = f16vec4(v[1]);
-#endif
-            }
-#endif
+            buffer_st8(top_blob_data, gi, v);
         }
 #if NCNN_image_shader
         if (storage_type_to == 1)
         {
-            if (cast_type_to == 0)
-            {
-                image3d_st8(top_blob_3d, ivec3(gx, gy, gz), v);
-            }
-            if (cast_type_to == 1)
-            {
-                imageStore(top_blob_3d_fp32, ivec3(gx * 2, gy, gz), v[0]);
-                imageStore(top_blob_3d_fp32, ivec3(gx * 2 + 1, gy, gz), v[1]);
-            }
-            if (cast_type_to == 2)
-            {
-                imageStore(top_blob_3d_fp16p, ivec3(gx * 2, gy, gz), v[0]);
-                imageStore(top_blob_3d_fp16p, ivec3(gx * 2 + 1, gy, gz), v[1]);
-            }
-#if NCNN_fp16_storage
-            if (cast_type_to == 3)
-            {
-                imageStore(top_blob_3d_fp16s, ivec3(gx * 2, gy, gz), v[0]);
-                imageStore(top_blob_3d_fp16s, ivec3(gx * 2 + 1, gy, gz), v[1]);
-            }
-#endif
+            image3d_st8(top_blob_3d, ivec3(gx, gy, gz), v);
         }
 #endif
     }
