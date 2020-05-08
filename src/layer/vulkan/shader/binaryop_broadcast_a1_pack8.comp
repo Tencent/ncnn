@@ -96,7 +96,7 @@ void main()
     afpvec4 v1;
     afpvec8 v2;
 
-    if (psc(bw) == psc(aw) && psc(bh) == psc(ah) && psc(ac) == 1)
+    if (psc(adims) == 3 && psc(bw) == psc(aw) && psc(bh) == psc(ah) && psc(ac) == 1)
     {
         // special type 4
         v1 = afpvec4(image3d_ld1(a_blob_3d, ivec3(gx, gy, 0)));
@@ -123,7 +123,7 @@ void main()
 
     int ai = 0;
 
-    if (psc(bw) == psc(aw) && psc(bh) == psc(ah) && psc(ac) == 1)
+    if (psc(adims) == 3 && psc(bw) == psc(aw) && psc(bh) == psc(ah) && psc(ac) == 1)
     {
         // special type 2
         ai = gy * psc(bw) + gx;
