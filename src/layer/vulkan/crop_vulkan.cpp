@@ -102,22 +102,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_image_storage && opt.use_fp16_storage)
-    {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_image_storage && opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
-    }
-    else if (opt.use_image_storage)
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-    else if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -147,19 +132,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     if (bottom_shapes.size() == 1 && shape.dims != 0 && elempack == out_elempack && elempack > offset_elempack)
     {
         size_t offset_elemsize;
-        if (opt.use_image_storage && opt.use_fp16_storage)
-        {
-            offset_elemsize = offset_elempack * 2u;
-        }
-        else if (opt.use_image_storage && opt.use_fp16_packed)
-        {
-            offset_elemsize = offset_elempack == 1 ? 4u : offset_elempack * 2u;
-        }
-        else if (opt.use_image_storage)
-        {
-            offset_elemsize = offset_elempack * 4u;
-        }
-        else if (opt.use_fp16_storage)
+        if (opt.use_fp16_storage)
         {
             offset_elemsize = offset_elempack * 2u;
         }
