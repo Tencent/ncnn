@@ -49,12 +49,12 @@ layout (binding = 0) uniform unfp sampler1D bottom_blob;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob;
 layout (binding = 2) uniform unfp sampler2D weight_blob;
 layout (binding = 3) uniform unfp sampler1D bias_blob;
-#else // NCNN_image_shader
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
 layout (binding = 2) readonly buffer weight_blob { sfpvec8 weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfpvec8 bias_data[]; };
-#endif // NCNN_image_shader
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -123,7 +123,7 @@ void main()
 
         wx += 8;
     }
-#else // NCNN_image_shader
+#else
     int w_offset = gx * psc(w);
 
     for (int i = 0; i < psc(w); i++)
@@ -149,7 +149,7 @@ void main()
         sum[1].b += dot(v[0], k6[0]) + dot(v[1], k6[1]);
         sum[1].a += dot(v[0], k7[0]) + dot(v[1], k7[1]);
     }
-#endif // NCNN_image_shader
+#endif
 
     if (activation_type == 1)
     {
