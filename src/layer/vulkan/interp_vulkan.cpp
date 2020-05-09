@@ -23,6 +23,7 @@ DEFINE_LAYER_CREATOR(Interp_vulkan);
 Interp_vulkan::Interp_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_interp = 0;
     pipeline_interp_pack4 = 0;
@@ -375,6 +376,140 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
                                  : pipeline_interp_bicubic;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    }
+
+    return 0;
+}
+
+int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    int outw = output_width;
+    int outh = output_height;
+    if (outw == 0 || outh == 0)
+    {
+        outw = w * width_scale;
+        outh = h * height_scale;
+    }
+
+    if (outh == h && outw == w)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (resize_type == 1 || resize_type == 2) // nearest or bilinear
+    {
+        std::vector<VkImageMat> bindings(2);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob;
+
+        std::vector<vk_constant_type> constants(12);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.c;
+        constants[4].i = 0;//bottom_blob.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = 0;//top_blob.cstep;
+        constants[10].f = w / (float)outw;
+        constants[11].f = h / (float)outh;
+
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
+                                 : elempack == 4 ? pipeline_interp_pack4
+                                 : pipeline_interp;
+
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    }
+    else if (resize_type == 3) // bicubic
+    {
+        VkImageMat alpha(outw, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator);
+        if (alpha.empty())
+            return -100;
+
+        VkMat xofs(outw, (size_t)4u, 1, opt.workspace_vkallocator);
+        if (xofs.empty())
+            return -100;
+
+        {
+            std::vector<VkMat> buffer_bindings(1);
+            buffer_bindings[0] = xofs;
+
+            std::vector<VkImageMat> image_bindings(1);
+            image_bindings[0] = alpha;
+
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = bottom_blob.w;
+            constants[1].i = outw;
+            constants[2].f = (float)bottom_blob.w / outw;
+
+            // record
+            cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, buffer_bindings, image_bindings, constants, alpha);
+        }
+
+        VkImageMat beta(outh, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator);
+        if (beta.empty())
+            return -100;
+
+        VkMat yofs(outh, (size_t)4u, 1, opt.workspace_vkallocator);
+        if (yofs.empty())
+            return -100;
+
+        {
+            std::vector<VkMat> buffer_bindings(1);
+            buffer_bindings[0] = yofs;
+
+            std::vector<VkImageMat> image_bindings(1);
+            image_bindings[0] = beta;
+
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = bottom_blob.h;
+            constants[1].i = outh;
+            constants[2].f = (float)bottom_blob.h / outh;
+
+            // record
+            cmd.record_pipeline(pipeline_interp_bicubic_coeffs_y, buffer_bindings, image_bindings, constants, beta);
+        }
+
+        std::vector<VkMat> buffer_bindings(2);
+        buffer_bindings[0] = xofs;
+        buffer_bindings[1] = yofs;
+
+        std::vector<VkImageMat> image_bindings(4);
+        image_bindings[0] = bottom_blob;
+        image_bindings[1] = top_blob;
+        image_bindings[2] = alpha;
+        image_bindings[3] = beta;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.c;
+        constants[4].i = 0;//bottom_blob.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = 0;//top_blob.cstep;
+
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
+                                 : elempack == 4 ? pipeline_interp_bicubic_pack4
+                                 : pipeline_interp_bicubic;
+
+        cmd.record_pipeline(pipeline, buffer_bindings, image_bindings, constants, top_blob);
     }
 
     return 0;
