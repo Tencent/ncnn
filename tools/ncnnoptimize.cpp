@@ -122,6 +122,8 @@ public:
     int fuse_deconvolution_activation();
     int fuse_deconvolutiondepthwise_activation();
     int fuse_innerproduct_activation();
+    int fuse_memorydata_binaryop();
+    int fuse_binaryop_eltwise();
 
     int eliminate_dropout();
     int eliminate_pooling1x1();
@@ -1218,6 +1220,194 @@ int NetOptimize::fuse_innerproduct_activation()
         innerproduct->tops[0] = top_blob_index_final;
         blobs[top_blob_index_final].producer = i;
         activation->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::fuse_memorydata_binaryop()
+{
+    const size_t layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "MemoryData")
+            continue;
+
+        // MemoryData - BinaryOp
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "BinaryOp")
+                continue;
+
+            if (layers[j]->bottoms.size() != 2)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index || layers[j]->bottoms[1] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse MemoryData - BinaryOp to BinaryOp
+        ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[i];
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j];
+
+        int memorydata_index = 1;
+
+        if (binaryop->bottoms[0] == top_blob_index)
+        {
+            int op_type = binaryop->op_type;
+
+            if (op_type == ncnn::BinaryOp::Operation_ADD
+                || op_type == ncnn::BinaryOp::Operation_MUL
+                || op_type == ncnn::BinaryOp::Operation_MAX
+                || op_type == ncnn::BinaryOp::Operation_MIN)
+            {
+                memorydata_index = 0;
+            }
+            else
+            {
+                // non interchangeable binaryop
+                continue;
+            }
+        }
+
+        if (memorydata->w != 1 || memorydata->h != 0 || memorydata->c != 0)
+        {
+            // not a scalar
+            continue;
+        }
+
+        float scalar = memorydata->data[0];
+
+        binaryop->with_scalar = 1;
+        binaryop->b = scalar;
+
+        fprintf(stderr, "fuse_memorydata_binaryop %s %s\n", memorydata->name.c_str(), binaryop->name.c_str());
+
+        binaryop->bottoms.erase(binaryop->bottoms.begin() + memorydata_index);
+        memorydata->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::fuse_binaryop_eltwise()
+{
+    const size_t layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "BinaryOp")
+            continue;
+
+        if (layers[i]->bottoms.size() != 2)
+            continue;
+
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[i];
+
+        if (binaryop->op_type != ncnn::BinaryOp::Operation_ADD)
+            continue;
+
+        if (binaryop->with_scalar)
+            continue;
+
+        // BinaryOp - BinaryOp - BinaryOp
+        int bottom_blob_index_0 = binaryop->bottoms[0];
+        int bottom_blob_index_1 = binaryop->bottoms[1];
+
+        int j0 = 0;
+        for (; j0<i; j0++)
+        {
+            if (layers[j0]->type != "BinaryOp")
+                continue;
+
+            if (layers[j0]->bottoms.size() != 1)
+                continue;
+
+            if (((ncnn::BinaryOp*)layers[j0])->op_type != ncnn::BinaryOp::Operation_MUL)
+                continue;
+
+            if (layers[j0]->tops[0] == bottom_blob_index_0)
+                break;
+        }
+
+        int j1 = 0;
+        for (; j1<i; j1++)
+        {
+            if (layers[j1]->type != "BinaryOp")
+                continue;
+
+            if (layers[j1]->bottoms.size() != 1)
+                continue;
+
+            if (((ncnn::BinaryOp*)layers[j1])->op_type != ncnn::BinaryOp::Operation_MUL)
+                continue;
+
+            if (layers[j1]->tops[0] == bottom_blob_index_1)
+                break;
+        }
+
+        if (j0 == i && j1 == i)
+            continue;
+
+        ncnn::BinaryOp* binaryop0 = (ncnn::BinaryOp*)layers[j0];
+        ncnn::BinaryOp* binaryop1 = (ncnn::BinaryOp*)layers[j1];
+
+        fprintf(stderr, "fuse_binaryop_eltwise %s %s %s\n", binaryop0->name.c_str(), binaryop1->name.c_str(), binaryop->name.c_str());
+
+        ncnn::Eltwise* eltwise = (ncnn::Eltwise*)ncnn::create_layer("Eltwise");
+
+        eltwise->type = "Eltwise";
+        eltwise->name = binaryop->name;
+        eltwise->bottoms = binaryop->bottoms;
+        eltwise->tops = binaryop->tops;
+
+        ncnn::ParamDict pd;
+        eltwise->load_param(pd);
+
+        eltwise->op_type = ncnn::Eltwise::Operation_SUM;
+
+        eltwise->coeffs = ncnn::Mat(2);
+
+        if (j0 != i && j1 != i)
+        {
+            // fuse BinaryOp - BinaryOp - BinaryOp to Eltwise
+            eltwise->coeffs[0] = binaryop0->b;
+            eltwise->coeffs[1] = binaryop1->b;
+
+            eltwise->bottoms[0] = binaryop0->bottoms[0];
+            eltwise->bottoms[1] = binaryop1->bottoms[0];
+
+            binaryop0->type = "ncnnfused";
+            binaryop1->type = "ncnnfused";
+        }
+        if (j0 != i && j1 == i)
+        {
+            // fuse BinaryOp - X - BinaryOp to Eltwise
+            eltwise->coeffs[0] = binaryop0->b;
+            eltwise->coeffs[1] = 1.f;
+
+            eltwise->bottoms[0] = binaryop0->bottoms[0];
+
+            binaryop0->type = "ncnnfused";
+        }
+        if (j0 == i && j1 != i)
+        {
+            // fuse X - BinaryOp - BinaryOp to Eltwise
+            eltwise->coeffs[0] = 1.f;
+            eltwise->coeffs[1] = binaryop1->b;
+
+            eltwise->bottoms[1] = binaryop1->bottoms[0];
+
+            binaryop1->type = "ncnnfused";
+        }
+
+        layers[i] = eltwise;
+        delete binaryop;
     }
 
     return 0;
@@ -2728,6 +2918,8 @@ int main(int argc, char** argv)
     optimizer.fuse_deconvolution_activation();
     optimizer.fuse_deconvolutiondepthwise_activation();
     optimizer.fuse_innerproduct_activation();
+    optimizer.fuse_memorydata_binaryop();
+    optimizer.fuse_binaryop_eltwise();
 
     optimizer.eliminate_dropout();
     optimizer.eliminate_pooling1x1();
