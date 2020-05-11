@@ -41,18 +41,14 @@ layout (local_size_z_id = 235) in;
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler1D alpha_blob;
-layout (binding = 3) readonly buffer xofs_blob { int xofs_blob_data[]; };
-layout (binding = 4) uniform unfp sampler1D beta_blob;
-layout (binding = 5) readonly buffer yofs_blob { int yofs_blob_data[]; };
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#endif
 layout (binding = 2) readonly buffer alpha_blob { sfpvec4 alpha_blob_data[]; };
 layout (binding = 3) readonly buffer xofs_blob { int xofs_blob_data[]; };
 layout (binding = 4) readonly buffer beta_blob { sfpvec4 beta_blob_data[]; };
 layout (binding = 5) readonly buffer yofs_blob { int yofs_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -109,21 +105,6 @@ void main()
     afpvec4 d3 = image3d_ld4(bottom_blob, ivec3(sx + 2, sy + 2, gz));
 
     afpmat4 d0123 = afpmat4(d0, d1, d2, d3);
-
-    afpvec4 alpha = image1d_ld4(alpha_blob, gx);
-
-    afpvec4 a = a0123 * alpha;
-    afpvec4 b = b0123 * alpha;
-    afpvec4 c = c0123 * alpha;
-    afpvec4 d = d0123 * alpha;
-
-    afpmat4 abcd = afpmat4(a, b, c, d);
-
-    afpvec4 beta = image1d_ld4(beta_blob, gy);
-
-    afpvec4 v = abcd * beta;
-
-    image3d_st4(top_blob, ivec3(gx, gy, gz), v);
 #else
     int v_offset_0 = gz * psc(cstep) + (sy - 1) * psc(w) + sx;
     int v_offset_1 = gz * psc(cstep) + (sy + 0) * psc(w) + sx;
@@ -157,6 +138,7 @@ void main()
     afpvec4 d3 = buffer_ld4(bottom_blob_data, v_offset_3 + 2);
 
     afpmat4 d0123 = afpmat4(d0, d1, d2, d3);
+#endif
 
     afpvec4 alpha = buffer_ld4(alpha_blob_data, gx);
 
@@ -171,6 +153,9 @@ void main()
 
     afpvec4 v = abcd * beta;
 
+#if NCNN_image_shader
+    image3d_st4(top_blob, ivec3(gx, gy, gz), v);
+#else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st4(top_blob_data, gi, v);

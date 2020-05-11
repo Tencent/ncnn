@@ -435,7 +435,7 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
     }
     else if (resize_type == 3) // bicubic
     {
-        VkImageMat alpha(outw, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator);
+        VkMat alpha(outw, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator);
         if (alpha.empty())
             return -100;
 
@@ -444,11 +444,9 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
             return -100;
 
         {
-            std::vector<VkMat> buffer_bindings(1);
-            buffer_bindings[0] = xofs;
-
-            std::vector<VkImageMat> image_bindings(1);
-            image_bindings[0] = alpha;
+            std::vector<VkMat> bindings(2);
+            bindings[0] = alpha;
+            bindings[1] = xofs;
 
             std::vector<vk_constant_type> constants(3);
             constants[0].i = bottom_blob.w;
@@ -456,10 +454,10 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
             constants[2].f = (float)bottom_blob.w / outw;
 
             // record
-            cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, buffer_bindings, image_bindings, constants, alpha);
+            cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, bindings, constants, alpha);
         }
 
-        VkImageMat beta(outh, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator);
+        VkMat beta(outh, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator);
         if (beta.empty())
             return -100;
 
@@ -468,11 +466,9 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
             return -100;
 
         {
-            std::vector<VkMat> buffer_bindings(1);
-            buffer_bindings[0] = yofs;
-
-            std::vector<VkImageMat> image_bindings(1);
-            image_bindings[0] = beta;
+            std::vector<VkMat> bindings(2);
+            bindings[0] = beta;
+            bindings[1] = yofs;
 
             std::vector<vk_constant_type> constants(3);
             constants[0].i = bottom_blob.h;
@@ -480,18 +476,18 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
             constants[2].f = (float)bottom_blob.h / outh;
 
             // record
-            cmd.record_pipeline(pipeline_interp_bicubic_coeffs_y, buffer_bindings, image_bindings, constants, beta);
+            cmd.record_pipeline(pipeline_interp_bicubic_coeffs_y, bindings, constants, beta);
         }
 
-        std::vector<VkMat> buffer_bindings(2);
-        buffer_bindings[0] = xofs;
-        buffer_bindings[1] = yofs;
+        std::vector<VkMat> buffer_bindings(4);
+        buffer_bindings[0] = alpha;
+        buffer_bindings[1] = xofs;
+        buffer_bindings[2] = beta;
+        buffer_bindings[3] = yofs;
 
-        std::vector<VkImageMat> image_bindings(4);
+        std::vector<VkImageMat> image_bindings(2);
         image_bindings[0] = bottom_blob;
         image_bindings[1] = top_blob;
-        image_bindings[2] = alpha;
-        image_bindings[3] = beta;
 
         std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob.dims;
