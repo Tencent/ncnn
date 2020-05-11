@@ -1857,7 +1857,9 @@ int VulkanDevice::create_utility_operator()
     {
     for (int i1=0; i1<2; i1++)
     {
-        opt.use_image_storage = (i0 == 1 || i1 == 1);
+        // TODO use macro
+//         opt.use_image_storage = (i0 == 1 || i1 == 1);
+        opt.use_image_storage = true;
 
         // from fp32-b/i | fp16p-b/i | fp16s-b/i
         // to fp32-b/i | fp16p-b/i | fp16s-b/i
