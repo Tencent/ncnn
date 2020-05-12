@@ -1613,54 +1613,61 @@ int VulkanDevice::create_shader_module()
         // 4 = fp16sa
         // 5 = image
         // 6 = image_fp16p
-        // 7 = image_fp16s
-        // 8 = image_fp16a
+        // 7 = image_fp16pa
+        // 8 = image_fp16s
+        // 9 = image_fp16sa
 
         if (!info.support_fp16_packed)
         {
-            if (i % 9 == 1)
+            if (i % 10 == 1)
                 continue;
         }
 
         if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
         {
-            if (i % 9 == 2)
+            if (i % 10 == 2)
                 continue;
         }
 
         if (!info.support_fp16_storage)
         {
-            if (i % 9 == 3)
+            if (i % 10 == 3)
                 continue;
         }
 
         if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
         {
-            if (i % 9 == 4)
+            if (i % 10 == 4)
                 continue;
         }
 
 //         if (!info.support_image_storage)
 //         {
-//             if (i % 9 == 5)
+//             if (i % 10 == 5)
 //                 continue;
 //         }
 
         if (!info.support_fp16_packed)
         {
-            if (i % 9 == 6)
+            if (i % 10 == 6)
+                continue;
+        }
+
+        if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
+        {
+            if (i % 10 == 7)
                 continue;
         }
 
         if (!info.support_fp16_storage)
         {
-            if (i % 9 == 7)
+            if (i % 10 == 8)
                 continue;
         }
 
         if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
         {
-            if (i % 9 == 8)
+            if (i % 10 == 9)
                 continue;
         }
 
