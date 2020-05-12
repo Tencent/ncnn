@@ -98,6 +98,7 @@ void main()
 
     ivec4 lane4 = z4 % 4;
 
+    // TODO bugihfa
     afpvec4 v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
 
 #if NCNN_image_shader

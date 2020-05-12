@@ -117,6 +117,7 @@ void main()
     ivec4 lane4 = z4 % 4;
     ivec4 lane8 = zz4 % 4;
 
+    // TODO bugihfa
     afpvec8 v = afpvec8(vr[sz4.r][lane4.r], vg[sz4.g][lane4.g], vb[sz4.b][lane4.b], va[sz4.a][lane4.a], vvr[szz4.r][lane8.r], vvg[szz4.g][lane8.g], vvb[szz4.b][lane8.b], vva[szz4.a][lane8.a]);
 
 #if NCNN_image_shader
