@@ -97,6 +97,7 @@ void main()
     afpvec4 v7 = image3d_ld4(bottom_blob, ivec3(x, y, zz4.a / 4));
 
     afpvec8 v;
+    // TODO bugihfa
     v[0].r = v0[z4.r % 4];
     v[0].g = v1[z4.g % 4];
     v[0].b = v2[z4.b % 4];
