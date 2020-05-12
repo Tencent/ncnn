@@ -56,12 +56,7 @@ void main()
 
     afp v = buffer_ld1(bottom_top_blob_data, gi);
 
-    if (v > afp(20.f))
-        v = v * tanh(v);
-    else if (v < afp(-20.f))
-        v = v * tanh(exp(v));
-    else
-        v = v * tanh(log(exp(v) + afp(1.f)));
+    v = v * tanh(log(exp(v) + afp(1.f)));
 
     buffer_st1(bottom_top_blob_data, gi, v);
 }
