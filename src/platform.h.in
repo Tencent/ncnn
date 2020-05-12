@@ -135,4 +135,11 @@ private:
 
 } // namespace ncnn
 
+#if NCNN_STDIO
+#include <stdio.h>
+#define NCNN_LOGE(...) do { fprintf(stderr, ##__VA_ARGS__); fprintf(stderr, "\n"); } while(0)
+#else
+#define NCNN_LOGE(...)
+#endif
+
 #endif // NCNN_PLATFORM_H

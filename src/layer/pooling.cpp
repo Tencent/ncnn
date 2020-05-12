@@ -55,7 +55,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     fprintf(stderr, "Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
+//     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
     if (global_pooling)
     {
         top_blob.create(channels, elemsize, opt.blob_allocator);
