@@ -56,7 +56,7 @@ void main()
 
     afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 
-	v = v * tanh(log(exp(v) + afpvec4(1.f, 1.f, 1.f, 1.f)));
+    v = v * tanh(log(exp(v) + afpvec4(1.f, 1.f, 1.f, 1.f)));
 
     buffer_st4(bottom_top_blob_data, gi, v);
 }

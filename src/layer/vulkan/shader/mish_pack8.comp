@@ -57,8 +57,8 @@ void main()
 
     afpvec8 v = buffer_ld8(bottom_top_blob_data, gi);
 
-	v[0] = v[0] * tanh(log(exp(v[0]) + afpvec4(1.f, 1.f, 1.f, 1.f)));
-	v[1] = v[1] * tanh(log(exp(v[1]) + afpvec4(1.f, 1.f, 1.f, 1.f)));
+    v[0] = v[0] * tanh(log(exp(v[0]) + afpvec4(1.f, 1.f, 1.f, 1.f)));
+    v[1] = v[1] * tanh(log(exp(v[1]) + afpvec4(1.f, 1.f, 1.f, 1.f)));
 
     buffer_st8(bottom_top_blob_data, gi, v);
 }
