@@ -54,7 +54,7 @@ layout (binding = 0) uniform unfp sampler3D bottom_blob;
 layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
 layout (binding = 2) uniform unfp sampler3D weight_blob;
 layout (binding = 3) uniform unfp sampler1D bias_blob;
-#else // NCNN_image_shader
+#else
 #if NCNN_fp16_packed
 layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { vec4 top_blob_data[]; };
@@ -64,7 +64,7 @@ layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 #endif
 layout (binding = 2) readonly buffer weight_blob { sfp weight_data[]; };
 layout (binding = 3) readonly buffer bias_blob { sfp bias_data[]; };
-#endif // NCNN_image_shader
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -124,7 +124,7 @@ void main()
         sum.b += k * image3d_ld1(bottom_blob, ivec3(gx, gy+1, z));
         sum.a += k * image3d_ld1(bottom_blob, ivec3(gx+1, gy+1, z));
     }
-#else // NCNN_image_shader
+#else
     int w_offset = gz * psc(c);
     int v_offset = gx;
 
@@ -139,7 +139,7 @@ void main()
         w_offset += 1;
         v_offset += psc(cstep) / 4;
     }
-#endif // NCNN_image_shader
+#endif
 
     if (activation_type == 1)
     {

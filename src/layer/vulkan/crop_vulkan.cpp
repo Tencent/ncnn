@@ -26,9 +26,6 @@ Crop_vulkan::Crop_vulkan()
     support_vulkan = true;
     support_image_storage = true;
 
-    packing_pack1 = 0;
-    packing_pack4 = 0;
-
     pipeline_crop = 0;
     pipeline_crop_pack4 = 0;
     pipeline_crop_pack1to4 = 0;
@@ -105,22 +102,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_image_storage && opt.use_fp16_storage)
-    {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_image_storage && opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
-    }
-    else if (opt.use_image_storage)
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-    else if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -150,19 +132,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     if (bottom_shapes.size() == 1 && shape.dims != 0 && elempack == out_elempack && elempack > offset_elempack)
     {
         size_t offset_elemsize;
-        if (opt.use_image_storage && opt.use_fp16_storage)
-        {
-            offset_elemsize = offset_elempack * 2u;
-        }
-        else if (opt.use_image_storage && opt.use_fp16_packed)
-        {
-            offset_elemsize = offset_elempack == 1 ? 4u : offset_elempack * 2u;
-        }
-        else if (opt.use_image_storage)
-        {
-            offset_elemsize = offset_elempack * 4u;
-        }
-        else if (opt.use_fp16_storage)
+        if (opt.use_fp16_storage)
         {
             offset_elemsize = offset_elempack * 2u;
         }
@@ -178,42 +148,6 @@ int Crop_vulkan::create_pipeline(const Option& opt)
         if (shape.dims == 1) shape_unpacked = Mat(shape.w / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
         if (shape.dims == 2) shape_unpacked = Mat(shape.w, shape.h / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
         if (shape.dims == 3) shape_unpacked = Mat(shape.w, shape.h, shape.c / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
-    }
-
-    if (shape.dims == 0 || (elempack > 1 && offset_elempack == 1) || bottom_shapes.size() == 2)
-    {
-        packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
-        packing_pack1->vkdev = vkdev;
-
-        packing_pack1->bottom_shapes.resize(1);
-        packing_pack1->bottom_shapes[0] = shape_packed;
-        packing_pack1->top_shapes.resize(1);
-        packing_pack1->top_shapes[0] = shape_unpacked;
-
-        ncnn::ParamDict pd;
-        pd.set(0, 1);
-
-        packing_pack1->load_param(pd);
-
-        packing_pack1->create_pipeline(opt);
-    }
-
-    if (shape.dims == 0 || (elempack > 4 && offset_elempack == 4) || bottom_shapes.size() == 2)
-    {
-        packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
-        packing_pack4->vkdev = vkdev;
-
-        packing_pack4->bottom_shapes.resize(1);
-        packing_pack4->bottom_shapes[0] = shape_packed;
-        packing_pack4->top_shapes.resize(1);
-        packing_pack4->top_shapes[0] = shape_unpacked;
-
-        ncnn::ParamDict pd;
-        pd.set(0, 4);
-
-        packing_pack4->load_param(pd);
-
-        packing_pack4->create_pipeline(opt);
     }
 
     std::vector<vk_specialization_type> specializations(0 + 10);
@@ -325,20 +259,6 @@ int Crop_vulkan::create_pipeline(const Option& opt)
 
 int Crop_vulkan::destroy_pipeline(const Option& opt)
 {
-    if (packing_pack1)
-    {
-        packing_pack1->destroy_pipeline(opt);
-        delete packing_pack1;
-        packing_pack1 = 0;
-    }
-
-    if (packing_pack4)
-    {
-        packing_pack4->destroy_pipeline(opt);
-        delete packing_pack4;
-        packing_pack4 = 0;
-    }
-
     delete pipeline_crop;
     pipeline_crop = 0;
 
@@ -405,8 +325,7 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             Option opt_pack1 = opt;
             opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
-            const Layer* packing = offset_elempack == 4 ? packing_pack4 : packing_pack1;
-            packing->forward(bottom_blob, bottom_blob_unpacked, cmd, opt_pack1);
+            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
         }
 
         top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
@@ -537,8 +456,7 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             Option opt_pack1 = opt;
             opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
-            const Layer* packing = offset_elempack == 4 ? packing_pack4 : packing_pack1;
-            packing->forward(bottom_blob, bottom_blob_unpacked, cmd, opt_pack1);
+            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
         }
 
         VkMat& top_blob = top_blobs[0];
@@ -662,8 +580,7 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
             Option opt_pack1 = opt;
             opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
-            const Layer* packing = offset_elempack == 4 ? packing_pack4 : packing_pack1;
-            packing->forward(bottom_blob, bottom_blob_unpacked, cmd, opt_pack1);
+            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
         }
 
         top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
@@ -794,8 +711,7 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
             Option opt_pack1 = opt;
             opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
 
-            const Layer* packing = offset_elempack == 4 ? packing_pack4 : packing_pack1;
-            packing->forward(bottom_blob, bottom_blob_unpacked, cmd, opt_pack1);
+            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
         }
 
         VkImageMat& top_blob = top_blobs[0];

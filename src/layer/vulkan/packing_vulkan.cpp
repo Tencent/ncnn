@@ -35,25 +35,14 @@ Packing_vulkan::Packing_vulkan()
     pipeline_packing_pack8to1 = 0;
 }
 
-int Packing_vulkan::create_pipeline(const Option& opt)
+int Packing_vulkan::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     size_t out_elemsize;
-    if (opt.use_image_storage && opt.use_fp16_storage)
-    {
-        out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_image_storage && opt.use_fp16_packed)
-    {
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
-    }
-    else if (opt.use_image_storage)
-    {
-        out_elemsize = out_elempack * 4u;
-    }
-    else if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage)
     {
         out_elemsize = out_elempack * 2u;
     }
@@ -76,6 +65,13 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+    // check blob shape
+    if (!vkdev->shape_support_image_storage(out_shape_packed))
+    {
+        support_image_storage = false;
+        opt.use_image_storage = false;
+    }
 
     std::vector<vk_specialization_type> specializations(2 + 10);
     specializations[0].i = storage_type_from;
@@ -356,10 +352,8 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     buffer_bindings[0] = bottom_blob;
     buffer_bindings[1] = top_blob;
 
+    // TODO use macro
     std::vector<VkImageMat> image_bindings(2);
-
-    if (!opt.use_image_storage)
-        image_bindings.clear();
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;

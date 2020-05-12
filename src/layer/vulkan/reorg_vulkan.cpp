@@ -32,8 +32,9 @@ Reorg_vulkan::Reorg_vulkan()
     pipeline_reorg_pack4to8 = 0;
 }
 
-int Reorg_vulkan::create_pipeline(const Option& opt)
+int Reorg_vulkan::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -74,6 +75,13 @@ int Reorg_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+    // check blob shape
+    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
+    {
+        support_image_storage = false;
+        opt.use_image_storage = false;
+    }
 
     std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = stride;

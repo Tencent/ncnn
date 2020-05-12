@@ -43,8 +43,6 @@ public:
     ncnn::Layer* crop;
     ncnn::Layer* output_pad;
     ncnn::Layer* output_crop;
-    ncnn::Layer* packing_unpack;
-    ncnn::Layer* packing_pack;
 
     Pipeline* pipeline_deconvolutiondepthwise;
     Pipeline* pipeline_deconvolutiondepthwise_pack4;

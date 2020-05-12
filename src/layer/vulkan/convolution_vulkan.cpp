@@ -55,8 +55,9 @@ Convolution_vulkan::Convolution_vulkan()
     innerproduct = 0;
 }
 
-int Convolution_vulkan::create_pipeline(const Option& opt)
+int Convolution_vulkan::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -123,6 +124,108 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         }
     }
 
+    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+
+    size_t elemsize;
+    size_t out_elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+        out_elemsize = out_elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+        out_elemsize = out_elempack * 4u;
+    }
+
+    Mat shape_bordered_packed;
+    if (shape_bordered.dims == 3) shape_bordered_packed = Mat(shape_bordered.w, shape_bordered.h, num_input / elempack, (void*)0, elemsize, elempack);
+
+    Mat out_shape_packed;
+    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, num_output / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+    bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
+    bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
+
+    int block_x = 0;
+    int block_y = 0;
+    Mat shape_winograd_bordered;
+    Mat shape_winograd_input_transformed;
+    Mat shape_winograd_gemm;
+    Mat shape_winograd_out_bordered;
+    Mat shape_winograd_bordered_packed;
+    Mat shape_winograd_input_transformed_packed;
+    Mat shape_winograd_gemm_packed;
+    Mat shape_winograd_out_bordered_packed;
+    if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16 && ((elempack == 4 && out_elempack == 4) || (elempack == 8 && out_elempack == 8)))
+    {
+        if (out_shape.dims != 0)
+        {
+            int outw_bordered = (out_shape.w + 1) / 2 * 2;
+            int outh_bordered = (out_shape.h + 1) / 2 * 2;
+
+            int w_bordered = outw_bordered + 2;
+            int h_bordered = outh_bordered + 2;
+
+            block_x = outw_bordered / 2;
+            block_y = outh_bordered / 2;
+
+            shape_winograd_bordered = Mat(w_bordered, h_bordered, shape.c, (void*)0);
+            shape_winograd_input_transformed = Mat(16, block_x * block_y, shape.c, (void*)0);
+            shape_winograd_gemm = Mat(16, block_x * block_y, out_shape.c, (void*)0);
+            shape_winograd_out_bordered = Mat(outw_bordered, outh_bordered, out_shape.c, (void*)0);
+        }
+
+        if (shape_winograd_bordered.dims == 3) shape_winograd_bordered_packed = Mat(shape_winograd_bordered.w, shape_winograd_bordered.h, shape_winograd_bordered.c / elempack, (void*)0, elemsize, elempack);
+
+        if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h, shape_winograd_input_transformed.c / elempack, (void*)0, elemsize, elempack);
+
+        if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h, shape_winograd_gemm.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+        if (shape_winograd_out_bordered.dims == 3) shape_winograd_out_bordered_packed = Mat(shape_winograd_out_bordered.w, shape_winograd_out_bordered.h, shape_winograd_out_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+        // check blob shape
+        if (!vkdev->shape_support_image_storage(shape_winograd_bordered_packed)
+            || !vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed)
+            || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed)
+            || !vkdev->shape_support_image_storage(shape_winograd_out_bordered_packed))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+
+        Mat weight_data_packed_tm(16, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+        if (!vkdev->shape_support_image_storage(weight_data_packed_tm))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+    }
+    else
+    {
+        // check blob shape
+        if (!vkdev->shape_support_image_storage(shape_bordered_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+
+        // check weight shape
+        Mat weight_data_packed(maxk, num_input / elempack, num_output / out_elempack, (void*)0, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+        if (!vkdev->shape_support_image_storage(weight_data_packed))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+    }
+
     {
         padding = ncnn::create_layer(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;
@@ -144,48 +247,6 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
         padding->create_pipeline(opt);
     }
-
-    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    size_t out_elemsize;
-    if (opt.use_image_storage && opt.use_fp16_storage)
-    {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_image_storage && opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
-    }
-    else if (opt.use_image_storage)
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-    else if (opt.use_fp16_storage)
-    {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-
-    Mat shape_bordered_packed;
-    if (shape_bordered.dims == 3) shape_bordered_packed = Mat(shape_bordered.w, shape_bordered.h, num_input / elempack, (void*)0, elemsize, elempack);
-
-    Mat out_shape_packed;
-    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, num_output / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     std::vector<vk_specialization_type> specializations(10 + 10);
     specializations[0].i = kernel_w;
@@ -216,9 +277,6 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         local_size_xyz.h = std::min(8, out_shape_packed.h);
         local_size_xyz.c = std::min(4, out_shape_packed.c);
     }
-
-    bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
-    bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
@@ -277,41 +335,6 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         else if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
         {
             // winograd23
-            int block_x = 0;
-            int block_y = 0;
-            Mat shape_winograd_bordered;
-            Mat shape_winograd_input_transformed;
-            Mat shape_winograd_gemm;
-            Mat shape_winograd_out_bordered;
-            if (out_shape.dims != 0)
-            {
-                int outw_bordered = (out_shape.w + 1) / 2 * 2;
-                int outh_bordered = (out_shape.h + 1) / 2 * 2;
-
-                int w_bordered = outw_bordered + 2;
-                int h_bordered = outh_bordered + 2;
-
-                block_x = outw_bordered / 2;
-                block_y = outh_bordered / 2;
-
-                shape_winograd_bordered = Mat(w_bordered, h_bordered, shape.c, (void*)0);
-                shape_winograd_input_transformed = Mat(16, block_x * block_y, shape.c, (void*)0);
-                shape_winograd_gemm = Mat(16, block_x * block_y, out_shape.c, (void*)0);
-                shape_winograd_out_bordered = Mat(outw_bordered, outh_bordered, out_shape.c, (void*)0);
-            }
-
-            Mat shape_winograd_bordered_packed;
-            if (shape_winograd_bordered.dims == 3) shape_winograd_bordered_packed = Mat(shape_winograd_bordered.w, shape_winograd_bordered.h, shape_winograd_bordered.c / elempack, (void*)0, elemsize, elempack);
-
-            Mat shape_winograd_input_transformed_packed;
-            if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h, shape_winograd_input_transformed.c / elempack, (void*)0, elemsize, elempack);
-
-            Mat shape_winograd_gemm_packed;
-            if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h, shape_winograd_gemm.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-
-            Mat shape_winograd_out_bordered_packed;
-            if (shape_winograd_out_bordered.dims == 3) shape_winograd_out_bordered_packed = Mat(shape_winograd_out_bordered.w, shape_winograd_out_bordered.h, shape_winograd_out_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-
             {
                 winograd_padding = ncnn::create_layer(ncnn::LayerType::Padding);
                 winograd_padding->vkdev = vkdev;
@@ -453,41 +476,6 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
         else if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
         {
             // winograd23
-            int block_x = 0;
-            int block_y = 0;
-            Mat shape_winograd_bordered;
-            Mat shape_winograd_input_transformed;
-            Mat shape_winograd_gemm;
-            Mat shape_winograd_out_bordered;
-            if (out_shape.dims != 0)
-            {
-                int outw_bordered = (out_shape.w + 1) / 2 * 2;
-                int outh_bordered = (out_shape.h + 1) / 2 * 2;
-
-                int w_bordered = outw_bordered + 2;
-                int h_bordered = outh_bordered + 2;
-
-                block_x = outw_bordered / 2;
-                block_y = outh_bordered / 2;
-
-                shape_winograd_bordered = Mat(w_bordered, h_bordered, shape.c, (void*)0);
-                shape_winograd_input_transformed = Mat(16, block_x * block_y, shape.c, (void*)0);
-                shape_winograd_gemm = Mat(16, block_x * block_y, out_shape.c, (void*)0);
-                shape_winograd_out_bordered = Mat(outw_bordered, outh_bordered, out_shape.c, (void*)0);
-            }
-
-            Mat shape_winograd_bordered_packed;
-            if (shape_winograd_bordered.dims == 3) shape_winograd_bordered_packed = Mat(shape_winograd_bordered.w, shape_winograd_bordered.h, shape_winograd_bordered.c / elempack, (void*)0, elemsize, elempack);
-
-            Mat shape_winograd_input_transformed_packed;
-            if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h, shape_winograd_input_transformed.c / elempack, (void*)0, elemsize, elempack);
-
-            Mat shape_winograd_gemm_packed;
-            if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h, shape_winograd_gemm.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-
-            Mat shape_winograd_out_bordered_packed;
-            if (shape_winograd_out_bordered.dims == 3) shape_winograd_out_bordered_packed = Mat(shape_winograd_out_bordered.w, shape_winograd_out_bordered.h, shape_winograd_out_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-
             {
                 winograd_padding = ncnn::create_layer(ncnn::LayerType::Padding);
                 winograd_padding->vkdev = vkdev;
@@ -766,7 +754,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         }
     }
 
-    if (opt.use_image_storage)
+    if (support_image_storage && opt.use_image_storage)
     {
         cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
     }
@@ -896,7 +884,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                 }
             }
 
-            if (opt.use_image_storage)
+            if (support_image_storage && opt.use_image_storage)
             {
                 cmd.record_upload(weight_data_pack4_tm, weight_data_gpu_pack4_tm_image, opt);
             }
@@ -993,7 +981,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                 }
             }
 
-            if (opt.use_image_storage)
+            if (support_image_storage && opt.use_image_storage)
             {
                 cmd.record_upload(weight_data_pack8_tm, weight_data_gpu_pack8_tm_image, opt);
             }
@@ -1009,7 +997,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         Mat bias_data_packed;
         convert_packing(bias_data, bias_data_packed, out_elempack);
 
-        if (opt.use_image_storage)
+        if (support_image_storage && opt.use_image_storage)
         {
             cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
         }
@@ -1017,10 +1005,6 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         {
             cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
         }
-    }
-    else if (opt.use_image_storage)
-    {
-        cmd.record_upload(Mat(1), bias_data_gpu_image, opt);
     }
 
     if (innerproduct)
@@ -1229,7 +1213,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             std::vector<VkMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
-            bindings[2] = bias_term ? bias_data_gpu : bindings[1];
+            bindings[2] = bias_data_gpu;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
@@ -1370,7 +1354,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             std::vector<VkMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
-            bindings[2] = bias_term ? bias_data_gpu : bindings[1];
+            bindings[2] = bias_data_gpu;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
@@ -1421,7 +1405,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu;
-    bindings[3] = bias_term ? bias_data_gpu : bindings[2];// TODO use dummy buffer
+    bindings[3] = bias_data_gpu;
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered.dims;
@@ -1707,7 +1691,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             std::vector<VkImageMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
-            bindings[2] = bias_data_gpu_image;// TODO use dummy buffer
+            bindings[2] = bias_data_gpu_image;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
@@ -1848,7 +1832,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             std::vector<VkImageMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
-            bindings[2] = bias_data_gpu_image;// TODO use dummy buffer
+            bindings[2] = bias_data_gpu_image;
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
@@ -1899,7 +1883,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu_image;
-    bindings[3] = bias_data_gpu_image;// TODO use dummy buffer
+    bindings[3] = bias_data_gpu_image;
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered.dims;

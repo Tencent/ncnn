@@ -113,7 +113,7 @@ void main()
     {
         if (storage_type_from == 0)
         {
-            int gi = gy * psc(outw) + gx;
+            int gi = gy * psc(w) + gx;
 
             v = buffer_ld8(bottom_blob_data, gi);
         }
@@ -141,7 +141,7 @@ void main()
     {
         if (storage_type_from == 0)
         {
-            int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+            int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
             v = buffer_ld8(bottom_blob_data, gi);
         }
