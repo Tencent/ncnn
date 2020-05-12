@@ -57,61 +57,8 @@ void main()
 
     afpvec8 v = buffer_ld8(bottom_top_blob_data, gi);
 
-    if (v[0].x > afp(20.f))
-        v[0].x = v[0].x * tanh(v[0].x);
-    else if (v[0].x < afp(-20.f))
-        v[0].x = v[0].x * tanh(exp(v[0].x));
-    else
-        v[0].x = v[0].x * tanh(log(exp(v[0].x) + afp(1.f)));
-
-    if (v[0].y > afp(20.f))
-        v[0].y = v[0].y * tanh(v[0].y);
-    else if (v[0].y < afp(-20.f))
-        v[0].y = v[0].y * tanh(exp(v[0].y));
-    else
-        v[0].y = v[0].y * tanh(log(exp(v[0].y) + afp(1.f)));
-
-    if (v[0].z > afp(20.f))
-        v[0].z = v[0].z * tanh(v[0].z);
-    else if (v[0].z < afp(-20.f))
-        v[0].z = v[0].z * tanh(exp(v[0].z));
-    else
-        v[0].z = v[0].z * tanh(log(exp(v[0].z) + afp(1.f)));
-
-    if (v[0].w > afp(20.f))
-        v[0].w = v[0].w * tanh(v[0].w);
-    else if (v[0].w < afp(-20.f))
-        v[0].w = v[0].w * tanh(exp(v[0].w));
-    else
-        v[0].w = v[0].w * tanh(log(exp(v[0].w) + afp(1.f)));
-
-    if (v[1].x > afp(20.f))
-        v[1].x = v[1].x * tanh(v[1].x);
-    else if (v[1].x < afp(-20.f))
-        v[1].x = v[1].x * tanh(exp(v[1].x));
-    else
-        v[1].x = v[1].x * tanh(log(exp(v[1].x) + afp(1.f)));
-
-    if (v[1].y > afp(20.f))
-        v[1].y = v[1].y * tanh(v[1].y);
-    else if (v[1].y < afp(-20.f))
-        v[1].y = v[1].y * tanh(exp(v[1].y));
-    else
-        v[1].y = v[1].y * tanh(log(exp(v[1].y) + afp(1.f)));
-
-    if (v[1].z > afp(20.f))
-        v[1].z = v[1].z * tanh(v[1].z);
-    else if (v[1].z < afp(-20.f))
-        v[1].z = v[1].z * tanh(exp(v[1].z));
-    else
-        v[1].z = v[1].z * tanh(log(exp(v[1].z) + afp(1.f)));
-
-    if (v[1].w > afp(20.f))
-        v[1].w = v[1].w * tanh(v[1].w);
-    else if (v[1].w < afp(-20.f))
-        v[1].w = v[1].w * tanh(exp(v[1].w));
-    else
-        v[1].w = v[1].w * tanh(log(exp(v[1].w) + afp(1.f)));
+    v[0] = v[0] * tanh(log(exp(v[0]) + afpvec4(1.f)));
+    v[1] = v[1] * tanh(log(exp(v[1]) + afpvec4(1.f)));
 
     buffer_st8(bottom_top_blob_data, gi, v);
 }
