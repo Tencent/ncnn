@@ -40,8 +40,17 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
+layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
+layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image1D top_blob_1d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image2D top_blob_2d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -79,6 +88,35 @@ void main()
     int y = i % size / psc(w);
     int x = i % size % psc(w);
 
+#if NCNN_image_shader
+    afp v;
+
+    if (psc(dims) == 1)
+    {
+        v = image1d_ld1(bottom_blob_1d, x);
+    }
+    else if (psc(dims) == 2)
+    {
+        v = image2d_ld1(bottom_blob_2d, ivec2(x, y));
+    }
+    else // if (psc(dims) == 3)
+    {
+        v = image3d_ld1(bottom_blob_3d, ivec3(x, y, z));
+    }
+
+    if (ndim == 1)
+    {
+        image1d_st1(top_blob_1d, gx, v);
+    }
+    if (ndim == 2)
+    {
+        image2d_st1(top_blob_2d, ivec2(gx, gy), v);
+    }
+    if (ndim == 3)
+    {
+        image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v);
+    }
+#else
     int v_offset = z * psc(cstep) + y * psc(w) + x;
 
     int gi;
@@ -96,4 +134,5 @@ void main()
     }
 
     buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
 }
