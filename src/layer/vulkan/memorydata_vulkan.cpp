@@ -26,13 +26,50 @@ MemoryData_vulkan::MemoryData_vulkan()
     support_image_storage = true;
 }
 
+int MemoryData_vulkan::create_pipeline(const Option& opt)
+{
+    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int out_elempack = 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+
+    size_t out_elemsize;
+    if (opt.use_fp16_storage)
+    {
+        out_elemsize = out_elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
+    }
+    else
+    {
+        out_elemsize = out_elempack * 4u;
+    }
+
+    Mat out_shape_packed;
+    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+    // check blob shape
+    if (!vkdev->shape_support_image_storage(out_shape_packed))
+    {
+        support_image_storage = false;
+    }
+
+    return 0;
+}
+
 int MemoryData_vulkan::upload_model(VkTransfer& /*cmd*/, const Option& opt)
 {
     // VkTransfer will flatten weight data
     // so we use VkCompute for uploading
     VkCompute cmd2(vkdev);
 
-    if (opt.use_image_storage)
+    if (support_image_storage && opt.use_image_storage)
     {
         cmd2.record_upload(data, data_gpu_image, opt);
     }

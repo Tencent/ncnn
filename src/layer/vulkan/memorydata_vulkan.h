@@ -24,6 +24,8 @@ class MemoryData_vulkan : virtual public MemoryData
 public:
     MemoryData_vulkan();
 
+    virtual int create_pipeline(const Option& opt);
+
     virtual int upload_model(VkTransfer& cmd, const Option& opt);
 
     using MemoryData::forward;

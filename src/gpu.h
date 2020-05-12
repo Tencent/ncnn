@@ -204,6 +204,9 @@ public:
     VkMat get_dummy_buffer() const;
     VkImageMat get_dummy_image() const;
 
+    // test image allocation
+    bool shape_support_image_storage(const Mat& shape) const;
+
     // utility operator
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
     void convert_packing(const VkImageMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;

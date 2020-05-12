@@ -39,8 +39,9 @@ InnerProduct_vulkan::InnerProduct_vulkan()
     pipeline_innerproduct_pack8to1 = 0;
 }
 
-int InnerProduct_vulkan::create_pipeline(const Option& opt)
+int InnerProduct_vulkan::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -48,22 +49,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (shape.dims != 0)
     {
         shape_flatten = Mat(shape.w * shape.h * shape.c, (void*)0);
-    }
-
-    {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
-        flatten->vkdev = vkdev;
-
-        flatten->bottom_shapes.resize(1);
-        flatten->bottom_shapes[0] = shape;
-        flatten->top_shapes.resize(1);
-        flatten->top_shapes[0] = shape_flatten;
-
-        ncnn::ParamDict pd;
-
-        flatten->load_param(pd);
-
-        flatten->create_pipeline(opt);
     }
 
     int num_input = weight_data_size / num_output;
@@ -90,10 +75,41 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     }
 
     Mat shape_flatten_packed;
-    if (shape_flatten.dims == 3) shape_flatten_packed = Mat(shape_flatten.w / elempack, (void*)0, elemsize, elempack);
+    if (shape_flatten.dims == 1) shape_flatten_packed = Mat(shape_flatten.w / elempack, (void*)0, elemsize, elempack);
 
     Mat out_shape_packed;
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+    // check blob shape
+    if (!vkdev->shape_support_image_storage(shape_flatten_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
+    {
+        support_image_storage = false;
+        opt.use_image_storage = false;
+    }
+
+    // check weight shape
+    Mat weight_data_packed(num_input / elempack, num_output / out_elempack, (void*)0, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+    if (!vkdev->shape_support_image_storage(weight_data_packed))
+    {
+        support_image_storage = false;
+        opt.use_image_storage = false;
+    }
+
+    {
+        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten->vkdev = vkdev;
+
+        flatten->bottom_shapes.resize(1);
+        flatten->bottom_shapes[0] = shape;
+        flatten->top_shapes.resize(1);
+        flatten->top_shapes[0] = shape_flatten;
+
+        ncnn::ParamDict pd;
+
+        flatten->load_param(pd);
+
+        flatten->create_pipeline(opt);
+    }
 
     std::vector<vk_specialization_type> specializations(4 + 10);
     specializations[0].i = bias_term;
@@ -270,7 +286,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         }
     }
 
-    if (opt.use_image_storage)
+    if (support_image_storage && opt.use_image_storage)
     {
         cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
     }
@@ -284,7 +300,7 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         Mat bias_data_packed;
         convert_packing(bias_data, bias_data_packed, out_elempack);
 
-        if (opt.use_image_storage)
+        if (support_image_storage && opt.use_image_storage)
         {
             cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
         }

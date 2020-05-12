@@ -1506,6 +1506,45 @@ VkImageMat VulkanDevice::get_dummy_image() const
     return dummy_image;
 }
 
+bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
+{
+    int dims = shape.dims;
+    int width = shape.w;
+    int height = shape.h;
+    int depth = shape.c;
+    int elempack = shape.elempack;
+
+    // large elempack spills on image w
+    if (elempack == 8) width *= 2;
+    if (elempack == 16) width *= 4;
+    if (elempack == 32) width *= 8;
+    if (elempack == 64) width *= 16;
+
+    if (dims == 1)
+    {
+        if (width > (int)info.max_image_dimension_1d)
+        {
+            return false;
+        }
+    }
+    else if (dims == 2)
+    {
+        if (width > (int)info.max_image_dimension_2d || height > (int)info.max_image_dimension_2d)
+        {
+            return false;
+        }
+    }
+    else // if (dims == 3)
+    {
+        if (width > (int)info.max_image_dimension_3d || height > (int)info.max_image_dimension_3d || depth > (int)info.max_image_dimension_3d)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
     int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;

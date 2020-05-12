@@ -39,8 +39,10 @@ Concat_vulkan::Concat_vulkan()
     pipeline_concat_pack8to1[1] = 0;
 }
 
-int Concat_vulkan::create_pipeline(const Option& opt)
+int Concat_vulkan::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
+
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -91,6 +93,12 @@ int Concat_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 1) out_shape_unpacked = Mat(out_shape.w / elempack, (void*)0, elemsize, elempack);
     if (out_shape.dims == 2) out_shape_unpacked = Mat(out_shape.w, out_shape.h / elempack, (void*)0, elemsize, elempack);
     if (out_shape.dims == 3) out_shape_unpacked = Mat(out_shape.w, out_shape.h, out_shape.c / elempack, (void*)0, elemsize, elempack);
+
+    if (!vkdev->shape_support_image_storage(out_shape_unpacked))
+    {
+        support_image_storage = false;
+        opt.use_image_storage = false;
+    }
 
     std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = axis;
