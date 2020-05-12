@@ -13,7 +13,6 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pipeline.h"
-#include <stdio.h>
 #include <math.h>
 #include <algorithm>
 #include <string>
@@ -53,7 +52,7 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
     int ret = resolve_shader_info(spv_data, spv_data_size, si);
     if (ret != 0)
     {
-        fprintf(stderr, "resolve_shader_info failed %d\n", ret);
+        NCNN_LOGE("resolve_shader_info failed %d", ret);
         return -1;
     }
 
@@ -61,7 +60,7 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
     int specialization_count_expected = si.specialization_count - 3;
     if ((int)specializations.size() != specialization_count_expected)
     {
-        fprintf(stderr, "pipeline specialization count mismatch, expect %d but got %d\n", specialization_count_expected, (int)specializations.size());
+        NCNN_LOGE("pipeline specialization count mismatch, expect %d but got %d", specialization_count_expected, (int)specializations.size());
         return -1;
     }
 
@@ -74,7 +73,7 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
         local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
     }
 
-//     fprintf(stderr, "local_shader_module %p created\n", local_shader_module);
+//     NCNN_LOGE("local_shader_module %p created", local_shader_module);
 
     return create(local_shader_module, si, specializations);
 }
@@ -136,7 +135,7 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     int specialization_count_expected = si.specialization_count - 3;
     if ((int)specializations.size() != specialization_count_expected)
     {
-        fprintf(stderr, "pipeline %d specialization count mismatch, expect %d but got %d\n", shader_type_index, specialization_count_expected, (int)specializations.size());
+        NCNN_LOGE("pipeline %d specialization count mismatch, expect %d but got %d", shader_type_index, specialization_count_expected, (int)specializations.size());
         return -1;
     }
 
@@ -252,7 +251,7 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
     local_size_y = h;
     local_size_z = c;
 
-//     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+//     NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
 }
 
 int Pipeline::create_descriptorset_layout()
@@ -306,7 +305,7 @@ int Pipeline::create_descriptorset_layout()
     VkResult ret = vkCreateDescriptorSetLayout(vkdev->vkdevice(), &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateDescriptorSetLayout failed %d\n", ret);
+        NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
         return -1;
     }
 
@@ -352,7 +351,7 @@ int Pipeline::create_pipeline_layout()
     VkResult ret = vkCreatePipelineLayout(vkdev->vkdevice(), &pipelineLayoutCreateInfo, 0, &pipeline_layout);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreatePipelineLayout failed %d\n", ret);
+        NCNN_LOGE("vkCreatePipelineLayout failed %d", ret);
         return -1;
     }
 
@@ -426,7 +425,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk
     VkResult ret = vkCreateComputePipelines(vkdev->vkdevice(), 0, 1, &computePipelineCreateInfo, 0, &pipeline);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateComputePipelines failed %d\n", ret);
+        NCNN_LOGE("vkCreateComputePipelines failed %d", ret);
         return -1;
     }
 
@@ -497,7 +496,7 @@ int Pipeline::create_descriptor_update_template()
     VkResult ret = vkdev->vkCreateDescriptorUpdateTemplateKHR(vkdev->vkdevice(), &descriptorUpdateTemplateCreateInfo, 0, &descriptor_update_template);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateDescriptorUpdateTemplateKHR failed %d\n", ret);
+        NCNN_LOGE("vkCreateDescriptorUpdateTemplateKHR failed %d", ret);
         return -1;
     }
 
@@ -700,7 +699,7 @@ int ImportAndroidHardwareBufferPipeline::create_sampler(VkAndroidHardwareBufferI
     ret = vkCreateSampler(vkdev->vkdevice(), &samplerCreateInfo, 0, &sampler);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateSampler failed %d\n", ret);
+        NCNN_LOGE("vkCreateSampler failed %d", ret);
         return -1;
     }
 
@@ -741,7 +740,7 @@ int ImportAndroidHardwareBufferPipeline::create_descriptorset_layout()
     VkResult ret = vkCreateDescriptorSetLayout(vkdev->vkdevice(), &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateDescriptorSetLayout failed %d\n", ret);
+        NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
         return -1;
     }
 
@@ -794,7 +793,7 @@ int ImportAndroidHardwareBufferPipeline::create_descriptor_update_template()
     VkResult ret = vkdev->vkCreateDescriptorUpdateTemplateKHR(vkdev->vkdevice(), &descriptorUpdateTemplateCreateInfo, 0, &descriptor_update_template);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateDescriptorUpdateTemplateKHR failed %d\n", ret);
+        NCNN_LOGE("vkCreateDescriptorUpdateTemplateKHR failed %d", ret);
         return -1;
     }
 

@@ -13,9 +13,9 @@
 // specific language governing permissions and limitations under the License.
 
 #include "cpu.h"
+#include "platform.h"
 
 #include <limits.h>
-#include <stdio.h>
 #include <string.h>
 #include <vector>
 
@@ -231,7 +231,7 @@ static int get_cpucount()
 
     if (count > (int)sizeof(size_t) * 8)
     {
-        fprintf(stderr, "more than %d cpu detected, thread affinity may not work properly :(\n", (int)sizeof(size_t) * 8);
+        NCNN_LOGE("more than %d cpu detected, thread affinity may not work properly :(", (int)sizeof(size_t) * 8);
     }
 
     return count;
@@ -354,7 +354,7 @@ typedef struct
     int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(mask), &mask);
     if (syscallret)
     {
-        fprintf(stderr, "syscall error %d\n", syscallret);
+        NCNN_LOGE("syscall error %d", syscallret);
         return -1;
     }
 
@@ -373,7 +373,7 @@ int set_cpu_powersave(int powersave)
 {
     if (powersave < 0 || powersave > 2)
     {
-        fprintf(stderr, "powersave %d not supported\n", powersave);
+        NCNN_LOGE("powersave %d not supported", powersave);
         return -1;
     }
 
@@ -404,7 +404,7 @@ static int setup_thread_affinity_masks()
     {
         int max_freq_khz = get_max_freq_khz(i);
 
-//         fprintf(stderr, "%d max freq = %d khz\n", i, max_freq_khz);
+//         NCNN_LOGE("%d max freq = %d khz", i, max_freq_khz);
 
         cpu_max_freq_khz[i] = max_freq_khz;
 
@@ -461,7 +461,7 @@ size_t get_cpu_thread_affinity_mask(int powersave)
     if (powersave == 2)
         return g_thread_affinity_mask_big;
 
-    fprintf(stderr, "powersave %d not supported\n", powersave);
+    NCNN_LOGE("powersave %d not supported", powersave);
 
     // fallback to all cores anyway
     return g_thread_affinity_mask_all;

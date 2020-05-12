@@ -250,7 +250,7 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
                         }
                     }
 
-    //                 fprintf(stderr, "%d %f %f\n", class_index, box_score, class_score);
+    //                 NCNN_LOGE("%d %f %f", class_index, box_score, class_score);
 
                     float confidence = box_score * class_score;
                     if (confidence >= confidence_threshold)
