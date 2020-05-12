@@ -33,8 +33,9 @@ Flatten_vulkan::Flatten_vulkan()
     pipeline_flatten_pack4to8 = 0;
 }
 
-int Flatten_vulkan::create_pipeline(const Option& opt)
+int Flatten_vulkan::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -71,6 +72,12 @@ int Flatten_vulkan::create_pipeline(const Option& opt)
 
     Mat out_shape_packed;
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
+    {
+        support_image_storage = false;
+        opt.use_image_storage = false;
+    }
 
     std::vector<vk_specialization_type> specializations(0 + 10);
     specializations[0 + 0].i = shape_packed.dims;

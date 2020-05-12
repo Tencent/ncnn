@@ -30,8 +30,9 @@ Padding_vulkan::Padding_vulkan()
     pipeline_padding_pack8 = 0;
 }
 
-int Padding_vulkan::create_pipeline(const Option& opt)
+int Padding_vulkan::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -72,6 +73,13 @@ int Padding_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+    // check blob shape
+    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
+    {
+        support_image_storage = false;
+        opt.use_image_storage = false;
+    }
 
     std::vector<vk_specialization_type> specializations(3 + 10);
     specializations[0].i = type;
@@ -147,7 +155,7 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     Mat per_channel_pad_data_packed;
     convert_packing(per_channel_pad_data, per_channel_pad_data_packed, elempack);
 
-    if (opt.use_image_storage)
+    if (support_image_storage && opt.use_image_storage)
     {
         cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu_image, opt);
     }

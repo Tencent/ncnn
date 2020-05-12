@@ -45,8 +45,9 @@ DeconvolutionDepthWise_vulkan::DeconvolutionDepthWise_vulkan()
     pipeline_deconvolutiondepthwise_group_pack8to1 = 0;
 }
 
-int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
+int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -65,6 +66,105 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         out_shape_bordered = Mat(outw, outh, out_shape.c, (void*)0);
 
         out_shape_bordered_adj = Mat(outw + output_pad_right, outh + output_pad_bottom, out_shape.c, (void*)0);
+    }
+
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+
+    size_t elemsize;
+    size_t out_elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+        out_elemsize = out_elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+        out_elemsize = out_elempack * 4u;
+    }
+
+    Mat shape_packed;
+    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+
+    Mat out_shape_bordered_packed;
+    if (out_shape_bordered.dims == 1) out_shape_bordered_packed = Mat(out_shape_bordered.w / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape_bordered.dims == 2) out_shape_bordered_packed = Mat(out_shape_bordered.w, out_shape_bordered.h / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape_bordered.dims == 3) out_shape_bordered_packed = Mat(out_shape_bordered.w, out_shape_bordered.h, out_shape_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+    // group deconvolution
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / group;
+
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+
+    size_t elemsize_g;
+    size_t out_elemsize_g;
+    if (opt.use_fp16_storage)
+    {
+        elemsize_g = elempack_g * 2u;
+        out_elemsize_g = out_elempack_g * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize_g = elempack_g == 1 ? 4u : elempack_g * 2u;
+        out_elemsize_g = out_elempack_g == 1 ? 4u : out_elempack_g * 2u;
+    }
+    else
+    {
+        elemsize_g = elempack_g * 4u;
+        out_elemsize_g = out_elempack_g * 4u;
+    }
+
+    Mat shape_g_packed;
+    if (shape.dims == 3) shape_g_packed = Mat(shape.w, shape.h, shape.c / elempack_g, (void*)0, elemsize_g, elempack_g);
+
+    Mat out_shape_bordered_g_packed;
+    if (out_shape_bordered.dims == 3) out_shape_bordered_g_packed = Mat(out_shape_bordered.w, out_shape_bordered.h, out_shape_bordered.c / out_elempack_g, (void*)0, out_elemsize_g, out_elempack_g);
+
+    // check blob shape
+    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_bordered_packed))
+    {
+        support_image_storage = false;
+        opt.use_image_storage = false;
+    }
+
+    // check weight shape
+    if (channels == group && group == num_output)
+    {
+        Mat weight_data_packed(maxk, group / elempack, (void*)0, (size_t)4 * elempack, elempack);
+        if (!vkdev->shape_support_image_storage(weight_data_packed))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+    }
+    else
+    {
+        // check blob shape
+        if (!vkdev->shape_support_image_storage(shape_g_packed) || !vkdev->shape_support_image_storage(out_shape_bordered_g_packed))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+
+        Mat weight_data_packed_groups(maxk, channels_g / elempack_g, num_output_g / out_elempack_g * group, (size_t)4 * elempack_g * out_elempack_g, elempack_g * out_elempack_g);
+        if (!vkdev->shape_support_image_storage(weight_data_packed_groups))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
     }
 
     {
@@ -127,40 +227,6 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         output_crop->create_pipeline(opt);
     }
 
-    const int maxk = kernel_w * kernel_h;
-    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
-
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    size_t out_elemsize;
-    if (opt.use_fp16_storage)
-    {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-
-    Mat out_shape_bordered_packed;
-    if (out_shape_bordered.dims == 1) out_shape_bordered_packed = Mat(out_shape_bordered.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape_bordered.dims == 2) out_shape_bordered_packed = Mat(out_shape_bordered.w, out_shape_bordered.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape_bordered.dims == 3) out_shape_bordered_packed = Mat(out_shape_bordered.w, out_shape_bordered.h, out_shape_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-
     std::vector<vk_specialization_type> specializations(11 + 10);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
@@ -222,37 +288,6 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
 
         return 0;
     }
-
-    // group deconvolution
-    const int channels_g = channels / group;
-    const int num_output_g = num_output / group;
-
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
-
-    size_t elemsize_g;
-    size_t out_elemsize_g;
-    if (opt.use_fp16_storage)
-    {
-        elemsize_g = elempack_g * 2u;
-        out_elemsize_g = out_elempack_g * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize_g = elempack_g == 1 ? 4u : elempack_g * 2u;
-        out_elemsize_g = out_elempack_g == 1 ? 4u : out_elempack_g * 2u;
-    }
-    else
-    {
-        elemsize_g = elempack_g * 4u;
-        out_elemsize_g = out_elempack_g * 4u;
-    }
-
-    Mat shape_g_packed;
-    if (shape.dims == 3) shape_g_packed = Mat(shape.w, shape.h, shape.c / elempack_g, (void*)0, elemsize_g, elempack_g);
-
-    Mat out_shape_bordered_g_packed;
-    if (out_shape_bordered.dims == 3) out_shape_bordered_g_packed = Mat(out_shape_bordered.w, out_shape_bordered.h, out_shape_bordered.c / out_elempack_g, (void*)0, out_elemsize_g, out_elempack_g);
 
     specializations[11 + 0].i = shape_g_packed.dims;
     specializations[11 + 1].i = shape_g_packed.w;
@@ -466,7 +501,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
             Mat bias_data_packed;
             convert_packing(bias_data, bias_data_packed, out_elempack);
 
-            if (opt.use_image_storage)
+            if (support_image_storage && opt.use_image_storage)
             {
                 cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
             }
@@ -531,7 +566,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
         }
     }
 
-    if (opt.use_image_storage)
+    if (support_image_storage && opt.use_image_storage)
     {
         cmd.record_upload(weight_data_packed_groups, weight_data_gpu_image, opt);
     }
@@ -545,7 +580,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
         Mat bias_data_packed;
         convert_packing(bias_data, bias_data_packed, out_elempack_g);
 
-        if (opt.use_image_storage)
+        if (support_image_storage && opt.use_image_storage)
         {
             cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
         }

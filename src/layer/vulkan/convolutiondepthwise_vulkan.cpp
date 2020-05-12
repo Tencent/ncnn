@@ -43,8 +43,9 @@ ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
     pipeline_convolutiondepthwise_group_pack8to1 = 0;
 }
 
-int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
+int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -73,28 +74,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
         {
             shape_bordered = shape;
         }
-    }
-
-    {
-        padding = ncnn::create_layer(ncnn::LayerType::Padding);
-        padding->vkdev = vkdev;
-
-        padding->bottom_shapes.resize(1);
-        padding->bottom_shapes[0] = shape;
-        padding->top_shapes.resize(1);
-        padding->top_shapes[0] = shape_bordered;
-
-        ncnn::ParamDict pd;
-        pd.set(0, pad_top);
-        pd.set(1, pad_bottom);
-        pd.set(2, pad_left);
-        pd.set(3, pad_right);
-        pd.set(4, 0);
-        pd.set(5, pad_value);
-
-        padding->load_param(pd);
-
-        padding->create_pipeline(opt);
     }
 
     const int maxk = kernel_w * kernel_h;
@@ -126,6 +105,93 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
 
     Mat out_shape_packed;
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+    // group convolution
+    const int channels_g = channels / group;
+    const int num_output_g = num_output / group;
+
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+
+    size_t elemsize_g;
+    size_t out_elemsize_g;
+    if (opt.use_fp16_storage)
+    {
+        elemsize_g = elempack_g * 2u;
+        out_elemsize_g = out_elempack_g * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize_g = elempack_g == 1 ? 4u : elempack_g * 2u;
+        out_elemsize_g = out_elempack_g == 1 ? 4u : out_elempack_g * 2u;
+    }
+    else
+    {
+        elemsize_g = elempack_g * 4u;
+        out_elemsize_g = out_elempack_g * 4u;
+    }
+
+    Mat shape_bordered_g_packed;
+    if (shape_bordered.dims == 3) shape_bordered_g_packed = Mat(shape_bordered.w, shape_bordered.h, shape_bordered.c / elempack_g, (void*)0, elemsize_g, elempack_g);
+
+    Mat out_shape_g_packed;
+    if (out_shape.dims == 3) out_shape_g_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack_g, (void*)0, out_elemsize_g, out_elempack_g);
+
+    // check blob shape
+    if (!vkdev->shape_support_image_storage(shape_bordered_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
+    {
+        support_image_storage = false;
+        opt.use_image_storage = false;
+    }
+
+    // check weight shape
+    if (channels == group && group == num_output)
+    {
+        Mat weight_data_packed(maxk, group / elempack, (void*)0, (size_t)4 * elempack, elempack);
+        if (!vkdev->shape_support_image_storage(weight_data_packed))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+    }
+    else
+    {
+        // check blob shape
+        if (!vkdev->shape_support_image_storage(shape_bordered_g_packed) || !vkdev->shape_support_image_storage(out_shape_g_packed))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+
+        Mat weight_data_packed_groups(maxk, channels_g / elempack_g, num_output_g/out_elempack_g * group, (size_t)4*elempack_g*out_elempack_g, elempack_g*out_elempack_g);
+        if (!vkdev->shape_support_image_storage(weight_data_packed_groups))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+    }
+
+    {
+        padding = ncnn::create_layer(ncnn::LayerType::Padding);
+        padding->vkdev = vkdev;
+
+        padding->bottom_shapes.resize(1);
+        padding->bottom_shapes[0] = shape;
+        padding->top_shapes.resize(1);
+        padding->top_shapes[0] = shape_bordered;
+
+        ncnn::ParamDict pd;
+        pd.set(0, pad_top);
+        pd.set(1, pad_bottom);
+        pd.set(2, pad_left);
+        pd.set(3, pad_right);
+        pd.set(4, 0);
+        pd.set(5, pad_value);
+
+        padding->load_param(pd);
+
+        padding->create_pipeline(opt);
+    }
 
     std::vector<vk_specialization_type> specializations(11 + 10);
     specializations[0].i = kernel_w;
@@ -188,37 +254,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
 
         return 0;
     }
-
-    // group convolution
-    const int channels_g = channels / group;
-    const int num_output_g = num_output / group;
-
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
-
-    size_t elemsize_g;
-    size_t out_elemsize_g;
-    if (opt.use_fp16_storage)
-    {
-        elemsize_g = elempack_g * 2u;
-        out_elemsize_g = out_elempack_g * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize_g = elempack_g == 1 ? 4u : elempack_g * 2u;
-        out_elemsize_g = out_elempack_g == 1 ? 4u : out_elempack_g * 2u;
-    }
-    else
-    {
-        elemsize_g = elempack_g * 4u;
-        out_elemsize_g = out_elempack_g * 4u;
-    }
-
-    Mat shape_bordered_g_packed;
-    if (shape_bordered.dims == 3) shape_bordered_g_packed = Mat(shape_bordered.w, shape_bordered.h, shape_bordered.c / elempack_g, (void*)0, elemsize_g, elempack_g);
-
-    Mat out_shape_g_packed;
-    if (out_shape.dims == 3) out_shape_g_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack_g, (void*)0, out_elemsize_g, out_elempack_g);
 
     specializations[11 + 0].i = shape_bordered_g_packed.dims;
     specializations[11 + 1].i = shape_bordered_g_packed.w;
@@ -391,7 +426,7 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
             Mat bias_data_packed;
             convert_packing(bias_data, bias_data_packed, out_elempack);
 
-            if (opt.use_image_storage)
+            if (support_image_storage && opt.use_image_storage)
             {
                 cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
             }
@@ -456,7 +491,7 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
         }
     }
 
-    if (opt.use_image_storage)
+    if (support_image_storage && opt.use_image_storage)
     {
         cmd.record_upload(weight_data_packed_groups, weight_data_gpu_image, opt);
     }
@@ -470,7 +505,7 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
         Mat bias_data_packed;
         convert_packing(bias_data, bias_data_packed, out_elempack_g);
 
-        if (opt.use_image_storage)
+        if (support_image_storage && opt.use_image_storage)
         {
             cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
         }
