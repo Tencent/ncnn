@@ -56,33 +56,7 @@ void main()
 
     afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 
-    if (v.x > afp(20.f))
-        v.x = v.x * tanh(v.x);
-    else if (v.x < afp(-20.f))
-        v.x = v.x * tanh(exp(v.x));
-    else
-        v.x = v.x * tanh(log(exp(v.x) + afp(1.f)));
-
-    if (v.y > afp(20.f))
-        v.y = v.y * tanh(v.y);
-    else if (v.y < afp(-20.f))
-        v.y = v.y * tanh(exp(v.y));
-    else
-        v.y = v.y * tanh(log(exp(v.y) + afp(1.f)));
-
-    if (v.z > afp(20.f))
-        v.z = v.z * tanh(v.z);
-    else if (v.z < afp(-20.f))
-        v.z = v.z * tanh(exp(v.z));
-    else
-        v.z = v.z * tanh(log(exp(v.z) + afp(1.f)));
-
-    if (v.w > afp(20.f))
-        v.w = v.w * tanh(v.w);
-    else if (v.w < afp(-20.f))
-        v.w = v.w * tanh(exp(v.w));
-    else
-        v.w = v.w * tanh(log(exp(v.w) + afp(1.f)));
+    v = v * tanh(log(exp(v) + afpvec4(1.f)));
 
     buffer_st4(bottom_top_blob_data, gi, v);
 }
