@@ -1,7 +1,6 @@
 
 macro(ncnn_add_example name)
     add_executable(${name} ${name}.cpp)
-    target_compile_options(${name} PRIVATE -std=c++11)
     target_link_libraries(${name} PRIVATE ncnn ${OpenCV_LIBS})
 
     # add test to a virtual project group
