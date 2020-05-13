@@ -62,7 +62,7 @@ struct SimpleVector
         capacity_ = 0;
     }
 
-    T*& data() { return data_; }
+    T* data() const { return data_; }
     const size_t size() const { return size_; }
     T& operator[](int i) const { return data_[i]; }
     T* begin() const { return &data_[0]; }
@@ -156,3 +156,4 @@ inline SimpleString operator+(const SimpleString& str1, const SimpleString& str2
     str.insert(str.end(), str2.begin(), str2.end());
     return str;
 }
+

@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <set>
 #include <vector>
+#include <string>
 
 // ncnn public header
 #include "datareader.h"
@@ -2148,14 +2149,14 @@ int NetOptimize::save(const char* parampath, const char* binpath)
         for (int j=0; j<bottom_count; j++)
         {
             int bottom_blob_index = layer->bottoms[j];
-            blob_names.insert(blobs[bottom_blob_index].name);
+            blob_names.insert(blobs[bottom_blob_index].name.c_str());
         }
 
         size_t top_count = layer->tops.size();
         for (int j=0; j<top_count; j++)
         {
             int top_blob_index = layer->tops[j];
-            blob_names.insert(blobs[top_blob_index].name);
+            blob_names.insert(blobs[top_blob_index].name.c_str());
         }
     }
 
