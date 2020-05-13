@@ -283,7 +283,6 @@ void main()
         sum3[0] = afp(1.f) / (afp(1.f) + exp(-sum3[0]));
         sum3[1] = afp(1.f) / (afp(1.f) + exp(-sum3[1]));
     }
-#if NCNN_vulkan_fuse_conv_mish
     if (activation_type == 5)
     {
         sum0[0] = sum0[0] * tanh(log(exp(sum0[0]) + afp(1.f)));
@@ -295,7 +294,6 @@ void main()
         sum3[0] = sum3[0] * tanh(log(exp(sum3[0]) + afp(1.f)));
         sum3[1] = sum3[1] * tanh(log(exp(sum3[1]) + afp(1.f)));
     }
-#endif
 
 #if NCNN_image_shader
     image3d_st8(top_blob, ivec3(gx, gy, gz), sum0);
