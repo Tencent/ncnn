@@ -23,7 +23,7 @@ static int test_shufflechannel(int w, int h, int c, int group)
     ncnn::ParamDict pd;
     pd.set(0, group);// group
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

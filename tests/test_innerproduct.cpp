@@ -30,7 +30,7 @@ static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
-    std::vector<ncnn::Mat> weights(bias ? 2 : 1);
+    SimpleVector<ncnn::Mat> weights(bias ? 2 : 1);
     weights[0] = RandomMat(outch*a.w*a.h*a.c);
     if (bias)
         weights[1] = RandomMat(outch);
@@ -99,7 +99,7 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
     pd.set(2, outch*a.w*a.h*a.c);
     pd.set(8, 1);// int8_scale_term
 
-    std::vector<ncnn::Mat> weights(bias ? 4 : 3);
+    SimpleVector<ncnn::Mat> weights(bias ? 4 : 3);
     weights[0] = RandomMat(outch*a.w*a.h*a.c);
     if (bias)
     {

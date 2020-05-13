@@ -21,7 +21,7 @@ static int test_prelu(const ncnn::Mat& a, int num_slope)
     ncnn::ParamDict pd;
     pd.set(0, num_slope);
 
-    std::vector<ncnn::Mat> weights(1);
+    SimpleVector<ncnn::Mat> weights(1);
     weights[0] = RandomMat(num_slope);
 
     ncnn::Option opt;

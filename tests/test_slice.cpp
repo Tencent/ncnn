@@ -61,14 +61,14 @@ static int test_slice(const ncnn::Mat& a, const ncnn::Mat& slices, int axis)
     pd.set(0, slices);
     pd.set(1, axis);
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
 
-    std::vector<ncnn::Mat> a0(1);
+    SimpleVector<ncnn::Mat> a0(1);
     a0[0] = a;
 
     int ret = test_layer<ncnn::Slice>("Slice", pd, weights, opt, a0, slices.w);

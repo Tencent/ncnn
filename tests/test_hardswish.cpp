@@ -22,7 +22,7 @@ static int test_hardswish(const ncnn::Mat& a, float alpha, float beta)
     pd.set(0, alpha);
     pd.set(0, beta);
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

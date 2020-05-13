@@ -20,7 +20,7 @@
 
 static int test_roipooling(int w, int h, int c, int pooled_width, int pooled_height, float spatial_scale)
 {
-    std::vector<ncnn::Mat> a;
+    SimpleVector<ncnn::Mat> a;
     a.push_back(RandomMat(w, h, c));
     ncnn::Mat b(4);
     b[0] = RandomFloat(0.001     , w-2.001);    //roi_x1
@@ -34,7 +34,7 @@ static int test_roipooling(int w, int h, int c, int pooled_width, int pooled_hei
     pd.set(1, pooled_height);   // pooled_height
     pd.set(2, spatial_scale);   // spatial_scale
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
