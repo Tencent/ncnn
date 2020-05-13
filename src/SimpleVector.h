@@ -42,7 +42,7 @@ struct SimpleVector
         }
         else if (new_size < size_)
         {
-            for (int i = new_size - 1; i >= size_; i--)
+            for (int i = new_size; i < size_; i++)
             {
                 data_[i].~T();
             }
@@ -156,4 +156,3 @@ inline SimpleString operator+(const SimpleString& str1, const SimpleString& str2
     str.insert(str.end(), str2.begin(), str2.end());
     return str;
 }
-

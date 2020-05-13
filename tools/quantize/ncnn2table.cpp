@@ -88,7 +88,7 @@ int QuantNet::get_input_names()
             for (size_t j = 0; j < layer->tops.size(); j++)
             {
                 int blob_index = layer->tops[j];
-                std::string name = blobs[blob_index].name;
+                std::string name = blobs[blob_index].name.c_str();
                 input_names.push_back(name);
             }
         }
@@ -122,8 +122,8 @@ int QuantNet::get_conv_bottom_blob_names()
 
         if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise" || layer->type == "InnerProduct")
         {
-            const std::string& name = layer->name;
-            const std::string& bottom_blob_name = blobs[layer->bottoms[0]].name;
+            std::string name = layer->name.c_str();
+            std::string bottom_blob_name = blobs[layer->bottoms[0]].name.c_str();
             conv_bottom_blob_names[name] = bottom_blob_name;
         }
     }
