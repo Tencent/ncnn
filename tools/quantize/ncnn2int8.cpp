@@ -21,6 +21,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <string>
 
 // ncnn public header
 #include "net.h"
