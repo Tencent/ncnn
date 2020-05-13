@@ -105,6 +105,13 @@ int Convolution_arm::create_pipeline(const Option& opt)
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
+    else if (activation_type == 5)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Mish);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
 
     if (activation)
     {
@@ -993,6 +1000,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                         {
                             sum = static_cast<float>(1.f / (1.f + exp(-sum)));
                         }
+                        else if (activation_type == 5)
+                        {
+                            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
+                        }
 
                         outptr[j] = sum;
                     }
@@ -1621,6 +1632,10 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                         else if (activation_type == 4)
                         {
                             sum = static_cast<float>(1.f / (1.f + exp(-sum)));
+                        }
+                        else if (activation_type == 5)
+                        {
+                            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
                         }
 
                         outptr[j] = float32_to_bfloat16(sum);
