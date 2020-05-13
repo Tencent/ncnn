@@ -107,7 +107,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
     // no broadcast
     if (shape.dims == 0 || !broadcast)
     {
-        std::vector<vk_specialization_type> specializations(3 + 15);
+        SimpleVector<vk_specialization_type> specializations(3 + 15);
         specializations[0].i = op_type;
         specializations[1].i = with_scalar;
         specializations[2].f = b;
@@ -175,7 +175,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
     // broadcast
     if (shape.dims == 0 || broadcast)
     {
-        std::vector<vk_specialization_type> specializations(1 + 15);
+        SimpleVector<vk_specialization_type> specializations(1 + 15);
         specializations[0].i = op_type;
         specializations[1 + 0].i = shape_packed.dims;
         specializations[1 + 1].i = shape_packed.w;
@@ -308,7 +308,7 @@ int BinaryOp_vulkan::destroy_pipeline(const Option& /*opt*/)
     return 0;
 }
 
-int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int BinaryOp_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& bottom_blob1 = bottom_blobs[1];
@@ -340,12 +340,12 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
 
     int out_elempack = top_blob.elempack;
 
-    std::vector<VkMat> bindings(3);
+    SimpleVector<VkMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = bottom_blob1;
     bindings[2] = top_blob;
 
-    std::vector<vk_constant_type> constants(15);
+    SimpleVector<vk_constant_type> constants(15);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -421,12 +421,12 @@ int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, con
 {
     int elempack = bottom_top_blob.elempack;
 
-    std::vector<VkMat> bindings(3);
+    SimpleVector<VkMat> bindings(3);
     bindings[0] = bottom_top_blob;
     bindings[1] = bottom_top_blob;// TODO use dummy buffer
     bindings[2] = bottom_top_blob;// TODO use dummy buffer
 
-    std::vector<vk_constant_type> constants(15);
+    SimpleVector<vk_constant_type> constants(15);
     constants[10].i = bottom_top_blob.dims;
     constants[11].i = bottom_top_blob.w;
     constants[12].i = bottom_top_blob.h;
@@ -442,7 +442,7 @@ int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, con
     return 0;
 }
 
-int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int BinaryOp_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleVector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkImageMat& bottom_blob = bottom_blobs[0];
     const VkImageMat& bottom_blob1 = bottom_blobs[1];
@@ -474,12 +474,12 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
 
     int out_elempack = top_blob.elempack;
 
-    std::vector<VkImageMat> bindings(3);
+    SimpleVector<VkImageMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = bottom_blob1;
     bindings[2] = top_blob;
 
-    std::vector<vk_constant_type> constants(15);
+    SimpleVector<vk_constant_type> constants(15);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -555,12 +555,12 @@ int BinaryOp_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd
 {
     int elempack = bottom_top_blob.elempack;
 
-    std::vector<VkImageMat> bindings(3);
+    SimpleVector<VkImageMat> bindings(3);
     bindings[0] = bottom_top_blob;
     bindings[1] = bottom_top_blob;// TODO use dummy buffer
     bindings[2] = bottom_top_blob;
 
-    std::vector<vk_constant_type> constants(15);
+    SimpleVector<vk_constant_type> constants(15);
     constants[10].i = bottom_top_blob.dims;
     constants[11].i = bottom_top_blob.w;
     constants[12].i = bottom_top_blob.h;

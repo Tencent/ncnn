@@ -111,7 +111,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         flatten->create_pipeline(opt);
     }
 
-    std::vector<vk_specialization_type> specializations(4 + 10);
+    SimpleVector<vk_specialization_type> specializations(4 + 10);
     specializations[0].i = bias_term;
     specializations[1].i = activation_type;
     specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -341,13 +341,13 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(4);
+    SimpleVector<VkMat> bindings(4);
     bindings[0] = bottom_blob_flattened;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu;
     bindings[3] = bias_data_gpu;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_flattened.dims;
     constants[1].i = bottom_blob_flattened.w;
     constants[2].i = bottom_blob_flattened.h;
@@ -430,13 +430,13 @@ int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkImageMat> bindings(4);
+    SimpleVector<VkImageMat> bindings(4);
     bindings[0] = bottom_blob_flattened;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu_image;
     bindings[3] = bias_data_gpu_image;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_flattened.dims;
     constants[1].i = bottom_blob_flattened.w;
     constants[2].i = bottom_blob_flattened.h;

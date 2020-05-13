@@ -77,7 +77,7 @@ static inline float intersection_area(const BBoxRect& a, const BBoxRect& b)
 }
 
 template <typename T>
-static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores, int left, int right)
+static void qsort_descent_inplace(SimpleVector<T>& datas, SimpleVector<float>& scores, int left, int right)
 {
     int i = left;
     int j = right;
@@ -110,7 +110,7 @@ static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& sco
 }
 
 template <typename T>
-static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores)
+static void qsort_descent_inplace(SimpleVector<T>& datas, SimpleVector<float>& scores)
 {
     if (datas.empty() || scores.empty())
         return;
@@ -118,13 +118,13 @@ static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& sco
     qsort_descent_inplace(datas, scores, 0, static_cast<int>(scores.size() - 1));
 }
 
-static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<size_t>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const SimpleVector<BBoxRect>& bboxes, SimpleVector<size_t>& picked, float nms_threshold)
 {
     picked.clear();
 
     const size_t n = bboxes.size();
 
-    std::vector<float> areas(n);
+    SimpleVector<float> areas(n);
     for (size_t i = 0; i < n; i++)
     {
         const BBoxRect& r = bboxes[i];
@@ -162,16 +162,16 @@ static inline float sigmoid(float x)
     return static_cast<float>(1.f / (1.f + exp(-x)));
 }
 
-int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Yolov3DetectionOutput::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
 {
     // gather all box
-    std::vector<BBoxRect> all_bbox_rects;
-    std::vector<float> all_bbox_scores;
+    SimpleVector<BBoxRect> all_bbox_rects;
+    SimpleVector<float> all_bbox_scores;
 
     for (size_t b = 0; b < bottom_blobs.size(); b++)
     {
-        std::vector< std::vector<BBoxRect> > all_box_bbox_rects;
-        std::vector< std::vector<float> > all_box_bbox_scores;
+        SimpleVector< SimpleVector<BBoxRect> > all_box_bbox_rects;
+        SimpleVector< SimpleVector<float> > all_box_bbox_scores;
         all_box_bbox_rects.resize(num_box);
         all_box_bbox_scores.resize(num_box);
         const Mat& bottom_top_blobs = bottom_blobs[b];
@@ -269,8 +269,8 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
 
         for (int i = 0; i < num_box; i++)
         {
-            const std::vector<BBoxRect>& box_bbox_rects = all_box_bbox_rects[i];
-            const std::vector<float>& box_bbox_scores = all_box_bbox_scores[i];
+            const SimpleVector<BBoxRect>& box_bbox_rects = all_box_bbox_rects[i];
+            const SimpleVector<float>& box_bbox_scores = all_box_bbox_scores[i];
 
             all_bbox_rects.insert(all_bbox_rects.end(), box_bbox_rects.begin(), box_bbox_rects.end());
             all_bbox_scores.insert(all_bbox_scores.end(), box_bbox_scores.begin(), box_bbox_scores.end());
@@ -283,12 +283,12 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
     qsort_descent_inplace(all_bbox_rects, all_bbox_scores);
 
     // apply nms
-    std::vector<size_t> picked;
+    SimpleVector<size_t> picked;
     nms_sorted_bboxes(all_bbox_rects, picked, nms_threshold);
 
     // select
-    std::vector<BBoxRect> bbox_rects;
-    std::vector<float> bbox_scores;
+    SimpleVector<BBoxRect> bbox_rects;
+    SimpleVector<float> bbox_scores;
 
     for (size_t i = 0; i < picked.size(); i++)
     {

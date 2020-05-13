@@ -15,7 +15,7 @@
 #ifndef NCNN_NET_H
 #define NCNN_NET_H
 
-#include <vector>
+#include "SimpleVector.h"
 #include "platform.h"
 #include "blob.h"
 #include "layer.h"
@@ -147,18 +147,18 @@ protected:
     Layer* create_custom_layer(const char* type);
 #endif // NCNN_STRING
     Layer* create_custom_layer(int index);
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const;
+    int forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, const Option& opt) const;
 
 #if NCNN_VULKAN
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const;
+    int forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
+    int forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVector<VkMat>& blob_mats_gpu, SimpleVector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 
 protected:
-    std::vector<Blob> blobs;
-    std::vector<Layer*> layers;
+    SimpleVector<Blob> blobs;
+    SimpleVector<Layer*> layers;
 
-    std::vector<layer_registry_entry> custom_layer_registry;
+    SimpleVector<layer_registry_entry> custom_layer_registry;
 
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
@@ -259,15 +259,15 @@ protected:
 
 private:
     const Net* net;
-    std::vector<Mat> blob_mats;
+    SimpleVector<Mat> blob_mats;
     Option opt;
 
 #if NCNN_VULKAN
     VkAllocator* local_blob_vkallocator;
     VkAllocator* local_staging_vkallocator;
 
-    std::vector<VkMat> blob_mats_gpu;
-    std::vector<VkImageMat> blob_mats_gpu_image;
+    SimpleVector<VkMat> blob_mats_gpu;
+    SimpleVector<VkImageMat> blob_mats_gpu_image;
 #endif // NCNN_VULKAN
 };
 

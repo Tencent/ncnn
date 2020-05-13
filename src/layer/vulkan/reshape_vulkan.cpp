@@ -87,7 +87,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
         opt.use_image_storage = false;
     }
 
-    std::vector<vk_specialization_type> specializations(1 + 10);
+    SimpleVector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = ndim;
     specializations[1 + 0].i = shape_packed.dims;
     specializations[1 + 1].i = shape_packed.w;
@@ -363,11 +363,11 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(2);
+    SimpleVector<VkMat> bindings(2);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -535,11 +535,11 @@ int Reshape_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkImageMat> bindings(2);
+    SimpleVector<VkImageMat> bindings(2);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;

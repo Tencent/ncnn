@@ -15,14 +15,14 @@
 #ifndef NCNN_LAYER_H
 #define NCNN_LAYER_H
 
-#include <string>
-#include <vector>
+//#include <string>
 #include <math.h>
 #include "platform.h"
 #include "mat.h"
 #include "modelbin.h"
 #include "option.h"
 #include "paramdict.h"
+#include "SimpleVector.h"
 
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>
@@ -78,12 +78,12 @@ public:
 public:
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    virtual int forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const;
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
     // implement inplace inference
     // return 0 if success
-    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
+    virtual int forward_inplace(SimpleVector<Mat>& bottom_top_blobs, const Option& opt) const;
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 #if NCNN_VULKAN
@@ -94,22 +94,22 @@ public:
 public:
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
     // implement inference
     // return 0 if success
-    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleVector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
     // implement inplace inference
     // return 0 if success
-    virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
+    virtual int forward_inplace(SimpleVector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
     // implement inplace inference
     // return 0 if success
-    virtual int forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
+    virtual int forward_inplace(SimpleVector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
@@ -122,17 +122,17 @@ public:
     int typeindex;
 #if NCNN_STRING
     // layer type name
-    std::string type;
+    SimpleString type;
     // layer name
-    std::string name;
+    SimpleString name;
 #endif // NCNN_STRING
     // blob index which this layer needs as input
-    std::vector<int> bottoms;
+    SimpleVector<int> bottoms;
     // blob index which this layer produces as output
-    std::vector<int> tops;
+    SimpleVector<int> tops;
     // shape hint
-    std::vector<Mat> bottom_shapes;
-    std::vector<Mat> top_shapes;
+    SimpleVector<Mat> bottom_shapes;
+    SimpleVector<Mat> top_shapes;
 };
 
 // layer factory function

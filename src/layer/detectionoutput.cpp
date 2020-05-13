@@ -65,7 +65,7 @@ static inline float intersection_area(const BBoxRect& a, const BBoxRect& b)
 }
 
 template <typename T>
-static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores, int left, int right)
+static void qsort_descent_inplace(SimpleVector<T>& datas, SimpleVector<float>& scores, int left, int right)
 {
     int i = left;
     int j = right;
@@ -98,7 +98,7 @@ static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& sco
 }
 
 template <typename T>
-static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores)
+static void qsort_descent_inplace(SimpleVector<T>& datas, SimpleVector<float>& scores)
 {
     if (datas.empty() || scores.empty())
         return;
@@ -106,13 +106,13 @@ static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& sco
     qsort_descent_inplace(datas, scores, 0, static_cast<int>(scores.size() - 1));
 }
 
-static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<size_t>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const SimpleVector<BBoxRect>& bboxes, SimpleVector<size_t>& picked, float nms_threshold)
 {
     picked.clear();
 
     const size_t n = bboxes.size();
 
-    std::vector<float> areas(n);
+    SimpleVector<float> areas(n);
     for (size_t i = 0; i < n; i++)
     {
         const BBoxRect& r = bboxes[i];
@@ -145,7 +145,7 @@ static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<s
     }
 }
 
-int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int DetectionOutput::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& location = bottom_blobs[0];
     const Mat& confidence = bottom_blobs[1];
@@ -195,8 +195,8 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     }
 
     // sort and nms for each class
-    std::vector< std::vector<BBoxRect> > all_class_bbox_rects;
-    std::vector< std::vector<float> > all_class_bbox_scores;
+    SimpleVector< SimpleVector<BBoxRect> > all_class_bbox_rects;
+    SimpleVector< SimpleVector<float> > all_class_bbox_scores;
     all_class_bbox_rects.resize(num_class_copy);
     all_class_bbox_scores.resize(num_class_copy);
 
@@ -205,8 +205,8 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     for (int i = 1; i < num_class_copy; i++)
     {
         // filter by confidence_threshold
-        std::vector<BBoxRect> class_bbox_rects;
-        std::vector<float> class_bbox_scores;
+        SimpleVector<BBoxRect> class_bbox_rects;
+        SimpleVector<float> class_bbox_scores;
 
         for (int j = 0; j < num_prior; j++)
         {
@@ -235,7 +235,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         }
 
         // apply nms
-        std::vector<size_t> picked;
+        SimpleVector<size_t> picked;
         nms_sorted_bboxes(class_bbox_rects, picked, nms_threshold);
 
         // select
@@ -248,13 +248,13 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     }
 
     // gather all class
-    std::vector<BBoxRect> bbox_rects;
-    std::vector<float> bbox_scores;
+    SimpleVector<BBoxRect> bbox_rects;
+    SimpleVector<float> bbox_scores;
 
     for (int i = 1; i < num_class_copy; i++)
     {
-        const std::vector<BBoxRect>& class_bbox_rects = all_class_bbox_rects[i];
-        const std::vector<float>& class_bbox_scores = all_class_bbox_scores[i];
+        const SimpleVector<BBoxRect>& class_bbox_rects = all_class_bbox_rects[i];
+        const SimpleVector<float>& class_bbox_scores = all_class_bbox_scores[i];
 
         bbox_rects.insert(bbox_rects.end(), class_bbox_rects.begin(), class_bbox_rects.end());
         bbox_scores.insert(bbox_scores.end(), class_bbox_scores.begin(), class_bbox_scores.end());

@@ -81,7 +81,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
         opt.use_image_storage = false;
     }
 
-    std::vector<vk_specialization_type> specializations(3 + 10);
+    SimpleVector<vk_specialization_type> specializations(3 + 10);
     specializations[0].i = type;
     specializations[1].f = value;
     specializations[2].i = per_channel_pad_data_size ? 1 : 0;
@@ -190,12 +190,12 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(3);
+    SimpleVector<VkMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
     bindings[2] = per_channel_pad_data_gpu;
 
-    std::vector<vk_constant_type> constants(12);
+    SimpleVector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -218,7 +218,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     return 0;
 }
 
-int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int Padding_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& reference_blob = bottom_blobs[1];
@@ -259,12 +259,12 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(3);
+    SimpleVector<VkMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
     bindings[2] = per_channel_pad_data_gpu;
 
-    std::vector<vk_constant_type> constants(12);
+    SimpleVector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -310,12 +310,12 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkImageMat> bindings(3);
+    SimpleVector<VkImageMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
     bindings[2] = per_channel_pad_data_gpu_image;
 
-    std::vector<vk_constant_type> constants(12);
+    SimpleVector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -338,7 +338,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     return 0;
 }
 
-int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int Padding_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleVector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkImageMat& bottom_blob = bottom_blobs[0];
     const VkImageMat& reference_blob = bottom_blobs[1];
@@ -379,12 +379,12 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkImageMat> bindings(3);
+    SimpleVector<VkImageMat> bindings(3);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
     bindings[2] = per_channel_pad_data_gpu_image;
 
-    std::vector<vk_constant_type> constants(12);
+    SimpleVector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;

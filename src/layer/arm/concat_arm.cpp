@@ -73,7 +73,7 @@ int Concat_arm::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Concat_arm::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
 {
     if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
@@ -416,7 +416,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     return Concat::forward(bottom_blobs, top_blobs, opt);
 }
 
-int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Concat_arm::forward_bf16s(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
 

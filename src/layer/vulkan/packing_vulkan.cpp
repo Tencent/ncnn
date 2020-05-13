@@ -73,7 +73,7 @@ int Packing_vulkan::create_pipeline(const Option& _opt)
         opt.use_image_storage = false;
     }
 
-    std::vector<vk_specialization_type> specializations(2 + 10);
+    SimpleVector<vk_specialization_type> specializations(2 + 10);
     specializations[0].i = storage_type_from;
     specializations[1].i = storage_type_to;
     specializations[2 + 0].i = 0;// FIXME shape elempack may be dynamic
@@ -348,14 +348,14 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             return -100;
     }
 
-    std::vector<VkMat> buffer_bindings(2);
+    SimpleVector<VkMat> buffer_bindings(2);
     buffer_bindings[0] = bottom_blob;
     buffer_bindings[1] = top_blob;
 
     // TODO use macro
-    std::vector<VkImageMat> image_bindings(2);
+    SimpleVector<VkImageMat> image_bindings(2);
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -510,13 +510,13 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
             return -100;
     }
 
-    std::vector<VkMat> buffer_bindings(2);
+    SimpleVector<VkMat> buffer_bindings(2);
 
-    std::vector<VkImageMat> image_bindings(2);
+    SimpleVector<VkImageMat> image_bindings(2);
     image_bindings[0] = bottom_blob;
     image_bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -652,13 +652,13 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkImageMat& top_blob, VkCo
             return -100;
     }
 
-    std::vector<VkMat> buffer_bindings(2);
+    SimpleVector<VkMat> buffer_bindings(2);
     buffer_bindings[0] = bottom_blob;
 
-    std::vector<VkImageMat> image_bindings(2);
+    SimpleVector<VkImageMat> image_bindings(2);
     image_bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -794,13 +794,13 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkMat& top_blob, VkCo
             return -100;
     }
 
-    std::vector<VkMat> buffer_bindings(2);
+    SimpleVector<VkMat> buffer_bindings(2);
     buffer_bindings[1] = top_blob;
 
-    std::vector<VkImageMat> image_bindings(2);
+    SimpleVector<VkImageMat> image_bindings(2);
     image_bindings[0] = bottom_blob;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;

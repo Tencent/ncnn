@@ -16,7 +16,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat> &kernel_tm2, int inch, int outch)
+static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, SimpleVector<Mat> &kernel_tm2, int inch, int outch)
 {
     Mat kernel_tm(4*4, inch, outch, 2ul);  
 
@@ -195,7 +195,7 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
     }
 }
 
-static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Option& opt)
+static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob, const SimpleVector<Mat> &kernel_tm_test, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -1053,7 +1053,7 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat> &kernel_tm2, int inch, int outch)
+static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, SimpleVector<Mat> &kernel_tm2, int inch, int outch)
 {
     Mat kernel_tm(6*6, inch, outch, 2ul);
 
@@ -1242,7 +1242,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
     }    
 }
 
-static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Option& opt)
+static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob, const SimpleVector<Mat> &kernel_tm_test, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -2260,7 +2260,7 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
+static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& top_blob, const SimpleVector<Mat> &kernel_tm_test, const Mat &_bias, SimpleVector<float> scales_dequant, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;

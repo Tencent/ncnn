@@ -177,7 +177,7 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     return 0;
 }
 
-int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Crop::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& reference_blob = bottom_blobs[1];

@@ -636,7 +636,7 @@ struct binary_op_rdiv_pack4 {
 };
 #endif // __ARM_NEON
 
-int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int BinaryOp_arm::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
 {
     if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
@@ -1754,7 +1754,7 @@ struct binary_op_rdiv {
     float operator() (const float& x, const float& y) const { return y / x; }
 };
 
-int BinaryOp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int BinaryOp_arm::forward_bf16s(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];

@@ -73,7 +73,7 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    std::vector<vk_specialization_type> specializations(2 + 10);
+    SimpleVector<vk_specialization_type> specializations(2 + 10);
     specializations[0].i = group;
     specializations[1].i = vkdev->info.bug_implicit_fp16_arithmetic;
     specializations[2 + 0].i = shape_packed.dims;
@@ -148,11 +148,11 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(2);
+    SimpleVector<VkMat> bindings(2);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -185,11 +185,11 @@ int ShuffleChannel_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& to
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkImageMat> bindings(2);
+    SimpleVector<VkImageMat> bindings(2);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;

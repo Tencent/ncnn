@@ -26,18 +26,18 @@ Noop::Noop()
     support_image_storage = true;
 }
 
-int Noop::forward_inplace(std::vector<Mat>& /*bottom_top_blobs*/, const Option& /*opt*/) const
+int Noop::forward_inplace(SimpleVector<Mat>& /*bottom_top_blobs*/, const Option& /*opt*/) const
 {
     return 0;
 }
 
 #if NCNN_VULKAN
-int Noop::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
+int Noop::forward_inplace(SimpleVector<VkMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return 0;
 }
 
-int Noop::forward_inplace(std::vector<VkImageMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
+int Noop::forward_inplace(SimpleVector<VkImageMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return 0;
 }
