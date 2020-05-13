@@ -1,5 +1,5 @@
 #pragma once
-#include <new.h>
+#include <new>
 #include <stddef.h>
 #include <string.h>
 
@@ -71,7 +71,7 @@ struct SimpleVector
     void push_back(const T& t)
     {
         try_alloc(size_ + 1);
-        new (data_[size_]) T(t);
+        new (&data_[size_]) T(t);
         size_++;
     }
 
