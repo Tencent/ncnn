@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "softmax.h"
+
 #include <float.h>
 #include <math.h>
 #include <algorithm>
@@ -36,7 +37,7 @@ int Softmax::load_param(const ParamDict& pd)
     int fixbug0 = pd.get(1, 0);
     if (fixbug0 == 0 && axis != 0)
     {
-        fprintf(stderr, "param is too old, please regenerate!\n");
+        NCNN_LOGE("param is too old, please regenerate!");
         return -1;
     }
 

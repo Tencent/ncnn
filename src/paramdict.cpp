@@ -17,6 +17,10 @@
 #include "datareader.h"
 #include "platform.h"
 
+#if NCNN_STDIO || NCNN_STRING
+#include <stdio.h>
+#endif
+
 namespace ncnn {
 
 ParamDict::ParamDict()
@@ -105,7 +109,7 @@ int ParamDict::load_param(const DataReader& dr)
             int nscan = dr.scan("%d", &len);
             if (nscan != 1)
             {
-                fprintf(stderr, "ParamDict read array length failed\n");
+                NCNN_LOGE("ParamDict read array length failed");
                 return -1;
             }
 
@@ -117,7 +121,7 @@ int ParamDict::load_param(const DataReader& dr)
                 nscan = dr.scan(",%15[^,\n ]", vstr);
                 if (nscan != 1)
                 {
-                    fprintf(stderr, "ParamDict read array element failed\n");
+                    NCNN_LOGE("ParamDict read array element failed");
                     return -1;
                 }
 
@@ -135,7 +139,7 @@ int ParamDict::load_param(const DataReader& dr)
                 }
                 if (nscan != 1)
                 {
-                    fprintf(stderr, "ParamDict parse array element failed\n");
+                    NCNN_LOGE("ParamDict parse array element failed");
                     return -1;
                 }
 
@@ -148,7 +152,7 @@ int ParamDict::load_param(const DataReader& dr)
             int nscan = dr.scan("%15s", vstr);
             if (nscan != 1)
             {
-                fprintf(stderr, "ParamDict read value failed\n");
+                NCNN_LOGE("ParamDict read value failed");
                 return -1;
             }
 
@@ -160,7 +164,7 @@ int ParamDict::load_param(const DataReader& dr)
                 nscan = sscanf(vstr, "%d", &params[id].i);
             if (nscan != 1)
             {
-                fprintf(stderr, "ParamDict parse value failed\n");
+                NCNN_LOGE("ParamDict parse value failed");
                 return -1;
             }
 
@@ -194,7 +198,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
     nread = dr.read(&id, sizeof(int));
     if (nread != sizeof(int))
     {
-        fprintf(stderr, "ParamDict read id failed %zd\n", nread);
+        NCNN_LOGE("ParamDict read id failed %zd", nread);
         return -1;
     }
 
@@ -212,7 +216,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
             nread = dr.read(&len, sizeof(int));
             if (nread != sizeof(int))
             {
-                fprintf(stderr, "ParamDict read array length failed %zd\n", nread);
+                NCNN_LOGE("ParamDict read array length failed %zd", nread);
                 return -1;
             }
 
@@ -222,7 +226,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
             nread = dr.read(ptr, sizeof(float) * len);
             if (nread != sizeof(float) * len)
             {
-                fprintf(stderr, "ParamDict read array element failed %zd\n", nread);
+                NCNN_LOGE("ParamDict read array element failed %zd", nread);
                 return -1;
             }
 
@@ -233,7 +237,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
             nread = dr.read(&params[id].f, sizeof(float));
             if (nread != sizeof(float))
             {
-                fprintf(stderr, "ParamDict read value failed %zd\n", nread);
+                NCNN_LOGE("ParamDict read value failed %zd", nread);
                 return -1;
             }
 
@@ -243,7 +247,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
         nread = dr.read(&id, sizeof(int));
         if (nread != sizeof(int))
         {
-            fprintf(stderr, "ParamDict read EOP failed %zd\n", nread);
+            NCNN_LOGE("ParamDict read EOP failed %zd", nread);
             return -1;
         }
     }

@@ -15,8 +15,10 @@
 #ifndef NCNN_DATAREADER_H
 #define NCNN_DATAREADER_H
 
-#include <stdio.h>
 #include "platform.h"
+#if NCNN_STDIO || NCNN_STRING
+#include <stdio.h>
+#endif
 
 #if __ANDROID_API__ >= 9
 #include <android/asset_manager.h>

@@ -8,7 +8,6 @@ if(PROTOBUF_FOUND)
         PRIVATE
             ${PROTOBUF_INCLUDE_DIR}
             ${CMAKE_CURRENT_BINARY_DIR})
-    target_compile_options(caffe2ncnn PRIVATE -std=c++11)
     target_link_libraries(caffe2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
 
     # add all caffe2ncnn tool to a virtual project group
