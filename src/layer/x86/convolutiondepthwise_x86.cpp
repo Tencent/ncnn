@@ -78,6 +78,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
+
     if (activation)
     {
         activation->create_pipeline(opt);

@@ -40,10 +40,6 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
     {
         v = 1.f / (1.f + exp(-v));
     }
-    else if (activation_type == 5)
-    {
-        v = v * tanh(log(exp(v) + 1.f));;
-    }
 
     return v;
 }
