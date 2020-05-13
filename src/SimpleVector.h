@@ -9,8 +9,9 @@ struct SimpleVector
     SimpleVector() {}
     SimpleVector(const size_t new_size, const T& value = T()) { resize(new_size, value); }
     ~SimpleVector() { clear(); }
-    SimpleVector(const SimpleVector& v) : SimpleVector(v.size_)
+    SimpleVector(const SimpleVector& v)
     {
+        resize(v.size());
         for (int i = 0; i < size_; i++) { data_[i] = v.data_[i]; }
     }
 
