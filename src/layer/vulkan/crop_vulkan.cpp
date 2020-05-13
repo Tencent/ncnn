@@ -150,17 +150,18 @@ int Crop_vulkan::create_pipeline(const Option& opt)
         if (shape.dims == 3) shape_unpacked = Mat(shape.w, shape.h, shape.c / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
     }
 
-    std::vector<vk_specialization_type> specializations(0 + 10);
-    specializations[0 + 0].i = shape_unpacked.dims;
-    specializations[0 + 1].i = shape_unpacked.w;
-    specializations[0 + 2].i = shape_unpacked.h;
-    specializations[0 + 3].i = shape_unpacked.c;
-    specializations[0 + 4].i = shape_unpacked.cstep;
-    specializations[0 + 5].i = out_shape_packed.dims;
-    specializations[0 + 6].i = out_shape_packed.w;
-    specializations[0 + 7].i = out_shape_packed.h;
-    specializations[0 + 8].i = out_shape_packed.c;
-    specializations[0 + 9].i = out_shape_packed.cstep;
+    std::vector<vk_specialization_type> specializations(1 + 10);
+    specializations[0].i = vkdev->info.bug_implicit_fp16_arithmetic;
+    specializations[1 + 0].i = shape_unpacked.dims;
+    specializations[1 + 1].i = shape_unpacked.w;
+    specializations[1 + 2].i = shape_unpacked.h;
+    specializations[1 + 3].i = shape_unpacked.c;
+    specializations[1 + 4].i = shape_unpacked.cstep;
+    specializations[1 + 5].i = out_shape_packed.dims;
+    specializations[1 + 6].i = out_shape_packed.w;
+    specializations[1 + 7].i = out_shape_packed.h;
+    specializations[1 + 8].i = out_shape_packed.c;
+    specializations[1 + 9].i = out_shape_packed.cstep;
 
     Mat local_size_xyz;
     if (out_shape_packed.dims == 1)

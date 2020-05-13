@@ -22,7 +22,9 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-#define shape_constant_id_offset 0
+layout (constant_id = 0) const int bugihfa = 0;
+
+#define shape_constant_id_offset 1
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -97,15 +99,57 @@ void main()
     afpvec4 v7 = image3d_ld4(bottom_blob, ivec3(x, y, zz4.a / 4));
 
     afpvec8 v;
-    // TODO bugihfa
-    v[0].r = v0[z4.r % 4];
-    v[0].g = v1[z4.g % 4];
-    v[0].b = v2[z4.b % 4];
-    v[0].a = v3[z4.a % 4];
-    v[1].r = v4[zz4.r % 4];
-    v[1].g = v5[zz4.g % 4];
-    v[1].b = v6[zz4.b % 4];
-    v[1].a = v7[zz4.a % 4];
+#if NCNN_fp16_arithmetic
+    if (bugihfa == 1)
+    {
+        ivec4 z4m4 = z4 % 4;
+        ivec4 zz4m4 = zz4 % 4;
+
+        if (z4m4.r == 0) v[0].r = v0.r;
+        if (z4m4.r == 1) v[0].r = v0.g;
+        if (z4m4.r == 2) v[0].r = v0.b;
+        if (z4m4.r == 3) v[0].r = v0.a;
+        if (z4m4.g == 0) v[0].g = v1.r;
+        if (z4m4.g == 1) v[0].g = v1.g;
+        if (z4m4.g == 2) v[0].g = v1.b;
+        if (z4m4.g == 3) v[0].g = v1.a;
+        if (z4m4.b == 0) v[0].b = v2.r;
+        if (z4m4.b == 1) v[0].b = v2.g;
+        if (z4m4.b == 2) v[0].b = v2.b;
+        if (z4m4.b == 3) v[0].b = v2.a;
+        if (z4m4.a == 0) v[0].a = v3.r;
+        if (z4m4.a == 1) v[0].a = v3.g;
+        if (z4m4.a == 2) v[0].a = v3.b;
+        if (z4m4.a == 3) v[0].a = v3.a;
+        if (zz4m4.r == 0) v[1].r = v4.r;
+        if (zz4m4.r == 1) v[1].r = v4.g;
+        if (zz4m4.r == 2) v[1].r = v4.b;
+        if (zz4m4.r == 3) v[1].r = v4.a;
+        if (zz4m4.g == 0) v[1].g = v5.r;
+        if (zz4m4.g == 1) v[1].g = v5.g;
+        if (zz4m4.g == 2) v[1].g = v5.b;
+        if (zz4m4.g == 3) v[1].g = v5.a;
+        if (zz4m4.b == 0) v[1].b = v6.r;
+        if (zz4m4.b == 1) v[1].b = v6.g;
+        if (zz4m4.b == 2) v[1].b = v6.b;
+        if (zz4m4.b == 3) v[1].b = v6.a;
+        if (zz4m4.a == 0) v[1].a = v7.r;
+        if (zz4m4.a == 1) v[1].a = v7.g;
+        if (zz4m4.a == 2) v[1].a = v7.b;
+        if (zz4m4.a == 3) v[1].a = v7.a;
+    }
+    else
+#endif
+    {
+        v[0].r = v0[z4.r % 4];
+        v[0].g = v1[z4.g % 4];
+        v[0].b = v2[z4.b % 4];
+        v[0].a = v3[z4.a % 4];
+        v[1].r = v4[zz4.r % 4];
+        v[1].g = v5[zz4.g % 4];
+        v[1].b = v6[zz4.b % 4];
+        v[1].a = v7[zz4.a % 4];
+    }
 
     image3d_st8(top_blob, ivec3(gx, gy, gz), v);
 #else

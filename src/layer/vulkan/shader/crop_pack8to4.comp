@@ -22,7 +22,9 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-#define shape_constant_id_offset 0
+layout (constant_id = 0) const int bugihfa = 0;
+
+#define shape_constant_id_offset 1
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -92,11 +94,37 @@ void main()
     afpvec8 v3 = image3d_ld8(bottom_blob, ivec3(x, y, z4.a / 8));
 
     afpvec4 v;
-    // TODO bugihfa
-    v.r = v0[(z4.r % 8) / 4][z4.r % 4];
-    v.g = v1[(z4.g % 8) / 4][z4.g % 4];
-    v.b = v2[(z4.b % 8) / 4][z4.b % 4];
-    v.a = v3[(z4.a % 8) / 4][z4.a % 4];
+#if NCNN_fp16_arithmetic
+    if (bugihfa == 1)
+    {
+        ivec4 z4lane2 = (z4 % 8) / 4;
+        ivec4 z4m4 = z4 % 4;
+
+        if (z4m4.r == 0) v.r = v0[z4lane2.r].r;
+        if (z4m4.r == 1) v.r = v0[z4lane2.r].g;
+        if (z4m4.r == 2) v.r = v0[z4lane2.r].b;
+        if (z4m4.r == 3) v.r = v0[z4lane2.r].a;
+        if (z4m4.g == 0) v.g = v0[z4lane2.g].r;
+        if (z4m4.g == 1) v.g = v0[z4lane2.g].g;
+        if (z4m4.g == 2) v.g = v0[z4lane2.g].b;
+        if (z4m4.g == 3) v.g = v0[z4lane2.g].a;
+        if (z4m4.b == 0) v.b = v0[z4lane2.b].r;
+        if (z4m4.b == 1) v.b = v0[z4lane2.b].g;
+        if (z4m4.b == 2) v.b = v0[z4lane2.b].b;
+        if (z4m4.b == 3) v.b = v0[z4lane2.b].a;
+        if (z4m4.a == 0) v.a = v0[z4lane2.a].r;
+        if (z4m4.a == 1) v.a = v0[z4lane2.a].g;
+        if (z4m4.a == 2) v.a = v0[z4lane2.a].b;
+        if (z4m4.a == 3) v.a = v0[z4lane2.a].a;
+    }
+    else
+#endif
+    {
+        v.r = v0[(z4.r % 8) / 4][z4.r % 4];
+        v.g = v1[(z4.g % 8) / 4][z4.g % 4];
+        v.b = v2[(z4.b % 8) / 4][z4.b % 4];
+        v.a = v3[(z4.a % 8) / 4][z4.a % 4];
+    }
 
     image3d_st4(top_blob, ivec3(gx, gy, gz), v);
 #else
