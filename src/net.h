@@ -15,7 +15,7 @@
 #ifndef NCNN_NET_H
 #define NCNN_NET_H
 
-#include "SimpleVector.h"
+#include "simplestl.h"
 #include "platform.h"
 #include "blob.h"
 #include "layer.h"

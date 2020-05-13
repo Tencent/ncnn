@@ -19,7 +19,7 @@
 
 #if NCNN_VULKAN
 
-#include "SimpleVector.h"
+#include "simplestl.h"
 #include <vulkan/vulkan.h>
 #include "mat.h"
 

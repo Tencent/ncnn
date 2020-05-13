@@ -22,7 +22,7 @@
 #include "modelbin.h"
 #include "option.h"
 #include "paramdict.h"
-#include "SimpleVector.h"
+#include "simplestl.h"
 
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>

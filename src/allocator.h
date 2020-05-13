@@ -24,7 +24,7 @@
 
 #include <stdlib.h>
 #include <list>
-#include "SimpleVector.h"
+#include "simplestl.h"
 #include "platform.h"
 
 #if NCNN_VULKAN

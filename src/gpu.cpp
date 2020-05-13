@@ -23,7 +23,7 @@
 
 #include <algorithm>
 //#include <string>
-#include "SimpleVector.h"
+#include "simplestl.h"
 
 #include "mat.h"
 #include "command.h"

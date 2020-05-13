@@ -16,7 +16,7 @@
 #define NCNN_BLOB_H
 
 //#include <string>
-#include "SimpleVector.h"
+#include "simplestl.h"
 #include "platform.h"
 #include "mat.h"
 

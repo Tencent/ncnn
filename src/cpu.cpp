@@ -17,7 +17,7 @@
 
 #include <limits.h>
 #include <string.h>
-#include "SimpleVector.h"
+#include "simplestl.h"
 
 #ifdef _OPENMP
 #include <omp.h>

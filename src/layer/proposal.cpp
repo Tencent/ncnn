@@ -15,7 +15,7 @@
 #include "proposal.h"
 #include <math.h>
 #include <algorithm>
-#include "SimpleVector.h"
+#include "simplestl.h"
 
 namespace ncnn {
 
