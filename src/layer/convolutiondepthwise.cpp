@@ -337,6 +337,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                                 y = logf(expf(x) + 1);
                             sum = static_cast<float>(x * tanh(y));
                         }
+
                         outptr[j] = sum;
                     }
 
