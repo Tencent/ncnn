@@ -15,7 +15,6 @@
 #include "binaryop_arm.h"
 #include <math.h>
 #include <algorithm>
-#include <functional>
 
 #if __ARM_NEON
 #include <arm_neon.h>
@@ -1734,6 +1733,22 @@ static int binary_op_scalar_inplace_bf16s(Mat& a, float b, const Option& opt)
     return 0;
 }
 
+struct binary_op_add {
+    float operator() (const float& x, const float& y) const { return x + y; }
+};
+
+struct binary_op_sub {
+    float operator() (const float& x, const float& y) const { return x - y; }
+};
+
+struct binary_op_mul {
+    float operator() (const float& x, const float& y) const { return x * y; }
+};
+
+struct binary_op_div {
+    float operator() (const float& x, const float& y) const { return x / y; }
+};
+
 struct binary_op_max {
     float operator() (const float& x, const float& y) const { return std::max(x, y); }
 };
@@ -1799,16 +1814,16 @@ int BinaryOp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
     if (elempack == 1 && elempack1 == 1)
     {
         if (op_type == Operation_ADD)
-            return binary_op_bf16s< std::plus<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_bf16s<binary_op_add>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_SUB)
-            return binary_op_bf16s< std::minus<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_bf16s<binary_op_sub>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MUL)
-            return binary_op_bf16s< std::multiplies<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_bf16s<binary_op_mul>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_DIV)
-            return binary_op_bf16s< std::divides<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_bf16s<binary_op_div>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MAX)
             return binary_op_bf16s<binary_op_max>(bottom_blob, bottom_blob1, top_blob, opt);
@@ -1868,16 +1883,16 @@ int BinaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt)
     if (elempack == 1)
     {
         if (op_type == Operation_ADD)
-            return binary_op_scalar_inplace_bf16s< std::plus<float> >(bottom_top_blob, b, opt);
+            return binary_op_scalar_inplace_bf16s<binary_op_add>(bottom_top_blob, b, opt);
 
         if (op_type == Operation_SUB)
-            return binary_op_scalar_inplace_bf16s< std::minus<float> >(bottom_top_blob, b, opt);
+            return binary_op_scalar_inplace_bf16s<binary_op_sub>(bottom_top_blob, b, opt);
 
         if (op_type == Operation_MUL)
-            return binary_op_scalar_inplace_bf16s< std::multiplies<float> >(bottom_top_blob, b, opt);
+            return binary_op_scalar_inplace_bf16s<binary_op_mul>(bottom_top_blob, b, opt);
 
         if (op_type == Operation_DIV)
-            return binary_op_scalar_inplace_bf16s< std::divides<float> >(bottom_top_blob, b, opt);
+            return binary_op_scalar_inplace_bf16s<binary_op_div>(bottom_top_blob, b, opt);
 
         if (op_type == Operation_MAX)
             return binary_op_scalar_inplace_bf16s<binary_op_max>(bottom_top_blob, b, opt);

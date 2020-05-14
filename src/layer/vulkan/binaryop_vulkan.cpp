@@ -15,7 +15,6 @@
 #include "binaryop_vulkan.h"
 #include <math.h>
 #include <algorithm>
-#include <functional>
 #include "layer_shader_type.h"
 
 namespace ncnn {
