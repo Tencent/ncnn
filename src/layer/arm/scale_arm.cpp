@@ -29,7 +29,7 @@ Scale_arm::Scale_arm()
 #endif // __ARM_NEON
 }
 
-int Scale_arm::forward_inplace(SimpleVector<Mat>& bottom_top_blobs, const Option& opt) const
+int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
 {
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];

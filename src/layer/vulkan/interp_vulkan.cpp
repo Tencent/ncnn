@@ -89,7 +89,7 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
 
     if (resize_type == 1 || resize_type == 2)
     {
-        SimpleVector<vk_specialization_type> specializations(1 + 10);
+        std::vector<vk_specialization_type> specializations(1 + 10);
         specializations[0].i = resize_type;
         specializations[1 + 0].i = shape_packed.dims;
         specializations[1 + 1].i = shape_packed.w;
@@ -144,7 +144,7 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
     if (resize_type == 3)
     {
         {
-            SimpleVector<vk_specialization_type> specializations(0 + 2);
+            std::vector<vk_specialization_type> specializations(0 + 2);
             specializations[0 + 0].i = shape_packed.w;
             specializations[0 + 1].i = out_shape_packed.w;
 
@@ -161,7 +161,7 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
             pipeline_interp_bicubic_coeffs_x->create(LayerShaderType::interp_bicubic_coeffs, opt, specializations);
         }
         {
-            SimpleVector<vk_specialization_type> specializations(0 + 2);
+            std::vector<vk_specialization_type> specializations(0 + 2);
             specializations[0 + 0].i = shape_packed.h;
             specializations[0 + 1].i = out_shape_packed.h;
 
@@ -178,7 +178,7 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
             pipeline_interp_bicubic_coeffs_y->create(LayerShaderType::interp_bicubic_coeffs, opt, specializations);
         }
 
-        SimpleVector<vk_specialization_type> specializations(0 + 10);
+        std::vector<vk_specialization_type> specializations(0 + 10);
         specializations[0 + 0].i = shape_packed.dims;
         specializations[0 + 1].i = shape_packed.w;
         specializations[0 + 2].i = shape_packed.h;
@@ -289,11 +289,11 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
 
     if (resize_type == 1 || resize_type == 2) // nearest or bilinear
     {
-        SimpleVector<VkMat> bindings(2);
+        std::vector<VkMat> bindings(2);
         bindings[0] = bottom_blob;
         bindings[1] = top_blob;
 
-        SimpleVector<vk_constant_type> constants(12);
+        std::vector<vk_constant_type> constants(12);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -324,11 +324,11 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
             return -100;
 
         {
-            SimpleVector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(2);
             bindings[0] = alpha;
             bindings[1] = xofs;
 
-            SimpleVector<vk_constant_type> constants(3);
+            std::vector<vk_constant_type> constants(3);
             constants[0].i = bottom_blob.w;
             constants[1].i = outw;
             constants[2].f = (float)bottom_blob.w / outw;
@@ -346,11 +346,11 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
             return -100;
 
         {
-            SimpleVector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(2);
             bindings[0] = beta;
             bindings[1] = yofs;
 
-            SimpleVector<vk_constant_type> constants(3);
+            std::vector<vk_constant_type> constants(3);
             constants[0].i = bottom_blob.h;
             constants[1].i = outh;
             constants[2].f = (float)bottom_blob.h / outh;
@@ -359,7 +359,7 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
             cmd.record_pipeline(pipeline_interp_bicubic_coeffs_y, bindings, constants, beta);
         }
 
-        SimpleVector<VkMat> bindings(6);
+        std::vector<VkMat> bindings(6);
         bindings[0] = bottom_blob;
         bindings[1] = top_blob;
         bindings[2] = alpha;
@@ -367,7 +367,7 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         bindings[4] = beta;
         bindings[5] = yofs;
 
-        SimpleVector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -417,11 +417,11 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
 
     if (resize_type == 1 || resize_type == 2) // nearest or bilinear
     {
-        SimpleVector<VkImageMat> bindings(2);
+        std::vector<VkImageMat> bindings(2);
         bindings[0] = bottom_blob;
         bindings[1] = top_blob;
 
-        SimpleVector<vk_constant_type> constants(12);
+        std::vector<vk_constant_type> constants(12);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -452,11 +452,11 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
             return -100;
 
         {
-            SimpleVector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(2);
             bindings[0] = alpha;
             bindings[1] = xofs;
 
-            SimpleVector<vk_constant_type> constants(3);
+            std::vector<vk_constant_type> constants(3);
             constants[0].i = bottom_blob.w;
             constants[1].i = outw;
             constants[2].f = (float)bottom_blob.w / outw;
@@ -474,11 +474,11 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
             return -100;
 
         {
-            SimpleVector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(2);
             bindings[0] = beta;
             bindings[1] = yofs;
 
-            SimpleVector<vk_constant_type> constants(3);
+            std::vector<vk_constant_type> constants(3);
             constants[0].i = bottom_blob.h;
             constants[1].i = outh;
             constants[2].f = (float)bottom_blob.h / outh;
@@ -487,17 +487,17 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
             cmd.record_pipeline(pipeline_interp_bicubic_coeffs_y, bindings, constants, beta);
         }
 
-        SimpleVector<VkMat> buffer_bindings(4);
+        std::vector<VkMat> buffer_bindings(4);
         buffer_bindings[0] = alpha;
         buffer_bindings[1] = xofs;
         buffer_bindings[2] = beta;
         buffer_bindings[3] = yofs;
 
-        SimpleVector<VkImageMat> image_bindings(2);
+        std::vector<VkImageMat> image_bindings(2);
         image_bindings[0] = bottom_blob;
         image_bindings[1] = top_blob;
 
-        SimpleVector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;

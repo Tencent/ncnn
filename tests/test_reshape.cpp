@@ -23,7 +23,7 @@ static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outc)
     pd.set(1, outh);// h
     pd.set(2, outc);// c
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

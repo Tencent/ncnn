@@ -16,12 +16,12 @@
 
 #include "layer/concat.h"
 
-static int test_concat(const SimpleVector<ncnn::Mat>& a, int axis)
+static int test_concat(const std::vector<ncnn::Mat>& a, int axis)
 {
     ncnn::ParamDict pd;
     pd.set(0, axis);//axis
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -39,7 +39,7 @@ static int test_concat(const SimpleVector<ncnn::Mat>& a, int axis)
 
 static int test_concat_0()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(16, 12, 8);
     a[1] = RandomMat(16, 12, 8);
     a[2] = RandomMat(16, 12, 8);
@@ -53,7 +53,7 @@ static int test_concat_0()
 
 static int test_concat_1()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(7, 3, 3);
     a[1] = RandomMat(7, 3, 8);
     a[2] = RandomMat(7, 3, 5);
@@ -63,7 +63,7 @@ static int test_concat_1()
 
 static int test_concat_2()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(7, 3, 2);
     a[1] = RandomMat(7, 8, 2);
     a[2] = RandomMat(7, 5, 2);
@@ -73,7 +73,7 @@ static int test_concat_2()
 
 static int test_concat_3()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(7, 3, 8);
     a[1] = RandomMat(7, 8, 8);
     a[2] = RandomMat(7, 5, 8);
@@ -83,7 +83,7 @@ static int test_concat_3()
 
 static int test_concat_4()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(3, 7, 2);
     a[1] = RandomMat(8, 7, 2);
     a[2] = RandomMat(5, 7, 2);
@@ -93,7 +93,7 @@ static int test_concat_4()
 
 static int test_concat_5()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(3, 7, 8);
     a[1] = RandomMat(8, 7, 8);
     a[2] = RandomMat(5, 7, 8);
@@ -103,7 +103,7 @@ static int test_concat_5()
 
 static int test_concat_6()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(7, 3);
     a[1] = RandomMat(7, 8);
     a[2] = RandomMat(7, 5);
@@ -113,7 +113,7 @@ static int test_concat_6()
 
 static int test_concat_7()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(3, 2);
     a[1] = RandomMat(8, 2);
     a[2] = RandomMat(5, 2);
@@ -123,7 +123,7 @@ static int test_concat_7()
 
 static int test_concat_8()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(3, 8);
     a[1] = RandomMat(8, 8);
     a[2] = RandomMat(5, 8);
@@ -133,7 +133,7 @@ static int test_concat_8()
 
 static int test_concat_9()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(3);
     a[1] = RandomMat(8);
     a[2] = RandomMat(5);
@@ -143,7 +143,7 @@ static int test_concat_9()
 
 static int test_concat_10()
 {
-    SimpleVector<ncnn::Mat> a(3);
+    std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(4);
     a[1] = RandomMat(8);
     a[2] = RandomMat(12);

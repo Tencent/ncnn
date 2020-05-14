@@ -1,22 +1,41 @@
-#pragma once
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#ifndef NCNN_SIMPLESTL_H
+#define NCNN_SIMPLESTL_H
+
 #include <new>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
+// minimal stl data structure implementation
+namespace std {
+
 template <typename T>
-struct SimpleVector
+struct vector
 {
-    SimpleVector() {}
-    SimpleVector(const size_t new_size, const T& value = T()) { resize(new_size, value); }
-    ~SimpleVector() { clear(); }
-    SimpleVector(const SimpleVector& v)
+    vector() {}
+    vector(const size_t new_size, const T& value = T()) { resize(new_size, value); }
+    ~vector() { clear(); }
+    vector(const vector& v)
     {
         resize(v.size());
         for (int i = 0; i < size_; i++) { data_[i] = v.data_[i]; }
     }
 
-    SimpleVector& operator=(const SimpleVector& v)
+    vector& operator=(const vector& v)
     {
         if (this == &v)
         {
@@ -79,11 +98,11 @@ struct SimpleVector
 
     void insert(T* pos, T* b, T* e)
     {
-        SimpleVector* v = nullptr;
+        vector* v = nullptr;
         if (b >= begin() && b < end())
         {
             //the same vector
-            v = new SimpleVector(*this);
+            v = new vector(*this);
             b = v->begin() + (b - begin());
             e = v->begin() + (e - begin());
         }
@@ -131,29 +150,33 @@ protected:
     }
 };
 
-struct SimpleString : public SimpleVector<char>
+struct string : public vector<char>
 {
-    SimpleString() {}
-    SimpleString(const char* str)
+    string() {}
+    string(const char* str)
     {
         int len = strlen(str);
         resize(len);
         memcpy(data_, str, len);
     }
     const char* c_str() const { return (const char*)data_; }
-    bool operator==(const SimpleString& str2) const { return strcmp(data_, str2.data_) == 0; }
+    bool operator==(const string& str2) const { return strcmp(data_, str2.data_) == 0; }
     bool operator==(const char* str2) const { return strcmp(data_, str2) == 0; }
     bool operator!=(const char* str2) const { return strcmp(data_, str2) != 0; }
-    SimpleString& operator+=(const SimpleString& str1)
+    string& operator+=(const string& str1)
     {
         insert(end(), str1.begin(), str1.end());
         return *this;
     }
 };
 
-inline SimpleString operator+(const SimpleString& str1, const SimpleString& str2)
+inline string operator+(const string& str1, const string& str2)
 {
-    SimpleString str(str1);
+    string str(str1);
     str.insert(str.end(), str2.begin(), str2.end());
     return str;
 }
+
+} // namespace std
+
+#endif // NCNN_SIMPLESTL_H

@@ -24,7 +24,7 @@ static int test_instancenorm(const ncnn::Mat& a, float eps)
     pd.set(0, channels);
     pd.set(1, eps);
 
-    SimpleVector<ncnn::Mat> weights(2);
+    std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(channels);
     weights[1] = RandomMat(channels);
 

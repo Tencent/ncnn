@@ -79,7 +79,7 @@ int Flatten_vulkan::create_pipeline(const Option& _opt)
         opt.use_image_storage = false;
     }
 
-    SimpleVector<vk_specialization_type> specializations(0 + 10);
+    std::vector<vk_specialization_type> specializations(0 + 10);
     specializations[0 + 0].i = shape_packed.dims;
     specializations[0 + 1].i = shape_packed.w;
     specializations[0 + 2].i = shape_packed.h;
@@ -217,11 +217,11 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     if (top_blob.empty())
         return -100;
 
-    SimpleVector<VkMat> bindings(2);
+    std::vector<VkMat> bindings(2);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
@@ -296,11 +296,11 @@ int Flatten_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     if (top_blob.empty())
         return -100;
 
-    SimpleVector<VkImageMat> bindings(2);
+    std::vector<VkImageMat> bindings(2);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;

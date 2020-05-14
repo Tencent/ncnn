@@ -24,11 +24,11 @@ class Noop : public Layer
 public:
     Noop();
 
-    virtual int forward_inplace(SimpleVector<Mat>& bottom_top_blobs, const Option& opt) const;
+    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
 
 #if NCNN_VULKAN
-    virtual int forward_inplace(SimpleVector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
-    virtual int forward_inplace(SimpleVector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
+    virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
+    virtual int forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
 #endif // NCNN_VULKAN
 };
 

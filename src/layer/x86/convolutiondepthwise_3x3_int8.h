@@ -149,7 +149,7 @@ static void convdw3x3s2_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Ma
     }
 }
 
-static void convdw3x3s1_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, SimpleVector<float> scales_dequant, const Option& opt)
+static void convdw3x3s1_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
 {
     int w = bottom_blob.w;
     //int h = bottom_blob.h;
@@ -214,7 +214,7 @@ static void convdw3x3s1_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, 
     }
 }
 
-static void convdw3x3s2_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, SimpleVector<float> scales_dequant, const Option& opt)
+static void convdw3x3s2_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
 {
     int w = bottom_blob.w;
     //int h = bottom_blob.h;
@@ -282,7 +282,7 @@ static void convdw3x3s2_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, 
     }
 }
 
-static void convdw3x3s1_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, SimpleVector<float> scales_requant, const Option& opt)
+static void convdw3x3s1_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
 {
     int w = bottom_blob.w;
     //int h = bottom_blob.h;
@@ -346,7 +346,7 @@ static void convdw3x3s1_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, 
     }
 }
 
-static void convdw3x3s2_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, SimpleVector<float> scales_requant, const Option& opt)
+static void convdw3x3s2_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
 {
     int w = bottom_blob.w;
     //int h = bottom_blob.h;

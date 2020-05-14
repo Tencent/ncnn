@@ -37,7 +37,7 @@ static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel,
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
-    SimpleVector<ncnn::Mat> weights(2);
+    std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(outch/group*c/group*kernel*kernel*group);
     weights[1] = RandomMat(outch);
 

@@ -72,7 +72,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
     {
-        SimpleVector<vk_specialization_type> specializations(2);
+        std::vector<vk_specialization_type> specializations(2);
         specializations[0].i = across_spatial;
         specializations[1].i = across_channel;
 
@@ -125,7 +125,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        SimpleVector<vk_specialization_type> specializations(4);
+        std::vector<vk_specialization_type> specializations(4);
         specializations[0].i = across_spatial;
         specializations[1].i = across_channel;
         specializations[2].f = eps;
@@ -156,7 +156,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        SimpleVector<vk_specialization_type> specializations(5 + 5);
+        std::vector<vk_specialization_type> specializations(5 + 5);
         specializations[0].i = across_spatial;
         specializations[1].i = across_channel;
         specializations[2].i = channel_shared;
@@ -300,11 +300,11 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
         sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
         {
-        SimpleVector<VkMat> bindings(2);
+        std::vector<VkMat> bindings(2);
         bindings[0] = bottom_top_blob;
         bindings[1] = sqsum_workspace;
 
-        SimpleVector<vk_constant_type> constants(6);
+        std::vector<vk_constant_type> constants(6);
         constants[0].i = bottom_top_blob.w * bottom_top_blob.h;
         constants[1].i = bottom_top_blob.c;
         constants[2].i = bottom_top_blob.cstep;
@@ -350,11 +350,11 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
 
         {
-        SimpleVector<VkMat> bindings(2);
+        std::vector<VkMat> bindings(2);
         bindings[0] = sqsum_workspace;
         bindings[1] = sqsum_workspace_reduced;
 
-        SimpleVector<vk_constant_type> constants(6);
+        std::vector<vk_constant_type> constants(6);
         constants[0].i = sqsum_workspace.w;
         constants[1].i = sqsum_workspace.c;
         constants[2].i = sqsum_workspace.cstep;
@@ -379,11 +379,11 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     VkMat coeffs_workspace;
     coeffs_workspace.create(sqsum_workspace.w * sqsum_workspace.h * sqsum_workspace.c, elemsize, elempack, opt.workspace_vkallocator);
     {
-        SimpleVector<VkMat> bindings(2);
+        std::vector<VkMat> bindings(2);
         bindings[0] = sqsum_workspace;
         bindings[1] = coeffs_workspace;
 
-        SimpleVector<vk_constant_type> constants(3);
+        std::vector<vk_constant_type> constants(3);
         constants[0].i = sqsum_workspace.w;
         constants[1].i = sqsum_workspace.c;
         constants[2].i = sqsum_workspace.cstep;
@@ -397,12 +397,12 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
     // norm
     {
-        SimpleVector<VkMat> bindings(3);
+        std::vector<VkMat> bindings(3);
         bindings[0] = bottom_top_blob;
         bindings[1] = coeffs_workspace;
         bindings[2] = channel_shared || (scale_data_size == 1 && scale_data[0] == 1.f) ? coeffs_workspace : scale_data_gpu;
 
-        SimpleVector<vk_constant_type> constants(5);
+        std::vector<vk_constant_type> constants(5);
         constants[0].i = bottom_top_blob.dims;
         constants[1].i = bottom_top_blob.w;
         constants[2].i = bottom_top_blob.h;

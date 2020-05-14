@@ -28,7 +28,7 @@ static int test_normalize(const ncnn::Mat& a, int across_spatial, int across_cha
     pd.set(3, scale_data_size);
     pd.set(9, eps_mode);
 
-    SimpleVector<ncnn::Mat> weights(1);
+    std::vector<ncnn::Mat> weights(1);
     weights[0] = RandomMat(scale_data_size);
 
     ncnn::Option opt;

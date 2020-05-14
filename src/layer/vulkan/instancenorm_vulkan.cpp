@@ -89,14 +89,14 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32, opt, SimpleVector<vk_specialization_type>());
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32, opt, std::vector<vk_specialization_type>());
 
             pipeline_instancenorm_reduce_sum4_fp32[0] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, SimpleVector<vk_specialization_type>());
+            pipeline_instancenorm_reduce_sum4_fp32[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
             pipeline_instancenorm_reduce_sum4_fp32[1] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, SimpleVector<vk_specialization_type>());
+            pipeline_instancenorm_reduce_sum4_fp32[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32, opt, std::vector<vk_specialization_type>());
         }
 
         // pack4
@@ -104,14 +104,14 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32_pack4, opt, SimpleVector<vk_specialization_type>());
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32_pack4, opt, std::vector<vk_specialization_type>());
 
             pipeline_instancenorm_reduce_sum4_fp32_pack4[0] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, SimpleVector<vk_specialization_type>());
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
             pipeline_instancenorm_reduce_sum4_fp32_pack4[1] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, SimpleVector<vk_specialization_type>());
+            pipeline_instancenorm_reduce_sum4_fp32_pack4[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack4, opt, std::vector<vk_specialization_type>());
         }
 
         // pack8
@@ -119,19 +119,19 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32_pack8, opt, SimpleVector<vk_specialization_type>());
+            pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->create(LayerShaderType::instancenorm_reduce_sum4_fp16_to_fp32_pack8, opt, std::vector<vk_specialization_type>());
 
             pipeline_instancenorm_reduce_sum4_fp32_pack8[0] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack8, opt, SimpleVector<vk_specialization_type>());
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[0]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack8, opt, std::vector<vk_specialization_type>());
             pipeline_instancenorm_reduce_sum4_fp32_pack8[1] = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack8, opt, SimpleVector<vk_specialization_type>());
+            pipeline_instancenorm_reduce_sum4_fp32_pack8[1]->create(LayerShaderType::instancenorm_reduce_sum4_fp32_pack8, opt, std::vector<vk_specialization_type>());
         }
     }
 
     {
-        SimpleVector<vk_specialization_type> specializations(0 + 3);
+        std::vector<vk_specialization_type> specializations(0 + 3);
         specializations[0].i = 0;// TODO resolve workspace_shape_packed.w;
         specializations[1].i = workspace_shape_packed.c;
         specializations[2].i = 0;// TODO resolve workspace_shape_packed.cstep;
@@ -170,7 +170,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) square_workspace_packed = Mat(shape.w, shape.h, channels / elempack, (void*)0, elempack * 4u, elempack);
 
     {
-        SimpleVector<vk_specialization_type> specializations(0 + 10);
+        std::vector<vk_specialization_type> specializations(0 + 10);
         specializations[0 + 0].i = shape_packed.dims;
         specializations[0 + 1].i = shape_packed.w;
         specializations[0 + 2].i = shape_packed.h;
@@ -213,7 +213,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        SimpleVector<vk_specialization_type> specializations(2);
+        std::vector<vk_specialization_type> specializations(2);
         specializations[0].f = eps;
         specializations[1].i = channels / elempack;
 
@@ -248,7 +248,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        SimpleVector<vk_specialization_type> specializations(0 + 5);
+        std::vector<vk_specialization_type> specializations(0 + 5);
         specializations[0 + 0].i = shape_packed.dims;
         specializations[0 + 1].i = shape_packed.w;
         specializations[0 + 2].i = shape_packed.h;
@@ -391,11 +391,11 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
 
         sum_workspace.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
         {
-        SimpleVector<VkMat> bindings(2);
+        std::vector<VkMat> bindings(2);
         bindings[0] = bottom_top_blob;
         bindings[1] = sum_workspace;
 
-        SimpleVector<vk_constant_type> constants(6);
+        std::vector<vk_constant_type> constants(6);
         constants[0].i = bottom_top_blob.w * bottom_top_blob.h;
         constants[1].i = bottom_top_blob.c;
         constants[2].i = bottom_top_blob.cstep;
@@ -422,11 +422,11 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         sum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
 
         {
-        SimpleVector<VkMat> bindings(2);
+        std::vector<VkMat> bindings(2);
         bindings[0] = sum_workspace;
         bindings[1] = sum_workspace_reduced;
 
-        SimpleVector<vk_constant_type> constants(6);
+        std::vector<vk_constant_type> constants(6);
         constants[0].i = sum_workspace.w;
         constants[1].i = sum_workspace.c;
         constants[2].i = sum_workspace.cstep;
@@ -447,11 +447,11 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         }
 
         {
-        SimpleVector<VkMat> bindings(2);
+        std::vector<VkMat> bindings(2);
         bindings[0] = sum_workspace;
         bindings[1] = mean_workspace;
 
-        SimpleVector<vk_constant_type> constants(4);
+        std::vector<vk_constant_type> constants(4);
         constants[0].i = sum_workspace.w;
         constants[1].i = sum_workspace.c;
         constants[2].i = sum_workspace.cstep;
@@ -472,12 +472,12 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         VkMat square_workspace;
         square_workspace.create(w, h, c, 4u*elempack, elempack, opt.workspace_vkallocator);
         {
-        SimpleVector<VkMat> bindings(3);
+        std::vector<VkMat> bindings(3);
         bindings[0] = bottom_top_blob;
         bindings[1] = mean_workspace;
         bindings[2] = square_workspace;
 
-        SimpleVector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_top_blob.dims;
         constants[1].i = bottom_top_blob.w;
         constants[2].i = bottom_top_blob.h;
@@ -512,11 +512,11 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
 
         {
-        SimpleVector<VkMat> bindings(2);
+        std::vector<VkMat> bindings(2);
         bindings[0] = sqsum_workspace;
         bindings[1] = sqsum_workspace_reduced;
 
-        SimpleVector<vk_constant_type> constants(6);
+        std::vector<vk_constant_type> constants(6);
         constants[0].i = sqsum_workspace.w;
         constants[1].i = sqsum_workspace.c;
         constants[2].i = sqsum_workspace.cstep;
@@ -537,11 +537,11 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         }
 
         {
-        SimpleVector<VkMat> bindings(2);
+        std::vector<VkMat> bindings(2);
         bindings[0] = sqsum_workspace;
         bindings[1] = var_workspace;
 
-        SimpleVector<vk_constant_type> constants(4);
+        std::vector<vk_constant_type> constants(4);
         constants[0].i = sqsum_workspace.w;
         constants[1].i = sqsum_workspace.c;
         constants[2].i = sqsum_workspace.cstep;
@@ -559,14 +559,14 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
     VkMat coeffs_workspace;
     coeffs_workspace.create(c, elemsize * 2, elempack * 2, opt.workspace_vkallocator);
     {
-    SimpleVector<VkMat> bindings(5);
+    std::vector<VkMat> bindings(5);
     bindings[0] = coeffs_workspace;
     bindings[1] = mean_workspace;
     bindings[2] = var_workspace;
     bindings[3] = gamma_data_gpu;
     bindings[4] = beta_data_gpu;
 
-    SimpleVector<vk_constant_type> constants(0);
+    std::vector<vk_constant_type> constants(0);
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_coeffs_pack8
                              : elempack == 4 ? pipeline_instancenorm_coeffs_pack4
@@ -577,11 +577,11 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
 
     // norm
     {
-    SimpleVector<VkMat> bindings(2);
+    std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
     bindings[1] = coeffs_workspace;
 
-    SimpleVector<vk_constant_type> constants(5);
+    std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;

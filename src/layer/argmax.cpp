@@ -48,7 +48,7 @@ int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
 
     // partial sort topk with index
     // optional value
-    SimpleVector< std::pair<float, int> > vec;
+    std::vector< std::pair<float, int> > vec;
     vec.resize(size);
     for (int i=0; i<size; i++)
     {

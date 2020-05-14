@@ -77,7 +77,7 @@ int Slice_arm::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Slice_arm::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
+int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
@@ -431,7 +431,7 @@ int Slice_arm::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>&
     return Slice::forward(bottom_blobs, top_blobs, opt);
 }
 
-int Slice_arm::forward_bf16s(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
+int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int dims = bottom_blob.dims;

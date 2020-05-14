@@ -34,7 +34,7 @@ protected:
 
 public:
     Layer* activation;
-    SimpleVector<ncnn::Layer*> group_ops;
+    std::vector<ncnn::Layer*> group_ops;
 };
 
 } // namespace ncnn

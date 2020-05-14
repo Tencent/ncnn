@@ -21,7 +21,7 @@ static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempac
     ncnn::ParamDict pd;
     pd.set(0, out_elempack);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -73,7 +73,7 @@ static int test_packing_gpu_buffer(const ncnn::Mat& a, int in_elempack, int out_
     pd.set(4, 0);// storage_type_from
     pd.set(5, 0);// storage_type_to
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -160,7 +160,7 @@ static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_e
     pd.set(4, 1);// storage_type_from
     pd.set(5, 1);// storage_type_to
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -247,7 +247,7 @@ static int test_packing_gpu_buffer2image(const ncnn::Mat& a, int in_elempack, in
     pd.set(4, 0);// storage_type_from
     pd.set(5, 1);// storage_type_to
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -334,7 +334,7 @@ static int test_packing_gpu_image2buffer(const ncnn::Mat& a, int in_elempack, in
     pd.set(4, 1);// storage_type_from
     pd.set(5, 0);// storage_type_to
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

@@ -100,7 +100,7 @@ int Concat_vulkan::create_pipeline(const Option& _opt)
         opt.use_image_storage = false;
     }
 
-    SimpleVector<vk_specialization_type> specializations(1 + 10);
+    std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = axis;
     specializations[1 + 0].i = 0;// TODO handle shape_packed for concat2
     specializations[1 + 1].i = 0;
@@ -237,7 +237,7 @@ int Concat_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Concat_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
 
@@ -284,11 +284,11 @@ int Concat_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector
         {
             const VkMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob_unpacked;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -386,11 +386,11 @@ int Concat_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector
         {
             const VkMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob_unpacked;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -468,11 +468,11 @@ int Concat_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector
         {
             const VkMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -543,11 +543,11 @@ int Concat_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector
         {
             const VkMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob_unpacked;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -626,11 +626,11 @@ int Concat_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector
         {
             const VkMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -681,11 +681,11 @@ int Concat_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector
         {
             const VkMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkMat> bindings(2);
+            std::vector<VkMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -713,7 +713,7 @@ int Concat_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector
     return 0;
 }
 
-int Concat_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleVector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
 
@@ -760,11 +760,11 @@ int Concat_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleV
         {
             const VkImageMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkImageMat> bindings(2);
+            std::vector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob_unpacked;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -862,11 +862,11 @@ int Concat_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleV
         {
             const VkImageMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkImageMat> bindings(2);
+            std::vector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob_unpacked;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -944,11 +944,11 @@ int Concat_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleV
         {
             const VkImageMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkImageMat> bindings(2);
+            std::vector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -1019,11 +1019,11 @@ int Concat_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleV
         {
             const VkImageMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkImageMat> bindings(2);
+            std::vector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob_unpacked;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -1102,11 +1102,11 @@ int Concat_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleV
         {
             const VkImageMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkImageMat> bindings(2);
+            std::vector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -1157,11 +1157,11 @@ int Concat_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleV
         {
             const VkImageMat& bottom_blob = bottom_blobs[b];
 
-            SimpleVector<VkImageMat> bindings(2);
+            std::vector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            SimpleVector<vk_constant_type> constants(11);
+            std::vector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;

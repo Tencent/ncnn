@@ -69,7 +69,7 @@ int Layer::destroy_pipeline(const Option& /*opt*/)
     return 0;
 }
 
-int Layer::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
+int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (!support_inplace)
         return -1;
@@ -97,7 +97,7 @@ int Layer::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) con
     return forward_inplace(top_blob, opt);
 }
 
-int Layer::forward_inplace(SimpleVector<Mat>& /*bottom_top_blobs*/, const Option& /*opt*/) const
+int Layer::forward_inplace(std::vector<Mat>& /*bottom_top_blobs*/, const Option& /*opt*/) const
 {
     return -1;
 }
@@ -113,7 +113,7 @@ int Layer::upload_model(VkTransfer& /*cmd*/, const Option& /*opt*/)
     return 0;
 }
 
-int Layer::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int Layer::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     if (!support_inplace)
         return -1;
@@ -137,7 +137,7 @@ int Layer::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, co
     return forward_inplace(top_blob, cmd, opt);
 }
 
-int Layer::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleVector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int Layer::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     if (!support_inplace)
         return -1;
@@ -161,7 +161,7 @@ int Layer::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkComput
     return forward_inplace(top_blob, cmd, opt);
 }
 
-int Layer::forward_inplace(SimpleVector<VkMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
+int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }
@@ -171,7 +171,7 @@ int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const
     return -1;
 }
 
-int Layer::forward_inplace(SimpleVector<VkImageMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
+int Layer::forward_inplace(std::vector<VkImageMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }

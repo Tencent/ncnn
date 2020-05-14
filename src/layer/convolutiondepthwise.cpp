@@ -165,7 +165,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
     const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
-    SimpleVector<int> _space_ofs(maxk);
+    std::vector<int> _space_ofs(maxk);
     int* space_ofs = &_space_ofs[0];
     {
         int p1 = 0;
@@ -434,7 +434,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
     const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
-    SimpleVector<int> _space_ofs(maxk);
+    std::vector<int> _space_ofs(maxk);
     int* space_ofs = &_space_ofs[0];
     {
         int p1 = 0;

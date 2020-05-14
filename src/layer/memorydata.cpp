@@ -57,7 +57,7 @@ int MemoryData::load_model(const ModelBin& mb)
     return 0;
 }
 
-int MemoryData::forward(const SimpleVector<Mat>& /*bottom_blobs*/, SimpleVector<Mat>& top_blobs, const Option& opt) const
+int MemoryData::forward(const std::vector<Mat>& /*bottom_blobs*/, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     Mat& top_blob = top_blobs[0];
 

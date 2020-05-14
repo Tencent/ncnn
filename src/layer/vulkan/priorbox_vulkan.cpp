@@ -67,7 +67,7 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
         if (flip)
             num_prior += num_min_size * num_aspect_ratio;
 
-        SimpleVector<vk_specialization_type> specializations(11 + 2);
+        std::vector<vk_specialization_type> specializations(11 + 2);
         specializations[0].i = flip;
         specializations[1].i = clip;
         specializations[2].f = offset;
@@ -94,7 +94,7 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
 
         int num_prior = num_sizes - 1 + num_ratios;
 
-        SimpleVector<vk_specialization_type> specializations(5 + 2);
+        std::vector<vk_specialization_type> specializations(5 + 2);
         specializations[0].i = clip;
         specializations[1].f = offset;
         specializations[2].i = num_sizes;
@@ -134,7 +134,7 @@ int PriorBox_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
-int PriorBox_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     int w = bottom_blobs[0].w;
     int h = bottom_blobs[0].h;
@@ -167,12 +167,12 @@ int PriorBox_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVect
         if (top_blob.empty())
             return -100;
 
-        SimpleVector<VkMat> bindings(3);
+        std::vector<VkMat> bindings(3);
         bindings[0] = top_blob;
         bindings[1] = min_sizes_gpu;
         bindings[2] = aspect_ratios_gpu;
 
-        SimpleVector<vk_constant_type> constants(4);
+        std::vector<vk_constant_type> constants(4);
         constants[0].i = w;
         constants[1].i = h;
         constants[2].f = step_w;
@@ -221,13 +221,13 @@ int PriorBox_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVect
     if (top_blob.empty())
         return -100;
 
-    SimpleVector<VkMat> bindings(4);
+    std::vector<VkMat> bindings(4);
     bindings[0] = top_blob;
     bindings[1] = min_sizes_gpu;
     bindings[2] = num_max_size > 0 ? max_sizes_gpu : min_sizes_gpu;
     bindings[3] = aspect_ratios_gpu;
 
-    SimpleVector<vk_constant_type> constants(6);
+    std::vector<vk_constant_type> constants(6);
     constants[0].i = w;
     constants[1].i = h;
     constants[2].f = image_w;

@@ -31,7 +31,7 @@ Eltwise_arm::Eltwise_arm()
     support_bf16_storage = true;
 }
 
-int Eltwise_arm::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
+int Eltwise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
@@ -877,7 +877,7 @@ int Eltwise_arm::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat
     return 0;
 }
 
-int Eltwise_arm::forward_bf16s(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
+int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;

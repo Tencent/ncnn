@@ -26,7 +26,6 @@
 #include <cstdlib>
 #include <algorithm>
 #include <map>
-#include <string>
 
 #include <opencv2/opencv.hpp>
 
@@ -89,7 +88,7 @@ int QuantNet::get_input_names()
             for (size_t j = 0; j < layer->tops.size(); j++)
             {
                 int blob_index = layer->tops[j];
-                std::string name = blobs[blob_index].name.c_str();
+                std::string name = blobs[blob_index].name;
                 input_names.push_back(name);
             }
         }
@@ -106,7 +105,7 @@ int QuantNet::get_conv_names()
 
         if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise" || layer->type == "InnerProduct")
         {
-            std::string name = layer->name.c_str();
+            std::string name = layer->name;
             conv_names.push_back(name);
         }
     }
@@ -123,8 +122,8 @@ int QuantNet::get_conv_bottom_blob_names()
 
         if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise" || layer->type == "InnerProduct")
         {
-            std::string name = layer->name.c_str();
-            std::string bottom_blob_name = blobs[layer->bottoms[0]].name.c_str();
+            const std::string& name = layer->name;
+            const std::string& bottom_blob_name = blobs[layer->bottoms[0]].name;
             conv_bottom_blob_names[name] = bottom_blob_name;
         }
     }
@@ -142,7 +141,7 @@ int QuantNet::get_conv_weight_blob_scales()
         {
             const ncnn::Convolution* convolution = static_cast<const ncnn::Convolution*>(layer);
 
-            std::string name = layer->name.c_str();
+            std::string name = layer->name;
             const int weight_data_size_output = convolution->weight_data_size / convolution->num_output;
             std::vector<float> scales;
 
@@ -186,7 +185,7 @@ int QuantNet::get_conv_weight_blob_scales()
         {
             const ncnn::ConvolutionDepthWise* convolutiondepthwise = static_cast<const ncnn::ConvolutionDepthWise*>(layer);
 
-            std::string name = layer->name.c_str();
+            std::string name = layer->name;
             const int weight_data_size_output = convolutiondepthwise->weight_data_size / convolutiondepthwise->group;
             std::vector<float> scales;
 
@@ -211,7 +210,7 @@ int QuantNet::get_conv_weight_blob_scales()
         {
             const ncnn::InnerProduct* innerproduct = static_cast<const ncnn::InnerProduct*>(layer);
 
-            std::string name = layer->name.c_str();
+            std::string name = layer->name;
             const int weight_data_size_output = innerproduct->weight_data_size / innerproduct->num_output;
             std::vector<float> scales;
 

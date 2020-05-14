@@ -39,7 +39,7 @@ public:
     bool use_winograd3x3;
     Mat weight_3x3_winograd23_data;
     Mat weight_sgemm_data;
-    SimpleVector<Mat> weight_3x3_winograd43_data;
+    std::vector<Mat> weight_3x3_winograd43_data;
 
     // forwardDilation
     Layer* convolution_dilation1;

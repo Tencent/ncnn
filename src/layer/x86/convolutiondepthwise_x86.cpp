@@ -330,7 +330,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
     {
         if (use_int8_requantize)
         {
-            SimpleVector<float> requantize_scales;
+            std::vector<float> requantize_scales;
             for (int g=0; g<group; g++)
             {
                 float scale_in;
@@ -370,7 +370,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
         }
         else
         {
-            SimpleVector<float> dequantize_scales;
+            std::vector<float> dequantize_scales;
             for (int g=0; g<group; g++)
             {
                 float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);

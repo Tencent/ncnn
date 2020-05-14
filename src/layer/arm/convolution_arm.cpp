@@ -500,7 +500,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
-    SimpleVector<int> _space_ofs(maxk);
+    std::vector<int> _space_ofs(maxk);
     int* space_ofs = &_space_ofs[0];
     {
         int p1 = 0;
@@ -1249,7 +1249,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
-    SimpleVector<int> _space_ofs(maxk);
+    std::vector<int> _space_ofs(maxk);
     int* space_ofs = &_space_ofs[0];
     {
         int p1 = 0;
@@ -1721,7 +1721,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         
         if (use_sgemm1x1_int8)
         {
-            SimpleVector<float> requantize_scales;
+            std::vector<float> requantize_scales;
             for (int p=0; p<num_output; p++)
             {
                 float scale_in;

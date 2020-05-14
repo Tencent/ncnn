@@ -58,7 +58,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
-    SimpleVector<vk_specialization_type> specializations(2 + 5);
+    std::vector<vk_specialization_type> specializations(2 + 5);
     specializations[0].i = num_slope;
     specializations[1].f = num_slope == 1 ? slope_data[0] : 1.f;
     specializations[2 + 0].i = shape_packed.dims;
@@ -147,11 +147,11 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
 {
     int elempack = bottom_top_blob.elempack;
 
-    SimpleVector<VkMat> bindings(2);
+    std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
     bindings[1] = num_slope > 1 ? slope_data_gpu : bottom_top_blob;
 
-    SimpleVector<vk_constant_type> constants(5);
+    std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;

@@ -24,10 +24,10 @@ class Eltwise_arm : virtual public Eltwise
 public:
     Eltwise_arm();
 
-    virtual int forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
-    int forward_bf16s(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const;
+    int forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 };
 
 } // namespace ncnn

@@ -32,11 +32,11 @@ public:
     using Padding::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
-    virtual int forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
     virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
-    virtual int forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleVector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
 public:
     VkMat per_channel_pad_data_gpu;

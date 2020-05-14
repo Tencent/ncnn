@@ -22,7 +22,7 @@ static int test_cast_cpu(const ncnn::Mat& a, int type_from, int type_to)
     pd.set(0, type_from);
     pd.set(1, type_to);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -76,7 +76,7 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
     pd.set(0, type_from);
     pd.set(1, type_to);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -142,7 +142,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     pd.set(0, type_from);
     pd.set(1, type_to);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -255,7 +255,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     pd.set(0, type_from);
     pd.set(1, type_to);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -371,7 +371,7 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
     pd.set(0, type_from);
     pd.set(1, type_to);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -484,7 +484,7 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
     pd.set(0, type_from);
     pd.set(1, type_to);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

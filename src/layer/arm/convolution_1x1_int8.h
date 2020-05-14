@@ -57,7 +57,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 }
 
 
-static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &kernel, const Mat &_bias, SimpleVector<float> scales_requant, const Option& opt)
+static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
 {
     const size_t n = bottom_blob.w * bottom_blob.h;
     const size_t k = bottom_blob.c;
@@ -769,7 +769,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 }
 
 
-static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &kernel, const Mat &_bias, SimpleVector<float> scales_requant, const Option& opt)
+static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -2411,7 +2411,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 //     }
 }
 
-static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &kernel, const Mat &_bias, SimpleVector<float> scales_requant, const Option& opt)
+static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;

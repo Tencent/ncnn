@@ -22,7 +22,7 @@ static int test_scale(const ncnn::Mat& a, int scale_data_size, int bias)
     pd.set(0, scale_data_size);
     pd.set(1, bias);
 
-    SimpleVector<ncnn::Mat> weights(bias ? 2 : 1);
+    std::vector<ncnn::Mat> weights(bias ? 2 : 1);
     weights[0] = RandomMat(scale_data_size);
     if (bias)
         weights[1] = RandomMat(scale_data_size);
@@ -46,13 +46,13 @@ static int test_scale_attention(const ncnn::Mat& a, int scale_data_size)
     ncnn::ParamDict pd;
     pd.set(0, -233);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_int8_inference = false;
 
-    SimpleVector<ncnn::Mat> ab(2);
+    std::vector<ncnn::Mat> ab(2);
     ab[0] = a;
     ab[1] = RandomMat(scale_data_size);
 

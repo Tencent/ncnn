@@ -98,10 +98,10 @@ void main()
     {
         ivec4 x4 = i4;
 
-        vr = image1d_ld4(bottom_blob_1d, x4.r);
-        vg = image1d_ld4(bottom_blob_1d, x4.g);
-        vb = image1d_ld4(bottom_blob_1d, x4.b);
-        va = image1d_ld4(bottom_blob_1d, x4.a);
+        vr = image1d_ld4(bottom_blob_1d, x4.r / 4);
+        vg = image1d_ld4(bottom_blob_1d, x4.g / 4);
+        vb = image1d_ld4(bottom_blob_1d, x4.b / 4);
+        va = image1d_ld4(bottom_blob_1d, x4.a / 4);
 
         lane4 = x4 % 4;
     }
@@ -110,10 +110,10 @@ void main()
         ivec4 y4 = i4 / psc(w);
         ivec4 x4 = i4 % psc(w);
 
-        vr = image2d_ld4(bottom_blob_2d, ivec2(x4.r, y4.r));
-        vg = image2d_ld4(bottom_blob_2d, ivec2(x4.g, y4.g));
-        vb = image2d_ld4(bottom_blob_2d, ivec2(x4.b, y4.b));
-        va = image2d_ld4(bottom_blob_2d, ivec2(x4.a, y4.a));
+        vr = image2d_ld4(bottom_blob_2d, ivec2(x4.r, y4.r / 4));
+        vg = image2d_ld4(bottom_blob_2d, ivec2(x4.g, y4.g / 4));
+        vb = image2d_ld4(bottom_blob_2d, ivec2(x4.b, y4.b / 4));
+        va = image2d_ld4(bottom_blob_2d, ivec2(x4.a, y4.a / 4));
 
         lane4 = y4 % 4;
     }
@@ -125,10 +125,10 @@ void main()
         ivec4 y4 = i4 % size / psc(w);
         ivec4 x4 = i4 % size % psc(w);
 
-        vr = image3d_ld4(bottom_blob_3d, ivec3(x4.r, y4.r, z4.r));
-        vg = image3d_ld4(bottom_blob_3d, ivec3(x4.g, y4.g, z4.g));
-        vb = image3d_ld4(bottom_blob_3d, ivec3(x4.b, y4.b, z4.b));
-        va = image3d_ld4(bottom_blob_3d, ivec3(x4.a, y4.a, z4.a));
+        vr = image3d_ld4(bottom_blob_3d, ivec3(x4.r, y4.r, z4.r / 4));
+        vg = image3d_ld4(bottom_blob_3d, ivec3(x4.g, y4.g, z4.g / 4));
+        vb = image3d_ld4(bottom_blob_3d, ivec3(x4.b, y4.b, z4.b / 4));
+        va = image3d_ld4(bottom_blob_3d, ivec3(x4.a, y4.a, z4.a / 4));
 
         lane4 = z4 % 4;
     }

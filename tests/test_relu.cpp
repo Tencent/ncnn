@@ -21,7 +21,7 @@ static int test_relu(const ncnn::Mat& a, float slope)
     ncnn::ParamDict pd;
     pd.set(0, slope);//slope
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

@@ -17,7 +17,6 @@
 
 #include <limits.h>
 #include <string.h>
-#include "simplestl.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -399,7 +398,7 @@ static int setup_thread_affinity_masks()
 #ifdef __ANDROID__
     int max_freq_khz_min = INT_MAX;
     int max_freq_khz_max = 0;
-    SimpleVector<int> cpu_max_freq_khz(g_cpucount);
+    std::vector<int> cpu_max_freq_khz(g_cpucount);
     for (int i=0; i<g_cpucount; i++)
     {
         int max_freq_khz = get_max_freq_khz(i);
@@ -480,7 +479,7 @@ int set_cpu_thread_affinity(size_t thread_affinity_mask)
 #ifdef _OPENMP
     // set affinity for each thread
     set_omp_num_threads(num_threads);
-    SimpleVector<int> ssarets(num_threads, 0);
+    std::vector<int> ssarets(num_threads, 0);
     #pragma omp parallel for num_threads(num_threads)
     for (int i=0; i<num_threads; i++)
     {

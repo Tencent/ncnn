@@ -193,7 +193,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         padding->create_pipeline(opt);
     }
 
-    SimpleVector<vk_specialization_type> specializations(11 + 10);
+    std::vector<vk_specialization_type> specializations(11 + 10);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
     specializations[2].i = dilation_w;
@@ -554,11 +554,11 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
             padding_params[2] = wpad / 2;
             padding_params[3] = wpad - wpad / 2;
 
-            SimpleVector<VkMat> padding_inputs(2);
+            std::vector<VkMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            SimpleVector<VkMat> padding_outputs(1);
+            std::vector<VkMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -580,11 +580,11 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
             padding_params[2] = wpad - wpad / 2;
             padding_params[3] = wpad / 2;
 
-            SimpleVector<VkMat> padding_inputs(2);
+            std::vector<VkMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            SimpleVector<VkMat> padding_outputs(1);
+            std::vector<VkMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -612,13 +612,13 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     // depth-wise
     if (channels == group / elempack && group / elempack == num_output / elempack)
     {
-        SimpleVector<VkMat> bindings(4);
+        std::vector<VkMat> bindings(4);
         bindings[0] = bottom_blob_bordered;
         bindings[1] = top_blob;
         bindings[2] = weight_data_gpu;
         bindings[3] = bias_data_gpu;
 
-        SimpleVector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob_bordered.dims;
         constants[1].i = bottom_blob_bordered.w;
         constants[2].i = bottom_blob_bordered.h;
@@ -671,13 +671,13 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
             return -100;
     }
 
-    SimpleVector<VkMat> bindings(4);
+    std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob_bordered_unpacked;
     bindings[1] = top_blob_unpacked;
     bindings[2] = weight_data_gpu;
     bindings[3] = bias_data_gpu;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered_unpacked.dims;
     constants[1].i = bottom_blob_bordered_unpacked.w;
     constants[2].i = bottom_blob_bordered_unpacked.h;
@@ -778,11 +778,11 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
             padding_params[2] = wpad / 2;
             padding_params[3] = wpad - wpad / 2;
 
-            SimpleVector<VkImageMat> padding_inputs(2);
+            std::vector<VkImageMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            SimpleVector<VkImageMat> padding_outputs(1);
+            std::vector<VkImageMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -804,11 +804,11 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
             padding_params[2] = wpad - wpad / 2;
             padding_params[3] = wpad / 2;
 
-            SimpleVector<VkImageMat> padding_inputs(2);
+            std::vector<VkImageMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            SimpleVector<VkImageMat> padding_outputs(1);
+            std::vector<VkImageMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -836,13 +836,13 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
     // depth-wise
     if (channels == group / elempack && group / elempack == num_output / elempack)
     {
-        SimpleVector<VkImageMat> bindings(4);
+        std::vector<VkImageMat> bindings(4);
         bindings[0] = bottom_blob_bordered;
         bindings[1] = top_blob;
         bindings[2] = weight_data_gpu_image;
         bindings[3] = bias_data_gpu_image;
 
-        SimpleVector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob_bordered.dims;
         constants[1].i = bottom_blob_bordered.w;
         constants[2].i = bottom_blob_bordered.h;
@@ -895,13 +895,13 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
             return -100;
     }
 
-    SimpleVector<VkImageMat> bindings(4);
+    std::vector<VkImageMat> bindings(4);
     bindings[0] = bottom_blob_bordered_unpacked;
     bindings[1] = top_blob_unpacked;
     bindings[2] = weight_data_gpu_image;
     bindings[3] = bias_data_gpu_image;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered_unpacked.dims;
     constants[1].i = bottom_blob_bordered_unpacked.w;
     constants[2].i = bottom_blob_bordered_unpacked.h;
