@@ -85,7 +85,7 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         const int maxk = kernel_h * kernel_w;
 
         // kernel offsets
-        std::vector<int> _space_ofs(maxk);
+        SimpleVector<int> _space_ofs(maxk);
         int* space_ofs = &_space_ofs[0];
         {
             int p1 = 0;

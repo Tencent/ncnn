@@ -54,7 +54,7 @@ int Scale::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
+int Scale::forward_inplace(SimpleVector<Mat>& bottom_top_blobs, const Option& opt) const
 {
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
@@ -166,7 +166,7 @@ int Scale::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt
 
 int Scale::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    std::vector<Mat> bottom_top_blobs(2);
+    SimpleVector<Mat> bottom_top_blobs(2);
     bottom_top_blobs[0] = bottom_top_blob;
     bottom_top_blobs[1] = scale_data;
 

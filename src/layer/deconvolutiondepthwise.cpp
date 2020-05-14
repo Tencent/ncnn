@@ -106,7 +106,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
     const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
-    std::vector<int> _space_ofs(maxk);
+    SimpleVector<int> _space_ofs(maxk);
     int* space_ofs = &_space_ofs[0];
     {
         int p1 = 0;

@@ -80,7 +80,7 @@ int LRN_vulkan::create_pipeline(const Option& opt)
     {
         int pad = local_size / 2;
 
-        std::vector<vk_specialization_type> specializations(3 + 10);
+        SimpleVector<vk_specialization_type> specializations(3 + 10);
         specializations[0].i = region_type;
         specializations[1].i = pad;
         specializations[2].i = local_size - pad - 1;
@@ -141,7 +141,7 @@ int LRN_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        std::vector<vk_specialization_type> specializations(5 + 10);
+        SimpleVector<vk_specialization_type> specializations(5 + 10);
         specializations[0].i = region_type;
         specializations[1].i = local_size;
         specializations[2].f = alpha;
@@ -263,11 +263,11 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
 
     // square pad
     {
-    std::vector<VkMat> bindings(2);
+    SimpleVector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
     bindings[1] = square_workspace;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
@@ -300,11 +300,11 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
 
     // norm
     {
-    std::vector<VkMat> bindings(2);
+    SimpleVector<VkMat> bindings(2);
     bindings[0] = square_workspace;
     bindings[1] = bottom_top_blob;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = square_workspace.dims;
     constants[1].i = square_workspace.w;
     constants[2].i = square_workspace.h;

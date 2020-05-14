@@ -20,7 +20,7 @@
 #if NCNN_VULKAN
 
 #include <vulkan/vulkan.h>
-#include <vector>
+#include "simplestl.h"
 #include "mat.h"
 
 namespace ncnn {
@@ -269,20 +269,20 @@ protected:
 
 private:
     VkDevice device;
-    std::vector<VkShaderModule> shader_modules;
+    SimpleVector<VkShaderModule> shader_modules;
 
     // hardware queue
-    mutable std::vector<VkQueue> compute_queues;
-    mutable std::vector<VkQueue> graphics_queues;
-    mutable std::vector<VkQueue> transfer_queues;
+    mutable SimpleVector<VkQueue> compute_queues;
+    mutable SimpleVector<VkQueue> graphics_queues;
+    mutable SimpleVector<VkQueue> transfer_queues;
     mutable Mutex queue_lock;
 
     // default blob allocator for each queue
-    mutable std::vector<VkAllocator*> blob_allocators;
+    mutable SimpleVector<VkAllocator*> blob_allocators;
     mutable Mutex blob_allocator_lock;
 
     // default staging allocator for each queue
-    mutable std::vector<VkAllocator*> staging_allocators;
+    mutable SimpleVector<VkAllocator*> staging_allocators;
     mutable Mutex staging_allocator_lock;
 
     // nearest sampler for texelfetch

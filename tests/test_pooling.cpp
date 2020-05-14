@@ -29,7 +29,7 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
     pd.set(5, pad_mode);// pad_mode
     pd.set(6, avgpool_count_include_pad);// avgpool_count_include_pad
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

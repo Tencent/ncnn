@@ -150,7 +150,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
         if (shape.dims == 3) shape_unpacked = Mat(shape.w, shape.h, shape.c / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
     }
 
-    std::vector<vk_specialization_type> specializations(1 + 10);
+    SimpleVector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = vkdev->info.bug_implicit_fp16_arithmetic;
     specializations[1 + 0].i = shape_unpacked.dims;
     specializations[1 + 1].i = shape_unpacked.w;
@@ -333,11 +333,11 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
         if (top_blob.empty())
             return -100;
 
-        std::vector<VkMat> bindings(2);
+        SimpleVector<VkMat> bindings(2);
         bindings[0] = bottom_blob_unpacked;
         bindings[1] = top_blob;
 
-        std::vector<vk_constant_type> constants(13);
+        SimpleVector<vk_constant_type> constants(13);
         constants[0].i = bottom_blob_unpacked.dims;
         constants[1].i = bottom_blob_unpacked.w;
         constants[2].i = bottom_blob_unpacked.h;
@@ -412,7 +412,7 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     return 0;
 }
 
-int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int Crop_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& reference_blob = bottom_blobs[1];
@@ -466,11 +466,11 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         if (top_blob.empty())
             return -100;
 
-        std::vector<VkMat> bindings(2);
+        SimpleVector<VkMat> bindings(2);
         bindings[0] = bottom_blob_unpacked;
         bindings[1] = top_blob;
 
-        std::vector<vk_constant_type> constants(13);
+        SimpleVector<vk_constant_type> constants(13);
         constants[0].i = bottom_blob_unpacked.dims;
         constants[1].i = bottom_blob_unpacked.w;
         constants[2].i = bottom_blob_unpacked.h;
@@ -588,11 +588,11 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
         if (top_blob.empty())
             return -100;
 
-        std::vector<VkImageMat> bindings(2);
+        SimpleVector<VkImageMat> bindings(2);
         bindings[0] = bottom_blob_unpacked;
         bindings[1] = top_blob;
 
-        std::vector<vk_constant_type> constants(13);
+        SimpleVector<vk_constant_type> constants(13);
         constants[0].i = bottom_blob_unpacked.dims;
         constants[1].i = bottom_blob_unpacked.w;
         constants[2].i = bottom_blob_unpacked.h;
@@ -667,7 +667,7 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
     return 0;
 }
 
-int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int Crop_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleVector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkImageMat& bottom_blob = bottom_blobs[0];
     const VkImageMat& reference_blob = bottom_blobs[1];
@@ -721,11 +721,11 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
         if (top_blob.empty())
             return -100;
 
-        std::vector<VkImageMat> bindings(2);
+        SimpleVector<VkImageMat> bindings(2);
         bindings[0] = bottom_blob_unpacked;
         bindings[1] = top_blob;
 
-        std::vector<vk_constant_type> constants(13);
+        SimpleVector<vk_constant_type> constants(13);
         constants[0].i = bottom_blob_unpacked.dims;
         constants[1].i = bottom_blob_unpacked.w;
         constants[2].i = bottom_blob_unpacked.h;

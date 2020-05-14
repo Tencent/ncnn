@@ -59,7 +59,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
 
     if (scale_data_size == -233)
     {
-        std::vector<vk_specialization_type> specializations(1 + 5);
+        SimpleVector<vk_specialization_type> specializations(1 + 5);
         specializations[0].i = 0;
         specializations[1 + 0].i = shape_packed.dims;
         specializations[1 + 1].i = shape_packed.w;
@@ -116,7 +116,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
 
     if (shape.dims == 0) elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
 
-    std::vector<vk_specialization_type> specializations(1 + 5);
+    SimpleVector<vk_specialization_type> specializations(1 + 5);
     specializations[0].i = bias_term;
     specializations[1 + 0].i = shape_packed.dims;
     specializations[1 + 1].i = shape_packed.w;
@@ -208,19 +208,19 @@ int Scale_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
-int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& /*opt*/) const
+int Scale_vulkan::forward_inplace(SimpleVector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& /*opt*/) const
 {
     VkMat& bottom_top_blob = bottom_top_blobs[0];
     const VkMat& scale_blob = bottom_top_blobs[1];
 
     int elempack = bottom_top_blob.elempack;
 
-    std::vector<VkMat> bindings(3);
+    SimpleVector<VkMat> bindings(3);
     bindings[0] = bottom_top_blob;
     bindings[1] = scale_blob;
     bindings[2] = bias_term ? bias_data_gpu : scale_blob;// TODO use dummy buffer
 
-    std::vector<vk_constant_type> constants(5);
+    SimpleVector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
@@ -238,7 +238,7 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
 
 int Scale_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
-    std::vector<VkMat> bottom_top_blobs(2);
+    SimpleVector<VkMat> bottom_top_blobs(2);
     bottom_top_blobs[0] = bottom_top_blob;
     bottom_top_blobs[1] = scale_data_gpu;
 

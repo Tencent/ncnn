@@ -375,7 +375,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         }
         else
         {
-            std::vector<float> requantize_scales;
+            SimpleVector<float> requantize_scales;
             for (int p=0; p<num_output; p++)
             {
                 float scale_in;
@@ -422,7 +422,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         }
         else
         {
-            std::vector<float> dequantize_scales;
+            SimpleVector<float> dequantize_scales;
             for (int p=0; p<num_output; p++)
             {
                 float scale_in;

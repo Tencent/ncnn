@@ -248,7 +248,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         padding->create_pipeline(opt);
     }
 
-    std::vector<vk_specialization_type> specializations(10 + 10);
+    SimpleVector<vk_specialization_type> specializations(10 + 10);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
     specializations[2].i = dilation_w;
@@ -380,7 +380,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             }
 
             {
-                std::vector<vk_specialization_type> specializations(0 + 7);
+                SimpleVector<vk_specialization_type> specializations(0 + 7);
                 specializations[0 + 0].i = shape_winograd_bordered_packed.w;
                 specializations[0 + 1].i = shape_winograd_bordered_packed.h;
                 specializations[0 + 2].i = shape_winograd_bordered_packed.c;
@@ -395,7 +395,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             }
 
             {
-                std::vector<vk_specialization_type> specializations(0 + 5);
+                SimpleVector<vk_specialization_type> specializations(0 + 5);
                 specializations[0 + 0].i = shape_winograd_input_transformed_packed.c;
                 specializations[0 + 1].i = shape_winograd_input_transformed_packed.cstep;
                 specializations[0 + 2].i = shape_winograd_gemm_packed.h;
@@ -408,7 +408,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             }
 
             {
-                std::vector<vk_specialization_type> specializations(4 + 7);
+                SimpleVector<vk_specialization_type> specializations(4 + 7);
                 specializations[0].i = bias_term;
                 specializations[1].i = activation_type;
                 specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -521,7 +521,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             }
 
             {
-                std::vector<vk_specialization_type> specializations(0 + 7);
+                SimpleVector<vk_specialization_type> specializations(0 + 7);
                 specializations[0 + 0].i = shape_winograd_bordered_packed.w;
                 specializations[0 + 1].i = shape_winograd_bordered_packed.h;
                 specializations[0 + 2].i = shape_winograd_bordered_packed.c;
@@ -536,7 +536,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             }
 
             {
-                std::vector<vk_specialization_type> specializations(0 + 5);
+                SimpleVector<vk_specialization_type> specializations(0 + 5);
                 specializations[0 + 0].i = shape_winograd_input_transformed_packed.c;
                 specializations[0 + 1].i = shape_winograd_input_transformed_packed.cstep;
                 specializations[0 + 2].i = shape_winograd_gemm_packed.h;
@@ -549,7 +549,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             }
 
             {
-                std::vector<vk_specialization_type> specializations(4 + 7);
+                SimpleVector<vk_specialization_type> specializations(4 + 7);
                 specializations[0].i = bias_term;
                 specializations[1].i = activation_type;
                 specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -1061,11 +1061,11 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             padding_params[2] = wpad / 2;
             padding_params[3] = wpad - wpad / 2;
 
-            std::vector<VkMat> padding_inputs(2);
+            SimpleVector<VkMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            std::vector<VkMat> padding_outputs(1);
+            SimpleVector<VkMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -1087,11 +1087,11 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             padding_params[2] = wpad - wpad / 2;
             padding_params[3] = wpad / 2;
 
-            std::vector<VkMat> padding_inputs(2);
+            SimpleVector<VkMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            std::vector<VkMat> padding_outputs(1);
+            SimpleVector<VkMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -1139,11 +1139,11 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             padding_params[2] = 0;
             padding_params[3] = w_bordered - bottom_blob_bordered.w;
 
-            std::vector<VkMat> padding_inputs(2);
+            SimpleVector<VkMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob_bordered;
             padding_inputs[1] = padding_param_blob;
 
-            std::vector<VkMat> padding_outputs(1);
+            SimpleVector<VkMat> padding_outputs(1);
             winograd_padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -1155,11 +1155,11 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             if (bottom_tm_blob.empty())
                 return -100;
 
-            std::vector<VkMat> bindings(2);
+            SimpleVector<VkMat> bindings(2);
             bindings[0] = bottom_blob_bordered;
             bindings[1] = bottom_tm_blob;
 
-            std::vector<vk_constant_type> constants(7);
+            SimpleVector<vk_constant_type> constants(7);
             constants[0].i = bottom_blob_bordered.w;
             constants[1].i = bottom_blob_bordered.h;
             constants[2].i = bottom_blob_bordered.c;
@@ -1183,12 +1183,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             if (top_tm_blob.empty())
                 return -100;
 
-            std::vector<VkMat> bindings(3);
+            SimpleVector<VkMat> bindings(3);
             bindings[0] = bottom_tm_blob;
             bindings[1] = top_tm_blob;
             bindings[2] = weight_data_gpu_pack4_tm;
 
-            std::vector<vk_constant_type> constants(5);
+            SimpleVector<vk_constant_type> constants(5);
             constants[0].i = bottom_tm_blob.c;
             constants[1].i = bottom_tm_blob.cstep;
             constants[2].i = top_tm_blob.h;
@@ -1210,12 +1210,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             if (top_blob_bordered.empty())
                 return -100;
 
-            std::vector<VkMat> bindings(3);
+            SimpleVector<VkMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
             bindings[2] = bias_data_gpu;
 
-            std::vector<vk_constant_type> constants(7);
+            SimpleVector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
             constants[1].i = top_tm_blob.cstep;
             constants[2].i = block_x;
@@ -1244,11 +1244,11 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             crop_params[4] = outh;
             crop_params[5] = num_output;
 
-            std::vector<VkMat> crop_inputs(2);
+            SimpleVector<VkMat> crop_inputs(2);
             crop_inputs[0] = top_blob_bordered;
             crop_inputs[1] = crop_param_blob;
 
-            std::vector<VkMat> crop_outputs(1);
+            SimpleVector<VkMat> crop_outputs(1);
             winograd_crop->forward(crop_inputs, crop_outputs, cmd, opt);
             top_blob = crop_outputs[0];
         }
@@ -1280,11 +1280,11 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             padding_params[2] = 0;
             padding_params[3] = w_bordered - bottom_blob_bordered.w;
 
-            std::vector<VkMat> padding_inputs(2);
+            SimpleVector<VkMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob_bordered;
             padding_inputs[1] = padding_param_blob;
 
-            std::vector<VkMat> padding_outputs(1);
+            SimpleVector<VkMat> padding_outputs(1);
             winograd_padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -1296,11 +1296,11 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             if (bottom_tm_blob.empty())
                 return -100;
 
-            std::vector<VkMat> bindings(2);
+            SimpleVector<VkMat> bindings(2);
             bindings[0] = bottom_blob_bordered;
             bindings[1] = bottom_tm_blob;
 
-            std::vector<vk_constant_type> constants(7);
+            SimpleVector<vk_constant_type> constants(7);
             constants[0].i = bottom_blob_bordered.w;
             constants[1].i = bottom_blob_bordered.h;
             constants[2].i = bottom_blob_bordered.c;
@@ -1324,12 +1324,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             if (top_tm_blob.empty())
                 return -100;
 
-            std::vector<VkMat> bindings(3);
+            SimpleVector<VkMat> bindings(3);
             bindings[0] = bottom_tm_blob;
             bindings[1] = top_tm_blob;
             bindings[2] = weight_data_gpu_pack8_tm;
 
-            std::vector<vk_constant_type> constants(5);
+            SimpleVector<vk_constant_type> constants(5);
             constants[0].i = bottom_tm_blob.c;
             constants[1].i = bottom_tm_blob.cstep;
             constants[2].i = top_tm_blob.h;
@@ -1351,12 +1351,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             if (top_blob_bordered.empty())
                 return -100;
 
-            std::vector<VkMat> bindings(3);
+            SimpleVector<VkMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
             bindings[2] = bias_data_gpu;
 
-            std::vector<vk_constant_type> constants(7);
+            SimpleVector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
             constants[1].i = top_tm_blob.cstep;
             constants[2].i = block_x;
@@ -1385,11 +1385,11 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             crop_params[4] = outh;
             crop_params[5] = num_output;
 
-            std::vector<VkMat> crop_inputs(2);
+            SimpleVector<VkMat> crop_inputs(2);
             crop_inputs[0] = top_blob_bordered;
             crop_inputs[1] = crop_param_blob;
 
-            std::vector<VkMat> crop_outputs(1);
+            SimpleVector<VkMat> crop_outputs(1);
             winograd_crop->forward(crop_inputs, crop_outputs, cmd, opt);
             top_blob = crop_outputs[0];
         }
@@ -1401,13 +1401,13 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(4);
+    SimpleVector<VkMat> bindings(4);
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu;
     bindings[3] = bias_data_gpu;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered.dims;
     constants[1].i = bottom_blob_bordered.w;
     constants[2].i = bottom_blob_bordered.h;
@@ -1539,11 +1539,11 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             padding_params[2] = wpad / 2;
             padding_params[3] = wpad - wpad / 2;
 
-            std::vector<VkImageMat> padding_inputs(2);
+            SimpleVector<VkImageMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            std::vector<VkImageMat> padding_outputs(1);
+            SimpleVector<VkImageMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -1565,11 +1565,11 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             padding_params[2] = wpad - wpad / 2;
             padding_params[3] = wpad / 2;
 
-            std::vector<VkImageMat> padding_inputs(2);
+            SimpleVector<VkImageMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            std::vector<VkImageMat> padding_outputs(1);
+            SimpleVector<VkImageMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -1617,11 +1617,11 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             padding_params[2] = 0;
             padding_params[3] = w_bordered - bottom_blob_bordered.w;
 
-            std::vector<VkImageMat> padding_inputs(2);
+            SimpleVector<VkImageMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob_bordered;
             padding_inputs[1] = padding_param_blob;
 
-            std::vector<VkImageMat> padding_outputs(1);
+            SimpleVector<VkImageMat> padding_outputs(1);
             winograd_padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -1633,11 +1633,11 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             if (bottom_tm_blob.empty())
                 return -100;
 
-            std::vector<VkImageMat> bindings(2);
+            SimpleVector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob_bordered;
             bindings[1] = bottom_tm_blob;
 
-            std::vector<vk_constant_type> constants(7);
+            SimpleVector<vk_constant_type> constants(7);
             constants[0].i = bottom_blob_bordered.w;
             constants[1].i = bottom_blob_bordered.h;
             constants[2].i = bottom_blob_bordered.c;
@@ -1661,12 +1661,12 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             if (top_tm_blob.empty())
                 return -100;
 
-            std::vector<VkImageMat> bindings(3);
+            SimpleVector<VkImageMat> bindings(3);
             bindings[0] = bottom_tm_blob;
             bindings[1] = top_tm_blob;
             bindings[2] = weight_data_gpu_pack4_tm_image;
 
-            std::vector<vk_constant_type> constants(5);
+            SimpleVector<vk_constant_type> constants(5);
             constants[0].i = bottom_tm_blob.c;
             constants[1].i = 0;//bottom_tm_blob.cstep;
             constants[2].i = top_tm_blob.h;
@@ -1688,12 +1688,12 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             if (top_blob_bordered.empty())
                 return -100;
 
-            std::vector<VkImageMat> bindings(3);
+            SimpleVector<VkImageMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
             bindings[2] = bias_data_gpu_image;
 
-            std::vector<vk_constant_type> constants(7);
+            SimpleVector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
             constants[1].i = 0;//top_tm_blob.cstep;
             constants[2].i = block_x;
@@ -1722,11 +1722,11 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             crop_params[4] = outh;
             crop_params[5] = num_output;
 
-            std::vector<VkImageMat> crop_inputs(2);
+            SimpleVector<VkImageMat> crop_inputs(2);
             crop_inputs[0] = top_blob_bordered;
             crop_inputs[1] = crop_param_blob;
 
-            std::vector<VkImageMat> crop_outputs(1);
+            SimpleVector<VkImageMat> crop_outputs(1);
             winograd_crop->forward(crop_inputs, crop_outputs, cmd, opt);
             top_blob = crop_outputs[0];
         }
@@ -1758,11 +1758,11 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             padding_params[2] = 0;
             padding_params[3] = w_bordered - bottom_blob_bordered.w;
 
-            std::vector<VkImageMat> padding_inputs(2);
+            SimpleVector<VkImageMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob_bordered;
             padding_inputs[1] = padding_param_blob;
 
-            std::vector<VkImageMat> padding_outputs(1);
+            SimpleVector<VkImageMat> padding_outputs(1);
             winograd_padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -1774,11 +1774,11 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             if (bottom_tm_blob.empty())
                 return -100;
 
-            std::vector<VkImageMat> bindings(2);
+            SimpleVector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob_bordered;
             bindings[1] = bottom_tm_blob;
 
-            std::vector<vk_constant_type> constants(7);
+            SimpleVector<vk_constant_type> constants(7);
             constants[0].i = bottom_blob_bordered.w;
             constants[1].i = bottom_blob_bordered.h;
             constants[2].i = bottom_blob_bordered.c;
@@ -1802,12 +1802,12 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             if (top_tm_blob.empty())
                 return -100;
 
-            std::vector<VkImageMat> bindings(3);
+            SimpleVector<VkImageMat> bindings(3);
             bindings[0] = bottom_tm_blob;
             bindings[1] = top_tm_blob;
             bindings[2] = weight_data_gpu_pack8_tm_image;
 
-            std::vector<vk_constant_type> constants(5);
+            SimpleVector<vk_constant_type> constants(5);
             constants[0].i = bottom_tm_blob.c;
             constants[1].i = 0;//bottom_tm_blob.cstep;
             constants[2].i = top_tm_blob.h;
@@ -1829,12 +1829,12 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             if (top_blob_bordered.empty())
                 return -100;
 
-            std::vector<VkImageMat> bindings(3);
+            SimpleVector<VkImageMat> bindings(3);
             bindings[0] = top_tm_blob;
             bindings[1] = top_blob_bordered;
             bindings[2] = bias_data_gpu_image;
 
-            std::vector<vk_constant_type> constants(7);
+            SimpleVector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
             constants[1].i = 0;//top_tm_blob.cstep;
             constants[2].i = block_x;
@@ -1863,11 +1863,11 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             crop_params[4] = outh;
             crop_params[5] = num_output;
 
-            std::vector<VkImageMat> crop_inputs(2);
+            SimpleVector<VkImageMat> crop_inputs(2);
             crop_inputs[0] = top_blob_bordered;
             crop_inputs[1] = crop_param_blob;
 
-            std::vector<VkImageMat> crop_outputs(1);
+            SimpleVector<VkImageMat> crop_outputs(1);
             winograd_crop->forward(crop_inputs, crop_outputs, cmd, opt);
             top_blob = crop_outputs[0];
         }
@@ -1879,13 +1879,13 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkImageMat> bindings(4);
+    SimpleVector<VkImageMat> bindings(4);
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
     bindings[2] = weight_data_gpu_image;
     bindings[3] = bias_data_gpu_image;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_bordered.dims;
     constants[1].i = bottom_blob_bordered.w;
     constants[2].i = bottom_blob_bordered.h;

@@ -20,7 +20,7 @@ static int test_sigmoid(const ncnn::Mat& a)
 {
     ncnn::ParamDict pd;
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

@@ -177,7 +177,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
-    std::vector<int> _space_ofs(maxk);
+    SimpleVector<int> _space_ofs(maxk);
     int* space_ofs = &_space_ofs[0];
     {
         int p1 = 0;
@@ -350,7 +350,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
     const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
-    std::vector<int> _space_ofs(maxk);
+    SimpleVector<int> _space_ofs(maxk);
     int* space_ofs = &_space_ofs[0];
     {
         int p1 = 0;

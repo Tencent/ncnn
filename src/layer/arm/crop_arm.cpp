@@ -202,7 +202,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     return Crop::forward(bottom_blob_unpacked, top_blob, opt);
 }
 
-int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Crop_arm::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& reference_blob = bottom_blobs[1];
@@ -346,7 +346,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         convert_packing(reference_blob, reference_blob_unpacked, 1, opt_pack1);
     }
 
-    std::vector<Mat> bottom_blobs_unpacked(2);
+    SimpleVector<Mat> bottom_blobs_unpacked(2);
     bottom_blobs_unpacked[0] = bottom_blob_unpacked;
     bottom_blobs_unpacked[1] = reference_blob_unpacked;
 

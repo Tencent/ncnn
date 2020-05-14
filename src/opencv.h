@@ -20,7 +20,7 @@
 #if NCNN_OPENCV
 
 #include <algorithm>
-#include <string>
+//#include <string>
 #include "mat.h"
 
 #if defined(_MSC_VER) || defined(__GNUC__)
@@ -259,8 +259,8 @@ struct Mat
 
 #define CV_LOAD_IMAGE_GRAYSCALE 1
 #define CV_LOAD_IMAGE_COLOR 3
-Mat imread(const std::string& path, int flags);
-void imwrite(const std::string& path, const Mat& m);
+Mat imread(const SimpleString& path, int flags);
+void imwrite(const SimpleString& path, const Mat& m);
 
 #if NCNN_PIXEL
 void resize(const Mat& src, Mat& dst, const Size& size, float sw = 0.f, float sh = 0.f, int flags = 0);

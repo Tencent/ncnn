@@ -456,7 +456,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
 }
 
 static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, \
-            const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Mat &_bias, std::vector<float> scale_dequant, const Option& opt)
+            const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Mat &_bias, SimpleVector<float> scale_dequant, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -905,7 +905,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
 }
 
 static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, \
-            const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Mat &_bias, std::vector<float> scale_requant, const Option& opt)
+            const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Mat &_bias, SimpleVector<float> scale_requant, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;

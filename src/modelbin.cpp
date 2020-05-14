@@ -15,7 +15,7 @@
 #include "modelbin.h"
 
 #include <string.h>
-#include <vector>
+#include "simplestl.h"
 #include "datareader.h"
 
 namespace ncnn {
@@ -77,7 +77,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
         {
             // half-precision data
             size_t align_data_size = alignSize(w * sizeof(unsigned short), 4);
-            std::vector<unsigned short> float16_weights;
+            SimpleVector<unsigned short> float16_weights;
             float16_weights.resize(align_data_size);
             nread = dr.read(float16_weights.data(), align_data_size);
             if (nread != align_data_size)
@@ -92,7 +92,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
         {
             // int8 data
             size_t align_data_size = alignSize(w, 4);
-            std::vector<signed char> int8_weights;
+            SimpleVector<signed char> int8_weights;
             int8_weights.resize(align_data_size);
             nread = dr.read(int8_weights.data(), align_data_size);
             if (nread != align_data_size)
@@ -142,7 +142,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             }
 
             size_t align_weight_data_size = alignSize(w * sizeof(unsigned char), 4);
-            std::vector<unsigned char> index_array;
+            SimpleVector<unsigned char> index_array;
             index_array.resize(align_weight_data_size);
             nread = dr.read(index_array.data(), align_weight_data_size);
             if (nread != align_weight_data_size)

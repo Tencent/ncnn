@@ -1154,31 +1154,31 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
     image_blocks_to_destroy.push_back(src.data);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const SimpleVector<VkMat>& bindings, const SimpleVector<vk_constant_type>& constants, const VkMat& dispatcher)
 {
-    record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, dispatcher);
+    record_pipeline(pipeline, bindings, SimpleVector<VkImageMat>(), constants, dispatcher);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkImageMat>& bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const SimpleVector<VkImageMat>& bindings, const SimpleVector<vk_constant_type>& constants, const VkImageMat& dispatcher)
 {
-    record_pipeline(pipeline, std::vector<VkMat>(), bindings, constants, dispatcher);
+    record_pipeline(pipeline, SimpleVector<VkMat>(), bindings, constants, dispatcher);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
-{
-    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.c, (void*)0);
-
-    record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
-}
-
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const SimpleVector<VkMat>& buffer_bindings, const SimpleVector<VkImageMat>& image_bindings, const SimpleVector<vk_constant_type>& constants, const VkMat& dispatcher)
 {
     Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.c, (void*)0);
 
     record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const Mat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const SimpleVector<VkMat>& buffer_bindings, const SimpleVector<VkImageMat>& image_bindings, const SimpleVector<vk_constant_type>& constants, const VkImageMat& dispatcher)
+{
+    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.c, (void*)0);
+
+    record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
+}
+
+void VkCompute::record_pipeline(const Pipeline* pipeline, const SimpleVector<VkMat>& buffer_bindings, const SimpleVector<VkImageMat>& image_bindings, const SimpleVector<vk_constant_type>& constants, const Mat& dispatcher)
 {
 //     NCNN_LOGE("record_pipeline %p", pipeline);
 
@@ -1395,7 +1395,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     // record update bindings
     if (binding_count > 0)
     {
-        std::vector<unsigned char> descriptorInfos;
+        SimpleVector<unsigned char> descriptorInfos;
         {
             descriptorInfos.resize(sizeof(VkDescriptorBufferInfo) * buffer_binding_count + sizeof(VkDescriptorImageInfo) * image_binding_count);
 
@@ -1506,7 +1506,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             }
             else
             {
-                std::vector<VkWriteDescriptorSet> writeDescriptorSets(binding_count);
+                SimpleVector<VkWriteDescriptorSet> writeDescriptorSets(binding_count);
                 {
                     const unsigned char* p_descriptorInfos = descriptorInfos.data();
                     for (int i=0; i<binding_count; i++)
@@ -2308,7 +2308,7 @@ int VkCompute::create_query_pool(uint32_t _query_count)
     return 0;
 }
 
-int VkCompute::get_query_pool_results(uint32_t first_query, uint32_t query_count, std::vector<uint64_t>& results)
+int VkCompute::get_query_pool_results(uint32_t first_query, uint32_t query_count, SimpleVector<uint64_t>& results)
 {
     if (results.size() < first_query + query_count)
     {

@@ -92,7 +92,7 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 2) shape_unpacked = Mat(shape.w, shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (shape.dims == 3) shape_unpacked = Mat(shape.w, shape.h, shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    std::vector<vk_specialization_type> specializations(1 + 10);
+    SimpleVector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = axis;
     specializations[1 + 0].i = shape_unpacked.dims;
     specializations[1 + 1].i = shape_unpacked.w;
@@ -229,7 +229,7 @@ int Slice_vulkan::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int Slice_vulkan::forward(const SimpleVector<VkMat>& bottom_blobs, SimpleVector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& bottom_blob = bottom_blobs[0];
     int dims = bottom_blob.dims;
@@ -285,11 +285,11 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         {
             VkMat& top_blob = top_blobs[i];
 
-            std::vector<VkMat> bindings(2);
+            SimpleVector<VkMat> bindings(2);
             bindings[0] = bottom_blob_unpacked;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob_unpacked.dims;
             constants[1].i = bottom_blob_unpacked.w;
             constants[2].i = bottom_blob_unpacked.h;
@@ -386,11 +386,11 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         {
             VkMat& top_blob = top_blobs[i];
 
-            std::vector<VkMat> bindings(2);
+            SimpleVector<VkMat> bindings(2);
             bindings[0] = bottom_blob_unpacked;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob_unpacked.dims;
             constants[1].i = bottom_blob_unpacked.w;
             constants[2].i = bottom_blob_unpacked.h;
@@ -465,11 +465,11 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         {
             VkMat& top_blob = top_blobs[i];
 
-            std::vector<VkMat> bindings(2);
+            SimpleVector<VkMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -545,11 +545,11 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         {
             VkMat& top_blob = top_blobs[i];
 
-            std::vector<VkMat> bindings(2);
+            SimpleVector<VkMat> bindings(2);
             bindings[0] = bottom_blob_unpacked;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob_unpacked.dims;
             constants[1].i = bottom_blob_unpacked.w;
             constants[2].i = bottom_blob_unpacked.h;
@@ -625,11 +625,11 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         {
             VkMat& top_blob = top_blobs[i];
 
-            std::vector<VkMat> bindings(2);
+            SimpleVector<VkMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -683,11 +683,11 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
         {
             VkMat& top_blob = top_blobs[i];
 
-            std::vector<VkMat> bindings(2);
+            SimpleVector<VkMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -715,7 +715,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
     return 0;
 }
 
-int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int Slice_vulkan::forward(const SimpleVector<VkImageMat>& bottom_blobs, SimpleVector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkImageMat& bottom_blob = bottom_blobs[0];
     int dims = bottom_blob.dims;
@@ -771,11 +771,11 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         {
             VkImageMat& top_blob = top_blobs[i];
 
-            std::vector<VkImageMat> bindings(2);
+            SimpleVector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob_unpacked;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob_unpacked.dims;
             constants[1].i = bottom_blob_unpacked.w;
             constants[2].i = bottom_blob_unpacked.h;
@@ -872,11 +872,11 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         {
             VkImageMat& top_blob = top_blobs[i];
 
-            std::vector<VkImageMat> bindings(2);
+            SimpleVector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob_unpacked;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob_unpacked.dims;
             constants[1].i = bottom_blob_unpacked.w;
             constants[2].i = bottom_blob_unpacked.h;
@@ -951,11 +951,11 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         {
             VkImageMat& top_blob = top_blobs[i];
 
-            std::vector<VkImageMat> bindings(2);
+            SimpleVector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -1031,11 +1031,11 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         {
             VkImageMat& top_blob = top_blobs[i];
 
-            std::vector<VkImageMat> bindings(2);
+            SimpleVector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob_unpacked;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob_unpacked.dims;
             constants[1].i = bottom_blob_unpacked.w;
             constants[2].i = bottom_blob_unpacked.h;
@@ -1111,11 +1111,11 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         {
             VkImageMat& top_blob = top_blobs[i];
 
-            std::vector<VkImageMat> bindings(2);
+            SimpleVector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
@@ -1169,11 +1169,11 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
         {
             VkImageMat& top_blob = top_blobs[i];
 
-            std::vector<VkImageMat> bindings(2);
+            SimpleVector<VkImageMat> bindings(2);
             bindings[0] = bottom_blob;
             bindings[1] = top_blob;
 
-            std::vector<vk_constant_type> constants(11);
+            SimpleVector<vk_constant_type> constants(11);
             constants[0].i = bottom_blob.dims;
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;

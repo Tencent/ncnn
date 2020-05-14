@@ -83,7 +83,7 @@ int MemoryData_vulkan::upload_model(VkTransfer& /*cmd*/, const Option& opt)
     return 0;
 }
 
-int MemoryData_vulkan::forward(const std::vector<VkMat>& /*bottom_blobs*/, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int MemoryData_vulkan::forward(const SimpleVector<VkMat>& /*bottom_blobs*/, SimpleVector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     VkMat& top_blob = top_blobs[0];
 
@@ -94,7 +94,7 @@ int MemoryData_vulkan::forward(const std::vector<VkMat>& /*bottom_blobs*/, std::
     return 0;
 }
 
-int MemoryData_vulkan::forward(const std::vector<VkImageMat>& /*bottom_blobs*/, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+int MemoryData_vulkan::forward(const SimpleVector<VkImageMat>& /*bottom_blobs*/, SimpleVector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     VkImageMat& top_blob = top_blobs[0];
 

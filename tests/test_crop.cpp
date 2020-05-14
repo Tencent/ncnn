@@ -29,7 +29,7 @@ static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int coffset, 
     pd.set(7, hoffset2);// hoffset2
     pd.set(8, coffset2);// coffset2
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -91,7 +91,7 @@ static int test_crop(const ncnn::Mat& a, const ncnn::Mat& starts, const ncnn::Ma
     pd.set(10, ends);// ends
     pd.set(11, axes);// axes
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

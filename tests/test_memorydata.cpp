@@ -23,7 +23,7 @@ static int test_memorydata(const ncnn::Mat& a)
     pd.set(1, a.h);
     pd.set(2, a.c);
 
-    std::vector<ncnn::Mat> weights(1);
+    SimpleVector<ncnn::Mat> weights(1);
     weights[0] = a;
 
     ncnn::Option opt;
@@ -31,7 +31,7 @@ static int test_memorydata(const ncnn::Mat& a)
     opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
 
-    std::vector<ncnn::Mat> as(0);
+    SimpleVector<ncnn::Mat> as(0);
 
     int ret = test_layer<ncnn::MemoryData>("MemoryData", pd, weights, opt, as, 1);
     if (ret != 0)

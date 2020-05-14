@@ -22,7 +22,7 @@ static int test_batchnorm(const ncnn::Mat& a, int channels, float eps)
     pd.set(0, channels);// channels
     pd.set(1, eps);// eps
 
-    std::vector<ncnn::Mat> weights(4);
+    SimpleVector<ncnn::Mat> weights(4);
     weights[0] = RandomMat(channels);
     weights[1] = RandomMat(channels);
     weights[2] = RandomMat(channels);

@@ -22,7 +22,7 @@ static int test_softmax(const ncnn::Mat& a, int axis)
     pd.set(0, axis);// axis
     pd.set(1, 1);// fixbug0
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

@@ -20,14 +20,14 @@ static int test_noop(const ncnn::Mat& a)
 {
     ncnn::ParamDict pd;
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
 
-    std::vector<ncnn::Mat> as(1);
+    SimpleVector<ncnn::Mat> as(1);
     as[0] = a;
 
     int ret = test_layer<ncnn::Noop>("Noop", pd, weights, opt, as, 1);

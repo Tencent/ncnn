@@ -178,7 +178,7 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
     return Compare(a, b, epsilon);
 }
 
-static int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::Mat>& b, float epsilon = 0.001)
+static int CompareMat(const SimpleVector<ncnn::Mat>& a, const SimpleVector<ncnn::Mat>& b, float epsilon = 0.001)
 {
     if (a.size() != b.size())
     {
@@ -199,7 +199,7 @@ static int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::M
 }
 
 template <typename T>
-int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, const std::vector<ncnn::Mat>& top_shapes = std::vector<ncnn::Mat>(), float epsilon = 0.001, void (*func)(T*) = 0)
+int test_layer(int typeindex, const ncnn::ParamDict& pd, const SimpleVector<ncnn::Mat>& weights, const ncnn::Option& _opt, const SimpleVector<ncnn::Mat>& a, int top_blob_count, const SimpleVector<ncnn::Mat>& top_shapes = SimpleVector<ncnn::Mat>(), float epsilon = 0.001, void (*func)(T*) = 0)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
@@ -275,7 +275,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     }
 #endif // NCNN_VULKAN
 
-    std::vector<ncnn::Mat> b(top_blob_count);
+    SimpleVector<ncnn::Mat> b(top_blob_count);
     if (op->support_inplace)
     {
         for (size_t i=0; i<a.size(); i++)
@@ -290,9 +290,9 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         ((T*)op)->T::forward(a, b, opt);
     }
 
-    std::vector<ncnn::Mat> c(top_blob_count);
+    SimpleVector<ncnn::Mat> c(top_blob_count);
     {
-        std::vector<ncnn::Mat> a4(a.size());
+        SimpleVector<ncnn::Mat> a4(a.size());
         if (opt.use_packing_layout)
         {
             for (size_t i=0; i<a.size(); i++)
@@ -341,7 +341,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     }
 
 #if NCNN_VULKAN
-    std::vector<ncnn::Mat> d(top_blob_count);
+    SimpleVector<ncnn::Mat> d(top_blob_count);
     if (opt.use_vulkan_compute)
     {
         // forward
@@ -350,13 +350,13 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         if (opt.use_image_storage)
         {
             // upload
-            std::vector<ncnn::VkImageMat> a_gpu(a.size());
+            SimpleVector<ncnn::VkImageMat> a_gpu(a.size());
             for (size_t i=0; i<a_gpu.size(); i++)
             {
                 cmd.record_upload(a[i], a_gpu[i], opt);
             }
 
-            std::vector<ncnn::VkImageMat> d_gpu(top_blob_count);
+            SimpleVector<ncnn::VkImageMat> d_gpu(top_blob_count);
             if (op->support_inplace)
             {
                 op->forward_inplace(a_gpu, cmd, opt);
@@ -377,13 +377,13 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         else
         {
             // upload
-            std::vector<ncnn::VkMat> a_gpu(a.size());
+            SimpleVector<ncnn::VkMat> a_gpu(a.size());
             for (size_t i=0; i<a_gpu.size(); i++)
             {
                 cmd.record_upload(a[i], a_gpu[i], opt);
             }
 
-            std::vector<ncnn::VkMat> d_gpu(top_blob_count);
+            SimpleVector<ncnn::VkMat> d_gpu(top_blob_count);
             if (op->support_inplace)
             {
                 op->forward_inplace(a_gpu, cmd, opt);
@@ -445,7 +445,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 }
 
 template <typename T>
-int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, const ncnn::Mat& top_shape = ncnn::Mat(), float epsilon = 0.001, void (*func)(T*) = 0)
+int test_layer(int typeindex, const ncnn::ParamDict& pd, const SimpleVector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, const ncnn::Mat& top_shape = ncnn::Mat(), float epsilon = 0.001, void (*func)(T*) = 0)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
     ncnn::Option opt = _opt;
@@ -656,7 +656,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 }
 
 template <typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, void (*func)(T*) = 0)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const SimpleVector<ncnn::Mat>& weights, const ncnn::Option& _opt, const SimpleVector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, void (*func)(T*) = 0)
 {
     ncnn::Option opts[3];
     opts[0] = _opt;
@@ -684,8 +684,8 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         const ncnn::Option& opt = opts[i];
 
         // fp16 representation
-        std::vector<ncnn::Mat> a_fp16;
-        std::vector<ncnn::Mat> weights_fp16;
+        SimpleVector<ncnn::Mat> a_fp16;
+        SimpleVector<ncnn::Mat> weights_fp16;
         float epsilon_fp16;
         if (opt.use_bf16_storage)
         {
@@ -730,7 +730,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             epsilon_fp16 = epsilon;
         }
 
-        std::vector<ncnn::Mat> top_shapes;
+        SimpleVector<ncnn::Mat> top_shapes;
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_blob_count, top_shapes, epsilon_fp16, func);
         if (ret != 0)
         {
@@ -743,7 +743,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 }
 
 template <typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, float epsilon = 0.001, void (*func)(T*) = 0)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const SimpleVector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, float epsilon = 0.001, void (*func)(T*) = 0)
 {
     ncnn::Option opts[3];
     opts[0] = _opt;
@@ -772,7 +772,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
         // fp16 representation
         ncnn::Mat a_fp16;
-        std::vector<ncnn::Mat> weights_fp16;
+        SimpleVector<ncnn::Mat> weights_fp16;
         float epsilon_fp16;
         if (opt.use_bf16_storage)
         {

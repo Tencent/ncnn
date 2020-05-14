@@ -30,7 +30,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-    std::vector<ncnn::Layer*> group_ops;
+    SimpleVector<ncnn::Layer*> group_ops;
 
     // packing
     Mat weight_data_pack4;

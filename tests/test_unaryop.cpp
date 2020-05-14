@@ -44,7 +44,7 @@ static int test_unaryop(const ncnn::Mat& _a)
     ncnn::ParamDict pd;
     pd.set(0, op_type);
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

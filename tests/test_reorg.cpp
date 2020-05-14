@@ -21,7 +21,7 @@ static int test_reorg(const ncnn::Mat& a, int stride)
     ncnn::ParamDict pd;
     pd.set(0, stride);//stride
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

@@ -72,7 +72,7 @@ int DeepCopy_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-    std::vector<vk_specialization_type> specializations(0 + 5);
+    SimpleVector<vk_specialization_type> specializations(0 + 5);
     specializations[0 + 0].i = shape_packed.dims;
     specializations[0 + 1].i = shape_packed.w;
     specializations[0 + 2].i = shape_packed.h;
@@ -148,11 +148,11 @@ int DeepCopy_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComput
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(2);
+    SimpleVector<VkMat> bindings(2);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(5);
+    SimpleVector<vk_constant_type> constants(5);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;

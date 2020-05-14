@@ -57,7 +57,7 @@ int Mish_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
-    std::vector<vk_specialization_type> specializations(0 + 5);
+    SimpleVector<vk_specialization_type> specializations(0 + 5);
     specializations[0 + 0].i = shape_packed.dims;
     specializations[0 + 1].i = shape_packed.w;
     specializations[0 + 2].i = shape_packed.h;
@@ -129,10 +129,10 @@ int Mish_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
 {
     int elempack = bottom_top_blob.elempack;
 
-    std::vector<VkMat> bindings(1);
+    SimpleVector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
 
-    std::vector<vk_constant_type> constants(5);
+    SimpleVector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;

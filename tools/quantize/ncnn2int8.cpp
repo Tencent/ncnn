@@ -21,6 +21,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <string>
 
 // ncnn public header
 #include "net.h"
@@ -181,7 +182,7 @@ int NetQuantize::quantize_convolution()
             continue;
 
         // find convolution layer
-        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name.c_str());
         if (iter_data == blob_int8scale_table.end())
             continue;
 
@@ -248,7 +249,7 @@ int NetQuantize::quantize_convolutiondepthwise()
             continue;
 
         // find convolutiondepthwise layer
-        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name.c_str());
         if (iter_data == blob_int8scale_table.end())
             continue;
 
@@ -315,7 +316,7 @@ int NetQuantize::quantize_innerproduct()
             continue;
 
         // find InnerProduct layer
-        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name.c_str());
         if (iter_data == blob_int8scale_table.end())
             continue;
 
@@ -465,14 +466,14 @@ int NetQuantize::save(const char* parampath, const char* binpath)
         for (int j = 0; j < bottom_count; j++)
         {
             int bottom_blob_index = layer->bottoms[j];
-            blob_names.insert(blobs[bottom_blob_index].name);
+            blob_names.insert(blobs[bottom_blob_index].name.c_str());
         }
 
         int top_count = static_cast<int>(layer->tops.size());
         for (int j = 0; j < top_count; j++)
         {
             int top_blob_index = layer->tops[j];
-            blob_names.insert(blobs[top_blob_index].name);
+            blob_names.insert(blobs[top_blob_index].name.c_str());
         }
     }
 
@@ -595,9 +596,9 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                     weight_int8scale = weight_int8scale_table[std::string(key)];
                 }
 
-                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end())
+                if (blob_int8scale_table.find(layer->name.c_str()) != blob_int8scale_table.end())
                 {
-                    blob_int8scale = blob_int8scale_table[layer->name];
+                    blob_int8scale = blob_int8scale_table[layer->name.c_str()];
                 }
 
                 // write int8_scale data
@@ -645,9 +646,9 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                     weight_int8scale = weight_int8scale_table[std::string(key)];
                 }
 
-                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end())
+                if (blob_int8scale_table.find(layer->name.c_str()) != blob_int8scale_table.end())
                 {
-                    blob_int8scale = blob_int8scale_table[layer->name];
+                    blob_int8scale = blob_int8scale_table[layer->name.c_str()];
                 }
 
                 // write int8_scale data
@@ -797,9 +798,9 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                     weight_int8scale = weight_int8scale_table[std::string(key)];
                 }
 
-                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end())
+                if (blob_int8scale_table.find(layer->name.c_str()) != blob_int8scale_table.end())
                 {
-                    blob_int8scale = blob_int8scale_table[layer->name];
+                    blob_int8scale = blob_int8scale_table[layer->name.c_str()];
                 }
 
                 // write int8_scale data

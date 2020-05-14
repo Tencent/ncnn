@@ -25,7 +25,7 @@ static int test_lrn(const ncnn::Mat& a, int region_type, int local_size, float a
     pd.set(3, beta);
     pd.set(4, bias);
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

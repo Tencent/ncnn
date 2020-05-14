@@ -20,7 +20,7 @@
 
 namespace cv {
 
-Mat imread(const std::string& path, int flags)
+Mat imread(const SimpleString& path, int flags)
 {
     (void)flags;
 
@@ -58,7 +58,7 @@ Mat imread(const std::string& path, int flags)
     return m;
 }
 
-void imwrite(const std::string& path, const Mat& m)
+void imwrite(const SimpleString& path, const Mat& m)
 {
     // write pgm/ppm
     FILE* fp = fopen(path.c_str(), "wb");

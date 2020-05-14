@@ -36,7 +36,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
-    std::vector<ncnn::Mat> weights(2);
+    SimpleVector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(outch*c*kernel*kernel);
     weights[1] = RandomMat(outch);
 

@@ -15,8 +15,8 @@
 #ifndef NCNN_BLOB_H
 #define NCNN_BLOB_H
 
-#include <string>
-#include <vector>
+//#include <string>
+#include "simplestl.h"
 #include "platform.h"
 #include "mat.h"
 
@@ -31,12 +31,12 @@ public:
 public:
 #if NCNN_STRING
     // blob name
-    std::string name;
+    SimpleString name;
 #endif // NCNN_STRING
     // layer index which produce this blob as output
     int producer;
     // layer index which need this blob as input
-    std::vector<int> consumers;
+    SimpleVector<int> consumers;
     // shape hint
     Mat shape;
 };

@@ -22,7 +22,7 @@ static int test_clip(const ncnn::Mat &a, float min, float max)
     pd.set(0, min);
     pd.set(1, max);
 
-    std::vector<ncnn::Mat> weights(0);
+    SimpleVector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

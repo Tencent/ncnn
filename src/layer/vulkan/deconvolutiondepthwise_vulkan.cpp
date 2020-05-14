@@ -227,7 +227,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         output_crop->create_pipeline(opt);
     }
 
-    std::vector<vk_specialization_type> specializations(11 + 10);
+    SimpleVector<vk_specialization_type> specializations(11 + 10);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
     specializations[2].i = dilation_w;
@@ -631,13 +631,13 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     // depth-wise
     if (channels == group / elempack && group / elempack == num_output / elempack)
     {
-        std::vector<VkMat> bindings(4);
+        SimpleVector<VkMat> bindings(4);
         bindings[0] = bottom_blob;
         bindings[1] = top_blob_bordered;
         bindings[2] = weight_data_gpu;
         bindings[3] = bias_data_gpu;
 
-        std::vector<vk_constant_type> constants(10);
+        SimpleVector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -675,10 +675,10 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
                 reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
                 reference_blob.elempack = 1;
 
-                std::vector<VkMat> crop_bottom_blobs(2);
+                SimpleVector<VkMat> crop_bottom_blobs(2);
                 crop_bottom_blobs[0] = top_blob_bordered_adj;
                 crop_bottom_blobs[1] = reference_blob;
-                std::vector<VkMat> crop_top_blobs(1);
+                SimpleVector<VkMat> crop_top_blobs(1);
                 crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
                 top_blob = crop_top_blobs[0];
             }
@@ -727,11 +727,11 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
                 crop_params[5] = top_blob_bordered_adj.c;
             }
 
-            std::vector<VkMat> crop_inputs(2);
+            SimpleVector<VkMat> crop_inputs(2);
             crop_inputs[0] = top_blob_bordered_adj;
             crop_inputs[1] = crop_param_blob;
 
-            std::vector<VkMat> crop_outputs(1);
+            SimpleVector<VkMat> crop_outputs(1);
             output_crop->forward(crop_inputs, crop_outputs, cmd, opt);
             top_blob = crop_outputs[0];
             if (top_blob.empty())
@@ -789,13 +789,13 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
             return -100;
     }
 
-    std::vector<VkMat> bindings(4);
+    SimpleVector<VkMat> bindings(4);
     bindings[0] = bottom_blob_unpacked;
     bindings[1] = top_blob_unpacked;
     bindings[2] = weight_data_gpu;
     bindings[3] = bias_data_gpu;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_unpacked.dims;
     constants[1].i = bottom_blob_unpacked.w;
     constants[2].i = bottom_blob_unpacked.h;
@@ -876,10 +876,10 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
             reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
             reference_blob.elempack = 1;
 
-            std::vector<VkMat> crop_bottom_blobs(2);
+            SimpleVector<VkMat> crop_bottom_blobs(2);
             crop_bottom_blobs[0] = top_blob_bordered_adj;
             crop_bottom_blobs[1] = reference_blob;
-            std::vector<VkMat> crop_top_blobs(1);
+            SimpleVector<VkMat> crop_top_blobs(1);
             crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
             top_blob = crop_top_blobs[0];
         }
@@ -928,11 +928,11 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
             crop_params[5] = top_blob_bordered_adj.c;
         }
 
-        std::vector<VkMat> crop_inputs(2);
+        SimpleVector<VkMat> crop_inputs(2);
         crop_inputs[0] = top_blob_bordered_adj;
         crop_inputs[1] = crop_param_blob;
 
-        std::vector<VkMat> crop_outputs(1);
+        SimpleVector<VkMat> crop_outputs(1);
         output_crop->forward(crop_inputs, crop_outputs, cmd, opt);
         top_blob = crop_outputs[0];
         if (top_blob.empty())
@@ -996,13 +996,13 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
     // depth-wise
     if (channels == group / elempack && group / elempack == num_output / elempack)
     {
-        std::vector<VkImageMat> bindings(4);
+        SimpleVector<VkImageMat> bindings(4);
         bindings[0] = bottom_blob;
         bindings[1] = top_blob_bordered;
         bindings[2] = weight_data_gpu_image;
         bindings[3] = bias_data_gpu_image;
 
-        std::vector<vk_constant_type> constants(10);
+        SimpleVector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -1040,10 +1040,10 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
                 reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
                 reference_blob.elempack = 1;
 
-                std::vector<VkImageMat> crop_bottom_blobs(2);
+                SimpleVector<VkImageMat> crop_bottom_blobs(2);
                 crop_bottom_blobs[0] = top_blob_bordered_adj;
                 crop_bottom_blobs[1] = reference_blob;
-                std::vector<VkImageMat> crop_top_blobs(1);
+                SimpleVector<VkImageMat> crop_top_blobs(1);
                 crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
                 top_blob = crop_top_blobs[0];
             }
@@ -1092,11 +1092,11 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
                 crop_params[5] = top_blob_bordered_adj.c;
             }
 
-            std::vector<VkImageMat> crop_inputs(2);
+            SimpleVector<VkImageMat> crop_inputs(2);
             crop_inputs[0] = top_blob_bordered_adj;
             crop_inputs[1] = crop_param_blob;
 
-            std::vector<VkImageMat> crop_outputs(1);
+            SimpleVector<VkImageMat> crop_outputs(1);
             output_crop->forward(crop_inputs, crop_outputs, cmd, opt);
             top_blob = crop_outputs[0];
             if (top_blob.empty())
@@ -1154,13 +1154,13 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
             return -100;
     }
 
-    std::vector<VkImageMat> bindings(4);
+    SimpleVector<VkImageMat> bindings(4);
     bindings[0] = bottom_blob_unpacked;
     bindings[1] = top_blob_unpacked;
     bindings[2] = weight_data_gpu_image;
     bindings[3] = bias_data_gpu_image;
 
-    std::vector<vk_constant_type> constants(10);
+    SimpleVector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob_unpacked.dims;
     constants[1].i = bottom_blob_unpacked.w;
     constants[2].i = bottom_blob_unpacked.h;
@@ -1241,10 +1241,10 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
             reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
             reference_blob.elempack = 1;
 
-            std::vector<VkImageMat> crop_bottom_blobs(2);
+            SimpleVector<VkImageMat> crop_bottom_blobs(2);
             crop_bottom_blobs[0] = top_blob_bordered_adj;
             crop_bottom_blobs[1] = reference_blob;
-            std::vector<VkImageMat> crop_top_blobs(1);
+            SimpleVector<VkImageMat> crop_top_blobs(1);
             crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
             top_blob = crop_top_blobs[0];
         }
@@ -1293,11 +1293,11 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
             crop_params[5] = top_blob_bordered_adj.c;
         }
 
-        std::vector<VkImageMat> crop_inputs(2);
+        SimpleVector<VkImageMat> crop_inputs(2);
         crop_inputs[0] = top_blob_bordered_adj;
         crop_inputs[1] = crop_param_blob;
 
-        std::vector<VkImageMat> crop_outputs(1);
+        SimpleVector<VkImageMat> crop_outputs(1);
         output_crop->forward(crop_inputs, crop_outputs, cmd, opt);
         top_blob = crop_outputs[0];
         if (top_blob.empty())

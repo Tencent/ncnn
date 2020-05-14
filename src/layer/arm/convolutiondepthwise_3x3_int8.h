@@ -799,7 +799,7 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
     }
 }
 
-static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, SimpleVector<float> scales_requant, const Option& opt)
 {
     int w = bottom_blob.w;
 
@@ -1517,7 +1517,7 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
     }
 }
 
-static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, SimpleVector<float> scales_requant, const Option& opt)
 {
     int w = bottom_blob.w;
 
