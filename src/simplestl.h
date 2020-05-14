@@ -57,7 +57,7 @@ struct vector
         {
             for (size_t i = size_; i < new_size; i++)
             {
-                new (&data_[i]) T();
+                new (&data_[i]) T(value);
             }
         }
         else if (new_size < size_)
