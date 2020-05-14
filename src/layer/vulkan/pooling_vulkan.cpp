@@ -149,7 +149,7 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
 
     if (global_pooling)
     {
-        SimpleVector<vk_specialization_type> specializations(1 + 10);
+        std::vector<vk_specialization_type> specializations(1 + 10);
         specializations[0].i = pooling_type;
         specializations[1 + 0].i = shape_bordered_packed.dims;
         specializations[1 + 1].i = shape_bordered_packed.w;
@@ -196,7 +196,7 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
     }
     else
     {
-        SimpleVector<vk_specialization_type> specializations(12 + 10);
+        std::vector<vk_specialization_type> specializations(12 + 10);
         specializations[0].i = pooling_type;
         specializations[1].i = kernel_w;
         specializations[2].i = kernel_h;
@@ -313,11 +313,11 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         if (top_blob.empty())
             return -100;
 
-        SimpleVector<VkMat> bindings(2);
+        std::vector<VkMat> bindings(2);
         bindings[0] = bottom_blob;
         bindings[1] = top_blob;
 
-        SimpleVector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -364,11 +364,11 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         padding_params[2] = pad_left;
         padding_params[3] = pad_right + wtailpad;
 
-        SimpleVector<VkMat> padding_inputs(2);
+        std::vector<VkMat> padding_inputs(2);
         padding_inputs[0] = bottom_blob;
         padding_inputs[1] = padding_param_blob;
 
-        SimpleVector<VkMat> padding_outputs(1);
+        std::vector<VkMat> padding_outputs(1);
         padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
         bottom_blob_bordered = padding_outputs[0];
     }
@@ -396,11 +396,11 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             padding_params[2] = wpad / 2;
             padding_params[3] = wpad - wpad / 2;
 
-            SimpleVector<VkMat> padding_inputs(2);
+            std::vector<VkMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            SimpleVector<VkMat> padding_outputs(1);
+            std::vector<VkMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -422,11 +422,11 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             padding_params[2] = wpad - wpad / 2;
             padding_params[3] = wpad / 2;
 
-            SimpleVector<VkMat> padding_inputs(2);
+            std::vector<VkMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            SimpleVector<VkMat> padding_outputs(1);
+            std::vector<VkMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -442,11 +442,11 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     if (top_blob.empty())
         return -100;
 
-    SimpleVector<VkMat> bindings(2);
+    std::vector<VkMat> bindings(2);
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
 
-    SimpleVector<vk_constant_type> constants(12);
+    std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob_bordered.dims;
     constants[1].i = bottom_blob_bordered.w;
     constants[2].i = bottom_blob_bordered.h;
@@ -483,11 +483,11 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         if (top_blob.empty())
             return -100;
 
-        SimpleVector<VkImageMat> bindings(2);
+        std::vector<VkImageMat> bindings(2);
         bindings[0] = bottom_blob;
         bindings[1] = top_blob;
 
-        SimpleVector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(10);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -534,11 +534,11 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         padding_params[2] = pad_left;
         padding_params[3] = pad_right + wtailpad;
 
-        SimpleVector<VkImageMat> padding_inputs(2);
+        std::vector<VkImageMat> padding_inputs(2);
         padding_inputs[0] = bottom_blob;
         padding_inputs[1] = padding_param_blob;
 
-        SimpleVector<VkImageMat> padding_outputs(1);
+        std::vector<VkImageMat> padding_outputs(1);
         padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
         bottom_blob_bordered = padding_outputs[0];
     }
@@ -566,11 +566,11 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
             padding_params[2] = wpad / 2;
             padding_params[3] = wpad - wpad / 2;
 
-            SimpleVector<VkImageMat> padding_inputs(2);
+            std::vector<VkImageMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            SimpleVector<VkImageMat> padding_outputs(1);
+            std::vector<VkImageMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -592,11 +592,11 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
             padding_params[2] = wpad - wpad / 2;
             padding_params[3] = wpad / 2;
 
-            SimpleVector<VkImageMat> padding_inputs(2);
+            std::vector<VkImageMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
             padding_inputs[1] = padding_param_blob;
 
-            SimpleVector<VkImageMat> padding_outputs(1);
+            std::vector<VkImageMat> padding_outputs(1);
             padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
             bottom_blob_bordered = padding_outputs[0];
         }
@@ -612,11 +612,11 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     if (top_blob.empty())
         return -100;
 
-    SimpleVector<VkImageMat> bindings(2);
+    std::vector<VkImageMat> bindings(2);
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
 
-    SimpleVector<vk_constant_type> constants(12);
+    std::vector<vk_constant_type> constants(12);
     constants[0].i = bottom_blob_bordered.dims;
     constants[1].i = bottom_blob_bordered.w;
     constants[2].i = bottom_blob_bordered.h;

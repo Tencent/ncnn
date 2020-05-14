@@ -43,14 +43,14 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
     pd.set(1, 0);// with_scalar
     pd.set(2, 0.f);// b
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
 
-    SimpleVector<ncnn::Mat> ab(2);
+    std::vector<ncnn::Mat> ab(2);
     ab[0] = a;
     ab[1] = b;
 
@@ -79,7 +79,7 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
     pd.set(1, 1);// with_scalar
     pd.set(2, b);// b
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

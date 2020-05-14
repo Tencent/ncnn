@@ -746,7 +746,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, SimpleVector<Mat> &kernel_tm2, int inch, int outch)
+static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, std::vector<Mat> &kernel_tm2, int inch, int outch)
 {
     Mat kernel_tm(6*6, inch, outch);
 
@@ -927,7 +927,7 @@ static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, SimpleV
     }    
 }
 
-static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, const SimpleVector<Mat> &kernel_tm_test, const Mat& _bias, const Option& opt)
+static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;

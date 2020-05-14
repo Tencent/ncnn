@@ -25,7 +25,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, 
     pd.set(3, output_height);
     pd.set(4, output_width);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

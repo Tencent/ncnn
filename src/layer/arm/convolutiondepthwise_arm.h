@@ -35,7 +35,7 @@ protected:
 
 public:
     Layer* activation;
-    SimpleVector<ncnn::Layer*> group_ops;
+    std::vector<ncnn::Layer*> group_ops;
 
     // packing
     Mat weight_data_pack4;

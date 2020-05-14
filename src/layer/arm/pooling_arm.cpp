@@ -130,7 +130,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         const int maxk = kernel_w * kernel_h;
 
         // kernel offsets
-        SimpleVector<int> _space_ofs(maxk);
+        std::vector<int> _space_ofs(maxk);
         int* space_ofs = &_space_ofs[0];
         {
             int p1 = 0;
@@ -466,7 +466,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
     const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
-    SimpleVector<int> _space_ofs(maxk);
+    std::vector<int> _space_ofs(maxk);
     int* space_ofs = &_space_ofs[0];
     {
         int p1 = 0;

@@ -95,7 +95,7 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
         workspace_shape_packed = Mat(shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
     }
 
-    SimpleVector<vk_specialization_type> specializations(1 + 10);
+    std::vector<vk_specialization_type> specializations(1 + 10);
     specializations[0].i = axis;
     specializations[1 + 0].i = shape_packed.dims;
     specializations[1 + 1].i = shape_packed.w;
@@ -315,11 +315,11 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
     // reduce max
     {
-    SimpleVector<VkMat> bindings(2);
+    std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
     bindings[1] = max_workspace;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
@@ -340,11 +340,11 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
     // exp( v - max )
     {
-    SimpleVector<VkMat> bindings(2);
+    std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
     bindings[1] = max_workspace;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
@@ -365,11 +365,11 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
     // reduce sum
     {
-    SimpleVector<VkMat> bindings(2);
+    std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
     bindings[1] = sum_workspace;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
@@ -390,11 +390,11 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
     // div sum
     {
-    SimpleVector<VkMat> bindings(2);
+    std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
     bindings[1] = sum_workspace;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
@@ -461,11 +461,11 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
 
     // reduce max
     {
-    SimpleVector<VkImageMat> bindings(2);
+    std::vector<VkImageMat> bindings(2);
     bindings[0] = bottom_top_blob;
     bindings[1] = max_workspace;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
@@ -486,12 +486,12 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
 
     // exp( v - max )
     {
-    SimpleVector<VkImageMat> bindings(3);
+    std::vector<VkImageMat> bindings(3);
     bindings[0] = bottom_top_blob;
     bindings[1] = bottom_top_blob;
     bindings[2] = max_workspace;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
@@ -512,11 +512,11 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
 
     // reduce sum
     {
-    SimpleVector<VkImageMat> bindings(2);
+    std::vector<VkImageMat> bindings(2);
     bindings[0] = bottom_top_blob;
     bindings[1] = sum_workspace;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
@@ -537,12 +537,12 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
 
     // div sum
     {
-    SimpleVector<VkImageMat> bindings(3);
+    std::vector<VkImageMat> bindings(3);
     bindings[0] = bottom_top_blob;
     bindings[1] = bottom_top_blob;
     bindings[2] = sum_workspace;
 
-    SimpleVector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;

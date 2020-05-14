@@ -24,7 +24,6 @@
 
 #include <stdlib.h>
 #include <list>
-#include "simplestl.h"
 #include "platform.h"
 
 #if NCNN_VULKAN
@@ -282,10 +281,10 @@ protected:
     size_t block_size;
     size_t buffer_offset_alignment;
     size_t bind_memory_offset_alignment;
-    SimpleVector< std::list< std::pair<size_t, size_t> > > buffer_budgets;
-    SimpleVector<VkBufferMemory*> buffer_blocks;
-    SimpleVector< std::list< std::pair<size_t, size_t> > > image_memory_budgets;
-    SimpleVector<VkDeviceMemory> image_memory_blocks;
+    std::vector< std::list< std::pair<size_t, size_t> > > buffer_budgets;
+    std::vector<VkBufferMemory*> buffer_blocks;
+    std::vector< std::list< std::pair<size_t, size_t> > > image_memory_budgets;
+    std::vector<VkDeviceMemory> image_memory_blocks;
 };
 
 class VkWeightAllocator : public VkAllocator
@@ -308,12 +307,12 @@ protected:
     size_t block_size;
     size_t buffer_offset_alignment;
     size_t bind_memory_offset_alignment;
-    SimpleVector<size_t> buffer_block_free_spaces;
-    SimpleVector<VkBufferMemory*> buffer_blocks;
-    SimpleVector<VkBufferMemory*> dedicated_buffer_blocks;
-    SimpleVector<size_t> image_memory_block_free_spaces;
-    SimpleVector<VkDeviceMemory> image_memory_blocks;
-    SimpleVector<VkDeviceMemory> dedicated_image_memory_blocks;
+    std::vector<size_t> buffer_block_free_spaces;
+    std::vector<VkBufferMemory*> buffer_blocks;
+    std::vector<VkBufferMemory*> dedicated_buffer_blocks;
+    std::vector<size_t> image_memory_block_free_spaces;
+    std::vector<VkDeviceMemory> image_memory_blocks;
+    std::vector<VkDeviceMemory> dedicated_image_memory_blocks;
 };
 
 class VkStagingAllocator : public VkAllocator

@@ -29,7 +29,7 @@ public:
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
-    virtual int forward_inplace(SimpleVector<Mat>& bottom_top_blobs, const Option& opt) const;
+    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
 
 public:
     int num_class;

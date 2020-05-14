@@ -36,7 +36,7 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
-    SimpleVector<ncnn::Mat> weights(bias ? 2 : 1);
+    std::vector<ncnn::Mat> weights(bias ? 2 : 1);
     weights[0] = RandomMat(outch*c*kernel*kernel);
     if (bias)
         weights[1] = RandomMat(outch);
@@ -117,7 +117,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     pd.set(6, outch*c*kernel*kernel);
     pd.set(8, 1);// int8_scale_term
 
-    SimpleVector<ncnn::Mat> weights(bias ? 4 : 3);
+    std::vector<ncnn::Mat> weights(bias ? 4 : 3);
     weights[0] = RandomMat(outch*c*kernel*kernel);
     if (bias)
     {

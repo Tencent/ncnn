@@ -21,7 +21,7 @@ static int test_pixelshuffle(const ncnn::Mat& a, int upscale_factor)
     ncnn::ParamDict pd;
     pd.set(0, upscale_factor);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

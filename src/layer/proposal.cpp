@@ -15,7 +15,6 @@
 #include "proposal.h"
 #include <math.h>
 #include <algorithm>
-#include "simplestl.h"
 
 namespace ncnn {
 
@@ -115,7 +114,7 @@ static inline float intersection_area(const Rect& a, const Rect& b)
 }
 
 template <typename T>
-static void qsort_descent_inplace(SimpleVector<T>& datas, SimpleVector<float>& scores, int left, int right)
+static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores, int left, int right)
 {
     int i = left;
     int j = right;
@@ -148,7 +147,7 @@ static void qsort_descent_inplace(SimpleVector<T>& datas, SimpleVector<float>& s
 }
 
 template <typename T>
-static void qsort_descent_inplace(SimpleVector<T>& datas, SimpleVector<float>& scores)
+static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores)
 {
     if (datas.empty() || scores.empty())
         return;
@@ -156,13 +155,13 @@ static void qsort_descent_inplace(SimpleVector<T>& datas, SimpleVector<float>& s
     qsort_descent_inplace(datas, scores, 0, static_cast<int>(scores.size() - 1));
 }
 
-static void nms_sorted_bboxes(const SimpleVector<Rect>& bboxes, SimpleVector<size_t>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Rect>& bboxes, std::vector<size_t>& picked, float nms_threshold)
 {
     picked.clear();
 
     const size_t n = bboxes.size();
 
-    SimpleVector<float> areas(n);
+    std::vector<float> areas(n);
     for (size_t i = 0; i < n; i++)
     {
         const Rect& r = bboxes[i];
@@ -195,7 +194,7 @@ static void nms_sorted_bboxes(const SimpleVector<Rect>& bboxes, SimpleVector<siz
     }
 }
 
-int Proposal::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
+int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& score_blob = bottom_blobs[0];
     const Mat& bbox_blob = bottom_blobs[1];
@@ -290,8 +289,8 @@ int Proposal::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& 
     }
 
     // remove predicted boxes with either height or width < threshold
-    SimpleVector<Rect> proposal_boxes;
-    SimpleVector<float> scores;
+    std::vector<Rect> proposal_boxes;
+    std::vector<float> scores;
 
     float im_scale = im_info_blob[2];
     float min_boxsize = min_size * im_scale;
@@ -328,7 +327,7 @@ int Proposal::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& 
     }
 
     // apply nms with nms_thresh
-    SimpleVector<size_t> picked;
+    std::vector<size_t> picked;
     nms_sorted_bboxes(proposal_boxes, picked, nms_thresh);
 
     // take after_nms_topN

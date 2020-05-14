@@ -22,7 +22,7 @@ static int test_elu(const ncnn::Mat& a)
     float alpha = RandomFloat(0.001f, 1000.f);
     pd.set(0, alpha);//alpha
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

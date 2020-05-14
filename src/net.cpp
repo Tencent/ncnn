@@ -187,8 +187,8 @@ int Net::load_param(const DataReader& dr)
             layer->vkdev = vkdev;
 #endif // NCNN_VULKAN
 
-        layer->type = SimpleString(layer_type);
-        layer->name = SimpleString(layer_name);
+        layer->type = std::string(layer_type);
+        layer->name = std::string(layer_name);
 //         NCNN_LOGE("new layer %d %s", i, layer_name);
 
         layer->bottoms.resize(bottom_count);
@@ -205,7 +205,7 @@ int Net::load_param(const DataReader& dr)
 
                 bottom_blob_index = blob_index;
 
-                blob.name = SimpleString(bottom_name);
+                blob.name = std::string(bottom_name);
 //                 NCNN_LOGE("new blob %s", bottom_name);
 
                 blob_index++;
@@ -226,7 +226,7 @@ int Net::load_param(const DataReader& dr)
             char blob_name[256];
             SCAN_VALUE("%255s", blob_name)
 
-            blob.name = SimpleString(blob_name);
+            blob.name = std::string(blob_name);
 //             NCNN_LOGE("new blob %s", blob_name);
 
             blob.producer = i;
@@ -375,8 +375,8 @@ int Net::load_param_bin(const DataReader& dr)
             layer->vkdev = vkdev;
 #endif // NCNN_VULKAN
 
-//         layer->type = SimpleString(layer_type);
-//         layer->name = SimpleString(layer_name);
+//         layer->type = std::string(layer_type);
+//         layer->name = std::string(layer_name);
 //         NCNN_LOGE("new layer %d", typeindex);
 
         layer->bottoms.resize(bottom_count);
@@ -400,7 +400,7 @@ int Net::load_param_bin(const DataReader& dr)
 
             Blob& blob = blobs[top_blob_index];
 
-//             blob.name = SimpleString(blob_name);
+//             blob.name = std::string(blob_name);
 //             NCNN_LOGE("new blob %s", blob_name);
 
             blob.producer = i;
@@ -1026,7 +1026,7 @@ Layer* Net::create_custom_layer(int index)
     return layer_creator();
 }
 
-int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, const Option& opt) const
+int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const
 {
     const Layer* layer = layers[layer_index];
 
@@ -1123,7 +1123,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, const Opti
     else
     {
         // load bottom blobs
-        SimpleVector<Mat> bottom_blobs(layer->bottoms.size());
+        std::vector<Mat> bottom_blobs(layer->bottoms.size());
         for (size_t i=0; i<layer->bottoms.size(); i++)
         {
             int bottom_blob_index = layer->bottoms[i];
@@ -1177,7 +1177,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, const Opti
         // forward
         if (opt.lightmode && layer->support_inplace)
         {
-            SimpleVector<Mat>& bottom_top_blobs = bottom_blobs;
+            std::vector<Mat>& bottom_top_blobs = bottom_blobs;
 #if NCNN_BENCHMARK
             double start = get_current_time();
             int ret = layer->forward_inplace(bottom_top_blobs, opt);
@@ -1199,7 +1199,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, const Opti
         }
         else
         {
-            SimpleVector<Mat> top_blobs(layer->tops.size());
+            std::vector<Mat> top_blobs(layer->tops.size());
 #if NCNN_BENCHMARK
             double start = get_current_time();
             int ret = layer->forward(bottom_blobs, top_blobs, opt);
@@ -1229,7 +1229,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, const Opti
 }
 
 #if NCNN_VULKAN
-int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const
+int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const
 {
     const Layer* layer = layers[layer_index];
 
@@ -1312,7 +1312,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
         else
         {
             // load bottom blobs
-            SimpleVector<VkMat> bottom_blobs(layer->bottoms.size());
+            std::vector<VkMat> bottom_blobs(layer->bottoms.size());
             for (size_t i=0; i<layer->bottoms.size(); i++)
             {
                 int bottom_blob_index = layer->bottoms[i];
@@ -1353,7 +1353,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
             // forward
             if (opt.lightmode && layer->support_inplace)
             {
-                SimpleVector<VkMat>& bottom_top_blobs = bottom_blobs;
+                std::vector<VkMat>& bottom_top_blobs = bottom_blobs;
 #if NCNN_BENCHMARK
                 cmd.record_write_timestamp(layer_index * 2);
                 int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
@@ -1374,7 +1374,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
             }
             else
             {
-                SimpleVector<VkMat> top_blobs(layer->tops.size());
+                std::vector<VkMat> top_blobs(layer->tops.size());
 #if NCNN_BENCHMARK
                 cmd.record_write_timestamp(layer_index * 2);
                 int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
@@ -1429,7 +1429,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
                     cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
-                    SimpleVector<uint64_t> results(layer_index * 2);
+                    std::vector<uint64_t> results(layer_index * 2);
                     cmd.get_query_pool_results(0, layer_index * 2, results);
                     for (int i=0; i<layer_index; i++)
                     {
@@ -1533,7 +1533,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
                 cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
-                SimpleVector<uint64_t> results(layer_index * 2);
+                std::vector<uint64_t> results(layer_index * 2);
                 cmd.get_query_pool_results(0, layer_index * 2, results);
                 for (int i=0; i<layer_index; i++)
                 {
@@ -1550,7 +1550,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
                 cmd.reset();
             }
 
-            SimpleVector<Mat> bottom_blobs(layer->bottoms.size());
+            std::vector<Mat> bottom_blobs(layer->bottoms.size());
             for (size_t i=0; i<layer->bottoms.size(); i++)
             {
                 int bottom_blob_index = layer->bottoms[i];
@@ -1572,7 +1572,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
             // forward
             if (opt.lightmode && layer->support_inplace)
             {
-                SimpleVector<Mat>& bottom_top_blobs = bottom_blobs;
+                std::vector<Mat>& bottom_top_blobs = bottom_blobs;
 #if NCNN_BENCHMARK
                 double start = get_current_time();
                 int ret = layer->forward_inplace(bottom_top_blobs, opt);
@@ -1594,7 +1594,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
             }
             else
             {
-                SimpleVector<Mat> top_blobs(layer->tops.size());
+                std::vector<Mat> top_blobs(layer->tops.size());
 #if NCNN_BENCHMARK
                 double start = get_current_time();
                 int ret = layer->forward(bottom_blobs, top_blobs, opt);
@@ -1622,7 +1622,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
     return 0;
 }
 
-int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVector<VkMat>& blob_mats_gpu, SimpleVector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const
+int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const
 {
     const Layer* layer = layers[layer_index];
 
@@ -1748,7 +1748,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
             else
             {
                 // load bottom blobs
-                SimpleVector<VkImageMat> bottom_blobs(layer->bottoms.size());
+                std::vector<VkImageMat> bottom_blobs(layer->bottoms.size());
                 for (size_t i=0; i<layer->bottoms.size(); i++)
                 {
                     int bottom_blob_index = layer->bottoms[i];
@@ -1822,7 +1822,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
                 // forward
                 if (opt.lightmode && layer->support_inplace)
                 {
-                    SimpleVector<VkImageMat>& bottom_top_blobs = bottom_blobs;
+                    std::vector<VkImageMat>& bottom_top_blobs = bottom_blobs;
 #if NCNN_BENCHMARK
                     cmd.record_write_timestamp(layer_index * 2);
                     int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
@@ -1847,7 +1847,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
                 }
                 else
                 {
-                    SimpleVector<VkImageMat> top_blobs(layer->tops.size());
+                    std::vector<VkImageMat> top_blobs(layer->tops.size());
 #if NCNN_BENCHMARK
                     cmd.record_write_timestamp(layer_index * 2);
                     int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
@@ -1977,7 +1977,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
             else
             {
                 // load bottom blobs
-                SimpleVector<VkMat> bottom_blobs(layer->bottoms.size());
+                std::vector<VkMat> bottom_blobs(layer->bottoms.size());
                 for (size_t i=0; i<layer->bottoms.size(); i++)
                 {
                     int bottom_blob_index = layer->bottoms[i];
@@ -2046,7 +2046,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
                 // forward
                 if (opt.lightmode && layer->support_inplace)
                 {
-                    SimpleVector<VkMat>& bottom_top_blobs = bottom_blobs;
+                    std::vector<VkMat>& bottom_top_blobs = bottom_blobs;
 #if NCNN_BENCHMARK
                     cmd.record_write_timestamp(layer_index * 2);
                     int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
@@ -2067,7 +2067,7 @@ int Net::forward_layer(int layer_index, SimpleVector<Mat>& blob_mats, SimpleVect
                 }
                 else
                 {
-                    SimpleVector<VkMat> top_blobs(layer->tops.size());
+                    std::vector<VkMat> top_blobs(layer->tops.size());
 #if NCNN_BENCHMARK
                     cmd.record_write_timestamp(layer_index * 2);
                     int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
@@ -2151,7 +2151,7 @@ IMAGE_ALLOCATION_FAILED:
                 cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
-                SimpleVector<uint64_t> results(layer_index * 2);
+                std::vector<uint64_t> results(layer_index * 2);
                 cmd.get_query_pool_results(0, layer_index * 2, results);
                 for (int i=0; i<layer_index; i++)
                 {
@@ -2279,7 +2279,7 @@ IMAGE_ALLOCATION_FAILED:
                 cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
-                SimpleVector<uint64_t> results(layer_index * 2);
+                std::vector<uint64_t> results(layer_index * 2);
                 cmd.get_query_pool_results(0, layer_index * 2, results);
                 for (int i=0; i<layer_index; i++)
                 {
@@ -2296,7 +2296,7 @@ IMAGE_ALLOCATION_FAILED:
                 cmd.reset();
             }
 
-            SimpleVector<Mat> bottom_blobs(layer->bottoms.size());
+            std::vector<Mat> bottom_blobs(layer->bottoms.size());
             for (size_t i=0; i<layer->bottoms.size(); i++)
             {
                 int bottom_blob_index = layer->bottoms[i];
@@ -2318,7 +2318,7 @@ IMAGE_ALLOCATION_FAILED:
             // forward
             if (opt.lightmode && layer->support_inplace)
             {
-                SimpleVector<Mat>& bottom_top_blobs = bottom_blobs;
+                std::vector<Mat>& bottom_top_blobs = bottom_blobs;
 #if NCNN_BENCHMARK
                 double start = get_current_time();
                 int ret = layer->forward_inplace(bottom_top_blobs, opt);
@@ -2340,7 +2340,7 @@ IMAGE_ALLOCATION_FAILED:
             }
             else
             {
-                SimpleVector<Mat> top_blobs(layer->tops.size());
+                std::vector<Mat> top_blobs(layer->tops.size());
 #if NCNN_BENCHMARK
                 double start = get_current_time();
                 int ret = layer->forward(bottom_blobs, top_blobs, opt);
@@ -2535,7 +2535,7 @@ int Extractor::extract(int blob_index, Mat& feat)
                     cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
-                    SimpleVector<uint64_t> results(net->layers.size() * 2);
+                    std::vector<uint64_t> results(net->layers.size() * 2);
                     cmd.get_query_pool_results(0, net->layers.size() * 2, results);
                     for (size_t i=0; i<net->layers.size(); i++)
                     {
@@ -2562,7 +2562,7 @@ int Extractor::extract(int blob_index, Mat& feat)
                     cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
-                    SimpleVector<uint64_t> results(net->layers.size() * 2);
+                    std::vector<uint64_t> results(net->layers.size() * 2);
                     cmd.get_query_pool_results(0, net->layers.size() * 2, results);
                     for (size_t i=0; i<net->layers.size(); i++)
                     {

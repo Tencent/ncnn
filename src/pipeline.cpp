@@ -15,7 +15,6 @@
 #include "pipeline.h"
 #include <math.h>
 #include <algorithm>
-//#include <string>
 #include "mat.h"
 #include "option.h"
 #include "layer_shader_type.h"
@@ -46,7 +45,7 @@ Pipeline::~Pipeline()
     destroy();
 }
 
-int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const SimpleVector<vk_specialization_type>& specializations)
+int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations)
 {
     ShaderInfo si;
     int ret = resolve_shader_info(spv_data, spv_data_size, si);
@@ -78,7 +77,7 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const Simpl
     return create(local_shader_module, si, specializations);
 }
 
-int Pipeline::create(int shader_type_index, const Option& opt, const SimpleVector<vk_specialization_type>& specializations)
+int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
 {
     // ncnn_add_shader cmake macro
     // 0 = fp32
@@ -151,7 +150,7 @@ int Pipeline::create(int shader_type_index, const Option& opt, const SimpleVecto
     return create(shader_module, si, specializations);
 }
 
-int Pipeline::create(VkShaderModule shader_module, const ShaderInfo& _shader_info, const SimpleVector<vk_specialization_type>& specializations)
+int Pipeline::create(VkShaderModule shader_module, const ShaderInfo& _shader_info, const std::vector<vk_specialization_type>& specializations)
 {
     shader_info = _shader_info;
 
@@ -264,7 +263,7 @@ int Pipeline::create_descriptorset_layout()
         return 0;
     }
 
-    SimpleVector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(binding_count);
+    std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(binding_count);
     for (int i=0; i<binding_count; i++)
     {
         int binding_type = shader_info.binding_types[i];
@@ -358,12 +357,12 @@ int Pipeline::create_pipeline_layout()
     return 0;
 }
 
-int Pipeline::create_pipeline(VkShaderModule shader_module, const SimpleVector<vk_specialization_type>& specializations)
+int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations)
 {
     const int specialization_count = specializations.size();
 
     // +3 for local_size_xyz
-    SimpleVector<VkSpecializationMapEntry> specializationMapEntries;
+    std::vector<VkSpecializationMapEntry> specializationMapEntries;
     specializationMapEntries.resize(specialization_count + 3);
 
     for (int i=0; i<specialization_count; i++)
@@ -373,7 +372,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const SimpleVector<v
         specializationMapEntries[i].size = sizeof(vk_specialization_type);
     }
 
-    SimpleVector<vk_specialization_type> specialization_data = specializations;
+    std::vector<vk_specialization_type> specialization_data = specializations;
 
     // append local_size_xyz specialization
     if (!vkdev->info.bug_local_size_spec_const)
@@ -442,7 +441,7 @@ int Pipeline::create_descriptor_update_template()
         return 0;
     }
 
-    SimpleVector<VkDescriptorUpdateTemplateEntryKHR> descriptorUpdateTemplateEntries(binding_count);
+    std::vector<VkDescriptorUpdateTemplateEntryKHR> descriptorUpdateTemplateEntries(binding_count);
     size_t offset = 0;
     for (int i=0; i<binding_count; i++)// TODO do not update weights
     {
@@ -574,7 +573,7 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
 
     set_local_size_xyz(8, 8, 1);
 
-    SimpleVector<vk_specialization_type> specializations(7);
+    std::vector<vk_specialization_type> specializations(7);
     specializations[0].i = ahb_im_allocator->width();
     specializations[1].i = ahb_im_allocator->height();
     specializations[2].i = target_width;

@@ -344,7 +344,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 const int maxk = kernel_w * kernel_h;
 
                 // kernel offsets
-                SimpleVector<int> _space_ofs(maxk);
+                std::vector<int> _space_ofs(maxk);
                 int* space_ofs = &_space_ofs[0];
                 {
                     int p1 = 0;
@@ -578,7 +578,7 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
                 const int maxk = kernel_w * kernel_h;
 
                 // kernel offsets
-                SimpleVector<int> _space_ofs(maxk);
+                std::vector<int> _space_ofs(maxk);
                 int* space_ofs = &_space_ofs[0];
                 {
                     int p1 = 0;
@@ -688,7 +688,7 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
                 const int maxk = kernel_w * kernel_h;
 
                 // kernel offsets
-                SimpleVector<int> _space_ofs(maxk);
+                std::vector<int> _space_ofs(maxk);
                 int* space_ofs = &_space_ofs[0];
                 {
                     int p1 = 0;
@@ -873,7 +873,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     {
         if (use_int8_requantize)
         {
-            SimpleVector<float> requantize_scales;
+            std::vector<float> requantize_scales;
             for (int g=0; g<group; g++)
             {
                 float scale_in;
@@ -913,7 +913,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
         }
         else
         {
-//             SimpleVector<float> dequantize_scales;
+//             std::vector<float> dequantize_scales;
 //             for (int g=0; g<group; g++)
 //             {
 //                 float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);

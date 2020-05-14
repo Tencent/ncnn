@@ -29,7 +29,7 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
     pd.set(5, value);// value
     pd.set(6, per_channel_pad_data_size);// per_channel_pad_data_size
 
-    SimpleVector<ncnn::Mat> weights(per_channel_pad_data_size ? 1 : 0);
+    std::vector<ncnn::Mat> weights(per_channel_pad_data_size ? 1 : 0);
     if (per_channel_pad_data_size)
         weights[0] = RandomMat(per_channel_pad_data_size);
 

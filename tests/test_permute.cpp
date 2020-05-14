@@ -21,7 +21,7 @@ static int test_permute(const ncnn::Mat& a, int order_type)
     ncnn::ParamDict pd;
     pd.set(0, order_type);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

@@ -26,13 +26,13 @@ static void print_float_array(const ncnn::Mat& a)
     fprintf(stderr, " ]");
 }
 
-static int test_eltwise(const SimpleVector<ncnn::Mat>& a, int op_type, const ncnn::Mat& coeffs)
+static int test_eltwise(const std::vector<ncnn::Mat>& a, int op_type, const ncnn::Mat& coeffs)
 {
     ncnn::ParamDict pd;
     pd.set(0, op_type);
     pd.set(1, coeffs);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -52,7 +52,7 @@ static int test_eltwise(const SimpleVector<ncnn::Mat>& a, int op_type, const ncn
 
 static int test_eltwise_0()
 {
-    SimpleVector<ncnn::Mat> a(2);
+    std::vector<ncnn::Mat> a(2);
     a[0] = RandomMat(16, 12, 8);
     a[1] = RandomMat(16, 12, 8);
 
@@ -69,7 +69,7 @@ static int test_eltwise_0()
 
 static int test_eltwise_1()
 {
-    SimpleVector<ncnn::Mat> a(4);
+    std::vector<ncnn::Mat> a(4);
     a[0] = RandomMat(7, 3, 5);
     a[1] = RandomMat(7, 3, 5);
     a[2] = RandomMat(7, 3, 5);

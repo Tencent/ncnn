@@ -61,7 +61,7 @@ int RNN::load_model(const ModelBin& mb)
     return 0;
 }
 
-int RNN::forward(const SimpleVector<Mat>& bottom_blobs, SimpleVector<Mat>& top_blobs, const Option& opt) const
+int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     // size x 1 x T
     const Mat& input_blob = bottom_blobs[0];

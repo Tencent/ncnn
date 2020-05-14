@@ -19,7 +19,6 @@
 
 #if NCNN_VULKAN
 
-#include "simplestl.h"
 #include <vulkan/vulkan.h>
 #include "mat.h"
 
@@ -61,13 +60,13 @@ public:
 
     void record_clone(const VkImageMat& src, VkMat& dst, const Option& opt);
 
-    void record_pipeline(const Pipeline* pipeline, const SimpleVector<VkMat>& bindings, const SimpleVector<vk_constant_type>& constants, const VkMat& dispatcher);
+    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher);
 
-    void record_pipeline(const Pipeline* pipeline, const SimpleVector<VkImageMat>& bindings, const SimpleVector<vk_constant_type>& constants, const VkImageMat& dispatcher);
+    void record_pipeline(const Pipeline* pipeline, const std::vector<VkImageMat>& bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher);
 
-    void record_pipeline(const Pipeline* pipeline, const SimpleVector<VkMat>& buffer_bindings, const SimpleVector<VkImageMat>& image_bindings, const SimpleVector<vk_constant_type>& constants, const VkMat& dispatcher);
-    void record_pipeline(const Pipeline* pipeline, const SimpleVector<VkMat>& buffer_bindings, const SimpleVector<VkImageMat>& image_bindings, const SimpleVector<vk_constant_type>& constants, const VkImageMat& dispatcher);
-    void record_pipeline(const Pipeline* pipeline, const SimpleVector<VkMat>& buffer_bindings, const SimpleVector<VkImageMat>& image_bindings, const SimpleVector<vk_constant_type>& constants, const Mat& dispatcher);
+    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher);
+    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher);
+    void record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const Mat& dispatcher);
 
 #if NCNN_BENCHMARK
     void record_write_timestamp(uint32_t query);
@@ -86,7 +85,7 @@ public:
 #if NCNN_BENCHMARK
     int create_query_pool(uint32_t query_count);
 
-    int get_query_pool_results(uint32_t first_query, uint32_t query_count, SimpleVector<uint64_t>& results);
+    int get_query_pool_results(uint32_t first_query, uint32_t query_count, std::vector<uint64_t>& results);
 #endif // NCNN_BENCHMARK
 
 protected:
@@ -103,16 +102,16 @@ protected:
 
     VkFence compute_command_fence;
 
-    SimpleVector<VkMat> upload_staging_buffers;
-    SimpleVector<VkMat> download_post_buffers;
-    SimpleVector<Mat> download_post_mats_fp16;
-    SimpleVector<Mat> download_post_mats;
+    std::vector<VkMat> upload_staging_buffers;
+    std::vector<VkMat> download_post_buffers;
+    std::vector<Mat> download_post_mats_fp16;
+    std::vector<Mat> download_post_mats;
 
-    SimpleVector<VkImageMemory*> image_blocks_to_destroy;
+    std::vector<VkImageMemory*> image_blocks_to_destroy;
 
     // the good-old path for device without VK_KHR_push_descriptor
-    SimpleVector<VkDescriptorPool> descriptor_pools;
-    SimpleVector<VkDescriptorSet> descriptorsets;
+    std::vector<VkDescriptorPool> descriptor_pools;
+    std::vector<VkDescriptorSet> descriptorsets;
 
     struct record
     {
@@ -167,7 +166,7 @@ protected:
         };
     };
 
-    SimpleVector<record> delayed_records;
+    std::vector<record> delayed_records;
 
 #if NCNN_BENCHMARK
     uint32_t query_count;
@@ -207,7 +206,7 @@ protected:
     VkFence upload_command_fence;
     VkFence compute_command_fence;
 
-    SimpleVector<VkMat> upload_staging_buffers;
+    std::vector<VkMat> upload_staging_buffers;
 };
 
 } // namespace ncnn

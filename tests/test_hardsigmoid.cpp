@@ -22,7 +22,7 @@ static int test_hardsigmoid(const ncnn::Mat& a, float alpha, float beta)
     pd.set(0, alpha);
     pd.set(0, beta);
 
-    SimpleVector<ncnn::Mat> weights(0);
+    std::vector<ncnn::Mat> weights(0);
 
     ncnn::Option opt;
     opt.num_threads = 1;

@@ -22,8 +22,6 @@
 #include <string.h>
 
 #include <algorithm>
-//#include <string>
-#include "simplestl.h"
 
 #include "mat.h"
 #include "command.h"
@@ -205,7 +203,7 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 }
 #endif // ENABLE_VALIDATION_LAYER
 
-static uint32_t find_device_compute_queue(const SimpleVector<VkQueueFamilyProperties>& queueFamilyProperties)
+static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties)
 {
     // first try, compute only queue
     for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
@@ -246,7 +244,7 @@ static uint32_t find_device_compute_queue(const SimpleVector<VkQueueFamilyProper
     return -1;
 }
 
-static uint32_t find_device_graphics_queue(const SimpleVector<VkQueueFamilyProperties>& queueFamilyProperties)
+static uint32_t find_device_graphics_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties)
 {
     // first try, graphics only queue
     for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
@@ -287,7 +285,7 @@ static uint32_t find_device_graphics_queue(const SimpleVector<VkQueueFamilyPrope
     return -1;
 }
 
-static uint32_t find_device_transfer_queue(const SimpleVector<VkQueueFamilyProperties>& queueFamilyProperties)
+static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties)
 {
     // first try, transfer only queue
     for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
@@ -359,7 +357,7 @@ int create_gpu_instance()
 {
     VkResult ret;
 
-    SimpleVector<const char*> enabledLayers;
+    std::vector<const char*> enabledLayers;
 
 #if ENABLE_VALIDATION_LAYER
     uint32_t instanceLayerPropertyCount;
@@ -370,7 +368,7 @@ int create_gpu_instance()
         return -1;
     }
 
-    SimpleVector<VkLayerProperties> instanceLayerProperties(instanceLayerPropertyCount);
+    std::vector<VkLayerProperties> instanceLayerProperties(instanceLayerPropertyCount);
     ret = vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, instanceLayerProperties.data());
     if (ret != VK_SUCCESS)
     {
@@ -394,7 +392,7 @@ int create_gpu_instance()
     }
 #endif // ENABLE_VALIDATION_LAYER
 
-    SimpleVector<const char*> enabledExtensions;
+    std::vector<const char*> enabledExtensions;
 
     uint32_t instanceExtensionPropertyCount;
     ret = vkEnumerateInstanceExtensionProperties(NULL, &instanceExtensionPropertyCount, NULL);
@@ -404,7 +402,7 @@ int create_gpu_instance()
         return -1;
     }
 
-    SimpleVector<VkExtensionProperties> instanceExtensionProperties(instanceExtensionPropertyCount);
+    std::vector<VkExtensionProperties> instanceExtensionProperties(instanceExtensionPropertyCount);
     ret = vkEnumerateInstanceExtensionProperties(NULL, &instanceExtensionPropertyCount, instanceExtensionProperties.data());
     if (ret != VK_SUCCESS)
     {
@@ -514,7 +512,7 @@ int create_gpu_instance()
     if (physicalDeviceCount > NCNN_MAX_GPU_COUNT)
         physicalDeviceCount = NCNN_MAX_GPU_COUNT;
 
-    SimpleVector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+    std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
 
     ret = vkEnumeratePhysicalDevices(g_instance, &physicalDeviceCount, physicalDevices.data());
     if (ret != VK_SUCCESS)
@@ -627,7 +625,7 @@ int create_gpu_instance()
         uint32_t queueFamilyPropertiesCount;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertiesCount, 0);
 
-        SimpleVector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
+        std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
 
         gpu_info.compute_queue_family_index = find_device_compute_queue(queueFamilyProperties);
@@ -652,7 +650,7 @@ int create_gpu_instance()
             return -1;
         }
 
-        SimpleVector<VkExtensionProperties> deviceExtensionProperties(deviceExtensionPropertyCount);
+        std::vector<VkExtensionProperties> deviceExtensionProperties(deviceExtensionPropertyCount);
         ret = vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, &deviceExtensionPropertyCount, deviceExtensionProperties.data());
         if (ret != VK_SUCCESS)
         {
@@ -885,7 +883,7 @@ const GpuInfo& get_gpu_info(int device_index)
 
 VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
 {
-    SimpleVector<const char*> enabledExtensions;
+    std::vector<const char*> enabledExtensions;
     if (info.support_VK_KHR_8bit_storage)
         enabledExtensions.push_back("VK_KHR_8bit_storage");
     if (info.support_VK_KHR_16bit_storage)
@@ -973,9 +971,9 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         enabledExtensionFeatures = &querySamplerYcbcrConversionFeatures;
     }
 
-    SimpleVector<float> compute_queue_priorities(info.compute_queue_count, 1.f);// 0.f ~ 1.f
-    SimpleVector<float> graphics_queue_priorities(info.graphics_queue_count, 1.f);// 0.f ~ 1.f
-    SimpleVector<float> transfer_queue_priorities(info.transfer_queue_count, 1.f);// 0.f ~ 1.f
+    std::vector<float> compute_queue_priorities(info.compute_queue_count, 1.f);// 0.f ~ 1.f
+    std::vector<float> graphics_queue_priorities(info.graphics_queue_count, 1.f);// 0.f ~ 1.f
+    std::vector<float> transfer_queue_priorities(info.transfer_queue_count, 1.f);// 0.f ~ 1.f
 
     VkDeviceQueueCreateInfo deviceQueueCreateInfos[3];
 
@@ -1380,7 +1378,7 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 
     MutexLockGuard lock(queue_lock);
 
-    SimpleVector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
                                  : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
     for (int i=0; i<(int)queues.size(); i++)
     {
@@ -1408,7 +1406,7 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
 
     MutexLockGuard lock(queue_lock);
 
-    SimpleVector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
                                  : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
     for (int i=0; i<(int)queues.size(); i++)
     {
@@ -2034,10 +2032,10 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
     int push_constant_count = 0;
 
     // id -> binding_type
-    SimpleVector<int> id_types;
+    std::vector<int> id_types;
 
     // binding_id -> binding_type
-    SimpleVector<int> binding_types;
+    std::vector<int> binding_types;
 
     const uint32_t* p = spv_data;
 
