@@ -32,7 +32,7 @@ struct vector
     vector(const vector& v)
     {
         resize(v.size());
-        for (int i = 0; i < size_; i++) { data_[i] = v.data_[i]; }
+        for (size_t i = 0; i < size_; i++) { data_[i] = v.data_[i]; }
     }
 
     vector& operator=(const vector& v)
@@ -43,7 +43,7 @@ struct vector
         }
         resize(0);
         resize(v.size());
-        for (int i = 0; i < size_; i++)
+        for (size_t i = 0; i < size_; i++)
         {
             data_[i] = v.data_[i];
         }
@@ -55,14 +55,14 @@ struct vector
         try_alloc(new_size);
         if (new_size > size_)
         {
-            for (int i = size_; i < new_size; i++)
+            for (size_t i = size_; i < new_size; i++)
             {
                 new (&data_[i]) T();
             }
         }
         else if (new_size < size_)
         {
-            for (int i = new_size; i < size_; i++)
+            for (size_t i = new_size; i < size_; i++)
             {
                 data_[i].~T();
             }
@@ -72,19 +72,19 @@ struct vector
 
     void clear()
     {
-        for (int i = 0; i < size_; i++)
+        for (size_t i = 0; i < size_; i++)
         {
             data_[i].~T();
         }
-
+        delete[](char*) data_;
         data_ = nullptr;
         size_ = 0;
         capacity_ = 0;
     }
 
     T* data() const { return data_; }
-    const size_t size() const { return size_; }
-    T& operator[](int i) const { return data_[i]; }
+    size_t size() const { return size_; }
+    T& operator[](size_t i) const { return data_[i]; }
     T* begin() const { return &data_[0]; }
     T* end() const { return &data_[size_]; }
     bool empty() const { return size_ == 0; }
@@ -106,13 +106,13 @@ struct vector
             b = v->begin() + (b - begin());
             e = v->begin() + (e - begin());
         }
-        int diff = pos - begin();
+        size_t diff = pos - begin();
         try_alloc(size_ + (e - b));
         pos = begin() + diff;
         memmove(pos + (e - b), pos, (end() - pos) * sizeof(T));
-        int len = e - b;
+        size_t len = e - b;
         size_ += len;
-        for (int i = 0; i < len; i++)
+        for (size_t i = 0; i < len; i++)
         {
             *pos = *b;
             pos++;
@@ -155,7 +155,7 @@ struct string : public vector<char>
     string() {}
     string(const char* str)
     {
-        int len = strlen(str);
+        size_t len = strlen(str);
         resize(len);
         memcpy(data_, str, len);
     }
