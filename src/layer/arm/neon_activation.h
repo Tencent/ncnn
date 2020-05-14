@@ -40,6 +40,10 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
     {
         v = 1.f / (1.f + exp(-v));
     }
+    else if (activation_type == 5)
+    {
+        v = v * tanh(log(exp(v) + 1.f));
+    }
 
     return v;
 }
@@ -77,6 +81,10 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
         _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
 //         _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
         _v = _outp;
+    }
+    else if (activation_type == 5)
+    {
+		_v = vmulq_f32(_v, tanh_ps(log_ps(vaddq_f32(exp_ps(_v), vdupq_n_f32(1.f)))));
     }
 
     return _v;
