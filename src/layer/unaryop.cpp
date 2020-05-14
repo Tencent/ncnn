@@ -14,7 +14,6 @@
 
 #include "unaryop.h"
 #include <math.h>
-#include <functional>
 
 namespace ncnn {
 
