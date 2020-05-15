@@ -17,7 +17,6 @@
 #include <limits.h>
 #include <math.h>
 #include <algorithm>
-#include <functional>
 
 namespace ncnn {
 
@@ -762,6 +761,16 @@ struct post_process_log {
 };
 
 template<typename T>
+struct reduction_op_add {
+    T operator() (const T& x, const T& y) const { return x + y; }
+};
+
+template<typename T>
+struct reduction_op_mul {
+    T operator() (const T& x, const T& y) const { return x * y; }
+};
+
+template<typename T>
 struct reduction_op_asum {
     T operator() (const T& x, const T& y) const { return static_cast<T>(x + fabs(y)); }
 };
@@ -833,13 +842,13 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     }
 
     if (operation == ReductionOp_SUM)
-        return reduction< std::plus<float>, std::plus<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
+        return reduction< reduction_op_add<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
 
     if (operation == ReductionOp_ASUM)
-        return reduction< reduction_op_asum<float>, std::plus<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
+        return reduction< reduction_op_asum<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
 
     if (operation == ReductionOp_SUMSQ)
-        return reduction< reduction_op_sumsq<float>, std::plus<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
+        return reduction< reduction_op_sumsq<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
 
     if (operation == ReductionOp_MEAN)
     {
@@ -862,7 +871,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
         }
 
         float coeff_mean = coeff / scale;
-        return reduction< std::plus<float>, std::plus<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, coeff_mean, keepdims, opt);
+        return reduction< reduction_op_add<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, coeff_mean, keepdims, opt);
     }
 
     if (operation == ReductionOp_MAX)
@@ -872,19 +881,19 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
         return reduction< reduction_op_min<float>, reduction_op_min<float>, post_process_identity<float> >(bottom_blob, top_blob, FLT_MAX, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
 
     if (operation == ReductionOp_PROD)
-        return reduction< std::multiplies<float>, std::multiplies<float>, post_process_identity<float> >(bottom_blob, top_blob, 1.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
+        return reduction< reduction_op_mul<float>, reduction_op_mul<float>, post_process_identity<float> >(bottom_blob, top_blob, 1.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
     
     if (operation == ReductionOp_L1)
-        return reduction< reduction_op_asum<float>, std::plus<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, 1.f, keepdims, opt);
+        return reduction< reduction_op_asum<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, 1.f, keepdims, opt);
 
     if (operation == ReductionOp_L2)
-        return reduction< reduction_op_sumsq<float>, std::plus<float>, post_process_sqrt<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
+        return reduction< reduction_op_sumsq<float>, reduction_op_add<float>, post_process_sqrt<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
     
     if (operation == ReductionOp_LogSum)
-        return reduction< std::plus<float>, std::plus<float>, post_process_log<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
+        return reduction< reduction_op_add<float>, reduction_op_add<float>, post_process_log<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
     
     if (operation == ReductionOp_LogSumExp)
-        return reduction< reduction_op_sumsexp<float>, std::plus<float>, post_process_log<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
+        return reduction< reduction_op_sumsexp<float>, reduction_op_add<float>, post_process_log<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
 
     return 0;
 }

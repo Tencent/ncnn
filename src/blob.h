@@ -15,8 +15,6 @@
 #ifndef NCNN_BLOB_H
 #define NCNN_BLOB_H
 
-#include <string>
-#include <vector>
 #include "platform.h"
 #include "mat.h"
 

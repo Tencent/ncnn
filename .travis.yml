@@ -31,6 +31,24 @@ matrix:
         - NAME=linux-clang
         - BUILD="mkdir build && cd build && cmake .. && make -j2 && ctest --output-on-failure -j 2"
 
+    - name: "linux-gcc-arm64-simplestl"
+      os: linux
+      arch: arm64
+      dist: bionic
+      compiler: gcc
+      env:
+        - NAME=linux-gcc-simplestl
+        - BUILD="mkdir build && cd build && cmake -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF .. && make -j2 && ctest --output-on-failure -j 2"
+
+    - name: "linux-clang-arm64-simplestl"
+      os: linux
+      arch: arm64
+      dist: bionic
+      compiler: clang
+      env:
+        - NAME=linux-clang-simplestl
+        - BUILD="mkdir build && cd build && cmake -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF .. && make -j2 && ctest --output-on-failure -j 2"
+
     - name: "windows-vs2017"
       os: windows
       dist: 1803-containers
@@ -55,6 +73,15 @@ matrix:
         - NAME=linux-gcc-arm32
         - BEFORE_BUILD="sudo dpkg --add-architecture armhf && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
         - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF - .. && make -j2 VERBOSE=1 && ctest --output-on-failure -j 2"
+
+    - name: "linux-gcc-arm32-simplestl"
+      os: linux
+      arch: arm64
+      dist: bionic
+      env:
+        - NAME=linux-gcc-arm32-simplestl
+        - BEFORE_BUILD="sudo dpkg --add-architecture armhf && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
+        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF - .. && make -j2 VERBOSE=1 && ctest --output-on-failure -j 2"
 
     - name: "test-coverage-arm32"
       os: linux
