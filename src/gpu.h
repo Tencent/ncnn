@@ -20,7 +20,6 @@
 #if NCNN_VULKAN
 
 #include <vulkan/vulkan.h>
-#include <vector>
 #include "mat.h"
 
 namespace ncnn {

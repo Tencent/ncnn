@@ -15,7 +15,6 @@
 #include "binaryop.h"
 #include <math.h>
 #include <algorithm>
-#include <functional>
 
 namespace ncnn {
 
@@ -488,6 +487,26 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 }
 
 template<typename T>
+struct binary_op_add {
+    T operator() (const T& x, const T& y) const { return x + y; }
+};
+
+template<typename T>
+struct binary_op_sub {
+    T operator() (const T& x, const T& y) const { return x - y; }
+};
+
+template<typename T>
+struct binary_op_mul {
+    T operator() (const T& x, const T& y) const { return x * y; }
+};
+
+template<typename T>
+struct binary_op_div {
+    T operator() (const T& x, const T& y) const { return x / y; }
+};
+
+template<typename T>
 struct binary_op_max {
     T operator() (const T& x, const T& y) const { return std::max(x, y); }
 };
@@ -520,16 +539,16 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     Mat& top_blob = top_blobs[0];
 
     if (op_type == Operation_ADD)
-        return binary_op< std::plus<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op< binary_op_add<float> >(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_SUB)
-        return binary_op< std::minus<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op< binary_op_sub<float> >(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_MUL)
-        return binary_op< std::multiplies<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op< binary_op_mul<float> >(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_DIV)
-        return binary_op< std::divides<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op< binary_op_div<float> >(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_MAX)
         return binary_op< binary_op_max<float> >(bottom_blob, bottom_blob1, top_blob, opt);
@@ -552,16 +571,16 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (op_type == Operation_ADD)
-        return binary_op_scalar_inplace< std::plus<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace< binary_op_add<float> >(bottom_top_blob, b, opt);
 
     if (op_type == Operation_SUB)
-        return binary_op_scalar_inplace< std::minus<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace< binary_op_sub<float> >(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MUL)
-        return binary_op_scalar_inplace< std::multiplies<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace< binary_op_mul<float> >(bottom_top_blob, b, opt);
 
     if (op_type == Operation_DIV)
-        return binary_op_scalar_inplace< std::divides<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace< binary_op_div<float> >(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MAX)
         return binary_op_scalar_inplace< binary_op_max<float> >(bottom_top_blob, b, opt);

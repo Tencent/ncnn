@@ -15,7 +15,6 @@
 #include "modelbin.h"
 
 #include <string.h>
-#include <vector>
 #include "datareader.h"
 
 namespace ncnn {

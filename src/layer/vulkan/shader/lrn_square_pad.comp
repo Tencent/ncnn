@@ -42,8 +42,13 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, r32f) writeonly uniform highp image3D square_workspace;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer square_workspace { float square_workspace_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -77,8 +82,12 @@ void main()
 
         if (z >= 0 && z < psc(c))
         {
+#if NCNN_image_shader
+            afp v = image3d_ld1(bottom_blob, ivec3(gx, gy, z));
+#else
             int v_offset = z * psc(cstep) + gy * psc(w) + gx;
             afp v = buffer_ld1(bottom_blob_data, v_offset);
+#endif
             res = v * v;
         }
         else
@@ -93,8 +102,12 @@ void main()
 
         if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
         {
+#if NCNN_image_shader
+            afp v = image3d_ld1(bottom_blob, ivec3(x, y, gz));
+#else
             int v_offset = gz * psc(cstep) + y * psc(w) + x;
             afp v = buffer_ld1(bottom_blob_data, v_offset);
+#endif
             res = v * v;
         }
         else
@@ -103,7 +116,11 @@ void main()
         }
     }
 
+#if NCNN_image_shader
+    imageStore(square_workspace, ivec3(gx, gy, gz), vec4(float(res)));
+#else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     square_workspace_data[gi] = float(res);
+#endif
 }
