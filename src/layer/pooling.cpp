@@ -55,7 +55,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     fprintf(stderr, "Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
+//     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
     if (global_pooling)
     {
         top_blob.create(channels, elemsize, opt.blob_allocator);
@@ -100,83 +100,13 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         return 0;
     }
 
-    Mat bottom_blob_bordered = bottom_blob;
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
 
-    float pad_value = 0.f;
-    if (pooling_type == PoolMethod_MAX)
-    {
-        pad_value = -FLT_MAX;
-    }
-    else if (pooling_type == PoolMethod_AVE)
-    {
-        pad_value = 0.f;
-    }
-
-    int wtailpad = 0;
-    int htailpad = 0;
-
-    if (pad_mode == 0) // full padding
-    {
-        int wtail = (w + pad_left + pad_right - kernel_w) % stride_w;
-        int htail = (h + pad_top + pad_bottom - kernel_h) % stride_h;
-
-        if (wtail != 0)
-            wtailpad = stride_w - wtail;
-        if (htail != 0)
-            htailpad = stride_h - htail;
-
-        Option opt_b = opt;
-        opt_b.blob_allocator = opt.workspace_allocator;
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt_b);
-        if (bottom_blob_bordered.empty())
-            return -100;
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
-    }
-    else if (pad_mode == 1) // valid padding
-    {
-        Option opt_b = opt;
-        opt_b.blob_allocator = opt.workspace_allocator;
-        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
-        if (bottom_blob_bordered.empty())
-            return -100;
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
-    }
-    else if (pad_mode == 2) // tensorflow padding=SAME or onnx padding=SAME_UPPER
-    {
-        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-            if (bottom_blob_bordered.empty())
-                return -100;
-        }
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
-    }
-    else if (pad_mode == 3) // onnx padding=SAME_LOWER
-    {
-        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
-        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
-            if (bottom_blob_bordered.empty())
-                return -100;
-        }
-
-        w = bottom_blob_bordered.w;
-        h = bottom_blob_bordered.h;
-    }
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
 
     int outw = (w - kernel_w) / stride_w + 1;
     int outh = (h - kernel_h) / stride_h + 1;
@@ -237,83 +167,163 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     }
     else if (pooling_type == PoolMethod_AVE)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        if (avgpool_count_include_pad == 0)
         {
-            const Mat m = bottom_blob_bordered.channel(q);
-            float* outptr = top_blob.channel(q);
+            int wtailpad = 0;
+            int htailpad = 0;
 
-            for (int i = 0; i < outh; i++)
+            if (pad_mode == 0) // full padding
             {
-                for (int j = 0; j < outw; j++)
-                {
-                    const float* sptr = m.row(i*stride_h) + j*stride_w;
-
-                    float sum = 0;
-
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        float val = sptr[ space_ofs[k] ];
-                        sum += val;
-                    }
-
-                    outptr[j] = sum / maxk;
-                }
-
-                outptr += outw;
+                wtailpad = bottom_blob_bordered.w - bottom_blob.w - pad_left - pad_right;
+                htailpad = bottom_blob_bordered.h - bottom_blob.h - pad_top - pad_bottom;
             }
 
-            if (avgpool_count_include_pad == 0)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
             {
-                // fix pad
-                if (pad_top != 0)
-                {
-                    const float scale = (float)kernel_h / (kernel_h - pad_top);
+                const Mat m = bottom_blob_bordered.channel(q);
+                float* outptr = top_blob.channel(q);
 
-                    outptr = top_blob.channel(q).row(0);
-                    for (int i = 0; i < outw; i++)
+                for (int i = 0; i < outh; i++)
+                {
+                    int sy0 = i * stride_h;
+
+                    for (int j = 0; j < outw; j++)
                     {
-                        outptr[i] *= scale;
+                        int sx0 = j * stride_w;
+
+                        float sum = 0;
+                        int area = 0;
+
+                        for (int ki = 0; ki < kernel_h; ki++)
+                        {
+                            int sy = sy0 + ki;
+
+                            if (sy < pad_top)
+                                continue;
+
+                            if (sy >= h - pad_bottom - htailpad)
+                                break;
+
+                            for (int kj = 0; kj < kernel_w; kj++)
+                            {
+                                int sx = sx0 + kj;
+
+                                if (sx < pad_left)
+                                    continue;
+
+                                if (sx >= w - pad_right - wtailpad)
+                                    break;
+
+                                float val = m.row(sy)[sx];
+                                sum += val;
+                                area += 1;
+                            }
+                        }
+
+                        outptr[j] = sum / area;
                     }
+
+                    outptr += outw;
                 }
-                if (pad_bottom + htailpad != 0)
-                {
-                    const float scale = (float)kernel_h / (kernel_h - pad_bottom - htailpad);
+            }
+        }
+        else // if (avgpool_count_include_pad == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q=0; q<channels; q++)
+            {
+                const Mat m = bottom_blob_bordered.channel(q);
+                float* outptr = top_blob.channel(q);
 
-                    outptr = top_blob.channel(q).row(outh - 1);
-                    for (int i = 0; i < outw; i++)
-                    {
-                        outptr[i] *= scale;
-                    }
-                }
-                if (pad_left != 0)
+                for (int i = 0; i < outh; i++)
                 {
-                    const float scale = (float)kernel_w / (kernel_w - pad_left);
-
-                    outptr = top_blob.channel(q);
-                    for (int i = 0; i < outh; i++)
+                    for (int j = 0; j < outw; j++)
                     {
-                        *outptr *= scale;
-                        outptr += outw;
-                    }
-                }
-                if (pad_right + wtailpad != 0)
-                {
-                    const float scale = (float)kernel_w / (kernel_w - pad_right - wtailpad);
+                        const float* sptr = m.row(i*stride_h) + j*stride_w;
 
-                    outptr = top_blob.channel(q);
-                    outptr += outw - 1;
-                    for (int i = 0; i < outh; i++)
-                    {
-                        *outptr *= scale;
-                        outptr += outw;
+                        float sum = 0;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            float val = sptr[ space_ofs[k] ];
+                            sum += val;
+                        }
+
+                        outptr[j] = sum / maxk;
                     }
+
+                    outptr += outw;
                 }
             }
         }
     }
 
     return 0;
+}
+
+void Pooling::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+
+    bottom_blob_bordered = bottom_blob;
+
+    float pad_value = 0.f;
+    if (pooling_type == PoolMethod_MAX)
+    {
+        pad_value = bottom_blob.elemsize == 1 ? -128.f : -FLT_MAX;
+    }
+    else if (pooling_type == PoolMethod_AVE)
+    {
+        pad_value = 0.f;
+    }
+
+    int wtailpad = 0;
+    int htailpad = 0;
+
+    if (pad_mode == 0) // full padding
+    {
+        int wtail = (w + pad_left + pad_right - kernel_w) % stride_w;
+        int htail = (h + pad_top + pad_bottom - kernel_h) % stride_h;
+
+        if (wtail != 0)
+            wtailpad = stride_w - wtail;
+        if (htail != 0)
+            htailpad = stride_h - htail;
+
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom + htailpad, pad_left, pad_right + wtailpad, BORDER_CONSTANT, pad_value, opt_b);
+    }
+    else if (pad_mode == 1) // valid padding
+    {
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        copy_make_border(bottom_blob, bottom_blob_bordered, pad_top, pad_bottom, pad_left, pad_right, BORDER_CONSTANT, pad_value, opt_b);
+    }
+    else if (pad_mode == 2) // tensorflow padding=SAME or onnx padding=SAME_UPPER
+    {
+        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+        }
+    }
+    else if (pad_mode == 3) // onnx padding=SAME_LOWER
+    {
+        int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
+        int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
+        if (wpad > 0 || hpad > 0)
+        {
+            Option opt_b = opt;
+            opt_b.blob_allocator = opt.workspace_allocator;
+            copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
+        }
+    }
 }
 
 } // namespace ncnn

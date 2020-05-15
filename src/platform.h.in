@@ -18,6 +18,7 @@
 #cmakedefine01 NCNN_STDIO
 #cmakedefine01 NCNN_STRING
 #cmakedefine01 NCNN_OPENCV
+#cmakedefine01 NCNN_SIMPLESTL
 #cmakedefine01 NCNN_BENCHMARK
 #cmakedefine01 NCNN_PIXEL
 #cmakedefine01 NCNN_PIXEL_ROTATE
@@ -25,7 +26,7 @@
 #cmakedefine01 NCNN_REQUANT
 #cmakedefine01 NCNN_AVX2
 
-#ifdef _WIN32
+#if (defined _WIN32 && !(defined __MINGW32__))
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <process.h>
@@ -33,9 +34,13 @@
 #include <pthread.h>
 #endif
 
+#if __ANDROID_API__ >= 26
+#define VK_USE_PLATFORM_ANDROID_KHR
+#endif // __ANDROID_API__ >= 26
+
 namespace ncnn {
 
-#ifdef _WIN32
+#if (defined _WIN32 && !(defined __MINGW32__))
 class Mutex
 {
 public:
@@ -71,7 +76,7 @@ private:
     Mutex& mutex;
 };
 
-#if _WIN32
+#if (defined _WIN32 && !(defined __MINGW32__))
 class ConditionVariable
 {
 public:
@@ -97,7 +102,7 @@ private:
 };
 #endif // _WIN32
 
-#if _WIN32
+#if (defined _WIN32 && !(defined __MINGW32__))
 static unsigned __stdcall start_wrapper(void* args);
 class Thread
 {
@@ -130,5 +135,19 @@ private:
 #endif // _WIN32
 
 } // namespace ncnn
+
+#if NCNN_SIMPLESTL
+#include "simplestl.h"
+#else
+#include <vector>
+#include <string>
+#endif
+
+#if NCNN_STDIO
+#include <stdio.h>
+#define NCNN_LOGE(...) do { fprintf(stderr, ##__VA_ARGS__); fprintf(stderr, "\n"); } while(0)
+#else
+#define NCNN_LOGE(...)
+#endif
 
 #endif // NCNN_PLATFORM_H

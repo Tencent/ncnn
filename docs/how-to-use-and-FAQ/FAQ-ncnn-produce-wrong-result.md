@@ -36,16 +36,16 @@ ncnn::Mat in_bgr = ncnn::Mat::from_pixels(rgb_data, ncnn::Mat::PIXEL_RGB2BGR, w,
 ncnn::Mat in_rgb = ncnn::Mat::from_pixels(bgr_data, ncnn::Mat::PIXEL_BGR2RGB, w, h);
 ```
 
-### Mat::from_pixels/from_pixels_resize assume that the pixel data is continous
+### Mat::from_pixels/from_pixels_resize assume that the pixel data is continuous
 
-You shall pass continous pixel buffer to from_pixels family.
+You shall pass continuous pixel buffer to from_pixels family.
 
-If your image is an opencv submat from an image roi, call clone() to get a continous one.
+If your image is an opencv submat from an image roi, call clone() to get a continuous one.
 ```
 cv::Mat image;// the image
 cv::Rect facerect;// the face rectangle
 
-cv::Mat faceimage = image(facerect).clone();// get a continous sub image
+cv::Mat faceimage = image(facerect).clone();// get a continuous sub image
 
 ncnn::Mat in = ncnn::Mat::from_pixels(faceimage.data, ncnn::Mat::PIXEL_BGR, faceimage.cols, faceimage.rows);
 ```
@@ -117,7 +117,7 @@ blob may have gaps between channels if (width x height) can not divided exactly 
 
 Prefer using ncnn::Mat::from_pixels or ncnn::Mat::from_pixels_resize for constructing input blob from image data
 
-If you do need a continous blob buffer, reshape the output.
+If you do need a continuous blob buffer, reshape the output.
 ```
 // out is the output blob extracted
 ncnn::Mat flattened_out = out.reshape(out.w * out.h * out.c);
@@ -140,4 +140,17 @@ for (int i=0; i<count; i++)
     // use
     ex.input(your_data[i]);
 }
+```
+
+### use proper loading api
+
+If you want to load plain param file buffer, you shall use Net::load_param_mem instead of Net::load_param.
+
+For more information about the ncnn model load api, see [ncnn-load-model](ncnn-load-model)
+
+```
+ncnn::Net net;
+
+// param_buffer is the content buffe of XYZ.param file
+net.load_param_mem(param_buffer);
 ```

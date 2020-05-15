@@ -18,7 +18,7 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
 layout (constant_id = 0) const int flip = 0;
@@ -32,6 +32,10 @@ layout (constant_id = 7) const int num_min_size = 0;
 layout (constant_id = 8) const int num_max_size = 0;
 layout (constant_id = 9) const int num_aspect_ratio = 0;
 layout (constant_id = 10) const int num_prior = 0;
+
+#define shape_constant_id_offset 11
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -63,12 +67,12 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= num_min_size || gy >= p.w || gz >= p.h)
+    if (gx >= num_min_size || gy >= psc(w) || gz >= psc(h))
         return;
 
     // anchor and variance
-    int v_offset = (gz * p.w + gy) * num_prior + gx;
-    int var_offset = p.w * p.h * num_prior + v_offset;
+    int v_offset = (gz * psc(w) + gy) * num_prior + gx;
+    int var_offset = psc(w) * psc(h) * num_prior + v_offset;
 
     afp center_x = (afp(gy) + afp(offset)) * afp(p.step_w);
     afp center_y = (afp(gz) + afp(offset)) * afp(p.step_h);
@@ -81,14 +85,9 @@ void main()
     afp box_w;
     afp box_h;
 
-    afp min_size = sfp2afp(min_sizes_data[gx]);
+    afp min_size = buffer_ld1(min_sizes_data, gx);
 
-#if NCNN_fp16_packed
-    vec4 variances = vec4(variances_0, variances_1, variances_2, variances_3);
-#elif !NCNN_fp16_storage
-    // per component assignment makes qcom-adreno driver unhappy :(
-    sfpvec4 variances = sfpvec4(variances_0, variances_1, variances_2, variances_3);
-#endif
+    afpvec4 variances = afpvec4(variances_0, variances_1, variances_2, variances_3);
 
     // min size box
     box_w = box_h = min_size;
@@ -98,25 +97,10 @@ void main()
 
 #if NCNN_fp16_packed
     top_blob_data[v_offset] = vec4(box);
+    top_blob_data[var_offset] = vec4(variances);
 #else
-    top_blob_data[v_offset] = afp2sfpvec4(box);
-#endif
-#if NCNN_fp16_packed || !NCNN_fp16_storage
-    top_blob_data[var_offset] = variances;
-#elif NCNN_fp16_storage
-    float variances_0_fp32 = variances_0;
-    float variances_1_fp32 = variances_1;
-    float variances_2_fp32 = variances_2;
-    float variances_3_fp32 = variances_3;
-    top_blob_data[var_offset].r = sfp(variances_0_fp32);
-    top_blob_data[var_offset].g = sfp(variances_1_fp32);
-    top_blob_data[var_offset].b = sfp(variances_2_fp32);
-    top_blob_data[var_offset].a = sfp(variances_3_fp32);
-#else
-    top_blob_data[var_offset].r = sfp(variances_0);
-    top_blob_data[var_offset].g = sfp(variances_1);
-    top_blob_data[var_offset].b = sfp(variances_2);
-    top_blob_data[var_offset].a = sfp(variances_3);
+    buffer_st4(top_blob_data, v_offset, box);
+    buffer_st4(top_blob_data, var_offset, variances);
 #endif
 
     v_offset += 1;
@@ -124,7 +108,7 @@ void main()
 
     if (num_max_size > 0)
     {
-        afp max_size = sfp2afp(max_sizes_data[gx]);
+        afp max_size = buffer_ld1(max_sizes_data, gx);
 
         // max size box
         box_w = box_h = sqrt(min_size * max_size);
@@ -134,26 +118,12 @@ void main()
 
 #if NCNN_fp16_packed
         top_blob_data[v_offset] = vec4(box);
+        top_blob_data[var_offset] = vec4(variances);
 #else
-        top_blob_data[v_offset] = afp2sfpvec4(box);
+        buffer_st4(top_blob_data, v_offset, box);
+        buffer_st4(top_blob_data, var_offset, variances);
 #endif
-#if NCNN_fp16_packed || !NCNN_fp16_storage
-        top_blob_data[var_offset] = variances;
-#elif NCNN_fp16_storage
-        float variances_0_fp32 = variances_0;
-        float variances_1_fp32 = variances_1;
-        float variances_2_fp32 = variances_2;
-        float variances_3_fp32 = variances_3;
-        top_blob_data[var_offset].r = sfp(variances_0_fp32);
-        top_blob_data[var_offset].g = sfp(variances_1_fp32);
-        top_blob_data[var_offset].b = sfp(variances_2_fp32);
-        top_blob_data[var_offset].a = sfp(variances_3_fp32);
-#else
-        top_blob_data[var_offset].r = sfp(variances_0);
-        top_blob_data[var_offset].g = sfp(variances_1);
-        top_blob_data[var_offset].b = sfp(variances_2);
-        top_blob_data[var_offset].a = sfp(variances_3);
-#endif
+
         v_offset += 1;
         var_offset += 1;
     }
@@ -161,7 +131,7 @@ void main()
     // all aspect_ratios
     for (int pi = 0; pi < num_aspect_ratio; pi++)
     {
-        afp ar = sfp2afp(aspect_ratios_data[pi]);
+        afp ar = buffer_ld1(aspect_ratios_data, pi);
 
         box_w = min_size * sqrt(ar);
         box_h = min_size / sqrt(ar);
@@ -171,25 +141,10 @@ void main()
 
 #if NCNN_fp16_packed
         top_blob_data[v_offset] = vec4(box);
+        top_blob_data[var_offset] = vec4(variances);
 #else
-        top_blob_data[v_offset] = afp2sfpvec4(box);
-#endif
-#if NCNN_fp16_packed || !NCNN_fp16_storage
-        top_blob_data[var_offset] = variances;
-#elif NCNN_fp16_storage
-        float variances_0_fp32 = variances_0;
-        float variances_1_fp32 = variances_1;
-        float variances_2_fp32 = variances_2;
-        float variances_3_fp32 = variances_3;
-        top_blob_data[var_offset].r = sfp(variances_0_fp32);
-        top_blob_data[var_offset].g = sfp(variances_1_fp32);
-        top_blob_data[var_offset].b = sfp(variances_2_fp32);
-        top_blob_data[var_offset].a = sfp(variances_3_fp32);
-#else
-        top_blob_data[var_offset].r = sfp(variances_0);
-        top_blob_data[var_offset].g = sfp(variances_1);
-        top_blob_data[var_offset].b = sfp(variances_2);
-        top_blob_data[var_offset].a = sfp(variances_3);
+        buffer_st4(top_blob_data, v_offset, box);
+        buffer_st4(top_blob_data, var_offset, variances);
 #endif
 
         v_offset += 1;
@@ -202,25 +157,10 @@ void main()
 
 #if NCNN_fp16_packed
             top_blob_data[v_offset] = vec4(box);
+            top_blob_data[var_offset] = vec4(variances);
 #else
-            top_blob_data[v_offset] = afp2sfpvec4(box);
-#endif
-#if NCNN_fp16_packed || !NCNN_fp16_storage
-            top_blob_data[var_offset] = variances;
-#elif NCNN_fp16_storage
-            float variances_0_fp32 = variances_0;
-            float variances_1_fp32 = variances_1;
-            float variances_2_fp32 = variances_2;
-            float variances_3_fp32 = variances_3;
-            top_blob_data[var_offset].r = sfp(variances_0_fp32);
-            top_blob_data[var_offset].g = sfp(variances_1_fp32);
-            top_blob_data[var_offset].b = sfp(variances_2_fp32);
-            top_blob_data[var_offset].a = sfp(variances_3_fp32);
-#else
-            top_blob_data[var_offset].r = sfp(variances_0);
-            top_blob_data[var_offset].g = sfp(variances_1);
-            top_blob_data[var_offset].b = sfp(variances_2);
-            top_blob_data[var_offset].a = sfp(variances_3);
+            buffer_st4(top_blob_data, v_offset, box);
+            buffer_st4(top_blob_data, var_offset, variances);
 #endif
 
             v_offset += 1;

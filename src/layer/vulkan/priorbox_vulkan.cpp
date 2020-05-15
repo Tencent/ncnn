@@ -15,6 +15,7 @@
 #include "priorbox_vulkan.h"
 #include <algorithm>
 #include <math.h>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -30,6 +31,32 @@ PriorBox_vulkan::PriorBox_vulkan()
 
 int PriorBox_vulkan::create_pipeline(const Option& opt)
 {
+    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    size_t elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+    }
+
+    Mat shape_packed;
+    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+
     // caffe style
     {
         int num_min_size = min_sizes.w;
@@ -40,7 +67,7 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
         if (flip)
             num_prior += num_min_size * num_aspect_ratio;
 
-        std::vector<vk_specialization_type> specializations(11);
+        std::vector<vk_specialization_type> specializations(11 + 2);
         specializations[0].i = flip;
         specializations[1].i = clip;
         specializations[2].f = offset;
@@ -52,10 +79,12 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
         specializations[8].i = num_max_size;
         specializations[9].i = num_aspect_ratio;
         specializations[10].i = num_prior;
+        specializations[11 + 0].i = shape_packed.w;
+        specializations[11 + 1].i = shape_packed.h;
 
         pipeline_priorbox = new Pipeline(vkdev);
         pipeline_priorbox->set_optimal_local_size_xyz();
-        pipeline_priorbox->create("priorbox", opt, specializations, 4, 6);
+        pipeline_priorbox->create(LayerShaderType::priorbox, opt, specializations);
     }
 
     // mxnet style
@@ -65,16 +94,18 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
 
         int num_prior = num_sizes - 1 + num_ratios;
 
-        std::vector<vk_specialization_type> specializations(5);
+        std::vector<vk_specialization_type> specializations(5 + 2);
         specializations[0].i = clip;
         specializations[1].f = offset;
         specializations[2].i = num_sizes;
         specializations[3].i = num_ratios;
         specializations[4].i = num_prior;
+        specializations[5 + 0].i = shape_packed.w;
+        specializations[5 + 1].i = shape_packed.h;
 
         pipeline_priorbox_mxnet = new Pipeline(vkdev);
         pipeline_priorbox_mxnet->set_optimal_local_size_xyz();
-        pipeline_priorbox_mxnet->create("priorbox_mxnet", opt, specializations, 3, 4);
+        pipeline_priorbox_mxnet->create(LayerShaderType::priorbox_mxnet, opt, specializations);
     }
 
     return 0;
@@ -107,12 +138,6 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
 {
     int w = bottom_blobs[0].w;
     int h = bottom_blobs[0].h;
-    size_t elemsize = 4u;
-
-    if (opt.use_fp16_storage)
-    {
-        elemsize = 2u;
-    }
 
     if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes.empty())
     {
@@ -129,8 +154,16 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
 
         int num_prior = num_sizes - 1 + num_ratios;
 
+        int elempack = 4;
+
+        size_t elemsize = elempack * 4u;
+        if (opt.use_fp16_packed || opt.use_fp16_storage)
+        {
+            elemsize = elempack * 2u;
+        }
+
         VkMat& top_blob = top_blobs[0];
-        top_blob.create(4 * w * h * num_prior, elemsize, 1, opt.blob_vkallocator, opt.staging_vkallocator);
+        top_blob.create(4 * w * h * num_prior / elempack, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -177,8 +210,14 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     if (flip)
         num_prior += num_min_size * num_aspect_ratio;
 
+    size_t elemsize = 4u;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = 2u;
+    }
+
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(4 * w * h * num_prior, 2, elemsize, 1, opt.blob_vkallocator, opt.staging_vkallocator);
+    top_blob.create(4 * w * h * num_prior, 2, elemsize, 1, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 

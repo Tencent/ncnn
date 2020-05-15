@@ -29,10 +29,14 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-public:
-    bool use_fp32_packing_inference;
+protected:
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+public:
     ncnn::Layer* flatten;
+
+    // bf16
+    Mat weight_data_bf16;
 };
 
 } // namespace ncnn

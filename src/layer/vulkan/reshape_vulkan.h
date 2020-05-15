@@ -29,12 +29,18 @@ public:
 
     using Reshape::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_reshape;
     Pipeline* pipeline_reshape_pack4;
     Pipeline* pipeline_reshape_pack1to4;
     Pipeline* pipeline_reshape_pack4to1;
+    Pipeline* pipeline_reshape_pack8;
+    Pipeline* pipeline_reshape_pack1to8;
+    Pipeline* pipeline_reshape_pack4to8;
+    Pipeline* pipeline_reshape_pack8to4;
+    Pipeline* pipeline_reshape_pack8to1;
 };
 
 } // namespace ncnn

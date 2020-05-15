@@ -18,8 +18,15 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
+
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
@@ -44,29 +51,19 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-    if (p.dims == 1)
-    {
-        afpvec4 v = sfp2afpvec4(b_data[gx]) * sfp2afpvec4(bottom_top_blob_data[gx]) + sfp2afpvec4(a_data[gx]);
-        bottom_top_blob_data[gx] = afp2sfpvec4(v);
-        return;
-    }
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
-    if (p.dims == 2)
-    {
-        const int gi = gy * p.w + gx;
-        afpvec4 v = sfp2afpvec4(b_data[gy]) * sfp2afpvec4(bottom_top_blob_data[gi]) + sfp2afpvec4(a_data[gy]);
-        bottom_top_blob_data[gi] = afp2sfpvec4(v);
-        return;
-    }
+    const ivec3 gxyz = ivec3(gx, gy, gz);
+    const int abi = gxyz[psc(dims) - 1];
 
-    if (p.dims == 3)
-    {
-        const int gi = gz * p.cstep + gy * p.w + gx;
-        afpvec4 v = sfp2afpvec4(b_data[gz]) * sfp2afpvec4(bottom_top_blob_data[gi]) + sfp2afpvec4(a_data[gz]);
-        bottom_top_blob_data[gi] = afp2sfpvec4(v);
-        return;
-    }
+    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+    afpvec4 b = buffer_ld4(b_data, abi);
+    afpvec4 a = buffer_ld4(a_data, abi);
+
+    v = b * v + a;
+
+    buffer_st4(bottom_top_blob_data, gi, v);
 }

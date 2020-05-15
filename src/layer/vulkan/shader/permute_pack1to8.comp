@@ -1,0 +1,284 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+layout (constant_id = 0) const int order_type = 0;
+
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
+layout (local_size_x_id = 233) in;
+layout (local_size_y_id = 234) in;
+layout (local_size_z_id = 235) in;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
+layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
+#else
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+        return;
+
+#if NCNN_image_shader
+    if (psc(dims) == 2)
+    {
+        // order_type
+        // 0 = w h
+        // 1 = h w
+
+        afpvec8 v;
+
+        if (order_type == 0)
+        {
+            ivec4 y4 = gy * 8 + ivec4(0, 1, 2, 3);
+            ivec4 yy4 = y4 + 4;
+
+            v[0].r = image2d_ld1(bottom_blob_2d, ivec2(gx, y4.r));
+            v[0].g = image2d_ld1(bottom_blob_2d, ivec2(gx, y4.g));
+            v[0].b = image2d_ld1(bottom_blob_2d, ivec2(gx, y4.b));
+            v[0].a = image2d_ld1(bottom_blob_2d, ivec2(gx, y4.a));
+            v[1].r = image2d_ld1(bottom_blob_2d, ivec2(gx, yy4.r));
+            v[1].g = image2d_ld1(bottom_blob_2d, ivec2(gx, yy4.g));
+            v[1].b = image2d_ld1(bottom_blob_2d, ivec2(gx, yy4.b));
+            v[1].a = image2d_ld1(bottom_blob_2d, ivec2(gx, yy4.a));
+        }
+        if (order_type == 1)
+        {
+            ivec4 x4 = gy * 8 + ivec4(0, 1, 2, 3);
+            ivec4 xx4 = x4 + 4;
+
+            v[0].r = image2d_ld1(bottom_blob_2d, ivec2(x4.r, gx));
+            v[0].g = image2d_ld1(bottom_blob_2d, ivec2(x4.g, gx));
+            v[0].b = image2d_ld1(bottom_blob_2d, ivec2(x4.b, gx));
+            v[0].a = image2d_ld1(bottom_blob_2d, ivec2(x4.a, gx));
+            v[1].r = image2d_ld1(bottom_blob_2d, ivec2(xx4.r, gx));
+            v[1].g = image2d_ld1(bottom_blob_2d, ivec2(xx4.g, gx));
+            v[1].b = image2d_ld1(bottom_blob_2d, ivec2(xx4.b, gx));
+            v[1].a = image2d_ld1(bottom_blob_2d, ivec2(xx4.a, gx));
+        }
+
+        image2d_st8(top_blob_2d, ivec2(gx, gy), v);
+    }
+    else // if (psc(dims) == 3)
+    {
+        // order_type
+        // 0 = w h c
+        // 1 = h w c
+        // 2 = w c h
+        // 3 = c w h
+        // 4 = h c w
+        // 5 = c h w
+
+        afpvec8 v;
+
+        if (order_type == 0)
+        {
+            ivec4 z4 = gz * 8 + ivec4(0, 1, 2, 3);
+            ivec4 zz4 = z4 + 4;
+
+            v[0].r = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4.r));
+            v[0].g = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4.g));
+            v[0].b = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4.b));
+            v[0].a = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, z4.a));
+            v[1].r = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, zz4.r));
+            v[1].g = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, zz4.g));
+            v[1].b = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, zz4.b));
+            v[1].a = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, zz4.a));
+        }
+        if (order_type == 1)
+        {
+            ivec4 z4 = gz * 8 + ivec4(0, 1, 2, 3);
+            ivec4 zz4 = z4 + 4;
+
+            v[0].r = image3d_ld1(bottom_blob_3d, ivec3(gy, gx, z4.r));
+            v[0].g = image3d_ld1(bottom_blob_3d, ivec3(gy, gx, z4.g));
+            v[0].b = image3d_ld1(bottom_blob_3d, ivec3(gy, gx, z4.b));
+            v[0].a = image3d_ld1(bottom_blob_3d, ivec3(gy, gx, z4.a));
+            v[1].r = image3d_ld1(bottom_blob_3d, ivec3(gy, gx, zz4.r));
+            v[1].g = image3d_ld1(bottom_blob_3d, ivec3(gy, gx, zz4.g));
+            v[1].b = image3d_ld1(bottom_blob_3d, ivec3(gy, gx, zz4.b));
+            v[1].a = image3d_ld1(bottom_blob_3d, ivec3(gy, gx, zz4.a));
+        }
+        if (order_type == 2)
+        {
+            ivec4 y4 = gz * 8 + ivec4(0, 1, 2, 3);
+            ivec4 yy4 = y4 + 4;
+
+            v[0].r = image3d_ld1(bottom_blob_3d, ivec3(gx, y4.r, gy));
+            v[0].g = image3d_ld1(bottom_blob_3d, ivec3(gx, y4.g, gy));
+            v[0].b = image3d_ld1(bottom_blob_3d, ivec3(gx, y4.b, gy));
+            v[0].a = image3d_ld1(bottom_blob_3d, ivec3(gx, y4.a, gy));
+            v[1].r = image3d_ld1(bottom_blob_3d, ivec3(gx, yy4.r, gy));
+            v[1].g = image3d_ld1(bottom_blob_3d, ivec3(gx, yy4.g, gy));
+            v[1].b = image3d_ld1(bottom_blob_3d, ivec3(gx, yy4.b, gy));
+            v[1].a = image3d_ld1(bottom_blob_3d, ivec3(gx, yy4.a, gy));
+        }
+        if (order_type == 3)
+        {
+            ivec4 y4 = gz * 8 + ivec4(0, 1, 2, 3);
+            ivec4 yy4 = y4 + 4;
+
+            v[0].r = image3d_ld1(bottom_blob_3d, ivec3(gy, y4.r, gx));
+            v[0].g = image3d_ld1(bottom_blob_3d, ivec3(gy, y4.g, gx));
+            v[0].b = image3d_ld1(bottom_blob_3d, ivec3(gy, y4.b, gx));
+            v[0].a = image3d_ld1(bottom_blob_3d, ivec3(gy, y4.a, gx));
+            v[1].r = image3d_ld1(bottom_blob_3d, ivec3(gy, yy4.r, gx));
+            v[1].g = image3d_ld1(bottom_blob_3d, ivec3(gy, yy4.g, gx));
+            v[1].b = image3d_ld1(bottom_blob_3d, ivec3(gy, yy4.b, gx));
+            v[1].a = image3d_ld1(bottom_blob_3d, ivec3(gy, yy4.a, gx));
+        }
+        if (order_type == 4)
+        {
+            ivec4 x4 = gz * 8 + ivec4(0, 1, 2, 3);
+            ivec4 xx4 = x4 + 4;
+
+            v[0].r = image3d_ld1(bottom_blob_3d, ivec3(x4.r, gx, gy));
+            v[0].g = image3d_ld1(bottom_blob_3d, ivec3(x4.g, gx, gy));
+            v[0].b = image3d_ld1(bottom_blob_3d, ivec3(x4.b, gx, gy));
+            v[0].a = image3d_ld1(bottom_blob_3d, ivec3(x4.a, gx, gy));
+            v[1].r = image3d_ld1(bottom_blob_3d, ivec3(xx4.r, gx, gy));
+            v[1].g = image3d_ld1(bottom_blob_3d, ivec3(xx4.g, gx, gy));
+            v[1].b = image3d_ld1(bottom_blob_3d, ivec3(xx4.b, gx, gy));
+            v[1].a = image3d_ld1(bottom_blob_3d, ivec3(xx4.a, gx, gy));
+        }
+        if (order_type == 5)
+        {
+            ivec4 x4 = gz * 8 + ivec4(0, 1, 2, 3);
+            ivec4 xx4 = x4 + 4;
+
+            v[0].r = image3d_ld1(bottom_blob_3d, ivec3(x4.r, gy, gx));
+            v[0].g = image3d_ld1(bottom_blob_3d, ivec3(x4.g, gy, gx));
+            v[0].b = image3d_ld1(bottom_blob_3d, ivec3(x4.b, gy, gx));
+            v[0].a = image3d_ld1(bottom_blob_3d, ivec3(x4.a, gy, gx));
+            v[1].r = image3d_ld1(bottom_blob_3d, ivec3(xx4.r, gy, gx));
+            v[1].g = image3d_ld1(bottom_blob_3d, ivec3(xx4.g, gy, gx));
+            v[1].b = image3d_ld1(bottom_blob_3d, ivec3(xx4.b, gy, gx));
+            v[1].a = image3d_ld1(bottom_blob_3d, ivec3(xx4.a, gy, gx));
+        }
+
+        image3d_st8(top_blob_3d, ivec3(gx, gy, gz), v);
+    }
+#else
+    ivec4 v_offset;
+    ivec4 vv_offset;
+
+    if (psc(dims) == 2)
+    {
+        // order_type
+        // 0 = w h
+        // 1 = h w
+
+        if (order_type == 0)
+        {
+            v_offset = (gy * 8 + ivec4(0, 1, 2, 3)) * psc(w) + gx;
+            vv_offset = v_offset + 4 * psc(w);
+        }
+        if (order_type == 1)
+        {
+            v_offset = gx * psc(w) + (gy * 8 + ivec4(0, 1, 2, 3));
+            vv_offset = v_offset + 4;
+        }
+    }
+    else // if (psc(dims) == 3)
+    {
+        // order_type
+        // 0 = w h c
+        // 1 = h w c
+        // 2 = w c h
+        // 3 = c w h
+        // 4 = h c w
+        // 5 = c h w
+
+        if (order_type == 0)
+        {
+            v_offset = (gz * 8 + ivec4(0, 1, 2, 3)) * psc(cstep) + gy * psc(w) + gx;
+            vv_offset = v_offset + 4 * psc(cstep);
+        }
+        if (order_type == 1)
+        {
+            v_offset = (gz * 8 + ivec4(0, 1, 2, 3)) * psc(cstep) + gx * psc(w) + gy;
+            vv_offset = v_offset + 4 * psc(cstep);
+        }
+        if (order_type == 2)
+        {
+            v_offset = gy * psc(cstep) + (gz * 8 + ivec4(0, 1, 2, 3)) * psc(w) + gx;
+            vv_offset = v_offset + 4 * psc(w);
+        }
+        if (order_type == 3)
+        {
+            v_offset = gx * psc(cstep) + (gz * 8 + ivec4(0, 1, 2, 3)) * psc(w) + gy;
+            vv_offset = v_offset + 4 * psc(w);
+        }
+        if (order_type == 4)
+        {
+            v_offset = gy * psc(cstep) + gx * psc(w) + (gz * 8 + ivec4(0, 1, 2, 3));
+            vv_offset = v_offset + 4;
+        }
+        if (order_type == 5)
+        {
+            v_offset = gx * psc(cstep) + gy * psc(w) + (gz * 8 + ivec4(0, 1, 2, 3));
+            vv_offset = v_offset + 4;
+        }
+    }
+
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+    buffer_cp1to8(top_blob_data, gi, bottom_blob_data, v_offset, vv_offset);
+#endif
+}

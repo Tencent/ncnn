@@ -18,17 +18,37 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
 layout (constant_id = 0) const int order_type = 0;
+
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
+layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image2D top_blob_2d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -51,12 +71,108 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
+#if NCNN_image_shader
+    if (psc(dims) == 2)
+    {
+        // order_type
+        // 0 = w h
+        // 1 = h w
+
+        afpvec4 v = image2d_ld4(bottom_blob_2d, ivec2(gx, gy));
+
+        if (order_type == 0)
+        {
+            ivec4 y4 = gy * 4 + ivec4(0, 1, 2, 3);
+
+            image2d_st1(top_blob_2d, ivec2(gx, y4.r), v.r);
+            image2d_st1(top_blob_2d, ivec2(gx, y4.g), v.g);
+            image2d_st1(top_blob_2d, ivec2(gx, y4.b), v.b);
+            image2d_st1(top_blob_2d, ivec2(gx, y4.a), v.a);
+        }
+        if (order_type == 1)
+        {
+            ivec4 x4 = gy * 4 + ivec4(0, 1, 2, 3);
+
+            image2d_st1(top_blob_2d, ivec2(x4.r, gx), v.r);
+            image2d_st1(top_blob_2d, ivec2(x4.g, gx), v.g);
+            image2d_st1(top_blob_2d, ivec2(x4.b, gx), v.b);
+            image2d_st1(top_blob_2d, ivec2(x4.a, gx), v.a);
+        }
+    }
+    else // if (psc(dims) == 3)
+    {
+        // order_type
+        // 0 = w h c
+        // 1 = h w c
+        // 2 = w c h
+        // 3 = c w h
+        // 4 = h c w
+        // 5 = c h w
+
+        afpvec4 v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
+
+        if (order_type == 0)
+        {
+            ivec4 z4 = gz * 4 + ivec4(0, 1, 2, 3);
+
+            image3d_st1(top_blob_3d, ivec3(gx, gy, z4.r), v.r);
+            image3d_st1(top_blob_3d, ivec3(gx, gy, z4.g), v.g);
+            image3d_st1(top_blob_3d, ivec3(gx, gy, z4.b), v.b);
+            image3d_st1(top_blob_3d, ivec3(gx, gy, z4.a), v.a);
+        }
+        if (order_type == 1)
+        {
+            ivec4 z4 = gz * 4 + ivec4(0, 1, 2, 3);
+
+            image3d_st1(top_blob_3d, ivec3(gy, gx, z4.r), v.r);
+            image3d_st1(top_blob_3d, ivec3(gy, gx, z4.g), v.g);
+            image3d_st1(top_blob_3d, ivec3(gy, gx, z4.b), v.b);
+            image3d_st1(top_blob_3d, ivec3(gy, gx, z4.a), v.a);
+        }
+        if (order_type == 2)
+        {
+            ivec4 y4 = gz * 4 + ivec4(0, 1, 2, 3);
+
+            image3d_st1(top_blob_3d, ivec3(gx, y4.r, gy), v.r);
+            image3d_st1(top_blob_3d, ivec3(gx, y4.g, gy), v.g);
+            image3d_st1(top_blob_3d, ivec3(gx, y4.b, gy), v.b);
+            image3d_st1(top_blob_3d, ivec3(gx, y4.a, gy), v.a);
+        }
+        if (order_type == 3)
+        {
+            ivec4 x4 = gz * 4 + ivec4(0, 1, 2, 3);
+
+            image3d_st1(top_blob_3d, ivec3(x4.r, gx, gy), v.r);
+            image3d_st1(top_blob_3d, ivec3(x4.g, gx, gy), v.g);
+            image3d_st1(top_blob_3d, ivec3(x4.b, gx, gy), v.b);
+            image3d_st1(top_blob_3d, ivec3(x4.a, gx, gy), v.a);
+        }
+        if (order_type == 4)
+        {
+            ivec4 y4 = gz * 4 + ivec4(0, 1, 2, 3);
+
+            image3d_st1(top_blob_3d, ivec3(gy, y4.r, gx), v.r);
+            image3d_st1(top_blob_3d, ivec3(gy, y4.g, gx), v.g);
+            image3d_st1(top_blob_3d, ivec3(gy, y4.b, gx), v.b);
+            image3d_st1(top_blob_3d, ivec3(gy, y4.a, gx), v.a);
+        }
+        if (order_type == 5)
+        {
+            ivec4 x4 = gz * 4 + ivec4(0, 1, 2, 3);
+
+            image3d_st1(top_blob_3d, ivec3(x4.r, gy, gx), v.r);
+            image3d_st1(top_blob_3d, ivec3(x4.g, gy, gx), v.g);
+            image3d_st1(top_blob_3d, ivec3(x4.b, gy, gx), v.b);
+            image3d_st1(top_blob_3d, ivec3(x4.a, gy, gx), v.a);
+        }
+    }
+#else
     ivec4 v_offset;
 
-    if (p.dims == 2)
+    if (psc(dims) == 2)
     {
         // order_type
         // 0 = w h
@@ -64,14 +180,14 @@ void main()
 
         if (order_type == 0)
         {
-            v_offset = ivec4((gy * 4) * p.outw + gx) + ivec4(0, 1, 2, 3) * p.outw;
+            v_offset = ivec4((gy * 4) * psc(outw) + gx) + ivec4(0, 1, 2, 3) * psc(outw);
         }
         if (order_type == 1)
         {
-            v_offset = ivec4(gx * p.outw + gy * 4) + ivec4(0, 1, 2, 3);
+            v_offset = ivec4(gx * psc(outw) + gy * 4) + ivec4(0, 1, 2, 3);
         }
     }
-    else if (p.dims == 3)
+    else // if (psc(dims) == 3)
     {
         // order_type
         // 0 = w h c
@@ -83,45 +199,32 @@ void main()
 
         if (order_type == 0)
         {
-            v_offset = ivec4((gz * 4) * p.outcstep + gy * p.outw + gx) + ivec4(0, 1, 2, 3) * p.outcstep;
+            v_offset = ivec4((gz * 4) * psc(outcstep) + gy * psc(outw) + gx) + ivec4(0, 1, 2, 3) * psc(outcstep);
         }
         if (order_type == 1)
         {
-            v_offset = ivec4((gz * 4) * p.outcstep + gx * p.outw + gy) + ivec4(0, 1, 2, 3) * p.outcstep;
+            v_offset = ivec4((gz * 4) * psc(outcstep) + gx * psc(outw) + gy) + ivec4(0, 1, 2, 3) * psc(outcstep);
         }
         if (order_type == 2)
         {
-            v_offset = ivec4(gy * p.outcstep + (gz * 4) * p.outw + gx) + ivec4(0, 1, 2, 3) * p.outw;
+            v_offset = ivec4(gy * psc(outcstep) + (gz * 4) * psc(outw) + gx) + ivec4(0, 1, 2, 3) * psc(outw);
         }
         if (order_type == 3)
         {
-            v_offset = ivec4(gy * p.outcstep + gx * p.outw + gz * 4) + ivec4(0, 1, 2, 3);
+            v_offset = ivec4(gy * psc(outcstep) + gx * psc(outw) + gz * 4) + ivec4(0, 1, 2, 3);
         }
         if (order_type == 4)
         {
-            v_offset = ivec4(gx * p.outcstep + (gz * 4) * p.outw + gy) + ivec4(0, 1, 2, 3) * p.outw;
+            v_offset = ivec4(gx * psc(outcstep) + (gz * 4) * psc(outw) + gy) + ivec4(0, 1, 2, 3) * psc(outw);
         }
         if (order_type == 5)
         {
-            v_offset = ivec4(gx * p.outcstep + gy * p.outw + gz * 4) + ivec4(0, 1, 2, 3);
+            v_offset = ivec4(gx * psc(outcstep) + gy * psc(outw) + gz * 4) + ivec4(0, 1, 2, 3);
         }
     }
 
-    int gi = gz * p.cstep + gy * p.w + gx;
+    int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
-#if NCNN_fp16_packed
-    uvec2 v = bottom_blob_data[gi];
-    vec2 v0 = unpackHalf2x16(v.x);
-    vec2 v1 = unpackHalf2x16(v.y);
-
-    top_blob_data[v_offset.r] = v0.x;
-    top_blob_data[v_offset.g] = v0.y;
-    top_blob_data[v_offset.b] = v1.x;
-    top_blob_data[v_offset.a] = v1.y;
-#else
-    top_blob_data[v_offset.r] = bottom_blob_data[gi].r;
-    top_blob_data[v_offset.g] = bottom_blob_data[gi].g;
-    top_blob_data[v_offset.b] = bottom_blob_data[gi].b;
-    top_blob_data[v_offset.a] = bottom_blob_data[gi].a;
+    buffer_cp4to1(top_blob_data, v_offset, bottom_blob_data, gi);
 #endif
 }

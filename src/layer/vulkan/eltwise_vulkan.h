@@ -29,10 +29,12 @@ public:
 
     using Eltwise::forward;
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_eltwise[2];
     Pipeline* pipeline_eltwise_pack4[2];
+    Pipeline* pipeline_eltwise_pack8[2];
 };
 
 } // namespace ncnn

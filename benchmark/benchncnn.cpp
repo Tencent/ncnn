@@ -45,11 +45,12 @@ class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
     virtual int scan(const char* format, void* p) const { return 0; }
-    virtual int read(void* buf, int size) const { memset(buf, 0, size); return size; }
+    virtual size_t read(void* buf, size_t size) const { memset(buf, 0, size); return size; }
 };
 
 static int g_warmup_loop_count = 8;
 static int g_loop_count = 4;
+static bool g_enable_cooling_down = true;
 
 static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
 static ncnn::PoolAllocator g_workspace_pool_allocator;
@@ -94,12 +95,15 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     }
 #endif // NCNN_VULKAN
 
-    // sleep 10 seconds for cooling down SOC  :(
+    if (g_enable_cooling_down)
+    {
+        // sleep 10 seconds for cooling down SOC  :(
 #ifdef _WIN32
-    Sleep(10 * 1000);
+        Sleep(10 * 1000);
 #else
-    sleep(10);
+        sleep(10);
 #endif
+    }
 
     ncnn::Mat out;
 
@@ -145,6 +149,7 @@ int main(int argc, char** argv)
     int num_threads = ncnn::get_cpu_count();
     int powersave = 0;
     int gpu_device = -1;
+    int cooling_down = 1;
 
     if (argc >= 2)
     {
@@ -162,8 +167,14 @@ int main(int argc, char** argv)
     {
         gpu_device = atoi(argv[4]);
     }
+    if (argc >= 6)
+    {
+        cooling_down = atoi(argv[5]);
+    }
 
     bool use_vulkan_compute = gpu_device != -1;
+
+    g_enable_cooling_down = cooling_down != 0;
 
     g_loop_count = loop_count;
 
@@ -177,8 +188,8 @@ int main(int argc, char** argv)
 
         g_vkdev = ncnn::get_gpu_device(gpu_device);
 
-        g_blob_vkallocator = new ncnn::VkBlobBufferAllocator(g_vkdev);
-        g_staging_vkallocator = new ncnn::VkStagingBufferAllocator(g_vkdev);
+        g_blob_vkallocator = new ncnn::VkBlobAllocator(g_vkdev);
+        g_staging_vkallocator = new ncnn::VkStagingAllocator(g_vkdev);
     }
 #endif // NCNN_VULKAN
 
@@ -203,6 +214,8 @@ int main(int argc, char** argv)
     opt.use_int8_storage = true;
     opt.use_int8_arithmetic = true;
     opt.use_packing_layout = true;
+    opt.use_shader_pack8 = false;
+    opt.use_image_storage = false;
 
     ncnn::set_cpu_powersave(powersave);
 
@@ -213,6 +226,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "num_threads = %d\n", num_threads);
     fprintf(stderr, "powersave = %d\n", ncnn::get_cpu_powersave());
     fprintf(stderr, "gpu_device = %d\n", gpu_device);
+    fprintf(stderr, "cooling_down = %d\n", (int)g_enable_cooling_down);
 
     // run
     benchmark("squeezenet", ncnn::Mat(227, 227, 3), opt);
@@ -221,9 +235,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("squeezenet_int8", ncnn::Mat(227, 227, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("mobilenet", ncnn::Mat(224, 224, 3), opt);
@@ -232,9 +244,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("mobilenet_int8", ncnn::Mat(224, 224, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("mobilenet_v2", ncnn::Mat(224, 224, 3), opt);
@@ -260,9 +270,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("googlenet_int8", ncnn::Mat(224, 224, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("resnet18", ncnn::Mat(224, 224, 3), opt);
@@ -271,9 +279,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("resnet18_int8", ncnn::Mat(224, 224, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("alexnet", ncnn::Mat(227, 227, 3), opt);
@@ -284,9 +290,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("vgg16_int8", ncnn::Mat(224, 224, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("resnet50", ncnn::Mat(224, 224, 3), opt);
@@ -295,9 +299,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("resnet50_int8", ncnn::Mat(224, 224, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("squeezenet_ssd", ncnn::Mat(300, 300, 3), opt);
@@ -306,9 +308,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("squeezenet_ssd_int8", ncnn::Mat(300, 300, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("mobilenet_ssd", ncnn::Mat(300, 300, 3), opt);
@@ -317,9 +317,7 @@ int main(int argc, char** argv)
     if (!use_vulkan_compute)
 #endif // NCNN_VULKAN
     {
-    opt.use_packing_layout = false;
     benchmark("mobilenet_ssd_int8", ncnn::Mat(300, 300, 3), opt);
-    opt.use_packing_layout = true;
     }
 
     benchmark("mobilenet_yolo", ncnn::Mat(416, 416, 3), opt);

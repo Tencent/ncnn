@@ -29,9 +29,9 @@ public:
     virtual int load_model(const ModelBin& mb);
 
     virtual int create_pipeline(const Option& opt);
-    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    virtual int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     // param
@@ -52,11 +52,6 @@ public:
 
     Mat weight_data_int8_scales;
     float bottom_blob_int8_scale;
-
-    bool use_int8_inference;
-
-    ncnn::Layer* quantize;
-    std::vector<ncnn::Layer*> dequantize_ops;
 };
 
 } // namespace ncnn

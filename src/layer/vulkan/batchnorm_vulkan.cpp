@@ -13,8 +13,8 @@
 // specific language governing permissions and limitations under the License.
 
 #include "batchnorm_vulkan.h"
-#include "pipeline.h"
-#include <math.h>
+#include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -26,26 +26,83 @@ BatchNorm_vulkan::BatchNorm_vulkan()
 
     pipeline_batchnorm = 0;
     pipeline_batchnorm_pack4 = 0;
+    pipeline_batchnorm_pack8 = 0;
 }
 
 int BatchNorm_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations(0);
+    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+
+    size_t elemsize;
+    if (opt.use_fp16_storage)
+    {
+        elemsize = elempack * 2u;
+    }
+    else if (opt.use_fp16_packed)
+    {
+        elemsize = elempack == 1 ? 4u : elempack * 2u;
+    }
+    else
+    {
+        elemsize = elempack * 4u;
+    }
+
+    Mat shape_packed;
+    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+
+    std::vector<vk_specialization_type> specializations(0 + 5);
+    specializations[0 + 0].i = shape_packed.dims;
+    specializations[0 + 1].i = shape_packed.w;
+    specializations[0 + 2].i = shape_packed.h;
+    specializations[0 + 3].i = shape_packed.c;
+    specializations[0 + 4].i = shape_packed.cstep;
+
+    Mat local_size_xyz(4, 4, std::min(4, channels / elempack), (void*)0);
+    if (shape_packed.dims == 1)
+    {
+        local_size_xyz.w = std::min(64, shape_packed.w);
+        local_size_xyz.h = 1;
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 2)
+    {
+        local_size_xyz.w = std::min(8, shape_packed.w);
+        local_size_xyz.h = std::min(8, shape_packed.h);
+        local_size_xyz.c = 1;
+    }
+    if (shape_packed.dims == 3)
+    {
+        local_size_xyz.w = std::min(4, shape_packed.w);
+        local_size_xyz.h = std::min(4, shape_packed.h);
+        local_size_xyz.c = std::min(4, shape_packed.c);
+    }
 
     // pack1
-    if (channels % 4 != 0)
+    if (elempack == 1)
     {
         pipeline_batchnorm = new Pipeline(vkdev);
-        pipeline_batchnorm->set_optimal_local_size_xyz(32, 32, channels);
-        pipeline_batchnorm->create("batchnorm", opt, specializations, 3, 5);
+        pipeline_batchnorm->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_batchnorm->create(LayerShaderType::batchnorm, opt, specializations);
     }
 
     // pack4
-    if (channels % 4 == 0)
+    if (elempack == 4)
     {
         pipeline_batchnorm_pack4 = new Pipeline(vkdev);
-        pipeline_batchnorm_pack4->set_optimal_local_size_xyz(32, 32, channels / 4);
-        pipeline_batchnorm_pack4->create("batchnorm_pack4", opt, specializations, 3, 5);
+        pipeline_batchnorm_pack4->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_batchnorm_pack4->create(LayerShaderType::batchnorm_pack4, opt, specializations);
+    }
+
+    // pack8
+    if (elempack == 8)
+    {
+        pipeline_batchnorm_pack8 = new Pipeline(vkdev);
+        pipeline_batchnorm_pack8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_batchnorm_pack8->create(LayerShaderType::batchnorm_pack8, opt, specializations);
     }
 
     return 0;
@@ -59,29 +116,25 @@ int BatchNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_batchnorm_pack4;
     pipeline_batchnorm_pack4 = 0;
 
+    delete pipeline_batchnorm_pack8;
+    pipeline_batchnorm_pack8 = 0;
+
     return 0;
 }
 
 int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    // pack1
-    if (channels % 4 != 0)
-    {
-        cmd.record_upload(a_data, a_data_gpu, opt);
-        cmd.record_upload(b_data, b_data_gpu, opt);
-    }
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
-    // pack4
-    if (channels % 4 == 0)
-    {
-        Mat a_data_pack4;
-        convert_packing(a_data, a_data_pack4, 4);
-        cmd.record_upload(a_data_pack4, a_data_gpu_pack4, opt);
+    Mat a_data_packed;
+    convert_packing(a_data, a_data_packed, elempack);
 
-        Mat b_data_pack4;
-        convert_packing(b_data, b_data_pack4, 4);
-        cmd.record_upload(b_data_pack4, b_data_gpu_pack4, opt);
-    }
+    cmd.record_upload(a_data_packed, a_data_gpu, opt);
+
+    Mat b_data_packed;
+    convert_packing(b_data, b_data_packed, elempack);
+
+    cmd.record_upload(b_data_packed, b_data_gpu, opt);
 
     return 0;
 }
@@ -92,8 +145,8 @@ int BatchNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
     std::vector<VkMat> bindings(3);
     bindings[0] = bottom_top_blob;
-    bindings[1] = elempack == 4 ? a_data_gpu_pack4 : a_data_gpu;
-    bindings[2] = elempack == 4 ? b_data_gpu_pack4 : b_data_gpu;
+    bindings[1] = a_data_gpu;
+    bindings[2] = b_data_gpu;
 
     std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
@@ -102,7 +155,9 @@ int BatchNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 4 ? pipeline_batchnorm_pack4 : pipeline_batchnorm;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_batchnorm_pack8
+                             : elempack == 4 ? pipeline_batchnorm_pack4
+                             : pipeline_batchnorm;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

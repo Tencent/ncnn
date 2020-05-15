@@ -18,24 +18,48 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
+
+#define FLT_MAX 3.402823466e+38
 
 layout (constant_id = 0) const int pooling_type = 0;
 layout (constant_id = 1) const int kernel_w = 1;
 layout (constant_id = 2) const int kernel_h = 1;
 layout (constant_id = 3) const int stride_w = 1;
 layout (constant_id = 4) const int stride_h = 1;
-layout (constant_id = 5) const int global_pooling = 0;
-layout (constant_id = 6) const int pad_mode = 0;
-layout (constant_id = 7) const int avgpool_count_include_pad = 0;
+layout (constant_id = 5) const int pad_left = 0;
+layout (constant_id = 6) const int pad_right = 0;
+layout (constant_id = 7) const int pad_top = 0;
+layout (constant_id = 8) const int pad_bottom = 0;
+layout (constant_id = 9) const int global_pooling = 0;
+layout (constant_id = 10) const int pad_mode = 0;
+layout (constant_id = 11) const int avgpool_count_include_pad = 0;
+
+#define shape_constant_id_offset 12
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -50,6 +74,9 @@ layout (push_constant) uniform parameter
     int outh;
     int outc;
     int outcstep;
+
+    int wtailpad;
+    int htailpad;
 } p;
 
 void main()
@@ -58,128 +85,142 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
     afp res;
 
-    if (pad_mode == 0)
-    {
-        // full padding, use out of bound check
-        if (pooling_type == 0)
-        {
-            res = afp(-99999999.f);
-
-            int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
-
-            for (int y = 0; y < kernel_h; y++)
-            {
-                if (gy * stride_h + y >= p.h)
-                    break;
-
-                for (int x = 0; x < kernel_w; x++)
-                {
-                    if (gx * stride_w + x >= p.w)
-                        break;
-
-                    afp v = sfp2afp(bottom_blob_data[v_offset + x]);
-                    res = max(res, v);
-                }
-
-                v_offset += p.w;
-            }
-        }
-        else if (pooling_type == 1 && avgpool_count_include_pad == 0)
-        {
-            res = afp(0.f);
-
-            int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
-            int area = 0;
-
-            for (int y = 0; y < kernel_h; y++)
-            {
-                if (gy * stride_h + y >= p.h)
-                    break;
-
-                for (int x = 0; x < kernel_w; x++)
-                {
-                    if (gx * stride_w + x >= p.w)
-                        break;
-
-                    res += sfp2afp(bottom_blob_data[v_offset + x]);
-                    area += 1;
-                }
-
-                v_offset += p.w;
-            }
-
-            res /= afp(area);
-        }
-        else if (pooling_type == 1 && avgpool_count_include_pad == 1)
-        {
-            res = afp(0.f);
-
-            int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
-
-            for (int y = 0; y < kernel_h; y++)
-            {
-                if (gy * stride_h + y >= p.h)
-                    break;
-
-                for (int x = 0; x < kernel_w; x++)
-                {
-                    if (gx * stride_w + x >= p.w)
-                        break;
-
-                    res += sfp2afp(bottom_blob_data[v_offset + x]);
-                }
-
-                v_offset += p.w;
-            }
-
-            res /= afp(kernel_w * kernel_h);
-        }
-
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfp(res);
-
-        return;
-    }
-
     if (pooling_type == 0)
     {
-        res = afp(-99999999.f);
+        res = afp(-FLT_MAX);
 
-        int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
+#if NCNN_image_shader
+        int sx = gx * stride_w;
+        int sy = gy * stride_h;
 
         for (int y = 0; y < kernel_h; y++)
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                afp v = sfp2afp(bottom_blob_data[v_offset + x]);
+                afp v = image3d_ld1(bottom_blob, ivec3(sx + x, sy + y, gz));
+                res = max(res, v);
+            }
+        }
+#else
+        int v_offset = gz * psc(cstep) + gy * stride_h * psc(w) + gx * stride_w;
+
+        for (int y = 0; y < kernel_h; y++)
+        {
+            for (int x = 0; x < kernel_w; x++)
+            {
+                afp v = buffer_ld1(bottom_blob_data, v_offset + x);
                 res = max(res, v);
             }
 
-            v_offset += p.w;
+            v_offset += psc(w);
         }
+#endif
     }
-    else if (pooling_type == 1)
+    if (pooling_type == 1 && avgpool_count_include_pad == 0)
+    {
+        res = afp(0.f);
+        int area = 0;
+
+        int sx = gx * stride_w;
+        int sy = gy * stride_h;
+
+#if NCNN_image_shader
+        for (int y = 0; y < kernel_h; y++)
+        {
+            if (sy + y < pad_top)
+                continue;
+
+            if (sy + y >= psc(h) - pad_bottom - p.htailpad)
+                break;
+
+            for (int x = 0; x < kernel_w; x++)
+            {
+                if (sx + x < pad_left)
+                    continue;
+
+                if (sx + x >= psc(w) - pad_right - p.wtailpad)
+                    break;
+
+                res += image3d_ld1(bottom_blob, ivec3(sx + x, sy + y, gz));
+                area += 1;
+            }
+        }
+#else
+        int v_offset = gz * psc(cstep) + sy * psc(w) + sx;
+
+        for (int y = 0; y < kernel_h; y++)
+        {
+            if (sy + y < pad_top)
+            {
+                v_offset += psc(w);
+                continue;
+            }
+
+            if (sy + y >= psc(h) - pad_bottom - p.htailpad)
+                break;
+
+            for (int x = 0; x < kernel_w; x++)
+            {
+                if (sx + x < pad_left)
+                {
+                    continue;
+                }
+
+                if (sx + x >= psc(w) - pad_right - p.wtailpad)
+                    break;
+
+                res += buffer_ld1(bottom_blob_data, v_offset + x);
+                area += 1;
+            }
+
+            v_offset += psc(w);
+        }
+#endif
+
+        res /= afp(area);
+    }
+    if (pooling_type == 1 && avgpool_count_include_pad == 1)
     {
         res = afp(0.f);
 
-        int v_offset = gz * p.cstep + gy * stride_h * p.w + gx * stride_w;
+#if NCNN_image_shader
+        int sx = gx * stride_w;
+        int sy = gy * stride_h;
 
         for (int y = 0; y < kernel_h; y++)
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res += sfp2afp(bottom_blob_data[v_offset + x]);
+                res += image3d_ld1(bottom_blob, ivec3(sx + x, sy + y, gz));
+            }
+        }
+#else
+        int v_offset = gz * psc(cstep) + gy * stride_h * psc(w) + gx * stride_w;
+
+        for (int y = 0; y < kernel_h; y++)
+        {
+            for (int x = 0; x < kernel_w; x++)
+            {
+                res += buffer_ld1(bottom_blob_data, v_offset + x);
             }
 
-            v_offset += p.w;
+            v_offset += psc(w);
         }
+#endif
 
         res /= afp(kernel_w * kernel_h);
     }
 
-    top_blob_data[gz * p.outcstep + gy * p.outw + gx] = afp2sfp(res);
+#if NCNN_image_shader
+    image3d_st1(top_blob, ivec3(gx, gy, gz), res);
+#else
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+    buffer_st1(top_blob_data, gi, res);
+#endif
 }

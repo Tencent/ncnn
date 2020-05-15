@@ -28,7 +28,10 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-    enum { PoolMethod_MAX = 0, PoolMethod_AVE = 1 };
+    enum PoolMethod { PoolMethod_MAX = 0, PoolMethod_AVE = 1 };
+
+protected:
+    void make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const;
 
 public:
     // param

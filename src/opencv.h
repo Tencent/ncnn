@@ -20,7 +20,6 @@
 #if NCNN_OPENCV
 
 #include <algorithm>
-#include <string>
 #include "mat.h"
 
 #if defined(_MSC_VER) || defined(__GNUC__)

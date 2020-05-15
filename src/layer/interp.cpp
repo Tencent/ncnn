@@ -33,6 +33,12 @@ int Interp::load_param(const ParamDict& pd)
     output_height = pd.get(3, 0);
     output_width = pd.get(4, 0);
 
+    if (resize_type < 1 || resize_type > 3)
+    {
+        NCNN_LOGE("unsupported resize type %d", resize_type);
+        return -1;
+    }
+
     return 0;
 }
 
@@ -43,7 +49,7 @@ static void linear_coeffs(int w, int outw, int* xofs, float* alpha)
     for (int dx = 0; dx < outw; dx++)
     {
         float fx = (float)((dx + 0.5) * scale - 0.5);
-        int sx = floor(fx);
+        int sx = static_cast<int>(floor(fx));
         fx -= sx;
 
         if (sx < 0)
@@ -172,7 +178,7 @@ static void cubic_coeffs(int w, int outw, int* xofs, float* alpha)
     for (int dx = 0; dx < outw; dx++)
     {
         float fx = (float)((dx + 0.5) * scale - 0.5);
-        int sx = floor(fx);
+        int sx = static_cast<int>(floor(fx));
         fx -= sx;
 
         interpolate_cubic(fx, alpha + dx*4);
@@ -391,37 +397,38 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
 
 int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) const
 {
-    int h = bottom_blob.h;
     int w = bottom_blob.w;
-    int c = bottom_blob.c;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-    int oh = output_height;
-    int ow = output_width;
+    int outh = output_height;
+    int outw = output_width;
     if (bottom_blob.dims == 1)
     {
         h = 1;
         w = 1;
-        c = bottom_blob.w;
+        channels = bottom_blob.w;
     }
-    if (oh == 0 || ow == 0)
+    if (outh == 0 || outw == 0)
     {
-        oh = h * height_scale;
-        ow = w * width_scale;
+        outh = static_cast<int>(h * height_scale);
+        outw = static_cast<int>(w * width_scale);
     }
-    if (oh == h && ow == w)
+    if (outh == h && outw == w)
     {
         top_blob = bottom_blob;
         return 0;
     }
-    top_blob.create(ow, oh, c, elemsize, opt.blob_allocator);
+
+    top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     if (bottom_blob.dims == 1)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < c; ++q)
+        for (int q = 0; q < channels; q++)
         {
             Mat top_blob_c = top_blob.channel(q);
             const float *ptr = ((const float*)bottom_blob.data + q);
@@ -432,39 +439,41 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) co
 
     if (resize_type == 1)// nearest
     {
+        const float hs = output_height ? h / (float)output_height : 1.f / height_scale;
+        const float ws = output_width ? w / (float)output_width : 1.f / width_scale;
+
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < c; ++q)
+        for (int q = 0; q < channels; q++)
         {
-            const float *ptr = bottom_blob.channel(q);
-            float *output_ptr = top_blob.channel(q);
-            for (int y = 0; y < oh; ++y)
+            const float* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+            for (int y = 0; y < outh; y++)
             {
-                const int in_y = std::min((int) (y / height_scale), (h - 1));
-                for (int x = 0; x < ow; ++x)
+                int in_y = std::min((int) (y * hs), (h - 1));
+                for (int x = 0; x < outw; x++)
                 {
-                    const int in_x = std::min((int) (x / width_scale), (w - 1));
-                    output_ptr[ow * y + x] = ptr[in_y * w + in_x];
+                    int in_x = std::min((int) (x * ws), (w - 1));
+                    *outptr++ = ptr[in_y * w + in_x];
                 }
             }
         }
-        return 0;
-
     }
-    else if (resize_type == 2)// bilinear
+
+    if (resize_type == 2)// bilinear
     {
-        int* buf = new int[ow + oh + ow*2 + oh*2];
+        int* buf = new int[outw + outh + outw*2 + outh*2];
 
-        int* xofs = buf;//new int[ow];
-        int* yofs = buf + ow;//new int[oh];
+        int* xofs = buf;//new int[outw];
+        int* yofs = buf + outw;//new int[outh];
 
-        float* alpha = (float*)(buf + ow + oh);//new float[ow * 2];
-        float* beta = (float*)(buf + ow + oh + ow*2);//new float[oh * 2];
+        float* alpha = (float*)(buf + outw + outh);//new float[outw * 2];
+        float* beta = (float*)(buf + outw + outh + outw*2);//new float[outh * 2];
 
-        linear_coeffs(w, ow, xofs, alpha);
-        linear_coeffs(h, oh, yofs, beta);
+        linear_coeffs(w, outw, xofs, alpha);
+        linear_coeffs(h, outh, yofs, beta);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < c; ++q)
+        for (int q = 0; q < channels; ++q)
         {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
@@ -473,24 +482,23 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) co
         }
 
         delete[] buf;
-
-        return 0;
     }
-    else if (resize_type == 3)// bicubic
+
+    if (resize_type == 3)// bicubic
     {
-        int* buf = new int[ow + oh + ow*4 + oh*4];
+        int* buf = new int[outw + outh + outw*4 + outh*4];
 
-        int* xofs = buf;//new int[ow];
-        int* yofs = buf + ow;//new int[oh];
+        int* xofs = buf;//new int[outw];
+        int* yofs = buf + outw;//new int[outh];
 
-        float* alpha = (float*)(buf + ow + oh);//new float[ow * 4];
-        float* beta = (float*)(buf + ow + oh + ow*4);//new float[oh * 4];
+        float* alpha = (float*)(buf + outw + outh);//new float[outw * 4];
+        float* beta = (float*)(buf + outw + outh + outw*4);//new float[outh * 4];
 
-        cubic_coeffs(w, ow, xofs, alpha);
-        cubic_coeffs(h, oh, yofs, beta);
+        cubic_coeffs(w, outw, xofs, alpha);
+        cubic_coeffs(h, outh, yofs, beta);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < c; ++q)
+        for (int q = 0; q < channels; q++)
         {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
@@ -499,14 +507,9 @@ int Interp::forward(const Mat &bottom_blob, Mat &top_blob, const Option& opt) co
         }
 
         delete[] buf;
+    }
 
-        return 0;
-    }
-    else
-    {
-        fprintf(stderr, "unsupported resize type %d %d %d\n", resize_type, oh, ow);
-        return -233;
-    }
+    return 0;
 }
 
 } // namespace ncnn

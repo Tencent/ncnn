@@ -1,5 +1,5 @@
 # CMake build directory
-*build*/
+build*/
 
 # Backup files.
 *~
@@ -39,3 +39,7 @@
 
 # MACOSX
 .DS_Store
+
+# IDE
+.vs
+.vscode

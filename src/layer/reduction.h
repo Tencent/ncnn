@@ -28,7 +28,7 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-    enum {
+    enum ReductionOp {
         ReductionOp_SUM       = 0,
         ReductionOp_ASUM      = 1,
         ReductionOp_SUMSQ     = 2,

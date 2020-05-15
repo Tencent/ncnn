@@ -27,16 +27,21 @@ public:
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
+    virtual int upload_model(VkTransfer& cmd, const Option& opt);
+
     using Pooling::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     ncnn::Layer* padding;
 
     Pipeline* pipeline_pooling;
-    Pipeline* pipeline_pooling_global;
     Pipeline* pipeline_pooling_pack4;
+    Pipeline* pipeline_pooling_pack8;
+    Pipeline* pipeline_pooling_global;
     Pipeline* pipeline_pooling_global_pack4;
+    Pipeline* pipeline_pooling_global_pack8;
 };
 
 } // namespace ncnn

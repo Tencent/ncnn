@@ -18,7 +18,7 @@
 namespace ncnn {
 
 namespace LayerType {
-enum
+enum LayerType
 {
 #include "layer_type_enum.h"
     CustomBit = (1<<8),

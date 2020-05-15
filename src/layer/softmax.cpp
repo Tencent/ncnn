@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "softmax.h"
+
 #include <float.h>
 #include <math.h>
 #include <algorithm>
@@ -36,7 +37,7 @@ int Softmax::load_param(const ParamDict& pd)
     int fixbug0 = pd.get(1, 0);
     if (fixbug0 == 0 && axis != 0)
     {
-        fprintf(stderr, "param is too old, please regenerate!\n");
+        NCNN_LOGE("param is too old, please regenerate!");
         return -1;
     }
 
@@ -67,7 +68,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float sum = 0.f;
         for (int i=0; i<w; i++)
         {
-            ptr[i] = exp(ptr[i] - max);
+            ptr[i] = static_cast<float>(exp(ptr[i] - max));
             sum += ptr[i];
         }
 
@@ -110,7 +111,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float* ptr = bottom_top_blob.row(i);
             for (int j=0; j<w; j++)
             {
-                ptr[j] = exp(ptr[j] - max[j]);
+                ptr[j] = static_cast<float>(exp(ptr[j] - max[j]));
                 sum[j] += ptr[j];
             }
         }
@@ -144,7 +145,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float s = 0.f;
             for (int j=0; j<w; j++)
             {
-                ptr[j] = exp(ptr[j] - m);
+                ptr[j] = static_cast<float>(exp(ptr[j] - m));
                 s += ptr[j];
             }
 
@@ -190,7 +191,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i=0; i<size; i++)
             {
-                ptr[i] = exp(ptr[i] - max[i]);
+                ptr[i] = static_cast<float>(exp(ptr[i] - max[i]));
                 sum[i] += ptr[i];
             }
         }
@@ -253,7 +254,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 for (int j=0; j<w; j++)
                 {
-                    ptr[j] = exp(ptr[j] - maxptr[j]);
+                    ptr[j] = static_cast<float>(exp(ptr[j] - maxptr[j]));
                     sumptr[j] += ptr[j];
                 }
 
@@ -303,7 +304,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 float sum = 0.f;
                 for (int j=0; j<w; j++)
                 {
-                    ptr[j] = exp(ptr[j] - max);
+                    ptr[j] = static_cast<float>(exp(ptr[j] - max));
                     sum += ptr[j];
                 }
 

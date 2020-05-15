@@ -23,7 +23,7 @@ $ make -j4
 Usage
 ```
 # copy all param files to the current directory
-$ ./benchncnn [loop count] [num threads] [powersave] [gpu device]
+$ ./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down]
 ```
 run benchncnn on android device
 ```
@@ -34,7 +34,7 @@ $ adb shell
 
 # executed in android adb shell
 $ cd /data/local/tmp/
-$ ./benchncnn [loop count] [num threads] [powersave] [gpu device]
+$ ./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down]
 ```
 
 Parameter
@@ -45,6 +45,7 @@ Parameter
 |num threads|1~N|max_cpu_count|
 |powersave|0=all cores, 1=little cores only, 2=big cores only|0|
 |gpu device|-1=cpu-only, 0=gpu0, 1=gpu1 ...|-1|
+|cooling down|0=disable, 1=enable|1|
 
 ---
 
@@ -444,6 +445,40 @@ powersave = 0
   mobilenet-yolo  min =  638.73  max =  641.27  avg =  639.87
 
 ```
+Raspberry Pi 4 Model B Broadcom BCM2711B0, Cortex-A72 (ARMv8) (1.5GHz x 4 )
+```
+pi@raspberrypi:~ $ ./benchncnn 8 4 0
+loop_count = 8
+num_threads = 4
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   57.47  max =   59.73  avg =   58.73
+     squeezenet_int8  min =   77.41  max =   80.01  avg =   78.72
+           mobilenet  min =   85.06  max =   86.67  avg =   86.01
+      mobilenet_int8  min =  163.69  max =  185.67  avg =  168.48
+        mobilenet_v2  min =   74.13  max =   76.76  avg =   75.84
+        mobilenet_v3  min =   60.93  max =   61.46  avg =   61.25
+          shufflenet  min =   37.62  max =   38.46  avg =   37.98
+       shufflenet_v2  min =   33.00  max =   34.21  avg =   33.38
+             mnasnet  min =   64.39  max =   65.01  avg =   64.64
+     proxylessnasnet  min =   65.71  max =   66.71  avg =   66.06
+           googlenet  min =  175.82  max =  176.69  avg =  176.24
+      googlenet_int8  min =  187.11  max =  188.97  avg =  187.99
+            resnet18  min =  233.36  max =  234.39  avg =  233.89
+       resnet18_int8  min =  156.72  max =  173.10  avg =  159.56
+             alexnet  min =  180.48  max =  197.66  avg =  183.05
+               vgg16  min =  969.88  max = 1007.31  avg =  988.65
+          vgg16_int8  min = 1206.02  max = 1258.90  avg = 1226.27
+            resnet50  min =  480.30  max =  502.61  avg =  486.97
+       resnet50_int8  min =  412.35  max =  465.48  avg =  421.58
+      squeezenet_ssd  min =  183.15  max =  221.97  avg =  190.40
+ squeezenet_ssd_int8  min =  233.73  max =  250.71  avg =  238.20
+       mobilenet_ssd  min =  176.45  max =  197.79  avg =  180.52
+  mobilenet_ssd_int8  min =  259.11  max =  272.16  avg =  261.29
+      mobilenet_yolo  min =  423.25  max =  447.12  avg =  435.26
+  mobilenetv2_yolov3  min =  241.08  max =  283.54  avg =  248.69
+```
 
 Rockchip RK3399 (Cortex-A72 1.8GHz x 2 + Cortex-A53 1.5GHz x 4)
 ```
@@ -768,4 +803,64 @@ gpu_device = -1
   mobilenet_ssd_int8  min = 1040.01  max = 1041.69  avg = 1040.91
       mobilenet_yolo  min = 3413.03  max = 3423.75  avg = 3418.63
   mobilenetv2_yolov3  min = 1640.18  max = 1661.04  avg = 1652.19
+```
+
+nVIDIA RTX2060 of Notebook
+```
+C:\Users\ai\AppData\Local\Temp\benchmark>benchncnn.exe 64 1 0 0 0
+[0 GeForce RTX 2060]  queueC=2[8]  queueG=0[16]  queueT=1[2]
+[0 GeForce RTX 2060]  buglssc=0  bugihfa=0
+[0 GeForce RTX 2060]  fp16p=1  fp16s=1  fp16a=1  int8s=1  int8a=1
+loop_count = 64
+num_threads = 1
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =    2.14  max =    2.93  avg =    2.26
+           mobilenet  min =    2.08  max =    2.53  avg =    2.22
+        mobilenet_v2  min =    2.81  max =    4.03  avg =    3.05
+        mobilenet_v3  min =    2.90  max =    3.53  avg =    3.08
+          shufflenet  min =    1.94  max =    4.27  avg =    2.55
+       shufflenet_v2  min =    2.34  max =    2.97  avg =    2.49
+             mnasnet  min =    2.11  max =    2.86  avg =    2.37
+     proxylessnasnet  min =    2.27  max =    3.25  avg =    2.49
+           googlenet  min =    4.34  max =    6.79  avg =    5.25
+            resnet18  min =    2.60  max =    4.36  avg =    2.90
+             alexnet  min =    2.79  max =    4.70  avg =    3.04
+               vgg16  min =   11.40  max =   14.32  avg =   12.42
+            resnet50  min =    5.26  max =    5.86  avg =    5.51
+      squeezenet_ssd  min =    5.58  max =    7.94  avg =    6.56
+       mobilenet_ssd  min =    3.47  max =    5.29  avg =    3.77
+      mobilenet_yolo  min =    5.49  max =    6.19  avg =    5.70
+  mobilenetv2_yolov3  min =    3.69  max =    5.14  avg =    3.91
+```
+
+nVIDIA RTX2080 of Desktop
+```
+E:\projects\framework\ncnn\benchmark>benchncnn.exe 4096 1 0 0 0
+[0 GeForce RTX 2080]  queueC=2[8]  queueG=0[16]  queueT=1[2]
+[0 GeForce RTX 2080]  buglssc=0  bugihfa=0
+[0 GeForce RTX 2080]  fp16p=1  fp16s=1  fp16a=1  int8s=1  int8a=1
+loop_count = 4096
+num_threads = 1
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =    1.39  max =   16.70  avg =    1.49
+           mobilenet  min =    1.32  max =    2.55  avg =    1.42
+        mobilenet_v2  min =    1.88  max =    5.02  avg =    2.00
+        mobilenet_v3  min =    2.31  max =    3.58  avg =    2.45
+          shufflenet  min =    1.45  max =    2.65  avg =    1.55
+       shufflenet_v2  min =    1.90  max =    3.21  avg =    2.03
+             mnasnet  min =    1.95  max =    3.17  avg =    2.09
+     proxylessnasnet  min =    2.02  max =    2.95  avg =    2.16
+           googlenet  min =    3.81  max =    5.91  avg =    4.05
+            resnet18  min =    2.10  max =    3.28  avg =    2.24
+             alexnet  min =    2.15  max =    3.35  avg =    2.30
+               vgg16  min =    7.33  max =   11.12  avg =    7.80
+            resnet50  min =    4.21  max =    6.70  avg =    4.49
+      squeezenet_ssd  min =    4.58  max =    6.86  avg =    4.88
+       mobilenet_ssd  min =    2.90  max =    4.52  avg =    3.09
+      mobilenet_yolo  min =    4.15  max =    6.09  avg =    4.40
+  mobilenetv2_yolov3  min =    3.04  max =    9.13  avg =    3.28
 ```

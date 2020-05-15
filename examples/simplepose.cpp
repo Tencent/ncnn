@@ -19,6 +19,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#if CV_VERSION_MAJOR >= 4
+#include <opencv2/opencv.hpp>
+#define CV_LOAD_IMAGE_COLOR cv::IMREAD_COLOR
+#endif  // CV_VERSION_MAJOR >= 4
+
 #include "net.h"
 #include "gpu.h"
 
@@ -42,6 +47,7 @@ static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
     //      pose_net.hybridize()
     //      pose_net.export('pose')
     // then mxnet2ncnn
+    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
     posenet.load_param("pose.param");
     posenet.load_model("pose.bin");
 

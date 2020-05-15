@@ -2199,7 +2199,14 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    top_blob_bordered.create(outw, outh, outch, 4u, 1, opt.workspace_allocator);
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
+        top_blob_bordered = top_blob;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, outch, 4u, 1, opt.workspace_allocator);
+    }
     {
 //         const float otm[6][8] = {
 //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
@@ -2228,7 +2235,7 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
             Mat out0 = top_blob_bordered.channel(p);
 
             const float bias0 = bias ? bias[p] : 0.f;
-            float32x2_t _bias0 = vdup_n_f32(bias0);
+            // float32x2_t _bias0 = vdup_n_f32(bias0);
 
             float tmp[6][8];
 

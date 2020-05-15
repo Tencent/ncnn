@@ -18,18 +18,39 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
 layout (constant_id = 0) const int type = 1;
 layout (constant_id = 1) const float value = 0;
+layout (constant_id = 2) const int per_channel_pad = 0;
+
+#define shape_constant_id_offset 3
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
+layout (binding = 2) uniform unfp sampler1D per_channel_pad_blob;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout (binding = 2) readonly buffer per_channel_pad_blob { sfpvec4 per_channel_pad_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -55,45 +76,68 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
+
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     int x = gx - p.left;
     int y = gy - p.top;
 
     if (type == 0)
     {
-        if (x >= 0 && x < p.w && y >= 0 && y < p.h)
+        if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
         {
-            int v_offset = gz * p.cstep + y * p.w + x;
-            top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+#if NCNN_image_shader
+            image3d_cp4(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));
+#else
+            int v_offset = gz * psc(cstep) + y * psc(w) + x;
+            buffer_cp4(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
+        }
+        else if (per_channel_pad == 1)
+        {
+#if NCNN_image_shader
+            afpvec4 v = image1d_ld4(per_channel_pad_blob, gz);
+            image3d_st4(top_blob, ivec3(gx, gy, gz), v);
+#else
+            buffer_cp4(top_blob_data, gi, per_channel_pad_blob_data, gz);
+#endif
         }
         else
         {
-#if NCNN_fp16_packed
-            uint v = packHalf2x16(vec2(value));
-            top_blob_data[gz * p.outcstep + gy * p.outw + gx] = uvec2(v, v);
+            afpvec4 v = afpvec4(value);
+#if NCNN_image_shader
+            image3d_st4(top_blob, ivec3(gx, gy, gz), v);
 #else
-            top_blob_data[gz * p.outcstep + gy * p.outw + gx] = sfpvec4(value);
+            buffer_st4(top_blob_data, gi, v);
 #endif
         }
     }
-    else if (type == 1)
+    if (type == 1)
     {
-        x = clamp(x, 0, p.w - 1);
-        y = clamp(y, 0, p.h - 1);
+        x = clamp(x, 0, psc(w) - 1);
+        y = clamp(y, 0, psc(h) - 1);
 
-        int v_offset = gz * p.cstep + y * p.w + x;
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+#if NCNN_image_shader
+        image3d_cp4(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));
+#else
+        int v_offset = gz * psc(cstep) + y * psc(w) + x;
+        buffer_cp4(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
     }
-    else if (type == 2)
+    if (type == 2)
     {
         x = abs(x);
         y = abs(y);
-        x = (p.w - 1) - abs(x - (p.w - 1));
-        y = (p.h - 1) - abs(y - (p.h - 1));
+        x = (psc(w) - 1) - abs(x - (psc(w) - 1));
+        y = (psc(h) - 1) - abs(y - (psc(h) - 1));
 
-        int v_offset = gz * p.cstep + y * p.w + x;
-        top_blob_data[gz * p.outcstep + gy * p.outw + gx] = bottom_blob_data[v_offset];
+#if NCNN_image_shader
+        image3d_cp4(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));
+#else
+        int v_offset = gz * psc(cstep) + y * psc(w) + x;
+        buffer_cp4(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
     }
 }

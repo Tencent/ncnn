@@ -33,15 +33,23 @@ public:
 
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
+    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+
+    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
+
 public:
     Pipeline* pipeline_binaryop;
     Pipeline* pipeline_binaryop_pack4;
+    Pipeline* pipeline_binaryop_pack8;
 
     // broadcast
     Pipeline* pipeline_binaryop_broadcast;
     Pipeline* pipeline_binaryop_broadcast_pack4;
     Pipeline* pipeline_binaryop_broadcast_a1_pack4;
     Pipeline* pipeline_binaryop_broadcast_b1_pack4;
+    Pipeline* pipeline_binaryop_broadcast_pack8;
+    Pipeline* pipeline_binaryop_broadcast_a1_pack8;
+    Pipeline* pipeline_binaryop_broadcast_b1_pack8;
 };
 
 } // namespace ncnn

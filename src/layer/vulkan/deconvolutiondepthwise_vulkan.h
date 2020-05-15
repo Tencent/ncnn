@@ -31,35 +31,32 @@ public:
 
     using DeconvolutionDepthWise::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
 
+    VkImageMat weight_data_gpu_image;
+    VkImageMat bias_data_gpu_image;
+
     ncnn::Layer* crop;
     ncnn::Layer* output_pad;
     ncnn::Layer* output_crop;
-    ncnn::Layer* packing_pack1;
-    ncnn::Layer* packing_pack4;
 
     Pipeline* pipeline_deconvolutiondepthwise;
-
-    // pack4
-    VkMat weight_data_gpu_pack4;
-    VkMat bias_data_gpu_pack4;
-
     Pipeline* pipeline_deconvolutiondepthwise_pack4;
+    Pipeline* pipeline_deconvolutiondepthwise_pack8;
 
     Pipeline* pipeline_deconvolutiondepthwise_group;
     Pipeline* pipeline_deconvolutiondepthwise_group_pack4;
-
-    // pack1to4
-    VkMat weight_data_gpu_pack1to4;
     Pipeline* pipeline_deconvolutiondepthwise_group_pack1to4;
-
-    // pack4to1
-    VkMat weight_data_gpu_pack4to1;
     Pipeline* pipeline_deconvolutiondepthwise_group_pack4to1;
+    Pipeline* pipeline_deconvolutiondepthwise_group_pack8;
+    Pipeline* pipeline_deconvolutiondepthwise_group_pack1to8;
+    Pipeline* pipeline_deconvolutiondepthwise_group_pack4to8;
+    Pipeline* pipeline_deconvolutiondepthwise_group_pack8to4;
+    Pipeline* pipeline_deconvolutiondepthwise_group_pack8to1;
 };
 
 } // namespace ncnn

@@ -15,6 +15,8 @@
 #ifndef NCNN_CPU_H
 #define NCNN_CPU_H
 
+#include <stddef.h>
+
 namespace ncnn {
 
 // test optional cpu features
@@ -39,12 +41,20 @@ int get_cpu_count();
 int get_cpu_powersave();
 int set_cpu_powersave(int powersave);
 
+// convenient wrapper
+size_t get_cpu_thread_affinity_mask(int powersave);
+
+// set explicit thread affinity
+int set_cpu_thread_affinity(size_t thread_affinity_mask);
+
 // misc function wrapper for openmp routines
 int get_omp_num_threads();
 void set_omp_num_threads(int num_threads);
 
 int get_omp_dynamic();
 void set_omp_dynamic(int dynamic);
+
+int get_omp_thread_num();
 
 } // namespace ncnn
 

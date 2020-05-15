@@ -29,10 +29,12 @@ public:
 
     using ReLU::forward_inplace;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_relu;
     Pipeline* pipeline_relu_pack4;
+    Pipeline* pipeline_relu_pack8;
 };
 
 } // namespace ncnn

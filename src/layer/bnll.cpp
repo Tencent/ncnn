@@ -40,9 +40,9 @@ int BNLL::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int i=0; i<size; i++)
         {
             if (ptr[i] > 0)
-                ptr[i] = ptr[i] + log(1.f + exp(-ptr[i]));
+                ptr[i] = static_cast<float>(ptr[i] + log(1.f + exp(-ptr[i])));
             else
-                ptr[i] = log(1.f + exp(ptr[i]));
+                ptr[i] = static_cast<float>(log(1.f + exp(ptr[i])));
         }
     }
 

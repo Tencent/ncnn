@@ -1,122 +1,122 @@
 7767517
 120 136
-Input                    data                     0 1 data 0=224 1=224 2=3
-Convolution              conv1                    1 1 data conv1_conv1_relu 0=24 1=3 3=2 4=1 5=1 6=648 9=1
-Pooling                  pool1                    1 1 conv1_conv1_relu pool1 1=3 2=2
-Split                    splitncnn_0              1 2 pool1 pool1_splitncnn_0 pool1_splitncnn_1
-Pooling                  resx1_match_conv         1 1 pool1_splitncnn_1 resx1_match_conv 0=1 1=3 2=2
-Convolution              resx1_conv1              1 1 pool1_splitncnn_0 resx1_conv1_resx1_conv1_relu 0=54 1=1 5=1 6=1296 9=1
-ConvolutionDepthWise     resx1_conv2              1 1 resx1_conv1_resx1_conv1_relu resx1_conv2_resx1_conv2_scale 0=54 1=3 3=2 4=1 5=1 6=486 7=54
-ConvolutionDepthWise     resx1_conv3              1 1 resx1_conv2_resx1_conv2_scale resx1_conv3_resx1_conv3_scale 0=216 1=1 5=1 6=3888 7=3
-Concat                   resx1_concat             2 1 resx1_match_conv resx1_conv3_resx1_conv3_scale resx1_concat
-ReLU                     resx1_concat_relu        1 1 resx1_concat resx1_concat_resx1_concat_relu
-Split                    splitncnn_1              1 2 resx1_concat_resx1_concat_relu resx1_concat_resx1_concat_relu_splitncnn_0 resx1_concat_resx1_concat_relu_splitncnn_1
-ConvolutionDepthWise     resx2_conv1              1 1 resx1_concat_resx1_concat_relu_splitncnn_1 resx2_conv1_resx2_conv1_relu 0=60 1=1 5=1 6=4800 7=3 9=1
-ShuffleChannel           shuffle2                 1 1 resx2_conv1_resx2_conv1_relu shuffle2 0=3
-ConvolutionDepthWise     resx2_conv2              1 1 shuffle2 resx2_conv2_resx2_conv2_scale 0=60 1=3 4=1 5=1 6=540 7=60
-ConvolutionDepthWise     resx2_conv3              1 1 resx2_conv2_resx2_conv2_scale resx2_conv3_resx2_conv3_scale 0=240 1=1 5=1 6=4800 7=3
-Eltwise                  resx2_elewise            2 1 resx1_concat_resx1_concat_relu_splitncnn_0 resx2_conv3_resx2_conv3_scale resx2_elewise 0=1
-ReLU                     resx2_elewise_relu       1 1 resx2_elewise resx2_elewise_resx2_elewise_relu
-Split                    splitncnn_2              1 2 resx2_elewise_resx2_elewise_relu resx2_elewise_resx2_elewise_relu_splitncnn_0 resx2_elewise_resx2_elewise_relu_splitncnn_1
-ConvolutionDepthWise     resx3_conv1              1 1 resx2_elewise_resx2_elewise_relu_splitncnn_1 resx3_conv1_resx3_conv1_relu 0=60 1=1 5=1 6=4800 7=3 9=1
-ShuffleChannel           shuffle3                 1 1 resx3_conv1_resx3_conv1_relu shuffle3 0=3
-ConvolutionDepthWise     resx3_conv2              1 1 shuffle3 resx3_conv2_resx3_conv2_scale 0=60 1=3 4=1 5=1 6=540 7=60
-ConvolutionDepthWise     resx3_conv3              1 1 resx3_conv2_resx3_conv2_scale resx3_conv3_resx3_conv3_scale 0=240 1=1 5=1 6=4800 7=3
-Eltwise                  resx3_elewise            2 1 resx2_elewise_resx2_elewise_relu_splitncnn_0 resx3_conv3_resx3_conv3_scale resx3_elewise 0=1
-ReLU                     resx3_elewise_relu       1 1 resx3_elewise resx3_elewise_resx3_elewise_relu
-Split                    splitncnn_3              1 2 resx3_elewise_resx3_elewise_relu resx3_elewise_resx3_elewise_relu_splitncnn_0 resx3_elewise_resx3_elewise_relu_splitncnn_1
-ConvolutionDepthWise     resx4_conv1              1 1 resx3_elewise_resx3_elewise_relu_splitncnn_1 resx4_conv1_resx4_conv1_relu 0=60 1=1 5=1 6=4800 7=3 9=1
-ShuffleChannel           shuffle4                 1 1 resx4_conv1_resx4_conv1_relu shuffle4 0=3
-ConvolutionDepthWise     resx4_conv2              1 1 shuffle4 resx4_conv2_resx4_conv2_scale 0=60 1=3 4=1 5=1 6=540 7=60
-ConvolutionDepthWise     resx4_conv3              1 1 resx4_conv2_resx4_conv2_scale resx4_conv3_resx4_conv3_scale 0=240 1=1 5=1 6=4800 7=3
-Eltwise                  resx4_elewise            2 1 resx3_elewise_resx3_elewise_relu_splitncnn_0 resx4_conv3_resx4_conv3_scale resx4_elewise 0=1
-ReLU                     resx4_elewise_relu       1 1 resx4_elewise resx4_elewise_resx4_elewise_relu
-Split                    splitncnn_4              1 2 resx4_elewise_resx4_elewise_relu resx4_elewise_resx4_elewise_relu_splitncnn_0 resx4_elewise_resx4_elewise_relu_splitncnn_1
-Pooling                  resx5_match_conv         1 1 resx4_elewise_resx4_elewise_relu_splitncnn_1 resx5_match_conv 0=1 1=3 2=2
-ConvolutionDepthWise     resx5_conv1              1 1 resx4_elewise_resx4_elewise_relu_splitncnn_0 resx5_conv1_resx5_conv1_relu 0=60 1=1 5=1 6=4800 7=3 9=1
-ShuffleChannel           shuffle5                 1 1 resx5_conv1_resx5_conv1_relu shuffle5 0=3
-ConvolutionDepthWise     resx5_conv2              1 1 shuffle5 resx5_conv2_resx5_conv2_scale 0=60 1=3 3=2 4=1 5=1 6=540 7=60
-ConvolutionDepthWise     resx5_conv3              1 1 resx5_conv2_resx5_conv2_scale resx5_conv3_resx5_conv3_scale 0=240 1=1 5=1 6=4800 7=3
-Concat                   resx5_concat             2 1 resx5_match_conv resx5_conv3_resx5_conv3_scale resx5_concat
-ReLU                     resx5_concat_relu        1 1 resx5_concat resx5_concat_resx5_concat_relu
-Split                    splitncnn_5              1 2 resx5_concat_resx5_concat_relu resx5_concat_resx5_concat_relu_splitncnn_0 resx5_concat_resx5_concat_relu_splitncnn_1
-ConvolutionDepthWise     resx6_conv1              1 1 resx5_concat_resx5_concat_relu_splitncnn_1 resx6_conv1_resx6_conv1_relu 0=120 1=1 5=1 6=19200 7=3 9=1
-ShuffleChannel           shuffle6                 1 1 resx6_conv1_resx6_conv1_relu shuffle6 0=3
-ConvolutionDepthWise     resx6_conv2              1 1 shuffle6 resx6_conv2_resx6_conv2_scale 0=120 1=3 4=1 5=1 6=1080 7=120
-ConvolutionDepthWise     resx6_conv3              1 1 resx6_conv2_resx6_conv2_scale resx6_conv3_resx6_conv3_scale 0=480 1=1 5=1 6=19200 7=3
-Eltwise                  resx6_elewise            2 1 resx5_concat_resx5_concat_relu_splitncnn_0 resx6_conv3_resx6_conv3_scale resx6_elewise 0=1
-ReLU                     resx6_elewise_relu       1 1 resx6_elewise resx6_elewise_resx6_elewise_relu
-Split                    splitncnn_6              1 2 resx6_elewise_resx6_elewise_relu resx6_elewise_resx6_elewise_relu_splitncnn_0 resx6_elewise_resx6_elewise_relu_splitncnn_1
-ConvolutionDepthWise     resx7_conv1              1 1 resx6_elewise_resx6_elewise_relu_splitncnn_1 resx7_conv1_resx7_conv1_relu 0=120 1=1 5=1 6=19200 7=3 9=1
-ShuffleChannel           shuffle7                 1 1 resx7_conv1_resx7_conv1_relu shuffle7 0=3
-ConvolutionDepthWise     resx7_conv2              1 1 shuffle7 resx7_conv2_resx7_conv2_scale 0=120 1=3 4=1 5=1 6=1080 7=120
-ConvolutionDepthWise     resx7_conv3              1 1 resx7_conv2_resx7_conv2_scale resx7_conv3_resx7_conv3_scale 0=480 1=1 5=1 6=19200 7=3
-Eltwise                  resx7_elewise            2 1 resx6_elewise_resx6_elewise_relu_splitncnn_0 resx7_conv3_resx7_conv3_scale resx7_elewise 0=1
-ReLU                     resx7_elewise_relu       1 1 resx7_elewise resx7_elewise_resx7_elewise_relu
-Split                    splitncnn_7              1 2 resx7_elewise_resx7_elewise_relu resx7_elewise_resx7_elewise_relu_splitncnn_0 resx7_elewise_resx7_elewise_relu_splitncnn_1
-ConvolutionDepthWise     resx8_conv1              1 1 resx7_elewise_resx7_elewise_relu_splitncnn_1 resx8_conv1_resx8_conv1_relu 0=120 1=1 5=1 6=19200 7=3 9=1
-ShuffleChannel           shuffle8                 1 1 resx8_conv1_resx8_conv1_relu shuffle8 0=3
-ConvolutionDepthWise     resx8_conv2              1 1 shuffle8 resx8_conv2_resx8_conv2_scale 0=120 1=3 4=1 5=1 6=1080 7=120
-ConvolutionDepthWise     resx8_conv3              1 1 resx8_conv2_resx8_conv2_scale resx8_conv3_resx8_conv3_scale 0=480 1=1 5=1 6=19200 7=3
-Eltwise                  resx8_elewise            2 1 resx7_elewise_resx7_elewise_relu_splitncnn_0 resx8_conv3_resx8_conv3_scale resx8_elewise 0=1
-ReLU                     resx8_elewise_relu       1 1 resx8_elewise resx8_elewise_resx8_elewise_relu
-Split                    splitncnn_8              1 2 resx8_elewise_resx8_elewise_relu resx8_elewise_resx8_elewise_relu_splitncnn_0 resx8_elewise_resx8_elewise_relu_splitncnn_1
-ConvolutionDepthWise     resx9_conv1              1 1 resx8_elewise_resx8_elewise_relu_splitncnn_1 resx9_conv1_resx9_conv1_relu 0=120 1=1 5=1 6=19200 7=3 9=1
-ShuffleChannel           shuffle9                 1 1 resx9_conv1_resx9_conv1_relu shuffle9 0=3
-ConvolutionDepthWise     resx9_conv2              1 1 shuffle9 resx9_conv2_resx9_conv2_scale 0=120 1=3 4=1 5=1 6=1080 7=120
-ConvolutionDepthWise     resx9_conv3              1 1 resx9_conv2_resx9_conv2_scale resx9_conv3_resx9_conv3_scale 0=480 1=1 5=1 6=19200 7=3
-Eltwise                  resx9_elewise            2 1 resx8_elewise_resx8_elewise_relu_splitncnn_0 resx9_conv3_resx9_conv3_scale resx9_elewise 0=1
-ReLU                     resx9_elewise_relu       1 1 resx9_elewise resx9_elewise_resx9_elewise_relu
-Split                    splitncnn_9              1 2 resx9_elewise_resx9_elewise_relu resx9_elewise_resx9_elewise_relu_splitncnn_0 resx9_elewise_resx9_elewise_relu_splitncnn_1
-ConvolutionDepthWise     resx10_conv1             1 1 resx9_elewise_resx9_elewise_relu_splitncnn_1 resx10_conv1_resx10_conv1_relu 0=120 1=1 5=1 6=19200 7=3 9=1
-ShuffleChannel           shuffle10                1 1 resx10_conv1_resx10_conv1_relu shuffle10 0=3
-ConvolutionDepthWise     resx10_conv2             1 1 shuffle10 resx10_conv2_resx10_conv2_scale 0=120 1=3 4=1 5=1 6=1080 7=120
-ConvolutionDepthWise     resx10_conv3             1 1 resx10_conv2_resx10_conv2_scale resx10_conv3_resx10_conv3_scale 0=480 1=1 5=1 6=19200 7=3
-Eltwise                  resx10_elewise           2 1 resx9_elewise_resx9_elewise_relu_splitncnn_0 resx10_conv3_resx10_conv3_scale resx10_elewise 0=1
-ReLU                     resx10_elewise_relu      1 1 resx10_elewise resx10_elewise_resx10_elewise_relu
-Split                    splitncnn_10             1 2 resx10_elewise_resx10_elewise_relu resx10_elewise_resx10_elewise_relu_splitncnn_0 resx10_elewise_resx10_elewise_relu_splitncnn_1
-ConvolutionDepthWise     resx11_conv1             1 1 resx10_elewise_resx10_elewise_relu_splitncnn_1 resx11_conv1_resx11_conv1_relu 0=120 1=1 5=1 6=19200 7=3 9=1
-ShuffleChannel           shuffle11                1 1 resx11_conv1_resx11_conv1_relu shuffle11 0=3
-ConvolutionDepthWise     resx11_conv2             1 1 shuffle11 resx11_conv2_resx11_conv2_scale 0=120 1=3 4=1 5=1 6=1080 7=120
-ConvolutionDepthWise     resx11_conv3             1 1 resx11_conv2_resx11_conv2_scale resx11_conv3_resx11_conv3_scale 0=480 1=1 5=1 6=19200 7=3
-Eltwise                  resx11_elewise           2 1 resx10_elewise_resx10_elewise_relu_splitncnn_0 resx11_conv3_resx11_conv3_scale resx11_elewise 0=1
-ReLU                     resx11_elewise_relu      1 1 resx11_elewise resx11_elewise_resx11_elewise_relu
-Split                    splitncnn_11             1 2 resx11_elewise_resx11_elewise_relu resx11_elewise_resx11_elewise_relu_splitncnn_0 resx11_elewise_resx11_elewise_relu_splitncnn_1
-ConvolutionDepthWise     resx12_conv1             1 1 resx11_elewise_resx11_elewise_relu_splitncnn_1 resx12_conv1_resx12_conv1_relu 0=120 1=1 5=1 6=19200 7=3 9=1
-ShuffleChannel           shuffle12                1 1 resx12_conv1_resx12_conv1_relu shuffle12 0=3
-ConvolutionDepthWise     resx12_conv2             1 1 shuffle12 resx12_conv2_resx12_conv2_scale 0=120 1=3 4=1 5=1 6=1080 7=120
-ConvolutionDepthWise     resx12_conv3             1 1 resx12_conv2_resx12_conv2_scale resx12_conv3_resx12_conv3_scale 0=480 1=1 5=1 6=19200 7=3
-Eltwise                  resx12_elewise           2 1 resx11_elewise_resx11_elewise_relu_splitncnn_0 resx12_conv3_resx12_conv3_scale resx12_elewise 0=1
-ReLU                     resx12_elewise_relu      1 1 resx12_elewise resx12_elewise_resx12_elewise_relu
-Split                    splitncnn_12             1 2 resx12_elewise_resx12_elewise_relu resx12_elewise_resx12_elewise_relu_splitncnn_0 resx12_elewise_resx12_elewise_relu_splitncnn_1
-Pooling                  resx13_match_conv        1 1 resx12_elewise_resx12_elewise_relu_splitncnn_1 resx13_match_conv 0=1 1=3 2=2
-ConvolutionDepthWise     resx13_conv1             1 1 resx12_elewise_resx12_elewise_relu_splitncnn_0 resx13_conv1_resx13_conv1_relu 0=120 1=1 5=1 6=19200 7=3 9=1
-ShuffleChannel           shuffle13                1 1 resx13_conv1_resx13_conv1_relu shuffle13 0=3
-ConvolutionDepthWise     resx13_conv2             1 1 shuffle13 resx13_conv2_resx13_conv2_scale 0=120 1=3 3=2 4=1 5=1 6=1080 7=120
-ConvolutionDepthWise     resx13_conv3             1 1 resx13_conv2_resx13_conv2_scale resx13_conv3_resx13_conv3_scale 0=480 1=1 5=1 6=19200 7=3
-Concat                   resx13_concat            2 1 resx13_match_conv resx13_conv3_resx13_conv3_scale resx13_concat
-ReLU                     resx13_concat_relu       1 1 resx13_concat resx13_concat_resx13_concat_relu
-Split                    splitncnn_13             1 2 resx13_concat_resx13_concat_relu resx13_concat_resx13_concat_relu_splitncnn_0 resx13_concat_resx13_concat_relu_splitncnn_1
-ConvolutionDepthWise     resx14_conv1             1 1 resx13_concat_resx13_concat_relu_splitncnn_1 resx14_conv1_resx14_conv1_relu 0=240 1=1 5=1 6=76800 7=3 9=1
-ShuffleChannel           shuffle14                1 1 resx14_conv1_resx14_conv1_relu shuffle14 0=3
-ConvolutionDepthWise     resx14_conv2             1 1 shuffle14 resx14_conv2_resx14_conv2_scale 0=240 1=3 4=1 5=1 6=2160 7=240
-ConvolutionDepthWise     resx14_conv3             1 1 resx14_conv2_resx14_conv2_scale resx14_conv3_resx14_conv3_scale 0=960 1=1 5=1 6=76800 7=3
-Eltwise                  resx14_elewise           2 1 resx13_concat_resx13_concat_relu_splitncnn_0 resx14_conv3_resx14_conv3_scale resx14_elewise 0=1
-ReLU                     resx14_elewise_relu      1 1 resx14_elewise resx14_elewise_resx14_elewise_relu
-Split                    splitncnn_14             1 2 resx14_elewise_resx14_elewise_relu resx14_elewise_resx14_elewise_relu_splitncnn_0 resx14_elewise_resx14_elewise_relu_splitncnn_1
-ConvolutionDepthWise     resx15_conv1             1 1 resx14_elewise_resx14_elewise_relu_splitncnn_1 resx15_conv1_resx15_conv1_relu 0=240 1=1 5=1 6=76800 7=3 9=1
-ShuffleChannel           shuffle15                1 1 resx15_conv1_resx15_conv1_relu shuffle15 0=3
-ConvolutionDepthWise     resx15_conv2             1 1 shuffle15 resx15_conv2_resx15_conv2_scale 0=240 1=3 4=1 5=1 6=2160 7=240
-ConvolutionDepthWise     resx15_conv3             1 1 resx15_conv2_resx15_conv2_scale resx15_conv3_resx15_conv3_scale 0=960 1=1 5=1 6=76800 7=3
-Eltwise                  resx15_elewise           2 1 resx14_elewise_resx14_elewise_relu_splitncnn_0 resx15_conv3_resx15_conv3_scale resx15_elewise 0=1
-ReLU                     resx15_elewise_relu      1 1 resx15_elewise resx15_elewise_resx15_elewise_relu
-Split                    splitncnn_15             1 2 resx15_elewise_resx15_elewise_relu resx15_elewise_resx15_elewise_relu_splitncnn_0 resx15_elewise_resx15_elewise_relu_splitncnn_1
-ConvolutionDepthWise     resx16_conv1             1 1 resx15_elewise_resx15_elewise_relu_splitncnn_1 resx16_conv1_resx16_conv1_relu 0=240 1=1 5=1 6=76800 7=3 9=1
-ShuffleChannel           shuffle16                1 1 resx16_conv1_resx16_conv1_relu shuffle16 0=3
-ConvolutionDepthWise     resx16_conv2             1 1 shuffle16 resx16_conv2_resx16_conv2_scale 0=240 1=3 4=1 5=1 6=2160 7=240
-ConvolutionDepthWise     resx16_conv3             1 1 resx16_conv2_resx16_conv2_scale resx16_conv3_resx16_conv3_scale 0=960 1=1 5=1 6=76800 7=3
-Eltwise                  resx16_elewise           2 1 resx15_elewise_resx15_elewise_relu_splitncnn_0 resx16_conv3_resx16_conv3_scale resx16_elewise 0=1
-ReLU                     resx16_elewise_relu      1 1 resx16_elewise resx16_elewise_resx16_elewise_relu
-Pooling                  pool_ave                 1 1 resx16_elewise_resx16_elewise_relu pool_ave 0=1 4=1
-InnerProduct             fc1000                   1 1 pool_ave fc1000 0=1000 1=1 2=960000
-Softmax                  prob                     1 1 fc1000 output
+Input                    data                     0 1 data -23330=4,3,224,224,3 0=224 1=224 2=3
+Convolution              conv1                    1 1 data conv1_conv1_relu -23330=4,3,112,112,24 0=24 1=3 3=2 4=1 5=1 6=648 9=1
+Pooling                  pool1                    1 1 conv1_conv1_relu pool1 -23330=4,3,56,56,24 1=3 2=2
+Split                    splitncnn_0              1 2 pool1 pool1_splitncnn_0 pool1_splitncnn_1 -23330=8,3,56,56,24,3,56,56,24
+Pooling                  resx1_match_conv         1 1 pool1_splitncnn_1 resx1_match_conv -23330=4,3,28,28,24 0=1 1=3 2=2
+Convolution              resx1_conv1              1 1 pool1_splitncnn_0 resx1_conv1_resx1_conv1_relu -23330=4,3,56,56,54 0=54 1=1 5=1 6=1296 9=1
+ConvolutionDepthWise     resx1_conv2              1 1 resx1_conv1_resx1_conv1_relu resx1_conv2_resx1_conv2_scale -23330=4,3,28,28,54 0=54 1=3 3=2 4=1 5=1 6=486 7=54
+ConvolutionDepthWise     resx1_conv3              1 1 resx1_conv2_resx1_conv2_scale resx1_conv3_resx1_conv3_scale -23330=4,3,28,28,216 0=216 1=1 5=1 6=3888 7=3
+Concat                   resx1_concat             2 1 resx1_match_conv resx1_conv3_resx1_conv3_scale resx1_concat -23330=4,3,28,28,240
+ReLU                     resx1_concat_relu        1 1 resx1_concat resx1_concat_resx1_concat_relu -23330=4,3,28,28,240
+Split                    splitncnn_1              1 2 resx1_concat_resx1_concat_relu resx1_concat_resx1_concat_relu_splitncnn_0 resx1_concat_resx1_concat_relu_splitncnn_1 -23330=8,3,28,28,240,3,28,28,240
+ConvolutionDepthWise     resx2_conv1              1 1 resx1_concat_resx1_concat_relu_splitncnn_1 resx2_conv1_resx2_conv1_relu -23330=4,3,28,28,60 0=60 1=1 5=1 6=4800 7=3 9=1
+ShuffleChannel           shuffle2                 1 1 resx2_conv1_resx2_conv1_relu shuffle2 -23330=4,3,28,28,60 0=3
+ConvolutionDepthWise     resx2_conv2              1 1 shuffle2 resx2_conv2_resx2_conv2_scale -23330=4,3,28,28,60 0=60 1=3 4=1 5=1 6=540 7=60
+ConvolutionDepthWise     resx2_conv3              1 1 resx2_conv2_resx2_conv2_scale resx2_conv3_resx2_conv3_scale -23330=4,3,28,28,240 0=240 1=1 5=1 6=4800 7=3
+Eltwise                  resx2_elewise            2 1 resx1_concat_resx1_concat_relu_splitncnn_0 resx2_conv3_resx2_conv3_scale resx2_elewise -23330=4,3,28,28,240 0=1
+ReLU                     resx2_elewise_relu       1 1 resx2_elewise resx2_elewise_resx2_elewise_relu -23330=4,3,28,28,240
+Split                    splitncnn_2              1 2 resx2_elewise_resx2_elewise_relu resx2_elewise_resx2_elewise_relu_splitncnn_0 resx2_elewise_resx2_elewise_relu_splitncnn_1 -23330=8,3,28,28,240,3,28,28,240
+ConvolutionDepthWise     resx3_conv1              1 1 resx2_elewise_resx2_elewise_relu_splitncnn_1 resx3_conv1_resx3_conv1_relu -23330=4,3,28,28,60 0=60 1=1 5=1 6=4800 7=3 9=1
+ShuffleChannel           shuffle3                 1 1 resx3_conv1_resx3_conv1_relu shuffle3 -23330=4,3,28,28,60 0=3
+ConvolutionDepthWise     resx3_conv2              1 1 shuffle3 resx3_conv2_resx3_conv2_scale -23330=4,3,28,28,60 0=60 1=3 4=1 5=1 6=540 7=60
+ConvolutionDepthWise     resx3_conv3              1 1 resx3_conv2_resx3_conv2_scale resx3_conv3_resx3_conv3_scale -23330=4,3,28,28,240 0=240 1=1 5=1 6=4800 7=3
+Eltwise                  resx3_elewise            2 1 resx2_elewise_resx2_elewise_relu_splitncnn_0 resx3_conv3_resx3_conv3_scale resx3_elewise -23330=4,3,28,28,240 0=1
+ReLU                     resx3_elewise_relu       1 1 resx3_elewise resx3_elewise_resx3_elewise_relu -23330=4,3,28,28,240
+Split                    splitncnn_3              1 2 resx3_elewise_resx3_elewise_relu resx3_elewise_resx3_elewise_relu_splitncnn_0 resx3_elewise_resx3_elewise_relu_splitncnn_1 -23330=8,3,28,28,240,3,28,28,240
+ConvolutionDepthWise     resx4_conv1              1 1 resx3_elewise_resx3_elewise_relu_splitncnn_1 resx4_conv1_resx4_conv1_relu -23330=4,3,28,28,60 0=60 1=1 5=1 6=4800 7=3 9=1
+ShuffleChannel           shuffle4                 1 1 resx4_conv1_resx4_conv1_relu shuffle4 -23330=4,3,28,28,60 0=3
+ConvolutionDepthWise     resx4_conv2              1 1 shuffle4 resx4_conv2_resx4_conv2_scale -23330=4,3,28,28,60 0=60 1=3 4=1 5=1 6=540 7=60
+ConvolutionDepthWise     resx4_conv3              1 1 resx4_conv2_resx4_conv2_scale resx4_conv3_resx4_conv3_scale -23330=4,3,28,28,240 0=240 1=1 5=1 6=4800 7=3
+Eltwise                  resx4_elewise            2 1 resx3_elewise_resx3_elewise_relu_splitncnn_0 resx4_conv3_resx4_conv3_scale resx4_elewise -23330=4,3,28,28,240 0=1
+ReLU                     resx4_elewise_relu       1 1 resx4_elewise resx4_elewise_resx4_elewise_relu -23330=4,3,28,28,240
+Split                    splitncnn_4              1 2 resx4_elewise_resx4_elewise_relu resx4_elewise_resx4_elewise_relu_splitncnn_0 resx4_elewise_resx4_elewise_relu_splitncnn_1 -23330=8,3,28,28,240,3,28,28,240
+Pooling                  resx5_match_conv         1 1 resx4_elewise_resx4_elewise_relu_splitncnn_1 resx5_match_conv -23330=4,3,14,14,240 0=1 1=3 2=2
+ConvolutionDepthWise     resx5_conv1              1 1 resx4_elewise_resx4_elewise_relu_splitncnn_0 resx5_conv1_resx5_conv1_relu -23330=4,3,28,28,60 0=60 1=1 5=1 6=4800 7=3 9=1
+ShuffleChannel           shuffle5                 1 1 resx5_conv1_resx5_conv1_relu shuffle5 -23330=4,3,28,28,60 0=3
+ConvolutionDepthWise     resx5_conv2              1 1 shuffle5 resx5_conv2_resx5_conv2_scale -23330=4,3,14,14,60 0=60 1=3 3=2 4=1 5=1 6=540 7=60
+ConvolutionDepthWise     resx5_conv3              1 1 resx5_conv2_resx5_conv2_scale resx5_conv3_resx5_conv3_scale -23330=4,3,14,14,240 0=240 1=1 5=1 6=4800 7=3
+Concat                   resx5_concat             2 1 resx5_match_conv resx5_conv3_resx5_conv3_scale resx5_concat -23330=4,3,14,14,480
+ReLU                     resx5_concat_relu        1 1 resx5_concat resx5_concat_resx5_concat_relu -23330=4,3,14,14,480
+Split                    splitncnn_5              1 2 resx5_concat_resx5_concat_relu resx5_concat_resx5_concat_relu_splitncnn_0 resx5_concat_resx5_concat_relu_splitncnn_1 -23330=8,3,14,14,480,3,14,14,480
+ConvolutionDepthWise     resx6_conv1              1 1 resx5_concat_resx5_concat_relu_splitncnn_1 resx6_conv1_resx6_conv1_relu -23330=4,3,14,14,120 0=120 1=1 5=1 6=19200 7=3 9=1
+ShuffleChannel           shuffle6                 1 1 resx6_conv1_resx6_conv1_relu shuffle6 -23330=4,3,14,14,120 0=3
+ConvolutionDepthWise     resx6_conv2              1 1 shuffle6 resx6_conv2_resx6_conv2_scale -23330=4,3,14,14,120 0=120 1=3 4=1 5=1 6=1080 7=120
+ConvolutionDepthWise     resx6_conv3              1 1 resx6_conv2_resx6_conv2_scale resx6_conv3_resx6_conv3_scale -23330=4,3,14,14,480 0=480 1=1 5=1 6=19200 7=3
+Eltwise                  resx6_elewise            2 1 resx5_concat_resx5_concat_relu_splitncnn_0 resx6_conv3_resx6_conv3_scale resx6_elewise -23330=4,3,14,14,480 0=1
+ReLU                     resx6_elewise_relu       1 1 resx6_elewise resx6_elewise_resx6_elewise_relu -23330=4,3,14,14,480
+Split                    splitncnn_6              1 2 resx6_elewise_resx6_elewise_relu resx6_elewise_resx6_elewise_relu_splitncnn_0 resx6_elewise_resx6_elewise_relu_splitncnn_1 -23330=8,3,14,14,480,3,14,14,480
+ConvolutionDepthWise     resx7_conv1              1 1 resx6_elewise_resx6_elewise_relu_splitncnn_1 resx7_conv1_resx7_conv1_relu -23330=4,3,14,14,120 0=120 1=1 5=1 6=19200 7=3 9=1
+ShuffleChannel           shuffle7                 1 1 resx7_conv1_resx7_conv1_relu shuffle7 -23330=4,3,14,14,120 0=3
+ConvolutionDepthWise     resx7_conv2              1 1 shuffle7 resx7_conv2_resx7_conv2_scale -23330=4,3,14,14,120 0=120 1=3 4=1 5=1 6=1080 7=120
+ConvolutionDepthWise     resx7_conv3              1 1 resx7_conv2_resx7_conv2_scale resx7_conv3_resx7_conv3_scale -23330=4,3,14,14,480 0=480 1=1 5=1 6=19200 7=3
+Eltwise                  resx7_elewise            2 1 resx6_elewise_resx6_elewise_relu_splitncnn_0 resx7_conv3_resx7_conv3_scale resx7_elewise -23330=4,3,14,14,480 0=1
+ReLU                     resx7_elewise_relu       1 1 resx7_elewise resx7_elewise_resx7_elewise_relu -23330=4,3,14,14,480
+Split                    splitncnn_7              1 2 resx7_elewise_resx7_elewise_relu resx7_elewise_resx7_elewise_relu_splitncnn_0 resx7_elewise_resx7_elewise_relu_splitncnn_1 -23330=8,3,14,14,480,3,14,14,480
+ConvolutionDepthWise     resx8_conv1              1 1 resx7_elewise_resx7_elewise_relu_splitncnn_1 resx8_conv1_resx8_conv1_relu -23330=4,3,14,14,120 0=120 1=1 5=1 6=19200 7=3 9=1
+ShuffleChannel           shuffle8                 1 1 resx8_conv1_resx8_conv1_relu shuffle8 -23330=4,3,14,14,120 0=3
+ConvolutionDepthWise     resx8_conv2              1 1 shuffle8 resx8_conv2_resx8_conv2_scale -23330=4,3,14,14,120 0=120 1=3 4=1 5=1 6=1080 7=120
+ConvolutionDepthWise     resx8_conv3              1 1 resx8_conv2_resx8_conv2_scale resx8_conv3_resx8_conv3_scale -23330=4,3,14,14,480 0=480 1=1 5=1 6=19200 7=3
+Eltwise                  resx8_elewise            2 1 resx7_elewise_resx7_elewise_relu_splitncnn_0 resx8_conv3_resx8_conv3_scale resx8_elewise -23330=4,3,14,14,480 0=1
+ReLU                     resx8_elewise_relu       1 1 resx8_elewise resx8_elewise_resx8_elewise_relu -23330=4,3,14,14,480
+Split                    splitncnn_8              1 2 resx8_elewise_resx8_elewise_relu resx8_elewise_resx8_elewise_relu_splitncnn_0 resx8_elewise_resx8_elewise_relu_splitncnn_1 -23330=8,3,14,14,480,3,14,14,480
+ConvolutionDepthWise     resx9_conv1              1 1 resx8_elewise_resx8_elewise_relu_splitncnn_1 resx9_conv1_resx9_conv1_relu -23330=4,3,14,14,120 0=120 1=1 5=1 6=19200 7=3 9=1
+ShuffleChannel           shuffle9                 1 1 resx9_conv1_resx9_conv1_relu shuffle9 -23330=4,3,14,14,120 0=3
+ConvolutionDepthWise     resx9_conv2              1 1 shuffle9 resx9_conv2_resx9_conv2_scale -23330=4,3,14,14,120 0=120 1=3 4=1 5=1 6=1080 7=120
+ConvolutionDepthWise     resx9_conv3              1 1 resx9_conv2_resx9_conv2_scale resx9_conv3_resx9_conv3_scale -23330=4,3,14,14,480 0=480 1=1 5=1 6=19200 7=3
+Eltwise                  resx9_elewise            2 1 resx8_elewise_resx8_elewise_relu_splitncnn_0 resx9_conv3_resx9_conv3_scale resx9_elewise -23330=4,3,14,14,480 0=1
+ReLU                     resx9_elewise_relu       1 1 resx9_elewise resx9_elewise_resx9_elewise_relu -23330=4,3,14,14,480
+Split                    splitncnn_9              1 2 resx9_elewise_resx9_elewise_relu resx9_elewise_resx9_elewise_relu_splitncnn_0 resx9_elewise_resx9_elewise_relu_splitncnn_1 -23330=8,3,14,14,480,3,14,14,480
+ConvolutionDepthWise     resx10_conv1             1 1 resx9_elewise_resx9_elewise_relu_splitncnn_1 resx10_conv1_resx10_conv1_relu -23330=4,3,14,14,120 0=120 1=1 5=1 6=19200 7=3 9=1
+ShuffleChannel           shuffle10                1 1 resx10_conv1_resx10_conv1_relu shuffle10 -23330=4,3,14,14,120 0=3
+ConvolutionDepthWise     resx10_conv2             1 1 shuffle10 resx10_conv2_resx10_conv2_scale -23330=4,3,14,14,120 0=120 1=3 4=1 5=1 6=1080 7=120
+ConvolutionDepthWise     resx10_conv3             1 1 resx10_conv2_resx10_conv2_scale resx10_conv3_resx10_conv3_scale -23330=4,3,14,14,480 0=480 1=1 5=1 6=19200 7=3
+Eltwise                  resx10_elewise           2 1 resx9_elewise_resx9_elewise_relu_splitncnn_0 resx10_conv3_resx10_conv3_scale resx10_elewise -23330=4,3,14,14,480 0=1
+ReLU                     resx10_elewise_relu      1 1 resx10_elewise resx10_elewise_resx10_elewise_relu -23330=4,3,14,14,480
+Split                    splitncnn_10             1 2 resx10_elewise_resx10_elewise_relu resx10_elewise_resx10_elewise_relu_splitncnn_0 resx10_elewise_resx10_elewise_relu_splitncnn_1 -23330=8,3,14,14,480,3,14,14,480
+ConvolutionDepthWise     resx11_conv1             1 1 resx10_elewise_resx10_elewise_relu_splitncnn_1 resx11_conv1_resx11_conv1_relu -23330=4,3,14,14,120 0=120 1=1 5=1 6=19200 7=3 9=1
+ShuffleChannel           shuffle11                1 1 resx11_conv1_resx11_conv1_relu shuffle11 -23330=4,3,14,14,120 0=3
+ConvolutionDepthWise     resx11_conv2             1 1 shuffle11 resx11_conv2_resx11_conv2_scale -23330=4,3,14,14,120 0=120 1=3 4=1 5=1 6=1080 7=120
+ConvolutionDepthWise     resx11_conv3             1 1 resx11_conv2_resx11_conv2_scale resx11_conv3_resx11_conv3_scale -23330=4,3,14,14,480 0=480 1=1 5=1 6=19200 7=3
+Eltwise                  resx11_elewise           2 1 resx10_elewise_resx10_elewise_relu_splitncnn_0 resx11_conv3_resx11_conv3_scale resx11_elewise -23330=4,3,14,14,480 0=1
+ReLU                     resx11_elewise_relu      1 1 resx11_elewise resx11_elewise_resx11_elewise_relu -23330=4,3,14,14,480
+Split                    splitncnn_11             1 2 resx11_elewise_resx11_elewise_relu resx11_elewise_resx11_elewise_relu_splitncnn_0 resx11_elewise_resx11_elewise_relu_splitncnn_1 -23330=8,3,14,14,480,3,14,14,480
+ConvolutionDepthWise     resx12_conv1             1 1 resx11_elewise_resx11_elewise_relu_splitncnn_1 resx12_conv1_resx12_conv1_relu -23330=4,3,14,14,120 0=120 1=1 5=1 6=19200 7=3 9=1
+ShuffleChannel           shuffle12                1 1 resx12_conv1_resx12_conv1_relu shuffle12 -23330=4,3,14,14,120 0=3
+ConvolutionDepthWise     resx12_conv2             1 1 shuffle12 resx12_conv2_resx12_conv2_scale -23330=4,3,14,14,120 0=120 1=3 4=1 5=1 6=1080 7=120
+ConvolutionDepthWise     resx12_conv3             1 1 resx12_conv2_resx12_conv2_scale resx12_conv3_resx12_conv3_scale -23330=4,3,14,14,480 0=480 1=1 5=1 6=19200 7=3
+Eltwise                  resx12_elewise           2 1 resx11_elewise_resx11_elewise_relu_splitncnn_0 resx12_conv3_resx12_conv3_scale resx12_elewise -23330=4,3,14,14,480 0=1
+ReLU                     resx12_elewise_relu      1 1 resx12_elewise resx12_elewise_resx12_elewise_relu -23330=4,3,14,14,480
+Split                    splitncnn_12             1 2 resx12_elewise_resx12_elewise_relu resx12_elewise_resx12_elewise_relu_splitncnn_0 resx12_elewise_resx12_elewise_relu_splitncnn_1 -23330=8,3,14,14,480,3,14,14,480
+Pooling                  resx13_match_conv        1 1 resx12_elewise_resx12_elewise_relu_splitncnn_1 resx13_match_conv -23330=4,3,7,7,480 0=1 1=3 2=2
+ConvolutionDepthWise     resx13_conv1             1 1 resx12_elewise_resx12_elewise_relu_splitncnn_0 resx13_conv1_resx13_conv1_relu -23330=4,3,14,14,120 0=120 1=1 5=1 6=19200 7=3 9=1
+ShuffleChannel           shuffle13                1 1 resx13_conv1_resx13_conv1_relu shuffle13 -23330=4,3,14,14,120 0=3
+ConvolutionDepthWise     resx13_conv2             1 1 shuffle13 resx13_conv2_resx13_conv2_scale -23330=4,3,7,7,120 0=120 1=3 3=2 4=1 5=1 6=1080 7=120
+ConvolutionDepthWise     resx13_conv3             1 1 resx13_conv2_resx13_conv2_scale resx13_conv3_resx13_conv3_scale -23330=4,3,7,7,480 0=480 1=1 5=1 6=19200 7=3
+Concat                   resx13_concat            2 1 resx13_match_conv resx13_conv3_resx13_conv3_scale resx13_concat -23330=4,3,7,7,960
+ReLU                     resx13_concat_relu       1 1 resx13_concat resx13_concat_resx13_concat_relu -23330=4,3,7,7,960
+Split                    splitncnn_13             1 2 resx13_concat_resx13_concat_relu resx13_concat_resx13_concat_relu_splitncnn_0 resx13_concat_resx13_concat_relu_splitncnn_1 -23330=8,3,7,7,960,3,7,7,960
+ConvolutionDepthWise     resx14_conv1             1 1 resx13_concat_resx13_concat_relu_splitncnn_1 resx14_conv1_resx14_conv1_relu -23330=4,3,7,7,240 0=240 1=1 5=1 6=76800 7=3 9=1
+ShuffleChannel           shuffle14                1 1 resx14_conv1_resx14_conv1_relu shuffle14 -23330=4,3,7,7,240 0=3
+ConvolutionDepthWise     resx14_conv2             1 1 shuffle14 resx14_conv2_resx14_conv2_scale -23330=4,3,7,7,240 0=240 1=3 4=1 5=1 6=2160 7=240
+ConvolutionDepthWise     resx14_conv3             1 1 resx14_conv2_resx14_conv2_scale resx14_conv3_resx14_conv3_scale -23330=4,3,7,7,960 0=960 1=1 5=1 6=76800 7=3
+Eltwise                  resx14_elewise           2 1 resx13_concat_resx13_concat_relu_splitncnn_0 resx14_conv3_resx14_conv3_scale resx14_elewise -23330=4,3,7,7,960 0=1
+ReLU                     resx14_elewise_relu      1 1 resx14_elewise resx14_elewise_resx14_elewise_relu -23330=4,3,7,7,960
+Split                    splitncnn_14             1 2 resx14_elewise_resx14_elewise_relu resx14_elewise_resx14_elewise_relu_splitncnn_0 resx14_elewise_resx14_elewise_relu_splitncnn_1 -23330=8,3,7,7,960,3,7,7,960
+ConvolutionDepthWise     resx15_conv1             1 1 resx14_elewise_resx14_elewise_relu_splitncnn_1 resx15_conv1_resx15_conv1_relu -23330=4,3,7,7,240 0=240 1=1 5=1 6=76800 7=3 9=1
+ShuffleChannel           shuffle15                1 1 resx15_conv1_resx15_conv1_relu shuffle15 -23330=4,3,7,7,240 0=3
+ConvolutionDepthWise     resx15_conv2             1 1 shuffle15 resx15_conv2_resx15_conv2_scale -23330=4,3,7,7,240 0=240 1=3 4=1 5=1 6=2160 7=240
+ConvolutionDepthWise     resx15_conv3             1 1 resx15_conv2_resx15_conv2_scale resx15_conv3_resx15_conv3_scale -23330=4,3,7,7,960 0=960 1=1 5=1 6=76800 7=3
+Eltwise                  resx15_elewise           2 1 resx14_elewise_resx14_elewise_relu_splitncnn_0 resx15_conv3_resx15_conv3_scale resx15_elewise -23330=4,3,7,7,960 0=1
+ReLU                     resx15_elewise_relu      1 1 resx15_elewise resx15_elewise_resx15_elewise_relu -23330=4,3,7,7,960
+Split                    splitncnn_15             1 2 resx15_elewise_resx15_elewise_relu resx15_elewise_resx15_elewise_relu_splitncnn_0 resx15_elewise_resx15_elewise_relu_splitncnn_1 -23330=8,3,7,7,960,3,7,7,960
+ConvolutionDepthWise     resx16_conv1             1 1 resx15_elewise_resx15_elewise_relu_splitncnn_1 resx16_conv1_resx16_conv1_relu -23330=4,3,7,7,240 0=240 1=1 5=1 6=76800 7=3 9=1
+ShuffleChannel           shuffle16                1 1 resx16_conv1_resx16_conv1_relu shuffle16 -23330=4,3,7,7,240 0=3
+ConvolutionDepthWise     resx16_conv2             1 1 shuffle16 resx16_conv2_resx16_conv2_scale -23330=4,3,7,7,240 0=240 1=3 4=1 5=1 6=2160 7=240
+ConvolutionDepthWise     resx16_conv3             1 1 resx16_conv2_resx16_conv2_scale resx16_conv3_resx16_conv3_scale -23330=4,3,7,7,960 0=960 1=1 5=1 6=76800 7=3
+Eltwise                  resx16_elewise           2 1 resx15_elewise_resx15_elewise_relu_splitncnn_0 resx16_conv3_resx16_conv3_scale resx16_elewise -23330=4,3,7,7,960 0=1
+ReLU                     resx16_elewise_relu      1 1 resx16_elewise resx16_elewise_resx16_elewise_relu -23330=4,3,7,7,960
+Pooling                  pool_ave                 1 1 resx16_elewise_resx16_elewise_relu pool_ave -23330=4,1,960,1,1 0=1 4=1
+InnerProduct             fc1000                   1 1 pool_ave fc1000 -23330=4,1,1000,1,1 0=1000 1=1 2=960000
+Softmax                  prob                     1 1 fc1000 output -23330=4,1,1000,1,1

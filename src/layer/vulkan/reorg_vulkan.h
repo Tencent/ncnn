@@ -29,11 +29,15 @@ public:
 
     using Reorg::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_reorg;
     Pipeline* pipeline_reorg_pack4;
     Pipeline* pipeline_reorg_pack1to4;
+    Pipeline* pipeline_reorg_pack8;
+    Pipeline* pipeline_reorg_pack1to8;
+    Pipeline* pipeline_reorg_pack4to8;
 };
 
 } // namespace ncnn

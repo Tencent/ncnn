@@ -29,6 +29,7 @@ public:
 
     using Softmax::forward_inplace;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     Pipeline* pipeline_softmax_reduce_max;
@@ -40,6 +41,11 @@ public:
     Pipeline* pipeline_softmax_exp_sub_max_pack4;
     Pipeline* pipeline_softmax_reduce_sum_pack4;
     Pipeline* pipeline_softmax_div_sum_pack4;
+
+    Pipeline* pipeline_softmax_reduce_max_pack8;
+    Pipeline* pipeline_softmax_exp_sub_max_pack8;
+    Pipeline* pipeline_softmax_reduce_sum_pack8;
+    Pipeline* pipeline_softmax_div_sum_pack8;
 };
 
 } // namespace ncnn

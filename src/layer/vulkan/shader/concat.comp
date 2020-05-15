@@ -18,17 +18,39 @@
 #extension GL_EXT_shader_16bit_storage: require
 #endif
 #if NCNN_fp16_arithmetic
-#extension GL_AMD_gpu_shader_half_float: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
 layout (constant_id = 0) const int axis = 0;
+
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
+layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
+layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image1D top_blob_1d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image2D top_blob_2d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -53,37 +75,34 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.w || gy >= p.h || gz >= p.c)
+    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-    if (p.dims == 1) // axis == 0
+#if NCNN_image_shader
+    if (psc(dims) == 1)
     {
-        int v_offset = gx + p.offset;
-        top_blob_data[v_offset] = bottom_blob_data[gx];
+        image1d_cp1(top_blob_1d, gx + p.offset, bottom_blob_1d, gx);
     }
-    else if (p.dims == 2 && axis == 0)
+    else if (psc(dims) == 2)
     {
-        int v_offset = (gy + p.offset) * p.outw + gx;
-        top_blob_data[v_offset] = bottom_blob_data[gy * p.w + gx];
+        if (axis == 0) image2d_cp1(top_blob_2d, ivec2(gx, gy + p.offset), bottom_blob_2d, ivec2(gx, gy));
+        if (axis == 1) image2d_cp1(top_blob_2d, ivec2(gx + p.offset, gy), bottom_blob_2d, ivec2(gx, gy));
     }
-    else if (p.dims == 2 && axis == 1)
+    else // if (psc(dims) == 3)
     {
-        int v_offset = gy * p.outw + gx + p.offset;
-        top_blob_data[v_offset] = bottom_blob_data[gy * p.w + gx];
+        if (axis == 0) image3d_cp1(top_blob_3d, ivec3(gx, gy, gz + p.offset), bottom_blob_3d, ivec3(gx, gy, gz));
+        if (axis == 1) image3d_cp1(top_blob_3d, ivec3(gx, gy + p.offset, gz), bottom_blob_3d, ivec3(gx, gy, gz));
+        if (axis == 2) image3d_cp1(top_blob_3d, ivec3(gx + p.offset, gy, gz), bottom_blob_3d, ivec3(gx, gy, gz));
     }
-    else if (p.dims == 3 && axis == 0)
-    {
-        int v_offset = (gz + p.offset) * p.outcstep + gy * p.outw + gx;
-        top_blob_data[v_offset] = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
-    }
-    else if (p.dims == 3 && axis == 1)
-    {
-        int v_offset = gz * p.outcstep + (gy + p.offset) * p.outw + gx;
-        top_blob_data[v_offset] = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
-    }
-    else if (p.dims == 3 && axis == 2)
-    {
-        int v_offset = gz * p.outcstep + gy * p.outw + gx + p.offset;
-        top_blob_data[v_offset] = bottom_blob_data[gz * p.cstep + gy * p.w + gx];
-    }
+#else
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+
+    ivec3 gxyz = ivec3(gx, gy, gz);
+
+    gxyz[psc(dims) - 1 - axis] += p.offset;
+
+    int v_offset = gxyz.z * psc(outcstep) + gxyz.y * psc(outw) + gxyz.x;
+
+    buffer_cp1(top_blob_data, v_offset, bottom_blob_data, gi);
+#endif
 }
