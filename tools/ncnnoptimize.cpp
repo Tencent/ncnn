@@ -1269,6 +1269,16 @@ int NetOptimize::fuse_memorydata_binaryop()
             {
                 memorydata_index = 0;
             }
+            else if (op_type == ncnn::BinaryOp::Operation_SUB)
+            {
+                binaryop->op_type = ncnn::BinaryOp::Operation_RSUB;
+                memorydata_index = 0;
+            }
+            else if (op_type == ncnn::BinaryOp::Operation_DIV)
+            {
+                binaryop->op_type = ncnn::BinaryOp::Operation_RDIV;
+                memorydata_index = 0;
+            }
             else
             {
                 // non interchangeable binaryop
