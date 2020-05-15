@@ -17,7 +17,6 @@
 
 #include <limits.h>
 #include <string.h>
-#include <vector>
 
 #ifdef _OPENMP
 #include <omp.h>

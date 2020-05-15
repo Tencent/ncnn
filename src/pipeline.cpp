@@ -15,7 +15,6 @@
 #include "pipeline.h"
 #include <math.h>
 #include <algorithm>
-#include <string>
 #include "mat.h"
 #include "option.h"
 #include "layer_shader_type.h"

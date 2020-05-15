@@ -19,7 +19,6 @@
 
 #if NCNN_VULKAN
 
-#include <vector>
 #include <vulkan/vulkan.h>
 #include "mat.h"
 

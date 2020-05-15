@@ -22,8 +22,6 @@
 #include <string.h>
 
 #include <algorithm>
-#include <string>
-#include <vector>
 
 #include "mat.h"
 #include "command.h"
