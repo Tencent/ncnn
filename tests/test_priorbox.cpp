@@ -38,8 +38,8 @@ static int test_priorbox_caffe()
     pd.set(6, 0.2f);// variances[3]
     pd.set(7, 1);// flip
     pd.set(8, 0);// clip
-    pd.set(9, 0);// image_width
-    pd.set(10, 0);// image_height
+    pd.set(9, -233);// image_width
+    pd.set(10, -233);// image_height
     pd.set(11, -233.f);// step_width
     pd.set(12, -233.f);// step_height
     pd.set(13, 0.f);// offset
